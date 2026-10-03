@@ -8,15 +8,15 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 #
-# NomNomzBot deploy (Windows) — one script, three scenarios. Full guide: DEPLOY.md
+# NomNomzBot deploy (Windows) - one script, three scenarios. Full guide: DEPLOY.md
 #
-#   .\deploy.ps1 desktop        single-file bot on this machine — no Docker, SQLite
-#   .\deploy.ps1 docker         full stack in Docker — Postgres + Redis + API (+ Adminer)
+#   .\deploy.ps1 desktop        single-file bot on this machine - no Docker, SQLite
+#   .\deploy.ps1 docker         full stack in Docker - Postgres + Redis + API (+ Adminer)
 #   .\deploy.ps1 saas           the Docker stack in multi-tenant SaaS mode
 #   .\deploy.ps1 <any> -App     ALSO build the standalone desktop dashboard installer
 #
 # Idempotent: re-run any time. The web dashboard is bundled into every backend
-# artifact automatically — after any scenario, open the API URL in a browser.
+# artifact automatically - after any scenario, open the API URL in a browser.
 
 [CmdletBinding()]
 param(
@@ -36,9 +36,9 @@ Set-Location -Path $PSScriptRoot
 
 function Show-Guide {
     Write-Host @'
-NomNomzBot deploy — pick a scenario (full guide: DEPLOY.md)
+NomNomzBot deploy - pick a scenario (full guide: DEPLOY.md)
 
-  .\deploy.ps1 desktop   Run the bot on THIS machine as one single file — no Docker,
+  .\deploy.ps1 desktop   Run the bot on THIS machine as one single file - no Docker,
                          SQLite, zero dependencies. Best for: one streamer, a PC/NUC.
   .\deploy.ps1 docker    Full stack in Docker: Postgres + Redis + API (+ Adminer).
                          Best for: a home server, database durability, room to grow.
@@ -49,7 +49,7 @@ NomNomzBot deploy — pick a scenario (full guide: DEPLOY.md)
                          Self-hosting your own bot is always free and unrestricted.
 
 Dashboard (both work in every scenario):
-  web app     nothing to build — the bot serves it; open the API URL in a browser.
+  web app     nothing to build - the bot serves it; open the API URL in a browser.
   -App        also build the standalone desktop dashboard installer for THIS OS.
 
 Example: .\deploy.ps1 desktop -App
@@ -94,7 +94,7 @@ function New-RandomHex {
 function Initialize-EnvFile {
     if (Test-Path .env) { return $true }
 
-    Write-Host 'No .env found — creating one from .env.example with freshly generated secrets.'
+    Write-Host 'No .env found - creating one from .env.example with freshly generated secrets.'
     Copy-Item .env.example .env
     Set-EnvValue 'JWT_SECRET' (New-RandomBase64)
     Set-EnvValue 'ENCRYPTION_KEY' (New-RandomBase64)
@@ -103,7 +103,7 @@ function Initialize-EnvFile {
     if (-not [Console]::IsInputRedirected) {
         Write-Host ''
         Write-Host 'Twitch app credentials (https://dev.twitch.tv/console/apps).'
-        Write-Host "Press Enter to skip any value — you can also enter them later in the dashboard's setup wizard."
+        Write-Host "Press Enter to skip any value - you can also enter them later in the dashboard's setup wizard."
         [string]$twId = Read-Host '  TWITCH_CLIENT_ID    '
         [string]$twSecret = Read-Host '  TWITCH_CLIENT_SECRET'
         [string]$twBot = Read-Host '  TWITCH_BOT_USERNAME '
@@ -117,8 +117,8 @@ function Initialize-EnvFile {
 
     Write-Host ''
     Write-Host '  >> .env created (secrets generated). Edit it to set TWITCH_CLIENT_ID,'
-    Write-Host '     TWITCH_CLIENT_SECRET and TWITCH_BOT_USERNAME — or leave them blank and'
-    Write-Host "     use the dashboard's setup wizard — then re-run this script."
+    Write-Host '     TWITCH_CLIENT_SECRET and TWITCH_BOT_USERNAME - or leave them blank and'
+    Write-Host "     use the dashboard's setup wizard - then re-run this script."
     return $false
 }
 
@@ -166,11 +166,11 @@ function Start-ComposeStack {
     }
 
     Write-Host ''
-    Write-Error 'The API did not become ready within 3 minutes — inspect it with: docker compose logs -f api-blue api-green'
+    Write-Error 'The API did not become ready within 3 minutes - inspect it with: docker compose logs -f api-blue api-green'
     exit 1
 }
 
-# --- scenario: desktop (self_host_lite — single-file binary) -------------------
+# --- scenario: desktop (self_host_lite - single-file binary) -------------------
 
 function Invoke-DesktopScenario {
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
@@ -185,7 +185,7 @@ function Invoke-DesktopScenario {
     }
     [string]$rid = "win-$arch"
 
-    Write-Host "Publishing the single-file bot (self_host_lite) for $rid — the web dashboard is bundled in..."
+    Write-Host "Publishing the single-file bot (self_host_lite) for $rid - the web dashboard is bundled in..."
     dotnet publish server/src/NomNomzBot.Api -c Release -r $rid --self-contained true
     if ($LASTEXITCODE -ne 0) { Write-Error 'dotnet publish failed.'; exit $LASTEXITCODE }
 
@@ -195,11 +195,11 @@ function Invoke-DesktopScenario {
     Write-Host "  $out"
     Write-Host 'Copy it anywhere and run it:'
     Write-Host "  Copy-Item `"$out`" .\nomnomz.exe; .\nomnomz.exe"
-    Write-Host 'Its data (SQLite DB, keys, logs) lives in %LOCALAPPDATA%\NomNomzBot — override with NOMNOMZ_DATA_DIR.'
-    Write-Host 'Then open the web dashboard at http://localhost:5080 — or use the desktop app (-App).'
+    Write-Host 'Its data (SQLite DB, keys, logs) lives in %LOCALAPPDATA%\NomNomzBot - override with NOMNOMZ_DATA_DIR.'
+    Write-Host 'Then open the web dashboard at http://localhost:5080 - or use the desktop app (-App).'
 }
 
-# --- scenario: docker (self_host_full — compose stack) --------------------------
+# --- scenario: docker (self_host_full - compose stack) --------------------------
 
 function Invoke-DockerScenario {
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -210,7 +210,7 @@ function Invoke-DockerScenario {
 
     [string]$mode = Get-EnvValue 'DEPLOYMENT_MODE'
     if ($mode -and $mode -ne 'self_host_full') {
-        Write-Host "Note: .env has DEPLOYMENT_MODE=$mode — resetting it to self_host_full for this scenario."
+        Write-Host "Note: .env has DEPLOYMENT_MODE=$mode - resetting it to self_host_full for this scenario."
         Set-EnvValue 'DEPLOYMENT_MODE' 'self_host_full'
     }
 
@@ -226,14 +226,14 @@ function Invoke-SaasScenario {
     }
     if (-not (Initialize-EnvFile)) { exit 0 }
 
-    # Fail-closed guards — SaaS is public and multi-tenant, so weak or local values are refused.
+    # Fail-closed guards - SaaS is public and multi-tenant, so weak or local values are refused.
     [string]$baseUrl = Get-EnvValue 'API_BASE_URL'
     if ($baseUrl -notmatch '^https://') {
-        Write-Error "SaaS requires API_BASE_URL in .env to be your public HTTPS origin (behind your reverse proxy) — currently '$baseUrl'. See DEPLOY.md (SaaS)."
+        Write-Error "SaaS requires API_BASE_URL in .env to be your public HTTPS origin (behind your reverse proxy) - currently '$baseUrl'. See DEPLOY.md (SaaS)."
         exit 1
     }
     if ($baseUrl -match 'localhost|127\.0\.0\.1') {
-        Write-Error "SaaS requires a public API_BASE_URL — '$baseUrl' points at this machine. See DEPLOY.md (SaaS)."
+        Write-Error "SaaS requires a public API_BASE_URL - '$baseUrl' points at this machine. See DEPLOY.md (SaaS)."
         exit 1
     }
     if ((Get-EnvValue 'JWT_SECRET') -eq 'dev-secret-key-at-least-32-characters-long!!') {
@@ -263,7 +263,7 @@ function Invoke-SaasScenario {
 
 function Build-DesktopApp {
     if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
-        Write-Error 'A JDK (21 recommended) is required to build the desktop dashboard app — https://adoptium.net'
+        Write-Error 'A JDK (21 recommended) is required to build the desktop dashboard app - https://adoptium.net'
         exit 1
     }
 

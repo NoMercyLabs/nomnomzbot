@@ -8,16 +8,16 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 #
-# land-worktree.ps1 — merge a finished worktree-agent branch into the current branch,
+# land-worktree.ps1 - merge a finished worktree-agent branch into the current branch,
 # sanity-check the files that break silently, and push+watch.
 #
 # Replaces the "git fetch -> check ff vs merge -> git merge --no-edit -> eyeball the diff ->
 # push-and-watch" sequence that was being re-derived by hand for every dispatched agent this
-# session (some 8+ times) — the step that got skipped was always the sanity check, since
+# session (some 8+ times) - the step that got skipped was always the sanity check, since
 # server/openapi/v1.json and strings.xml both fail SILENTLY (valid-looking diff, broken file)
 # when two agents patch them independently and a merge produces technically-valid-JSON garbage.
 #
-# Does NOT delete the worktree or its branch — this project's rule is "never sweep a worktree
+# Does NOT delete the worktree or its branch - this project's rule is "never sweep a worktree
 # while related work might still be reviewed"; clean those up separately once you're done.
 #
 #   scripts/land-worktree.ps1 -Branch worktree-agent-abc123
@@ -47,10 +47,10 @@ try {
         git merge --ff-only $Branch
     }
     else {
-        Write-Host "diverged — real merge with $Branch" -ForegroundColor Cyan
+        Write-Host "diverged - real merge with $Branch" -ForegroundColor Cyan
         git merge --no-edit $Branch
     }
-    if ($LASTEXITCODE -ne 0) { throw "merge failed — resolve conflicts by hand, this script does not" }
+    if ($LASTEXITCODE -ne 0) { throw "merge failed - resolve conflicts by hand, this script does not" }
 
     # --- sanity-check the files that fail silently when two agents patch them independently ---
     $changed = git diff --name-only $headBefore HEAD
@@ -66,14 +66,14 @@ try {
     }
 
     if ($failures.Count -gt 0) {
-        Write-Host "SANITY CHECK FAILED — do not push:" -ForegroundColor Red
+        Write-Host "SANITY CHECK FAILED - do not push:" -ForegroundColor Red
         $failures | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
         throw 'post-merge sanity check failed'
     }
     Write-Host "sanity check OK ($($changed.Count) files changed)" -ForegroundColor Green
 
     if ($NoPush) {
-        Write-Host 'merged, -NoPush set — stopping before push.' -ForegroundColor Yellow
+        Write-Host 'merged, -NoPush set - stopping before push.' -ForegroundColor Yellow
         return
     }
 

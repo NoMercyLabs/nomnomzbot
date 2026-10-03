@@ -18,7 +18,7 @@
 #       "- **S006b** Something the slice uncovered.",
 #       "  Done-when: ..." )
 #
-# Only the plan file is committed, by explicit path — other agents share this tree.
+# Only the plan file is committed, by explicit path - other agents share this tree.
 
 param(
     [Parameter(Mandatory = $true)][string]$Slice,

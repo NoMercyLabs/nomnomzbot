@@ -72,7 +72,7 @@ Push-Location $server
     Where-Object { $_ -match '^\d{14}_' }
 Pop-Location
 if ($migrations.Count -lt 2) { throw 'need at least two migrations to test an upgrade' }
-# `migrations list` annotates unapplied entries with a trailing "(Pending)" — strip it, or it gets
+# `migrations list` annotates unapplied entries with a trailing "(Pending)" - strip it, or it gets
 # passed to `database update` as part of the migration name and the update fails.
 [string]$newest = ($migrations[-1] -replace '\s*\(Pending\)\s*$', '').Trim()
 [string]$previous = ($migrations[-2] -replace '\s*\(Pending\)\s*$', '').Trim()

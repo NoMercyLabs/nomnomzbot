@@ -13,7 +13,7 @@
 # scripts/slice-check.ps1 is the pre-commit gate for ONE slice (scoped tests + scoped format + jb
 # inspection). This is the other half: the full-tree, all-suites check (Domain, Application,
 # Infrastructure, Api and E2E - the same test projects CI runs) that answers "is HEAD actually
-# green?" — the question that caught, in one session, an ungated endpoint, a save-blocking registry bug,
+# green?" - the question that caught, in one session, an ungated endpoint, a save-blocking registry bug,
 # five unscoped domain events and a null content-type, every one of which sat behind an agent's report
 # of "all green" from a FILTERED run.
 #
@@ -24,7 +24,7 @@
 # Three traps it encodes, each of which produced a WRONG green today:
 #   1. A stray testhost/API process holds the build DLLs, so `dotnet build` "fails" with file-lock
 #      errors that look like compile errors. Killed first.
-#   2. `dotnet test --no-build` against a STALE test assembly silently runs a subset — a run once
+#   2. `dotnet test --no-build` against a STALE test assembly silently runs a subset - a run once
 #      reported 1243 tests where the truth was 4279. The test projects are rebuilt explicitly.
 #   3. Gradle skips :composeApp:jvmTest as up-to-date and prints BUILD SUCCESSFUL in ~3s. That is not a
 #      test run. `cleanJvmTest jvmTest` invalidates the TEST task only, so every test really runs (~30s)

@@ -8,11 +8,11 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 
-# refresh-openapi.ps1 — regenerate server/openapi/v1.json FROM A RUNNING API.
+# refresh-openapi.ps1 - regenerate server/openapi/v1.json FROM A RUNNING API.
 #
 # Why this exists: the snapshot can only come from a served API (Program.cs uses AddOpenApi +
 # MapOpenApi at runtime; there is no build-time generator). Hand-editing it is the failure this
-# guards against — a slice once added DTO schemas by hand and none of the routes, so every client
+# guards against - a slice once added DTO schemas by hand and none of the routes, so every client
 # URL would have 404'd while ApiContractTest stayed green. ApiRouteContractTest catches that.
 #
 # Every step below was learned by paying for it:
@@ -90,7 +90,7 @@ docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; true' | Out-
 [string]$winDb = Join-Path $env:LOCALAPPDATA 'NomNomzBot/nomnomz.db'
 if (Test-Path $winDb) {
     # The container's own store starts empty, which leaves Channels/Users at zero rows and makes
-    # any authenticated check impossible. Copy the real dev database in, then fix ownership —
+    # any authenticated check impossible. Copy the real dev database in, then fix ownership -
     # docker cp writes it as root and SQLite cannot migrate a read-only file.
     docker exec $Container sh -lc 'mkdir -p /home/dev/.local/share/NomNomzBot' | Out-Null
     docker cp $winDb "${Container}:/home/dev/.local/share/NomNomzBot/nomnomz.db"
@@ -118,7 +118,7 @@ try {
     $hostApi = $null
     if ($inContainer) {
         # DOTNET_gcServer=0: with 24 cores visible, server GC reserves a heap per core and Roslyn dies with
-        # OutOfMemoryException compiling Infrastructure — even with ~11 GB free in the container, so it is heap
+        # OutOfMemoryException compiling Infrastructure - even with ~11 GB free in the container, so it is heap
         # RESERVATION, not real pressure. Workstation GC compiles the same tree clean. Verified 2026-09-07:
         # 83 errors under server GC, 0 errors with this set.
         # DOTNET_GCHeapHardLimit: devbox/docker-compose.yml caps every .NET process at 3 GB (0xC0000000), and

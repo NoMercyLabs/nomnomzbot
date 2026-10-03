@@ -8,18 +8,18 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 #
-# switchover.ps1 — the blue/green deploy step: acquire the new image (pull if API_IMAGE points at
-# a registry, build if it's a bare local tag — see step 2), start the IDLE colour alongside the
+# switchover.ps1 - the blue/green deploy step: acquire the new image (pull if API_IMAGE points at
+# a registry, build if it's a bare local tag - see step 2), start the IDLE colour alongside the
 # live one, wait for it to pass /health/ready, and only then stop the old colour (letting it
 # drain). The port (Caddy, docker-compose.yml) is never dark: it is fronted by TWO api-* services
-# and Caddy only routes to whichever currently passes health — this script just decides which one
+# and Caddy only routes to whichever currently passes health - this script just decides which one
 # that should be.
 #
 #   .\scripts\switchover.ps1                       # local compose stack (repo root)
 #   .\scripts\switchover.ps1 -ReadyTimeoutSec 180   # slower box / cold image pull or build
 #   .\scripts\switchover.ps1 -Build                 # force a local rebuild regardless of API_IMAGE
 #
-# Remote host (same convention as ship.ps1) — set both, or the script runs against the LOCAL
+# Remote host (same convention as ship.ps1) - set both, or the script runs against the LOCAL
 # compose stack in this repo instead:
 #   NOMNOMZ_DEPLOY_SSH   e.g. "root@192.0.2.10"
 #   NOMNOMZ_DEPLOY_KEY   e.g. "$HOME\.ssh\deploy_key"
@@ -64,7 +64,7 @@ if ($remoteMode -and -not $sshKey) {
 # output. Under Windows PowerShell 5.1, merging a native command's stderr into the pipeline via
 # `2>&1` while $ErrorActionPreference = "Stop" is in effect turns ANY stderr write (docker's normal
 # build/pull progress, warnings, etc.) into a terminating NativeCommandError, aborting the script
-# before the exit code is ever checked — even on a successful command. PowerShell 7 doesn't have
+# before the exit code is ever checked - even on a successful command. PowerShell 7 doesn't have
 # this problem, which is why a previous "verified" run (under pwsh) didn't catch it. The fix:
 # temporarily relax $ErrorActionPreference to "Continue" for the duration of the native call (so a
 # stderr write is just a stream write, not a terminating error), let stdout+stderr interleave to
@@ -107,7 +107,7 @@ function Invoke-Target([string]$cmd) {
     }
 }
 
-# Same as Invoke-Target but never Fail()s on a non-zero exit — used for probes where "not ready
+# Same as Invoke-Target but never Fail()s on a non-zero exit - used for probes where "not ready
 # yet" / "not running yet" is an expected, retried outcome, not a hard error.
 function Invoke-TargetSoft([string]$cmd) {
     if ($remoteMode) {
@@ -123,7 +123,7 @@ function Invoke-TargetSoft([string]$cmd) {
 
 Write-Host "SWITCHOVER: target = $(if ($remoteMode) { "$sshTarget`:$deployDir" } else { "local ($repoRoot)" })"
 
-# ── 1. Work out which colour is currently live ────────────────────────────────
+# -- 1. Work out which colour is currently live --------------------------------
 $psOut = Invoke-Target "docker ps --filter name=nomnomzbot-api- --format '{{.Names}}'"
 $blueUp = $psOut -match "nomnomzbot-api-blue"
 $greenUp = $psOut -match "nomnomzbot-api-green"
@@ -138,16 +138,16 @@ $liveColor = if ($greenUp) { "green" } elseif ($blueUp) { "blue" } else { "blue"
 $idleColor = if ($liveColor -eq "blue") { "green" } else { "blue" }
 Write-Host "SWITCHOVER: live = api-$liveColor, deploying to idle = api-$idleColor"
 
-# ── 2. Acquire the new image, start the idle colour alongside the live one ───
+# -- 2. Acquire the new image, start the idle colour alongside the live one ---
 # API_IMAGE selects the path: a registry ref (e.g. ghcr.io/nomercylabs/nomnomzbot:latest, used on
-# the Proxmox box) is PULLED — a real pull failure (network down, bad creds, tag missing) must
+# the Proxmox box) is PULLED - a real pull failure (network down, bad creds, tag missing) must
 # still abort here via Invoke-Target's normal Fail(), same as before, so a stale image is never
 # served silently. A bare local tag (the default `nomnomzbot-api:local` from `docker compose up -d
 # --build`, no registry/namespace segment) was never pushed anywhere, so pulling it always fails
-# hard even though the image is right there — that's the defect this branch fixes. -Build forces
+# hard even though the image is right there - that's the defect this branch fixes. -Build forces
 # the local-build path regardless of the configured tag.
 # `docker compose config --images <service>` scopes to that service plus its dependency closure
-# (api-* depends_on postgres + redis), so it comes back as 3 lines, not 1 — filter out the known
+# (api-* depends_on postgres + redis), so it comes back as 3 lines, not 1 - filter out the known
 # infra images rather than assume ordering.
 $imageLines = (Invoke-Target "docker compose config --images api-$idleColor") -split "`r?`n"
 $resolvedImage = ($imageLines | Where-Object { $_ -and $_ -notmatch "^(postgres|redis):" } | Select-Object -First 1)
@@ -163,8 +163,8 @@ else {
 }
 Invoke-Target "docker compose up -d api-$idleColor"
 
-# ── 3. Wait for the idle colour to pass its OWN /health/ready (in-container, not through Caddy —
-#      this proves the new instance itself is ready, independent of the proxy's poll cadence) ──
+# -- 3. Wait for the idle colour to pass its OWN /health/ready (in-container, not through Caddy -
+#      this proves the new instance itself is ready, independent of the proxy's poll cadence) --
 $ready = $false
 $deadline = (Get-Date).AddSeconds($ReadyTimeoutSec)
 while ((Get-Date) -lt $deadline) {
@@ -180,7 +180,7 @@ if (-not $ready) {
 }
 Write-Host "SWITCHOVER: api-$idleColor is ready"
 
-# ── 4. Only now stop the old colour, with a stop timeout >= the drain window ─
+# -- 4. Only now stop the old colour, with a stop timeout >= the drain window -
 # `docker stop -t <seconds>` sends SIGTERM immediately and waits up to <seconds> before SIGKILL;
 # the app itself starts failing /health/ready on SIGTERM so Caddy stops routing to it right away,
 # while in-flight requests it already accepted get up to $DrainSec to finish.

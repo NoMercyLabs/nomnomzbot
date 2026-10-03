@@ -8,7 +8,7 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 #
-# proxmox-triage.ps1 — one command that answers "what is wrong with the deployed bot".
+# proxmox-triage.ps1 - one command that answers "what is wrong with the deployed bot".
 #
 # Replaces the ad-hoc SSH sequence that gets re-derived by hand during every incident (and drifts a
 # step each time). Read-only by default: it inspects, it never restarts or mutates anything.
@@ -61,7 +61,7 @@ function Write-Section {
     Write-Host "=== $Title ===" -ForegroundColor Cyan
 }
 
-# --- 1. Reachability, from HERE — the altitude the owner actually uses ------------------------
+# --- 1. Reachability, from HERE - the altitude the owner actually uses ------------------------
 Write-Section 'Reachability (from this machine, not from inside the container)'
 foreach ($probe in @(
     @{ Name = 'LAN    '; Url = "http://${ServerHost}:5080" },
@@ -83,7 +83,7 @@ foreach ($probe in @(
 }
 
 # --- 2. Containers ---------------------------------------------------------------------------
-Write-Section 'Containers (blue/green — there is no "api" service)'
+Write-Section 'Containers (blue/green - there is no "api" service)'
 Invoke-Remote "docker ps -a --filter name=nomnomzbot --format '{{.Names}}\t{{.Status}}\t{{.Image}}'"
 
 Write-Section 'Exit reason for any stopped colour'
@@ -102,7 +102,7 @@ Invoke-Remote 'free -m; echo; df -h / | tail -2'
 Write-Section 'Blue/green drift guard (last 20 lines)'
 Invoke-Remote "tail -20 $StackDir/guard-single-color.log 2>/dev/null || echo '(no guard log)'"
 
-# --- 5. Deduplicated error profile — the highest-signal view ---------------------------------
+# --- 5. Deduplicated error profile - the highest-signal view ---------------------------------
 Write-Section "Distinct ERR/WRN/FTL by frequency (last $Since)"
 # Literal here-string (@'...'@): every $ and \ below belongs to bash, not PowerShell. The one value
 # that must come from PowerShell is substituted by name afterwards.
@@ -121,7 +121,7 @@ done
 '@
 Invoke-Remote ($errorProfile -replace '__SINCE__', $Since)
 
-# --- 6. EventSub health — the spiral signature ------------------------------------------------
+# --- 6. EventSub health - the spiral signature ------------------------------------------------
 Write-Section "EventSub health (4003 'connection unused' is the death-spiral tell)"
 $eventSub = @'
 c=nomnomzbot-api-blue
@@ -151,7 +151,7 @@ docker logs --since __SINCE__ $c 2>&1 \
 '@
 Invoke-Remote ($eventSub -replace '__SINCE__', $Since)
 
-# --- 7. Enabling state — the empty-count check that gets skipped -------------------------------
+# --- 7. Enabling state - the empty-count check that gets skipped -------------------------------
 Write-Section 'Enabling state (an empty count here explains more than any log line)'
 $sql = @'
 SELECT
@@ -195,4 +195,4 @@ if ($PullLogs) {
 }
 
 Write-Host ''
-Write-Host 'Triage complete (read-only — nothing was restarted or modified).' -ForegroundColor Green
+Write-Host 'Triage complete (read-only - nothing was restarted or modified).' -ForegroundColor Green

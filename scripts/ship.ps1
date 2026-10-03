@@ -8,7 +8,7 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 #
-# ship.ps1 — the deterministic post-push pipeline: watch CI for a commit, and on
+# ship.ps1 - the deterministic post-push pipeline: watch CI for a commit, and on
 # green pull + restart the API on the deployment host, verify health + image
 # freshness, and print one compact report. Red CI deploys nothing and exits 1.
 #
@@ -32,8 +32,8 @@ function Fail([string]$message) {
     exit 1
 }
 
-# ── Resolve inputs ────────────────────────────────────────────────────────────
-# Always expand to the FULL sha — `gh run list -c` silently returns nothing for a short one.
+# -- Resolve inputs ------------------------------------------------------------
+# Always expand to the FULL sha - `gh run list -c` silently returns nothing for a short one.
 $Sha = if ($Sha -eq "") { (git rev-parse HEAD).Trim() } else { (git rev-parse $Sha).Trim() }
 $sshTarget = $env:NOMNOMZ_DEPLOY_SSH
 $sshKey = $env:NOMNOMZ_DEPLOY_KEY
@@ -43,7 +43,7 @@ if (-not $sshTarget -or -not $sshKey) {
     Fail "set NOMNOMZ_DEPLOY_SSH (user@host) and NOMNOMZ_DEPLOY_KEY (ssh key path) first"
 }
 
-# ── 1. Find the CI run for the sha (it can lag the push by a few seconds) ────
+# -- 1. Find the CI run for the sha (it can lag the push by a few seconds) ----
 $runId = $null
 for ($i = 0; $i -lt 12 -and -not $runId; $i++) {
     $runId = gh run list -c $Sha --json databaseId --jq '.[0].databaseId' 2>$null
@@ -52,9 +52,9 @@ for ($i = 0; $i -lt 12 -and -not $runId; $i++) {
 if (-not $runId) { Fail "no CI run appeared for $Sha" }
 Write-Host "SHIP: watching CI run $runId for $($Sha.Substring(0,8))..."
 
-# ── 2. Block on CI — poll status, tolerating transient GitHub API 5xx/network blips ──
+# -- 2. Block on CI - poll status, tolerating transient GitHub API 5xx/network blips --
 # `gh run watch --exit-status` aborts on ANY transient error, and during a GitHub API wobble a 503 looks
-# identical to a red run — which is exactly the false "CI RED, nothing deployed" this pipeline hit
+# identical to a red run - which is exactly the false "CI RED, nothing deployed" this pipeline hit
 # repeatedly during the 2026-07-20 API outage. Poll the run's own status/conclusion instead: a failed API
 # call is a transient blip to be retried, and ONLY an actual non-success conclusion is red.
 function Get-RunState([string]$id) {
@@ -110,7 +110,7 @@ $imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test(
 if ([string]::IsNullOrWhiteSpace($imageJob)) { $imageJob = "success" }
 Write-Host "SHIP: CI green (image job: $imageJob)."
 
-# ── 3a. Sync the stack definition the repo owns ──────────────────────────────
+# -- 3a. Sync the stack definition the repo owns ------------------------------
 # The image is only half a deploy: docker-compose.yml carries the API's environment (trusted-proxy
 # networks, base URL, profiles). A committed compose change that never reaches the host silently does
 # nothing, and the host quietly keeps running an older stack definition than the repo says it does.
@@ -155,8 +155,8 @@ $ErrorActionPreference = "Stop"
 if ($caddyExit -ne 0) { Fail "could not reload Caddy on ${sshTarget}: $caddyOutput" }
 Write-Host "SHIP: Caddy reloaded."
 
-# ── 3. Deploy: blue/green switchover, poll readiness, verify image freshness ─
-# There is no `api` service — docker-compose.yml fronts api-blue/api-green with Caddy, which routes to
+# -- 3. Deploy: blue/green switchover, poll readiness, verify image freshness -
+# There is no `api` service - docker-compose.yml fronts api-blue/api-green with Caddy, which routes to
 # whichever passes health. `docker compose up -d api` fails with "no such service: api" and deploys
 # nothing (it did exactly that on 2026-08-25). Pick the idle colour, start it, then drain the old one.
 $remote = @"
@@ -221,7 +221,7 @@ if ($deployResult.ExitCode -ne 0) { Fail "ssh deploy step failed: $($deployResul
 $deployOut = $deployResult.Output
 
 # Split to LINES first: the output is one multi-line string, and `^` against a single blob only ever
-# matches its very first line — so every field after the first silently came back null.
+# matches its very first line - so every field after the first silently came back null.
 $deployLines = $deployOut -split "`r?`n"
 function Get-Field([string]$name) {
     $match = $deployLines | Select-String -Pattern "^$name=(.+)$" | Select-Object -First 1
@@ -237,7 +237,7 @@ $ambiguous = ($deployLines | Select-String -Pattern "^ambiguous=(.+)$" | Select-
 if ($ambiguous) { Fail "refused to deploy - $($ambiguous.Matches.Groups[1].Value)" }
 if ($health -ne "200") { Fail "API did not become ready (health=$health) after deploy" }
 
-# `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest — which the
+# `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest - which the
 # green image job just (re)published for this commit. An old Created timestamp only means the cached
 # build reproduced an identical image (no code change in the image), which is fine and reported as such.
 $runStarted = gh api "repos/NoMercyLabs/nomnomzbot/actions/runs/$runId" --jq '.run_started_at' 2>$null
@@ -246,7 +246,7 @@ $freshness =
     elseif ([datetime]$imageCreated -ge [datetime]$runStarted) { "rebuilt" }
     else { "unchanged (cache-identical build)" }
 
-# ── 4. Report ─────────────────────────────────────────────────────────────────
+# -- 4. Report -----------------------------------------------------------------
 Write-Host ""
 Write-Host "SHIP: DEPLOYED" -ForegroundColor Green
 Write-Host "  commit     $Sha"

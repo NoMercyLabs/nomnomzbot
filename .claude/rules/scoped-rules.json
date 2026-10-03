@@ -308,6 +308,26 @@
    "covers": [
     "feedback-rules-live-in-scoped-rules.md"
    ]
+  },
+  {
+   "id": "ps-scripts-ascii",
+   "paths": [
+    "**/*.ps1"
+   ],
+   "brief": [
+    "\\.ps1",
+    "PowerShell"
+   ],
+   "text": "A PowerShell script without a UTF-8 BOM holds plain ASCII only (no em dash, arrow, curly quote or box line). Windows PowerShell 5.1 reads it as Windows-1252, and the last byte of a UTF-8 em dash becomes a quote mark that breaks the parse. Check: `python scripts/check-ps-ascii.py`.",
+   "source": "incident 2026-10-03: land-worktree.ps1 failed to parse under PS 5.1",
+   "check": {
+    "match": "**/*.ps1",
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-ps-ascii.py"
+   },
+   "covers": [
+    "incident 2026-10-03: non-ASCII in BOM-less .ps1"
+   ]
   }
  ],
  "dispatch": [

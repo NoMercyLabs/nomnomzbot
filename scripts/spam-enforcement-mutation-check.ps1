@@ -10,7 +10,7 @@
 
 # Spam-enforcement mutation harness: break ONE guard in SpamEnforcementExecutor, run its tests,
 # record which tests notice, restore.
-# `if (false)` does not work here — unreachable code is a warning and warnings are errors — so each
+# `if (false)` does not work here - unreachable code is a warning and warnings are errors - so each
 # mutation DELETES the guard outright, which is also the more realistic regression.
 
 $ErrorActionPreference = 'Stop'
