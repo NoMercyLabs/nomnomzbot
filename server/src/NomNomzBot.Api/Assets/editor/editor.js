@@ -26,6 +26,8 @@ const HOST_MESSAGE = Object.freeze({
     save: 'nnz:editor:save',
     compiled: 'nnz:editor:compiled',
     close: 'nnz:editor:close',
+    // Host to page: the host's own close control (the desktop window's X) asks; the page answers like Close.
+    requestClose: 'nnz:editor:requestClose',
     // S-CODE-COLLAPSE: the History side view (version list, publish, delete) and the Test run panel folded
     // into Run & test — both optional, declared by the host per project (see `open()`'s `history` /
     // `testRunEnabled` payload fields).
@@ -1635,6 +1637,9 @@ window.addEventListener('message', (event) => {
             dom.boot.dataset.error = 'true';
             dom.bootMessage.textContent = t('editorStartFailed', { message: error.message });
         });
+    } else if (data?.type === HOST_MESSAGE.requestClose) {
+        // With the confirm already up, a second ask changes nothing: only Discard closes.
+        if (dom.unsavedBackdrop.hidden) requestClose();
     } else if (data?.type === HOST_MESSAGE.compiled) {
         showCompileResult(data);
     } else if (data?.type === HOST_MESSAGE.historyPage) {

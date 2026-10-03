@@ -77,6 +77,9 @@ object EditorWebViewBridge {
         return "window.postMessage($literal, window.location.origin);"
     }
 
+    /** What the window's X button runs: asks the page to close, so unsaved edits get the page's own confirm. */
+    fun windowClosingScript(): String = deliverScript(EditorBridgeProtocol.requestClose())
+
     /**
      * The message JSON the page handed [HOST_FUNCTION]. The binding delivers each call as an envelope
      * `{"name":"nnzEditorHost","seq":1,"args":["{...}"]}`; the init script passes exactly one argument, the

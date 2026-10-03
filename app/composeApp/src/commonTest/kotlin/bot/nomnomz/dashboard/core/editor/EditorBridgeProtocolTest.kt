@@ -51,6 +51,12 @@ class EditorBridgeProtocolTest {
     }
 
     @Test
+    fun requestCloseIsAHostToPageMessageTheDecoderIgnoresWhenEchoedBack() {
+        assertEquals("""{"type":"nnz:editor:requestClose"}""", EditorBridgeProtocol.requestClose())
+        assertNull(EditorBridgeProtocol.decode(EditorBridgeProtocol.requestClose()))
+    }
+
+    @Test
     fun compiledReplyRoundTripsThroughJsonUnchanged() {
         val encoded: String = EditorBridgeProtocol.compiled(CompileFeedback(ok = true, message = "Built \"v3\"\nok"))
 

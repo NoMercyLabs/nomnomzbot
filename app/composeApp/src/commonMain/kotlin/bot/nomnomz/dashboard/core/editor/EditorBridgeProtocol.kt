@@ -28,6 +28,8 @@ object EditorBridgeProtocol {
     const val SAVE: String = "nnz:editor:save"
     const val COMPILED: String = "nnz:editor:compiled"
     const val CLOSE: String = "nnz:editor:close"
+    /** Host to page: the host's own close control was used; the page answers like its Close button. */
+    const val REQUEST_CLOSE: String = "nnz:editor:requestClose"
     const val HISTORY_LOAD_MORE: String = "nnz:editor:historyLoadMore"
     const val HISTORY_ROLLBACK: String = "nnz:editor:historyRollback"
     const val HISTORY_DELETE: String = "nnz:editor:historyDelete"
@@ -141,6 +143,8 @@ object EditorBridgeProtocol {
                 put("timelineConsole", testRunLabels.timelineConsole)
             }
         }
+
+    fun requestClose(): String = encode(buildJsonObject { put("type", REQUEST_CLOSE) })
 
     fun compiled(feedback: CompileFeedback): String =
         encode(

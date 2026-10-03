@@ -28,6 +28,14 @@ class EditorWebViewBridgeTest {
     }
 
     @Test
+    fun windowClosingAsksThePageInsteadOfClosingTheWindow() {
+        assertEquals(
+            """window.postMessage({"type":"nnz:editor:requestClose"}, window.location.origin);""",
+            EditorWebViewBridge.windowClosingScript(),
+        )
+    }
+
+    @Test
     fun pageUrlNeverCarriesATokenFromTheOrigin() {
         val secret = "eyJhbGciOiJIUzI1NiJ9.secret"
         val candidates: List<String> =

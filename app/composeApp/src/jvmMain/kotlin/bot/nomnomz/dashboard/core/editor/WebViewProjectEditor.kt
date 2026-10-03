@@ -18,6 +18,7 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
@@ -93,20 +94,28 @@ internal object WebViewProjectEditor {
         companion object {
             fun open(pageUrl: String, windowTitle: String, inbox: Channel<String>): EditorWebViewWindow {
                 val webView: WebViewComponent = WebViewComponent.create()
+                // Until the page announces itself there is nothing to ask, so the window must close on its own.
+                val pageReady = AtomicBoolean(false)
                 // Both before navigation: the page posts `ready` as its module finishes, and a bridge installed
                 // after that point would miss it.
                 webView.addOnBeforeLoad(EditorWebViewBridge.initScript())
                 webView.addJavascriptCallback(EditorWebViewBridge.HOST_FUNCTION) { raw: String ->
-                    EditorWebViewBridge.unwrapHostCall(raw)?.let { message: String -> inbox.trySend(message) }
+                    EditorWebViewBridge.unwrapHostCall(raw)?.let { message: String ->
+                        if (EditorBridgeProtocol.decode(message)?.type == EditorBridgeProtocol.READY) pageReady.set(true)
+                        inbox.trySend(message)
+                    }
                 }
                 webView.setUrl(pageUrl)
 
                 val frame = JFrame(windowTitle)
-                frame.defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
+                // The X button only asks the page to close: it disposes the window once the page posts `close`, which
+                // it does at once with nothing unsaved, or after the author chose Discard.
+                frame.defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
                 frame.addWindowListener(
                     object : WindowAdapter() {
                         override fun windowClosing(event: WindowEvent?) {
-                            inbox.trySend(closeMessage)
+                            if (pageReady.get()) webView.eval(EditorWebViewBridge.windowClosingScript())
+                            else inbox.trySend(closeMessage)
                         }
                     }
                 )
