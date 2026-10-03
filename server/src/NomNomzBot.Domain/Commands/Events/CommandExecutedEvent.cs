@@ -29,7 +29,9 @@ public sealed class CommandExecutedEvent : DomainEventBase
     /// <summary>Twitch login of the caller.</summary>
     public required string Username { get; init; }
 
+    /// <summary>The display name of the caller, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
 
+    /// <summary>True when the command ran without an error.</summary>
     public required bool Succeeded { get; init; }
 }

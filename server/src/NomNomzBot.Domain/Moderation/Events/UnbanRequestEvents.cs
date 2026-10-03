@@ -19,10 +19,19 @@ namespace NomNomzBot.Domain.Moderation.Events;
 /// </summary>
 public sealed class UnbanRequestCreatedEvent : DomainEventBase
 {
+    /// <summary>The Twitch id of the unban request.</summary>
     public required string RequestId { get; init; }
+
+    /// <summary>The Twitch user id of the banned viewer who asked (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The viewer's login name (lowercase).</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>The message the viewer wrote to ask for the unban.</summary>
     public required string Text { get; init; }
 }
 
@@ -34,11 +43,24 @@ public sealed class UnbanRequestCreatedEvent : DomainEventBase
 /// </summary>
 public sealed class UnbanRequestResolvedEvent : DomainEventBase
 {
+    /// <summary>The Twitch id of the unban request.</summary>
     public required string RequestId { get; init; }
+
+    /// <summary>The Twitch user id of the viewer who asked (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The Twitch user id of the moderator who decided (a number as text).</summary>
     public required string ModeratorId { get; init; }
+
+    /// <summary>The moderator's display name, as shown in chat.</summary>
     public required string ModeratorDisplayName { get; init; }
+
+    /// <summary>The result: approved, denied or canceled.</summary>
     public required string Status { get; init; }
+
+    /// <summary>The note the moderator wrote with the decision. Empty when there is no note.</summary>
     public required string ResolutionText { get; init; }
 }

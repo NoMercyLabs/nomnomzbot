@@ -23,6 +23,7 @@ namespace NomNomzBot.Domain.Chat.Events;
 [Event("chat.message", EventVisibility.Public)]
 public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The unique id of this chat message.</summary>
     public required string MessageId { get; init; }
 
     /// <summary>
@@ -34,9 +35,16 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     // The tenant (channel) id is inherited from DomainEventBase as a Guid. The platform-native broadcaster
     // string id is carried alongside for the send/reply boundary (Twitch: the Helix broadcaster id, passed
     // to IChatProvider; YouTube: the channel id of the streamer's YouTube channel).
+    /// <summary>The id of the channel owner on the platform the message came from (a Twitch user id is a number as text).</summary>
     public required string TwitchBroadcasterId { get; init; }
+
+    /// <summary>The id of the viewer who wrote the message on that platform (a Twitch user id is a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The name of the viewer as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The login name of the viewer, in lowercase.</summary>
     public required string UserLogin { get; init; }
 
     /// <summary>Raw plain-text content (concatenation of all fragment texts).</summary>
@@ -61,9 +69,16 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     /// <summary>Parsed badges with their set ID, badge ID, and info field.</summary>
     public required IReadOnlyList<ChatBadge> Badges { get; init; }
 
+    /// <summary>True when the viewer is a subscriber of the channel.</summary>
     public required bool IsSubscriber { get; init; }
+
+    /// <summary>True when the viewer is a VIP of the channel.</summary>
     public required bool IsVip { get; init; }
+
+    /// <summary>True when the viewer is a moderator of the channel.</summary>
     public required bool IsModerator { get; init; }
+
+    /// <summary>True when the viewer is the channel owner.</summary>
     public required bool IsBroadcaster { get; init; }
 
     /// <summary>Bits cheered in this message, or 0.</summary>

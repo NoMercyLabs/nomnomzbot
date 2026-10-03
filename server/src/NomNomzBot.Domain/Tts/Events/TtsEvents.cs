@@ -20,10 +20,19 @@ namespace NomNomzBot.Domain.Tts.Events;
 /// </summary>
 public sealed class TtsUtteranceDispatchedEvent : DomainEventBase
 {
+    /// <summary>The text that is spoken.</summary>
     public required string Text { get; init; }
+
+    /// <summary>The id of the voice that speaks the text.</summary>
     public required string VoiceId { get; init; }
+
+    /// <summary>The text-to-speech service that makes the voice, as text.</summary>
     public required string Provider { get; init; }
+
+    /// <summary>How many characters the text has.</summary>
     public required int CharacterCount { get; init; }
+
+    /// <summary>How long the speech lasts, in milliseconds. This is 0 when the length is not known.</summary>
     public required int DurationMs { get; init; }
 
     /// <summary>The requesting viewer's raw platform id (empty for a system/timer-triggered utterance).</summary>
@@ -61,6 +70,7 @@ public sealed class TtsUtteranceRejectedEvent : DomainEventBase
     /// <summary><c>disabled</c> | <c>too_long</c> | <c>empty</c> | <c>empty_after_censor</c> | <c>no_voice</c> | <c>synthesis_failed</c>.</summary>
     public required string Reason { get; init; }
 
+    /// <summary>The Twitch user id of the viewer who asked for the speech, a number as text.</summary>
     public required string RequestedByTwitchUserId { get; init; }
 }
 
@@ -71,9 +81,16 @@ public sealed class TtsUtteranceRejectedEvent : DomainEventBase
 /// </summary>
 public sealed class TtsUtteranceQueuedEvent : DomainEventBase
 {
+    /// <summary>The id of the waiting entry.</summary>
     public required Guid QueueEntryId { get; init; }
+
+    /// <summary>The text as the viewer wrote it, before any word filter.</summary>
     public required string OriginalText { get; init; }
+
+    /// <summary>True when the word filter changed the text.</summary>
     public required bool WasCensored { get; init; }
+
+    /// <summary>The Twitch user id of the viewer who asked for the speech, a number as text.</summary>
     public required string RequestedByTwitchUserId { get; init; }
 }
 
@@ -84,7 +101,10 @@ public sealed class TtsUtteranceQueuedEvent : DomainEventBase
 /// </summary>
 public sealed class TtsUtteranceReviewedEvent : DomainEventBase
 {
+    /// <summary>The id of the waiting entry.</summary>
     public required Guid QueueEntryId { get; init; }
+
+    /// <summary>The id of the user who reviewed the entry.</summary>
     public required Guid ReviewedByUserId { get; init; }
 
     /// <summary><c>approved</c> | <c>rejected</c>.</summary>

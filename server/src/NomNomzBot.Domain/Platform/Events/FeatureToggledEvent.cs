@@ -10,8 +10,12 @@
 
 namespace NomNomzBot.Domain.Platform.Events;
 
+/// <summary>When a feature is switched on or off for the channel.</summary>
 public sealed class FeatureToggledEvent : DomainEventBase
 {
+    /// <summary>The key of the feature that was switched.</summary>
     public required string FeatureKey { get; init; }
+
+    /// <summary>True when the feature is now on. False when it is now off.</summary>
     public required bool Enabled { get; init; }
 }

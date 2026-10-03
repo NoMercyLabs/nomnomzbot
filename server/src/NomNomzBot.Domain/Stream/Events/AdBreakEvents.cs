@@ -19,8 +19,13 @@ namespace NomNomzBot.Domain.Stream.Events;
 /// </summary>
 public sealed class AdBreakBeganEvent : DomainEventBase
 {
+    /// <summary>How long the ad break runs, in seconds.</summary>
     public required int DurationSeconds { get; init; }
+
+    /// <summary>True when Twitch started the break by itself, and false when someone started it by hand.</summary>
     public required bool IsAutomatic { get; init; }
+
+    /// <summary>When the ad break started, in UTC time.</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
     /// <summary>The user who started the break, or <c>null</c> for an automatic break.</summary>

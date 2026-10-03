@@ -19,7 +19,10 @@ namespace NomNomzBot.Domain.Discord.Events;
 /// </summary>
 public sealed class DiscordGuildUnlinkedEvent : DomainEventBase
 {
+    /// <summary>The internal id of the link between this channel and the Discord server that was removed.</summary>
     public required Guid GuildConnectionId { get; init; }
+
+    /// <summary>The Discord server id (a number as text).</summary>
     public required string GuildId { get; init; }
 
     /// <summary><c>server_revoked</c> | <c>streamer_disabled</c> | <c>disconnected</c>.</summary>

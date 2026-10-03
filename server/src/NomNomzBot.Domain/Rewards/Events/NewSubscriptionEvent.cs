@@ -22,7 +22,10 @@ public sealed class NewSubscriptionEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The platform this subscription was delivered by. Defaults to Twitch, the dominant source.</summary>
     public string Provider { get; init; } = AuthEnums.Platform.Twitch;
 
+    /// <summary>The id of the new subscriber (a number as text on Twitch).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The subscriber's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
 
     /// <summary>"1000", "2000", or "3000"</summary>

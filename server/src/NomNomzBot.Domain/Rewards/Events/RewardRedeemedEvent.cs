@@ -17,11 +17,24 @@ namespace NomNomzBot.Domain.Rewards.Events;
 /// </summary>
 public sealed class RewardRedeemedEvent : DomainEventBase
 {
+    /// <summary>The Twitch id of the reward.</summary>
     public required string RewardId { get; init; }
+
+    /// <summary>The reward title, as viewers see it.</summary>
     public required string RewardTitle { get; init; }
+
+    /// <summary>The Twitch id of this redemption.</summary>
     public required string RedemptionId { get; init; }
+
+    /// <summary>The Twitch user id of the viewer who redeemed (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The channel points the viewer paid.</summary>
     public required int Cost { get; init; }
+
+    /// <summary>The text the viewer typed when redeeming. Empty when the reward asks for no text.</summary>
     public string? UserInput { get; init; }
 }

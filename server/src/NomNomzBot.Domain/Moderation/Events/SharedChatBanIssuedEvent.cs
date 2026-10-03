@@ -21,14 +21,18 @@ namespace NomNomzBot.Domain.Moderation.Events;
 /// </summary>
 public sealed class SharedChatBanIssuedEvent : DomainEventBase
 {
+    /// <summary>The Twitch id of the shared chat session the ban happened in.</summary>
     public required string SharedChatSessionId { get; init; }
 
     /// <summary>The origin tenant channel (same as <c>BroadcasterId</c>, named for the consumer's clarity).</summary>
     public required Guid OriginChannelId { get; init; }
 
+    /// <summary>The Twitch user id of the banned viewer (a number as text).</summary>
     public required string TargetTwitchUserId { get; init; }
 
+    /// <summary>The banned viewer's display name, as shown in chat. Empty when it is not known.</summary>
     public string? TargetDisplayName { get; init; }
 
+    /// <summary>The reason given for the ban. Empty when no reason was given.</summary>
     public string? Reason { get; init; }
 }

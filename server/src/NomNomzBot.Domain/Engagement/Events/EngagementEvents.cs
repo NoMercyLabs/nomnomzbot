@@ -19,8 +19,13 @@ namespace NomNomzBot.Domain.Engagement.Events;
 /// <c>engagement.first_time_chatter</c>.</summary>
 public sealed class FirstTimeChatterDetectedEvent : DomainEventBase
 {
+    /// <summary>The id of the viewer in this system.</summary>
     public required Guid ViewerUserId { get; init; }
+
+    /// <summary>The viewer's user id on the platform, a number as text.</summary>
     public required string ViewerExternalUserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string ViewerDisplayName { get; init; }
 }
 
@@ -28,9 +33,16 @@ public sealed class FirstTimeChatterDetectedEvent : DomainEventBase
 /// kind <c>engagement.returning_chatter</c>.</summary>
 public sealed class ReturningChatterDetectedEvent : DomainEventBase
 {
+    /// <summary>The id of the viewer in this system.</summary>
     public required Guid ViewerUserId { get; init; }
+
+    /// <summary>The viewer's user id on the platform, a number as text.</summary>
     public required string ViewerExternalUserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string ViewerDisplayName { get; init; }
+
+    /// <summary>How many days ago the viewer last chatted.</summary>
     public required int DaysSinceLastSeen { get; init; }
 }
 
@@ -38,9 +50,16 @@ public sealed class ReturningChatterDetectedEvent : DomainEventBase
 /// <c>engagement.watch_streak</c>.</summary>
 public sealed class WatchStreakMilestoneEvent : DomainEventBase
 {
+    /// <summary>The id of the viewer in this system.</summary>
     public required Guid ViewerUserId { get; init; }
+
+    /// <summary>The viewer's user id on the platform, a number as text.</summary>
     public required string ViewerExternalUserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string ViewerDisplayName { get; init; }
+
+    /// <summary>The number of streams in the viewer's streak.</summary>
     public required int StreakCount { get; init; }
 }
 
@@ -59,8 +78,13 @@ public sealed class WatchStreakMilestoneEvent : DomainEventBase
 /// </summary>
 public sealed class ModiversaryReachedEvent : DomainEventBase
 {
+    /// <summary>The moderator's user id on the platform, a number as text.</summary>
     public required string ViewerExternalUserId { get; init; }
+
+    /// <summary>The moderator's display name, as shown in chat.</summary>
     public required string ViewerDisplayName { get; init; }
+
+    /// <summary>The moderator's login name, in lowercase.</summary>
     public required string ViewerLogin { get; init; }
 
     /// <summary>Whole months moderating this channel, from Twitch's own typed <c>modiversary.months</c>.</summary>

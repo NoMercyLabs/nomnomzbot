@@ -12,8 +12,12 @@ namespace NomNomzBot.Domain.Identity.Events;
 
 using Platform;
 
+/// <summary>When the bot leaves a channel.</summary>
 public sealed class ChannelLeftEvent : DomainEventBase
 {
+    /// <summary>The id of the channel the bot left.</summary>
     public required string ChannelId { get; init; }
+
+    /// <summary>The name of the channel the bot left.</summary>
     public required string ChannelName { get; init; }
 }

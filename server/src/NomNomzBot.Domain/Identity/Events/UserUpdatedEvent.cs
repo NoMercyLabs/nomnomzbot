@@ -20,11 +20,18 @@ namespace NomNomzBot.Domain.Identity.Events;
 /// </summary>
 public sealed class UserUpdatedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the user.</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The login name of the user, in lowercase.</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>The name of the user as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
 
     /// <summary>The user's email, or <c>null</c> when the subscription lacks the <c>user:read:email</c> scope.</summary>
     public string? Email { get; init; }
+
+    /// <summary>The profile description of the user.</summary>
     public required string Description { get; init; }
 }

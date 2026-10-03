@@ -12,8 +12,12 @@ namespace NomNomzBot.Domain.Identity.Events;
 
 using Platform;
 
+/// <summary>When the bot joins a channel.</summary>
 public sealed class ChannelJoinedEvent : DomainEventBase
 {
+    /// <summary>The id of the channel the bot joined.</summary>
     public required string ChannelId { get; init; }
+
+    /// <summary>The name of the channel the bot joined.</summary>
     public required string ChannelName { get; init; }
 }

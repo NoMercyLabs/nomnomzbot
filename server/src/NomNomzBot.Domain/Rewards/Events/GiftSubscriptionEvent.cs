@@ -22,14 +22,22 @@ public sealed class GiftSubscriptionEvent : DomainEventBase, IProviderScopedEven
     /// <summary>The platform this gift batch was delivered by. Defaults to Twitch, the dominant source.</summary>
     public string Provider { get; init; } = AuthEnums.Platform.Twitch;
 
+    /// <summary>The id of the viewer who gifted the subs. Empty when the gift is anonymous.</summary>
     public required string GifterUserId { get; init; }
+
+    /// <summary>The gifter's display name, as shown in chat. Empty when the gift is anonymous.</summary>
     public required string GifterDisplayName { get; init; }
 
     /// <summary>"1000", "2000", or "3000"</summary>
     public required string Tier { get; init; }
 
+    /// <summary>How many subs were gifted in this batch.</summary>
     public required int GiftCount { get; init; }
+
+    /// <summary>True when the gifter chose to stay anonymous.</summary>
     public required bool IsAnonymous { get; init; }
+
+    /// <summary>The viewers who received a gifted sub. Can be empty when the platform does not name them.</summary>
     public required IReadOnlyList<GiftRecipient> Recipients { get; init; }
 }
 

@@ -19,8 +19,13 @@ namespace NomNomzBot.Domain.Commands.Events;
 /// </summary>
 public sealed class VoiceTriggerFiredEvent : DomainEventBase
 {
+    /// <summary>The id of the voice trigger that fired.</summary>
     public required Guid VoiceTriggerId { get; init; }
+
+    /// <summary>The word that the voice trigger heard.</summary>
     public required string Word { get; init; }
+
+    /// <summary>How many times this trigger has fired, including this time.</summary>
     public required int NewCount { get; init; }
 
     /// <summary>The sticker image's public serving URL, resolved at fire time so the widget never has to look it up.</summary>

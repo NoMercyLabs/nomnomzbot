@@ -18,15 +18,23 @@ namespace NomNomzBot.Domain.Stream.Events;
 /// <summary>Published when a Guest Star session begins (<c>channel.guest_star_session.begin</c>).</summary>
 public sealed class GuestStarSessionBeganEvent : DomainEventBase
 {
+    /// <summary>The id of the Guest Star session.</summary>
     public required string SessionId { get; init; }
+
+    /// <summary>When the session started, in UTC time.</summary>
     public required DateTimeOffset StartedAt { get; init; }
 }
 
 /// <summary>Published when a Guest Star session ends (<c>channel.guest_star_session.end</c>).</summary>
 public sealed class GuestStarSessionEndedEvent : DomainEventBase
 {
+    /// <summary>The id of the Guest Star session.</summary>
     public required string SessionId { get; init; }
+
+    /// <summary>When the session started, in UTC time.</summary>
     public required DateTimeOffset StartedAt { get; init; }
+
+    /// <summary>When the session ended, in UTC time.</summary>
     public required DateTimeOffset EndedAt { get; init; }
 }
 
@@ -37,14 +45,25 @@ public sealed class GuestStarSessionEndedEvent : DomainEventBase
 /// </summary>
 public sealed class GuestStarGuestUpdatedEvent : DomainEventBase
 {
+    /// <summary>The id of the Guest Star session.</summary>
     public required string SessionId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the moderator who made the change. Empty when no moderator made it.</summary>
     public string? ModeratorId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the guest. Empty when the slot has no guest.</summary>
     public string? GuestUserId { get; init; }
+
+    /// <summary>The name of the guest as shown in chat. Empty when the slot has no guest.</summary>
     public string? GuestDisplayName { get; init; }
+
+    /// <summary>The login name of the guest, in lowercase. Empty when the slot has no guest.</summary>
     public string? GuestLogin { get; init; }
 
     /// <summary>The guest's slot state: invited / ready / backstage / live / removed / accepted.</summary>
     public required string State { get; init; }
+
+    /// <summary>The id of the slot the guest uses. Empty when the guest has no slot.</summary>
     public string? SlotId { get; init; }
 }
 
@@ -54,8 +73,13 @@ public sealed class GuestStarGuestUpdatedEvent : DomainEventBase
 /// </summary>
 public sealed class GuestStarSettingsUpdatedEvent : DomainEventBase
 {
+    /// <summary>True when moderators can send guests live.</summary>
     public required bool IsModeratorSendLiveEnabled { get; init; }
+
+    /// <summary>How many guest slots the session has.</summary>
     public required int SlotCount { get; init; }
+
+    /// <summary>True when the browser source plays the guest audio.</summary>
     public required bool IsBrowserSourceAudioEnabled { get; init; }
 
     /// <summary>The browser-source group layout: tiled / screenshare / horizontal_top / ….</summary>

@@ -19,12 +19,16 @@ namespace NomNomzBot.Domain.Identity.Events;
 /// </summary>
 public sealed class TenantSuspensionChangedEvent : DomainEventBase
 {
+    /// <summary>The id of the operator who made the change.</summary>
     public required Guid PrincipalId { get; init; }
+
+    /// <summary>The id of the channel that changed.</summary>
     public required Guid TargetBroadcasterId { get; init; }
 
     /// <summary><c>active</c> | <c>suspended</c> | <c>platform_banned</c>.</summary>
     public required string NewStatus { get; init; }
 
+    /// <summary>Why the status changed. Empty when no reason was given.</summary>
     public string? Reason { get; init; }
 }
 
@@ -34,13 +38,19 @@ public sealed class TenantSuspensionChangedEvent : DomainEventBase
 /// </summary>
 public sealed class TenantAccessGrantedEvent : DomainEventBase
 {
+    /// <summary>The id of the operator who got access.</summary>
     public required Guid PrincipalId { get; init; }
+
+    /// <summary>The id of the channel the operator can reach.</summary>
     public required Guid TargetBroadcasterId { get; init; }
 
     /// <summary>The created <c>IamRoleAssignment.Id</c> — revoking it ends the access.</summary>
     public required Guid AccessGrantId { get; init; }
 
+    /// <summary>True when the operator used emergency access.</summary>
     public required bool BreakGlass { get; init; }
+
+    /// <summary>When the access ends, in UTC time. Empty when it does not expire.</summary>
     public DateTime? ExpiresAt { get; init; }
 }
 
@@ -52,18 +62,28 @@ public sealed class TenantAccessGrantedEvent : DomainEventBase
 /// </summary>
 public sealed class ImpersonationStartedEvent : DomainEventBase
 {
+    /// <summary>The id of the operator who acts as the user.</summary>
     public required Guid OperatorPrincipalId { get; init; }
+
+    /// <summary>The id of the user the operator acts as.</summary>
     public required Guid TargetUserId { get; init; }
 
     /// <summary>The open support-access grant (<c>IamRoleAssignment.Id</c>) this impersonation session rides on — also the minted token's <c>sid</c>.</summary>
     public required Guid AccessGrantId { get; init; }
+
+    /// <summary>When the impersonation ends, in UTC time.</summary>
     public required DateTime ExpiresAt { get; init; }
 }
 
 /// <summary>Fired when an operator ends an act-as impersonation session (<see cref="ImpersonationStartedEvent"/>), revoking the minted token immediately.</summary>
 public sealed class ImpersonationEndedEvent : DomainEventBase
 {
+    /// <summary>The id of the operator who acted as the user.</summary>
     public required Guid OperatorPrincipalId { get; init; }
+
+    /// <summary>The id of the user the operator acted as.</summary>
     public required Guid TargetUserId { get; init; }
+
+    /// <summary>The id of the support access that the impersonation used.</summary>
     public required Guid AccessGrantId { get; init; }
 }

@@ -19,9 +19,16 @@ namespace NomNomzBot.Domain.Automation.Events;
 /// </summary>
 public sealed class AutomationTokenIssuedEvent : DomainEventBase
 {
+    /// <summary>The id of the automation token.</summary>
     public required Guid TokenId { get; init; }
+
+    /// <summary>The name the owner gave the token.</summary>
     public required string TokenName { get; init; }
+
+    /// <summary>The permissions the token grants, as a list of scope names.</summary>
     public required IReadOnlyList<string> Scopes { get; init; }
+
+    /// <summary>The id of the user who issued the token.</summary>
     public required Guid CreatedByUserId { get; init; }
 
     /// <summary>True when this issue replaced an existing secret (rotate) rather than creating the row.</summary>
@@ -31,6 +38,9 @@ public sealed class AutomationTokenIssuedEvent : DomainEventBase
 /// <summary>An automation API token was revoked. Internal credential-audit event (automation-api.md §2).</summary>
 public sealed class AutomationTokenRevokedEvent : DomainEventBase
 {
+    /// <summary>The id of the automation token that was revoked.</summary>
     public required Guid TokenId { get; init; }
+
+    /// <summary>The id of the user who revoked the token.</summary>
     public required Guid RevokedByUserId { get; init; }
 }

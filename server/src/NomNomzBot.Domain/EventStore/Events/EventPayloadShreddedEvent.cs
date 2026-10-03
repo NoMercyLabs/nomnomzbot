@@ -18,6 +18,7 @@ namespace NomNomzBot.Domain.EventStore.Events;
 /// </summary>
 public sealed class EventPayloadShreddedEvent : DomainEventBase
 {
+    /// <summary>A hash of the person's id. It does not show the real id.</summary>
     public required string SubjectIdHash { get; init; }
 
     /// <summary>Journal rows whose payload became unreadable.</summary>
@@ -25,5 +26,7 @@ public sealed class EventPayloadShreddedEvent : DomainEventBase
 
     /// <summary>DEKs marked destroyed for this subject.</summary>
     public required int KeysDestroyed { get; init; }
+
+    /// <summary>The id of the erasure request that caused this. Empty when no request started it.</summary>
     public Guid? ErasureRequestId { get; init; }
 }

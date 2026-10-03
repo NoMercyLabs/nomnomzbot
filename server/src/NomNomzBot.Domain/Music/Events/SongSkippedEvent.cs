@@ -12,8 +12,12 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Music.Events;
 
+/// <summary>When the current song is skipped.</summary>
 public sealed class SongSkippedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the person who skipped the song.</summary>
     public required string SkippedByUserId { get; init; }
+
+    /// <summary>The title of the skipped track.</summary>
     public required string TrackName { get; init; }
 }

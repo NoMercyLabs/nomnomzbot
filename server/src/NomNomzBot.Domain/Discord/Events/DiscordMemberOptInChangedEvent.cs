@@ -19,8 +19,13 @@ namespace NomNomzBot.Domain.Discord.Events;
 /// </summary>
 public sealed class DiscordMemberOptInChangedEvent : DomainEventBase
 {
+    /// <summary>The internal id of the notification role the member opted in to or out of.</summary>
     public required Guid NotificationRoleId { get; init; }
+
+    /// <summary>The Discord user id of the member (a number as text).</summary>
     public required string DiscordMemberId { get; init; }
+
+    /// <summary>True when the member opted in to the notification role. False when the member opted out.</summary>
     public required bool OptedIn { get; init; }
 
     /// <summary><c>manual_role</c> | <c>command</c> | <c>button</c>.</summary>

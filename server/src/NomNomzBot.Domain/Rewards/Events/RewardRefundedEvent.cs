@@ -12,9 +12,15 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Rewards.Events;
 
+/// <summary>When a channel point reward redemption is refunded to the viewer.</summary>
 public sealed class RewardRefundedEvent : DomainEventBase
 {
+    /// <summary>The Twitch id of the reward.</summary>
     public required string RewardId { get; init; }
+
+    /// <summary>The Twitch id of the redemption that was refunded.</summary>
     public required string RedemptionId { get; init; }
+
+    /// <summary>Why the redemption was refunded.</summary>
     public required string Reason { get; init; }
 }

@@ -29,7 +29,12 @@ public sealed class OutgoingRaidEvent : DomainEventBase
     /// <summary>The raided (target) broadcaster's Twitch user id.</summary>
     public required string ToUserId { get; init; }
 
+    /// <summary>The name of the raided channel as shown in chat.</summary>
     public required string ToDisplayName { get; init; }
+
+    /// <summary>The login name of the raided channel, in lowercase.</summary>
     public required string ToLogin { get; init; }
+
+    /// <summary>How many viewers the raid sends.</summary>
     public required int ViewerCount { get; init; }
 }

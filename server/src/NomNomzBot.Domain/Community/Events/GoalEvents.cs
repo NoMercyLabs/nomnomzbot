@@ -19,11 +19,22 @@ namespace NomNomzBot.Domain.Community.Events;
 /// </summary>
 public sealed class GoalBeganEvent : DomainEventBase
 {
+    /// <summary>The id of the goal.</summary>
     public required string GoalId { get; init; }
+
+    /// <summary>The kind of goal, as Twitch names it. The bot passes it on unchanged.</summary>
     public required string Type { get; init; }
+
+    /// <summary>The description of the goal. Empty when none is set.</summary>
     public required string Description { get; init; }
+
+    /// <summary>How far the goal has come so far, in the goal's own unit.</summary>
     public required int CurrentAmount { get; init; }
+
+    /// <summary>The number the goal aims for, in the goal's own unit.</summary>
     public required int TargetAmount { get; init; }
+
+    /// <summary>When the goal started, in UTC time.</summary>
     public required DateTimeOffset StartedAt { get; init; }
 }
 
@@ -33,11 +44,22 @@ public sealed class GoalBeganEvent : DomainEventBase
 /// </summary>
 public sealed class GoalProgressEvent : DomainEventBase
 {
+    /// <summary>The id of the goal.</summary>
     public required string GoalId { get; init; }
+
+    /// <summary>The kind of goal, as Twitch names it. The bot passes it on unchanged.</summary>
     public required string Type { get; init; }
+
+    /// <summary>The description of the goal. Empty when none is set.</summary>
     public required string Description { get; init; }
+
+    /// <summary>How far the goal has come so far, in the goal's own unit.</summary>
     public required int CurrentAmount { get; init; }
+
+    /// <summary>The number the goal aims for, in the goal's own unit.</summary>
     public required int TargetAmount { get; init; }
+
+    /// <summary>When the goal started, in UTC time.</summary>
     public required DateTimeOffset StartedAt { get; init; }
 }
 
@@ -47,12 +69,27 @@ public sealed class GoalProgressEvent : DomainEventBase
 /// </summary>
 public sealed class GoalEndedEvent : DomainEventBase
 {
+    /// <summary>The id of the goal.</summary>
     public required string GoalId { get; init; }
+
+    /// <summary>The kind of goal, as Twitch names it. The bot passes it on unchanged.</summary>
     public required string Type { get; init; }
+
+    /// <summary>The description of the goal. Empty when none is set.</summary>
     public required string Description { get; init; }
+
+    /// <summary>How far the goal has come so far, in the goal's own unit.</summary>
     public required int CurrentAmount { get; init; }
+
+    /// <summary>The number the goal aims for, in the goal's own unit.</summary>
     public required int TargetAmount { get; init; }
+
+    /// <summary>True when the goal reached its target.</summary>
     public required bool IsAchieved { get; init; }
+
+    /// <summary>When the goal started, in UTC time.</summary>
     public required DateTimeOffset StartedAt { get; init; }
+
+    /// <summary>When the goal ended, in UTC time.</summary>
     public required DateTimeOffset EndedAt { get; init; }
 }

@@ -24,7 +24,10 @@ public sealed class GiftSubscriptionReceivedEvent : DomainEventBase, IProviderSc
     /// <summary>The platform that delivered this gift. Defaults to Twitch, the dominant source.</summary>
     public string Provider { get; init; } = AuthEnums.Platform.Twitch;
 
+    /// <summary>The id of the viewer who received the gifted sub (a number as text on Twitch).</summary>
     public required string RecipientUserId { get; init; }
+
+    /// <summary>The recipient's display name, as shown in chat.</summary>
     public required string RecipientDisplayName { get; init; }
 
     /// <summary>The gifter's id — empty when <see cref="IsAnonymous"/>.</summary>
@@ -33,6 +36,7 @@ public sealed class GiftSubscriptionReceivedEvent : DomainEventBase, IProviderSc
     /// <summary>The gifter's display name — empty when <see cref="IsAnonymous"/>.</summary>
     public required string GifterDisplayName { get; init; }
 
+    /// <summary>True when the gifter chose to stay anonymous.</summary>
     public required bool IsAnonymous { get; init; }
 
     /// <summary>"1000", "2000", or "3000"</summary>

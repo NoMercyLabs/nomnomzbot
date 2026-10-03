@@ -12,10 +12,18 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Rewards.Events;
 
+/// <summary>When the bot is about to handle a channel point reward redemption.</summary>
 public sealed class BeforeRewardProcessedEvent : DomainEventBase
 {
+    /// <summary>The Twitch id of the reward.</summary>
     public required string RewardId { get; init; }
+
+    /// <summary>The Twitch id of this redemption.</summary>
     public required string RedemptionId { get; init; }
+
+    /// <summary>The Twitch user id of the viewer who redeemed (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The text the viewer typed when redeeming. Empty when the reward asks for no text.</summary>
     public required string UserInput { get; init; }
 }

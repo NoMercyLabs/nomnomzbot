@@ -12,9 +12,15 @@ namespace NomNomzBot.Domain.Chat.Events;
 
 using Platform;
 
+/// <summary>When a viewer writes in the channel chat for the first time.</summary>
 public sealed class UserFirstChatEvent : DomainEventBase
 {
+    /// <summary>The id of the channel where the viewer chatted for the first time.</summary>
     public required string ChannelId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the viewer.</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The name of the viewer.</summary>
     public required string Username { get; init; }
 }

@@ -19,6 +19,7 @@ namespace NomNomzBot.Domain.Twitch.Events;
 /// </summary>
 public sealed class EventSubDisconnectedEvent : DomainEventBase
 {
+    /// <summary>The connection type EventSub uses: WebSocket, Conduit or Webhook.</summary>
     public required EventSubTransportKind Transport { get; init; }
 
     /// <summary>The WebSocket session id that dropped; null for the conduit transport.</summary>

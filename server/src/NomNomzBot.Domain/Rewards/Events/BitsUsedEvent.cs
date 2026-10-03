@@ -20,9 +20,16 @@ namespace NomNomzBot.Domain.Rewards.Events;
 /// </summary>
 public sealed class BitsUsedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id of the viewer who used the Bits (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The viewer's login name (lowercase).</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>How many Bits were used.</summary>
     public required int Bits { get; init; }
 
     /// <summary>How the Bits were used: <c>cheer</c> or <c>power_up</c>.</summary>

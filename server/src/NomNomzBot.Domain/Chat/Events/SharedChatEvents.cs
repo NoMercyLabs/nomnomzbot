@@ -20,9 +20,16 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// <summary>Published when a shared-chat session begins (<c>channel.shared_chat.begin</c>).</summary>
 public sealed class SharedChatBeganEvent : DomainEventBase
 {
+    /// <summary>The id of the shared chat session.</summary>
     public required string SessionId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the channel that started the session.</summary>
     public required string HostBroadcasterId { get; init; }
+
+    /// <summary>The name of the host channel as shown in chat.</summary>
     public required string HostBroadcasterDisplayName { get; init; }
+
+    /// <summary>The login name of the host channel, in lowercase.</summary>
     public required string HostBroadcasterLogin { get; init; }
 
     /// <summary>The participating broadcaster ids (includes the host), in payload order.</summary>
@@ -32,7 +39,10 @@ public sealed class SharedChatBeganEvent : DomainEventBase
 /// <summary>Published when a shared-chat session's participant set changes (<c>channel.shared_chat.update</c>).</summary>
 public sealed class SharedChatUpdatedEvent : DomainEventBase
 {
+    /// <summary>The id of the shared chat session.</summary>
     public required string SessionId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the channel that started the session.</summary>
     public required string HostBroadcasterId { get; init; }
 
     /// <summary>The current participating broadcaster ids (includes the host), in payload order.</summary>
@@ -42,6 +52,9 @@ public sealed class SharedChatUpdatedEvent : DomainEventBase
 /// <summary>Published when a shared-chat session ends (<c>channel.shared_chat.end</c>).</summary>
 public sealed class SharedChatEndedEvent : DomainEventBase
 {
+    /// <summary>The id of the shared chat session.</summary>
     public required string SessionId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the channel that started the session.</summary>
     public required string HostBroadcasterId { get; init; }
 }

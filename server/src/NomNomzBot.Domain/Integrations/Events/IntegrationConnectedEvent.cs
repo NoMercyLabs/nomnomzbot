@@ -19,7 +19,12 @@ namespace NomNomzBot.Domain.Integrations.Events;
 /// </summary>
 public sealed class IntegrationConnectedEvent : DomainEventBase
 {
+    /// <summary>The internal id of the integration connection.</summary>
     public required Guid ConnectionId { get; init; }
+
+    /// <summary>The service that was connected, as a lower case key, for example twitch, spotify, discord or youtube.</summary>
     public required string Provider { get; init; }
+
+    /// <summary>The account id at that service (as text).</summary>
     public required string ProviderAccountId { get; init; }
 }

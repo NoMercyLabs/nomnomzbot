@@ -18,7 +18,12 @@ namespace NomNomzBot.Domain.Quotes.Events;
 /// </summary>
 public sealed class QuoteAddedEvent : DomainEventBase
 {
+    /// <summary>The id of the quote.</summary>
     public required Guid QuoteId { get; init; }
+
+    /// <summary>The number of the quote, as viewers see it in chat.</summary>
     public required int Number { get; init; }
+
+    /// <summary>The id of the user who added the quote. Empty when it is not known.</summary>
     public Guid? CreatedByUserId { get; init; }
 }

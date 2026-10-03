@@ -19,13 +19,24 @@ namespace NomNomzBot.Domain.Discord.Events;
 /// </summary>
 public sealed class DiscordNotificationDispatchedEvent : DomainEventBase
 {
+    /// <summary>The internal id of this send attempt.</summary>
     public required Guid DispatchId { get; init; }
+
+    /// <summary>The internal id of the Discord notification setting that caused this send.</summary>
     public required Guid NotificationConfigId { get; init; }
+
+    /// <summary>The kind of trigger behind the notification: go_live, new_clip, schedule or milestone.</summary>
     public required string TriggerType { get; init; }
+
+    /// <summary>A key that stops the same notification being sent twice.</summary>
     public required string DedupeKey { get; init; }
 
     /// <summary><c>sent</c> | <c>failed</c> | <c>skipped_dupe</c>.</summary>
     public required string Status { get; init; }
+
+    /// <summary>The Discord message id of the posted notification (a number as text). Empty when nothing was posted.</summary>
     public string? PostedMessageId { get; init; }
+
+    /// <summary>The reason the send failed. Empty when it did not fail.</summary>
     public string? Error { get; init; }
 }

@@ -12,13 +12,16 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Moderation.Events;
 
+/// <summary>When a viewer is unbanned from the channel.</summary>
 public sealed class UserUnbannedEvent : DomainEventBase
 {
+    /// <summary>The id of the unbanned viewer (a number as text on Twitch).</summary>
     public required string TargetUserId { get; init; }
 
     /// <summary>The unbanned viewer's display name (<c>user_name</c>); null on non-Twitch ingests.</summary>
     public string? TargetDisplayName { get; init; }
 
+    /// <summary>The id of the moderator who lifted the ban (a number as text on Twitch).</summary>
     public required string ModeratorUserId { get; init; }
 
     /// <summary>The acting moderator's display name (<c>moderator_user_name</c>); null on non-Twitch ingests.</summary>

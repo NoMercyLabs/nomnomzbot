@@ -19,8 +19,15 @@ namespace NomNomzBot.Domain.Stream.Events;
 /// </summary>
 public sealed class ShoutoutReceivedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the channel that gave the shoutout.</summary>
     public required string FromBroadcasterId { get; init; }
+
+    /// <summary>The name of that channel as shown in chat.</summary>
     public required string FromBroadcasterDisplayName { get; init; }
+
+    /// <summary>The login name of that channel, in lowercase.</summary>
     public required string FromBroadcasterLogin { get; init; }
+
+    /// <summary>How many viewers the other channel had at that moment.</summary>
     public required int ViewerCount { get; init; }
 }

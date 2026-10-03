@@ -29,7 +29,10 @@ public sealed class OutgoingRaidStartedEvent : DomainEventBase
     /// <summary>The broadcaster the raid is aimed at.</summary>
     public required string ToUserId { get; init; }
 
+    /// <summary>The name of the raided channel as shown in chat.</summary>
     public required string ToDisplayName { get; init; }
+
+    /// <summary>The login name of the raided channel, in lowercase.</summary>
     public required string ToLogin { get; init; }
 
     /// <summary>Viewers at the moment the raid was started — the final count can differ.</summary>

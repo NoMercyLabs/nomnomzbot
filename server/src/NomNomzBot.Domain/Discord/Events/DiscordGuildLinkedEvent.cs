@@ -19,7 +19,12 @@ namespace NomNomzBot.Domain.Discord.Events;
 /// </summary>
 public sealed class DiscordGuildLinkedEvent : DomainEventBase
 {
+    /// <summary>The internal id of the link between this channel and the Discord server.</summary>
     public required Guid GuildConnectionId { get; init; }
+
+    /// <summary>The Discord server id (a number as text).</summary>
     public required string GuildId { get; init; }
+
+    /// <summary>The name of the Discord server as shown in Discord. Empty when Discord gave no name.</summary>
     public required string GuildName { get; init; }
 }

@@ -21,8 +21,13 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// </summary>
 public sealed class ChatNotificationEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the viewer the notice is about. Empty when the notice is anonymous.</summary>
     public required string ChatterUserId { get; init; }
+
+    /// <summary>The name of that viewer as shown in chat. Empty when the notice is anonymous.</summary>
     public required string ChatterDisplayName { get; init; }
+
+    /// <summary>The login name of that viewer, in lowercase. Empty when the notice is anonymous.</summary>
     public required string ChatterLogin { get; init; }
 
     /// <summary>True for anonymous gift notices (Twitch zeroes the chatter id/login/name).</summary>
@@ -40,5 +45,6 @@ public sealed class ChatNotificationEvent : DomainEventBase
     /// <summary>The chatter's own message text accompanying the notice (concatenated fragments), or empty.</summary>
     public required string MessageText { get; init; }
 
+    /// <summary>The id of the chat message that carries the notice.</summary>
     public required string MessageId { get; init; }
 }

@@ -12,8 +12,12 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Widgets.Events;
 
+/// <summary>When a widget connects to the server.</summary>
 public sealed class WidgetConnectedEvent : DomainEventBase
 {
+    /// <summary>The id of the widget that connected.</summary>
     public required Guid WidgetId { get; init; }
+
+    /// <summary>The id of the live connection (the connection id of the widget).</summary>
     public required string ConnectionId { get; init; } // SignalR connection id
 }

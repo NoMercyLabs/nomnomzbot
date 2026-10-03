@@ -18,8 +18,15 @@ namespace NomNomzBot.Domain.Moderation.Events;
 /// </summary>
 public sealed class UserHeatThresholdCrossedEvent : DomainEventBase
 {
+    /// <summary>The internal id of the viewer whose heat went up.</summary>
     public required Guid SubjectUserId { get; init; }
+
+    /// <summary>The Twitch user id of that viewer (a number as text).</summary>
     public required string SubjectTwitchUserId { get; init; }
+
+    /// <summary>The viewer's heat score now, from 0 to 100.</summary>
     public required decimal HeatScore { get; init; }
+
+    /// <summary>The heat score the channel set as its limit, from 0 to 100.</summary>
     public required int Threshold { get; init; }
 }

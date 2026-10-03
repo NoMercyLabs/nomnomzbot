@@ -12,8 +12,12 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Stream.Events;
 
+/// <summary>When this channel gives another channel a shoutout.</summary>
 public sealed class ShoutoutSentEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the channel that got the shoutout.</summary>
     public required string ToUserId { get; init; }
+
+    /// <summary>The name of that channel as shown in chat.</summary>
     public required string ToDisplayName { get; init; }
 }

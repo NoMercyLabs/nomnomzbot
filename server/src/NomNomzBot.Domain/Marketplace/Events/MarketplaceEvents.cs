@@ -19,11 +19,15 @@ namespace NomNomzBot.Domain.Marketplace.Events;
 /// </summary>
 public sealed class BundleInstalledEvent : DomainEventBase
 {
+    /// <summary>The id of the installed bundle.</summary>
     public required Guid InstalledBundleId { get; init; }
+
+    /// <summary>The name of the bundle.</summary>
     public required string Name { get; init; }
 
     /// <summary><c>local</c> | <c>marketplace</c>.</summary>
     public required string Source { get; init; }
 
+    /// <summary>The capabilities the bundle needs, as a list of names.</summary>
     public required IReadOnlyList<string> Capabilities { get; init; }
 }

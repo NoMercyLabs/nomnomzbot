@@ -17,8 +17,15 @@ namespace NomNomzBot.Domain.Stream.Events;
 /// </summary>
 public sealed class RaidEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the channel that sent the raid.</summary>
     public required string FromUserId { get; init; }
+
+    /// <summary>The name of the raiding channel as shown in chat.</summary>
     public required string FromDisplayName { get; init; }
+
+    /// <summary>The login name of the raiding channel, in lowercase.</summary>
     public required string FromLogin { get; init; }
+
+    /// <summary>How many viewers came with the raid.</summary>
     public required int ViewerCount { get; init; }
 }

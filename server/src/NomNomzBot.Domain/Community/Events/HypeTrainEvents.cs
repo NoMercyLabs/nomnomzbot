@@ -15,34 +15,69 @@ namespace NomNomzBot.Domain.Community.Events;
 /// <summary>Published when a hype train begins (<c>channel.hype_train.begin</c> v2).</summary>
 public sealed class HypeTrainBeganEvent : DomainEventBase
 {
+    /// <summary>The id of the hype train.</summary>
     public required string HypeTrainId { get; init; }
+
+    /// <summary>The current level of the hype train.</summary>
     public required int Level { get; init; }
+
+    /// <summary>The total points the hype train has earned so far.</summary>
     public required int Total { get; init; }
+
+    /// <summary>The points earned toward the next level.</summary>
     public required int Progress { get; init; }
+
+    /// <summary>The points needed to reach the next level.</summary>
     public required int Goal { get; init; }
+
+    /// <summary>The top contributors to the hype train, with what each gave.</summary>
     public required IReadOnlyList<HypeTrainContribution> TopContributions { get; init; }
+
+    /// <summary>When the hype train ends if nobody adds more, in UTC time.</summary>
     public required DateTimeOffset ExpiresAt { get; init; }
 }
 
 /// <summary>Published on each <c>channel.hype_train.progress</c> tick (v2) as the train advances.</summary>
 public sealed class HypeTrainProgressEvent : DomainEventBase
 {
+    /// <summary>The id of the hype train.</summary>
     public required string HypeTrainId { get; init; }
+
+    /// <summary>The current level of the hype train.</summary>
     public required int Level { get; init; }
+
+    /// <summary>The total points the hype train has earned so far.</summary>
     public required int Total { get; init; }
+
+    /// <summary>The points earned toward the next level.</summary>
     public required int Progress { get; init; }
+
+    /// <summary>The points needed to reach the next level.</summary>
     public required int Goal { get; init; }
+
+    /// <summary>The top contributors to the hype train, with what each gave.</summary>
     public required IReadOnlyList<HypeTrainContribution> TopContributions { get; init; }
+
+    /// <summary>When the hype train ends if nobody adds more, in UTC time.</summary>
     public required DateTimeOffset ExpiresAt { get; init; }
 }
 
 /// <summary>Published when a hype train ends (<c>channel.hype_train.end</c> v2) with the final level reached.</summary>
 public sealed class HypeTrainEndedEvent : DomainEventBase
 {
+    /// <summary>The id of the hype train.</summary>
     public required string HypeTrainId { get; init; }
+
+    /// <summary>The current level of the hype train.</summary>
     public required int Level { get; init; }
+
+    /// <summary>The total points the hype train has earned so far.</summary>
     public required int Total { get; init; }
+
+    /// <summary>The top contributors to the hype train, with what each gave.</summary>
     public required IReadOnlyList<HypeTrainContribution> TopContributions { get; init; }
+
+    /// <summary>When the hype train ended, in UTC time.</summary>
     public required DateTimeOffset EndedAt { get; init; }
 }
 

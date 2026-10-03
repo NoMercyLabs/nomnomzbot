@@ -19,10 +19,21 @@ namespace NomNomzBot.Domain.Rewards.Events;
 /// </summary>
 public sealed class WatchStreakReceivedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id of the viewer (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The viewer's login name (lowercase).</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>How many months in a row the viewer has watched.</summary>
     public required int StreakMonths { get; init; }
+
+    /// <summary>The channel points the viewer earned for the streak.</summary>
     public required int ChannelPointsEarned { get; init; }
+
+    /// <summary>The message the viewer shared with the streak. Empty when they wrote none.</summary>
     public string? CustomMessage { get; init; }
 }

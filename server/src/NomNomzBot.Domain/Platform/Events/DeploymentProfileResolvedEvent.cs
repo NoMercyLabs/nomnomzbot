@@ -17,14 +17,33 @@ namespace NomNomzBot.Domain.Platform.Events;
 /// </summary>
 public sealed class DeploymentProfileResolvedEvent : DomainEventBase
 {
+    /// <summary>The unique id of this bot installation.</summary>
     public required Guid InstanceId { get; init; }
+
+    /// <summary>The deployment mode this installation runs in.</summary>
     public required string Mode { get; init; }
+
+    /// <summary>True when the bot chose the mode itself. False when the owner set it.</summary>
     public required bool WasAutoDetected { get; init; }
+
+    /// <summary>The kind of database in use.</summary>
     public required string DbProvider { get; init; }
+
+    /// <summary>The kind of cache in use.</summary>
     public required string CacheProvider { get; init; }
+
+    /// <summary>How the bot receives Twitch events: WebSocket or ConduitWebhook.</summary>
     public required string EventSubTransport { get; init; }
+
+    /// <summary>Where custom scripts run.</summary>
     public required string CodeExecutor { get; init; }
+
+    /// <summary>Where login tokens are stored.</summary>
     public required string TokenVault { get; init; }
+
+    /// <summary>How the installation is reachable from the internet.</summary>
     public required string ExposureModel { get; init; }
+
+    /// <summary>True when row-level security is on in the database.</summary>
     public required bool RlsEnabled { get; init; }
 }

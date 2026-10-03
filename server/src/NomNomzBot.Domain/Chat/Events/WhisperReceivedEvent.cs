@@ -19,10 +19,19 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// </summary>
 public sealed class WhisperReceivedEvent : DomainEventBase
 {
+    /// <summary>The id of the whisper.</summary>
     public required string WhisperId { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the viewer who sent the whisper.</summary>
     public required string FromUserId { get; init; }
+
+    /// <summary>The name of the sender as shown in chat.</summary>
     public required string FromUserDisplayName { get; init; }
+
+    /// <summary>The login name of the sender, in lowercase.</summary>
     public required string FromUserLogin { get; init; }
+
+    /// <summary>The Twitch user id (a number as text) of the account that received the whisper.</summary>
     public required string ToUserId { get; init; }
 
     /// <summary>The whisper body (EventSub nests this under <c>whisper.text</c>).</summary>

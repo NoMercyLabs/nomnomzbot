@@ -21,8 +21,15 @@ namespace NomNomzBot.Domain.Music.Events;
 /// </summary>
 public sealed class TrackSavedChangedEvent : DomainEventBase
 {
+    /// <summary>The id of the track at the music service.</summary>
     public required string TrackUri { get; init; }
+
+    /// <summary>The title of the track. Empty when it is not known.</summary>
     public string? TrackName { get; init; }
+
+    /// <summary>The artist of the track. Empty when it is not known.</summary>
     public string? Artist { get; init; }
+
+    /// <summary>True when the track is saved in the library now, and false when it was removed.</summary>
     public required bool IsSaved { get; init; }
 }

@@ -23,12 +23,18 @@ public sealed class SubscriptionEndedEvent : DomainEventBase, IProviderScopedEve
     /// <summary>The platform this subscription-end was delivered by. Defaults to Twitch, the dominant source.</summary>
     public string Provider { get; init; } = AuthEnums.Platform.Twitch;
 
+    /// <summary>The id of the viewer whose sub ended (a number as text on Twitch).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The viewer's login name (lowercase).</summary>
     public required string UserLogin { get; init; }
 
     /// <summary>"1000", "2000", or "3000"</summary>
     public required string Tier { get; init; }
 
+    /// <summary>True when the sub that ended was a gifted sub.</summary>
     public required bool IsGift { get; init; }
 }

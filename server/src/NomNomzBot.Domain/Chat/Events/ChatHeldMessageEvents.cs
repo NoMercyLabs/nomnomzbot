@@ -19,9 +19,16 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// </summary>
 public sealed class ChatUserMessageHeldEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the viewer who wrote the held message.</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The name of that viewer as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The login name of that viewer, in lowercase.</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>The id of the held message.</summary>
     public required string MessageId { get; init; }
 
     /// <summary>The held message text (concatenated fragments).</summary>
@@ -35,9 +42,16 @@ public sealed class ChatUserMessageHeldEvent : DomainEventBase
 /// </summary>
 public sealed class ChatUserMessageUpdatedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the viewer who wrote the message.</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The name of that viewer as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The login name of that viewer, in lowercase.</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>The id of the held message.</summary>
     public required string MessageId { get; init; }
 
     /// <summary>The resolution: <c>approved</c> | <c>denied</c> | <c>invalid</c>.</summary>

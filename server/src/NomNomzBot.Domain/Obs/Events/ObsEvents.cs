@@ -28,8 +28,13 @@ public sealed class ObsEventReceivedEvent : DomainEventBase
 /// <summary>The channel's bridge fleet changed (a bridge joined/left or the leader moved) — obs-control.md §2.</summary>
 public sealed class ObsBridgeStateChangedEvent : DomainEventBase
 {
+    /// <summary>How many OBS bridge instances are connected.</summary>
     public required int InstanceCount { get; init; }
+
+    /// <summary>True when at least one OBS instance is connected to lead.</summary>
     public required bool HasLeader { get; init; }
+
+    /// <summary>The last error text. Empty when there is no error.</summary>
     public string? LastError { get; init; }
 }
 
@@ -42,7 +47,10 @@ public sealed class ObsBridgeStateChangedEvent : DomainEventBase
 /// </summary>
 public sealed class ObsConnectionEstablishedEvent : DomainEventBase
 {
+    /// <summary>True when OBS is streaming at the time of the connection.</summary>
     public required bool Streaming { get; init; }
+
+    /// <summary>True when OBS is recording at the time of the connection.</summary>
     public required bool Recording { get; init; }
 }
 
@@ -79,6 +87,9 @@ public sealed class ObsRecordingStateChangedEvent : DomainEventBase
 /// </summary>
 public sealed class ObsInputMuteStateChangedEvent : DomainEventBase
 {
+    /// <summary>The name of the OBS input.</summary>
     public required string InputName { get; init; }
+
+    /// <summary>True when the input is now muted.</summary>
     public required bool Muted { get; init; }
 }

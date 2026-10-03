@@ -21,12 +21,25 @@ namespace NomNomzBot.Domain.Moderation.Events;
 /// </summary>
 public sealed class SuspiciousUserMessageEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id of the flagged chatter (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The chatter's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The chatter's login name (lowercase).</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>How Twitch flags the chatter: active_monitoring or restricted.</summary>
     public required string LowTrustStatus { get; init; }
+
+    /// <summary>The Twitch id of the chat message.</summary>
     public required string MessageId { get; init; }
+
+    /// <summary>The text of the chat message.</summary>
     public required string Text { get; init; }
+
+    /// <summary>How likely Twitch thinks the chatter is dodging a ban: likely, possible or unlikely.</summary>
     public required string BanEvasionEvaluation { get; init; }
 }
 
@@ -37,10 +50,21 @@ public sealed class SuspiciousUserMessageEvent : DomainEventBase
 /// </summary>
 public sealed class SuspiciousUserUpdatedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id of the chatter (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The chatter's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The chatter's login name (lowercase).</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>The Twitch user id of the moderator who made the change (a number as text).</summary>
     public required string ModeratorId { get; init; }
+
+    /// <summary>The moderator's display name, as shown in chat.</summary>
     public required string ModeratorDisplayName { get; init; }
+
+    /// <summary>The new flag: none, active_monitoring or restricted.</summary>
     public required string LowTrustStatus { get; init; }
 }

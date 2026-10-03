@@ -12,7 +12,9 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Chat.Events;
 
+/// <summary>When a moderator or the broadcaster clears the whole chat.</summary>
 public sealed class ChatClearedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of whoever cleared the chat.</summary>
     public required string ClearedByUserId { get; init; }
 }

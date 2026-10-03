@@ -18,17 +18,24 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// </summary>
 public sealed class ChatSettingsUpdatedEvent : DomainEventBase
 {
+    /// <summary>True when only emotes are allowed in chat.</summary>
     public required bool EmoteMode { get; init; }
+
+    /// <summary>True when only followers can chat.</summary>
     public required bool FollowerMode { get; init; }
 
     /// <summary>Minimum follow age (minutes) when <see cref="FollowerMode"/> is on; null otherwise.</summary>
     public int? FollowerModeDurationMinutes { get; init; }
 
+    /// <summary>True when slow mode is on.</summary>
     public required bool SlowMode { get; init; }
 
     /// <summary>Seconds a chatter must wait between messages when <see cref="SlowMode"/> is on; null otherwise.</summary>
     public int? SlowModeWaitSeconds { get; init; }
 
+    /// <summary>True when only subscribers can chat.</summary>
     public required bool SubscriberMode { get; init; }
+
+    /// <summary>True when unique chat mode is on, so a viewer cannot repeat the same message.</summary>
     public required bool UniqueChatMode { get; init; }
 }

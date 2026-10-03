@@ -22,8 +22,15 @@ public sealed class FollowEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The platform this follow was delivered by. Defaults to Twitch, the dominant source.</summary>
     public string Provider { get; init; } = AuthEnums.Platform.Twitch;
 
+    /// <summary>The Twitch user id of the viewer (a number as text).</summary>
     public required string UserId { get; init; }
+
+    /// <summary>The display name of the viewer, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
+
+    /// <summary>The login name of the viewer (lowercase).</summary>
     public required string UserLogin { get; init; }
+
+    /// <summary>When the viewer followed, in UTC time.</summary>
     public required DateTimeOffset FollowedAt { get; init; }
 }

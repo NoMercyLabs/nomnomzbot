@@ -20,7 +20,11 @@ public sealed class EventSubNotificationJournaledEvent : DomainEventBase
 {
     /// <summary>The <c>EventJournal.EventId</c> of the appended row.</summary>
     public required Guid JournalEventId { get; init; }
+
+    /// <summary>The position of the saved event in the channel's event log.</summary>
     public required long StreamPosition { get; init; }
+
+    /// <summary>The Twitch event type that was saved, for example channel.follow.</summary>
     public required string EventType { get; init; }
 
     /// <summary>True when the append short-circuited on the idempotency dedupe (a redelivery).</summary>

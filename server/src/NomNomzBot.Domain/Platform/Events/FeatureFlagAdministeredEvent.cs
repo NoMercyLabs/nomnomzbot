@@ -13,9 +13,12 @@ namespace NomNomzBot.Domain.Platform.Events;
 /// <summary>Audit trail for a feature-flag admin write (platform-conventions §2 / rollout-updates §5).</summary>
 public sealed class FeatureFlagAdministeredEvent : DomainEventBase
 {
+    /// <summary>The key of the feature flag that was changed.</summary>
     public required string FlagKey { get; init; }
 
     /// <summary><c>flag_set</c> | <c>override_set</c> | <c>override_removed</c>.</summary>
     public required string Action { get; init; }
+
+    /// <summary>The id of the admin who made the change. Empty when the system made it.</summary>
     public Guid? ActorUserId { get; init; }
 }

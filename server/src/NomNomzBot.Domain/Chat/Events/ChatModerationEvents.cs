@@ -18,7 +18,12 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// </summary>
 public sealed class ChatUserMessagesClearedEvent : DomainEventBase
 {
+    /// <summary>The Twitch user id (a number as text) of the viewer whose messages were cleared.</summary>
     public required string TargetUserId { get; init; }
+
+    /// <summary>The name of that viewer as shown in chat.</summary>
     public required string TargetUserDisplayName { get; init; }
+
+    /// <summary>The login name of that viewer, in lowercase.</summary>
     public required string TargetUserLogin { get; init; }
 }

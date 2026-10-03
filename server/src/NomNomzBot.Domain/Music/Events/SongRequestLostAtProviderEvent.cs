@@ -21,7 +21,12 @@ namespace NomNomzBot.Domain.Music.Events;
 /// </summary>
 public sealed class SongRequestLostAtProviderEvent : DomainEventBase
 {
+    /// <summary>The id of the requested track at the music service.</summary>
     public required string TrackUri { get; init; }
+
+    /// <summary>The title of the requested track.</summary>
     public required string TrackName { get; init; }
+
+    /// <summary>The name of the viewer who requested the song.</summary>
     public required string RequestedBy { get; init; }
 }

@@ -18,7 +18,10 @@ namespace NomNomzBot.Domain.Twitch.Events;
 /// </summary>
 public sealed class EventSubRevokedEvent : DomainEventBase
 {
+    /// <summary>The id Twitch gave to the event subscription.</summary>
     public required string TwitchSubscriptionId { get; init; }
+
+    /// <summary>The Twitch event type that was revoked, for example channel.follow.</summary>
     public required string EventType { get; init; }
 
     /// <summary><c>authorization_revoked</c> | <c>user_removed</c> | <c>version_removed</c>.</summary>

@@ -18,7 +18,12 @@ namespace NomNomzBot.Domain.Stream.Events;
 [Event("stream.offline", EventVisibility.Public)]
 public sealed class ChannelOfflineEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform the channel went offline on: twitch or kick.</summary>
     public required string Provider { get; init; }
+
+    /// <summary>The name of the channel owner as shown in chat.</summary>
     public required string BroadcasterDisplayName { get; init; }
+
+    /// <summary>How long the stream ran before it ended. It is always zero today, because Twitch and Kick send no duration.</summary>
     public required TimeSpan StreamDuration { get; init; }
 }

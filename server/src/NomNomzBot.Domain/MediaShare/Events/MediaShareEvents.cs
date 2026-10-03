@@ -17,9 +17,16 @@ namespace NomNomzBot.Domain.MediaShare.Events;
 /// <summary>A viewer submitted a clip/video to the media-share queue (media-share.md §2).</summary>
 public sealed class MediaShareSubmittedEvent : DomainEventBase
 {
+    /// <summary>The id of the request.</summary>
     public required Guid RequestId { get; init; }
+
+    /// <summary>The id of the viewer who made the request.</summary>
     public required Guid RequesterUserId { get; init; }
+
+    /// <summary>Where the media comes from, as text.</summary>
     public required string SourceType { get; init; }
+
+    /// <summary>True when the request was approved without a manual review.</summary>
     public required bool AutoApproved { get; init; }
 }
 
@@ -29,6 +36,9 @@ public sealed class MediaShareSubmittedEvent : DomainEventBase
 /// </summary>
 public sealed class MediaSharePlaybackChangedEvent : DomainEventBase
 {
+    /// <summary>The id of the request.</summary>
     public required Guid RequestId { get; init; }
+
+    /// <summary>The new playback status, as text.</summary>
     public required string Status { get; init; }
 }

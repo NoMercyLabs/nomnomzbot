@@ -17,5 +17,6 @@ namespace NomNomzBot.Domain.Platform.Events;
 /// </summary>
 public sealed class FeatureFlagChangedEvent : DomainEventBase
 {
+    /// <summary>The key of the feature flag whose value changed.</summary>
     public required string FlagKey { get; init; }
 }
