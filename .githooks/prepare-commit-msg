@@ -1,0 +1,27 @@
+#!/bin/sh
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+# Amend guard: `git commit --amend` without `--only` commits the whole index, so files another session
+# staged get swept into the amended commit. Refuse that when the index holds a path the commit did not
+# already touch. `--amend --only [paths]` builds a temporary next-index and is never refused.
+# This hook runs even with --no-verify. Tests: scripts/amend-guard_test.py.
+[ "$2" = commit ] && [ "$3" = HEAD ] || exit 0
+case "$GIT_INDEX_FILE" in *next-index-*) exit 0 ;; esac
+
+own=$(git diff-tree --root --no-commit-id --name-only -r HEAD)
+foreign=$(git diff --cached --name-only HEAD | grep -vxF -e "$own")
+[ -z "$foreign" ] && exit 0
+
+echo "commit refused: this amend would sweep staged files that the amended commit did not touch:" >&2
+printf '%s\n' "$foreign" | head -10 | sed 's/^/    /' >&2
+echo "" >&2
+echo "Reword with:          git commit --amend --only -m \"...\"" >&2
+echo "Amend named files:    git commit --amend --only -- <paths>" >&2
+exit 1
