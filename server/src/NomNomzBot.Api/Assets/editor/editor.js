@@ -18,6 +18,7 @@
 // the API — the dashboard already holds the session, so this page needs no token of its own.
 
 import { initPreview } from './preview.js';
+import { createVueScriptModels, isHiddenScriptResource } from './vue-script-model.js';
 
 const HOST_MESSAGE = Object.freeze({
     open: 'nnz:editor:open',
@@ -62,6 +63,7 @@ const LANGUAGE_BY_EXTENSION = Object.freeze({
 
 const dom = {
     shell: document.getElementById('shell'),
+    sdkTypesNotice: document.getElementById('sdkTypesNotice'),
     boot: document.getElementById('boot'),
     bootMessage: document.getElementById('bootMessage'),
     title: document.getElementById('title'),
@@ -179,6 +181,7 @@ function modelFor(path) {
     model.updateOptions({ tabSize: EDITOR_TAB_SIZE, insertSpaces: true });
     model.onDidChangeContent(() => state.preview?.schedule());
     state.models.set(path, model);
+    if (path.endsWith('.vue')) state.vueScripts?.attach(path, model);
     return model;
 }
 
@@ -225,6 +228,7 @@ function deleteFile(path) {
 }
 
 function disposeModel(path) {
+    state.vueScripts?.detach(path);
     state.models.get(path)?.dispose();
     state.models.delete(path);
 }
@@ -376,7 +380,7 @@ function loadMonaco() {
 
 // Strict, so the editor catches what the sandbox or the browser would only throw on stream. A script runs in a
 // sandbox with no DOM, so its context gets no DOM types; a widget is a web page and gets them.
-function configureLanguageServices(monaco, sdkTypes, context) {
+function configureLanguageServices(monaco, sdkTypes, context, framework) {
     const ts = monaco.languages.typescript;
     if (!ts) return;
 
@@ -384,7 +388,8 @@ function configureLanguageServices(monaco, sdkTypes, context) {
         target: ts.ScriptTarget.ESNext,
         module: ts.ModuleKind.ESNext,
         moduleResolution: ts.ModuleResolutionKind.NodeJs,
-        jsx: ts.JsxEmit.Preserve,
+        jsx: framework === 'react' ? ts.JsxEmit.ReactJSX : ts.JsxEmit.Preserve,
+        ...(framework === 'react' ? { jsxImportSource: 'react' } : {}),
         allowJs: true,
         checkJs: true,
         allowNonTsExtensions: true,
@@ -408,6 +413,8 @@ function configureLanguageServices(monaco, sdkTypes, context) {
         service.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
         service.setEagerModelSync(true);
         if (sdkTypes) service.addExtraLib(sdkTypes, 'file:///nnz-sdk.d.ts');
+        const frameworkLib = window.NNZ_EDITOR_LIBS?.[framework];
+        if (frameworkLib) service.addExtraLib(frameworkLib, `file:///nnz-${framework}.d.ts`);
     }
 }
 
@@ -459,7 +466,7 @@ function severityName(monaco, severity) {
 }
 
 function renderProblems(monaco) {
-    const markers = monaco.editor.getModelMarkers({});
+    const markers = monaco.editor.getModelMarkers({}).filter((m) => !isHiddenScriptResource(m.resource));
     const errors = markers.filter((m) => m.severity === monaco.MarkerSeverity.Error).length;
     const warnings = markers.filter((m) => m.severity === monaco.MarkerSeverity.Warning).length;
 
@@ -1238,13 +1245,17 @@ async function open(payload) {
     // judgement — 'note' is exactly "this project has nothing to show".
     setPreviewCollapsed(state.preview.mode === 'note');
 
+    dom.sdkTypesNotice.hidden = !payload.sdkTypesUnavailable;
+
     const monaco = await loadMonaco();
     state.monaco = monaco;
     configureLanguageServices(
         monaco,
         payload.sdkTypes ?? '',
         payload.language === 'script' ? 'script' : 'widget',
+        payload.language,
     );
+    state.vueScripts = createVueScriptModels(monaco);
 
     // Register every file up front, not lazily: the language service only sees files it has a model for, so
     // a helper the author has not clicked into would otherwise be invisible to cross-file resolution.
@@ -1254,7 +1265,10 @@ async function open(payload) {
     state.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, requestSave);
     state.editor.onDidChangeCursorPosition(syncStatus);
     state.editor.onDidChangeModel(syncStatus);
-    monaco.editor.onDidChangeMarkers(() => renderProblems(monaco));
+    monaco.editor.onDidChangeMarkers((uris) => {
+        for (const uri of uris) state.vueScripts.mirror(uri);
+        renderProblems(monaco);
+    });
 
     defineCustomThemes(monaco);
     applyTheme(storedTheme());

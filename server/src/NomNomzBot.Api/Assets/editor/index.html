@@ -139,6 +139,7 @@
         <div class="splitter" id="sidebarSplitter" role="separator" aria-orientation="vertical"></div>
 
         <main class="code">
+            <p class="notice" id="sdkTypesNotice" role="status" hidden>SDK types could not load. Type checking is off until you reopen this file.</p>
             <div class="tabs" id="tabs" role="tablist"></div>
             <div class="editor-host" id="editorHost"></div>
             <div class="panel-splitter" id="panelSplitter" role="separator" aria-orientation="horizontal" hidden></div>
@@ -183,6 +184,8 @@
     <p id="bootMessage">Loading editor…</p>
 </div>
 
+<script src="editor-libs-react.js"></script>
+<script src="editor-libs-vue.js"></script>
 <script src="editor.js" type="module"></script>
 </body>
 </html>

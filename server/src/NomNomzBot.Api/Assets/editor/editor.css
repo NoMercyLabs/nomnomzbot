@@ -155,6 +155,21 @@ body {
     color: var(--danger);
 }
 
+/* A status notice, not a call to action: neutral surface, one warning-coloured edge, no accent, no button. */
+.notice {
+    margin: 0;
+    padding: var(--s2) var(--s4);
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid var(--warning);
+}
+
+.notice[hidden] {
+    display: none;
+}
+
 /* ── Body split ────────────────────────────────────────────────────────── */
 
 .body {

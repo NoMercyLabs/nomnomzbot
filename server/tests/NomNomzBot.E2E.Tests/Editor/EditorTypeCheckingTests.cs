@@ -72,6 +72,130 @@ public sealed class EditorTypeCheckingTests : PageTest
     }
 
     [E2EFact]
+    public async Task A_vue_script_setup_typo_is_flagged_on_its_line_of_the_vue_file()
+    {
+        await OpenAsync(
+            "vue",
+            "App.vue",
+            """
+            <script setup lang="ts">
+            import { ref } from 'vue';
+            const count = ref<number>(0);
+            count.valeu;
+            </script>
+
+            <template>
+              <p>{{ count }}</p>
+            </template>
+            """,
+            ""
+        );
+
+        IReadOnlyList<string> codes = await DiagnosticCodesAsync("App.vue", expected: 1);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("App.vue");
+
+        // Property 'valeu' does not exist on Ref<number>: TS2339, or TS2551 when TypeScript suggests 'value'.
+        // The line is the line of the .vue file itself, and the hidden script model never shows up as a file.
+        Assert.All(codes, code => Assert.Contains(code, new[] { "2339", "2551" }));
+        Assert.Equal([4], lines);
+        Assert.Equal(["App.vue"], await ProblemFilesAsync());
+    }
+
+    [E2EFact]
+    public async Task A_correct_vue_script_setup_has_no_problems()
+    {
+        await OpenAsync(
+            "vue",
+            "App.vue",
+            """
+            <script setup lang="ts">
+            import { computed, ref } from 'vue';
+            const count = ref<number>(0);
+            const double = computed<number>(() => count.value * 2);
+            function bump(): void {
+              count.value += 1;
+            }
+            </script>
+
+            <template>
+              <button @click="bump">{{ count }} {{ double }}</button>
+            </template>
+            """,
+            ""
+        );
+
+        Assert.Equal(0, await WorkerDiagnosticCountAsync("App.vue.__script.ts"));
+        Assert.Empty(await DiagnosticLinesAsync("App.vue"));
+    }
+
+    [E2EFact]
+    public async Task A_react_widget_flags_a_wrong_state_setter_argument_and_a_wrong_event_property()
+    {
+        await OpenAsync(
+            "react",
+            "index.tsx",
+            """
+            import { useState } from 'react';
+            export function Counter() {
+              const [count, setCount] = useState<number>(0);
+              setCount("x");
+              return <div onClick={e => e.foo}>{count}</div>;
+            }
+            """,
+            ""
+        );
+
+        IReadOnlyList<string> codes = await DiagnosticCodesAsync("index.tsx", expected: 2);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.tsx");
+
+        // A string is not a number (2345); a click event has no 'foo' (2339).
+        Assert.Contains("2345", codes);
+        Assert.Contains("2339", codes);
+        Assert.Equal([4, 5], lines.Order());
+    }
+
+    [E2EFact]
+    public async Task A_correct_react_widget_has_no_problems()
+    {
+        await OpenAsync(
+            "react",
+            "index.tsx",
+            """
+            import React, { useState } from 'react';
+            export function Counter() {
+              const [count, setCount] = useState<number>(0);
+              const [label, setLabel] = React.useState<string>('n');
+              return (
+                <button className="counter" onClick={e => { setCount(count + e.detail); setLabel(label + 'x'); }}>
+                  {count}
+                </button>
+              );
+            }
+            """,
+            ""
+        );
+
+        Assert.Equal(0, await WorkerDiagnosticCountAsync("index.tsx"));
+        Assert.Empty(await DiagnosticLinesAsync("index.tsx"));
+    }
+
+    [E2EFact]
+    public async Task The_notice_shows_only_when_the_host_says_the_sdk_types_did_not_load()
+    {
+        await OpenAsync("vanilla-js", "index.js", "const a = 1;", "", sdkTypesUnavailable: true);
+        await Expect(Page.Locator("#shell")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#sdkTypesNotice")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#sdkTypesNotice"))
+            .ToContainTextAsync(
+                "SDK types could not load. Type checking is off until you reopen this file."
+            );
+
+        await OpenAsync("vanilla-js", "index.js", "const a = 1;", "");
+        await Expect(Page.Locator("#shell")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#sdkTypesNotice")).ToBeHiddenAsync();
+    }
+
+    [E2EFact]
     public async Task A_command_script_flags_a_variable_the_command_never_sets()
     {
         IAPIResponse types = await Page.APIRequest.GetAsync(
@@ -269,20 +393,137 @@ public sealed class EditorTypeCheckingTests : PageTest
             path
         );
 
-    private async Task OpenAsync(string language, string entry, string source, string sdkTypes)
+    private async Task OpenAsync(
+        string language,
+        string entry,
+        string source,
+        string sdkTypes,
+        bool sdkTypesUnavailable = false
+    )
     {
+        await ServeEditorFromTheWorkingTreeAsync();
         await Page.GotoAsync(
             $"{E2ESettings.BaseUrl}/editor/index.html",
             new() { WaitUntil = WaitUntilState.DOMContentLoaded }
         );
         await Page.EvaluateAsync(
             """
-            ([language, entry, source, sdkTypes]) => window.postMessage({
+            ([language, entry, source, sdkTypes, sdkTypesUnavailable]) => window.postMessage({
                 type: 'nnz:editor:open',
-                payload: { title: 'Type check', language, entry, files: { [entry]: source }, sdkTypes },
+                payload: {
+                    title: 'Type check',
+                    language,
+                    entry,
+                    files: { [entry]: source },
+                    sdkTypes,
+                    ...(sdkTypesUnavailable ? { sdkTypesUnavailable: true } : {}),
+                },
             }, window.location.origin)
             """,
-            new object[] { language, entry, source, sdkTypes }
+            new object[] { language, entry, source, sdkTypes, sdkTypesUnavailable }
+        );
+    }
+
+    private bool _editorRouted;
+
+    /// <summary>
+    /// Serves <c>/editor/*</c> from the working tree's <c>Assets/editor</c> folder, so these tests check the editor
+    /// code in the tree and not whichever build the instance under test runs. Everything else (the SDK types
+    /// endpoint included) still goes to the instance.
+    /// </summary>
+    private async Task ServeEditorFromTheWorkingTreeAsync()
+    {
+        if (_editorRouted)
+            return;
+        _editorRouted = true;
+
+        string folder = EditorAssetsFolder();
+        await Page.RouteAsync(
+            new Regex(@"^" + Regex.Escape(E2ESettings.BaseUrl) + @"/editor/[^?]*(\?.*)?$"),
+            async route =>
+            {
+                string name = new Uri(route.Request.Url).AbsolutePath["/editor/".Length..];
+                string file = Path.Combine(folder, name.Length == 0 ? "index.html" : name);
+                if (!File.Exists(file) || Path.GetDirectoryName(file) != folder)
+                {
+                    await route.ContinueAsync();
+                    return;
+                }
+
+                await route.FulfillAsync(
+                    new()
+                    {
+                        BodyBytes = await File.ReadAllBytesAsync(file),
+                        ContentType = Path.GetExtension(file) switch
+                        {
+                            ".html" => "text/html; charset=utf-8",
+                            ".js" => "text/javascript; charset=utf-8",
+                            ".css" => "text/css; charset=utf-8",
+                            _ => "application/octet-stream",
+                        },
+                    }
+                );
+            }
+        );
+    }
+
+    private static string EditorAssetsFolder()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (
+            directory is not null
+            && !Directory.Exists(Path.Combine(directory.FullName, "server", "src"))
+        )
+            directory = directory.Parent;
+
+        return directory is null
+            ? throw new DirectoryNotFoundException(
+                "No folder above the test assembly holds server/src."
+            )
+            : Path.Combine(
+                directory.FullName,
+                "server",
+                "src",
+                "NomNomzBot.Api",
+                "Assets",
+                "editor"
+            );
+    }
+
+    // The files named by the Problems panel rows, once per row.
+    private async Task<IReadOnlyList<string>> ProblemFilesAsync()
+    {
+        await Page.WaitForTimeoutAsync(1_500);
+        return await Page.EvaluateAsync<string[]>(
+            """
+            () => [...document.querySelectorAll('#problems .problem-where')]
+                .map((el) => el.textContent.split(':')[0])
+            """
+        );
+    }
+
+    // Errors the TypeScript worker itself reports for a model: the truth behind a "no markers" check, which
+    // would also pass when the worker had not answered yet.
+    private async Task<int> WorkerDiagnosticCountAsync(string path)
+    {
+        await Page.WaitForFunctionAsync(
+            "(path) => window.monaco?.editor.getModel(window.monaco.Uri.parse('file:///' + path))",
+            path,
+            new() { Timeout = 60_000 }
+        );
+        return await Page.EvaluateAsync<int>(
+            """
+            async (path) => {
+                const uri = window.monaco.Uri.parse('file:///' + path);
+                const getWorker = await window.monaco.languages.typescript.getTypeScriptWorker();
+                const worker = await getWorker(uri);
+                const name = uri.toString();
+                const semantic = await worker.getSemanticDiagnostics(name);
+                const syntactic = await worker.getSyntacticDiagnostics(name);
+                return semantic.length + syntactic.length;
+            }
+            """,
+            path
         );
     }
 
