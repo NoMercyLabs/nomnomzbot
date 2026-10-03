@@ -48,12 +48,11 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   WidgetConnectedEvent, WidgetDisconnectedEvent. Done-when: each is raised where its action happens (a
   test per event asserts the publish), or is removed with its handlers when a raised twin covers it, and
   a test fails when a catalogued event has no raiser.
-- **S-EVENT-OFFLINE-DURATION** (stream-facing) `ChannelOfflineEvent.StreamDuration` is always zero for
-  scripts and the Automation API (`streamDurationSeconds`, AutomationEventDescriptors.cs:82): the Twitch
-  translator (StreamLifecycleTranslators.cs:159) and Kick (KickWebhookIngest.cs:353) set TimeSpan.Zero,
-  and only ChannelOfflineHandler.cs:74-80 computes the real span from ChannelContext.WentLiveAt, for
-  itself. Done-when: the published event carries the real duration (test: online at T, offline at T+2h,
-  a subscriber sees 2h), and its doc says so.
+- **S-EVENT-OFFLINE-POLL-RACE** (stream-facing) When the status poll sees the live-to-offline edge before the
+  EventSub stream.offline arrives, it clears ChannelContext.WentLiveAt (StreamStatusPollingService.cs:362), so the
+  later ChannelOfflineEvent says the stream lasted zero (StreamRunTime.cs). WentLiveAt is also read offline by
+  StreamController.cs:150, DashboardHub.cs:184 and TemplateResolver.cs:430, so it cannot simply stay set.
+  Done-when: a test with the poll edge first, then the EventSub offline, sees the real duration.
 - **S-SDK-EVENT-DOCS** The event payload interfaces the type emitter generates (about 1,100 members,
   counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
   takes each member's text from the payload record's XML doc. Done-when: a drift test like
