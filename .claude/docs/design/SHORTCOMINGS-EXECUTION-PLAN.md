@@ -29,19 +29,6 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-TESTRUN-RUNS-EDITOR-CODE** Found by the docs writer 2026-10-04. The editor's test-run hint says "Runs what
-  is in the editor right now ... Nothing is published" (`strings.xml:6000`, `editor.js:177`), but the test-run
-  message carries no code (`editor.js:1384-1395`, `EditorBridgeSession.kt:46`) and the server runs the script's
-  current version (`ScriptTestRunService.cs:62-72`). Saving the project compiles it and makes it live at once
-  (`CodeScriptService.cs:441-444`). So an edit can only be tested after it is already live. Done-when: a test run
-  compiles and runs the files open in the editor through the same compile path as a save, without storing a
-  version or changing `CurrentVersionId`; a compile error comes back as a test-run failure on its line; a test
-  failed first, and an editor E2E proves an unsaved edit runs in the test and the live version is unchanged. Server step landed
-  (15c553205): `ScriptTestRunRequest.project` runs the given files through the save gate and stores nothing.
-  The editor sends its open files with the test run (fdec30077). The dev-box E2E proves an unsaved edit runs
-  and nothing goes live, and a compile error is refused with its line in `data.errors` (23d942110). Left: the
-  editor drops that line: `CodeScriptsController.kt:422` keeps only `result.error.message` for a failed test run
-  (the save path at `:509` keeps `result.error.errors`), so the test panel shows the text but marks no line.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
