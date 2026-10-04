@@ -134,14 +134,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `GetCurrentTrackAsync` reads; overlay player plays the head and reports state; ENDED advances the queue).
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
-- **S-REWARD-PATCH-CLEARS-LIMITS** Found by the docs fact-check 2026-10-04. A reward update that leaves out
-  a limit turns that limit off: `RewardService.cs:261-266` sends `IsMaxPerStreamEnabled:
-  request.MaxPerStream.HasValue` (same for max per user per stream and global cooldown), the Helix body drops
-  only null fields, not `false` (`TwitchHelixTransport.cs:89`), and the local copy clears them too
-  (`RewardService.cs:1230-1238`). So `nnz.api.reward.update(id, { cost: 500 })` silently removes all three
-  limits on Twitch. Done-when: a field left out of the patch keeps its current value on Twitch and in the local
-  copy, and turning a limit off is an explicit value; every caller of the update (script bridge, dashboard,
-  pipeline actions) is listed N of M and keeps working; a test failed first.
 - **S-VANILLA-SDK-ORDER** Found by the docs writer 2026-10-04. A vanilla widget page gets its config and
   `/overlay/sdk.js` spliced in just before `</head>` (`OverlayHostController.cs:205-210`), though the method
   says it runs "before the app runs". A widget script placed in `<head>` runs first and finds no `NomNomz`.
