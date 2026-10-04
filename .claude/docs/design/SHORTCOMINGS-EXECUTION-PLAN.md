@@ -50,8 +50,11 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Order: first a scout proves end to end on the dev box whether a YouTube song request ever plays today;
   then the §3.5.2 sequencer is built in slices. Landed: the request is handed to the open player page
   (e678957d5); the hub method `ReportYouTubePlayerState` and the per-channel state store that
-  `GetCurrentTrackAsync` reads (67a473549). Left: the overlay player plays the head and calls
-  `ReportYouTubePlayerState` (nothing calls it yet, so `nowPlaying` is still null); ENDED advances the queue.
+  `GetCurrentTrackAsync` reads (67a473549); the now playing widget plays `youtube.play` through the IFrame
+  Player API and reports PLAYING, PAUSED and ENDED via `NomNomz.reportYouTubePlayerState` (0067dbb90; checked
+  by a source guard only, not yet in a browser). Left: ENDED advances the queue; the bot sends `youtube.play` to
+  every open player widget, so two open now playing sources both play the audio (one player must own it);
+  a dev-box browser check that a request plays and `nowPlaying` returns it.
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
 - **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
