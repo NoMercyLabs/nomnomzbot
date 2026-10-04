@@ -900,7 +900,11 @@ public class WidgetService : IWidgetService
             Result<IReadOnlyList<WidgetSettingsField>> parsed =
                 CustomWidgetSettingsDeclaration.Parse(declaration);
             if (parsed.IsFailure)
-                return Result.Failure<WidgetVersionDetail>(parsed.ErrorMessage, parsed.ErrorCode);
+                return Result.Failure<WidgetVersionDetail>(
+                    parsed.ErrorMessage,
+                    parsed.ErrorCode,
+                    errorData: parsed.ErrorData
+                );
         }
 
         ProjectManifest manifest = project.Manifest.ToManifest();
@@ -916,7 +920,8 @@ public class WidgetService : IWidgetService
         if (build.IsFailure)
             return Result.Failure<WidgetVersionDetail>(
                 build.ErrorMessage ?? "The widget project failed to build.",
-                MapProjectBuildFailureCode(build.ErrorCode)
+                MapProjectBuildFailureCode(build.ErrorCode),
+                errorData: build.ErrorData
             );
 
         int nextNumber =

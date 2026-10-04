@@ -19,6 +19,7 @@ using Jint.Native;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Infrastructure.Widgets.Bundling;
@@ -130,7 +131,18 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
             if (compiled.Errors is { Count: > 0 })
                 return Result.Failure<VueSfcOutput>(
                     FrameErrors(compiled.Errors, filename),
-                    CompileFailedCode
+                    CompileFailedCode,
+                    errorData: new ProjectBuildFailure(
+                        compiled
+                            .Errors.Select(e => new ProjectBuildError(
+                                CompileFailedCode,
+                                e.Message,
+                                filename,
+                                e.Line,
+                                e.Line is null ? null : e.Column ?? 0
+                            ))
+                            .ToList()
+                    )
                 );
 
             if (string.IsNullOrWhiteSpace(compiled.Code))

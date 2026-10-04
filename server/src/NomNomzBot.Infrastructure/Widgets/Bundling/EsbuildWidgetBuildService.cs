@@ -11,9 +11,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Widgets.Services;
 
@@ -31,7 +33,7 @@ namespace NomNomzBot.Infrastructure.Widgets.Bundling;
 /// carries esbuild's stderr, a missing binary an install hint, a bad SFC the code-framed error, an un-allowlisted
 /// dependency a coded denial; nothing throws.
 /// </summary>
-public sealed class EsbuildWidgetBuildService : IWidgetBuildService
+public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
 {
     // The require shim + closure prelude that maps the external `vue` import to the host `window.Vue` global without
     // polluting page scope. esbuild's iife wrapper resolves an external import through a `require` if one is in
@@ -44,6 +46,12 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
     // The synthetic entry that imports the project's root component and mounts it — kept out of the project's own
     // namespace with a reserved name a widget author would never author.
     private const string VueMountModuleName = "__nnz_mount__.ts";
+
+    // esbuild's plain-text log: `[ERROR] <message>`, a blank line, then `    <file>:<line>:<column>:`.
+    [GeneratedRegex(
+        @"\[ERROR\] (?<message>[^\r\n]+)(?:\r?\n){2}[ \t]+(?<file>[^\r\n]+?):(?<line>\d+):(?<column>\d+):"
+    )]
+    private static partial Regex LoggedError();
 
     private readonly IProcessRunner _process;
     private readonly IVueSfcCompiler _vue;
@@ -78,7 +86,7 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
 
         // The manifest entry must be one of the project's files — the module esbuild (or the pass-through) reads.
         if (!input.Files.TryGetValue(manifest.Entry, out string? entryContent))
-            return Result.Failure<WidgetBuildOutput>(
+            return Failed(
                 $"The manifest entry '{manifest.Entry}' is not present in the project files.",
                 "WIDGET_PROJECT_ENTRY_MISSING"
             );
@@ -86,13 +94,17 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
         // Guard every path against traversal before anything touches disk (a project is untrusted input).
         Result pathCheck = ValidateProjectPaths(input.Files);
         if (pathCheck.IsFailure)
-            return Result.Failure<WidgetBuildOutput>(pathCheck.ErrorMessage, pathCheck.ErrorCode);
+            return Result.Failure<WidgetBuildOutput>(
+                pathCheck.ErrorMessage,
+                pathCheck.ErrorCode,
+                errorData: pathCheck.ErrorData
+            );
 
         // Deny-by-default: a declared dependency outside the allowlist fails up-front (no npm, ever). A bare import of
         // an un-allowlisted module that is NOT declared here still fails later — esbuild cannot resolve it off disk.
         foreach (string dependency in manifest.Dependencies)
             if (!_allowlist.IsAllowed(dependency))
-                return Result.Failure<WidgetBuildOutput>(
+                return Failed(
                     $"Dependency '{dependency}' is not on the allowlist — only vetted, bot-provided libraries may be "
                         + $"used (there is no npm install). Allowed: {string.Join(", ", _allowlist.Externals)}.",
                     "WIDGET_DEPENDENCY_NOT_ALLOWED"
@@ -116,7 +128,7 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
         // The standalone esbuild binary transpiles + bundles JS/TS/JSX natively (loader by extension). Svelte needs
         // the plugin-based build (a tracked follow-on) — fail honestly rather than silently mis-compiling.
         if (framework != "react")
-            return Result.Failure<WidgetBuildOutput>(
+            return Failed(
                 $"Framework '{manifest.Framework}' needs the plugin-based build, which is not available on the "
                     + "standalone esbuild path yet. Use 'vanilla', 'react', or 'vue'.",
                 "WIDGET_FRAMEWORK_UNSUPPORTED"
@@ -173,17 +185,19 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
     )
     {
         Dictionary<string, string> materialized = new(StringComparer.Ordinal);
+        List<Result<VueSfcOutput>> failedCompiles = [];
+        List<ProjectBuildError> compileErrors = [];
         foreach ((string path, string content) in input.Files)
         {
             if (path.EndsWith(".vue", StringComparison.OrdinalIgnoreCase))
             {
                 Result<VueSfcOutput> compiled = _vue.Compile(content, Path.GetFileName(path));
                 if (compiled.IsFailure)
-                    return Result.Failure<WidgetBuildOutput>(
-                        compiled.ErrorMessage,
-                        compiled.ErrorCode,
-                        compiled.ErrorDetail
-                    );
+                {
+                    failedCompiles.Add(compiled);
+                    compileErrors.AddRange(VueCompileProblems(compiled, path));
+                    continue;
+                }
                 materialized[path] = BuildVueModule(compiled.Value.ModuleCode, compiled.Value.Css);
             }
             else
@@ -191,6 +205,15 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
                 materialized[path] = content;
             }
         }
+
+        // Every broken SFC is reported, each with the project path it came from; esbuild never runs on a broken set.
+        if (failedCompiles.Count > 0)
+            return Result.Failure<WidgetBuildOutput>(
+                string.Join('\n', failedCompiles.Select(f => f.ErrorMessage)),
+                failedCompiles[0].ErrorCode,
+                failedCompiles[0].ErrorDetail,
+                new ProjectBuildFailure(compileErrors)
+            );
 
         materialized[VueMountModuleName] = BuildVueMountModule(input.Manifest.Entry);
 
@@ -286,16 +309,54 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
         }
 
         if (run.ExitCode != 0)
+        {
+            string message = string.IsNullOrWhiteSpace(run.StandardError)
+                ? "The widget build failed."
+                : run.StandardError.Trim();
+            List<ProjectBuildError> problems = ParseLoggedErrors(run.StandardError);
             return Result.Failure<WidgetBuildOutput>(
-                string.IsNullOrWhiteSpace(run.StandardError)
-                    ? "The widget build failed."
-                    : run.StandardError.Trim(),
-                "WIDGET_BUILD_FAILED"
+                message,
+                "WIDGET_BUILD_FAILED",
+                errorData: new ProjectBuildFailure(
+                    problems.Count > 0
+                        ? problems
+                        : [new("WIDGET_BUILD_FAILED", message, null, null, null)]
+                )
             );
+        }
 
         string bundle = run.StandardOutput;
         return Result.Success(new WidgetBuildOutput(bundle, Sha256Hex(bundle), run.StandardError));
     }
+
+    // One problem per `[ERROR]` esbuild logged, each at its own file, line and column.
+    private static List<ProjectBuildError> ParseLoggedErrors(string standardError) =>
+        LoggedError()
+            .Matches(standardError)
+            .Select(m => new ProjectBuildError(
+                "WIDGET_BUILD_FAILED",
+                m.Groups["message"].Value,
+                m.Groups["file"].Value,
+                int.Parse(m.Groups["line"].Value),
+                // esbuild counts columns from 0; editors from 1.
+                int.Parse(m.Groups["column"].Value) + 1
+            ))
+            .ToList();
+
+    // The SFC compiler's own problems, re-pointed at the project path (it only knows the file's base name).
+    private static IEnumerable<ProjectBuildError> VueCompileProblems(
+        Result<VueSfcOutput> failed,
+        string path
+    ) =>
+        (failed.ErrorData as ProjectBuildFailure)?.Errors.Select(e => e with { File = path })
+        ?? [new(failed.ErrorCode ?? "WIDGET_BUILD_FAILED", failed.ErrorMessage!, path, null, null)];
+
+    private static Result<WidgetBuildOutput> Failed(string message, string code) =>
+        Result.Failure<WidgetBuildOutput>(
+            message,
+            code,
+            errorData: new ProjectBuildFailure([new(code, message, null, null, null)])
+        );
 
     // Each allowlisted declared dependency is kept external (host-injected/vendored), never bundled from a registry.
     private IEnumerable<string> ExternalArgs(IReadOnlyList<string> dependencies) =>
@@ -310,7 +371,16 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
             if (string.IsNullOrWhiteSpace(path))
                 return Result.Failure(
                     "A project file path is empty.",
-                    "WIDGET_PROJECT_PATH_INVALID"
+                    "WIDGET_PROJECT_PATH_INVALID",
+                    errorData: new ProjectBuildFailure([
+                        new(
+                            "WIDGET_PROJECT_PATH_INVALID",
+                            "A project file path is empty.",
+                            null,
+                            null,
+                            null
+                        ),
+                    ])
                 );
 
             string normalized = path.Replace('\\', '/');
@@ -320,10 +390,16 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
                 || normalized.Contains(':')
                 || normalized.Split('/').Any(segment => segment == "..")
             )
+            {
+                string message = $"Project file path '{path}' is not a safe relative path.";
                 return Result.Failure(
-                    $"Project file path '{path}' is not a safe relative path.",
-                    "WIDGET_PROJECT_PATH_INVALID"
+                    message,
+                    "WIDGET_PROJECT_PATH_INVALID",
+                    errorData: new ProjectBuildFailure([
+                        new("WIDGET_PROJECT_PATH_INVALID", message, path, null, null),
+                    ])
                 );
+            }
         }
         return Result.Success();
     }

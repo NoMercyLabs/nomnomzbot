@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Infrastructure.Widgets;
@@ -52,7 +53,12 @@ public static partial class CustomWidgetSettingsDeclaration
         }
         catch (JsonException ex)
         {
-            return Fail($"{FileName} is not valid JSON: {ex.Message}");
+            // System.Text.Json counts lines and bytes in the line from 0; editors from 1.
+            return Fail(
+                $"{FileName} is not valid JSON: {ex.Message}",
+                ex.LineNumber is { } line ? (int)line + 1 : null,
+                ex.BytePositionInLine is { } column ? (int)column + 1 : null
+            );
         }
 
         using (document)
@@ -79,8 +85,16 @@ public static partial class CustomWidgetSettingsDeclaration
         }
     }
 
-    private static Result<IReadOnlyList<WidgetSettingsField>> Fail(string message) =>
-        Result.Failure<IReadOnlyList<WidgetSettingsField>>(message, InvalidCode);
+    private static Result<IReadOnlyList<WidgetSettingsField>> Fail(
+        string message,
+        int? line = null,
+        int? column = null
+    ) =>
+        Result.Failure<IReadOnlyList<WidgetSettingsField>>(
+            message,
+            InvalidCode,
+            errorData: new ProjectBuildFailure([new(InvalidCode, message, FileName, line, column)])
+        );
 
     private static Result<WidgetSettingsField> ParseField(
         JsonElement element,
