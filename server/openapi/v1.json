@@ -100436,7 +100436,7 @@
           },
           "framework": {
             "type": "string",
-            "description": "Source language of the widget: `vanilla` | `vue` | `react`."
+            "description": "Source language of the widget: `vanilla` | `vue`."
           },
           "description": {
             "type": [
@@ -114240,7 +114240,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "A place in the author's own source: the project file, and the line and column in it. Both numbers start at 1,\nthe way an editor shows them. string? ScriptSourcePosition.File is null when the file is not known."
       },
       "ScriptTestRunRequest": {
         "required": [
@@ -128888,10 +128889,10 @@
                 "type": "null"
               },
               {
+                "description": "Where in the author's own file a failed script run threw; null when the run passed or the place is unknown.",
                 "$ref": "#/components/schemas/ScriptSourcePosition"
               }
-            ],
-            "description": "Where in the author's own file a failed script run threw; null when the run passed or the place is unknown."
+            ]
           }
         },
         "description": "The uniform result of a script or pipeline test-run (custom-code.md / commands-pipelines.md). The logic ran for\nreal; every outward/mutating effect was CAPTURED (see IReadOnlyList&lt;CapturedEffectDto&gt; TestRunResultDto.CapturedEffects) rather than committed, while\nread-only calls (reads, conditions, template resolution, random draws) ran against the live services so the\ndry-run stays realistic."
@@ -135306,7 +135307,7 @@
             "type": "boolean"
           }
         },
-        "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\n`Framework` is the source language (vue|react|vanilla); `Source` is the provenance\n(first_party|verified_gallery|custom). bool WidgetDetail.GalleryUpdateAvailable is true when\nGuid? WidgetDetail.GalleryItemId is set and the gallery item's source has moved on since this widget was installed\nor last updated from it — the streamer's clone is running stale code. Always false for a self-authored\n`custom` widget (no gallery link to compare against). bool WidgetDetail.IsAttached is true when a live\nbrowser source has this widget open right now (`IOverlayPresenceRegistry`) — the \"overlay last-seen\"\nsignal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.\nbool WidgetDetail.IsCustomized is true when the channel has saved its own code over a catalogue widget's source\n(a first-party system widget or a gallery install) — the dashboard marks it \"Edited\" and offers the reset to\nthe catalogue source; a catalogue update never overwrites it on its own. Always false for a `custom`\nwidget, which has no catalogue source to differ from."
+        "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\n`Framework` is the source language (vue|vanilla; react and svelte are refused); `Source` is the provenance\n(first_party|verified_gallery|custom). bool WidgetDetail.GalleryUpdateAvailable is true when\nGuid? WidgetDetail.GalleryItemId is set and the gallery item's source has moved on since this widget was installed\nor last updated from it — the streamer's clone is running stale code. Always false for a self-authored\n`custom` widget (no gallery link to compare against). bool WidgetDetail.IsAttached is true when a live\nbrowser source has this widget open right now (`IOverlayPresenceRegistry`) — the \"overlay last-seen\"\nsignal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.\nbool WidgetDetail.IsCustomized is true when the channel has saved its own code over a catalogue widget's source\n(a first-party system widget or a gallery install) — the dashboard marks it \"Edited\" and offers the reset to\nthe catalogue source; a catalogue update never overwrites it on its own. Always false for a `custom`\nwidget, which has no catalogue source to differ from."
       },
       "WidgetSettingsField": {
         "required": [

@@ -64,7 +64,7 @@ public sealed record GalleryItemDetail(
 /// </summary>
 public sealed record GalleryListRequest
 {
-    /// <summary>Restrict to one source language: <c>vue</c> | <c>react</c> | <c>vanilla</c>.</summary>
+    /// <summary>Restrict to one source language: <c>vue</c> | <c>vanilla</c>.</summary>
     public string? Framework { get; init; }
 
     /// <summary>Restrict to one trust tier: <c>first_party</c> | <c>verified_community</c> | <c>unverified</c>.</summary>
