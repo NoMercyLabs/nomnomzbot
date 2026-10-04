@@ -67,13 +67,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   parses as a double (`ScriptHostBridge.cs:902-911`) and reaches the provider as `NaN%`, where the comment says a bad
   value keeps the default. Done-when: a non-finite value is treated as absent; a test failed first. Starts after
   S-SCRIPT-CHAT-SEND-FAILURE lands (same file).
-- **S-SCHEDULE-SERIAL-DISPATCH** Found by the docs fact-check 2026-10-04. The scheduled-pipeline sweep awaits every
-  due run of every channel one after another (`ScheduledPipelineService.cs:311-312`), and the next 5-second tick
-  starts only after it (`ScheduledPipelineExpiryService.cs:54,63`). One run may take 5 minutes
-  (`PipelineEngine.cs:39`), and a task more than 10 minutes overdue is expired without firing (`:44`, `:293-301`).
-  So one channel's slow pipelines delay every other channel's scheduled runs and can silently drop them.
-  Done-when: a slow run of one channel does not delay or expire another channel's due run (dispatch does not
-  block the sweep; bounded concurrency; order kept within a channel); a test with a run that blocks failed first.
 - **S-WIDGET-EVENT-DATA** Found by the docs writer 2026-10-04. The pipeline step `widget_event` marks no field
   `Templated` (`WidgetEventAction.cs:39-58`), so the engine never fills `{user}`-style templates in it
   (`PipelineEngine.cs:849-866` resolves only `Templated` fields). Its `data` field is Text, so the widget gets
