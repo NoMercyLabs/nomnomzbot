@@ -36,7 +36,9 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (`CodeScriptService.cs:441-444`). So an edit can only be tested after it is already live. Done-when: a test run
   compiles and runs the files open in the editor through the same compile path as a save, without storing a
   version or changing `CurrentVersionId`; a compile error comes back as a test-run failure on its line; a test
-  failed first, and an editor E2E proves an unsaved edit runs in the test and the live version is unchanged.
+  failed first, and an editor E2E proves an unsaved edit runs in the test and the live version is unchanged. Server step landed
+  (15c553205): `ScriptTestRunRequest.project` runs the given files through the save gate and stores nothing.
+  Left: the editor sends its files with the test run (`editor.js`, `EditorBridgeSession.kt`); the E2E.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
