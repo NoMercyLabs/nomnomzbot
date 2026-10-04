@@ -29,8 +29,6 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-GAME-EVENT-PAYLOADS** The game events `game.lobby`, `game.running` and `game.resolved` have no payload type (`Api/Hubs/Broadcasters/WidgetEventPayloadRegistry.cs:68-70` registers them with `null`), so the game widgets (crash, heist, drop_game) read them as `Record<string, unknown>`.
-  Done-when: each event has a payload record, the widget event map types it, the game widgets narrow to it, and a test fails when a game event has no payload type.
 - **S-EVENT-SAMPLE-CASING** Checked 2026-10-03 (.scratch/bugs-verified-editor.md #8) and 2026-10-04. The 77
   fixture samples in `EventSamplePayloads.cs` are raw Twitch EventSub wire payloads (snake_case, Twitch field
   names, e.g. `chat.message` :57-63), while the payload schema `SdkTypeEmitter.cs:129` builds from the domain
