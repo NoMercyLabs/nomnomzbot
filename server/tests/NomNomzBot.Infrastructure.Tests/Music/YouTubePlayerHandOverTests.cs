@@ -94,7 +94,7 @@ public sealed class YouTubePlayerHandOverTests
         RecordingWidgetEventNotifier notifier = new();
         RecordingEventBus bus = new();
         YouTubePlayerStateStore store = new(clock);
-        YouTubePlayerDispatcher players = new(db, presence, notifier);
+        YouTubePlayerDispatcher players = new(db, presence, notifier, store);
 
         YouTubeMusicProvider provider = YouTubeProviderFactory.Create(
             apiKey: apiKey,
@@ -155,6 +155,7 @@ public sealed class YouTubePlayerHandOverTests
 
         Result reported = await rig.Reports.ReportAsync(
             Broadcaster,
+            PlayerWidget,
             "dQw4w9WgXcQ",
             "ended",
             213000
@@ -185,6 +186,7 @@ public sealed class YouTubePlayerHandOverTests
 
         Result reported = await rig.Reports.ReportAsync(
             Broadcaster,
+            PlayerWidget,
             "dQw4w9WgXcQ",
             "playing",
             42000
@@ -214,7 +216,7 @@ public sealed class YouTubePlayerHandOverTests
     {
         Rig rig = await BuildAsync();
         await rig.Provider.AddToQueueAsync(Broadcaster, Watch("dQw4w9WgXcQ"));
-        await rig.Reports.ReportAsync(Broadcaster, "dQw4w9WgXcQ", "playing", 1000);
+        await rig.Reports.ReportAsync(Broadcaster, PlayerWidget, "dQw4w9WgXcQ", "playing", 1000);
 
         rig.Clock.Advance(TimeSpan.FromSeconds(16));
 
@@ -240,7 +242,13 @@ public sealed class YouTubePlayerHandOverTests
     {
         Rig rig = await BuildAsync();
 
-        Result reported = await rig.Reports.ReportAsync(Broadcaster, "dQw4w9WgXcQ", "rewinding", 0);
+        Result reported = await rig.Reports.ReportAsync(
+            Broadcaster,
+            PlayerWidget,
+            "dQw4w9WgXcQ",
+            "rewinding",
+            0
+        );
 
         reported.IsSuccess.Should().BeFalse();
         (await rig.Provider.GetCurrentTrackAsync(Broadcaster)).Should().BeNull();
@@ -265,7 +273,7 @@ public sealed class YouTubePlayerHandOverTests
         Rig rig = await BuildAsync(apiKey: "test-key", handler: handler);
         await rig.Provider.AddToQueueAsync(Broadcaster, Watch("dQw4w9WgXcQ"));
 
-        await rig.Reports.ReportAsync(Broadcaster, "dQw4w9WgXcQ", "playing", 5000);
+        await rig.Reports.ReportAsync(Broadcaster, PlayerWidget, "dQw4w9WgXcQ", "playing", 5000);
 
         PlaybackStateChangedEvent changed = rig
             .Bus.Published.OfType<PlaybackStateChangedEvent>()

@@ -124,7 +124,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
         RecordingWidgetEventNotifier notifier = new();
         RecordingEventBus bus = new();
         YouTubePlayerStateStore playerStore = new(clock);
-        YouTubePlayerDispatcher players = new(db, presence, notifier);
+        YouTubePlayerDispatcher players = new(db, presence, notifier, playerStore);
 
         RecordingHttpHandler handler = new();
         handler.RespondWhen(
@@ -180,7 +180,13 @@ public sealed class YouTubeEndedAdvancesQueueTests
     private static async Task ReportAsync(Rig rig, string videoId, string state)
     {
         int seen = rig.Bus.Published.Count;
-        Result reported = await rig.Reports.ReportAsync(Broadcaster, videoId, state, 1000);
+        Result reported = await rig.Reports.ReportAsync(
+            Broadcaster,
+            PlayerWidget,
+            videoId,
+            state,
+            1000
+        );
         reported.IsSuccess.Should().BeTrue();
         List<PlaybackStateChangedEvent> changes = rig
             .Bus.Published.Skip(seen)

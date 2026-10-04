@@ -314,6 +314,7 @@ public class OverlayHub : Hub<IOverlayClient>
 
         Result reported = await reports.ReportAsync(
             broadcasterId,
+            parsedWidgetId,
             videoId,
             state,
             positionMs,

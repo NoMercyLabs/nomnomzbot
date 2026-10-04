@@ -22,6 +22,7 @@ public interface IYouTubePlayerReportService
     /// playing, paused, ended or error.</summary>
     Task<Result> ReportAsync(
         Guid broadcasterId,
+        Guid widgetId,
         string videoId,
         string state,
         long positionMs,

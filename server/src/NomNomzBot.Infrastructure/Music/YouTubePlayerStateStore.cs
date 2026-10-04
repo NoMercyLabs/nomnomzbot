@@ -41,12 +41,16 @@ public interface IYouTubePlayerStateStore
     /// <summary>Records the report and returns the fresh report it replaces, or null.</summary>
     YouTubePlayerReport? Report(
         Guid broadcasterId,
+        Guid widgetId,
         string videoId,
         YouTubePlayerState state,
         long positionMs
     );
 
     YouTubePlayerReport? GetFresh(Guid broadcasterId);
+
+    /// <summary>The widget whose report the store accepted last, or null when none has reported.</summary>
+    Guid? ReportingWidget(Guid broadcasterId);
 
     /// <summary>True while a video plays or is paused, or was pushed and the player has not answered yet.</summary>
     bool IsBusy(Guid broadcasterId);
@@ -70,6 +74,7 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
     private sealed class ChannelPlayer
     {
         public YouTubePlayerReport? Last;
+        public Guid? ReportingWidget;
         public YouTubeQueuedTrack? Pushed;
         public bool AwaitingAnswer;
         public DateTimeOffset PushedAt;
@@ -86,6 +91,7 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
 
     public YouTubePlayerReport? Report(
         Guid broadcasterId,
+        Guid widgetId,
         string videoId,
         YouTubePlayerState state,
         long positionMs
@@ -96,6 +102,7 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
         {
             YouTubePlayerReport? previous = FreshOrNull(player.Last);
             player.Last = new(videoId, state, positionMs, _clock.GetUtcNow());
+            player.ReportingWidget = widgetId;
             if (string.Equals(player.Pushed?.VideoId, videoId, StringComparison.Ordinal))
                 player.AwaitingAnswer = false;
             return previous;
@@ -107,6 +114,13 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
         ChannelPlayer player = PlayerOf(broadcasterId);
         lock (player)
             return FreshOrNull(player.Last);
+    }
+
+    public Guid? ReportingWidget(Guid broadcasterId)
+    {
+        ChannelPlayer player = PlayerOf(broadcasterId);
+        lock (player)
+            return player.ReportingWidget;
     }
 
     public bool IsBusy(Guid broadcasterId)

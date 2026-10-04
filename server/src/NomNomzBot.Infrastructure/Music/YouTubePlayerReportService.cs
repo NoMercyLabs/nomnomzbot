@@ -24,6 +24,7 @@ public sealed class YouTubePlayerReportService(
 {
     public async Task<Result> ReportAsync(
         Guid broadcasterId,
+        Guid widgetId,
         string videoId,
         string state,
         long positionMs,
@@ -35,9 +36,29 @@ public sealed class YouTubePlayerReportService(
         if (!Enum.TryParse(state, ignoreCase: true, out YouTubePlayerState parsed))
             return Result.Failure($"Unknown YouTube player state '{state}'.", "INVALID_STATE");
 
+        IReadOnlyList<Guid> owner = await players.FindPlayersAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (
+            owner.Count > 0
+            && owner[0] != widgetId
+            && store.GetFresh(broadcasterId)?.State == YouTubePlayerState.Playing
+        )
+            return Result.Failure(
+                "Another widget owns this channel's YouTube player.",
+                "NOT_PLAYER_OWNER"
+            );
+
         // Looked up before an ended video hands over to the next one, which replaces the pushed track.
         YouTubeQueuedTrack? known = store.PushedTrack(broadcasterId, videoId);
-        YouTubePlayerReport? previous = store.Report(broadcasterId, videoId, parsed, positionMs);
+        YouTubePlayerReport? previous = store.Report(
+            broadcasterId,
+            widgetId,
+            videoId,
+            parsed,
+            positionMs
+        );
 
         if (parsed is YouTubePlayerState.Ended or YouTubePlayerState.Error)
             await HandOverNextAsync(broadcasterId, cancellationToken);

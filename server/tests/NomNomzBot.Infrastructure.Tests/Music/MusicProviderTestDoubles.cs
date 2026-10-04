@@ -478,6 +478,8 @@ internal static class YouTubeProviderFactory
         SingleHandlerClientFactory factory = new(handler ?? new RecordingHttpHandler());
 
         IApplicationDbContext database = db ?? MusicTestDbContext.New();
+        IYouTubePlayerStateStore store =
+            playerState ?? new YouTubePlayerStateStore(TimeProvider.System);
 
         // The REAL shared custody path over the same db/handler — manage-surface tests keep proving the
         // vault-lookup + refresh behavior end to end, now through the extracted provider (S036c-b).
@@ -495,12 +497,13 @@ internal static class YouTubeProviderFactory
             factory,
             configuration,
             accessTokens,
-            playerState ?? new YouTubePlayerStateStore(TimeProvider.System),
+            store,
             players
                 ?? new YouTubePlayerDispatcher(
                     database,
                     Substitute.For<IOverlayPresenceRegistry>(),
-                    Substitute.For<IWidgetEventNotifier>()
+                    Substitute.For<IWidgetEventNotifier>(),
+                    store
                 ),
             NullLogger<YouTubeMusicProvider>.Instance
         );
