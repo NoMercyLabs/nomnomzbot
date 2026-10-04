@@ -79,9 +79,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   reason when the widget is not attached, and a test proves both cases.
   The script call `widget.emit` has the same gap: it returns true with no page open (`ScriptHostBridge.cs:556-571`);
   done-when covers both paths (found by the send-to-a-widget writer 2026-10-04).
-- **S-WIDGET-EVENT-LABEL** Found by the docs writer 2026-10-04. The editor labels `event_type` "Event type
-  (optional)" (`strings.xml:3025`) for every step, but `widget_event` requires it (`WidgetEventAction.cs:50`);
-  only `send_webhook` treats it as optional (`SendWebhookAction.cs:76`). Done when the label is right for each step.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
