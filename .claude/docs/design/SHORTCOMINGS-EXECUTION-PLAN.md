@@ -67,14 +67,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   call (one shared validator per capability, no copy), so a test run reports the same `nnz.lastError` the live run
   would; a test per capability failed first; N of 11 reported. Starts after S-SCRIPT-CHAT-SEND-FAILURE lands
   (same file).
-- **S-TTS-DURATION-ESTIMATE** Found by the docs fact-check 2026-10-04. Edge and Azure request
-  `audio-24khz-48kbitrate-mono-mp3` (`EdgeTtsProvider.cs:505`, `AzureTtsProvider.cs:70`) but estimate the length as
-  128 kbit/s (`EdgeTtsProvider.cs:196-197`, `AzureTtsProvider.cs:83`), so `DurationMs` is about 37% of the real
-  length. It reaches the overlay (`TtsSpeakBroadcastHandler.cs:85`), the pipeline variable `tts.durationMs`
-  (`TtsSynthesizeAction.cs:183`), the TTS cache and a script's `speak` result, so anything that waits for a line to
-  finish moves on early. Done-when: each provider's duration comes from the audio it returned (MP3 frame headers or
-  the requested bitrate), a test with real 48 kbit/s bytes failed first; ElevenLabs (`:91`) checked against its
-  real output format; N of 3 reported.
 - **S-TTS-NAN-RATE** Found by the docs fact-check 2026-10-04. A script's speed or pitch of `NaN` or `Infinity`
   parses as a double (`ScriptHostBridge.cs:902-911`) and reaches the provider as `NaN%`, where the comment says a bad
   value keeps the default. Done-when: a non-finite value is treated as absent; a test failed first. Starts after
