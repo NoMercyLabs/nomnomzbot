@@ -62,6 +62,18 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   sets `nnz.lastError` with a host error code and the call reports failure as its declared type allows; a test with a
   provider that returns `false` failed first. Check every other bridge call that drops a `bool` or `Result` from a
   provider and report N of M.
+- **S-WIDGET-SETTINGS-DEFAULTS** Found by the docs writer 2026-10-04. The `default` of each field in a widget's
+  `settings.json` never reaches the widget page until the streamer saves the settings form once: the overlay
+  manifest sends only the saved bag (`WidgetService.cs:1267`), the SDK seeds from it (`OverlaySdkController.cs:57`,
+  `:180`), and nothing merges the declared defaults. The editor types say every setting always has a value
+  (`WidgetSettingsTypeWriter.cs`), so typed widget code reads `undefined` at run time. Done-when: a widget page
+  receives every declared default for a field the streamer never saved (manifest, join `initialState` and
+  `WidgetSettingsChanged` alike), so the generated type holds; a test failed first.
+- **S-SCRIPT-QUOTA-FAIL-OPEN** Found by the docs writer 2026-10-04. The script quota gate says "fail-closed"
+  (`ScriptRunner.cs:53`) but refuses only when the check succeeds and says not allowed (`:58`); when
+  `CheckSandboxBudgetAsync` itself fails, the script runs unmetered. Done-when: a failed budget check refuses the
+  run with a clear reason, as the comment and `spec/code-execution-sandbox.md` intend; a test with a failing meter
+  failed first.
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
@@ -927,8 +939,11 @@ than each consumer needing their own clone-and-customize pass.
   literal remains under `app/`, and a nl-locale test per controller asserts the Dutch string
   (pattern: `ObsControllerLocalizationTest`).
 - **S-EGRESS-ALLOWLIST-CRUD** API + dashboard screen to manage `HttpEgressAllowlist` rows (host,
-  enabled, methods, body/query/path clamps). Webhooks, custom data sources and sandboxed scripts all
-  reject a host with no row, yet nothing lets an owner list, add, edit or remove one. Done-when:
+  enabled, methods, body/query/path clamps). Webhooks and custom data sources reject a host with no row
+  (`CustomDataEgressFetcher.cs:62`), yet nothing lets an owner list, add, edit or remove one. Sandboxed
+  scripts do NOT consult the list today: `http.fetch` takes any public https host through the pinned client
+  (`ScriptHostBridge.cs:274`, `DependencyInjection.cs:697-701`); whether it should is the open owner question
+  "fetch allowlist" (`spec/code-execution-sandbox.md:40`). Done-when:
   adding a host in the dashboard lets a webhook to it save, disabling or deleting it makes the same
   save fail, and a counted blast radius shows before delete.
 - **S-EGRESS-GUARD-MULTICAST** `EgressAddressGuard` blocks private, loopback, link-local, CGNAT, ULA
