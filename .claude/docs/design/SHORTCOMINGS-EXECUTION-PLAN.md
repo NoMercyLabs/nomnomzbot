@@ -74,6 +74,15 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `CheckSandboxBudgetAsync` itself fails, the script runs unmetered. Done-when: a failed budget check refuses the
   run with a clear reason, as the comment and `spec/code-execution-sandbox.md` intend; a test with a failing meter
   failed first.
+- **S-TESTRUN-SKIPS-VALIDATION** Found by the docs fact-check 2026-10-04. An editor test run captures every write
+  (`chat.send`, `chat.reply`, `music.queue`, `storage.set`/`delete`, `tts.speak`, `tts.voice.set`, `widget.emit`,
+  `reward.update`, `schedule.pipeline`, `actions.invoke:*`) and returns a canned success before the live bridge's
+  argument checks run (`CaptureScriptHostBridge.cs:35-50`, `:83-94`). So an empty chat message, a bad delay or a bad
+  storage key passes a test run with `nnz.lastError` null, while the same call fails live
+  (`ScriptHostBridge.cs:368-372`). Done-when: each captured write runs the same argument validation as the live
+  call (one shared validator per capability, no copy), so a test run reports the same `nnz.lastError` the live run
+  would; a test per capability failed first; N of 11 reported. Starts after S-SCRIPT-CHAT-SEND-FAILURE lands
+  (same file).
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
