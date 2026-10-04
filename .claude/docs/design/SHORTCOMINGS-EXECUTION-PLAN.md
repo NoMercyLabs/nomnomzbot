@@ -39,10 +39,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   would; a test per capability failed first; N of 11 reported. For `widget.emit` this includes the widget lookup: a test
   run now returns true for a widget that does not exist or is turned off (`CaptureScriptHostBridge.cs:47`). Starts after S-SCRIPT-CHAT-SEND-FAILURE lands
   (same file).
-- **S-TTS-NAN-RATE** Found by the docs fact-check 2026-10-04. A script's speed or pitch of `NaN` or `Infinity`
-  parses as a double (`ScriptHostBridge.cs:902-911`) and reaches the provider as `NaN%`, where the comment says a bad
-  value keeps the default. Done-when: a non-finite value is treated as absent; a test failed first. Starts after
-  S-SCRIPT-CHAT-SEND-FAILURE lands (same file).
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
