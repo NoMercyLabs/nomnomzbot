@@ -58,7 +58,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (20e3f7ceb, tests only: it already worked). Left: the bot sends `youtube.play` to every open player widget, so
   two open now playing sources both play the audio (one player must own it); play, pause and skip are
   log-only stubs (`YouTubeMusicProvider.cs:107-121`), so `!skip` and the dashboard controls do nothing for
-  YouTube; a dev-box browser check that a request plays and `nowPlaying` returns it.
+  YouTube; with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
+  reconnected." (`YouTubeMusicProvider.cs:295` NotConnected -> `MusicService.cs` MISSING_SCOPE), advice the
+  streamer cannot act on (the operator must set the key); a dev-box browser check that a request plays and
+  `nowPlaying` returns it.
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
 - **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
