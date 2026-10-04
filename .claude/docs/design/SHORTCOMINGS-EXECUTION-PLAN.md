@@ -65,15 +65,11 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   it; a dev-box browser check that a request plays and `nowPlaying` returns it.
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
-- **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
-  overlay rows give every action the full accent: 8 `TextButton`s with `tokens.primary` text
-  (`WidgetsScreen.kt:943, 957, 1046, 1059, 1077, 1137, 1150, 1640`), so a row reads as six equal-weight
-  accent actions (Sleak: one primary per group, scarce accent). The gallery's first-party trust badge is
-  `BadgeVariant.Default` (`WidgetsScreen.kt:1895`); every gallery item today is first-party, so every card
-  carries a full-accent pill. (The closed gallery dialog's 43 buttons staying in the accessibility tree is
-  S-CMP-A11Y-DIALOG: upstream CMP-9368, `ComposeWebSemanticsListener.kt:120-152` on 1.9.0.) Done-when: each
-  row has at most one accent action, the badge is quiet when every item has it; each with a test that failed
-  first, and a screenshot on dev.
+- **S-WIDGETS-ROW-NARROW** Render check on dev 2026-10-04 (0.1.0+69e3365e7) at 1366x768: the overlay row's name
+  column shrinks to one letter per line, because `WidgetsScreen.kt:754` stacks the info above the actions only at a
+  Compact window; at Medium/Expanded the eight Dutch action labels claim nearly the whole row. Same pattern to check:
+  PipelinesScreen tree rows and the AdminScreen flag-override row. Done-when: the layout follows the row's own width,
+  the name and meta stay readable at 1366 and 1600, a UI test at that width failed first, and a screenshot on dev.
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
