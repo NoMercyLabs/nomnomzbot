@@ -67,6 +67,9 @@ public sealed record TestRunResultDto(
 {
     /// <summary>Every effect, chat message and console line in the order it happened; empty when the run kind has none.</summary>
     public IReadOnlyList<TimelineEntryDto> Timeline { get; init; } = [];
+
+    /// <summary>Where in the author's own file a failed script run threw; null when the run passed or the place is unknown.</summary>
+    public ScriptSourcePosition? ErrorPosition { get; init; }
 }
 
 /// <summary>

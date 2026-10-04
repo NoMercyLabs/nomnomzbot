@@ -183,6 +183,7 @@ public sealed class ScriptTestRunService(
             )
             {
                 Timeline = sink.Timeline,
+                ErrorPosition = success ? null : outcome.ErrorPosition,
             }
         );
     }

@@ -114210,6 +114210,38 @@
           }
         }
       },
+      "ScriptSourcePosition": {
+        "required": [
+          "file",
+          "line",
+          "column"
+        ],
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "line": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "column": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "ScriptTestRunRequest": {
         "required": [
           "variables",
@@ -128849,6 +128881,17 @@
               "$ref": "#/components/schemas/TimelineEntryDto"
             },
             "description": "Every effect, chat message and console line in the order it happened; empty when the run kind has none."
+          },
+          "errorPosition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScriptSourcePosition"
+              }
+            ],
+            "description": "Where in the author's own file a failed script run threw; null when the run passed or the place is unknown."
           }
         },
         "description": "The uniform result of a script or pipeline test-run (custom-code.md / commands-pipelines.md). The logic ran for\nreal; every outward/mutating effect was CAPTURED (see IReadOnlyList&lt;CapturedEffectDto&gt; TestRunResultDto.CapturedEffects) rather than committed, while\nread-only calls (reads, conditions, template resolution, random draws) ran against the live services so the\ndry-run stays realistic."

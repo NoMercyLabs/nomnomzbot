@@ -273,6 +273,34 @@ public sealed class ScriptTestRunServiceTests
     }
 
     [Fact]
+    public async Task A_failed_run_reports_the_line_and_column_of_the_throw()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, "const a = 1;\nthrow new Error('boom');\n", []);
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.Success.Should().BeFalse();
+        result.ErrorPosition.Should().NotBeNull();
+        result.ErrorPosition!.Line.Should().Be(2);
+        result.ErrorPosition.Column.Should().BeGreaterThan(0);
+        result.Error.Should().Contain($"(line 2, column {result.ErrorPosition.Column})");
+    }
+
+    [Fact]
+    public async Task A_passing_run_has_no_error_position()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, "const a = 1;\n", []);
+
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.Success.Should().BeTrue();
+        result.ErrorPosition.Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_throwing_script_fails_with_an_error_and_no_effects()
     {
         (ScriptTestRunService sut, AuthDbContext db, _) = Build();
