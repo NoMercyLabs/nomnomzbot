@@ -801,7 +801,7 @@
     <string name="tts_tab_pronunciation">Pronunciation</string>
     <string name="tts_tab_queue_and_test">Queue &amp; test</string>
     <string name="tts_overlay_title">OBS overlay</string>
-    <string name="tts_overlay_url_label">Browser-source URL</string>
+    <string name="tts_overlay_url_label">TTS source for OBS</string>
     <string name="tts_overlay_never_ran">Never ran yet</string>
     <string name="tts_overlay_last_ran">Last ran %1$s</string>
     <string name="tts_overlay_test_button">Test overlay</string>

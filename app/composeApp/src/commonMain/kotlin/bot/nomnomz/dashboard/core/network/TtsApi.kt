@@ -131,9 +131,9 @@ interface TtsApi {
     suspend fun clearMyVoice(channelId: String): ApiResult<Unit>
 
     /**
-     * The channel's auto-provisioned TTS overlay (backend `GET /tts/overlay`) — get-or-creates the system
-     * `tts_caption` widget for this channel, so a fresh channel gets a working OBS browser-source URL with
-     * no gallery install step.
+     * The channel's TTS source for OBS (backend `GET /tts/overlay`) — get-or-creates the system
+     * `tts_audio` widget (the one Audio Source page TTS plays out of) for this channel, so a fresh channel
+     * gets a working OBS browser-source URL with no gallery install step.
      */
     suspend fun overlay(channelId: String): ApiResult<TtsOverlay>
 
