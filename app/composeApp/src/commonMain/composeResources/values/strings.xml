@@ -1731,7 +1731,7 @@
     <string name="widgets_rotate_widget_token_confirm">Rotate</string>
     <string name="widgets_rotate_widget_token_dismiss">Cancel</string>
     <string name="widgets_rotate_widget_token_result_title">Token rotated</string>
-    <string name="widgets_rotate_widget_token_result_message">Copy the new URL into OBS now. The old URL stays live until %1$s, then this overlay goes blank.</string>
+    <string name="widgets_rotate_widget_token_result_message">Copy the new URL into OBS now. The old URL stays live until %1$s. After that, a page still open with it stops and shows a red notice in OBS.</string>
     <string name="widgets_rotate_widget_token_result_previous_label">Old URL (expires %1$s)</string>
     <string name="widgets_rotate_widget_token_result_new_label">New URL — copy into OBS</string>
     <string name="widgets_rotate_widget_token_result_done">Done</string>

@@ -1728,7 +1728,7 @@
     <string name="widgets_rotate_widget_token_confirm">Vernieuwen</string>
     <string name="widgets_rotate_widget_token_dismiss">Annuleren</string>
     <string name="widgets_rotate_widget_token_result_title">Token vernieuwd</string>
-    <string name="widgets_rotate_widget_token_result_message">Plak de nieuwe URL nu in OBS. De oude URL blijft werken tot %1$s, daarna wordt deze overlay leeg.</string>
+    <string name="widgets_rotate_widget_token_result_message">Plak de nieuwe URL nu in OBS. De oude URL blijft werken tot %1$s. Daarna stopt een pagina die hem nog open heeft en toont een rode melding in OBS.</string>
     <string name="widgets_rotate_widget_token_result_previous_label">Oude URL (verloopt %1$s)</string>
     <string name="widgets_rotate_widget_token_result_new_label">Nieuwe URL — plak in OBS</string>
     <string name="widgets_rotate_widget_token_result_done">Klaar</string>
