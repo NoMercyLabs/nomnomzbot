@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
+using NomNomzBot.Infrastructure.DevPlatform;
 using NomNomzBot.Infrastructure.Tests.Consequences;
 using NSubstitute;
 
@@ -251,6 +252,64 @@ public sealed class CodeScriptTriggerResolverTests
             TargetPipelineId = pipelineId,
             IsEnabled = isEnabled,
         };
+
+    private static ChatTrigger NewChatTrigger(Guid pipelineId, bool isEnabled) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = Channel,
+            Pattern = "hello",
+            PipelineId = pipelineId,
+            IsEnabled = isEnabled,
+        };
+
+    [Fact]
+    public async Task A_script_run_by_an_enabled_chat_trigger_has_the_chat_variable_key()
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "on-hello");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline pipeline = NewPipeline(Channel, "hello-trigger");
+            seed.Pipelines.Add(pipeline);
+            seed.CodeScripts.Add(script);
+            seed.PipelineSteps.Add(RunCode(Channel, pipeline.Id, script.Id));
+            seed.ChatTriggers.Add(NewChatTrigger(pipeline.Id, isEnabled: true));
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        Result<IReadOnlyList<string>> result = await Build(db)
+            .GetTriggerKeysAsync(script.Id, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Equal(ChatCommandVariableKeys.Trigger);
+    }
+
+    [Fact]
+    public async Task A_script_run_only_by_a_disabled_chat_trigger_has_no_trigger_keys()
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "on-old-hello");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline pipeline = NewPipeline(Channel, "old-hello-trigger");
+            seed.Pipelines.Add(pipeline);
+            seed.CodeScripts.Add(script);
+            seed.PipelineSteps.Add(RunCode(Channel, pipeline.Id, script.Id));
+            seed.ChatTriggers.Add(NewChatTrigger(pipeline.Id, isEnabled: false));
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        Result<IReadOnlyList<string>> result = await Build(db)
+            .GetTriggerKeysAsync(script.Id, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+    }
 
     [Fact]
     public async Task A_pipeline_trigger_row_contributes_its_kind_key()

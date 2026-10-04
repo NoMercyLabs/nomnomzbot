@@ -70,6 +70,14 @@ public sealed class CodeScriptTriggerResolver(
                 && pipelineIds.Contains(command.PipelineId.Value),
             cancellationToken
         );
+        bool hasChatTrigger = await db.ChatTriggers.AnyAsync(
+            trigger =>
+                trigger.BroadcasterId == broadcasterId
+                && trigger.IsEnabled
+                && trigger.PipelineId != null
+                && pipelineIds.Contains(trigger.PipelineId.Value),
+            cancellationToken
+        );
 
         List<string> eventTypes = await db
             .EventResponses.Where(response =>
@@ -122,7 +130,8 @@ public sealed class CodeScriptTriggerResolver(
             .ToList();
 
         HashSet<string> keys = new(StringComparer.Ordinal);
-        if (hasCommand)
+        // A chat trigger seeds the same chat variables a command does (BuildInitialVariables).
+        if (hasCommand || hasChatTrigger)
             keys.Add(ChatCommandVariableKeys.Trigger);
         if (hasTimer)
             keys.Add(TimerSampleSource.ResponseKey);
