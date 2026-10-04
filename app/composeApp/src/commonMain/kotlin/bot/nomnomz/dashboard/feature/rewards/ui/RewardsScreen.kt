@@ -55,7 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
-import bot.nomnomz.dashboard.core.designsystem.component.PageHeaderWithActions
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.network.rewardPayload
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
@@ -445,7 +445,7 @@ private fun ManagedContent(
 enum class TimerAction { Pause, Resume, Complete, Cancel }
 
 // The actions sit beside the title when they fit and wrap beneath it when they do not: the layout follows the
-// header's own width (PageHeaderWithActions), not the window class, so a long Dutch label never wraps in place.
+// header's own width (PageHeader), not the window class, so a long Dutch label never wraps in place.
 @Composable
 internal fun RewardsHeader(
     lifecycle: ManageDecision,
@@ -459,7 +459,7 @@ internal fun RewardsHeader(
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
     val importLabel: String = stringResource(Res.string.rewards_import_action)
 
-    PageHeaderWithActions(title = stringResource(Res.string.rewards_title)) {
+    PageHeader(title = stringResource(Res.string.rewards_title)) {
         RewardHeaderActions(lifecycle, syncLabel, importLabel, templatesLabel, newLabel, onSync, onImport, onBrowseTemplates, onNew)
     }
 }

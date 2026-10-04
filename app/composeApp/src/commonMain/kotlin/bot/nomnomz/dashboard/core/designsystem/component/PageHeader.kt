@@ -14,13 +14,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRowScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,36 +30,34 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 // The single page heading used by every management screen: title (xl2) + optional subtitle (sm,
 // muted) + optional trailing action slot, closed by a divider.
 //
-// The content band is a FIXED 96dp height so the header is identical on every page:
+// Beside the title the band keeps a 96dp minimum height so the header is identical on every page:
 // the title sits at the same vertical position and the divider lands at the same Y regardless of
-// whether the page has a subtitle or a trailing button. Without this, subtitled/action-bearing
-// headers grow taller than title-only ones and the content start jumps as you move between pages.
-// Every variant fits the band — including the 60dp Figma action buttons with 18dp clearance above
-// and below — so the band never has to grow and the pinning holds.
+// whether the page has a subtitle or a trailing button.
+//
+// The trailing slot follows the width this header is given, not the window class (see InfoActionsRow):
+// beside the title when it fits next to a readable title column, otherwise under the title with the
+// actions wrapping, and the band grows to fit. A long localized label never wraps in place. Each action
+// in the slot is its own item; a gate that wraps several actions in one Box keeps them as one item.
 @Composable
 fun PageHeader(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    trailing: (@Composable () -> Unit)? = null,
+    trailing: (@Composable FlowRowScope.() -> Unit)? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(spacing.s24),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PageHeaderTitle(title = title, subtitle = subtitle, modifier = Modifier.weight(1f))
+        Box(modifier = Modifier.fillMaxWidth().heightIn(min = spacing.s24), contentAlignment = Alignment.CenterStart) {
             if (trailing != null) {
-                // Keep the action clear of the (ellipsized) title column; the slot is vertically
-                // centered against the title line so every page's action lands at the same height.
-                Spacer(modifier = Modifier.width(spacing.s3))
-                trailing()
+                InfoActionsRow(
+                    info = { infoModifier -> PageHeaderTitle(title = title, subtitle = subtitle, modifier = infoModifier) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s3),
+                    actions = trailing,
+                )
+            } else {
+                PageHeaderTitle(title = title, subtitle = subtitle, modifier = Modifier.fillMaxWidth())
             }
         }
         HorizontalDivider(color = tokens.border)
@@ -93,34 +87,5 @@ private fun PageHeaderTitle(title: String, subtitle: String?, modifier: Modifier
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
-}
-
-/**
- * A [PageHeader] whose action group moves under the title when it does not fit beside a readable title column.
- *
- * Beside the title the band keeps the 96dp height of every other header. Once the actions need the pane's
- * width (a long run of localized labels), the title takes its own line and the actions wrap beneath it, and the
- * band grows to fit. The choice follows the width this header is given, not the window class (see
- * [InfoActionsRow]).
- */
-@Composable
-fun PageHeaderWithActions(
-    title: String,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    actions: @Composable FlowRowScope.() -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    Column(modifier = modifier.fillMaxWidth()) {
-        Box(modifier = Modifier.fillMaxWidth().heightIn(min = spacing.s24), contentAlignment = Alignment.CenterStart) {
-            InfoActionsRow(
-                info = { infoModifier -> PageHeaderTitle(title = title, subtitle = subtitle, modifier = infoModifier) },
-                modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s3),
-                actions = actions,
-            )
-        }
-        HorizontalDivider(color = tokens.border)
     }
 }

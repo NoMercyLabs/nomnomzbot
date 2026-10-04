@@ -64,7 +64,7 @@ import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.core.designsystem.component.InfoActionsRow
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
-import bot.nomnomz.dashboard.core.designsystem.component.PageHeaderWithActions
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -507,7 +507,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
 }
 
 // The page header: title + subtitle, with the overlay actions beside the title when they fit and wrapped
-// beneath it when they do not (the layout follows the header's own width, see PageHeaderWithActions).
+// beneath it when they do not (the layout follows the header's own width, see PageHeader).
 @Composable
 internal fun WidgetsHeader(
     isReviewer: Boolean,
@@ -518,7 +518,7 @@ internal fun WidgetsHeader(
     onRotateToken: () -> Unit,
     onCreate: () -> Unit,
 ) {
-    PageHeaderWithActions(
+    PageHeader(
         title = stringResource(Res.string.shell_nav_overlays),
         subtitle = stringResource(Res.string.widgets_subtitle),
     ) {
