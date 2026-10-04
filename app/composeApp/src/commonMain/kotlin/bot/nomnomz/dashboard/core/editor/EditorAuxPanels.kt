@@ -95,6 +95,8 @@ class EditorTestRun(
         args: List<String>,
         trigger: String?,
         role: String?,
+        // The files open in the editor right now; empty when the page sent none (the saved version then runs).
+        files: Map<String, String>,
     ) -> EditorOutcome<EditorTestRunResult>,
 )
 

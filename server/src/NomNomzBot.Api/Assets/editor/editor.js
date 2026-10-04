@@ -1392,6 +1392,7 @@ function requestTestRun() {
         args: parseTestRunArgs(dom.testRunArgs.value),
         trigger: dom.testRunTrigger.value || null,
         role: dom.testRunRole.value || null,
+        files: Object.fromEntries(state.files),
     });
 }
 

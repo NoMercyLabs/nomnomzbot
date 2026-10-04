@@ -201,6 +201,7 @@ data class ScriptTestRunBody(
     val args: List<String> = emptyList(),
     val trigger: String? = null,
     val role: String? = null,
+    val project: ProjectDto? = null,
 )
 
 /** One trigger sample a test run can fire (backend `TestTriggerDto`). */

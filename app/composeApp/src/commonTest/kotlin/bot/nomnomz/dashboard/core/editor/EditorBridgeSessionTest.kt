@@ -170,7 +170,7 @@ class EditorBridgeSessionTest {
     @Test
     fun testRunPostsTheVariablesTheScriptSetAndItsConsoleLines() = runTest {
         val testRun =
-            EditorTestRun { _, _, _, _ ->
+            EditorTestRun { _, _, _, _, _ ->
                 EditorOutcome.Ok(
                     EditorTestRunResult(
                         success = true,
@@ -196,7 +196,7 @@ class EditorBridgeSessionTest {
     @Test
     fun testRunPostsTheTimelineInOrder() = runTest {
         val testRun =
-            EditorTestRun { _, _, _, _ ->
+            EditorTestRun { _, _, _, _, _ ->
                 EditorOutcome.Ok(
                     EditorTestRunResult(
                         success = true,
@@ -228,7 +228,7 @@ class EditorBridgeSessionTest {
     fun testRunPassesVariablesAndArgsAndPostsCapturedEffects() = runTest {
         val received: MutableList<Pair<Map<String, String>, List<String>>> = mutableListOf()
         val testRun =
-            EditorTestRun { variables, args, _, _ ->
+            EditorTestRun { variables, args, _, _, _ ->
                 received += variables to args
                 EditorOutcome.Ok(
                     EditorTestRunResult(
@@ -259,7 +259,7 @@ class EditorBridgeSessionTest {
     fun testRunPassesTheChosenTriggerAndRoleToTheCaller() = runTest {
         val received: MutableList<Pair<String?, String?>> = mutableListOf()
         val testRun =
-            EditorTestRun { _, _, trigger, role ->
+            EditorTestRun { _, _, trigger, role, _ ->
                 received += trigger to role
                 EditorOutcome.Ok(
                     EditorTestRunResult(
@@ -287,6 +287,40 @@ class EditorBridgeSessionTest {
     }
 
     @Test
+    fun aTestRunMessageWithFilesReachesTheTestRunWithThoseExactFiles() = runTest {
+        val received: MutableList<Map<String, String>> = mutableListOf()
+        val testRun =
+            EditorTestRun { _, _, _, _, files ->
+                received += files
+                EditorOutcome.Ok(
+                    EditorTestRunResult(
+                        success = true,
+                        durationMs = 1,
+                        hostCallCount = 0,
+                        error = null,
+                        chatOutput = emptyList(),
+                        effects = emptyList(),
+                    )
+                )
+            }
+        val harness = Harness(testRun = testRun)
+
+        harness.session.handle(
+            EditorBridgeProtocol.decode(
+                """{"type":"nnz:editor:testRun","variables":{},"args":[],"files":{"index.ts":"a = 1;","lib/util.ts":"export {};"}}"""
+            )!!
+        )
+        harness.session.handle(
+            EditorBridgeProtocol.decode("""{"type":"nnz:editor:testRun","variables":{},"args":[]}""")!!
+        )
+
+        assertEquals(
+            listOf(mapOf("index.ts" to "a = 1;", "lib/util.ts" to "export {};"), emptyMap()),
+            received,
+        )
+    }
+
+    @Test
     fun theOpenPayloadCarriesTheTriggerListAndTheLabels() = runTest {
         val testRun =
             EditorTestRun(
@@ -305,7 +339,7 @@ class EditorBridgeSessionTest {
                         role = "Viewer role",
                         roles = mapOf("moderator" to "Moderator", "viewer" to "Viewer"),
                     ),
-            ) { _, _, _, _ ->
+            ) { _, _, _, _, _ ->
                 EditorOutcome.Failed("unused")
             }
         val harness = Harness(testRun = testRun)

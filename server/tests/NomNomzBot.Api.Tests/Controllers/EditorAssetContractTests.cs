@@ -58,6 +58,33 @@ public class EditorAssetContractTests
     }
 
     [Fact]
+    public void The_test_run_message_carries_the_files_open_in_the_editor_the_way_a_save_does()
+    {
+        string script = Read("editor.js");
+
+        string saveFiles = Regex
+            .Match(script, @"type:\s*HOST_MESSAGE\.save,\s*(?<files>files:[^}]+)\}")
+            .Groups["files"]
+            .Value.Trim();
+        saveFiles.Should().Be("files: Object.fromEntries(state.files)");
+
+        int from = script.IndexOf("function requestTestRun()", StringComparison.Ordinal);
+        from.Should().BeGreaterThan(-1, "editor.js must declare requestTestRun");
+        int to = script.IndexOf("\n}\n", from, StringComparison.Ordinal);
+        string body = script[from..to];
+
+        Match message = Regex.Match(
+            body,
+            @"postToHost\(\{\s*type:\s*HOST_MESSAGE\.testRun,(?<fields>[^}]*)\}\)"
+        );
+        message.Success.Should().BeTrue("requestTestRun posts the testRun host message");
+        message
+            .Groups["fields"]
+            .Value.Should()
+            .Contain(saveFiles, "the test run sends the same files map a save sends");
+    }
+
+    [Fact]
     public void Every_asset_the_page_links_is_present()
     {
         string markup = Read("index.html");

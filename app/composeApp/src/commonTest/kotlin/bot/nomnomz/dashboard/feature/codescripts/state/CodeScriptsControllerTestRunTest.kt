@@ -118,6 +118,32 @@ class CodeScriptsControllerTestRunTest {
     }
 
     @Test
+    fun the_editor_test_run_sends_the_open_files_as_the_project_with_the_manifest_a_save_would_send() = runTest {
+        val api = FakeCodeScriptsApi(ApiResult.Ok(TestRunResult(success = true, durationMs = 1, hostCallCount = 0)))
+        val editor = TestRunPressingEditor()
+        editor.pressFiles = mapOf("index.ts" to "edited = true;", "lib/util.ts" to "export {};")
+        val controller = CodeScriptsController(api, editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        assertEquals(
+            ProjectDto(files = editor.pressFiles, manifest = project.manifest),
+            api.lastTestRunBody?.project,
+        )
+    }
+
+    @Test
+    fun a_test_run_without_open_files_sends_no_project_so_the_saved_version_runs() = runTest {
+        val api = FakeCodeScriptsApi(ApiResult.Ok(TestRunResult(success = true, durationMs = 1, hostCallCount = 0)))
+        val controller = openedController(api)
+
+        controller.testRun("s1", emptyMap(), emptyList())
+
+        assertEquals(null, api.lastTestRunBody?.project)
+    }
+
+    @Test
     fun the_editor_test_run_panel_gets_the_failing_line_so_the_editor_can_underline_it() = runTest {
         val captured =
             TestRunResult(
@@ -295,6 +321,7 @@ class CodeScriptsControllerTestRunTest {
         var triggers: List<EditorTestTrigger> = emptyList()
         var pressTrigger: String? = null
         var pressRole: String? = null
+        var pressFiles: Map<String, String> = emptyMap()
 
         override suspend fun editAndCompile(
             title: String,
@@ -309,7 +336,7 @@ class CodeScriptsControllerTestRunTest {
             compile: suspend (Map<String, String>) -> CompileFeedback,
         ) {
             triggers = testRun?.triggers.orEmpty()
-            outcome = testRun?.run?.invoke(emptyMap(), emptyList(), pressTrigger, pressRole)
+            outcome = testRun?.run?.invoke(emptyMap(), emptyList(), pressTrigger, pressRole, pressFiles)
         }
     }
 

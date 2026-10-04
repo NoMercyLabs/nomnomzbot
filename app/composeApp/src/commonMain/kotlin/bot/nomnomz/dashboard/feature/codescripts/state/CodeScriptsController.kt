@@ -336,8 +336,8 @@ class CodeScriptsController(
     // Wires the editor's Test run panel onto this controller's own [testRun] — the same dry-run logic already
     // exercised directly (see CodeScriptsControllerTestRunTest), read back off state instead of duplicated here.
     private suspend fun buildEditorTestRun(id: String): EditorTestRun =
-        EditorTestRun(triggers = fetchEditorTriggers(), labels = editorTestRunLabels()) { variables, args, trigger, role ->
-            testRun(id, variables, args, trigger, role)
+        EditorTestRun(triggers = fetchEditorTriggers(), labels = editorTestRunLabels()) { variables, args, trigger, role, files ->
+            testRun(id, variables, args, trigger, role, files.takeIf { it.isNotEmpty() })
             val current: CodeScriptsState = _state.value
             val error: String? = (current as? CodeScriptsState.Editing)?.testError
             val result: TestRunResult? = (current as? CodeScriptsState.Editing)?.testResult
@@ -409,13 +409,14 @@ class CodeScriptsController(
         args: List<String>,
         trigger: String? = null,
         role: String? = null,
+        files: Map<String, String>? = null,
     ) {
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
         _state.value = current.copy(testRunning = true, testError = null)
 
         when (
-            val result: ApiResult<TestRunResult> = api.testRun(id, ScriptTestRunBody(variables, args, trigger, role))
+            val result: ApiResult<TestRunResult> = api.testRun(id, ScriptTestRunBody(variables, args, trigger, role, files?.let { projectBody(current.project, it) }))
         ) {
             is ApiResult.Ok -> updateEditing(id) { it.copy(testRunning = false, testResult = result.value, testError = null) }
             is ApiResult.Failure -> updateEditing(id) { it.copy(testRunning = false, testError = result.error.message) }
@@ -490,6 +491,10 @@ class CodeScriptsController(
     // Save the edited project (files + the preserved manifest) and map the outcome to inline editor feedback. The
     // server returns a failure Result on a broken validation/compile (nothing persisted), so a failure surfaces
     // the real reason; a clean save surfaces the success message.
+    // The one project body a save and an editor test run both send: the files as edited + the preserved manifest.
+    private fun projectBody(project: ProjectDto, files: Map<String, String>): ProjectDto =
+        ProjectDto(files = files, manifest = project.manifest)
+
     private suspend fun saveProjectFeedback(
         id: String,
         files: Map<String, String>,
@@ -498,7 +503,7 @@ class CodeScriptsController(
     ): CompileFeedback =
         when (
             val result: ApiResult<CodeScriptVersion> =
-                api.putProject(id, ProjectDto(files = files, manifest = project.manifest))
+                api.putProject(id, projectBody(project, files))
         ) {
             is ApiResult.Ok -> CompileFeedback(ok = true, message = compiledMessage)
             is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message, errors = result.error.errors)

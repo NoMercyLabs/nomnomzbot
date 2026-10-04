@@ -43,7 +43,7 @@ class EditorBridgeSession(
             EditorBridgeProtocol.HISTORY_LOAD_MORE -> postHistory(history?.loadMore?.invoke())
             EditorBridgeProtocol.HISTORY_ROLLBACK -> postHistory(history?.rollback?.invoke(message.versionId))
             EditorBridgeProtocol.HISTORY_DELETE -> postHistory(history?.delete?.invoke(message.versionId))
-            EditorBridgeProtocol.TEST_RUN -> postTestRun(testRun?.run?.invoke(message.variables, message.args, message.trigger, message.role))
+            EditorBridgeProtocol.TEST_RUN -> postTestRun(testRun?.run?.invoke(message.variables, message.args, message.trigger, message.role, message.files))
             EditorBridgeProtocol.CLOSE -> return false
         }
         return true

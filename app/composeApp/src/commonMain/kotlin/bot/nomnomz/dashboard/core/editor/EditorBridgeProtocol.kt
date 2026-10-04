@@ -57,7 +57,7 @@ object EditorBridgeProtocol {
         if (message.type !in pageToHostTypes) return null
         return EditorInboundMessage(
             type = message.type,
-            files = if (message.type == SAVE) message.files else emptyMap(),
+            files = if (message.type == SAVE || message.type == TEST_RUN) message.files else emptyMap(),
             versionId =
                 if (message.type == HISTORY_ROLLBACK || message.type == HISTORY_DELETE) message.versionId else "",
             variables = if (message.type == TEST_RUN) message.variables else emptyMap(),
@@ -268,7 +268,7 @@ object EditorBridgeProtocol {
 }
 
 /**
- * One page-to-host editor message. [files] is set on a save only; [versionId] on a history rollback/delete;
+ * One page-to-host editor message. [files] is set on a save and a test run; [versionId] on a history rollback/delete;
  * [variables]/[args] on a test-run request.
  */
 @Serializable
