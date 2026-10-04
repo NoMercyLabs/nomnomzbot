@@ -202,7 +202,7 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Done-when: react is treated like svelte today: the server refuses a react create/build with
   `WIDGET_FRAMEWORK_UNSUPPORTED`, the app does not offer it, existing react widgets (count them on the dev box
   read-only) show the coded failure, a test failed first. Building a real React runtime (vendored global like
-  `/overlay/vue.js`) is an owner decision, asked 2026-10-04.
+  `/overlay/vue.js`): owner 2026-10-04 chose this default; real React support is the idea IDEA-REACT-RUNTIME.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
@@ -263,6 +263,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   VIP, moderator, broadcaster) on the music settings page; a requester gets the highest cap of the roles
   they hold; the refusal reply names their cap; a role without its own value falls back to the channel
   cap.
+- **IDEA-REACT-RUNTIME** (owner idea 2026-10-04, an idea for later, not a slice) Real React widget support:
+  a vendored React runtime the overlay page loads like `/overlay/vue.js`, `react` on the dependency allowlist,
+  an esbuild JSX setup that resolves `react/jsx-runtime`, and the app offering `react` again. Until then
+  S-REACT-WIDGET-HONEST refuses React with `WIDGET_FRAMEWORK_UNSUPPORTED`.
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (parked)
