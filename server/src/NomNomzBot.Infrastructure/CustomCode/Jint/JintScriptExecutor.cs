@@ -70,6 +70,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         // A left-out argument is never turned into the text "undefined" or "null": a required one is a
         // script error that names the call and the argument; an optional one is skipped by the caller.
         function missing(v) { return v === undefined || v === null; }
+        // Own-key lookup: a name every object inherits (constructor, __proto__, ...) is never a table entry.
+        function own(table, name) { return Object.prototype.hasOwnProperty.call(table, name); }
         function need(call, what, v) {
             if (missing(v)) { throw new Error(call + ' needs ' + what); }
             return String(v);
@@ -97,7 +99,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     var f = String(from).toLowerCase();
                     var t = String(to).toLowerCase();
                     var temp = { c: 1, celsius: 1, f: 1, fahrenheit: 1, k: 1, kelvin: 1 };
-                    if (temp[f] && temp[t]) {
+                    if (own(temp, f) && own(temp, t)) {
                         var celsius;
                         if (f === 'c' || f === 'celsius') { celsius = v; }
                         else if (f === 'f' || f === 'fahrenheit') { celsius = (v - 32) * 5 / 9; }
@@ -112,7 +114,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                         { ms: 0.001, s: 1, sec: 1, min: 60, h: 3600, hr: 3600, hour: 3600, day: 86400, week: 604800 }
                     ];
                     for (var i = 0; i < dims.length; i++) {
-                        if (dims[i][f] !== undefined && dims[i][t] !== undefined) {
+                        if (own(dims[i], f) && own(dims[i], t)) {
                             return v * dims[i][f] / dims[i][t];
                         }
                     }
@@ -153,7 +155,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 title: function (value) { return String(value).replace(/\w\S*/g, function (w) { return w.charAt(0).toUpperCase() + w.substr(1).toLowerCase(); }); },
                 truncate: function (value, length, ellipsis) { value = String(value); ellipsis = ellipsis === undefined || ellipsis === null ? '…' : String(ellipsis); length = Number(length); return value.length <= length ? value : value.slice(0, Math.max(0, length - ellipsis.length)) + ellipsis; },
                 slugify: function (value) { return String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); },
-                format: function (template, values) { return String(template).replace(/\{(\w+)\}/g, function (m, k) { return values && values[k] !== undefined ? String(values[k]) : m; }); }
+                format: function (template, values) { return String(template).replace(/\{(\w+)\}/g, function (m, k) { return values && own(values, k) && values[k] !== undefined ? String(values[k]) : m; }); }
             },
             json: {
                 parse: function (text) { try { return JSON.parse(String(text)); } catch (e) { return null; } },
