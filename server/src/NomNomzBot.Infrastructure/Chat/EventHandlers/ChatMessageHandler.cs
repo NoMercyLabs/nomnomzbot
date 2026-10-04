@@ -251,6 +251,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (ctx is null)
             return;
 
+        EffectiveLevelLookup level = NewLevelLookup(@event, cancellationToken);
+
         ctx.LastActivityAt = _timeProvider.GetUtcNow();
 
         // Reserved built-ins (the data-subject rights floor, gdpr-crypto.md §9) resolve BEFORE any
@@ -283,7 +285,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 ? builtin.DefaultCooldownSeconds
                 : ctx.BuiltinCooldownSeconds(commandName, builtin.DefaultCooldownSeconds);
 
-            if (!await HasPermissionAsync(@event, minPermissionLevel, cancellationToken))
+            if (!await level.MeetsAsync(minPermissionLevel))
             {
                 await SendPermissionDeniedNoticeAsync(@event, ctx, cancellationToken);
                 return;
@@ -310,7 +312,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 TriggeringUserDisplayName = @event.UserDisplayName,
                 TriggeringUserLogin = @event.UserLogin,
                 MessageId = @event.MessageId,
-                RoleLevel = BadgeLevel(@event),
+                RoleLevel = await level.GetAsync(),
                 CommandPrefix = ctx.CommandPrefix,
                 Args = args,
                 // A reply carries the parent message + author so a built-in can capture it (e.g. !quote add).
@@ -343,7 +345,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
 
         // Permission check
-        if (!await HasPermissionAsync(@event, command.MinPermissionLevel, cancellationToken))
+        if (!await level.MeetsAsync(command.MinPermissionLevel))
         {
             _logger.LogDebug(
                 "Command {Command} denied for {User} in {Channel}: insufficient permission",
@@ -441,10 +443,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // the EFFECTIVE role up front — a badge-less Editor or a !permit elevation would
                 // otherwise fail user_role conditions it rightfully clears (item 24c).
                 Dictionary<string, string> variables = BuildInitialVariables(@event, args);
-                variables["user.role"] = await ResolveEffectiveRoleTokenAsync(
-                    @event,
-                    cancellationToken
-                );
+                variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
 
                 PipelineRequest request = new()
                 {
@@ -527,7 +526,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         TriggeringUserDisplayName = @event.UserDisplayName,
                         TriggeringUserLogin = @event.UserLogin,
                         MessageId = @event.MessageId,
-                        RoleLevel = BadgeLevel(@event),
+                        RoleLevel = await level.GetAsync(),
                         CommandPrefix = ctx.CommandPrefix,
                         Args = args,
                         ReplyParentMessageBody = @event.ReplyParentMessageBody,
@@ -558,6 +557,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
                 // Build template context
                 Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+                // Only a reply that shows the role pays for the resolver; any other reply keeps the badge path.
+                if (response.Contains("user.role", StringComparison.Ordinal))
+                    variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
                 string resolved = await _templateResolver.ResolveAsync(
                     response,
                     variables,
@@ -1010,28 +1012,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     /// when the badge level alone meets the floor (always true for Everyone-floor commands and plain
     /// badge-qualified callers), the DB is never touched — the resolver runs only when the badge is
     /// insufficient, i.e. exactly the case where a badge-less Editor membership or a <c>!permit</c>
-    /// elevation must be honored instead of silently ignored.
+    /// elevation must be honored instead of silently ignored. The same lookup then hands a built-in its
+    /// <c>RoleLevel</c>, so the gate and the built-in agree and the resolver runs at most once per message.
     /// </summary>
-    private async Task<bool> HasPermissionAsync(
+    private EffectiveLevelLookup NewLevelLookup(
         ChatMessageReceivedEvent @event,
-        int minPermissionLevel,
         CancellationToken ct
-    )
-    {
-        PermissionLevel badge = ChatRole.Resolve(
-            @event.IsBroadcaster,
-            @event.IsModerator,
-            @event.IsVip,
-            @event.IsSubscriber,
-            @event.Badges
-        );
-        if (badge.ToLevelValue() >= minPermissionLevel)
-            return true;
-
-        // badge < floor here, so MAX(badge, resolved) >= floor reduces to resolved >= floor.
-        int? resolved = await TryResolveEffectiveLevelAsync(@event, ct);
-        return resolved is { } level && level >= minPermissionLevel;
-    }
+    ) => new(BadgeLevel(@event), () => TryResolveEffectiveLevelAsync(@event, ct));
 
     /// <summary>
     /// The resolver leg of the ladder (community standing, bot-granted memberships, active permits) —
@@ -1091,24 +1078,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     /// them. Short-circuits on a broadcaster badge (nothing outranks it); degrades to the badge role
     /// when the resolver cannot answer.
     /// </summary>
-    private async Task<string> ResolveEffectiveRoleTokenAsync(
-        ChatMessageReceivedEvent @event,
-        CancellationToken ct
-    )
+    private static async Task<string> ResolveEffectiveRoleTokenAsync(EffectiveLevelLookup level)
     {
-        PermissionLevel badge = ChatRole.Resolve(
-            @event.IsBroadcaster,
-            @event.IsModerator,
-            @event.IsVip,
-            @event.IsSubscriber,
-            @event.Badges
-        );
-        if (badge == PermissionLevel.Broadcaster)
-            return ChatRole.ToToken(badge);
-
-        int badgeLevel = badge.ToLevelValue();
-        int? resolved = await TryResolveEffectiveLevelAsync(@event, ct);
-        int effective = Math.Max(badgeLevel, resolved ?? badgeLevel);
+        int effective = await level.GetAsync();
         return ChatRole.ToToken(AuthorizationLadder.FromLevelValue(effective));
     }
 
@@ -1137,32 +1109,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        int badgeLevel = BadgeLevel(@event);
-        bool isBroadcaster = badgeLevel == PermissionLevel.Broadcaster.ToLevelValue();
-        bool resolverAsked = false;
-        int? resolvedLevel = null;
+        EffectiveLevelLookup level = NewLevelLookup(@event, ct);
         string cooldownChannelKey = @event.BroadcasterId.ToString();
-
-        async Task<int> EffectiveLevelAsync()
-        {
-            if (isBroadcaster)
-                return badgeLevel;
-            if (!resolverAsked)
-            {
-                resolvedLevel = await TryResolveEffectiveLevelAsync(@event, ct);
-                resolverAsked = true;
-            }
-            return Math.Max(badgeLevel, resolvedLevel ?? badgeLevel);
-        }
 
         foreach (CachedChatTrigger trigger in ctx.ChatTriggers.Values)
         {
             if (!TriggerMatches(trigger, text))
                 continue;
-            if (
-                badgeLevel < trigger.MinPermissionLevel
-                && await EffectiveLevelAsync() < trigger.MinPermissionLevel
-            )
+            if (!await level.MeetsAsync(trigger.MinPermissionLevel))
                 continue;
 
             string cooldownKey = $"trigger:{trigger.Id:N}";
@@ -1178,9 +1132,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
             try
             {
-                string roleToken = ChatRole.ToToken(
-                    AuthorizationLadder.FromLevelValue(await EffectiveLevelAsync())
-                );
+                string roleToken = await ResolveEffectiveRoleTokenAsync(level);
                 await ExecuteChatTriggerAsync(trigger, @event, text, roleToken, ct);
             }
             catch (Exception ex)
@@ -1209,7 +1161,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        if (!await HasPermissionAsync(@event, trigger.MinPermissionLevel, ct))
+        if (!await NewLevelLookup(@event, ct).MeetsAsync(trigger.MinPermissionLevel))
             return;
 
         string cooldownChannelKey = @event.BroadcasterId.ToString();
@@ -1594,7 +1546,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private static bool IsCooldownExempt(ChatMessageReceivedEvent @event) =>
         @event.IsBroadcaster || @event.IsModerator;
 
-    /// <summary>The caller's live badge level — what builtins with a standing floor receive.</summary>
+    /// <summary>The caller's live badge level — the badge leg of the effective level.</summary>
     private static int BadgeLevel(ChatMessageReceivedEvent @event) =>
         ChatRole
             .Resolve(

@@ -59,8 +59,9 @@ public sealed class BuiltinCommandContext
     public string MessageId { get; init; } = string.Empty;
 
     /// <summary>
-    /// The caller's live badge level on the unified ladder (roles-permissions §0) — builtins that enforce
-    /// a standing floor (e.g. a game's Permission) pass it through instead of re-resolving.
+    /// The caller's EFFECTIVE level on the unified ladder (roles-permissions §0): MAX(live badge, bot-granted
+    /// role, active permit) — the same level the command gate used. Builtins that enforce a standing floor
+    /// (e.g. a game's Permission) pass it through instead of re-resolving.
     /// </summary>
     public int RoleLevel { get; init; }
 
