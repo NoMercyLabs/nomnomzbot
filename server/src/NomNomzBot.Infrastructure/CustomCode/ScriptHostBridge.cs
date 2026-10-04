@@ -551,6 +551,11 @@ public sealed class ScriptHostBridge(
             return Fail(ScriptHostErrorCodes.NotFound, $"No widget matches '{args[0]}'.");
         if (!widget.IsEnabled)
             return Fail(ScriptHostErrorCodes.Refused, $"The widget '{widget.Name}' is turned off.");
+        if (!widget.IsAttached)
+            return Fail(
+                ScriptHostErrorCodes.Refused,
+                $"The widget '{widget.Name}' is open in no browser source, so nobody would see the event."
+            );
 
         object? data = null;
         if (args.Count > 2 && !string.IsNullOrWhiteSpace(args[2]))

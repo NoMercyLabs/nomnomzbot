@@ -55,7 +55,7 @@ public sealed class WidgetEventActionTests
             json.Replace("WID", WidgetId.ToString())
         )!;
 
-    private void WidgetResolves(bool enabled) =>
+    private void WidgetResolves(bool enabled, bool attached = true) =>
         _widgets
             .GetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
@@ -77,7 +77,7 @@ public sealed class WidgetEventActionTests
                         DateTime.UtcNow,
                         DateTime.UtcNow,
                         false,
-                        false,
+                        attached,
                         false
                     )
                 )
@@ -235,6 +235,30 @@ public sealed class WidgetEventActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("disabled");
+        await _overlay
+            .DidNotReceive()
+            .SendWidgetEventAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<object?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_widget_no_browser_source_has_open_fails_with_a_plain_reason_and_never_pushes()
+    {
+        WidgetResolves(enabled: true, attached: false);
+
+        ActionResult result = await Action()
+            .ExecuteAsync(
+                Ctx(),
+                Def("""{"type":"widget_event","widget_id":"WID","event_type":"alert"}""")
+            );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Ticker").And.Contain("no browser source");
         await _overlay
             .DidNotReceive()
             .SendWidgetEventAsync(

@@ -66,7 +66,7 @@ public sealed class ScriptHostBridgeWidgetEmitFailureTests
                         CreatedAt: DateTime.UtcNow,
                         UpdatedAt: DateTime.UtcNow,
                         GalleryUpdateAvailable: false,
-                        IsAttached: false,
+                        IsAttached: true,
                         IsCustomized: false
                     )
                 )

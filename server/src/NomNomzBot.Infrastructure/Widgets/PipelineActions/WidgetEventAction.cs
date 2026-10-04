@@ -20,8 +20,9 @@ namespace NomNomzBot.Infrastructure.Widgets.PipelineActions;
 
 /// <summary>
 /// Pipeline action <c>widget_event</c> (widgets-overlays.md §6). Pushes one widget event to the target
-/// widget's overlay group via <see cref="IWidgetEventNotifier"/>. Fail-closed: the widget must exist AND be
-/// enabled in the executing tenant, otherwise a typed failure (no push, no throw). Parameters:
+/// widget's overlay group via <see cref="IWidgetEventNotifier"/>. Fail-closed: the widget must exist, be
+/// enabled in the executing tenant AND be open in a browser source, otherwise a typed failure (no push, no
+/// throw). Parameters:
 /// <c>widget_id</c> (Guid, required), <c>event_type</c> (string, required), <c>data</c> (optional JSON
 /// object the widget renders). Values are already template-resolved by the engine before the action runs;
 /// the Vue overlay runtime escapes text interpolations by default, so string payloads render XSS-safe.
@@ -90,6 +91,10 @@ public sealed class WidgetEventAction : ICommandAction
             );
         if (!widget.Value.IsEnabled)
             return ActionResult.Failure($"widget_event: widget '{widgetId}' is disabled.");
+        if (!widget.Value.IsAttached)
+            return ActionResult.Failure(
+                $"widget_event: no browser source has the widget '{widget.Value.Name}' open, so nobody would see the event."
+            );
 
         await _overlay.SendWidgetEventAsync(
             ctx.BroadcasterId,

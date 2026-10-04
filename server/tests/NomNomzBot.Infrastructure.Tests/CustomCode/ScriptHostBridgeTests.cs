@@ -782,7 +782,11 @@ public sealed class ScriptHostBridgeTests
 
     private static readonly Guid WidgetId = Guid.Parse("0192a000-0000-7000-8000-00000000e0c1");
 
-    private static WidgetDetail Widget(bool enabled = true, string name = "Alert Box") =>
+    private static WidgetDetail Widget(
+        bool enabled = true,
+        string name = "Alert Box",
+        bool attached = true
+    ) =>
         new(
             Id: WidgetId,
             Name: name,
@@ -800,7 +804,7 @@ public sealed class ScriptHostBridgeTests
             CreatedAt: DateTime.UtcNow,
             UpdatedAt: DateTime.UtcNow,
             GalleryUpdateAvailable: false,
-            IsAttached: false,
+            IsAttached: attached,
             IsCustomized: false
         );
 
@@ -917,6 +921,35 @@ public sealed class ScriptHostBridgeTests
             )
             .Should()
             .BeNull();
+        await overlay
+            .DidNotReceiveWithAnyArgs()
+            .SendWidgetEventAsync(default, default, default!, default);
+    }
+
+    [Fact]
+    public async Task Widget_emit_refuses_a_widget_no_browser_source_has_open_without_pushing()
+    {
+        IWidgetService widgets = Substitute.For<IWidgetService>();
+        widgets
+            .GetAsync(Channel.ToString(), WidgetId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(Widget(attached: false)));
+        IWidgetEventNotifier overlay = Substitute.For<IWidgetEventNotifier>();
+        ScriptHostBridge bridge = Build(widgets: widgets, overlay: overlay);
+
+        bridge
+            .Resolve("widget.emit")(
+                "widget.emit",
+                [WidgetId.ToString(), "confetti"],
+                CancellationToken.None
+            )
+            .Should()
+            .BeNull();
+        bridge
+            .Resolve("last.error")("last.error", [], CancellationToken.None)
+            .Should()
+            .Contain("refused")
+            .And.Contain("Alert Box")
+            .And.Contain("no browser source");
         await overlay
             .DidNotReceiveWithAnyArgs()
             .SendWidgetEventAsync(default, default, default!, default);

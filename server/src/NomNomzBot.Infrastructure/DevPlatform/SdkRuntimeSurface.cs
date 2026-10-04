@@ -656,7 +656,7 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("interface NnzApiWidgetNamespace {");
         sb.AppendLine(
-            "  /** Sends an event to a widget. data is optional. Returns false when no widget matches, the widget is turned off or the send fails. */"
+            "  /** Sends an event to a widget. data is optional. Returns false when no widget matches, the widget is turned off, no browser source has it open, or the send fails. */"
         );
         sb.AppendLine(
             "  emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean;"

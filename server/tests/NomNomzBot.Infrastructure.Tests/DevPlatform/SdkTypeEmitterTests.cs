@@ -336,7 +336,7 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiWidgetNamespace {
-                  /** Sends an event to a widget. data is optional. Returns false when no widget matches, the widget is turned off or the send fails. */
+                  /** Sends an event to a widget. data is optional. Returns false when no widget matches, the widget is turned off, no browser source has it open, or the send fails. */
                   emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean;
                 }
                 """
