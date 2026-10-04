@@ -13,7 +13,6 @@ package bot.nomnomz.dashboard.feature.rewards.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,7 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
-import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeaderWithActions
 import bot.nomnomz.dashboard.core.network.rewardPayload
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
@@ -73,7 +72,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
-import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -412,7 +410,7 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         // Creating/syncing/importing rewards are Broadcaster-only lifecycle actions — New + Sync + Import gate on [lifecycle].
-        Header(
+        RewardsHeader(
             lifecycle = lifecycle,
             onNew = onNew,
             onBrowseTemplates = onBrowseTemplates,
@@ -446,62 +444,33 @@ private fun ManagedContent(
 /** The four lifecycle actions a redemption countdown timer offers on the card. */
 enum class TimerAction { Pause, Resume, Complete, Cancel }
 
+// The actions sit beside the title when they fit and wrap beneath it when they do not: the layout follows the
+// header's own width (PageHeaderWithActions), not the window class, so a long Dutch label never wraps in place.
 @Composable
-private fun Header(
+internal fun RewardsHeader(
     lifecycle: ManageDecision,
     onNew: () -> Unit,
     onBrowseTemplates: () -> Unit,
     onSync: () -> Unit,
     onImport: () -> Unit,
 ) {
-    val spacing = LocalSpacing.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
     val templatesLabel: String = stringResource(Res.string.platform_templates_browse)
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
     val importLabel: String = stringResource(Res.string.rewards_import_action)
 
-    // PageHeader's trailing slot sits in a fixed 96dp band (see PageHeader.kt) that can't grow to fit a
-    // wrapped second line, so three actions beside the title overflowed the viewport at Compact instead of
-    // reflowing — the toolbar scrolled horizontally and "New reward" (the primary action) scrolled out of
-    // reach entirely (S-PL7-VISUAL). At Compact the header goes title-only and the actions move into a
-    // full-width FlowRow beneath it, wrapping onto a second line instead of overflowing; at Medium/Expanded
-    // they stay beside the title as before.
-    if (windowSize.isCompact) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-            PageHeader(title = stringResource(Res.string.rewards_title))
-            ManageGate(decision = lifecycle) { enabled ->
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
-                ) {
-                    RewardHeaderActions(enabled, syncLabel, importLabel, templatesLabel, newLabel, onSync, onImport, onBrowseTemplates, onNew)
-                }
-            }
-        }
-    } else {
-        PageHeader(title = stringResource(Res.string.rewards_title)) {
-            ManageGate(decision = lifecycle) { enabled ->
-                // Sync refreshes only the bot's own rewards; Import pulls EVERYTHING incl. external ones. Both are
-                // Twitch-pull text actions; New creates a fresh reward. All three gate on the same lifecycle floor.
-                // They MUST sit in a Row: ManageGate wraps its content in a Box, so three bare siblings would stack
-                // and overlap (the "overlapping top-right buttons" bug) — the Row lays them out side by side.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RewardHeaderActions(enabled, syncLabel, importLabel, templatesLabel, newLabel, onSync, onImport, onBrowseTemplates, onNew)
-                }
-            }
-        }
+    PageHeaderWithActions(title = stringResource(Res.string.rewards_title)) {
+        RewardHeaderActions(lifecycle, syncLabel, importLabel, templatesLabel, newLabel, onSync, onImport, onBrowseTemplates, onNew)
     }
 }
 
-// The Sync / Import / New trio as plain (non-scoped) composables so the same three calls render identically
-// inside the Expanded Row and the Compact FlowRow above.
+// Sync refreshes only the bot's own rewards; Import pulls EVERYTHING incl. external ones. Both are Twitch-pull
+// text actions; New creates a fresh reward. All of them gate on the same lifecycle floor. Each action goes
+// through its own ManageGate: the gate wraps its content in a Box, so one gate around all of them would stack
+// them (the "overlapping top-right buttons" bug) and leave the wrapping layout one unbreakable item.
 @Composable
 private fun RewardHeaderActions(
-    enabled: Boolean,
+    lifecycle: ManageDecision,
     syncLabel: String,
     importLabel: String,
     templatesLabel: String,
@@ -511,37 +480,45 @@ private fun RewardHeaderActions(
     onBrowseTemplates: () -> Unit,
     onNew: () -> Unit,
 ) {
-    Button(
-        onClick = onSync,
-        enabled = enabled,
-        variant = ButtonVariant.Ghost,
-        modifier = Modifier.semantics { contentDescription = syncLabel },
-    ) {
-        Text(text = syncLabel, maxLines = 1)
+    ManageGate(decision = lifecycle) { enabled ->
+        Button(
+            onClick = onSync,
+            enabled = enabled,
+            variant = ButtonVariant.Ghost,
+            modifier = Modifier.semantics { contentDescription = syncLabel },
+        ) {
+            Text(text = syncLabel, maxLines = 1)
+        }
     }
-    Button(
-        onClick = onImport,
-        enabled = enabled,
-        variant = ButtonVariant.Ghost,
-        modifier = Modifier.semantics { contentDescription = importLabel },
-    ) {
-        Text(text = importLabel, maxLines = 1)
+    ManageGate(decision = lifecycle) { enabled ->
+        Button(
+            onClick = onImport,
+            enabled = enabled,
+            variant = ButtonVariant.Ghost,
+            modifier = Modifier.semantics { contentDescription = importLabel },
+        ) {
+            Text(text = importLabel, maxLines = 1)
+        }
     }
-    Button(
-        onClick = onBrowseTemplates,
-        enabled = enabled,
-        variant = ButtonVariant.Outline,
-        modifier = Modifier.semantics { contentDescription = templatesLabel },
-    ) {
-        Text(text = templatesLabel, maxLines = 1)
+    ManageGate(decision = lifecycle) { enabled ->
+        Button(
+            onClick = onBrowseTemplates,
+            enabled = enabled,
+            variant = ButtonVariant.Outline,
+            modifier = Modifier.semantics { contentDescription = templatesLabel },
+        ) {
+            Text(text = templatesLabel, maxLines = 1)
+        }
     }
-    Button(
-        onClick = onNew,
-        enabled = enabled,
-        leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
-        modifier = Modifier.semantics { contentDescription = newLabel },
-    ) {
-        Text(text = newLabel)
+    ManageGate(decision = lifecycle) { enabled ->
+        Button(
+            onClick = onNew,
+            enabled = enabled,
+            leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+            modifier = Modifier.semantics { contentDescription = newLabel },
+        ) {
+            Text(text = newLabel)
+        }
     }
 }
 

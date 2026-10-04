@@ -11,11 +11,15 @@
 package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -45,7 +49,6 @@ fun PageHeader(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -55,33 +58,68 @@ fun PageHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
-                Text(
-                    text = title,
-                    style = typography.xl2,
-                    color = tokens.foreground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = typography.sm,
-                        color = tokens.mutedForeground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            PageHeaderTitle(title = title, subtitle = subtitle, modifier = Modifier.weight(1f))
             if (trailing != null) {
                 // Keep the action clear of the (ellipsized) title column; the slot is vertically
                 // centered against the title line so every page's action lands at the same height.
                 Spacer(modifier = Modifier.width(spacing.s3))
                 trailing()
             }
+        }
+        HorizontalDivider(color = tokens.border)
+    }
+}
+
+// The title block of a page header: the title (xl2) over the optional muted subtitle (sm).
+@Composable
+private fun PageHeaderTitle(title: String, subtitle: String?, modifier: Modifier = Modifier) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(
+            text = title,
+            style = typography.xl2,
+            color = tokens.foreground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * A [PageHeader] whose action group moves under the title when it does not fit beside a readable title column.
+ *
+ * Beside the title the band keeps the 96dp height of every other header. Once the actions need the pane's
+ * width (a long run of localized labels), the title takes its own line and the actions wrap beneath it, and the
+ * band grows to fit. The choice follows the width this header is given, not the window class (see
+ * [InfoActionsRow]).
+ */
+@Composable
+fun PageHeaderWithActions(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    actions: @Composable FlowRowScope.() -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth().heightIn(min = spacing.s24), contentAlignment = Alignment.CenterStart) {
+            InfoActionsRow(
+                info = { infoModifier -> PageHeaderTitle(title = title, subtitle = subtitle, modifier = infoModifier) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s3),
+                actions = actions,
+            )
         }
         HorizontalDivider(color = tokens.border)
     }

@@ -64,14 +64,13 @@ import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.core.designsystem.component.InfoActionsRow
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
-import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeaderWithActions
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
@@ -273,55 +272,15 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        // PageHeader's trailing slot sits in a fixed 96dp band (see PageHeader.kt) that can't grow to fit a
-        // wrapped second line, so up to five actions beside the title overflowed the viewport at Compact
-        // instead of reflowing — the "Review" pill showed as one-character-per-line and the row scrolled
-        // horizontally (S-PL7-VISUAL). At Compact the header goes title-only and the actions move into a
-        // full-width FlowRow beneath it, wrapping instead of overflowing; at Medium/Expanded they stay beside
-        // the title as before.
-        if (windowSize.isCompact) {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                PageHeader(
-                    title = stringResource(Res.string.shell_nav_overlays),
-                    subtitle = stringResource(Res.string.widgets_subtitle),
-                )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
-                ) {
-                    WidgetsHeaderActions(
-                        isReviewer = isReviewer,
-                        manage = manage,
-                        onGallery = { showGalleryDialog = true },
-                        onSubmit = { showSubmitDialog = true },
-                        onReview = { showReviewQueue = true },
-                        onRotateToken = { showRotateTokenConfirm = true },
-                        onCreate = { showCreateDialog = true },
-                    )
-                }
-            }
-        } else {
-            PageHeader(
-                title = stringResource(Res.string.shell_nav_overlays),
-                subtitle = stringResource(Res.string.widgets_subtitle),
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    WidgetsHeaderActions(
-                        isReviewer = isReviewer,
-                        manage = manage,
-                        onGallery = { showGalleryDialog = true },
-                        onSubmit = { showSubmitDialog = true },
-                        onReview = { showReviewQueue = true },
-                        onRotateToken = { showRotateTokenConfirm = true },
-                        onCreate = { showCreateDialog = true },
-                    )
-                }
-            }
-        }
+        WidgetsHeader(
+            isReviewer = isReviewer,
+            manage = manage,
+            onGallery = { showGalleryDialog = true },
+            onSubmit = { showSubmitDialog = true },
+            onReview = { showReviewQueue = true },
+            onRotateToken = { showRotateTokenConfirm = true },
+            onCreate = { showCreateDialog = true },
+        )
 
         when (val current: WidgetsState = state) {
             is WidgetsState.Loading -> CenteredMessage(stringResource(Res.string.widgets_loading))
@@ -547,8 +506,35 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     }
 }
 
-// The Gallery / Submit / Review / Rotate token / Create trio-plus as plain (non-scoped) composables so the
-// same calls render identically inside the Expanded Row and the Compact FlowRow above.
+// The page header: title + subtitle, with the overlay actions beside the title when they fit and wrapped
+// beneath it when they do not (the layout follows the header's own width, see PageHeaderWithActions).
+@Composable
+internal fun WidgetsHeader(
+    isReviewer: Boolean,
+    manage: ManageDecision,
+    onGallery: () -> Unit,
+    onSubmit: () -> Unit,
+    onReview: () -> Unit,
+    onRotateToken: () -> Unit,
+    onCreate: () -> Unit,
+) {
+    PageHeaderWithActions(
+        title = stringResource(Res.string.shell_nav_overlays),
+        subtitle = stringResource(Res.string.widgets_subtitle),
+    ) {
+        WidgetsHeaderActions(
+            isReviewer = isReviewer,
+            manage = manage,
+            onGallery = onGallery,
+            onSubmit = onSubmit,
+            onReview = onReview,
+            onRotateToken = onRotateToken,
+            onCreate = onCreate,
+        )
+    }
+}
+
+// The Gallery / Submit / Review / Rotate token / Create actions as plain (non-scoped) composables.
 @Composable
 private fun WidgetsHeaderActions(
     isReviewer: Boolean,
