@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.CustomEvents;
@@ -34,7 +35,8 @@ public sealed class CustomDataSourceServiceEgressAllowlistTests
             Substitute.For<ITokenProtector>(),
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
-            []
+            [],
+            Substitute.For<IInboundWebhookEndpointService>()
         );
 
     private static UpsertCustomDataSourceRequest Request(string endpointUrl) =>

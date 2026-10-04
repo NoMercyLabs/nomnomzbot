@@ -135,7 +135,8 @@ public sealed record CustomDataSourceDto(
     int? PollIntervalSeconds,
     bool IsEnabled,
     DateTime? LastReceivedAt,
-    IReadOnlyDictionary<string, string> FieldErrors
+    IReadOnlyDictionary<string, string> FieldErrors,
+    string? InboundUrl = null
 );
 
 public sealed record CustomDataSourcePresetDto(string Key, string DisplayName, string SourceKind);

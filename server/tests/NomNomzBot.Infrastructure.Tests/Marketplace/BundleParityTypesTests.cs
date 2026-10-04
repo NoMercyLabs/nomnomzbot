@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Application.Marketplace.Services;
 using NomNomzBot.Application.PickLists.Dtos;
@@ -126,7 +127,8 @@ public sealed class BundleParityTypesTests
             Substitute.For<ITokenProtector>(),
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
-            []
+            [],
+            Substitute.For<IInboundWebhookEndpointService>()
         );
         EventResponseService eventResponses = new(db, bus, new TemplateHelperValidator());
         ITwitchChannelPointsApi channelPoints = Substitute.For<ITwitchChannelPointsApi>();

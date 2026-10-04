@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Infrastructure.CustomEvents;
@@ -33,7 +34,8 @@ public sealed class CustomDataSourceServiceSearchTests
             Substitute.For<ITokenProtector>(),
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
-            []
+            [],
+            Substitute.For<IInboundWebhookEndpointService>()
         );
 
     [Fact]

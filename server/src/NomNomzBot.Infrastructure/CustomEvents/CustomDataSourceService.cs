@@ -15,8 +15,11 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
+using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.CustomEvents.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Infrastructure.CustomEvents;
 
@@ -25,19 +28,22 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
     private const int MaxSourcesPerChannel = 50;
     private const int MinPollIntervalSeconds = 10; // Tier-scaled floor (safe baseline)
     private const string SecretProvider = "customdata";
+    private const string PushKind = "push";
 
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
     private readonly ICustomDataIngestService _ingest;
     private readonly ICustomDataEgressFetcher _egressFetcher;
     private readonly IEnumerable<ICustomDataSourcePreset> _presets;
+    private readonly IInboundWebhookEndpointService _endpoints;
 
     public CustomDataSourceService(
         IApplicationDbContext db,
         ITokenProtector tokenProtector,
         ICustomDataIngestService ingest,
         ICustomDataEgressFetcher egressFetcher,
-        IEnumerable<ICustomDataSourcePreset> presets
+        IEnumerable<ICustomDataSourcePreset> presets,
+        IInboundWebhookEndpointService endpoints
     )
     {
         _db = db;
@@ -45,6 +51,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         _ingest = ingest;
         _egressFetcher = egressFetcher;
         _presets = presets;
+        _endpoints = endpoints;
     }
 
     public async Task<Result<PagedList<CustomDataSourceDto>>> ListAsync(
@@ -64,7 +71,9 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
-        List<CustomDataSourceDto> dtos = [.. rows.Select(ToDto)];
+        List<CustomDataSourceDto> dtos = [];
+        foreach (CustomDataSource row in rows)
+            dtos.Add(await ToDtoAsync(row, ct));
 
         return Result<PagedList<CustomDataSourceDto>>.Success(
             new(dtos, total, pagination.Page, pagination.PageSize)
@@ -112,7 +121,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
         return source is null
             ? Result<CustomDataSourceDto>.Failure("Custom data source not found.", "NOT_FOUND")
-            : Result<CustomDataSourceDto>.Success(ToDto(source));
+            : Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
     }
 
     public async Task<Result<CustomDataSourceDto>> CreateAsync(
@@ -162,6 +171,12 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                 egressCheck.ErrorCode
             );
 
+        if (IsPush(request.SourceKind) && string.IsNullOrWhiteSpace(request.AuthSecret))
+            return Result<CustomDataSourceDto>.Failure(
+                "A push source needs a secret to verify what the sender posts.",
+                "VALIDATION_FAILED"
+            );
+
         CustomDataSource source = new()
         {
             BroadcasterId = broadcasterId,
@@ -185,10 +200,20 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             );
         }
 
+        if (IsPush(request.SourceKind))
+        {
+            Result provisioned = await SyncEndpointAsync(source, actorUserId, request, ct);
+            if (provisioned.IsFailure)
+                return Result<CustomDataSourceDto>.Failure(
+                    provisioned.ErrorMessage,
+                    provisioned.ErrorCode
+                );
+        }
+
         _db.CustomDataSources.Add(source);
         await _db.SaveChangesAsync(ct);
 
-        return Result<CustomDataSourceDto>.Success(ToDto(source));
+        return Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
     }
 
     public async Task<Result<CustomDataSourceDto>> UpdateAsync(
@@ -245,6 +270,16 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                 egressCheck.ErrorCode
             );
 
+        if (
+            IsPush(request.SourceKind)
+            && source.InboundWebhookEndpointId is null
+            && string.IsNullOrWhiteSpace(request.AuthSecret)
+        )
+            return Result<CustomDataSourceDto>.Failure(
+                "A push source needs a secret to verify what the sender posts.",
+                "VALIDATION_FAILED"
+            );
+
         source.DisplayName = request.DisplayName;
         source.SourceKind = request.SourceKind;
         source.PresetKey = request.PresetKey;
@@ -262,9 +297,13 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             );
         }
 
+        Result synced = await SyncEndpointAsync(source, actorUserId, request, ct);
+        if (synced.IsFailure)
+            return Result<CustomDataSourceDto>.Failure(synced.ErrorMessage, synced.ErrorCode);
+
         await _db.SaveChangesAsync(ct);
 
-        return Result<CustomDataSourceDto>.Success(ToDto(source));
+        return Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
     }
 
     public async Task<Result> DeleteAsync(
@@ -281,6 +320,12 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
         if (source is null)
             return Result.Failure("Custom data source not found.", "NOT_FOUND");
+
+        if (source.InboundWebhookEndpointId is { } endpointId)
+        {
+            await _endpoints.DeleteAsync(broadcasterId, endpointId, ct);
+            source.InboundWebhookEndpointId = null;
+        }
 
         source.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
@@ -387,6 +432,95 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         ];
 
         return Task.FromResult(Result<IReadOnlyList<CustomDataSourcePresetDto>>.Success(dtos));
+    }
+
+    private static bool IsPush(string sourceKind) =>
+        string.Equals(sourceKind, PushKind, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Makes the inbound endpoint match the source: a push source owns one Generic endpoint (created, or its
+    /// secret and enabled flag kept in step); a source that is not push owns none.
+    /// </summary>
+    private async Task<Result> SyncEndpointAsync(
+        CustomDataSource source,
+        Guid actorUserId,
+        UpsertCustomDataSourceRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!IsPush(request.SourceKind))
+        {
+            if (source.InboundWebhookEndpointId is { } staleId)
+            {
+                await _endpoints.DeleteAsync(source.BroadcasterId, staleId, ct);
+                source.InboundWebhookEndpointId = null;
+            }
+
+            return Result.Success();
+        }
+
+        if (source.InboundWebhookEndpointId is { } endpointId)
+        {
+            Result<InboundWebhookEndpointDto> updated = await _endpoints.UpdateAsync(
+                source.BroadcasterId,
+                endpointId,
+                new()
+                {
+                    VerificationSecret = string.IsNullOrWhiteSpace(request.AuthSecret)
+                        ? null
+                        : request.AuthSecret,
+                    IsEnabled = request.IsEnabled,
+                },
+                ct
+            );
+            return updated.IsFailure
+                ? Result.Failure(updated.ErrorMessage, updated.ErrorCode)
+                : Result.Success();
+        }
+
+        Result<InboundWebhookEndpointDto> created = await _endpoints.CreateAsync(
+            source.BroadcasterId,
+            actorUserId,
+            new()
+            {
+                Name = $"{source.Name} (custom data)",
+                Adapter = WebhookAdapterKind.Generic,
+                VerificationSecret = request.AuthSecret!,
+                IsEnabled = request.IsEnabled,
+                GenericConfig = new(
+                    "x-signature",
+                    "sha256=",
+                    "{timestamp}.{body}",
+                    "x-timestamp",
+                    null,
+                    "$.event",
+                    "$.id"
+                ),
+            },
+            ct
+        );
+        if (created.IsFailure)
+            return Result.Failure(created.ErrorMessage, created.ErrorCode);
+
+        source.InboundWebhookEndpointId = created.Value.Id;
+        return Result.Success();
+    }
+
+    private async Task<CustomDataSourceDto> ToDtoAsync(
+        CustomDataSource source,
+        CancellationToken ct
+    )
+    {
+        CustomDataSourceDto dto = ToDto(source);
+        if (source.InboundWebhookEndpointId is not { } endpointId)
+            return dto;
+
+        Result<InboundWebhookEndpointDto> endpoint = await _endpoints.GetAsync(
+            source.BroadcasterId,
+            endpointId,
+            ct
+        );
+        return endpoint.IsSuccess ? dto with { InboundUrl = endpoint.Value.IngestUrl } : dto;
     }
 
     private static CustomDataSourceDto ToDto(CustomDataSource source)

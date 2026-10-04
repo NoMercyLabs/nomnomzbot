@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
@@ -488,7 +489,8 @@ public class ExpandedBlastRadiusTests
             Substitute.For<ITokenProtector>(),
             Substitute.For<ICustomDataIngestService>(),
             Substitute.For<ICustomDataEgressFetcher>(),
-            []
+            [],
+            Substitute.For<IInboundWebhookEndpointService>()
         );
 
     // ── Catalog items and leaderboard configs: plain FK counts ───────────────
