@@ -187,12 +187,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   playing alerts after the streamer turns the widget off. Done-when: a turned-off alerts widget gets no alert
   and the entry is handled the same way as "no page attached"; a test failed first. Check every other direct
   `SendWidgetEventAsync` caller for the same skipped check and report N of M.
-- **S-CHANNEL-TOKEN-ROTATE-TRUTH** Found by the docs writer 2026-10-04. The page-level "Rotate token" button on
-  the widgets screen (`WidgetsScreen.kt:580`) rotates the channel-wide overlay token (`ChannelService.cs:712`),
-  but widget addresses carry each widget's own token (`WidgetService.cs:1623`); its dialog says every
-  browser-source URL stops working (`strings.xml:1725`), which is false. Done-when: find every consumer of the
-  channel-wide token (N of M); if none is left, the button and endpoint go; if some are left, the dialog names
-  exactly what stops working. Truthful text, a test that failed first.
 - **S-ROTATED-TOKEN-OPEN-PAGE** Found by the docs writer 2026-10-04. The overlay hub checks a widget token only
   when a page connects (`OverlayHub.cs:67-77`), so after a rotate (and after the 15-minute grace,
   `WidgetService.cs:1118`) a page that is already open with the old address keeps receiving events until it
