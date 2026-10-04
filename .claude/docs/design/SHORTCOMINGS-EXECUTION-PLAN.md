@@ -100,15 +100,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   variable `streak.message` (`WatchStreakHandler.cs:67`) is always empty on a live stream; only the sample sets it.
   Done-when: the shared message reaches `CustomMessage` and `streak.message`; a translator test with a real
   `channel.chat.notification` watch_streak payload failed first.
-- **S-SCRIPT-CHAT-TRIGGER-TYPES** Found by the docs writer 2026-10-04. A chat trigger runs its pipeline
-  (`ChatTrigger.cs:46` PipelineId; `ChatMessageHandler.cs:1141-1161`, `:1365-1371` with `BuildInitialVariables`),
-  but the editor's trigger resolver checks commands, event responses, timers, rewards and webhooks only
-  (`CodeScriptTriggerResolver.cs:65-110`), never `ChatTriggers`. A script started only by a chat trigger gets no
-  typed trigger variables in the editor (owner goal: a 100% type-safe editor). Done-when: an enabled chat trigger
-  on the script's pipeline adds the key whose variables match what `ExecuteChatTriggerAsync` passes (reuse the
-  command key only if the variables are the same, else a new sample source); a resolver test failed first.
-  Noted, not in scope: the resolver also types `PipelineTriggers` rows (`:111-139`) that nothing dispatches at
-  runtime yet (only `PipelineTreeCompatibilityService.UpcastTriggers` reads the type).
 - **S-WIDGET-EVENTS-FROM-COMMENTS** Found by the docs writer 2026-10-04, checked against the code. A save adds every
   `NomNomz.on('<name>'` the regex finds in the built bundle to the widget's events (`WidgetEventSubscriptions.cs`,
   called at `WidgetService.cs:798,957`), comments included. The Blank widget template has no handler, only a help
