@@ -259,10 +259,18 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
+        // PUT replaces the whole reward: a limit the body leaves out is off, exactly as it has always been
+        // (the dashboard sends a blank limit as an absent field). PATCH keeps an absent limit as it is.
+        UpdateRewardRequest replacement = request with
+        {
+            MaxPerStream = request.MaxPerStream ?? 0,
+            MaxPerUserPerStream = request.MaxPerUserPerStream ?? 0,
+            GlobalCooldownSeconds = request.GlobalCooldownSeconds ?? 0,
+        };
         Result<RewardDetail> result = await _rewardService.UpdateAsync(
             channelId,
             rewardId,
-            request,
+            replacement,
             ct
         );
         if (result.IsFailure)

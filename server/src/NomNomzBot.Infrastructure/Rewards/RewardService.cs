@@ -258,12 +258,12 @@ public class RewardService : IRewardService
                     BackgroundColor: request.BackgroundColor,
                     IsEnabled: request.IsEnabled,
                     IsUserInputRequired: request.IsUserInputRequired,
-                    IsMaxPerStreamEnabled: request.MaxPerStream.HasValue,
-                    MaxPerStream: request.MaxPerStream,
-                    IsMaxPerUserPerStreamEnabled: request.MaxPerUserPerStream.HasValue,
-                    MaxPerUserPerStream: request.MaxPerUserPerStream,
-                    IsGlobalCooldownEnabled: request.GlobalCooldownSeconds.HasValue,
-                    GlobalCooldownSeconds: request.GlobalCooldownSeconds,
+                    IsMaxPerStreamEnabled: LimitEnabled(request.MaxPerStream),
+                    MaxPerStream: LimitValue(request.MaxPerStream),
+                    IsMaxPerUserPerStreamEnabled: LimitEnabled(request.MaxPerUserPerStream),
+                    MaxPerUserPerStream: LimitValue(request.MaxPerUserPerStream),
+                    IsGlobalCooldownEnabled: LimitEnabled(request.GlobalCooldownSeconds),
+                    GlobalCooldownSeconds: LimitValue(request.GlobalCooldownSeconds),
                     IsPaused: request.IsPaused
                 ),
                 cancellationToken
@@ -330,7 +330,7 @@ public class RewardService : IRewardService
         // A bot-owned reward is deleted on Twitch too — otherwise it lives on there, still redeemable, while
         // the soft-deleted row keeps its Twitch id and the next sync trips the (BroadcasterId, TwitchRewardId)
         // unique index (live 2026-09-29). "Already gone on Twitch" is the outcome we want, not a failure.
-        if (reward.IsManageable && reward.TwitchRewardId is not null)
+        if (reward is { IsManageable: true, TwitchRewardId: not null })
         {
             Result removed = await _channelPoints.DeleteCustomRewardAsync(
                 broadcaster,
@@ -1217,6 +1217,12 @@ public class RewardService : IRewardService
 
         return pushedCount;
     }
+
+    // A limit in an update patch: absent (null) leaves it as it is on Twitch (the field is left out of the
+    // Helix body); 0 or less turns it off; a positive value turns it on with that value.
+    private static bool? LimitEnabled(int? limit) => limit is { } value ? value > 0 : null;
+
+    private static int? LimitValue(int? limit) => limit is > 0 ? limit : null;
 
     /// <summary>
     /// Applies the four reward fields Twitch itself decides on a create/update push — it can clamp, reject,

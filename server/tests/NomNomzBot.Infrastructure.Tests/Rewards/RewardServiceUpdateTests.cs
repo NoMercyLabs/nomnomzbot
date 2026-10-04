@@ -362,4 +362,141 @@ public sealed class RewardServiceUpdateTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Response.Should().Be("Original message");
     }
+
+    // Twitch's own view of a reward whose three limits are all on (10 per stream, 2 per user, 30 s cooldown).
+    // The stub applies an incoming PATCH the way Helix does: a field left out stays as it is, an explicit
+    // is_*_enabled flag (true or false) wins.
+    private static void TwitchHoldsLimitsAndAppliesPatches(ITwitchChannelPointsApi points)
+    {
+        points
+            .UpdateCustomRewardAsync(
+                Channel,
+                "tw-reward-1",
+                Arg.Any<UpdateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                UpdateCustomRewardRequest r = call.Arg<UpdateCustomRewardRequest>();
+                return Result.Success(
+                    TwitchReward() with
+                    {
+                        Cost = r.Cost ?? 500,
+                        MaxPerStreamSetting = new(
+                            r.IsMaxPerStreamEnabled ?? true,
+                            r.MaxPerStream ?? 10
+                        ),
+                        MaxPerUserPerStreamSetting = new(
+                            r.IsMaxPerUserPerStreamEnabled ?? true,
+                            r.MaxPerUserPerStream ?? 2
+                        ),
+                        GlobalCooldownSetting = new(
+                            r.IsGlobalCooldownEnabled ?? true,
+                            r.GlobalCooldownSeconds ?? 30
+                        ),
+                    }
+                );
+            });
+    }
+
+    private static async Task<(
+        RewardService Sut,
+        AuthDbContext Db,
+        ITwitchChannelPointsApi Points
+    )> BuildWithLimitsAsync()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build(
+            manageable: true,
+            twitchRewardId: "tw-reward-1"
+        );
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.MaxPerStream = 10;
+        row.MaxPerUserPerStream = 2;
+        row.GlobalCooldownSeconds = 30;
+        await db.SaveChangesAsync();
+        TwitchHoldsLimitsAndAppliesPatches(points);
+        return (sut, db, points);
+    }
+
+    [Fact]
+    public async Task Update_that_leaves_the_limits_out_keeps_all_three_on_twitch_and_locally()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) =
+            await BuildWithLimitsAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { Cost = 600 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        UpdateCustomRewardRequest sent = points
+            .ReceivedCalls()
+            .Select(c => c.GetArguments().OfType<UpdateCustomRewardRequest>().SingleOrDefault())
+            .Single(r => r is not null)!;
+        sent.Cost.Should().Be(600);
+        // Left out of the patch means left out of the Helix body (null is dropped by the transport), never false.
+        sent.IsMaxPerStreamEnabled.Should().BeNull();
+        sent.IsMaxPerUserPerStreamEnabled.Should().BeNull();
+        sent.IsGlobalCooldownEnabled.Should().BeNull();
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.Cost.Should().Be(600);
+        row.MaxPerStream.Should().Be(10);
+        row.MaxPerUserPerStream.Should().Be(2);
+        row.GlobalCooldownSeconds.Should().Be(30);
+        result.Value.MaxPerStream.Should().Be(10);
+        result.Value.MaxPerUserPerStream.Should().Be(2);
+        result.Value.GlobalCooldownSeconds.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task Update_with_zero_turns_that_one_limit_off_and_leaves_the_others_on()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) =
+            await BuildWithLimitsAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { MaxPerStream = 0 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        UpdateCustomRewardRequest sent = points
+            .ReceivedCalls()
+            .Select(c => c.GetArguments().OfType<UpdateCustomRewardRequest>().SingleOrDefault())
+            .Single(r => r is not null)!;
+        sent.IsMaxPerStreamEnabled.Should().BeFalse();
+        sent.IsMaxPerUserPerStreamEnabled.Should().BeNull();
+        sent.IsGlobalCooldownEnabled.Should().BeNull();
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.MaxPerStream.Should().BeNull();
+        row.MaxPerUserPerStream.Should().Be(2);
+        row.GlobalCooldownSeconds.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task Update_with_a_value_sets_that_limit_and_turns_it_on()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) =
+            await BuildWithLimitsAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { GlobalCooldownSeconds = 90 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        UpdateCustomRewardRequest sent = points
+            .ReceivedCalls()
+            .Select(c => c.GetArguments().OfType<UpdateCustomRewardRequest>().SingleOrDefault())
+            .Single(r => r is not null)!;
+        sent.IsGlobalCooldownEnabled.Should().BeTrue();
+        sent.GlobalCooldownSeconds.Should().Be(90);
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.GlobalCooldownSeconds.Should().Be(90);
+        row.MaxPerStream.Should().Be(10);
+    }
 }

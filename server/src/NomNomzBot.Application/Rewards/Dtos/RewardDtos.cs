@@ -106,6 +106,9 @@ public sealed record UpdateRewardRequest
     public bool? IsEnabled { get; init; }
     public bool? IsPaused { get; init; }
     public string? BackgroundColor { get; init; }
+
+    // The three redemption limits: absent (null) leaves the limit as it is, 0 turns it off, a positive value
+    // sets it. (The full-replace PUT on the controller reads an absent limit as off.)
     public int? MaxPerStream { get; init; }
     public int? MaxPerUserPerStream { get; init; }
     public int? GlobalCooldownSeconds { get; init; }
