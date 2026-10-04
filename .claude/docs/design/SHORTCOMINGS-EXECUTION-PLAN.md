@@ -38,8 +38,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   version or changing `CurrentVersionId`; a compile error comes back as a test-run failure on its line; a test
   failed first, and an editor E2E proves an unsaved edit runs in the test and the live version is unchanged. Server step landed
   (15c553205): `ScriptTestRunRequest.project` runs the given files through the save gate and stores nothing.
-  The editor sends its open files with the test run (fdec30077). Left: the editor E2E on the dev box
-  (needs a deploy).
+  The editor sends its open files with the test run (fdec30077). The dev-box E2E proves an unsaved edit runs
+  and nothing goes live, and a compile error is refused with its line in `data.errors` (23d942110). Left: the
+  editor drops that line: `CodeScriptsController.kt:422` keeps only `result.error.message` for a failed test run
+  (the save path at `:509` keeps `result.error.errors`), so the test panel shows the text but marks no line.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
