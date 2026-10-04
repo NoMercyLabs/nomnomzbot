@@ -60,12 +60,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   parses as a double (`ScriptHostBridge.cs:902-911`) and reaches the provider as `NaN%`, where the comment says a bad
   value keeps the default. Done-when: a non-finite value is treated as absent; a test failed first. Starts after
   S-SCRIPT-CHAT-SEND-FAILURE lands (same file).
-- **S-WIDGET-EVENT-DATA** Found by the docs writer 2026-10-04. The pipeline step `widget_event` marks no field
-  `Templated` (`WidgetEventAction.cs:39-58`), so the engine never fills `{user}`-style templates in it
-  (`PipelineEngine.cs:849-866` resolves only `Templated` fields). Its `data` field is Text, so the widget gets
-  the raw text, not a JSON object (`WidgetEventAction.cs:122`, `PipelinesApi.kt:382-404`). Done when `data` and
-  `event_type` are `Templated`, a step with data `{"user":"{user}"}` reaches the widget as an object with the name
-  filled in (the engine's `ResolvedStringToElement` already keeps object/array roots), and a test proves both.
 - **S-WIDGET-EVENT-PRESENCE** Found by the docs writer 2026-10-04. `widget_event` returns success when no browser
   source has the widget open (`WidgetEventAction.cs:92-100`), so the run log says it worked while nothing showed.
   `IOverlayPresenceRegistry.IsWidgetAttached` already answers this for TTS. Done when the step fails with a plain
