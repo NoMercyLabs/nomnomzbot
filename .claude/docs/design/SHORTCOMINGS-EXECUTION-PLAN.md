@@ -29,16 +29,6 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-SCRIPT-MISSING-EXPORT** Found by the docs fact-check 2026-10-04, reproduced with the real esbuild and flags
-  (`EsbuildScriptBundler.cs:76-91`). A direct named import of a missing export already fails the build ("No matching export",
-  checked by the builder 2026-10-04). Two cases still save: a namespace member the file does not export
-  (`import * as h`, then `h.missing()`) and a named import from a file with no exports. For those esbuild only warns,
-  exits 0 and emits `(void 0)(...)`, `CompileAsync` only parses (`JintScriptExecutor.cs:260-261`),
-  `CodeScriptService.cs:540-547` marks the version valid, and the first run faults with `TypeError: (void 0) is
-  not a function`. The editor marks it red (TS2305/TS2306), but a red mark does not block Save
-  (`editor.js:1146-1153`). Done-when: the save is refused with the file, line and column of the import (for
-  example esbuild's `import-is-undefined` raised to an error), in the same `data.errors` shape as other build
-  problems; a test failed first.
 - **S-TESTRUN-SKIPS-VALIDATION** Found by the docs fact-check 2026-10-04. An editor test run captures every write
   (`chat.send`, `chat.reply`, `music.queue`, `storage.set`/`delete`, `tts.speak`, `tts.voice.set`, `widget.emit`,
   `reward.update`, `schedule.pipeline`, `actions.invoke:*`) and returns a canned success before the live bridge's
