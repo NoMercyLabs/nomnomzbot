@@ -13,7 +13,8 @@
 #     and none of them is still open in SHORTCOMINGS-EXECUTION-PLAN.md;
 #   - the claim audit has a section "## <path under docs/sdk>" carrying
 #     "<!-- audited sha256:<hash> -->" for the page's current text (an edit after the audit fails);
-#   - every claim row in that section has a verdict starting with "true".
+#   - every claim row in that section has 3 cells (an escaped "\|" stays inside its cell) and a
+#     verdict starting with "true", and no "Verdict:" line in it says anything but PASS.
 # Stoney 2026-10-03: "i need good docs so why did you write bad ones?" (62 stale and 8 wrong of 399 claims).
 #
 # Usage: python scripts/check-sdk-docs.py [--docs docs/sdk] [--audit docs-work/audit.md] [--plan <plan>]
@@ -28,7 +29,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SLICES_LINE = re.compile(r'<!--\s*slices:\s*(.*?)\s*-->', re.IGNORECASE)
 AUDITED_LINE = re.compile(r'<!--\s*audited sha256:([0-9a-f]{64})\s*-->')
 OPEN_SLICE = re.compile(r'^- \*\*(S-[A-Za-z0-9-]+)\*\*', re.MULTILINE)
-CLAIM_ROW = re.compile(r'^\|(?P<claim>[^|]+)\|(?P<verdict>[^|]+)\|')
+CLAIM_ROW = re.compile(r'^\|(?P<claim>(?:\\\||[^|])+)\|(?P<verdict>(?:\\\||[^|])+)\|')
+VERDICT_LINE = re.compile(r'^Verdict:\s*(\w+)', re.MULTILINE)
+CELL_SPLIT = re.compile(r'(?<!\\)\|')  # a Markdown cell may hold an escaped pipe
 
 
 def page_hash(text: str) -> str:
@@ -54,6 +57,9 @@ def claim_problems(rel: str, section: str) -> list[str]:
     problems = []
     rows = 0
     for line in section.split('\n'):
+        if line.startswith('|') and len(CELL_SPLIT.split(line.strip().strip('|'))) != 3:
+            problems.append(f'{rel}: a claim row that is not 3 cells (a "|" inside a cell?): {line.strip()}')
+            continue
         row = CLAIM_ROW.match(line)
         if not row:
             continue
@@ -93,6 +99,9 @@ def check(docs: pathlib.Path, audit: pathlib.Path, plan: pathlib.Path) -> list[s
         if not audited or audited.group(1) != page_hash(text):
             problems.append(f'{rel}: page changed since its audit (or the section has no "audited sha256" line); re-audit it')
             continue
+        verdict = VERDICT_LINE.search(section)
+        if verdict and verdict.group(1).upper() != 'PASS':
+            problems.append(f'{rel}: its checker wrote "Verdict: {verdict.group(1)}"; re-audit it')
         problems.extend(claim_problems(rel, section))
     return problems
 

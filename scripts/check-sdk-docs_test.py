@@ -54,6 +54,22 @@ class CheckSdkDocsTests(unittest.TestCase):
         self.assertEqual(len(self.run_check(PAGE, audit_for(PAGE, verdict='wrong'))), 1)
         self.assertEqual(len(self.run_check(PAGE, audit_for(PAGE, verdict='not checked'))), 1)
 
+    def test_an_audit_whose_checker_wrote_fail_fails_even_with_all_rows_true(self):
+        audit = audit_for(PAGE).replace(' -->\n', ' -->\nVerdict: FAIL\n', 1)
+        problems = self.run_check(PAGE, audit)
+        self.assertEqual(len(problems), 1)
+        self.assertIn('Verdict: FAIL', problems[0])
+
+    def test_a_row_with_a_pipe_inside_its_claim_fails_instead_of_being_skipped(self):
+        audit = audit_for(PAGE) + '| `a || b` picks b | true | JintScriptExecutor.cs:165 |\n'
+        problems = self.run_check(PAGE, audit)
+        self.assertEqual(len(problems), 1)
+        self.assertIn('a || b', problems[0])
+
+    def test_an_escaped_pipe_inside_a_cell_is_part_of_the_cell(self):
+        audit = audit_for(PAGE) + '| pick gives `T \\| undefined` | true | SdkRuntimeSurface.cs:549 |\n'
+        self.assertEqual(self.run_check(PAGE, audit), [])
+
     def test_a_page_with_no_audit_section_fails(self):
         problems = self.run_check(PAGE, '## scripts/other.md\n')
         self.assertEqual(len(problems), 1)
