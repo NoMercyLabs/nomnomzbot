@@ -125,6 +125,12 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   trigger. Done-when: the chat-trigger gate and its `user.role` use the effective role like the command path;
   a test for a badge-less Editor failed first. Check the other `BadgeLevel` sites (`:313`, `:530`) and report
   N of M.
+- **S-WIDGET-EVENTS-FROM-COMMENTS** Found by the docs writer 2026-10-04, checked against the code. A save adds every
+  `NomNomz.on('<name>'` the regex finds in the built bundle to the widget's events (`WidgetEventSubscriptions.cs`,
+  called at `WidgetService.cs:798,957`), comments included. The Blank widget template has no handler, only a help
+  comment naming `follow` and `cheer` (`WidgetTemplateCatalogue.cs:38-39`), so a fresh widget subscribes to both and
+  **Test** opens a menu for events it never handles. Done-when: a name inside a JS comment (in a script file or an
+  HTML `<script>` block) adds no event; a real call still does; a test with the Blank template failed first.
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
