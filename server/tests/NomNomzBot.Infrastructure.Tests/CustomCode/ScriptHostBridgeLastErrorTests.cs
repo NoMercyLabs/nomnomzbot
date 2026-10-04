@@ -45,13 +45,15 @@ public sealed class ScriptHostBridgeLastErrorTests
         ITtsDispatchService? tts = null,
         IRewardService? rewards = null,
         IWidgetService? widgets = null,
-        IMusicService? music = null
+        IMusicService? music = null,
+        IChatProvider? chat = null,
+        ScriptReplyTarget? replyTo = null
     ) =>
         new(
             Channel,
             Viewer.ToString(),
-            null,
-            Substitute.For<IChatProvider>(),
+            replyTo,
+            chat ?? Substitute.For<IChatProvider>(),
             Substitute.For<ICurrencyAccountService>(),
             music ?? Substitute.For<IMusicService>(),
             Substitute.For<IHttpClientFactory>(),
@@ -186,10 +188,70 @@ public sealed class ScriptHostBridgeLastErrorTests
         message.Should().Be("No provider connected.");
     }
 
+    private const string NotSentMessage = "The message was not sent to chat.";
+
+    [Fact]
+    public void A_chat_send_the_provider_did_not_send_records_upstream_failed()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Channel, "hello", Arg.Any<CancellationToken>()).Returns(false);
+        ScriptHostBridge bridge = Build(chat: chat);
+
+        Call(bridge, "chat.send", "hello").Should().BeNull();
+
+        (string code, string message) = LastError(bridge);
+        code.Should().Be("upstream_failed");
+        message.Should().Be(NotSentMessage);
+    }
+
+    [Fact]
+    public void A_chat_send_the_provider_sent_leaves_no_error()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Channel, "hello", Arg.Any<CancellationToken>()).Returns(true);
+        ScriptHostBridge bridge = Build(chat: chat);
+
+        Call(bridge, "chat.send", "hello").Should().BeNull();
+
+        Call(bridge, "last.error").Should().BeNull();
+    }
+
+    [Fact]
+    public void A_reply_whose_mention_fallback_was_not_sent_records_upstream_failed()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(Channel, "m1", "hi", Arg.Any<CancellationToken>()).Returns(false);
+        chat.SendMessageAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        ScriptHostBridge bridge = Build(chat: chat, replyTo: new("m1", "Viewer"));
+
+        Call(bridge, "chat.reply", "hi").Should().BeNull();
+
+        (string code, string message) = LastError(bridge);
+        code.Should().Be("upstream_failed");
+        message.Should().Be(NotSentMessage);
+    }
+
+    [Fact]
+    public void A_reply_whose_mention_fallback_was_sent_leaves_no_error()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(Channel, "m1", "hi", Arg.Any<CancellationToken>()).Returns(false);
+        chat.SendMessageAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        ScriptHostBridge bridge = Build(chat: chat, replyTo: new("m1", "Viewer"));
+
+        Call(bridge, "chat.reply", "hi").Should().BeNull();
+
+        Call(bridge, "last.error").Should().BeNull();
+    }
+
     [Fact]
     public void A_successful_call_clears_the_previous_error()
     {
-        ScriptHostBridge bridge = Build();
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Channel, "hello", Arg.Any<CancellationToken>()).Returns(true);
+        ScriptHostBridge bridge = Build(chat: chat);
         Call(bridge, "chat.send", " ");
         LastError(bridge).Code.Should().Be("invalid_argument");
 

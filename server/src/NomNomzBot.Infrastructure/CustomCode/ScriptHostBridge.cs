@@ -372,9 +372,17 @@ public sealed class ScriptHostBridge(
             );
 
         // The guest holds only the Guid; the Helix provider resolves the Twitch channel id + bot token host-side.
-        chatProvider.SendMessageAsync(broadcasterId, args[0], ct).GetAwaiter().GetResult();
-        return null;
+        bool sent = chatProvider
+            .SendMessageAsync(broadcasterId, args[0], ct)
+            .GetAwaiter()
+            .GetResult();
+        return sent ? null : FailNotSent();
     }
+
+    // chat.send / chat.reply are declared void, so the guest learns of a message that never reached chat
+    // only through last.error.
+    private string? FailNotSent() =>
+        Fail(ScriptHostErrorCodes.UpstreamFailed, "The message was not sent to chat.");
 
     private string? ReplyChat(
         string capabilityKey,
@@ -402,8 +410,11 @@ public sealed class ScriptHostBridge(
             replyTo.DisplayName,
             args[0]
         );
-        chatProvider.SendMessageAsync(broadcasterId, mention.Message, ct).GetAwaiter().GetResult();
-        return null;
+        bool mentioned = chatProvider
+            .SendMessageAsync(broadcasterId, mention.Message, ct)
+            .GetAwaiter()
+            .GetResult();
+        return mentioned ? null : FailNotSent();
     }
 
     private string? StorageGet(
