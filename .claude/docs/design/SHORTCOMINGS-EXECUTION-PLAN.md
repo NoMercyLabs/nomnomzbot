@@ -87,7 +87,7 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   UF·T11: The TTS page hands out the Audio Source page as **TTS source for OBS** (today `GET
   /tts/overlay` ensures and returns the `tts_caption` URL, `TtsConfigController.cs:66-90`, labelled
   "Browser-source URL", `strings.xml:804`). A controller test asserts the returned URL is the `tts_audio`
-  widget's.
+  widget's. (Landed 5c61e5832.)
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
