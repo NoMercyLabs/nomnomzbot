@@ -57,10 +57,9 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Player API and reports PLAYING, PAUSED and ENDED via `NomNomz.reportYouTubePlayerState` (0067dbb90; checked
   by a source guard only, not yet in a browser); an ENDED report advances the queue and plays the next once
   (20e3f7ceb, tests only: it already worked); one player widget owns the audio (the last accepted reporter
-  while attached, else the earliest created) and a stray report is refused (e699fe184). Left: YouTube declares no
-  PlaybackControl or Skip capability, so `!skip`, pause and resume are refused as unsupported
-  (`MusicService.cs:311,376`; the provider stubs at `YouTubeMusicProvider.cs:107-121` are unreachable), though
-  the embedded player could do all three; with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
+  while attached, else the earliest created) and a stray report is refused (e699fe184); pause, resume, skip, seek and play once run through the owning player (aef0ec6e4:
+  a skip with nothing next stops the video; play once keeps the waiting request and resumes the interrupted
+  video where it was; the player's seek-until-PLAYING step is checked by a source guard only). Left: with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
   reconnected." (`YouTubeMusicProvider.cs:295` NotConnected -> `MusicService.cs` MISSING_SCOPE), advice the
   streamer cannot act on (the operator must set the key); a dev-box browser check that a request plays and
   `nowPlaying` returns it.
