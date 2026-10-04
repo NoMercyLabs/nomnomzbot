@@ -191,13 +191,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `Result.Value` unchecked. Done-when: each has a test that failed first; a left-out argument means the
   documented default or a clear script error, never the text "undefined"; egress over the cap is refused with a
   clear error; a script can stop its pipeline through a typed SDK call; the editor underlines the error line.
-- **S-EDITOR-RELIABILITY** Checked against the code 2026-10-03. Close and Esc in the code editor throw away
-  unsaved edits with no question (`editor.js:1313, 1363-1368`). The Problems side bar lists each `.vue` error
-  twice (`editor.js:575`). In the dashboard: the widget settings form drops the help text of slider, select
-  and multiselect fields and lets a custom schema set step 0 (`WidgetSettingsForms.kt:314-384`); the gallery
-  says "No gallery widgets available" while it reloads, and a failed "Load more" is silent
-  (`WidgetsScreen.kt:1673-1675, 1763`); `strings.xml` still says "Lua scripts" (en :1922, nl :1919).
-  Done-when: each has a test that failed first and now passes.
 - **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
   overlay rows give every action the full accent: 8 `TextButton`s with `tokens.primary` text
   (`WidgetsScreen.kt:943, 957, 1046, 1059, 1077, 1137, 1150, 1640`), so a row reads as six equal-weight
