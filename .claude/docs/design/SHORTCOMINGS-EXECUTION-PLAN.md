@@ -91,11 +91,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   sees the effective level, resolved at most once per message; a test with a badge-less Editor failed first.
   Same class: a command's template response builds its variables at `ChatMessageHandler.cs:560` without the
   effective `user.role` the pipeline path sets (`:443-444`), so `{user.role}` in a reply shows the badge role.
-- **S-WIDGET-EMIT-FALSY-DATA** Found by the send-to-a-widget writer 2026-10-04. `widget.emit` declares `data?: unknown`
-  (`SdkRuntimeSurface.cs:658`), but the overlay replaces any falsy data with `{}` (`OverlaySdkController.cs:376`
-  `e.data || {}`), and the editor preview does the same (`preview-sdk.js:77`). A script that sends `false`, `0` or
-  `''` gives the widget `{}`. Done-when: only a missing or null `data` becomes `{}` in the overlay and the preview;
-  `false`, `0` and `''` arrive unchanged; a test failed first.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
