@@ -30,4 +30,16 @@ internal static class RedemptionContext
             ? seeded
             : null;
     }
+
+    /// <summary>The triggering redemption's reward id (context property first, then the seeded variable).</summary>
+    public static string? ResolveRewardId(PipelineExecutionContext ctx)
+    {
+        if (!string.IsNullOrWhiteSpace(ctx.RewardId))
+            return ctx.RewardId;
+        return
+            ctx.Variables.TryGetValue("reward.id", out string? seeded)
+            && !string.IsNullOrWhiteSpace(seeded)
+            ? seeded
+            : null;
+    }
 }

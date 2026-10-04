@@ -112,7 +112,13 @@ public class RewardsController : BaseController
         CancellationToken ct
     ) =>
         ResultResponse(
-            await _rewardService.SetRedemptionStatusAsync(channelId, redemptionId, "FULFILLED", ct)
+            await _rewardService.SetRedemptionStatusAsync(
+                channelId,
+                redemptionId,
+                "FULFILLED",
+                null,
+                ct
+            )
         );
 
     // ── Redemption countdown timers ("streamer does X for Y") ────────────────
@@ -180,7 +186,13 @@ public class RewardsController : BaseController
         CancellationToken ct
     ) =>
         ResultResponse(
-            await _rewardService.SetRedemptionStatusAsync(channelId, redemptionId, "CANCELED", ct)
+            await _rewardService.SetRedemptionStatusAsync(
+                channelId,
+                redemptionId,
+                "CANCELED",
+                null,
+                ct
+            )
         );
 
     /// <summary>Retrieve a channel point reward by ID.</summary>

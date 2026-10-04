@@ -50,6 +50,7 @@ public sealed class RedemptionFulfillAction(IRewardService rewards) : ICommandAc
             ctx.BroadcasterId.ToString(),
             redemptionId,
             "FULFILLED",
+            RedemptionContext.ResolveRewardId(ctx),
             ctx.CancellationToken
         );
         return result.IsSuccess

@@ -208,7 +208,12 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
         if (completed.IsFailure)
             return completed;
 
-        await FulfillAsync(broadcasterId, completed.Value.RedemptionId, cancellationToken);
+        await FulfillAsync(
+            broadcasterId,
+            completed.Value.RedemptionId,
+            completed.Value.RewardId,
+            cancellationToken
+        );
         return completed;
     }
 
@@ -263,6 +268,7 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
             await FulfillAsync(
                 timer.BroadcasterId.ToString(),
                 timer.RedemptionId,
+                timer.RewardId,
                 cancellationToken
             );
 
@@ -270,12 +276,18 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
     }
 
     /// <summary>Best-effort Twitch fulfill: an unmanageable reward or a dead token must not undo the timer.</summary>
-    private async Task FulfillAsync(string broadcasterId, string redemptionId, CancellationToken ct)
+    private async Task FulfillAsync(
+        string broadcasterId,
+        string redemptionId,
+        string rewardId,
+        CancellationToken ct
+    )
     {
         Result fulfilled = await _rewards.SetRedemptionStatusAsync(
             broadcasterId,
             redemptionId,
             "FULFILLED",
+            rewardId,
             ct
         );
         if (fulfilled.IsFailure)

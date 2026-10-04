@@ -192,4 +192,115 @@ public sealed class RewardServiceRedemptionsTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
+
+    private static ITwitchChannelPointsApi HelixAccepting()
+    {
+        ITwitchChannelPointsApi points = Substitute.For<ITwitchChannelPointsApi>();
+        points
+            .UpdateRedemptionStatusAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<UpdateRedemptionStatusRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomRewardRedemption>>([]));
+        return points;
+    }
+
+    [Theory]
+    [InlineData("FULFILLED")]
+    [InlineData("CANCELED")]
+    public async Task SetRedemptionStatus_with_no_row_yet_uses_the_supplied_reward_id(string status)
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchChannelPointsApi points = HelixAccepting();
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
+
+        Result result = await sut.SetRedemptionStatusAsync(
+            Channel.ToString(),
+            "redeem-new",
+            status,
+            rewardId: "rw-live"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await points
+            .Received(1)
+            .UpdateRedemptionStatusAsync(
+                Channel,
+                "rw-live",
+                Arg.Is<IReadOnlyList<string>>(ids => ids.Count == 1 && ids[0] == "redeem-new"),
+                Arg.Is<UpdateRedemptionStatusRequest>(r => r.Status == status),
+                Arg.Any<CancellationToken>()
+            );
+        // No row is invented locally: the EventSub redemption.update folds the status through the projection.
+        db.Redemptions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SetRedemptionStatus_with_a_row_prefers_the_row_reward_id_over_the_supplied_one()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Redemptions.Add(
+            Redeem("redeem-1", "unfulfilled", new(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc))
+        );
+        await db.SaveChangesAsync();
+        ITwitchChannelPointsApi points = HelixAccepting();
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
+
+        Result result = await sut.SetRedemptionStatusAsync(
+            Channel.ToString(),
+            "redeem-1",
+            "FULFILLED",
+            rewardId: "rw-other"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await points
+            .Received(1)
+            .UpdateRedemptionStatusAsync(
+                Channel,
+                "rw1",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<UpdateRedemptionStatusRequest>(),
+                Arg.Any<CancellationToken>()
+            );
+        db.Redemptions.Single().Status.Should().Be("fulfilled");
+    }
+
+    [Fact]
+    public async Task SetRedemptionStatus_with_no_row_and_no_reward_id_never_reaches_helix()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchChannelPointsApi points = HelixAccepting();
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
+
+        Result result = await sut.SetRedemptionStatusAsync(
+            Channel.ToString(),
+            "nope",
+            "FULFILLED",
+            rewardId: null
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        await points
+            .DidNotReceiveWithAnyArgs()
+            .UpdateRedemptionStatusAsync(default, default!, default!, default!);
+    }
 }

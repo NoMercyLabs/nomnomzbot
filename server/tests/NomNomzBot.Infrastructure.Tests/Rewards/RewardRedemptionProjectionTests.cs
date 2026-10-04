@@ -145,4 +145,39 @@ public sealed class RewardRedemptionProjectionTests
 
         db.Redemptions.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task A_status_update_journaled_before_the_add_still_ends_fulfilled_with_the_adds_cost()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        RewardRedemptionProjection sut = new(db);
+
+        await sut.ApplyAsync(
+            Event(
+                "RewardRedemptionUpdatedEvent",
+                new
+                {
+                    RedemptionId = "redeem-1",
+                    RewardId = "reward-1",
+                    Status = "fulfilled",
+                }
+            )
+        );
+        await sut.ApplyAsync(
+            Event(
+                "RewardRedeemedEvent",
+                new
+                {
+                    RedemptionId = "redeem-1",
+                    RewardId = "reward-1",
+                    RewardTitle = "Hydrate!",
+                    Cost = 100,
+                }
+            )
+        );
+
+        Redemption row = db.Redemptions.Single();
+        row.Status.Should().Be("fulfilled");
+        row.Cost.Should().Be(100);
+    }
 }

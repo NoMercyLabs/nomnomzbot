@@ -50,6 +50,7 @@ public sealed class RedemptionRefundAction(IRewardService rewards) : ICommandAct
             ctx.BroadcasterId.ToString(),
             redemptionId,
             "CANCELED",
+            RedemptionContext.ResolveRewardId(ctx),
             ctx.CancellationToken
         );
         return result.IsSuccess

@@ -515,6 +515,7 @@ public class RewardService : IRewardService
         string broadcasterId,
         string redemptionId,
         string twitchStatus,
+        string? rewardId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -526,13 +527,16 @@ public class RewardService : IRewardService
             r => r.BroadcasterId == broadcaster && r.RedemptionId == redemptionId,
             cancellationToken
         );
-        if (row is null)
+        // A pipeline run triggered by the redemption can beat the projection: the caller's reward id then
+        // addresses Helix directly.
+        string? helixRewardId = row?.RewardId ?? rewardId;
+        if (string.IsNullOrEmpty(helixRewardId))
             return Result.Failure($"Redemption '{redemptionId}' was not found.", "NOT_FOUND");
 
         Result<IReadOnlyList<TwitchCustomRewardRedemption>> helix =
             await _channelPoints.UpdateRedemptionStatusAsync(
                 broadcaster,
-                row.RewardId,
+                helixRewardId,
                 [redemptionId],
                 new(twitchStatus),
                 cancellationToken
@@ -542,6 +546,10 @@ public class RewardService : IRewardService
                 helix.ErrorMessage ?? "Twitch rejected the redemption update.",
                 helix.ErrorCode ?? "TWITCH_ERROR"
             );
+
+        // Row not folded yet: the EventSub redemption.update folds the status through the projection later.
+        if (row is null)
+            return Result.Success();
 
         // Optimistic local update so the queue re-list drops it from the pending lane immediately; the matching
         // EventSub redemption.update folds the same status through the projection (idempotent), confirming it.

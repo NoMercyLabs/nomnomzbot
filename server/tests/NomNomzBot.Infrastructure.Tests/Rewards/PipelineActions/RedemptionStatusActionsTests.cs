@@ -30,7 +30,9 @@ public sealed class RedemptionStatusActionsTests
 
     private static PipelineExecutionContext Ctx(
         string? redemptionId = null,
-        string? seededVariable = null
+        string? seededVariable = null,
+        string? rewardId = null,
+        string? seededRewardVariable = null
     )
     {
         PipelineExecutionContext ctx = new()
@@ -40,10 +42,13 @@ public sealed class RedemptionStatusActionsTests
             TriggeredByDisplayName = "Viewer",
             MessageId = "m1",
             RedemptionId = redemptionId,
+            RewardId = rewardId,
             RawMessage = "",
         };
         if (seededVariable is not null)
             ctx.Variables["redemption.id"] = seededVariable;
+        if (seededRewardVariable is not null)
+            ctx.Variables["reward.id"] = seededRewardVariable;
         return ctx;
     }
 
@@ -58,6 +63,7 @@ public sealed class RedemptionStatusActionsTests
                 Channel.ToString(),
                 "redemption-9",
                 "FULFILLED",
+                null,
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
@@ -74,6 +80,7 @@ public sealed class RedemptionStatusActionsTests
                 Channel.ToString(),
                 "redemption-9",
                 "FULFILLED",
+                null,
                 Arg.Any<CancellationToken>()
             );
     }
@@ -87,6 +94,7 @@ public sealed class RedemptionStatusActionsTests
                 Channel.ToString(),
                 "redemption-9",
                 "CANCELED",
+                null,
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
@@ -103,6 +111,7 @@ public sealed class RedemptionStatusActionsTests
                 Channel.ToString(),
                 "redemption-9",
                 "CANCELED",
+                null,
                 Arg.Any<CancellationToken>()
             );
     }
@@ -118,6 +127,7 @@ public sealed class RedemptionStatusActionsTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                null,
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
@@ -134,6 +144,7 @@ public sealed class RedemptionStatusActionsTests
                 Channel.ToString(),
                 "redemption-var-3",
                 "CANCELED",
+                null,
                 Arg.Any<CancellationToken>()
             );
     }
@@ -158,7 +169,7 @@ public sealed class RedemptionStatusActionsTests
         refund.ErrorMessage.Should().Contain("redemption-triggered");
         await rewards
             .DidNotReceiveWithAnyArgs()
-            .SetRedemptionStatusAsync(default!, default!, default!, default);
+            .SetRedemptionStatusAsync(default!, default!, default!);
     }
 
     [Fact]
@@ -170,6 +181,7 @@ public sealed class RedemptionStatusActionsTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                null,
                 Arg.Any<CancellationToken>()
             )
             .Returns(
@@ -186,5 +198,76 @@ public sealed class RedemptionStatusActionsTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("not pending");
+    }
+
+    [Theory]
+    [InlineData("redemption_fulfill", "FULFILLED")]
+    [InlineData("redemption_refund", "CANCELED")]
+    public async Task The_triggers_reward_id_is_passed_so_the_service_needs_no_read_model_row(
+        string type,
+        string status
+    )
+    {
+        IRewardService rewards = Substitute.For<IRewardService>();
+        rewards
+            .SetRedemptionStatusAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ICommandAction action =
+            type == "redemption_fulfill"
+                ? new RedemptionFulfillAction(rewards)
+                : new RedemptionRefundAction(rewards);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(redemptionId: "redemption-9", rewardId: "reward-7"),
+            Definition(type)
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await rewards
+            .Received(1)
+            .SetRedemptionStatusAsync(
+                Channel.ToString(),
+                "redemption-9",
+                status,
+                "reward-7",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task The_seeded_reward_variable_is_honored_when_the_context_property_is_absent()
+    {
+        IRewardService rewards = Substitute.For<IRewardService>();
+        rewards
+            .SetRedemptionStatusAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        ActionResult result = await new RedemptionFulfillAction(rewards).ExecuteAsync(
+            Ctx(redemptionId: "redemption-9", seededRewardVariable: "reward-var-2"),
+            Definition("redemption_fulfill")
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await rewards
+            .Received(1)
+            .SetRedemptionStatusAsync(
+                Channel.ToString(),
+                "redemption-9",
+                "FULFILLED",
+                "reward-var-2",
+                Arg.Any<CancellationToken>()
+            );
     }
 }

@@ -81,12 +81,17 @@ public interface IRewardService
     /// <summary>
     /// Fulfil or refund a queued redemption via Helix (<paramref name="twitchStatus"/> = <c>FULFILLED</c> or
     /// <c>CANCELED</c>), then reflect the new status in the local queue read model. Addressed by the redemption id;
-    /// the reward id Helix requires is resolved from the read model.
+    /// the reward id Helix requires is resolved from the read model. A caller that already knows the reward (a
+    /// pipeline triggered by the redemption itself) passes <paramref name="rewardId"/>: the read model is folded
+    /// from the journal asynchronously and may not hold the row yet, so with the row missing the supplied reward
+    /// id addresses Helix directly and the optimistic local update is skipped (the EventSub redemption.update
+    /// folds the status later).
     /// </summary>
     Task<Result> SetRedemptionStatusAsync(
         string broadcasterId,
         string redemptionId,
         string twitchStatus,
+        string? rewardId = null,
         CancellationToken cancellationToken = default
     );
 

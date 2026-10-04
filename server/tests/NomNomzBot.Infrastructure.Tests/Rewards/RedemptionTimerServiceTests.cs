@@ -48,6 +48,7 @@ public sealed class RedemptionTimerServiceTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
@@ -135,6 +136,7 @@ public sealed class RedemptionTimerServiceTests
                 Tenant.ToString(),
                 "redemption-1",
                 "FULFILLED",
+                "reward-1",
                 Arg.Any<CancellationToken>()
             );
     }
@@ -153,7 +155,13 @@ public sealed class RedemptionTimerServiceTests
         canceled.Value.RemainingSeconds.Should().Be(540, "history keeps where it stopped");
         await rewards
             .DidNotReceiveWithAnyArgs()
-            .SetRedemptionStatusAsync(default!, default!, default!, Arg.Any<CancellationToken>());
+            .SetRedemptionStatusAsync(
+                default!,
+                default!,
+                default!,
+                null,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -185,6 +193,7 @@ public sealed class RedemptionTimerServiceTests
                 Tenant.ToString(),
                 "short",
                 "FULFILLED",
+                "reward-1",
                 Arg.Any<CancellationToken>()
             );
         await rewards
@@ -193,6 +202,7 @@ public sealed class RedemptionTimerServiceTests
                 Tenant.ToString(),
                 "long",
                 Arg.Any<string>(),
+                Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -206,6 +216,7 @@ public sealed class RedemptionTimerServiceTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Failure("not manageable", "FORBIDDEN"));
