@@ -59,10 +59,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (20e3f7ceb, tests only: it already worked); one player widget owns the audio (the last accepted reporter
   while attached, else the earliest created) and a stray report is refused (e699fe184); pause, resume, skip, seek and play once run through the owning player (aef0ec6e4:
   a skip with nothing next stops the video; play once keeps the waiting request and resumes the interrupted
-  video where it was; the player's seek-until-PLAYING step is checked by a source guard only). Left: with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
-  reconnected." (`YouTubeMusicProvider.cs:295` NotConnected -> `MusicService.cs` MISSING_SCOPE), advice the
-  streamer cannot act on (the operator must set the key); a dev-box browser check that a request plays and
-  `nowPlaying` returns it.
+  video where it was; the player's seek-until-PLAYING step is checked by a source guard only). With no `YouTube:ApiKey` a request is refused as PROVIDER_NOT_CONFIGURED, "YouTube song requests are not set
+  up on this bot yet. The bot owner must add a YouTube API key." in chat, the !sr reply slot and the API
+  (54e99803d). Left: the key is only an env setting (`YOUTUBE_API_KEY`); the dashboard has no place to set
+  it; a dev-box browser check that a request plays and `nowPlaying` returns it.
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
 - **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
