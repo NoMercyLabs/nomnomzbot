@@ -29,17 +29,6 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-EVENT-SAMPLE-CASING** Checked 2026-10-03 (.scratch/bugs-verified-editor.md #8) and 2026-10-04. The 77
-  fixture samples in `EventSamplePayloads.cs` are raw Twitch EventSub wire payloads (snake_case, Twitch field
-  names, e.g. `chat.message` :57-63), while the payload schema `SdkTypeEmitter.cs:129` builds from the domain
-  event record is camelCase with other fields (`SdkReflection.cs:86-88`): 77 of 219 catalog samples fail their
-  own schema. A script never receives a catalog payload (`RunCodeAction.cs:48-57` passes args and flat
-  variables; "There is no event bus in the sandbox", `SdkRuntimeSurface.cs:177-181`), so the schema (the domain
-  shape) is the contract. Decision (worker, 2026-10-04): each fixture sample is run through its real translator
-  into the domain event and serialised with the SDK casing, so the sample keeps real values and matches the
-  schema; an event with no translator uses the reflection sample. Done-when: a test checks all 219 samples
-  against their schema (failed first: 77 of 219), and the fixture-pinning test is replaced by one that pins the
-  translated values.
 - **S-SCRIPT-MISSING-EXPORT** Found by the docs fact-check 2026-10-04, reproduced with the real esbuild and flags
   (`EsbuildScriptBundler.cs:76-91`). A script that imports a name another file does not export still saves:
   esbuild exits 0 and emits `(void 0)(...)`, `CompileAsync` only parses (`JintScriptExecutor.cs:260-261`),
