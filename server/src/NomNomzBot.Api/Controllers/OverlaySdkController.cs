@@ -373,7 +373,7 @@ public sealed class OverlaySdkController : ControllerBase
             switch (target) {
               case "WidgetEvent": {
                 var e = args[0] || {};
-                var data = e.data || {};
+                var data = e.data == null ? {} : e.data;
                 // Widget events are for visuals only: audio plays solely from the raw targets below, which the
                 // server sends to the one audio page, so no sound is ever played twice.
                 emit(e.eventType, data);

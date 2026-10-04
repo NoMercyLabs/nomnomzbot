@@ -74,7 +74,7 @@
   window.addEventListener("message", function (ev) {
     var m = ev.data;
     if (!m) return;
-    if (m.__nnzFire) emit(m.__nnzFire.type, m.__nnzFire.data || {});
+    if (m.__nnzFire) emit(m.__nnzFire.type, m.__nnzFire.data == null ? {} : m.__nnzFire.data);
     else if (m.__nnzSettings) applySettings(m.__nnzSettings);
   });
 
