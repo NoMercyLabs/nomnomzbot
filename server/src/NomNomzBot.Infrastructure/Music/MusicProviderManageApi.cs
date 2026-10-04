@@ -151,6 +151,30 @@ public sealed class MusicProviderManageApi : IMusicProviderManageApi
         );
     }
 
+    public async Task<Result<bool>> IsTrackInPlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result<IMusicProviderManageApi> manage = ResolveManageSurface(
+            provider,
+            MusicProviderCapabilities.Playlists
+        );
+        if (manage.IsFailure)
+            return Result.Failure<bool>(manage.ErrorMessage, manage.ErrorCode, manage.ErrorDetail);
+
+        return await manage.Value.IsTrackInPlaylistAsync(
+            broadcasterId,
+            provider,
+            playlistId,
+            trackUri,
+            cancellationToken
+        );
+    }
+
     public async Task<Result> RemovePlaylistTracksAsync(
         Guid broadcasterId,
         string provider,

@@ -67,6 +67,15 @@ public interface IMusicProviderManageApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>True when the track is on the playlist; reads every page of the playlist.</summary>
+    Task<Result<bool>> IsTrackInPlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Removes tracks from a playlist.</summary>
     Task<Result> RemovePlaylistTracksAsync(
         Guid broadcasterId,

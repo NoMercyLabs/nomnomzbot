@@ -674,6 +674,60 @@ public sealed class YouTubeMusicProvider
         return Result.Success();
     }
 
+    public async Task<Result<bool>> IsTrackInPlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? videoId = ExtractVideoId(trackUri);
+        if (videoId is null)
+            return Result.Failure<bool>("Invalid YouTube video id.", "VALIDATION_FAILED");
+
+        string? token = await GetManageTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return NotConnected<bool>();
+
+        string baseUrl =
+            $"{YouTubeApiBase}/playlistItems?part=contentDetails&maxResults=50"
+            + $"&playlistId={Uri.EscapeDataString(playlistId)}";
+        string? pageToken = null;
+        do
+        {
+            string url = pageToken is null
+                ? baseUrl
+                : $"{baseUrl}&pageToken={Uri.EscapeDataString(pageToken)}";
+            (HttpStatusCode? status, YouTubePlaylistItemListResponse? page) =
+                await GetManageJsonAsync<YouTubePlaylistItemListResponse>(
+                    url,
+                    token,
+                    cancellationToken
+                );
+            if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return MissingScope<bool>();
+            if (status == HttpStatusCode.NotFound)
+                return Result.Failure<bool>("The playlist was not found on YouTube.", "NOT_FOUND");
+            if (page?.Items is null)
+                return Result.Failure<bool>(
+                    "YouTube is temporarily unavailable.",
+                    "SERVICE_UNAVAILABLE"
+                );
+
+            if (
+                page.Items.Any(entry =>
+                    string.Equals(entry.ContentDetails?.VideoId, videoId, StringComparison.Ordinal)
+                )
+            )
+                return Result.Success(true);
+
+            pageToken = string.IsNullOrEmpty(page.NextPageToken) ? null : page.NextPageToken;
+        } while (pageToken is not null);
+
+        return Result.Success(false);
+    }
+
     public async Task<Result> RemovePlaylistTracksAsync(
         Guid broadcasterId,
         string provider,
@@ -1494,12 +1548,24 @@ public sealed class YouTubeMusicProvider
     {
         [JsonPropertyName("items")]
         public List<YouTubePlaylistItem>? Items { get; set; }
+
+        [JsonPropertyName("nextPageToken")]
+        public string? NextPageToken { get; set; }
     }
 
     private sealed class YouTubePlaylistItem
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
+
+        [JsonPropertyName("contentDetails")]
+        public YouTubePlaylistItemContentDetails? ContentDetails { get; set; }
+    }
+
+    private sealed class YouTubePlaylistItemContentDetails
+    {
+        [JsonPropertyName("videoId")]
+        public string? VideoId { get; set; }
     }
 
     private sealed class YouTubeSubscriptionListResponse

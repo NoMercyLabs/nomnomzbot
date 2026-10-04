@@ -1013,6 +1013,62 @@ public sealed class SpotifyMusicProvider
         return ManageOutcome(response, "The playlist");
     }
 
+    public async Task<Result<bool>> IsTrackInPlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return NotConnected<bool>();
+
+        string? id = ExtractId(playlistId, "playlist");
+        if (id is null)
+            return Result.Failure<bool>("Invalid playlist id.", "VALIDATION_FAILED");
+
+        string wanted = NormalizeTrackUri(trackUri);
+        string? url = $"{SpotifyApiBase}/playlists/{Uri.EscapeDataString(id)}/items?limit=50";
+        while (url is not null)
+        {
+            HttpResponseMessage? response = await SendAsync(
+                HttpMethod.Get,
+                url,
+                token,
+                broadcasterId,
+                cancellationToken
+            );
+            if (response is null)
+                return Unavailable<bool>();
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return MissingScope<bool>();
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return Result.Failure<bool>("The playlist was not found on Spotify.", "NOT_FOUND");
+            if (!response.IsSuccessStatusCode)
+                return Unavailable<bool>();
+
+            SpotifyPaging<SpotifyPlaylistItem>? page = await response.Content.ReadFromJsonAsync<
+                SpotifyPaging<SpotifyPlaylistItem>
+            >(cancellationToken: cancellationToken);
+            if (page?.Items is null)
+                return Unavailable<bool>();
+
+            if (
+                page.Items.Any(entry =>
+                    (entry.Item ?? entry.Track)?.Uri is { } uri
+                    && string.Equals(NormalizeTrackUri(uri), wanted, StringComparison.Ordinal)
+                )
+            )
+                return Result.Success(true);
+
+            url = string.IsNullOrEmpty(page.Next) ? null : page.Next;
+        }
+
+        return Result.Success(false);
+    }
+
     public async Task<Result> RemovePlaylistTracksAsync(
         Guid broadcasterId,
         string provider,
@@ -2162,6 +2218,26 @@ public sealed class SpotifyMusicProvider
     {
         [JsonPropertyName("items")]
         public List<T>? Items { get; set; }
+
+        [JsonPropertyName("next")]
+        public string? Next { get; set; }
+    }
+
+    // One entry of GET /playlists/{id}/items: the track sits under `item` (the older `track` key is
+    // deprecated but still read as a fallback).
+    private sealed class SpotifyPlaylistItem
+    {
+        [JsonPropertyName("item")]
+        public SpotifyPlaylistItemRef? Item { get; set; }
+
+        [JsonPropertyName("track")]
+        public SpotifyPlaylistItemRef? Track { get; set; }
+    }
+
+    private sealed class SpotifyPlaylistItemRef
+    {
+        [JsonPropertyName("uri")]
+        public string? Uri { get; set; }
     }
 
     // Shape of GET /me/player/queue — currently_playing is ignored here; GetCurrentTrackAsync's fuller
