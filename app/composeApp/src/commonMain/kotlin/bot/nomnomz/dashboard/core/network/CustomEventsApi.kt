@@ -124,6 +124,8 @@ data class CustomDataSource(
     val pollIntervalSeconds: Int? = null,
     val isEnabled: Boolean = false,
     val lastReceivedAt: String? = null,
+    /** The address a push source receives posts at; null unless the source is push and already saved. */
+    val inboundUrl: String? = null,
 )
 
 /** A minimal id-picker option over a data source (mirrors `CustomDataSourceOptionDto`). */

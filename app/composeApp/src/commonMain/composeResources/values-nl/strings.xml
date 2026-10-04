@@ -4268,6 +4268,12 @@
     <string name="custom_events_field_endpoint_url">Endpoint-URL</string>
     <string name="custom_events_field_auth_secret">Auth-token / geheim</string>
     <string name="custom_events_secret_placeholder">Auth-token (leeg laten om bestaande te behouden)</string>
+    <string name="custom_events_push_secret_required">Een push-bron heeft een geheim nodig om te controleren wat de afzender stuurt.</string>
+    <string name="custom_events_push_url_label">Adres om naar te sturen</string>
+    <string name="custom_events_push_url_pending">Deze bron krijgt zijn adres zodra je hem opslaat.</string>
+    <string name="custom_events_push_url_copy">Kopieer adres</string>
+    <string name="custom_events_push_url_copied">Adres gekopieerd</string>
+    <string name="custom_events_push_sign_help">Stuur elk bericht als JSON. Voeg de header x-timestamp toe met de tijd in unix-seconden; een bericht dat meer dan 10 minuten afwijkt wordt geweigerd. Voeg de header x-signature toe met sha256= gevolgd door de hex HMAC-SHA256 in kleine letters van de tekst tijdstempel, een punt, en dan de exacte inhoud, gemaakt met je geheim. Elk veld in de JSON wordt een veld van het event.</string>
     <string name="custom_events_field_field_map_json">Veldtoewijzing</string>
     <string name="custom_events_field_path">Pad (bijv. $.data.heartRate)</string>
     <string name="custom_events_test_fetch_action">Test ophalen</string>

@@ -4284,6 +4284,12 @@
     <string name="custom_events_field_endpoint_url">Endpoint URL</string>
     <string name="custom_events_field_auth_secret">Auth token / secret</string>
     <string name="custom_events_secret_placeholder">Auth token (leave blank to keep existing)</string>
+    <string name="custom_events_push_secret_required">A push source needs a secret to check what the sender posts.</string>
+    <string name="custom_events_push_url_label">Address to post to</string>
+    <string name="custom_events_push_url_pending">This source gets its address when you save it.</string>
+    <string name="custom_events_push_url_copy">Copy address</string>
+    <string name="custom_events_push_url_copied">Address copied</string>
+    <string name="custom_events_push_sign_help">Send each post as JSON. Add the header x-timestamp with the time in unix seconds; a post more than 10 minutes off is refused. Add the header x-signature with sha256= followed by the lowercase hex HMAC-SHA256 of the text timestamp, a dot, then the exact body, made with your secret. Each field in the JSON becomes a field of the event.</string>
     <string name="custom_events_field_field_map_json">Field map</string>
     <string name="custom_events_field_path">Path (e.g. $.data.heartRate)</string>
     <string name="custom_events_test_fetch_action">Test fetch</string>

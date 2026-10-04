@@ -199,3 +199,19 @@ fun applyKeyPathSelection(
     if (focusedIndex == null || focusedIndex !in rows.indices) return rows
     return rows.mapIndexed { index, row -> if (index == focusedIndex) row.copy(path = keyPath) else row }
 }
+
+/**
+ * Whether the source form may save. A name and a display name are always needed. A push source also needs an
+ * auth secret (typed now, or already stored), because the server verifies every post against it and refuses a
+ * push source without one.
+ */
+fun isSourceSaveAllowed(
+    name: String,
+    displayName: String,
+    sourceKind: String,
+    authSecret: String,
+    hasStoredSecret: Boolean,
+): Boolean {
+    if (name.isBlank() || displayName.isBlank()) return false
+    return sourceKind != "push" || authSecret.isNotBlank() || hasStoredSecret
+}

@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
@@ -77,6 +78,7 @@ import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsController
 import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsState
 import bot.nomnomz.dashboard.feature.customevents.state.FieldMapRow
 import bot.nomnomz.dashboard.feature.customevents.state.applyKeyPathSelection
+import bot.nomnomz.dashboard.feature.customevents.state.isSourceSaveAllowed
 import bot.nomnomz.dashboard.feature.customevents.state.toFieldMap
 import bot.nomnomz.dashboard.feature.customevents.state.toFieldMapRows
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -125,6 +127,12 @@ import nomnomzbot.composeapp.generated.resources.custom_events_search_placeholde
 import nomnomzbot.composeapp.generated.resources.custom_events_status_disabled
 import nomnomzbot.composeapp.generated.resources.custom_events_status_poll
 import nomnomzbot.composeapp.generated.resources.custom_events_status_poll_interval
+import nomnomzbot.composeapp.generated.resources.custom_events_push_secret_required
+import nomnomzbot.composeapp.generated.resources.custom_events_push_sign_help
+import nomnomzbot.composeapp.generated.resources.custom_events_push_url_copied
+import nomnomzbot.composeapp.generated.resources.custom_events_push_url_copy
+import nomnomzbot.composeapp.generated.resources.custom_events_push_url_label
+import nomnomzbot.composeapp.generated.resources.custom_events_push_url_pending
 import nomnomzbot.composeapp.generated.resources.custom_events_status_push
 import nomnomzbot.composeapp.generated.resources.custom_events_status_socket
 import nomnomzbot.composeapp.generated.resources.custom_events_status_waiting
@@ -670,6 +678,9 @@ private fun SourceFormDialog(
     var testFetchError: Boolean by remember(initial) { mutableStateOf(false) }
     var pollInterval: String by remember(initial) { mutableStateOf(initial?.pollIntervalSeconds?.toString() ?: "") }
     var isEnabled: Boolean by remember(initial) { mutableStateOf(initial?.isEnabled ?: false) }
+    val hasStoredSecret: Boolean = initial?.hasAuthSecret == true
+    val secretMissing: Boolean =
+        sourceKind == "push" && authSecret.isBlank() && !hasStoredSecret
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -712,7 +723,12 @@ private fun SourceFormDialog(
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
+                        isError = secretMissing,
+                        errorText = if (secretMissing) stringResource(Res.string.custom_events_push_secret_required) else null,
                     )
+                }
+                if (sourceKind == "push") {
+                    item { PushSourceInfo(inboundUrl = initial?.inboundUrl) }
                 }
                 item {
                     FieldMapEditor(
@@ -783,7 +799,7 @@ private fun SourceFormDialog(
                         )
                     )
                 },
-                enabled = name.isNotBlank() && displayName.isNotBlank(),
+                enabled = isSourceSaveAllowed(name, displayName, sourceKind, authSecret, hasStoredSecret),
             ) {
                 Text(stringResource(Res.string.custom_events_save))
             }
@@ -794,6 +810,42 @@ private fun SourceFormDialog(
             }
         },
     )
+}
+
+// What a push sender needs: the address to post to (with a quiet copy control) and how to sign each post. An
+// unsaved source has no address yet, so it says so instead of showing an empty box. No container of its own —
+// plain text and the shared copy chip keep the dialog's single primary action (Save) the only accented element.
+@Composable
+private fun PushSourceInfo(inboundUrl: String?) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(
+            text = stringResource(Res.string.custom_events_push_url_label),
+            style = typography.sm,
+            color = tokens.cardForeground,
+        )
+        if (inboundUrl != null) {
+            CopyValue(
+                value = inboundUrl,
+                copyLabel = stringResource(Res.string.custom_events_push_url_copy),
+                copiedLabel = stringResource(Res.string.custom_events_push_url_copied),
+            )
+        } else {
+            Text(
+                text = stringResource(Res.string.custom_events_push_url_pending),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        Text(
+            text = stringResource(Res.string.custom_events_push_sign_help),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+    }
 }
 
 @Composable
