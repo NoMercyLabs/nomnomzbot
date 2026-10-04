@@ -86,6 +86,10 @@ public sealed partial class EsbuildScriptBundler(
             "--sourcemap=inline",
             "--sources-content=false",
             "--log-level=error",
+            // esbuild only warns when an import can never have a value (a namespace member the file does not
+            // export, a name from a file with no exports) and still emits `(void 0)`; the first run would fault.
+            // It is the one esbuild warning that ends in broken output, so the build treats it as an error.
+            "--log-override:import-is-undefined=error",
             "--color=false",
             Normalize(entry),
         ];

@@ -228,6 +228,32 @@ public sealed class CodeScriptServiceProjectTests
     }
 
     [Fact]
+    public async Task SaveProject_ImportOfAnUndefinedNamespaceMember_IsRefusedAtTheUse_PersistsNoVersion()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        CodeScriptService sut = ServiceFor(db, Channel);
+        Guid scriptId = await SeedScriptAsync(sut);
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] = "import * as h from './helpers';\nh.missing();\n",
+            ["helpers.ts"] = "export const present = 1;\n",
+        };
+
+        Result<CodeScriptVersionDto> saved = await sut.SaveProjectAsync(
+            scriptId,
+            Project(files, "index.ts")
+        );
+
+        saved.ErrorCode.Should().Be("VALIDATION_FAILED");
+        JsonElement errors = ErrorsOf(saved);
+        errors.GetArrayLength().Should().Be(1);
+        errors[0].GetProperty("file").GetString().Should().Be("index.ts");
+        errors[0].GetProperty("line").GetInt32().Should().Be(2);
+        errors[0].GetProperty("column").GetInt32().Should().Be(3);
+        db.CodeScriptVersions.Count(v => v.CodeScriptId == scriptId).Should().Be(1);
+    }
+
+    [Fact]
     public async Task SaveProject_SyntaxErrorInAnImportedFile_NamesThatFileAndItsLine()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();

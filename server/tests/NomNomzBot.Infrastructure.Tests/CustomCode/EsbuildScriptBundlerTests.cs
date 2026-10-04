@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Widgets.Bundling;
 using NSubstitute;
@@ -57,6 +58,71 @@ public sealed class EsbuildScriptBundlerTests
         bundle.IsFailure.Should().BeTrue();
         bundle.ErrorCode.Should().Be("SCRIPT_BUILD_FAILED");
         bundle.ErrorMessage.Should().Be("index.ts:2:19: Could not resolve \"./scenes\"");
+    }
+
+    [Fact]
+    public async Task A_namespace_member_the_file_does_not_export_is_a_build_error_at_the_use()
+    {
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] = "import * as h from './helpers';\nh.missing();\n",
+            ["helpers.ts"] = "export const present = 1;\n",
+        };
+
+        Result<string> bundle = await ScriptBundlers.Real().BundleAsync(files, "index.ts");
+
+        bundle.IsFailure.Should().BeTrue("the output would call (void 0)");
+        bundle.ErrorCode.Should().Be("SCRIPT_BUILD_FAILED");
+        List<ScriptBuildError> errors = bundle
+            .ErrorData.Should()
+            .BeAssignableTo<IEnumerable<ScriptBuildError>>()
+            .Subject.ToList();
+        errors.Should().ContainSingle();
+        errors[0].Position.Should().Be(new ScriptSourcePosition("index.ts", 2, 3));
+        errors[0].Message.Should().Contain("\"missing\"").And.Contain("helpers.ts");
+    }
+
+    [Fact]
+    public async Task A_name_imported_from_a_file_with_no_exports_is_a_build_error_at_the_import()
+    {
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] = "import { a } from './plain';\nbot.send(a);\n",
+            ["plain.ts"] = "bot.send('side effect only');\n",
+        };
+
+        Result<string> bundle = await ScriptBundlers.Real().BundleAsync(files, "index.ts");
+
+        bundle.IsFailure.Should().BeTrue("the output would send undefined");
+        bundle.ErrorCode.Should().Be("SCRIPT_BUILD_FAILED");
+        List<ScriptBuildError> errors = bundle
+            .ErrorData.Should()
+            .BeAssignableTo<IEnumerable<ScriptBuildError>>()
+            .Subject.ToList();
+        errors.Should().ContainSingle();
+        errors[0].Position.Should().Be(new ScriptSourcePosition("index.ts", 1, 10));
+        errors[0].Message.Should().Contain("plain.ts").And.Contain("no exports");
+    }
+
+    [Fact]
+    public async Task A_named_import_the_file_does_not_export_is_a_build_error_at_the_import()
+    {
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] = "import { nope } from './helpers';\nnope();\n",
+            ["helpers.ts"] = "export const present = 1;\n",
+        };
+
+        Result<string> bundle = await ScriptBundlers.Real().BundleAsync(files, "index.ts");
+
+        bundle.IsFailure.Should().BeTrue();
+        bundle.ErrorCode.Should().Be("SCRIPT_BUILD_FAILED");
+        List<ScriptBuildError> errors = bundle
+            .ErrorData.Should()
+            .BeAssignableTo<IEnumerable<ScriptBuildError>>()
+            .Subject.ToList();
+        errors.Should().ContainSingle();
+        errors[0].Position.Should().Be(new ScriptSourcePosition("index.ts", 1, 10));
     }
 
     [Fact]
