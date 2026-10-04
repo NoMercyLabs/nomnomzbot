@@ -80,7 +80,8 @@ public sealed class AzureTtsProvider : ITtsProvider
             }
 
             byte[] audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0); // estimate
+            // The length comes from the MP3 frame headers; 48 kbit/s is the rate requested above.
+            int durationMs = Mp3Duration.ToMilliseconds(audioData, 48);
 
             string hash = Convert.ToHexString(
                 SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId))

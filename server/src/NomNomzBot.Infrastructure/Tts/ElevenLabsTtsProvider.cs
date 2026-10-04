@@ -88,7 +88,8 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
             }
 
             byte[] audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0);
+            // No output_format is requested, so ElevenLabs answers its default (mp3_44100_128).
+            int durationMs = Mp3Duration.ToMilliseconds(audioData, 128);
             string hash = Convert.ToHexString(
                 SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId))
             )[..16];
