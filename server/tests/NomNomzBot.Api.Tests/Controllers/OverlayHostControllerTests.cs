@@ -186,4 +186,96 @@ public sealed class OverlayHostControllerTests
             )
             .And.Contain("alert(1)", "the setting value itself is preserved, just escaped");
     }
+
+    private const string ConfigMarker = "<script>";
+    private const string SdkMarker = "<script src=\"/overlay/sdk.js";
+
+    private static async Task<string> VanillaPage(string bundleHtml)
+    {
+        IWidgetService service = Substitute.For<IWidgetService>();
+        OverlayWidgetEntry entry = new(
+            WidgetId,
+            "Plain",
+            "vanilla",
+            "unverified",
+            $"/api/v1/overlay/bundle/{WidgetId}",
+            "hash123",
+            ["twitch.chat.message"],
+            new()
+        );
+        service
+            .GetOverlayManifestAsync(Token, Arg.Any<CancellationToken>())
+            .Returns(Result<OverlayManifest>.Success(new(Guid.NewGuid(), "nonce", [entry])));
+        service
+            .GetOverlayBundleAsync(Token, WidgetId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result<OverlayBundle>.Success(new(bundleHtml, "vanilla", "hash123")));
+        OverlayHostController sut = new(service);
+        return await BodyOf(await sut.Get(WidgetId.ToString(), Token, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Vanilla_page_loads_config_and_sdk_before_a_script_in_head()
+    {
+        string html = await VanillaPage(
+            "<!DOCTYPE html><html><head><script id=\"mine\">run()</script></head><body></body></html>"
+        );
+
+        int headEnd = html.IndexOf("<head>", StringComparison.Ordinal) + "<head>".Length;
+        html.IndexOf(ConfigMarker, StringComparison.Ordinal)
+            .Should()
+            .Be(headEnd, "the config sits right after the opening head tag");
+        int sdk = html.IndexOf(SdkMarker, StringComparison.Ordinal);
+        sdk.Should().BeGreaterThan(headEnd);
+        sdk.Should()
+            .BeLessThan(
+                html.IndexOf("<script id=\"mine\">", StringComparison.Ordinal),
+                "the SDK runs before the widget's own head script"
+            );
+    }
+
+    [Fact]
+    public async Task Vanilla_page_matches_a_head_tag_with_attributes()
+    {
+        string html = await VanillaPage(
+            "<!DOCTYPE html><html><HEAD lang=\"x\"><script id=\"mine\">run()</script></HEAD><body></body></html>"
+        );
+
+        const string Open = "<HEAD lang=\"x\">";
+        html.IndexOf(ConfigMarker, StringComparison.Ordinal)
+            .Should()
+            .Be(html.IndexOf(Open, StringComparison.Ordinal) + Open.Length);
+        html.IndexOf(SdkMarker, StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(html.IndexOf("<script id=\"mine\">", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Vanilla_page_without_head_injects_right_after_an_attributed_body_tag()
+    {
+        string html = await VanillaPage(
+            "<!DOCTYPE html><html><body class=\"x\"><script id=\"mine\">run()</script></body></html>"
+        );
+
+        const string Open = "<body class=\"x\">";
+        html.Should().StartWith("<!DOCTYPE html>", "nothing lands before the doctype");
+        html.IndexOf(ConfigMarker, StringComparison.Ordinal)
+            .Should()
+            .Be(html.IndexOf(Open, StringComparison.Ordinal) + Open.Length);
+        html.IndexOf(SdkMarker, StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(html.IndexOf("<script id=\"mine\">", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Vanilla_page_without_head_or_body_never_loads_before_the_doctype()
+    {
+        string html = await VanillaPage("<!DOCTYPE html><script id=\"mine\">run()</script>");
+
+        const string Doctype = "<!DOCTYPE html>";
+        html.Should().StartWith(Doctype);
+        html.IndexOf(ConfigMarker, StringComparison.Ordinal).Should().Be(Doctype.Length);
+        html.IndexOf(SdkMarker, StringComparison.Ordinal)
+            .Should()
+            .BeLessThan(html.IndexOf("<script id=\"mine\">", StringComparison.Ordinal));
+    }
 }

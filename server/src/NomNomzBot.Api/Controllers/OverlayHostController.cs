@@ -10,6 +10,7 @@
 
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -35,7 +36,7 @@ namespace NomNomzBot.Api.Controllers;
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
 [EnableRateLimiting(RateLimitPolicyNames.Anonymous)]
-public sealed class OverlayHostController : ControllerBase
+public sealed partial class OverlayHostController : ControllerBase
 {
     private readonly IWidgetService _widgetService;
 
@@ -195,7 +196,8 @@ public sealed class OverlayHostController : ControllerBase
             """;
     }
 
-    /// <summary>A vanilla widget: its bundle is complete HTML — splice the config + SDK in before the app runs.</summary>
+    /// <summary>A vanilla widget: its bundle is complete HTML — the config + SDK go in first, so they run before every
+    /// widget script: right after the opening head tag, else after the opening body tag, else after the doctype.</summary>
     private static string RenderVanillaPage(
         OverlayWidgetEntry entry,
         string bundleHtml,
@@ -207,11 +209,14 @@ public sealed class OverlayHostController : ControllerBase
             + "\n<script src=\"/overlay/sdk.js?v="
             + OverlaySdkController.Version
             + "\"></script>";
-        if (bundleHtml.Contains("</head>", StringComparison.OrdinalIgnoreCase))
-            return ReplaceFirst(bundleHtml, "</head>", inject + "</head>");
-        if (bundleHtml.Contains("<body>", StringComparison.OrdinalIgnoreCase))
-            return ReplaceFirst(bundleHtml, "<body>", "<body>" + inject);
-        // No head/body to splice into — prepend so the globals + SDK still exist before the widget's own scripts.
+        Regex[] openings = [HeadOpening(), BodyOpening(), Doctype()];
+        foreach (Regex opening in openings)
+        {
+            Match tag = opening.Match(bundleHtml);
+            if (tag.Success)
+                return bundleHtml.Insert(tag.Index + tag.Length, inject);
+        }
+
         return inject + bundleHtml;
     }
 
@@ -234,11 +239,12 @@ public sealed class OverlayHostController : ControllerBase
     private static string JsLiteral(object? value) =>
         JsonSerializer.Serialize(value).Replace("</", "<\\/", StringComparison.Ordinal);
 
-    private static string ReplaceFirst(string haystack, string search, string replacement)
-    {
-        int index = haystack.IndexOf(search, StringComparison.OrdinalIgnoreCase);
-        return index < 0
-            ? haystack
-            : haystack[..index] + replacement + haystack[(index + search.Length)..];
-    }
+    [GeneratedRegex(@"<head(?:\s[^>]*)?>", RegexOptions.IgnoreCase)]
+    private static partial Regex HeadOpening();
+
+    [GeneratedRegex(@"<body(?:\s[^>]*)?>", RegexOptions.IgnoreCase)]
+    private static partial Regex BodyOpening();
+
+    [GeneratedRegex(@"^\s*<!DOCTYPE[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex Doctype();
 }
