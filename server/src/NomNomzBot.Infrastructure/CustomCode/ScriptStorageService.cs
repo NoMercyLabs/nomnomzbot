@@ -51,16 +51,10 @@ public sealed class ScriptStorageService(IApplicationDbContext db) : IScriptStor
         CancellationToken ct = default
     )
     {
-        if (!TryPrefix(key, out string storageKey))
-            return Result.Failure(
-                $"Storage key must be 1–{IScriptStorageService.MaxKeyLength} characters.",
-                "VALIDATION_FAILED"
-            );
-        if (Encoding.UTF8.GetByteCount(value) > IScriptStorageService.MaxValueBytes)
-            return Result.Failure(
-                $"Storage value exceeds {IScriptStorageService.MaxValueBytes} bytes.",
-                "VALIDATION_FAILED"
-            );
+        Result valid = ValidateWrite(key, value);
+        if (valid.IsFailure)
+            return valid;
+        string storageKey = KeyPrefix + key;
 
         Storage? row = await db.Storages.FirstOrDefaultAsync(
             s => s.BroadcasterId == broadcasterId && s.Key == storageKey,
@@ -104,11 +98,10 @@ public sealed class ScriptStorageService(IApplicationDbContext db) : IScriptStor
         CancellationToken ct = default
     )
     {
-        if (!TryPrefix(key, out string storageKey))
-            return Result.Failure(
-                $"Storage key must be 1–{IScriptStorageService.MaxKeyLength} characters.",
-                "VALIDATION_FAILED"
-            );
+        Result valid = ValidateKey(key);
+        if (valid.IsFailure)
+            return valid;
+        string storageKey = KeyPrefix + key;
 
         Storage? row = await db.Storages.FirstOrDefaultAsync(
             s => s.BroadcasterId == broadcasterId && s.Key == storageKey,
@@ -138,6 +131,29 @@ public sealed class ScriptStorageService(IApplicationDbContext db) : IScriptStor
             .ToListAsync(ct);
         return [.. keys.Select(k => k[KeyPrefix.Length..])];
     }
+
+    /// <summary>The key and value checks <see cref="SetAsync"/> runs first; the host bridge runs them for a test run.</summary>
+    public static Result ValidateWrite(string key, string value)
+    {
+        Result validKey = ValidateKey(key);
+        if (validKey.IsFailure)
+            return validKey;
+        return Encoding.UTF8.GetByteCount(value) > IScriptStorageService.MaxValueBytes
+            ? Result.Failure(
+                $"Storage value exceeds {IScriptStorageService.MaxValueBytes} bytes.",
+                "VALIDATION_FAILED"
+            )
+            : Result.Success();
+    }
+
+    /// <summary>The key check <see cref="DeleteAsync"/> runs first; the host bridge runs it for a test run.</summary>
+    public static Result ValidateKey(string key) =>
+        TryPrefix(key, out _)
+            ? Result.Success()
+            : Result.Failure(
+                $"Storage key must be 1–{IScriptStorageService.MaxKeyLength} characters.",
+                "VALIDATION_FAILED"
+            );
 
     // A valid user key is non-blank and within the length cap; the stored key carries the script namespace.
     private static bool TryPrefix(string key, out string storageKey)

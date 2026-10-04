@@ -41,9 +41,11 @@ public sealed class ScriptTestRunServiceTests
         NomNomzBot.Domain.Chat.Interfaces.IChatProvider? chat = null,
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier? widgetNotifier = null,
         string? registeredActionType = null,
-        IScriptExecutor? executor = null
+        IScriptExecutor? executor = null,
+        NomNomzBot.Application.Widgets.Services.IWidgetService? widgetService = null
     )
     {
+        widgetService ??= Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>();
         chat ??= Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
         widgetNotifier ??=
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>();
@@ -85,7 +87,7 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<IHttpClientFactory>(),
             storage,
             tts,
-            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
+            widgetService,
             widgetNotifier,
             Substitute.For<NomNomzBot.Application.Rewards.Services.IRewardService>(),
             Substitute.For<NomNomzBot.Application.Contracts.Analytics.IViewerAnalyticsService>(),
@@ -567,10 +569,45 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier widgetNotifier =
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>();
+        NomNomzBot.Application.Widgets.Services.IWidgetService widgetService =
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>();
+        NomNomzBot.Application.Widgets.Dtos.WidgetDetail alerts = new(
+            Id: Guid.NewGuid(),
+            Name: "alerts",
+            Description: null,
+            Framework: "vue",
+            Source: "custom",
+            IsEnabled: true,
+            OverlayUrl: null,
+            ActiveVersionId: null,
+            GalleryItemId: null,
+            Settings: new(),
+            EventSubscriptions: [],
+            LastRuntimeError: null,
+            LastRanAt: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            GalleryUpdateAvailable: false,
+            IsAttached: true,
+            IsCustomized: false
+        );
+        widgetService
+            .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new PagedList<NomNomzBot.Application.Widgets.Dtos.WidgetDetail>(
+                        [alerts],
+                        1,
+                        100,
+                        1
+                    )
+                )
+            );
         (ScriptTestRunService sut, AuthDbContext db, _) = Build(
             chat: chat,
             widgetNotifier: widgetNotifier,
-            registeredActionType: "obs_switch_scene"
+            registeredActionType: "obs_switch_scene",
+            widgetService: widgetService
         );
         const string js = """
             nnz.api.chat.send('Welcome ' + bot.getVar('user') + '!');

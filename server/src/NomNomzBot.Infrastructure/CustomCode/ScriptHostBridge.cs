@@ -75,7 +75,7 @@ public sealed class ScriptHostBridge(
     ISevenTvUserPaintResolver paintResolver,
     IOwnerActionService ownerActions,
     long? maxEgressBytes = null
-) : IScriptHostBridge
+) : IScriptHostBridge, IScriptWriteValidator
 {
     private const int MaxResponseBytes = 256 * 1024;
 
@@ -113,15 +113,52 @@ public sealed class ScriptHostBridge(
         };
     }
 
+    // What the failed call handed back to the guest; read by the live methods and by ValidateWrite.
+    private string? _failureReturn;
+
+    private sealed record WidgetEmitPlan(WidgetDetail Widget, object? Data);
+
+    private sealed record RewardUpdatePlan(RewardDetail Reward, UpdateRewardRequest Patch);
+
+    private sealed record SchedulePlan(int DelaySeconds, Dictionary<string, string> Variables);
+
+    public bool ValidateWrite(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct,
+        out string? failureReturn
+    )
+    {
+        _lastError = null;
+        _failureReturn = null;
+        bool valid = capabilityKey switch
+        {
+            "chat.send" or "chat.reply" => ValidateMessage(capabilityKey, args),
+            "music.queue" => ValidateMusicQuery(args),
+            "storage.set" => ValidateStorageSet(args),
+            "storage.delete" => ValidateStorageDelete(args),
+            "tts.speak" => ValidateSpeak(args),
+            "tts.voice.set" => PlanVoiceSet(args, ct) is not null,
+            "widget.emit" => PlanWidgetEmit(args, ct) is not null,
+            "reward.update" => PlanRewardUpdate(args, ct) is not null,
+            "schedule.pipeline" => PlanSchedule(args) is not null,
+            _ => true,
+        };
+        failureReturn = _failureReturn;
+        return valid;
+    }
+
     private string? Fail(string code, string message, string? returned = null)
     {
         _lastError = new(code, message);
+        _failureReturn = returned;
         return returned;
     }
 
     private string? Fail(Result failure, string? returned = null)
     {
         _lastError = ScriptHostError.FromResult(failure);
+        _failureReturn = returned;
         return returned;
     }
 
@@ -317,12 +354,8 @@ public sealed class ScriptHostBridge(
         CancellationToken ct
     )
     {
-        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(
-                ScriptHostErrorCodes.InvalidArgument,
-                "music.queue needs a song title, artist or link.",
-                "false"
-            );
+        if (!ValidateMusicQuery(args))
+            return _failureReturn;
 
         // The music service takes the raw query (title/artist/link) and resolves + enqueues it host-side,
         // attributing the request to the trigger user; the bot's provider token never reaches the guest.
@@ -363,13 +396,30 @@ public sealed class ScriptHostBridge(
         return balance.IsSuccess ? balance.Value.ToString() : Fail(balance, "0");
     }
 
+    private bool ValidateMusicQuery(IReadOnlyList<string> args)
+    {
+        if (args.Count != 0 && !string.IsNullOrWhiteSpace(args[0]))
+            return true;
+        Fail(
+            ScriptHostErrorCodes.InvalidArgument,
+            "music.queue needs a song title, artist or link.",
+            "false"
+        );
+        return false;
+    }
+
+    private bool ValidateMessage(string capabilityKey, IReadOnlyList<string> args)
+    {
+        if (args.Count != 0 && !string.IsNullOrWhiteSpace(args[0]))
+            return true;
+        Fail(ScriptHostErrorCodes.InvalidArgument, $"{capabilityKey} needs a non-empty message.");
+        return false;
+    }
+
     private string? SendChat(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
-        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(
-                ScriptHostErrorCodes.InvalidArgument,
-                $"{capabilityKey} needs a non-empty message."
-            );
+        if (!ValidateMessage(capabilityKey, args))
+            return _failureReturn;
 
         // The guest holds only the Guid; the Helix provider resolves the Twitch channel id + bot token host-side.
         bool sent = chatProvider
@@ -392,11 +442,8 @@ public sealed class ScriptHostBridge(
     {
         if (replyTo is null)
             return SendChat(capabilityKey, args, ct);
-        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(
-                ScriptHostErrorCodes.InvalidArgument,
-                "chat.reply needs a non-empty message."
-            );
+        if (!ValidateMessage(capabilityKey, args))
+            return _failureReturn;
 
         bool threaded = chatProvider
             .SendReplyAsync(broadcasterId, replyTo.MessageId, args[0], ct)
@@ -434,11 +481,8 @@ public sealed class ScriptHostBridge(
         CancellationToken ct
     )
     {
-        if (args.Count < 2 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(
-                ScriptHostErrorCodes.InvalidArgument,
-                "storage.set needs a key and a value."
-            );
+        if (!ValidateStorageSet(args))
+            return _failureReturn;
 
         // The service enforces the bounds (key length, 64 KB value, 200-keys-per-channel); an over-cap
         // write is a typed failure host-side, surfaced to the guest as null — fail-closed, nothing written.
@@ -449,14 +493,42 @@ public sealed class ScriptHostBridge(
         return set.IsSuccess ? "ok" : Fail(set);
     }
 
+    private bool ValidateStorageSet(IReadOnlyList<string> args)
+    {
+        if (args.Count < 2 || string.IsNullOrWhiteSpace(args[0]))
+        {
+            Fail(ScriptHostErrorCodes.InvalidArgument, "storage.set needs a key and a value.");
+            return false;
+        }
+        Result valid = ScriptStorageService.ValidateWrite(args[0], args[1]);
+        if (valid.IsSuccess)
+            return true;
+        Fail(valid);
+        return false;
+    }
+
+    private bool ValidateStorageDelete(IReadOnlyList<string> args)
+    {
+        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+        {
+            Fail(ScriptHostErrorCodes.InvalidArgument, "storage.delete needs a key.");
+            return false;
+        }
+        Result valid = ScriptStorageService.ValidateKey(args[0]);
+        if (valid.IsSuccess)
+            return true;
+        Fail(valid);
+        return false;
+    }
+
     private string? StorageDelete(
         string capabilityKey,
         IReadOnlyList<string> args,
         CancellationToken ct
     )
     {
-        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(ScriptHostErrorCodes.InvalidArgument, "storage.delete needs a key.");
+        if (!ValidateStorageDelete(args))
+            return _failureReturn;
 
         Result deleted = storageService
             .DeleteAsync(broadcasterId, args[0], ct)
@@ -479,10 +551,18 @@ public sealed class ScriptHostBridge(
         return JsonConvert.SerializeObject(keys);
     }
 
+    private bool ValidateSpeak(IReadOnlyList<string> args)
+    {
+        if (args.Count != 0 && !string.IsNullOrWhiteSpace(args[0]))
+            return true;
+        Fail(ScriptHostErrorCodes.InvalidArgument, "tts.speak needs the text to speak.");
+        return false;
+    }
+
     private string? Speak(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
-        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(ScriptHostErrorCodes.InvalidArgument, "tts.speak needs the text to speak.");
+        if (!ValidateSpeak(args))
+            return _failureReturn;
         string? voiceOverride =
             args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1] : null;
         // Per-utterance SSML prosody overrides (e.g. a script's "evil wizard" voice) — a one-off flourish for
@@ -528,51 +608,71 @@ public sealed class ScriptHostBridge(
         );
     }
 
-    private string? EmitWidgetEvent(
-        string capabilityKey,
-        IReadOnlyList<string> args,
-        CancellationToken ct
-    )
+    private WidgetEmitPlan? PlanWidgetEmit(IReadOnlyList<string> args, CancellationToken ct)
     {
         if (
             args.Count < 2
             || string.IsNullOrWhiteSpace(args[0])
             || string.IsNullOrWhiteSpace(args[1])
         )
-            return Fail(
+        {
+            Fail(
                 ScriptHostErrorCodes.InvalidArgument,
                 "widget.emit needs a widget and an event name."
             );
+            return null;
+        }
 
         // Fail-closed, mirroring the widget_event pipeline action: the widget must exist AND be enabled in
         // THIS tenant (the service scopes by broadcaster, so another channel's widget resolves as not-found).
         WidgetDetail? widget = ResolveWidget(args[0], ct);
         if (widget is null)
-            return Fail(ScriptHostErrorCodes.NotFound, $"No widget matches '{args[0]}'.");
+        {
+            Fail(ScriptHostErrorCodes.NotFound, $"No widget matches '{args[0]}'.");
+            return null;
+        }
         if (!widget.IsEnabled)
-            return Fail(ScriptHostErrorCodes.Refused, $"The widget '{widget.Name}' is turned off.");
+        {
+            Fail(ScriptHostErrorCodes.Refused, $"The widget '{widget.Name}' is turned off.");
+            return null;
+        }
         if (!widget.IsAttached)
-            return Fail(
+        {
+            Fail(
                 ScriptHostErrorCodes.Refused,
                 $"The widget '{widget.Name}' is open in no browser source, so nobody would see the event."
             );
+            return null;
+        }
 
         object? data = null;
         if (args.Count > 2 && !string.IsNullOrWhiteSpace(args[2]))
         {
             data = ParseDataJson(args[2]);
             if (data is null)
+            {
                 // malformed payload — refuse rather than push garbage to the overlay
-                return Fail(
-                    ScriptHostErrorCodes.InvalidArgument,
-                    "widget.emit data is not valid JSON."
-                );
+                Fail(ScriptHostErrorCodes.InvalidArgument, "widget.emit data is not valid JSON.");
+                return null;
+            }
         }
+        return new(widget, data);
+    }
+
+    private string? EmitWidgetEvent(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        WidgetEmitPlan? plan = PlanWidgetEmit(args, ct);
+        if (plan is null)
+            return _failureReturn;
 
         try
         {
             widgetNotifier
-                .SendWidgetEventAsync(broadcasterId, widget.Id, args[1], data, ct)
+                .SendWidgetEventAsync(broadcasterId, plan.Widget.Id, args[1], plan.Data, ct)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -616,40 +716,57 @@ public sealed class ScriptHostBridge(
         );
     }
 
+    private RewardUpdatePlan? PlanRewardUpdate(IReadOnlyList<string> args, CancellationToken ct)
+    {
+        if (args.Count < 2 || string.IsNullOrWhiteSpace(args[0]))
+        {
+            Fail(ScriptHostErrorCodes.InvalidArgument, "reward.update needs a reward and a patch.");
+            return null;
+        }
+
+        RewardDetail? reward = ResolveReward(args[0], ct);
+        if (reward is null)
+        {
+            Fail(ScriptHostErrorCodes.NotFound, $"No reward matches '{args[0]}'.");
+            return null;
+        }
+        // Only bot-manageable rewards may be mutated from a script (Twitch only lets our client_id patch
+        // rewards it created; an external reward is read-only) — fail closed before touching the service.
+        if (!reward.IsManageable)
+        {
+            Fail(
+                ScriptHostErrorCodes.Refused,
+                $"The reward '{reward.Title}' was not created by the bot and is read-only."
+            );
+            return null;
+        }
+
+        UpdateRewardRequest? patch = ReadRewardPatch(args[1]);
+        if (patch is null)
+        {
+            Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "reward.update patch is not a valid JSON object."
+            );
+            return null;
+        }
+        return new(reward, patch);
+    }
+
     private string? UpdateReward(
         string capabilityKey,
         IReadOnlyList<string> args,
         CancellationToken ct
     )
     {
-        if (args.Count < 2 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(
-                ScriptHostErrorCodes.InvalidArgument,
-                "reward.update needs a reward and a patch."
-            );
-
-        RewardDetail? reward = ResolveReward(args[0], ct);
-        if (reward is null)
-            return Fail(ScriptHostErrorCodes.NotFound, $"No reward matches '{args[0]}'.");
-        // Only bot-manageable rewards may be mutated from a script (Twitch only lets our client_id patch
-        // rewards it created; an external reward is read-only) — fail closed before touching the service.
-        if (!reward.IsManageable)
-            return Fail(
-                ScriptHostErrorCodes.Refused,
-                $"The reward '{reward.Title}' was not created by the bot and is read-only."
-            );
-
-        UpdateRewardRequest? patch = ReadRewardPatch(args[1]);
-        if (patch is null)
-            return Fail(
-                ScriptHostErrorCodes.InvalidArgument,
-                "reward.update patch is not a valid JSON object."
-            );
+        RewardUpdatePlan? plan = PlanRewardUpdate(args, ct);
+        if (plan is null)
+            return _failureReturn;
 
         // The rewards service is the ONE update path (same as the dashboard), so the Helix push + local
         // persistence happen exactly as they do there.
         Result<RewardDetail> updated = rewardService
-            .UpdateAsync(broadcasterId.ToString(), reward.Id, patch, ct)
+            .UpdateAsync(broadcasterId.ToString(), plan.Reward.Id, plan.Patch, ct)
             .GetAwaiter()
             .GetResult();
         return updated.IsSuccess ? "ok" : Fail(updated);
@@ -720,17 +837,28 @@ public sealed class ScriptHostBridge(
         );
     }
 
+    private string? PlanVoiceSet(IReadOnlyList<string> args, CancellationToken ct)
+    {
+        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+        {
+            Fail(ScriptHostErrorCodes.InvalidArgument, "tts.voice.set needs a viewer.");
+            return null;
+        }
+        string? platformUserId = ResolveViewerPlatformId(args[0], ct);
+        if (platformUserId is null)
+            Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{args[0]}'.");
+        return platformUserId;
+    }
+
     private string? SetTtsVoice(
         string capabilityKey,
         IReadOnlyList<string> args,
         CancellationToken ct
     )
     {
-        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return Fail(ScriptHostErrorCodes.InvalidArgument, "tts.voice.set needs a viewer.");
-        string? platformUserId = ResolveViewerPlatformId(args[0], ct);
+        string? platformUserId = PlanVoiceSet(args, ct);
         if (platformUserId is null)
-            return Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{args[0]}'.");
+            return _failureReturn;
 
         // An empty voice id clears the assignment back to the channel default (the !voice clear semantics).
         string voiceId = args.Count > 1 ? args[1] : string.Empty;
@@ -752,24 +880,20 @@ public sealed class ScriptHostBridge(
         return set.IsSuccess ? "ok" : Fail(set);
     }
 
-    private string? SchedulePipeline(
-        string capabilityKey,
-        IReadOnlyList<string> args,
-        CancellationToken ct
-    )
+    private SchedulePlan? PlanSchedule(IReadOnlyList<string> args)
     {
-        // args: [pipelineName, delaySeconds, variablesJson?, dedupeKey?]. The name resolves to a pipeline of THIS
-        // channel host-side (unknown → typed NOT_FOUND → the guest sees the boolean false); the delay is clamped
-        // by the service. This is how a Voice-Swap script schedules its own revert.
         if (
             args.Count < 2
             || string.IsNullOrWhiteSpace(args[0])
             || !int.TryParse(args[1], out int delaySeconds)
         )
-            return Fail(
+        {
+            Fail(
                 ScriptHostErrorCodes.InvalidArgument,
                 "schedule.pipeline needs a pipeline name and a whole number of seconds."
             );
+            return null;
+        }
 
         Dictionary<string, string>? variables = new(StringComparer.OrdinalIgnoreCase);
         if (args.Count > 2 && !string.IsNullOrWhiteSpace(args[2]))
@@ -781,17 +905,32 @@ public sealed class ScriptHostBridge(
             catch (JsonException)
             {
                 // malformed variables payload — refuse rather than schedule garbage
-                return Fail(
-                    ScriptHostErrorCodes.InvalidArgument,
-                    "schedule.pipeline variables are not a valid JSON object."
-                );
+                variables = null;
             }
             if (variables is null)
-                return Fail(
+            {
+                Fail(
                     ScriptHostErrorCodes.InvalidArgument,
                     "schedule.pipeline variables are not a valid JSON object."
                 );
+                return null;
+            }
         }
+        return new(delaySeconds, variables);
+    }
+
+    private string? SchedulePipeline(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        // args: [pipelineName, delaySeconds, variablesJson?, dedupeKey?]. The name resolves to a pipeline of THIS
+        // channel host-side (unknown → typed NOT_FOUND → the guest sees the boolean false); the delay is clamped
+        // by the service. This is how a Voice-Swap script schedules its own revert.
+        SchedulePlan? plan = PlanSchedule(args);
+        if (plan is null)
+            return _failureReturn;
 
         string? dedupeKey = args.Count > 3 && !string.IsNullOrWhiteSpace(args[3]) ? args[3] : null;
 
@@ -799,8 +938,8 @@ public sealed class ScriptHostBridge(
             .ScheduleByNameAsync(
                 broadcasterId,
                 args[0],
-                delaySeconds,
-                variables,
+                plan.DelaySeconds,
+                plan.Variables,
                 triggeringUserId,
                 string.Empty,
                 dedupeKey,

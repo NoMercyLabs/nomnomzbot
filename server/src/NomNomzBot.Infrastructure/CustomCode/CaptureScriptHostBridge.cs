@@ -80,8 +80,18 @@ public sealed class CaptureScriptHostBridge(
             };
         }
 
+        IScriptWriteValidator? validator = inner as IScriptWriteValidator;
         return (key, args, ct) =>
         {
+            if (
+                validator is not null
+                && !validator.ValidateWrite(key, args, ct, out string? failed)
+            )
+            {
+                _lastCallWasCaptured = false;
+                return failed;
+            }
+
             _lastCallWasCaptured = true;
             if (key is "chat.send" or "chat.reply")
                 sink.RecordChat(key, args);
