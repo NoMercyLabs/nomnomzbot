@@ -25,6 +25,11 @@ public enum MusicProviderFailureReason
     /// the token is dead/missing the required scope. The search never reached the provider.</summary>
     NotConnected,
 
+    /// <summary>The operator has not set up the app-level credential this provider searches with (for
+    /// YouTube, <c>YouTube:ApiKey</c>). Reconnecting the streamer's account cannot fix it, so it is never
+    /// reported as <see cref="NotConnected"/>.</summary>
+    NotConfigured,
+
     /// <summary>The provider was reached but errored, timed out, or rate-limited — a transient outage,
     /// not an answer about whether the track exists.</summary>
     Unavailable,

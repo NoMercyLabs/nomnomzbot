@@ -78,6 +78,8 @@
     <string name="builtin_reply_sr_peruserlimit_description">De kijker heeft al het maximum aantal verzoeken in de wachtrij.</string>
     <string name="builtin_reply_sr_missingscope_label">Muziek opnieuw verbinden</string>
     <string name="builtin_reply_sr_missingscope_description">De muziekverbinding moet opnieuw verbonden worden voordat zoeken werkt.</string>
+    <string name="builtin_reply_sr_notconfigured_label">YouTube niet ingesteld</string>
+    <string name="builtin_reply_sr_notconfigured_description">De bot-eigenaar heeft geen YouTube API-sleutel toegevoegd, dus YouTube-verzoeken werken niet.</string>
     <string name="builtin_reply_sr_providerunavailable_label">Muziekdienst niet bereikbaar</string>
     <string name="builtin_reply_sr_providerunavailable_description">De muziekdienst heeft een storing.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Alleen nummerlinks</string>

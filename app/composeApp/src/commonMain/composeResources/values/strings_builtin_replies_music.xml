@@ -78,6 +78,8 @@
     <string name="builtin_reply_sr_peruserlimit_description">The viewer already has the most requests allowed in the queue.</string>
     <string name="builtin_reply_sr_missingscope_label">Reconnect music</string>
     <string name="builtin_reply_sr_missingscope_description">The music connection must be reconnected before search works.</string>
+    <string name="builtin_reply_sr_notconfigured_label">YouTube not set up</string>
+    <string name="builtin_reply_sr_notconfigured_description">The bot owner has not added a YouTube API key, so YouTube requests cannot run.</string>
     <string name="builtin_reply_sr_providerunavailable_label">Music service down</string>
     <string name="builtin_reply_sr_providerunavailable_description">The music service has an outage.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Track links only</string>

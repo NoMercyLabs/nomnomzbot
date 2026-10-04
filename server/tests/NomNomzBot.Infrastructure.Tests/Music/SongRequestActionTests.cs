@@ -146,6 +146,29 @@ public sealed class SongRequestActionTests
             );
     }
 
+    [Fact]
+    public async Task A_missing_operator_key_carries_its_own_reason_into_chat()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "YouTube song requests are not set up on this bot yet. The bot owner must add a YouTube API key.",
+                "PROVIDER_NOT_CONFIGURED"
+            )
+        );
+
+        await sut.ExecuteAsync(Ctx(), Def("lofi beats"));
+
+        await chat.Received()
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m =>
+                    m.Contains("The bot owner must add a YouTube API key")
+                    && !m.Contains("Couldn't reach the music service")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     /// <summary>
     /// S-OWN12 sibling — the reward/pipeline-triggered song_request action had the same missing case as
     /// the !sr builtin: PER_USER_LIMIT fell through to the generic "couldn't reach the music service"

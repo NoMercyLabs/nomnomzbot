@@ -99,6 +99,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The music connection needs to be reconnected before search works — no variables.</summary>
         public const string MissingScope = "missingscope";
 
+        /// <summary>The bot owner has not set up the provider's app-level credential (YouTube API key) — no variables.</summary>
+        public const string NotConfigured = "notconfigured";
+
         /// <summary>The music service is having an outage — no variables.</summary>
         public const string ProviderUnavailable = "providerunavailable";
 

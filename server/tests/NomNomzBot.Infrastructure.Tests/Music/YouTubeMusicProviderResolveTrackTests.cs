@@ -193,7 +193,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         );
 
         track.Should().BeNull();
-        failure.Should().Be(MusicProviderFailureReason.NotConnected);
+        failure.Should().Be(MusicProviderFailureReason.NotConfigured);
         handler.RequestUrls.Should().BeEmpty("an unconfigured key must not reach the Data API");
     }
 

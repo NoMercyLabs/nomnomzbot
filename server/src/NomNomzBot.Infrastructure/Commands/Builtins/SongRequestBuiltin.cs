@@ -225,6 +225,13 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             ),
             // The search/resolve never meaningfully ran (dead token, or a live outage) — this must never be
             // worded as "nothing matched", which would claim the song simply doesn't exist.
+            "PROVIDER_NOT_CONFIGURED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NotConfigured,
+                "YouTube song requests are not set up on this bot yet. The bot owner must add a YouTube API key.",
+                null,
+                ct
+            ),
             "MISSING_SCOPE" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.MissingScope,

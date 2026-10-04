@@ -262,6 +262,8 @@
     "builtin.reply.sr.noproviderbroadcaster.label",
     "builtin.reply.sr.noprovidermoderator.description",
     "builtin.reply.sr.noprovidermoderator.label",
+    "builtin.reply.sr.notconfigured.description",
+    "builtin.reply.sr.notconfigured.label",
     "builtin.reply.sr.notfound.description",
     "builtin.reply.sr.notfound.label",
     "builtin.reply.sr.notplayable.description",

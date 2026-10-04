@@ -1341,7 +1341,7 @@ stays hardcoded. This section **supersedes** the single `CustomResponseTemplate`
 design (one override per built-in, applied to one reply only).
 
 **Slot model.** A *reply slot* is one reply case of one built-in, keyed `(builtinKey, slot)` — e.g. `(sr, added)`,
-`(sr, duplicate)`, `(sr, providerunavailable)`. Every sentence a built-in (or the chat handler on its behalf) can
+`(sr, duplicate)`, `(sr, providerunavailable)`, `(sr, notconfigured)` (YouTube has no operator API key; error code `PROVIDER_NOT_CONFIGURED`). Every sentence a built-in (or the chat handler on its behalf) can
 send is a slot: success lines, usage lines, refusals, and service errors alike. Each slot is declared once in
 `ToneTemplateCatalog` with:
 - all five tones (`informative` first — its first line is the shipped default wording);

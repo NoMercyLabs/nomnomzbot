@@ -110,6 +110,8 @@ public sealed class SongRequestAction : ICommandAction
                 "UNSUPPORTED_CONTENT_TYPE" =>
                     $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "TRACK_UNAVAILABLE" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                "PROVIDER_NOT_CONFIGURED" =>
+                    $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 // Admission-gate refusals (MusicService.EnqueueResolvedAsync) — the requester is over a
                 // real, configured limit, not facing an outage. Must never fall through to the generic
                 // "couldn't reach the music service" wording below (S-OWN12).

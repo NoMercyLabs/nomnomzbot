@@ -201,6 +201,30 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.NotConfigured,
+            variables: [],
+            informative:
+            [
+                "YouTube song requests are not set up on this bot yet. The bot owner must add a YouTube API key.",
+            ],
+            friendly:
+            [
+                "YouTube song requests aren't set up on this bot yet — the bot owner needs to add a YouTube API key.",
+            ],
+            sassy:
+            [
+                "YouTube requests aren't set up here. The bot owner forgot the YouTube API key.",
+            ],
+            hype:
+            [
+                "YOUTUBE REQUESTS ARE NOT SET UP YET. THE BOT OWNER MUST ADD A YOUTUBE API KEY.",
+            ],
+            chill: ["youtube requests aren't set up yet. the bot owner needs to add an api key."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.ProviderUnavailable,
             variables: [],
             informative: ["The music provider is temporarily unavailable."],

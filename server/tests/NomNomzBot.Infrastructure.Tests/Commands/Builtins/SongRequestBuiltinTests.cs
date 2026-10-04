@@ -220,6 +220,47 @@ public sealed class SongRequestBuiltinTests
     }
 
     [Fact]
+    public async Task A_missing_operator_key_answers_from_its_own_slot_and_names_who_can_fix_it()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "service sentence 7731",
+                "PROVIDER_NOT_CONFIGURED"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result
+            .Value.Should()
+            .Be(
+                "YouTube song requests are not set up on this bot yet. The bot owner must add a YouTube API key."
+            );
+        result
+            .Value.Should()
+            .Be(
+                ToneTemplateCatalog.Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.NotConfigured
+                )[0]
+            );
+        result.Value.Should().NotContain("reconnect");
+    }
+
+    [Fact]
+    public async Task A_disconnected_account_keeps_the_reconnect_reply()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>("service sentence 7732", "MISSING_SCOPE")
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result.Value.Should().Be("The music connection needs to be reconnected.");
+    }
+
+    [Fact]
     public async Task A_channel_override_for_the_duplicate_slot_replaces_only_that_reply()
     {
         FakeChannelBuiltinReplies channel = new FakeChannelBuiltinReplies().Set(

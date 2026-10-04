@@ -47,7 +47,7 @@ public sealed class YouTubeMusicProviderSearchTests
         );
 
         (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
-            await provider.SearchAsync(ChannelId, "never gonna give", 5);
+            await provider.SearchAsync(ChannelId, "never gonna give");
         failure.Should().Be(MusicProviderFailureReason.None);
 
         results.Should().HaveCount(1);
@@ -154,7 +154,7 @@ public sealed class YouTubeMusicProviderSearchTests
             """
         );
 
-        (IReadOnlyList<TrackInfo> results, _) = await provider.SearchAsync(ChannelId, "q", 5);
+        (IReadOnlyList<TrackInfo> results, _) = await provider.SearchAsync(ChannelId, "q");
 
         results
             .Select(t => t.ProviderTrackId)
@@ -181,10 +181,10 @@ public sealed class YouTubeMusicProviderSearchTests
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build(apiKey: null);
 
         (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
-            await provider.SearchAsync(ChannelId, "never gonna", 5);
+            await provider.SearchAsync(ChannelId, "never gonna");
 
         results.Should().BeEmpty();
-        failure.Should().Be(MusicProviderFailureReason.NotConnected);
+        failure.Should().Be(MusicProviderFailureReason.NotConfigured);
         handler.RequestUrls.Should().BeEmpty("an unconfigured key must not reach the Data API");
     }
 
@@ -196,7 +196,7 @@ public sealed class YouTubeMusicProviderSearchTests
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
 
         (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
-            await provider.SearchAsync(ChannelId, query, 5);
+            await provider.SearchAsync(ChannelId, query);
 
         results.Should().BeEmpty();
         failure.Should().Be(MusicProviderFailureReason.None);

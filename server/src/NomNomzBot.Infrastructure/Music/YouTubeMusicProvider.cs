@@ -303,7 +303,7 @@ public sealed class YouTubeMusicProvider
         // Unconfigured key ⇒ the feature was never set up for this deployment; empty query genuinely has
         // no possible match — both stay distinct from a live provider outage.
         if (!IsConfigured)
-            return ([], MusicProviderFailureReason.NotConnected);
+            return ([], MusicProviderFailureReason.NotConfigured);
         if (string.IsNullOrWhiteSpace(query))
             return ([], MusicProviderFailureReason.None);
 
@@ -365,7 +365,7 @@ public sealed class YouTubeMusicProvider
         if (videoId is null)
             return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
         if (!IsConfigured)
-            return (null, MusicProviderFailureReason.NotConnected);
+            return (null, MusicProviderFailureReason.NotConfigured);
 
         string videosUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"

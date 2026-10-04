@@ -690,7 +690,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// already switches on — <c>MISSING_SCOPE</c> so the message tells the broadcaster/mod the connection
     /// needs attention, <c>PROVIDER_UNAVAILABLE</c> (distinct from this service's own
     /// <c>SERVICE_UNAVAILABLE</c> "no provider configured at all") so a transient outage never reads as
-    /// "go connect Spotify" when it already IS connected.
+    /// "go connect Spotify" when it already IS connected, and <c>PROVIDER_NOT_CONFIGURED</c> when the
+    /// operator never set the provider's app-level key (reconnecting would change nothing).
     /// </summary>
     private static Result<T> ProviderFailureResult<T>(MusicProviderFailureReason failure) =>
         failure switch
@@ -698,6 +699,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             MusicProviderFailureReason.NotConnected => Result.Failure<T>(
                 "The music connection needs to be reconnected.",
                 "MISSING_SCOPE"
+            ),
+            MusicProviderFailureReason.NotConfigured => Result.Failure<T>(
+                "YouTube song requests are not set up on this bot yet. The bot owner must add a YouTube API key.",
+                "PROVIDER_NOT_CONFIGURED"
             ),
             MusicProviderFailureReason.UnsupportedContentType => Result.Failure<T>(
                 "Song requests only take individual tracks — that link is a playlist, album, episode, "
