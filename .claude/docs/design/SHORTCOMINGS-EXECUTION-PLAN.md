@@ -838,7 +838,8 @@ than each consumer needing their own clone-and-customize pass.
   endpoint and a POST to it ingests a `custom.<name>` event (or the option is hidden and tested as
   hidden). Server step landed (16a312e44): a push source needs a secret, gets a Generic inbound
   endpoint, exposes `inboundUrl`, and a signed POST ingests `custom.<name>` with the posted fields.
-  Left: the dashboard shows the inbound URL; an E2E POST on the dev box. Known limits: a JSON key with
+  Dashboard landed (71a900e3d): the form shows the address with copy and the signing help, and needs
+  the secret before it saves. Left: a rendered check of that form and a signed E2E POST on the dev box. Known limits: a JSON key with
   a dot in it does not round-trip; a database error at the final source save leaves its endpoint behind
   (all validation runs before the endpoint is made).
 - **S-CHATFILTER-HOLD** Hold = delete + moderation-queue entry, Flag = queue entry only; today
