@@ -48,11 +48,13 @@ public sealed class WidgetEventAction : ICommandAction
                 "event_type",
                 PipelineActionFieldKind.Text,
                 Required: true,
+                Templated: true,
                 Description: new("pipeline.widget_event.event_type.help")
             ),
             new(
                 "data",
                 PipelineActionFieldKind.Text,
+                Templated: true,
                 Description: new("pipeline.widget_event.data.help")
             ),
         ];

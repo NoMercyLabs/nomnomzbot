@@ -9,11 +9,16 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Widgets.PipelineActions;
 using NSubstitute;
 
@@ -120,6 +125,78 @@ public sealed class WidgetEventActionTests
         data["user"].Should().Be("alice");
         data["count"].Should().Be(5L);
         data["vip"].Should().Be(true);
+    }
+
+    /// <summary>Replaces <c>{name}</c> with the seeded variable; stands in for the real template resolver.</summary>
+    private sealed class VariableResolver : ITemplateResolver
+    {
+        public string Resolve(string template, IDictionary<string, string> variables) =>
+            Fill(template, variables);
+
+        public Task<string> ResolveAsync(
+            string template,
+            IDictionary<string, string> seedVariables,
+            Guid? broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Fill(template, seedVariables));
+
+        private static string Fill(string template, IDictionary<string, string> variables)
+        {
+            string result = template;
+            foreach (KeyValuePair<string, string> pair in variables)
+                result = result.Replace("{" + pair.Key + "}", pair.Value);
+            return result;
+        }
+    }
+
+    [Fact]
+    public async Task Engine_fills_templates_in_data_and_event_type_and_delivers_data_as_an_object()
+    {
+        WidgetResolves(enabled: true);
+        object? capturedData = null;
+        string? capturedType = null;
+        await _overlay.SendWidgetEventAsync(
+            Arg.Any<Guid>(),
+            Arg.Any<Guid>(),
+            Arg.Do<string>(t => capturedType = t),
+            Arg.Do<object?>(d => capturedData = d),
+            Arg.Any<CancellationToken>()
+        );
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
+        PipelineEngine engine = new(
+            Substitute.For<IApplicationDbContext>(),
+            registry,
+            [Action()],
+            [],
+            new VariableResolver(),
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
+
+        string json = /*lang=json*/
+            """
+            {"steps":[{"action":{"type":"widget_event","widget_id":"WID","event_type":"alert-{user}","data":"{\"user\":\"{user}\"}"}}]}
+            """.Replace("WID", WidgetId.ToString());
+        PipelineExecutionResult result = await engine.ExecuteAsync(
+            new PipelineRequest
+            {
+                BroadcasterId = Broadcaster,
+                TriggeredByUserId = "u1",
+                TriggeredByDisplayName = "User",
+                PipelineJson = json,
+                MessageId = "m1",
+                RawMessage = "",
+                InitialVariables = new Dictionary<string, string> { ["user"] = "kitte" },
+            }
+        );
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        capturedType.Should().Be("alert-kitte");
+        capturedData.Should().BeOfType<Dictionary<string, object?>>();
+        ((Dictionary<string, object?>)capturedData!)
+            .Should()
+            .Equal(new Dictionary<string, object?> { ["user"] = "kitte" });
     }
 
     [Fact]
