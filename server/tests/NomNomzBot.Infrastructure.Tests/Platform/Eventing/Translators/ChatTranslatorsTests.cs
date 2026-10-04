@@ -992,6 +992,44 @@ public sealed class ChatTranslatorsTests
         published.UserLogin.Should().Be("cool_user");
         published.StreakMonths.Should().Be(12);
         published.ChannelPointsEarned.Should().Be(350);
+        published.CustomMessage.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ChatNotification_WatchStreakWithSharedMessage_CarriesTheViewersTextAsCustomMessage()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "cool_user",
+                    "chatter_user_name": "Cool_User",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-2",
+                    "message": {
+                        "text": "never missing a stream",
+                        "fragments": [ { "type": "text", "text": "never missing a stream" } ]
+                    },
+                    "notice_type": "watch_streak",
+                    "system_message": "Cool_User watched 12 streams in a row!",
+                    "watch_streak": { "streak_count": 12, "channel_points_awarded": 350 }
+                }
+                """
+            )
+        );
+
+        WatchStreakReceivedEvent published = bus.EventsOf<WatchStreakReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        published.CustomMessage.Should().Be("never missing a stream");
     }
 
     [Fact]

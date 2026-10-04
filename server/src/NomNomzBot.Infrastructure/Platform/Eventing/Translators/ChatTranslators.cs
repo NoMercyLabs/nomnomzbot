@@ -413,6 +413,9 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
                     UserDisplayName = notice.ChatterDisplayName,
                     StreakMonths = streak.GetInt("streak_count"),
                     ChannelPointsEarned = streak.GetInt("channel_points_awarded"),
+                    CustomMessage = string.IsNullOrEmpty(notice.MessageText)
+                        ? null
+                        : notice.MessageText,
                 },
                 ct
             );
