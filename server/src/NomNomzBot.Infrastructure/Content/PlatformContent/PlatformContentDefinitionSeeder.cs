@@ -39,7 +39,15 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
     /// <summary>The "no overrides" default payload every <see cref="DefaultCommandsSeeder"/> row ships with.</summary>
     private const string DefaultPayloadJson = "{}";
 
-    private static readonly string[] DefaultKeys = ["sr", "skip", "queue", "volume", "song"];
+    private static readonly string[] DefaultKeys =
+    [
+        "sr",
+        "skip",
+        "queue",
+        "volume",
+        "song",
+        "banger",
+    ];
 
     private readonly IApplicationDbContext _db;
 

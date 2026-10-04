@@ -539,13 +539,13 @@ public sealed class OnboardingSeedHandlerTests
             .ChannelBuiltinCommands.Where(c => c.BroadcasterId == Broadcaster)
             .ToListAsync();
 
-        seeded.Should().HaveCount(5);
+        seeded.Should().HaveCount(6);
         // BARE keys — the canonical format the dashboard toggle UI queries by (item 24c: bang-prefixed
         // seeded rows were orphaned from the toggle surface).
         seeded
             .Select(c => c.BuiltinKey)
             .Should()
-            .BeEquivalentTo(["sr", "skip", "queue", "volume", "song"]);
+            .BeEquivalentTo(["sr", "skip", "queue", "volume", "song", "banger"]);
         seeded.Should().OnlyContain(c => c.IsEnabled);
     }
 
@@ -565,7 +565,7 @@ public sealed class OnboardingSeedHandlerTests
 
         (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == Broadcaster))
             .Should()
-            .Be(5);
+            .Be(6);
     }
 
     [Fact]

@@ -106720,6 +106720,22 @@
           },
           "minTrustLevel": {
             "type": "string"
+          },
+          "bangerPlaylistId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bangerPlaylistProvider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bangerAutoCreate": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "Music configuration for a channel."
@@ -131884,6 +131900,28 @@
               "null",
               "string"
             ]
+          },
+          "bangerPlaylistId": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The playlist `!banger` adds to. Empty string clears the choice."
+          },
+          "bangerPlaylistProvider": {
+            "pattern": "^(spotify|youtube)?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bangerAutoCreate": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "With no playlist chosen, `!banger` makes one on first use."
           }
         },
         "description": "Request to update music configuration."

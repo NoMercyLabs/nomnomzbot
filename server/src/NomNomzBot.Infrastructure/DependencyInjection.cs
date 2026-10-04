@@ -1126,6 +1126,7 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Commands.Builtins.QueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.VolumeBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CurrentSongBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.BangerBuiltin>();
         // Registered as its own concrete type too: HelpBuiltin reuses its listing/compose logic
         // directly (ResolveEnabledTriggersAsync/ComposeListingAsync), and the IBuiltinCommand
         // registration forwards to the same scoped instance so both call paths share one object.

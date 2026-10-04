@@ -118,6 +118,16 @@
     <string name="builtin_reply_volume_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om het volume aan te passen.</string>
     <string name="builtin_reply_bansong_banned_label">Nummer geband</string>
     <string name="builtin_reply_bansong_banned_description">Een moderator heeft het spelende nummer geband.</string>
+    <string name="builtin_reply_banger_nothing_label">Niets aan het spelen</string>
+    <string name="builtin_reply_banger_nothing_description">Er speelt niets, dus er is geen nummer om aan de bangers-afspeellijst toe te voegen.</string>
+    <string name="builtin_reply_banger_added_label">Banger toegevoegd</string>
+    <string name="builtin_reply_banger_added_description">Het spelende nummer is aan de bangers-afspeellijst toegevoegd.</string>
+    <string name="builtin_reply_banger_alreadythere_label">Al een banger</string>
+    <string name="builtin_reply_banger_alreadythere_description">Het spelende nummer staat al in de bangers-afspeellijst.</string>
+    <string name="builtin_reply_banger_noplaylist_label">Geen bangers-afspeellijst</string>
+    <string name="builtin_reply_banger_noplaylist_description">Er is geen afspeellijst gekozen en automatisch aanmaken staat uit.</string>
+    <string name="builtin_reply_banger_failed_label">Banger mislukt</string>
+    <string name="builtin_reply_banger_failed_description">De muziekdienst kon de bangers-afspeellijst niet bijwerken.</string>
     <string name="builtin_reply_playlist_empty_label">Niets in de wachtrij</string>
     <string name="builtin_reply_playlist_empty_description">Iemand vraagt de afspeellijst maar er speelt niets en de wachtrij is leeg.</string>
     <string name="builtin_reply_playlist_summary_label">Afspeellijst-overzicht</string>

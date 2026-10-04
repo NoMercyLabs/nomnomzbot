@@ -236,6 +236,9 @@ data class MusicConfig(
     val allowYouTube: Boolean = true,
     val allowSpotify: Boolean = true,
     val minTrustLevel: String = "everyone",
+    val bangerPlaylistId: String? = null,
+    val bangerPlaylistProvider: String? = null,
+    val bangerAutoCreate: Boolean = false,
 )
 
 /** Partial update body (backend `UpdateMusicConfigDto`). All fields optional — null = don't change. */
@@ -248,6 +251,9 @@ data class UpdateMusicConfigBody(
     val allowYouTube: Boolean? = null,
     val allowSpotify: Boolean? = null,
     val minTrustLevel: String? = null,
+    val bangerPlaylistId: String? = null,
+    val bangerPlaylistProvider: String? = null,
+    val bangerAutoCreate: Boolean? = null,
 )
 
 // ── Remote control request bodies ────────────────────────────────────────────

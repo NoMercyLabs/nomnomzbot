@@ -73,6 +73,12 @@ public class MusicConfigService : IMusicConfigService
             current.AllowSpotify = request.AllowSpotify.Value;
         if (request.MinTrustLevel is not null)
             current.MinTrustLevel = request.MinTrustLevel;
+        if (request.BangerPlaylistId is not null)
+            current.BangerPlaylistId = NullIfEmpty(request.BangerPlaylistId);
+        if (request.BangerPlaylistProvider is not null)
+            current.BangerPlaylistProvider = NullIfEmpty(request.BangerPlaylistProvider);
+        if (request.BangerAutoCreate.HasValue)
+            current.BangerAutoCreate = request.BangerAutoCreate.Value;
 
         string json = JsonSerializer.Serialize(current);
 
@@ -146,8 +152,13 @@ public class MusicConfigService : IMusicConfigService
             d.MaxRequestsPerUser,
             d.AllowYouTube,
             d.AllowSpotify,
-            d.MinTrustLevel
+            d.MinTrustLevel,
+            d.BangerPlaylistId,
+            d.BangerPlaylistProvider,
+            d.BangerAutoCreate
         );
+
+    private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
 
     private sealed class MusicConfigData
     {
@@ -158,5 +169,8 @@ public class MusicConfigService : IMusicConfigService
         public bool AllowYouTube { get; set; } = true;
         public bool AllowSpotify { get; set; } = true;
         public string MinTrustLevel { get; set; } = "everyone";
+        public string? BangerPlaylistId { get; set; }
+        public string? BangerPlaylistProvider { get; set; }
+        public bool BangerAutoCreate { get; set; }
     }
 }

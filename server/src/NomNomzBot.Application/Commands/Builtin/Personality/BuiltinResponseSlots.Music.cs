@@ -166,6 +166,27 @@ public static partial class BuiltinResponseSlots
         public const string Banned = "banned";
     }
 
+    /// <summary><c>!banger</c> — add the playing track to the channel's bangers playlist.</summary>
+    public static class Banger
+    {
+        public const string Key = "banger";
+
+        /// <summary>Nothing is currently playing — no variables.</summary>
+        public const string Nothing = "nothing";
+
+        /// <summary>The track was added; <c>{user}</c>/<c>{track.name}</c> are set.</summary>
+        public const string Added = "added";
+
+        /// <summary>The track is already in the playlist; <c>{user}</c>/<c>{track.name}</c> are set.</summary>
+        public const string AlreadyThere = "alreadythere";
+
+        /// <summary>No playlist is chosen and auto-create is off — no variables.</summary>
+        public const string NoPlaylist = "noplaylist";
+
+        /// <summary>The provider could not check, create or add; <c>{user}</c> is set.</summary>
+        public const string Failed = "failed";
+    }
+
     /// <summary><c>!volume</c> — usage/error tone slots (S069h).</summary>
     public static class Volume
     {

@@ -512,6 +512,90 @@ public static partial class ToneTemplateCatalog
 
         Add(
             catalog,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Banger.Nothing,
+            variables: [],
+            informative: ["Nothing is playing right now, so there is no banger to add."],
+            friendly: ["Nothing is playing right now. Start a song and try !banger again!"],
+            sassy: ["No song is currently playing! Hard to call silence a banger."],
+            hype: ["NOTHING IS PLAYING. NO BANGER TO ADD YET!"],
+            chill: ["nothing playing right now, nothing to add."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Banger.Added,
+            variables: ["user", "track.name"],
+            informative: ["Added {track.name} to the bangers playlist."],
+            friendly: ["Added {track.name} to the bangers playlist, nice pick @{user}!"],
+            sassy: ["Added {track.name} to the bangers playlist! Good taste, @{user}."],
+            hype: ["{track.name} IS NOW IN THE BANGERS PLAYLIST! BANGER!"],
+            chill: ["added {track.name} to the bangers playlist."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Banger.AlreadyThere,
+            variables: ["user", "track.name"],
+            informative: ["@{user}, {track.name} is already in the bangers playlist."],
+            friendly:
+            [
+                "@{user}, {track.name} is already in the bangers playlist. Great minds think alike!",
+            ],
+            sassy:
+            [
+                "@{user}, that banger is already banging in the playlist! Your taste is consistent, but your memory needs work.",
+                "Breaking: @{user} discovers the same song can't be a banger twice! Scientists baffled, playlist unchanged",
+                "Nice try @{user}, but that absolute unit is already vibing in the bangers playlist. Maybe check before you wreck?",
+                "Plot twist @{user}: That song was already certified banger material! At least this mistake was free!",
+                "@{user} just tried to double-banger a song. That's not how bangers work, bestie. The playlist remains unchanged!",
+                "Ooof @{user}, that track is already living its best life in bangers! Good thing this command doesn't cost anything.",
+                "Achievement unlocked @{user}: 'Banger Déjà Vu!' Reward: The satisfaction of knowing you have great taste... twice",
+                "Fun fact @{user}: That song is already banging! Less fun fact: You just wasted a perfectly good command.",
+                "@{user}, you can't make a banger more banger by adding it again. That's not how banger math works!",
+                "Alert: @{user} attempted to create a banger paradox! The playlist rejected this temporal anomaly. At least it was free!",
+            ],
+            hype: ["{track.name} IS ALREADY A BANGER IN THE PLAYLIST, @{user}!"],
+            chill: ["{track.name} is already in the bangers playlist."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Banger.NoPlaylist,
+            variables: [],
+            informative:
+            [
+                "No banger playlist is chosen. A moderator can pick one in the music settings.",
+            ],
+            friendly: ["There is no bangers playlist yet. Pick one in the music settings!"],
+            sassy:
+            [
+                "No bangers playlist exists. Bold of you to collect bangers with nowhere to put them.",
+            ],
+            hype: ["NO BANGERS PLAYLIST YET! PICK ONE IN THE MUSIC SETTINGS!"],
+            chill: ["no bangers playlist chosen yet, pick one in the music settings."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Banger.Failed,
+            variables: ["user"],
+            informative:
+            [
+                "@{user}, the bangers playlist could not be updated. Try again in a moment.",
+            ],
+            friendly: ["Oops @{user}, the bangers playlist did not update. Try again in a moment!"],
+            sassy: ["@{user}, the playlist said no. Try again in a moment."],
+            hype: ["THE PLAYLIST FAILED, @{user}! TRY AGAIN IN A MOMENT!"],
+            chill: ["could not update the bangers playlist, try again soon."]
+        );
+
+        Add(
+            catalog,
             BuiltinResponseSlots.Playlist.Key,
             BuiltinResponseSlots.Playlist.Empty,
             variables: [],

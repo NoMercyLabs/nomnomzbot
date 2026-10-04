@@ -20,7 +20,10 @@ public sealed record MusicConfigDto(
     int MaxRequestsPerUser,
     bool AllowYouTube,
     bool AllowSpotify,
-    string MinTrustLevel
+    string MinTrustLevel,
+    string? BangerPlaylistId = null,
+    string? BangerPlaylistProvider = null,
+    bool BangerAutoCreate = false
 );
 
 /// <summary>Request to update music configuration.</summary>
@@ -42,4 +45,14 @@ public sealed record UpdateMusicConfigDto
 
     [RegularExpression("^(everyone|subscribers|vip|moderators|broadcaster)$")]
     public string? MinTrustLevel { get; init; }
+
+    /// <summary>The playlist <c>!banger</c> adds to. Empty string clears the choice.</summary>
+    [MaxLength(200)]
+    public string? BangerPlaylistId { get; init; }
+
+    [RegularExpression("^(spotify|youtube)?$")]
+    public string? BangerPlaylistProvider { get; init; }
+
+    /// <summary>With no playlist chosen, <c>!banger</c> makes one on first use.</summary>
+    public bool? BangerAutoCreate { get; init; }
 }

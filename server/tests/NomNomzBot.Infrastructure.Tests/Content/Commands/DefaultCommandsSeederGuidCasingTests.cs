@@ -25,7 +25,15 @@ namespace NomNomzBot.Infrastructure.Tests.Content.Commands;
 /// </summary>
 public sealed class DefaultCommandsSeederGuidCasingTests
 {
-    private static readonly string[] ExpectedKeys = ["sr", "skip", "queue", "volume", "song"];
+    private static readonly string[] ExpectedKeys =
+    [
+        "sr",
+        "skip",
+        "queue",
+        "volume",
+        "song",
+        "banger",
+    ];
 
     private static Channel MakeChannel(Guid id, string name) =>
         new()
@@ -117,6 +125,6 @@ public sealed class DefaultCommandsSeederGuidCasingTests
         other.Select(c => c.BuiltinKey).Should().BeEquivalentTo(ExpectedKeys);
         corrupted.Should().OnlyContain(c => c.BroadcasterId == corruptedChannelId);
         other.Should().OnlyContain(c => c.BroadcasterId == otherChannelId);
-        (await db.ChannelBuiltinCommands.CountAsync()).Should().Be(10);
+        (await db.ChannelBuiltinCommands.CountAsync()).Should().Be(12);
     }
 }
