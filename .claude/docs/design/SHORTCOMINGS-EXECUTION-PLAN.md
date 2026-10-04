@@ -53,11 +53,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (`WidgetSettingsTypeWriter.cs`), so typed widget code reads `undefined` at run time. Done-when: a widget page
   receives every declared default for a field the streamer never saved (manifest, join `initialState` and
   `WidgetSettingsChanged` alike), so the generated type holds; a test failed first.
-- **S-SCRIPT-QUOTA-FAIL-OPEN** Found by the docs writer 2026-10-04. The script quota gate says "fail-closed"
-  (`ScriptRunner.cs:53`) but refuses only when the check succeeds and says not allowed (`:58`); when
-  `CheckSandboxBudgetAsync` itself fails, the script runs unmetered. Done-when: a failed budget check refuses the
-  run with a clear reason, as the comment and `spec/code-execution-sandbox.md` intend; a test with a failing meter
-  failed first.
 - **S-TESTRUN-SKIPS-VALIDATION** Found by the docs fact-check 2026-10-04. An editor test run captures every write
   (`chat.send`, `chat.reply`, `music.queue`, `storage.set`/`delete`, `tts.speak`, `tts.voice.set`, `widget.emit`,
   `reward.update`, `schedule.pipeline`, `actions.invoke:*`) and returns a canned success before the live bridge's
