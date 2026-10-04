@@ -13,6 +13,7 @@ using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Games.Frames;
+using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -238,6 +239,10 @@ internal static class WidgetTestSamples
             42000,
             now,
             "TestViewer"
+        ),
+        [YouTubePlayerDispatcher.PlayEventType] = _ => new YouTubePlayWidgetPayload(
+            "dQw4w9WgXcQ",
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         ),
         // now_playing.vue's heart pulse reads only isSaved.
         ["track_saved_changed"] = _ => new TrackSavedWidgetPayload(

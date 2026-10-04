@@ -11,6 +11,7 @@
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Infrastructure.Games.Frames;
+using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -75,6 +76,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("shoutout_received", typeof(ShoutoutReceivedAlertDto)),
         new("sr_queue", typeof(SrQueueWidgetPayload)),
         new("now_playing", typeof(NowPlayingWidgetPayload)),
+        new(YouTubePlayerDispatcher.PlayEventType, typeof(YouTubePlayWidgetPayload)),
         new("track_saved_changed", typeof(TrackSavedWidgetPayload)),
         new("tts_speak", typeof(TtsSpeakWidgetPayload)),
         new("goal", typeof(GoalWidgetEventPayload)),

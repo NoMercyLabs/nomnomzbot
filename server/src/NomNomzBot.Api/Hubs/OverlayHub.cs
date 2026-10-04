@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -280,6 +281,42 @@ public class OverlayHub : Hub<IOverlayClient>
         return claimed.IsSuccess
             ? claimed.Value
             : throw new HubException(claimed.ErrorMessage ?? "Claim refused");
+    }
+
+    /// <summary>
+    /// A YouTube player page reports what it plays. Counts only for a widget of this connection's channel
+    /// (and, on a widget-scoped ticket, only for that widget); anything else is refused and stores nothing.
+    /// </summary>
+    public async Task<bool> ReportYouTubePlayerState(
+        string widgetId,
+        string videoId,
+        string state,
+        long positionMs,
+        [FromServices] IYouTubePlayerReportService reports
+    )
+    {
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
+            return false;
+        if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            return false;
+
+        bool ownsWidget = await _db
+            .Widgets.AsNoTracking()
+            .AnyAsync(
+                w => w.Id == parsedWidgetId && w.BroadcasterId == broadcasterId,
+                Context.ConnectionAborted
+            );
+        if (!ownsWidget)
+            return false;
+
+        Result reported = await reports.ReportAsync(
+            broadcasterId,
+            videoId,
+            state,
+            positionMs,
+            Context.ConnectionAborted
+        );
+        return reported.IsSuccess;
     }
 
     public async Task LeaveWidget(string widgetId)
