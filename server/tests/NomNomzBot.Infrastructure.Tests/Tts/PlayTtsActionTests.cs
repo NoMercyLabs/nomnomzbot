@@ -313,4 +313,83 @@ public sealed class PlayTtsActionTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    private static Task<ActionResult> RunAsAsync(
+        string asValue,
+        string resolvedChannelId,
+        out ITtsDispatchService dispatch
+    )
+    {
+        (PlayTtsAction action, ITtsDispatchService d) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["hello"] = "hello",
+                [asValue] = asValue,
+                ["{{channel.id}}"] = resolvedChannelId,
+            }
+        );
+        d.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        5,
+                        400,
+                        null
+                    )
+                )
+            );
+        dispatch = d;
+        return action.ExecuteAsync(Context(), Action(("text", "hello"), ("as", asValue)));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AsBroadcaster_SpeaksAsTheBroadcastersTwitchId_SoTheirSavedVoiceIsUsed()
+    {
+        ActionResult result = await RunAsAsync("broadcaster", "chan-77", out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RequestedByTwitchUserId == "chan-77"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AsBroadcaster_WithNoResolvableChannelId_NamesNobody_SoTheChannelDefaultSpeaks()
+    {
+        ActionResult result = await RunAsAsync(
+            "broadcaster",
+            string.Empty,
+            out ITtsDispatchService d
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RequestedByTwitchUserId == string.Empty),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("bot")]
+    [InlineData("channel")]
+    [InlineData("default")]
+    public async Task ExecuteAsync_AsBotChannelOrDefault_StillSpeaksWithTheChannelDefault(
+        string who
+    )
+    {
+        ActionResult result = await RunAsAsync(who, "chan-77", out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RequestedByTwitchUserId == string.Empty),
+                Arg.Any<CancellationToken>()
+            );
+    }
 }

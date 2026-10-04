@@ -97,7 +97,8 @@ public sealed class PlayTtsAction : ICommandAction
         // WHOSE voice speaks this line. The bot's own lines (an event announcement, a snarky cheer intro)
         // must read in the CHANNEL's voice, while the viewer's own words read in theirs — a cheer with a
         // message is one flow with both, back to back. Empty/"user" keeps the trigger's voice; "bot" (or
-        // "channel") resolves to the channel default by naming no viewer; anything else is a literal
+        // "channel") resolves to the channel default by naming no viewer; "broadcaster" names the channel
+        // owner, so their own saved voice speaks, like the old bot; anything else is a literal
         // platform user id, so a flow can read a line as a specific person.
         string asTemplate = action.GetString("as") ?? string.Empty;
         string asField = string.IsNullOrWhiteSpace(asTemplate)
@@ -110,13 +111,13 @@ public sealed class PlayTtsAction : ICommandAction
                     ctx.CancellationToken
                 )
             ).Trim();
-        string speaker = ResolveSpeaker(asField, ctx.TriggeredByUserId);
+        string speaker = await ResolveSpeakerAsync(asField, ctx);
 
         TtsSpeakRequest request = new(
             BroadcasterId: ctx.BroadcasterId,
             RequestedByUserId: Guid.Empty,
             RequestedByTwitchUserId: speaker,
-            RequestedByDisplayName: ctx.TriggeredByDisplayName ?? string.Empty,
+            RequestedByDisplayName: ctx.TriggeredByDisplayName,
             Text: text,
             VoiceIdOverride: string.IsNullOrWhiteSpace(voiceOverride) ? null : voiceOverride,
             // The trigger's REAL bits and standing, not placeholders: hardcoding 0/"everyone" meant a
@@ -150,13 +151,31 @@ public sealed class PlayTtsAction : ICommandAction
     /// <summary>
     /// Maps the <c>as</c> field onto the platform user id whose voice should read the line. The dispatch
     /// resolver falls back to the channel default when it is handed no viewer, so naming the bot is simply
-    /// naming nobody — one rule, no second lookup path that could disagree with it.
+    /// naming nobody. <c>broadcaster</c> names the channel owner by platform id: the dispatch resolver then
+    /// uses the owner's saved voice, and the channel default when they have none.
     /// </summary>
-    private static string ResolveSpeaker(string speakerField, string? triggeredByUserId) =>
-        speakerField.ToLowerInvariant() switch
+    private async Task<string> ResolveSpeakerAsync(
+        string speakerField,
+        PipelineExecutionContext ctx
+    )
+    {
+        switch (speakerField.ToLowerInvariant())
         {
-            "" or "user" or "viewer" or "trigger" => triggeredByUserId ?? string.Empty,
-            "bot" or "channel" or "broadcaster" or "default" => string.Empty,
-            _ => speakerField,
-        };
+            case "" or "user" or "viewer" or "trigger":
+                return ctx.TriggeredByUserId;
+            case "bot" or "channel" or "default":
+                return string.Empty;
+            case "broadcaster":
+                return (
+                    await _resolver.ResolveAsync(
+                        "{{channel.id}}",
+                        ctx.Variables,
+                        ctx.BroadcasterId,
+                        ctx.CancellationToken
+                    )
+                ).Trim();
+            default:
+                return speakerField;
+        }
+    }
 }
