@@ -119,12 +119,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `e.data || {}`), and the editor preview does the same (`preview-sdk.js:77`). A script that sends `false`, `0` or
   `''` gives the widget `{}`. Done-when: only a missing or null `data` becomes `{}` in the overlay and the preview;
   `false`, `0` and `''` arrive unchanged; a test failed first.
-- **S-RANDOM-INT-REVERSED** Found by the docs writer 2026-10-04. `nnz.random.int(6, 1)` (and
-  `nnz.math.randomInt`) computes `Math.floor(Math.random() * (max - min + 1)) + min` with no order check
-  (`JintScriptExecutor.cs:145`), so a reversed range gives only 2 to 5, never 1 or 6, with no error. The same
-  happens for a range with no whole number in it (`int(1.2, 1.8)`). Done-when: a reversed range gives a value
-  in the same range as `int(1, 6)` (swap the ends), the type comment in `SdkRuntimeSurface.cs` says so, and a
-  range with no whole number in it is handled the same defined way; a Jint test failed first.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
