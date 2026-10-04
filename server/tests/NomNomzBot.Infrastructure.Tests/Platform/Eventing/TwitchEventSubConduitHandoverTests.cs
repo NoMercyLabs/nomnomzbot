@@ -21,6 +21,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Enums;
@@ -737,6 +738,69 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         wire.EnsuredOwners.Should().Contain(EventSubOwnerKeys.Bot);
         EventSubSubscription row = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
         (row.Transport, row.ConduitId, row.SessionId).Should().Be(("websocket", null, "solo-bot"));
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    private static Result<TwitchSubscriptionResult> ConduitRefusesRestAccepts(
+        EventSubTransportHandle handle
+    ) =>
+        handle.Kind == EventSubTransportKind.Conduit
+            ? Result.Failure<TwitchSubscriptionResult>(
+                "Forbidden",
+                TwitchErrorCodes.TwitchError,
+                "subscription missing proper authorization"
+            )
+            : ShardTransport.Created(handle);
+
+    [Fact]
+    public async Task A_refused_topic_is_posted_to_the_conduit_once_and_its_live_websocket_sub_is_left_alone()
+    {
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            ConduitRefusesRestAccepts
+        );
+        await StartAsync(service);
+        await service.SubscribeAsync(Channel, ChatTopic);
+        EventSubSubscription first = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
+        List<string> stepsAfterFirstPass = [.. wire.Steps];
+
+        Result<EventSubSubscriptionDto> second = await service.SubscribeAsync(Channel, ChatTopic);
+
+        second.Value.Status.Should().Be("enabled");
+        wire.Steps.Should().Equal(stepsAfterFirstPass);
+        wire.Steps.Count(s => s.Contains("on conduit")).Should().Be(1);
+        wire.Steps.Should().NotContain(s => s.StartsWith("delete"));
+        EventSubSubscription row = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
+        (row.Status, row.TwitchSubscriptionId, row.SessionId, row.Transport)
+            .Should()
+            .Be(("enabled", first.TwitchSubscriptionId, "solo-bot", "websocket"));
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_refused_topic_is_posted_to_the_conduit_again_after_the_grant_changes()
+    {
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            ConduitRefusesRestAccepts
+        );
+        await StartAsync(service);
+        await service.SubscribeAsync(Channel, ChatTopic);
+        wire.Steps.Count(s => s.Contains("on conduit")).Should().Be(1);
+
+        _db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = Channel,
+                Provider = "twitch",
+                Status = "connected",
+                Scopes = ["channel:bot"],
+            }
+        );
+        await _db.SaveChangesAsync();
+        await service.SubscribeAsync(Channel, ChatTopic);
+
+        wire.Steps.Count(s => s.Contains("on conduit")).Should().Be(2);
         await service.StopAsync(CancellationToken.None);
     }
 

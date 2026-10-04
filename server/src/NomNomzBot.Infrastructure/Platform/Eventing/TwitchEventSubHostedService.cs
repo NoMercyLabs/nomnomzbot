@@ -76,6 +76,10 @@ public sealed class TwitchEventSubHostedService
     private readonly HashSet<string> _welcomedOwners = [];
     private readonly Lock _welcomedLock = new();
 
+    // (broadcaster, event type) -> the grant fingerprint the conduit refused it under. In-process on purpose: a
+    // restart forgets it, which costs exactly one retry per topic per boot and needs no column or migration.
+    private readonly ConcurrentDictionary<(Guid, string), string> _conduitRefusals = new();
+
     // Post-welcome work runs off the receive loop, chained per owner so one owner's welcomes are handled in
     // arrival order while other owners proceed independently. Each entry is that owner's newest queued run.
     private readonly Dictionary<string, Task> _welcomeWork = [];
@@ -1583,6 +1587,16 @@ public sealed class TwitchEventSubHostedService
         if (twitchId is null && botTwitchUserId is null)
             return (NoPlatformBotIdentity(), row);
 
+        // A topic the conduit already refused under this very grant set stays on its WebSocket session: no POST,
+        // and no retire of the live WebSocket subscription (that delete + re-create is a gap in which chat is lost).
+        string grantFingerprint = await ConduitGrantFingerprintAsync(db, broadcasterId, ct);
+        if (
+            row is { ConduitId: null }
+            && _conduitRefusals.TryGetValue((broadcasterId, eventType), out string? refusedUnder)
+            && refusedUnder == grantFingerprint
+        )
+            return (null, row);
+
         bool isNew = row is null;
         IReadOnlyDictionary<string, string> condition = _conditionBuilder.BuildCondition(
             eventType,
@@ -1664,6 +1678,7 @@ public sealed class TwitchEventSubHostedService
         {
             if (IsConduitRefusal(created))
             {
+                _conduitRefusals[(broadcasterId, eventType)] = grantFingerprint;
                 _logger.LogInformation(
                     "EventSub: conduit refused {EventType} for {BroadcasterId} ({Detail}) — it rides the owner's WebSocket session instead",
                     eventType,
@@ -1710,6 +1725,31 @@ public sealed class TwitchEventSubHostedService
         created.ErrorCode is TwitchErrorCodes.NoToken or TwitchErrorCodes.Unauthorized
         || ExtractMissingScope(created.ErrorDetail) is not null
         || IsMissingAuthorizationMessage(created.ErrorDetail);
+
+    /// <summary>
+    /// What the app-token path reads for a channel: the broadcaster's grants (<c>channel:bot</c>) and the bot's
+    /// (<c>user:bot</c>). Any re-grant, new connection or new bot account changes it.
+    /// </summary>
+    private static async Task<string> ConduitGrantFingerprintAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        List<string>? broadcasterGrants = await GetOwnerGrantedScopesAsync(
+            db,
+            broadcasterId,
+            EventSubTokenOwnerKind.Broadcaster,
+            ct
+        );
+        List<string>? botGrants = await GetOwnerGrantedScopesAsync(
+            db,
+            broadcasterId,
+            EventSubTokenOwnerKind.Bot,
+            ct
+        );
+        return $"{GrantFingerprint(broadcasterGrants)}|{GrantFingerprint(botGrants)}";
+    }
 
     private Task<Result<TwitchSubscriptionResult>> CreateOnConduitAsync(
         EventSubSubscriptionRequest request,
