@@ -152,4 +152,26 @@ public sealed class HtmlFragmentAdapterTests
         fragment.Type.Should().Be("html");
         fragment.Text.Should().Contain("<marquee>").And.Contain("<img");
     }
+
+    [Fact]
+    public async Task An_emote_in_a_span_is_marked_as_an_emote_and_the_senders_own_image_is_not()
+    {
+        ChatDecorationContext context = Context(
+            standing: true,
+            enabled: true,
+            Text(
+                @"<marquee><img width=""400"" src=""https://media.giphy.com/media/x/giphy.gif""> "
+            ),
+            Emote("Kappa"),
+            Text(" </marquee>")
+        );
+        HtmlFragmentAdapter adapter = new();
+
+        await adapter.DecorateAsync(context);
+
+        string html = context.Fragments.Should().ContainSingle().Subject.Text;
+        html.Should()
+            .Contain(@"<img src=""https://cdn/Kappa/3x"" alt=""Kappa"" class=""emote"">")
+            .And.Contain(@"<img width=""400"" src=""https://media.giphy.com/media/x/giphy.gif"">");
+    }
 }

@@ -133,6 +133,91 @@ public sealed class ChatHtmlSanitizerTests
     }
 
     [Fact]
+    public void Inline_css_sizes_an_image_the_way_the_sender_wrote_it()
+    {
+        string clean = ChatHtmlSanitizer.Sanitize(
+            @"<img src=""https://media.giphy.com/media/x/giphy.gif"" style=""width: 200px; height: 100px; object-fit: cover"">"
+        );
+
+        clean
+            .Should()
+            .Contain(@"style=""width: 200px; height: 100px; object-fit: cover""")
+            .And.Contain(@"src=""https://media.giphy.com/media/x/giphy.gif""");
+    }
+
+    [Fact]
+    public void Text_and_colour_css_survives()
+    {
+        string clean = ChatHtmlSanitizer.Sanitize(
+            @"<span style=""color: red; background-color: #000; font-weight: bold; text-shadow: 1px 1px 2px black"">hi</span>"
+        );
+
+        clean
+            .Should()
+            .Contain(
+                @"style=""color: rgba(255, 0, 0, 1); background-color: rgba(0, 0, 0, 1); font-weight: bold; text-shadow: 1px 1px 2px rgba(0, 0, 0, 1)"""
+            );
+    }
+
+    [Theory]
+    [InlineData("width: 5000px", "width: 500px")]
+    [InlineData("height: 4000px", "height: 300px")]
+    [InlineData("max-height: 90em", "max-height: 18em")]
+    [InlineData("font-size: 400px", "font-size: 48px")]
+    [InlineData("line-height: 40", "line-height: 3")]
+    [InlineData("letter-spacing: 300px", "letter-spacing: 10px")]
+    public void An_oversized_css_length_is_capped_so_one_message_cannot_cover_the_overlay(
+        string declaration,
+        string capped
+    )
+    {
+        string clean = ChatHtmlSanitizer.Sanitize($@"<div style=""{declaration}"">x</div>");
+
+        clean.Should().Contain($@"style=""{capped}""");
+    }
+
+    [Theory]
+    [InlineData("width: 100vw")]
+    [InlineData("height: calc(100vh + 10px)")]
+    [InlineData("width: 500px !important")]
+    public void A_css_length_the_cap_cannot_read_is_dropped(string declaration)
+    {
+        string clean = ChatHtmlSanitizer.Sanitize(
+            $@"<div style=""{declaration}; color: red"">x</div>"
+        );
+
+        clean.Should().Contain(@"<div style=""color: rgba(255, 0, 0, 1)"">x</div>");
+    }
+
+    [Theory]
+    [InlineData("position: fixed")]
+    [InlineData("z-index: 9999")]
+    [InlineData("background-image: url(https://evil.example/a.png)")]
+    [InlineData("background: url(https://evil.example/a.png)")]
+    [InlineData("transform: scale(50)")]
+    public void Layout_escaping_and_url_css_is_dropped(string declaration)
+    {
+        string clean = ChatHtmlSanitizer.Sanitize(
+            $@"<div style=""{declaration}; color: red"">x</div>"
+        );
+
+        clean.Should().Contain(@"<div style=""color: rgba(255, 0, 0, 1)"">x</div>");
+    }
+
+    [Theory]
+    [InlineData("500px", "500")]
+    [InlineData("500p", "500")]
+    [InlineData("5000", "500")]
+    public void A_width_attribute_is_read_as_a_number_and_capped(string width, string expected)
+    {
+        string clean = ChatHtmlSanitizer.Sanitize(
+            $@"<img width=""{width}"" height=""9000"" src=""https://media.giphy.com/media/x/giphy.gif"">"
+        );
+
+        clean.Should().Contain($@"width=""{expected}""").And.Contain(@"height=""300""");
+    }
+
+    [Fact]
     public void A_marquee_wrapping_an_image_survives_intact()
     {
         string clean = ChatHtmlSanitizer.Sanitize(

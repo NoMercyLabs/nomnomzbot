@@ -728,13 +728,21 @@ onUnmounted(() => {
 .frag-html {
   display: inline;
 }
-.frag-html :deep(img) {
-  max-height: 1.6em;
+/* An emote the server stitched into the html (class="emote") stays emote-sized. */
+.frag-html :deep(img.emote) {
+  height: 1.5em;
   width: auto;
+}
+/* The sender's own image keeps the size they wrote (width/height attribute or inline css, both capped by the
+   server); these caps only keep it inside the chat column. !important because inline css would win otherwise. */
+.frag-html :deep(img),
+.frag-html :deep(video) {
+  max-height: 300px !important;
+  object-fit: contain;
   vertical-align: middle;
 }
 .frag-html :deep(*) {
-  max-width: 100%;
+  max-width: 100% !important;
 }
 /* Arrival animation: new lines fade + slide in instead of popping in instantly; departing lines (overflow past
    maxMessages) fade + slide out the same way; remaining lines glide to their new position (TransitionGroup's

@@ -138,7 +138,7 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
                 .Append(url)
                 .Append("\" alt=\"")
                 .Append(WebUtility.HtmlEncode(fragment.Text))
-                .Append("\" />");
+                .Append("\" class=\"emote\" />");
         }
 
         return html.ToString();
