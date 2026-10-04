@@ -1717,9 +1717,9 @@
     <string name="widgets_delete_message">%1$s verwijderen? De browserbron-URL werkt dan niet meer.</string>
     <string name="widgets_delete_confirm">Verwijderen</string>
     <string name="widgets_delete_cancel">Annuleren</string>
-    <string name="widgets_rotate_token_action">Token vernieuwen</string>
-    <string name="widgets_rotate_token_title">Overlay-token vernieuwen?</string>
-    <string name="widgets_rotate_token_message">Alle overlay-browserbron-URL's voor dit kanaal stoppen met werken totdat je de nieuwe URL's in OBS plakt.</string>
+    <string name="widgets_rotate_token_action">Kanaaltoken vernieuwen</string>
+    <string name="widgets_rotate_token_title">Het kanaaltoken vernieuwen?</string>
+    <string name="widgets_rotate_token_message">Hierdoor stoppen de spraaklistener-link, elke agenda-abonnementslink en elk oud overlay-adres dat nog het kanaaltoken gebruikt. Kopieer daarna de nieuwe links. Overlay-adressen met een eigen token blijven werken. Wil je zo&apos;n adres wijzigen, gebruik dan URL vernieuwen op de rij.</string>
     <string name="widgets_rotate_token_confirm">Vernieuwen</string>
     <string name="widgets_rotate_widget_token_action">Token vernieuwen voor overlay %1$s</string>
     <string name="widgets_rotate_widget_token_action_short">URL vernieuwen</string>
