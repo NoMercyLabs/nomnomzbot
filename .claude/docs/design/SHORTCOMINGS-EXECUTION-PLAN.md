@@ -72,6 +72,8 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Compact window; at Medium/Expanded the eight Dutch action labels claim nearly the whole row. Same pattern to check:
   PipelinesScreen tree rows and the AdminScreen flag-override row. Done-when: the layout follows the row's own width,
   the name and meta stay readable at 1366 and 1600, a UI test at that width failed first, and a screenshot on dev.
+  The rows landed in `dce22dc86`. Left: the page header. `WidgetsScreen.kt:281` moves the actions under the title only
+  at a Compact window, so at 1366 the Dutch "Overlay aanmaken" wraps in PageHeader's fixed trailing band.
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
