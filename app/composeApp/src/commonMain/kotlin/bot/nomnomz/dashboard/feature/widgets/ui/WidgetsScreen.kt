@@ -61,6 +61,7 @@ import bot.nomnomz.dashboard.core.io.captureWindowSupported
 import bot.nomnomz.dashboard.core.io.openCaptureWindow
 import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.core.time.elapsedText
+import bot.nomnomz.dashboard.core.designsystem.component.InfoActionsRow
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -743,101 +744,51 @@ private fun WidgetRow(
     ) {
         // Up to nine trailing controls (settings, edit code, test, update, versions, rename, clone, delete,
         // toggle) beside the name+description column leave that column a sliver once they claim their fixed
-        // width on a narrow pane — Text still wraps, but with almost no width per line it degrades to one
-        // character per line instead of a readable two-line wrap ("Last ran 479m ago" rendering as "L" / "a" /
-        // "s" / "t" / ... down the whole card — S-PL7-VISUAL). Same shape as PipelinesScreen's tree rows and
-        // AdminScreen's flag-override row: at Compact the info column takes its own full-width line and the
-        // controls wrap in a FlowRow beneath it instead of squeezing beside it; at Medium/Expanded they stay
-        // beside the info column as before.
+        // width — Text still wraps, but with almost no width per line it degrades to one character per line
+        // ("Last ran 479m ago" rendering as "L" / "a" / "s" / ... down the whole card — S-PL7-VISUAL). The row
+        // measures its own width: when the controls do not fit beside a readable info column, the info takes
+        // its own line and the controls wrap beneath it, at any window class.
         val runTest: (String) -> Unit = { event -> rowScope.launch { testResult = onTest(event) } }
         val testEvents: List<String> = widget.testEvents()
-        if (windowSize.isCompact) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(spacing.s2),
-            ) {
+        InfoActionsRow(
+            info = { infoModifier ->
                 WidgetRowInfo(
                     widget = widget,
                     widgetDisplayName = widgetDisplayName,
                     stateLabel = stateLabel,
                     lastRanText = lastRanText,
                     testResult = testResult,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = infoModifier,
                 )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s1),
-                ) {
-                    WidgetRowActions(
-                        manage = manage,
-                        settingsLabel = settingsLabel,
-                        onSettings = onSettings,
-                        editCodeLabel = editCodeLabel,
-                        onEditCode = onEditCode,
-                        testLabel = testLabel,
-                        testEvents = testEvents,
-                        onTest = runTest,
-                        catalogueAction = catalogueAction,
-                        catalogueActionLabel = catalogueActionLabel,
-                        onCatalogueAction = onCatalogueAction,
-                        versionsLabel = versionsLabel,
-                        onVersions = onVersions,
-                        renameLabel = renameLabel,
-                        onRename = onRename,
-                        cloneLabel = cloneLabel,
-                        onClone = onClone,
-                        rotateTokenLabel = rotateTokenLabel,
-                        onRotateToken = onRotateToken,
-                        deleteLabel = deleteLabel,
-                        onDelete = onDelete,
-                        toggleLabel = toggleLabel,
-                        isEnabled = widget.isEnabled,
-                        onToggle = onToggle,
-                    )
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                WidgetRowInfo(
-                    widget = widget,
-                    widgetDisplayName = widgetDisplayName,
-                    stateLabel = stateLabel,
-                    lastRanText = lastRanText,
-                    testResult = testResult,
-                    modifier = Modifier.weight(1f),
-                )
-                WidgetRowActions(
-                    manage = manage,
-                    settingsLabel = settingsLabel,
-                    onSettings = onSettings,
-                    editCodeLabel = editCodeLabel,
-                    onEditCode = onEditCode,
-                    testLabel = testLabel,
-                    testEvents = testEvents,
-                    onTest = runTest,
-                    catalogueAction = catalogueAction,
-                    catalogueActionLabel = catalogueActionLabel,
-                    onCatalogueAction = onCatalogueAction,
-                    versionsLabel = versionsLabel,
-                    onVersions = onVersions,
-                    renameLabel = renameLabel,
-                    onRename = onRename,
-                    cloneLabel = cloneLabel,
-                    onClone = onClone,
-                    rotateTokenLabel = rotateTokenLabel,
-                    onRotateToken = onRotateToken,
-                    deleteLabel = deleteLabel,
-                    onDelete = onDelete,
-                    toggleLabel = toggleLabel,
-                    isEnabled = widget.isEnabled,
-                    onToggle = onToggle,
-                )
-            }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            WidgetRowActions(
+                manage = manage,
+                settingsLabel = settingsLabel,
+                onSettings = onSettings,
+                editCodeLabel = editCodeLabel,
+                onEditCode = onEditCode,
+                testLabel = testLabel,
+                testEvents = testEvents,
+                onTest = runTest,
+                catalogueAction = catalogueAction,
+                catalogueActionLabel = catalogueActionLabel,
+                onCatalogueAction = onCatalogueAction,
+                versionsLabel = versionsLabel,
+                onVersions = onVersions,
+                renameLabel = renameLabel,
+                onRename = onRename,
+                cloneLabel = cloneLabel,
+                onClone = onClone,
+                rotateTokenLabel = rotateTokenLabel,
+                onRotateToken = onRotateToken,
+                deleteLabel = deleteLabel,
+                onDelete = onDelete,
+                toggleLabel = toggleLabel,
+                isEnabled = widget.isEnabled,
+                onToggle = onToggle,
+            )
         }
 
         // The browser-source URL — the operator pastes this into an OBS browser source. Shown labelled in a

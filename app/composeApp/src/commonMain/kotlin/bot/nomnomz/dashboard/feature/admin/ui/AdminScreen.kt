@@ -14,7 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.input.ImeAction
+import bot.nomnomz.dashboard.core.designsystem.component.InfoActionsRow
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
@@ -78,7 +78,6 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import bot.nomnomz.dashboard.feature.admin.state.AdminSection
@@ -1715,56 +1714,30 @@ private fun FeatureFlagOverrideRow(
     var broadcasterId: String by remember(flagKey) { mutableStateOf("") }
     val canAct: Boolean = enabled && broadcasterId.isNotBlank()
 
-    // An id field + three actions in one fixed Row leaves the field a sliver on a Compact pane once the
-    // buttons claim their space. At Compact the field takes its own full-width line and the three actions
-    // wrap in a FlowRow beneath it instead of squeezing beside it.
-    if (windowSize.isCompact) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+    // An id field + three actions in one fixed Row leaves the field a sliver once the buttons claim their
+    // space. The row measures its own width: when the buttons do not fit beside a readable field, the field
+    // takes its own line and the actions wrap beneath it, at any window class.
+    InfoActionsRow(
+        info = { fieldModifier ->
             AppTextField(
                 value = broadcasterId,
                 onValueChange = { broadcasterId = it },
                 label = stringResource(Res.string.admin_flag_override_broadcaster_id),
                 enabled = enabled,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = fieldModifier.fillMaxWidth(),
             )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
-                FeatureFlagOverrideActions(
-                    canAct = canAct,
-                    onEnable = { onSetOverride(broadcasterId, true) },
-                    onDisable = { onSetOverride(broadcasterId, false) },
-                    onClear = { onClearOverride(broadcasterId) },
-                )
-            }
-        }
-    } else {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AppTextField(
-                value = broadcasterId,
-                onValueChange = { broadcasterId = it },
-                label = stringResource(Res.string.admin_flag_override_broadcaster_id),
-                enabled = enabled,
-                modifier = Modifier.weight(1f),
-            )
-            FeatureFlagOverrideActions(
-                canAct = canAct,
-                onEnable = { onSetOverride(broadcasterId, true) },
-                onDisable = { onSetOverride(broadcasterId, false) },
-                onClear = { onClearOverride(broadcasterId) },
-            )
-        }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        FeatureFlagOverrideActions(
+            canAct = canAct,
+            onEnable = { onSetOverride(broadcasterId, true) },
+            onDisable = { onSetOverride(broadcasterId, false) },
+            onClear = { onClearOverride(broadcasterId) },
+        )
     }
 }
 
-// The Enable/Disable/Clear trio for [FeatureFlagOverrideRow] — a plain composable (no scope receiver) so it
-// renders identically inside the Expanded Row and the Compact FlowRow.
 @Composable
 private fun FeatureFlagOverrideActions(
     canAct: Boolean,

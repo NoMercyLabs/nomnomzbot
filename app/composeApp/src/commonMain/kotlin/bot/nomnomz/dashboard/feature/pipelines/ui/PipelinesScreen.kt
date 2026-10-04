@@ -54,7 +54,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +79,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
+import bot.nomnomz.dashboard.core.designsystem.component.InfoActionsRow
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -712,36 +712,15 @@ internal fun PipelineRow(
     }
 
     // Four action controls beside the name+description column leave that column a sliver once the icons and
-    // switch claim their fixed width on a narrow pane — Text still wraps, but with almost no width per line it
-    // degrades to one character per line instead of a readable two-line wrap (S-PIPE-TREE-VIS #4). At Compact
-    // the info column takes its own full-width line and the actions wrap in a FlowRow beneath it, the same
-    // "stack it" split AdminScreen's flag-override row uses for the identical squeeze.
-    if (windowSize.isCompact) {
-        Column(
-            modifier =
-                Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            info(Modifier.fillMaxWidth())
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
-                actions()
-            }
-        }
-    } else {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(horizontal = spacing.s4, vertical = spacing.s3),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            info(Modifier.weight(1f))
-            actions()
-        }
+    // switch claim their fixed width — Text still wraps, but with almost no width per line it degrades to one
+    // character per line instead of a readable two-line wrap (S-PIPE-TREE-VIS #4). The row measures its own
+    // width: when the actions do not fit beside a readable info column, the info takes its own line and the
+    // actions wrap beneath it, at any window class.
+    InfoActionsRow(
+        info = { infoModifier -> info(infoModifier) },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+    ) {
+        actions()
     }
 }
 
