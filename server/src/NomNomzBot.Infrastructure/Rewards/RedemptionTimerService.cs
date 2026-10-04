@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -33,18 +34,21 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
     private readonly IApplicationDbContext _db;
     private readonly IRewardService _rewards;
     private readonly TimeProvider _clock;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<RedemptionTimerService> _logger;
 
     public RedemptionTimerService(
         IApplicationDbContext db,
         IRewardService rewards,
         TimeProvider clock,
+        IOutboundSanctionAccessor sanctions,
         ILogger<RedemptionTimerService> logger
     )
     {
         _db = db;
         _rewards = rewards;
         _clock = clock;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -264,6 +268,10 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
         }
         await _db.SaveChangesAsync(cancellationToken);
 
+        // No person is present at expiry: the reward's own timer setting is what authorises the fulfill.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("rewards:redemption_timer")
+        );
         foreach (RedemptionTimer timer in due)
             await FulfillAsync(
                 timer.BroadcasterId.ToString(),

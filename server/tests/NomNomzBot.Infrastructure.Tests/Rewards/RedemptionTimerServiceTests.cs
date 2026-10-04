@@ -13,9 +13,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -39,7 +41,14 @@ public sealed class RedemptionTimerServiceTests
         AuthDbContext Db,
         IRewardService Rewards,
         FakeTimeProvider Time
-    ) Build()
+    ) Build() => Build(new OutboundSanctionAccessor());
+
+    private static (
+        RedemptionTimerService Service,
+        AuthDbContext Db,
+        IRewardService Rewards,
+        FakeTimeProvider Time
+    ) Build(IOutboundSanctionAccessor sanctions)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         IRewardService rewards = Substitute.For<IRewardService>();
@@ -57,6 +66,7 @@ public sealed class RedemptionTimerServiceTests
             db,
             rewards,
             time,
+            sanctions,
             NullLogger<RedemptionTimerService>.Instance
         );
         return (service, db, rewards, time);
@@ -205,6 +215,34 @@ public sealed class RedemptionTimerServiceTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task Expiry_fulfills_under_the_channel_timer_sanction_because_no_person_is_present()
+    {
+        OutboundSanctionAccessor sanctions = new();
+        (RedemptionTimerService service, _, IRewardService rewards, FakeTimeProvider time) = Build(
+            sanctions
+        );
+        OutboundSanction? during = null;
+        rewards
+            .When(r =>
+                r.SetRedemptionStatusAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string?>(),
+                    Arg.Any<CancellationToken>()
+                )
+            )
+            .Do(_ => during = sanctions.Current);
+        await StartTimerAsync(service, seconds: 60);
+
+        time.Advance(TimeSpan.FromSeconds(61));
+        await service.CompleteDueAsync();
+
+        during.Should().Be(OutboundSanction.ChannelConfiguration("rewards:redemption_timer"));
+        sanctions.Current.Should().BeNull("the sanction ends with the fulfill");
     }
 
     [Fact]
