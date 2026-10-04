@@ -131,8 +131,10 @@ public sealed record OverlayBundle(string Content, string Framework, string Cont
 /// legacy channel-wide <c>Channel.OverlayToken</c> — the single widget it was minted for. A null
 /// <see cref="WidgetId"/> means the token is channel-wide and may see every widget; a non-null one confines the
 /// caller to that widget alone (the fix for one leaked widget token unlocking the whole channel's manifest).
+/// <see cref="Token"/> is the widget token that was presented (null for a channel-wide token); the overlay hub
+/// keeps it so a later rotation can close the pages that still use a retired token.
 /// </summary>
-public sealed record OverlayTokenScope(Guid BroadcasterId, Guid? WidgetId);
+public sealed record OverlayTokenScope(Guid BroadcasterId, Guid? WidgetId, string? Token = null);
 
 /// <summary>
 /// The current playback state for an overlay token's channel, field-for-field identical to the

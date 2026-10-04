@@ -91,6 +91,9 @@ public class OverlayHub : Hub<IOverlayClient>
         // shared bus rather than one specific widget.
         _presence.Attach(Context.ConnectionId, overlayGroup);
         _presence.RegisterOverlay(Context.ConnectionId, scope.BroadcasterId);
+        // A widget token can be rotated later: remember which one this connection came in on.
+        if (scope is { WidgetId: { } scopedWidget, Token: { } widgetToken })
+            _presence.BindToken(Context.ConnectionId, scopedWidget, widgetToken, Context);
         // A widget gets its events as WidgetEvent, by subscription. Only a page that hosts no widget reads
         // the generic feed; JoinWidget takes a channel-wide connection off it again.
         if (scope.WidgetId is null)

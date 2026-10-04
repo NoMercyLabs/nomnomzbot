@@ -17,6 +17,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
@@ -36,10 +37,17 @@ public sealed class WidgetServiceOverlayTokenRotationTests
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
     private static WidgetService NewService(WidgetTestDbContext db, FakeTimeProvider clock) =>
+        NewService(db, clock, Substitute.For<IEventBus>());
+
+    private static WidgetService NewService(
+        WidgetTestDbContext db,
+        FakeTimeProvider clock,
+        IEventBus bus
+    ) =>
         new(
             db,
             EmptyConfig,
-            Substitute.For<IEventBus>(),
+            bus,
             Substitute.For<IWidgetBuildService>(),
             new WidgetSettingsSchemaProvider(),
             clock,
@@ -223,7 +231,7 @@ public sealed class WidgetServiceOverlayTokenRotationTests
 
         OverlayTokenScope? scope = await reader.ResolveOverlayScopeAsync(oldToken);
         scope.Should().NotBeNull();
-        scope!.BroadcasterId.Should().Be(channel);
+        scope.BroadcasterId.Should().Be(channel);
         scope.WidgetId.Should().Be(widget.Id);
     }
 
@@ -275,5 +283,60 @@ public sealed class WidgetServiceOverlayTokenRotationTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    /// <summary>A rotation tells the overlay hub which widget changed, so open pages on a retired token can be
+    /// closed at once. The event names the widget and the channel and carries no token.</summary>
+    [Fact]
+    public async Task Rotation_publishes_a_rotated_event_for_that_widget_without_any_token()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        FakeTimeProvider clock = new(new(2026, 9, 12, 12, 0, 0, TimeSpan.Zero));
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Widget widget = await SeedWidgetAsync(database, channel, "Alerts");
+        IEventBus bus = Substitute.For<IEventBus>();
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<WidgetTokenRotationResult> rotate = await NewService(db, clock, bus)
+            .RotateOverlayTokenAsync(channel.ToString(), widget.Id.ToString());
+        rotate.IsSuccess.Should().BeTrue(rotate.ErrorMessage);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<WidgetOverlayTokenRotatedEvent>(e =>
+                    e.WidgetId == widget.Id && e.BroadcasterId == channel
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>The hub keeps the token a page connected with, so the scope must carry the token that was
+    /// presented: the retired one for a page on the old URL, the live one otherwise.</summary>
+    [Fact]
+    public async Task Scope_carries_the_presented_widget_token()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        FakeTimeProvider clock = new(new(2026, 9, 12, 12, 0, 0, TimeSpan.Zero));
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Widget widget = await SeedWidgetAsync(database, channel, "Alerts");
+        string oldToken = widget.OverlayToken;
+
+        await using (WidgetTestDbContext db = database.NewContext())
+            (
+                await NewService(db, clock)
+                    .RotateOverlayTokenAsync(channel.ToString(), widget.Id.ToString())
+            )
+                .IsSuccess.Should()
+                .BeTrue();
+
+        await using WidgetTestDbContext read = database.NewContext();
+        WidgetService reader = NewService(read, clock);
+        string newToken = (await read.Widgets.SingleAsync(w => w.Id == widget.Id)).OverlayToken;
+
+        (await reader.ResolveOverlayScopeAsync(oldToken))!.Token.Should().Be(oldToken);
+        (await reader.ResolveOverlayScopeAsync(newToken))!.Token.Should().Be(newToken);
+        (await reader.ResolveOverlayScopeAsync("channel-wide-tok"))!.Token.Should().BeNull();
     }
 }

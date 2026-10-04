@@ -1193,6 +1193,15 @@ public class WidgetService : IWidgetService
         widget.OverlayToken = Widget.GenerateOverlayToken();
         await _db.SaveChangesAsync(cancellationToken);
 
+        await _eventBus.PublishAsync(
+            new WidgetOverlayTokenRotatedEvent
+            {
+                BroadcasterId = broadcasterGuid,
+                WidgetId = widget.Id,
+            },
+            cancellationToken
+        );
+
         return Result.Success(
             new WidgetTokenRotationResult(
                 widget.Id,
@@ -1734,7 +1743,7 @@ public class WidgetService : IWidgetService
                 cancellationToken
             );
         if (widget is not null)
-            return new OverlayTokenScope(widget.Channel.Id, widget.Id);
+            return new OverlayTokenScope(widget.Channel.Id, widget.Id, overlayToken);
 
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.OverlayToken == overlayToken,

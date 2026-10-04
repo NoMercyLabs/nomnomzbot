@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Hubs.Overlay;
@@ -33,6 +34,30 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     public const string AudioSourceNaturalKey = "tts_audio";
 
     private sealed record OverlayConnection(Guid BroadcasterId, long Order, bool IsAudioSource);
+
+    /// <summary>A widget-scoped connection and the exact token it connected with, kept so a rotation can close it.</summary>
+    public sealed record BoundConnection(
+        string ConnectionId,
+        Guid WidgetId,
+        string Token,
+        HubCallerContext Context
+    );
+
+    private readonly ConcurrentDictionary<string, BoundConnection> _bound = new(
+        StringComparer.Ordinal
+    );
+
+    /// <summary>Remembers the widget token a widget-scoped connection was admitted with.</summary>
+    public void BindToken(
+        string connectionId,
+        Guid widgetId,
+        string token,
+        HubCallerContext context
+    ) => _bound[connectionId] = new(connectionId, widgetId, token, context);
+
+    /// <summary>The token-bound connections of one widget, or of every widget when null.</summary>
+    public IReadOnlyList<BoundConnection> BoundConnections(Guid? widgetId) =>
+        _bound.Values.Where(b => widgetId is null || b.WidgetId == widgetId).ToArray();
 
     private readonly object _audioLock = new();
     private readonly Dictionary<string, OverlayConnection> _overlays = new(StringComparer.Ordinal);
@@ -91,6 +116,7 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     {
         lock (_audioLock)
             _overlays.Remove(connectionId);
+        _bound.TryRemove(connectionId, out _);
         return _connectionWidgets.TryRemove(
             connectionId,
             out ConcurrentDictionary<string, byte>? groups
