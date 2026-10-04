@@ -39,11 +39,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (`editor.js:1146-1153`). Done-when: the save is refused with the file, line and column of the import (for
   example esbuild's `import-is-undefined` raised to an error), in the same `data.errors` shape as other build
   problems; a test failed first.
-- **S-WIDGET-EMIT-FAILURE** Found by the docs fact-check 2026-10-04. The script SDK says
-  `nnz.api.widget.emit` returns `false` when the send fails (`SdkRuntimeSurface.cs:654`), but the send at
-  `ScriptHostBridge.cs:556-560` is not caught, so a failed send faults the whole script ("Script execution
-  faulted.", `JintScriptExecutor.cs:501-505`). Done-when: a failed send returns `false` and sets `nnz.lastError`,
-  as the contract says; a test that makes the send throw failed first.
 - **S-SCRIPT-CHAT-SEND-FAILURE** Found by the docs writer 2026-10-04. `IChatProvider.SendMessageAsync` returns
   `false` when the message could not be sent and says callers MUST honour it (`IChatProvider.cs:41-47`), but the
   script bridge drops that value in `chat.send` and in the `chat.reply` fallback (`ScriptHostBridge.cs:375`, `:405`),
