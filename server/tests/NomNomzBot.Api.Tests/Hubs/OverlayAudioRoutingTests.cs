@@ -220,7 +220,7 @@ public sealed class OverlayAudioRoutingTests
         IActionRequiredChangeNotifier notifier = Substitute.For<IActionRequiredChangeNotifier>();
         OverlayHub hub = new(
             db,
-            Substitute.For<IWidgetService>(),
+            WidgetServiceStubs.SavedSettingsOnly(),
             tickets,
             registry,
             Substitute.For<IChannelRegistry>(),

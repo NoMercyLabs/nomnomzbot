@@ -82,6 +82,18 @@ public interface IWidgetService
     );
 
     /// <summary>
+    /// The settings a widget page actually receives: the defaults its current version's <c>settings.json</c>
+    /// declares, overlaid by the values the streamer saved. A field the streamer never saved still carries its
+    /// declared default, so the generated settings type holds at run time. A widget with no declaration (a
+    /// first-party widget) returns the saved bag unchanged. Fails with NOT_FOUND when the widget is unknown.
+    /// </summary>
+    Task<Result<Dictionary<string, object>>> GetEffectiveSettingsAsync(
+        Guid broadcasterId,
+        Guid widgetId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Compile-on-save: append the widget's next <c>WidgetVersion</c>, build it, and (on success) point the widget
     /// at it. A failed build is a persisted <c>error</c> version, not a discard; the returned detail carries the
     /// build status either way, and the build lifecycle event is published for the overlay/editor to react to.

@@ -194,7 +194,22 @@ public class OverlayHub : Hub<IOverlayClient>
         if (widget?.IsEnabled == true && widget.EventSubscriptions.Contains(NowPlayingEventKey))
             _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
 
-        return new(true, null, widget?.Settings);
+        return new(true, null, await EffectiveSettingsAsync(widget, broadcasterId));
+    }
+
+    // What the page receives is the saved bag plus the defaults its settings.json declares; if the lookup fails
+    // the saved bag is still better than nothing.
+    private async Task<object?> EffectiveSettingsAsync(Widget? widget, Guid broadcasterId)
+    {
+        if (widget is null)
+            return null;
+        Result<Dictionary<string, object>> effective =
+            await _widgetService.GetEffectiveSettingsAsync(
+                broadcasterId,
+                widget.Id,
+                Context.ConnectionAborted
+            );
+        return effective.IsSuccess ? effective.Value : widget.Settings;
     }
 
     private async Task<bool> IsAudioSourceAsync(Widget? widget)

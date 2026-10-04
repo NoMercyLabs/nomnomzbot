@@ -482,7 +482,7 @@ public class WidgetService : IWidgetService
                 {
                     BroadcasterId = broadcasterGuid,
                     WidgetId = widget.Id,
-                    Settings = widget.Settings,
+                    Settings = await EffectiveSettingsAsync(widget, cancellationToken),
                 },
                 cancellationToken
             );
@@ -732,6 +732,68 @@ public class WidgetService : IWidgetService
         return Result.Success(
             new WidgetSettingsSchema("custom", widget.Name, fields.Value, widget.EventSubscriptions)
         );
+    }
+
+    public async Task<Result<Dictionary<string, object>>> GetEffectiveSettingsAsync(
+        Guid broadcasterId,
+        Guid widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Widget? widget = await _db
+            .Widgets.IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                w => w.Id == widgetId && w.BroadcasterId == broadcasterId && w.DeletedAt == null,
+                cancellationToken
+            );
+        return widget is null
+            ? Errors.NotFound<Dictionary<string, object>>("Widget", widgetId.ToString())
+            : Result.Success(await EffectiveSettingsAsync(widget, cancellationToken));
+    }
+
+    // The current version's stored files carry the settings.json declaration (same lookup as
+    // GetDeclaredSettingsSchemaAsync); a widget with no active version has no declaration.
+    private async Task<Dictionary<string, object>> EffectiveSettingsAsync(
+        Widget widget,
+        CancellationToken cancellationToken
+    )
+    {
+        string? filesJson = widget.ActiveVersionId is { } versionId
+            ? await _db
+                .WidgetVersions.IgnoreQueryFilters()
+                .Where(v => v.Id == versionId)
+                .Select(v => v.FilesJson)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+        return WithDeclaredDefaults(widget.Settings, filesJson);
+    }
+
+    // Declared defaults first, saved values on top. An absent or invalid settings.json declares nothing, so the
+    // saved bag passes through unchanged (an invalid declaration is already reported by the schema endpoint).
+    private static Dictionary<string, object> WithDeclaredDefaults(
+        IReadOnlyDictionary<string, object> saved,
+        string? filesJson
+    )
+    {
+        Dictionary<string, object> effective = [];
+        Dictionary<string, string>? files = ProjectJson.DeserializeFiles(filesJson);
+        if (
+            files is not null
+            && files.TryGetValue(CustomWidgetSettingsDeclaration.FileName, out string? declaration)
+        )
+        {
+            Result<IReadOnlyList<WidgetSettingsField>> fields =
+                CustomWidgetSettingsDeclaration.Parse(declaration);
+            if (fields.IsSuccess)
+                foreach (WidgetSettingsField field in fields.Value)
+                    if (field.Default is not null)
+                        effective[field.Key] = field.Default;
+        }
+
+        foreach (KeyValuePair<string, object> entry in saved)
+            effective[entry.Key] = entry.Value;
+        return effective;
     }
 
     public async Task<Result<WidgetVersionDetail>> CompileAsync(
@@ -1276,7 +1338,8 @@ public class WidgetService : IWidgetService
                     $"/api/v1/overlay/bundle/{widget.Id}?token={Uri.EscapeDataString(overlayToken)}&v={version.ContentHash}",
                     version.ContentHash,
                     widget.EventSubscriptions,
-                    widget.Settings.ToDictionary(k => k.Key, v => (object?)v.Value)
+                    WithDeclaredDefaults(widget.Settings, version.FilesJson)
+                        .ToDictionary(k => k.Key, v => (object?)v.Value)
                 )
             );
         }
