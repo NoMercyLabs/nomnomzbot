@@ -29,16 +29,6 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-TESTRUN-SKIPS-VALIDATION** Found by the docs fact-check 2026-10-04. An editor test run captures every write
-  (`chat.send`, `chat.reply`, `music.queue`, `storage.set`/`delete`, `tts.speak`, `tts.voice.set`, `widget.emit`,
-  `reward.update`, `schedule.pipeline`, `actions.invoke:*`) and returns a canned success before the live bridge's
-  argument checks run (`CaptureScriptHostBridge.cs:35-50`, `:83-94`). So an empty chat message, a bad delay or a bad
-  storage key passes a test run with `nnz.lastError` null, while the same call fails live
-  (`ScriptHostBridge.cs:368-372`). Done-when: each captured write runs the same argument validation as the live
-  call (one shared validator per capability, no copy), so a test run reports the same `nnz.lastError` the live run
-  would; a test per capability failed first; N of 11 reported. For `widget.emit` this includes the widget lookup: a test
-  run now returns true for a widget that does not exist or is turned off (`CaptureScriptHostBridge.cs:47`). Starts after S-SCRIPT-CHAT-SEND-FAILURE lands
-  (same file).
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
