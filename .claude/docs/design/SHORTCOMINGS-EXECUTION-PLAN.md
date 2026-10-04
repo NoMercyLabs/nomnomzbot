@@ -82,15 +82,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 - **S-WIDGET-EVENT-LABEL** Found by the docs writer 2026-10-04. The editor labels `event_type` "Event type
   (optional)" (`strings.xml:3025`) for every step, but `widget_event` requires it (`WidgetEventAction.cs:50`);
   only `send_webhook` treats it as optional (`SendWebhookAction.cs:76`). Done when the label is right for each step.
-- **S-BUILTIN-EFFECTIVE-ROLE** Found 2026-10-04 while fixing S-CHAT-TRIGGER-EFFECTIVE-ROLE. The command gate lets a
-  built-in run on the EFFECTIVE role (`ChatMessageHandler.cs:286,346`), but the built-in then gets the badge level
-  (`RoleLevel = BadgeLevel(@event)`, `ChatMessageHandler.cs:313,530`). Built-ins that check `RoleLevel` themselves
-  treat a badge-less Editor, a bot-granted role or a `!permit` as a viewer: `CommandsBuiltin.cs:170` (which
-  commands are listed), `SongRequestBuiltin.cs:337,346`, `UpdateUserInfoBuiltin.cs:70`, `GameBuiltins.cs:143`.
-  `MusicModerationGate.cs:37` already asks the resolver itself. Done-when: every `RoleLevel` consumer (N of M)
-  sees the effective level, resolved at most once per message; a test with a badge-less Editor failed first.
-  Same class: a command's template response builds its variables at `ChatMessageHandler.cs:560` without the
-  effective `user.role` the pipeline path sets (`:443-444`), so `{user.role}` in a reply shows the badge role.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
