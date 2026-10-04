@@ -18,6 +18,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Platform;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -189,7 +190,7 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
         {
             task = new()
             {
-                Id = Guid.CreateVersion7(),
+                Id = MonotonicGuid.Create(),
                 BroadcasterId = broadcasterId,
                 PipelineId = pipelineId,
                 PipelineName = pipelineName,

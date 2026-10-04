@@ -19,7 +19,7 @@ namespace NomNomzBot.Domain.Platform.Entities;
 /// </summary>
 public class EventSubInboxMessage : BaseEntity
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     /// <summary>Twitch's <c>message_id</c>. Unique: a resent notification is stored once.</summary>
     public string MessageId { get; set; } = null!;

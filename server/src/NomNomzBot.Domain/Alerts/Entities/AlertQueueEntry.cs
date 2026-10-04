@@ -36,7 +36,7 @@ namespace NomNomzBot.Domain.Alerts.Entities;
 /// </remarks>
 public class AlertQueueEntry : BaseEntity, ITenantScoped
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     public Guid BroadcasterId { get; set; }
 

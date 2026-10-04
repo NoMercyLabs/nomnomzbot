@@ -591,4 +591,49 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         costAfter.Should().Be(100); // 4_000 * 25 / 1_000 — the SAME recorded quantity, repriced at the NEW rate
         costAfter.Should().NotBe(costBefore);
     }
+
+    /// <summary>
+    /// Jobs scheduled inside one clock tick share a CreatedAt, so the queue order rests on the Id tie-break.
+    /// Guid.CreateVersion7 is random inside one millisecond; the queue must still list the last job first.
+    /// </summary>
+    [Fact]
+    public async Task GetScheduledJobQueue_lists_jobs_scheduled_in_the_same_tick_newest_first()
+    {
+        (AdminService sut, AuthDbContext db, FakeTimeProvider clock) = Build();
+        Channel tenant = SeedChannel(db, "streamer_burst_jobs");
+        Pipeline pipeline = SeedPipeline(db, tenant.Id, "burst");
+        await db.SaveChangesAsync();
+        ScheduledPipelineService scheduler = new(
+            db,
+            new ServiceCollection()
+                .BuildServiceProvider()
+                .GetRequiredService<IServiceScopeFactory>(),
+            clock,
+            NullLogger<ScheduledPipelineService>.Instance
+        );
+
+        List<Guid> scheduled = [];
+        for (int i = 0; i < 40; i++)
+        {
+            Result<NomNomzBot.Application.Commands.Dtos.ScheduledPipelineTaskDto> result =
+                await scheduler.ScheduleAsync(
+                    tenant.Id,
+                    pipeline.Id,
+                    60,
+                    new Dictionary<string, string>(),
+                    "user-1",
+                    "User One"
+                );
+            result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+            scheduled.Add(result.Value.Id);
+        }
+
+        Result<PagedList<AdminScheduledJobDto>> queue = await sut.GetScheduledJobQueueAsync(
+            new PaginationParams { PageSize = 100 }
+        );
+
+        queue.IsSuccess.Should().BeTrue(queue.ErrorMessage);
+        scheduled.Reverse();
+        queue.Value.Items.Select(j => j.Id).Should().Equal(scheduled);
+    }
 }

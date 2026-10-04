@@ -21,7 +21,7 @@ namespace NomNomzBot.Domain.Giveaways.Entities;
 /// </summary>
 public class Giveaway : SoftDeletableEntity, ITenantScoped
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     public Guid BroadcasterId { get; set; }
 

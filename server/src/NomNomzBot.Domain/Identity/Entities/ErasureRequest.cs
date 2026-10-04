@@ -26,7 +26,7 @@ namespace NomNomzBot.Domain.Identity.Entities;
 /// </summary>
 public class ErasureRequest : BaseEntity
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     public Guid SubjectUserId { get; set; }
 

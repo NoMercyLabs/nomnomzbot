@@ -106,4 +106,39 @@ public sealed class YouTubeLiveChatBanLedgerTests
             .BanId.Should()
             .Be("ban-mine");
     }
+
+    /// <summary>
+    /// A timeout escalated to a permanent ban lands in the same CreatedAt tick, so "newest" rests on the Id
+    /// tie-break. Guid.CreateVersion7 is random inside one millisecond; each consume must still return the
+    /// ban recorded last.
+    /// </summary>
+    [Fact]
+    public async Task Consume_returns_the_last_recorded_ban_when_all_share_one_tick()
+    {
+        (YouTubeLiveChatBanLedger ledger, BanLedgerTestDbContext db) = Build();
+        DateTime tick = new(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        for (int i = 0; i < 40; i++)
+        {
+            db.YouTubeLiveChatBans.Add(
+                new()
+                {
+                    BroadcasterId = Tenant,
+                    PrimaryBroadcasterId = Primary,
+                    LiveChatId = "chat-1",
+                    BannedChannelId = "UCbad",
+                    BanId = $"ban-{i:D3}",
+                    BanType = "permanent",
+                    CreatedAt = tick,
+                    UpdatedAt = tick,
+                }
+            );
+        }
+        await db.SaveChangesAsync();
+
+        List<string> consumed = [];
+        for (int i = 0; i < 40; i++)
+            consumed.Add((await ledger.ConsumeLatestAsync(Tenant, "UCbad"))!.BanId);
+
+        consumed.Should().Equal(Enumerable.Range(0, 40).Reverse().Select(i => $"ban-{i:D3}"));
+    }
 }

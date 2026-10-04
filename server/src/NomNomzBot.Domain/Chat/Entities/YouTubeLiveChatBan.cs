@@ -22,7 +22,7 @@ namespace NomNomzBot.Domain.Chat.Entities;
 /// </summary>
 public class YouTubeLiveChatBan : SoftDeletableEntity, ITenantScoped
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     /// <summary>Owning tenant — the platform Channel the moderation ran against.</summary>
     public Guid BroadcasterId { get; set; }

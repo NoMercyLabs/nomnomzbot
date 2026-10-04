@@ -19,7 +19,7 @@ public class Channel : SoftDeletableEntity
 {
     // Surrogate UUIDv7 PK (schema §1.1, A.2) = the tenant id used in every BroadcasterId + RLS.
     // Generated app-side; never DB-default; never sent to Twitch.
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     // Broadcaster identity — one channel per owner (schema A.2). Replaces the old
     // [ForeignKey(nameof(Id))] shared-PK hack between Channel and User.

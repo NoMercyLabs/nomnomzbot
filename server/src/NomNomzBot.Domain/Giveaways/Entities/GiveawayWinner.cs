@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Giveaways.Entities;
@@ -20,7 +21,7 @@ namespace NomNomzBot.Domain.Giveaways.Entities;
 /// </summary>
 public class GiveawayWinner : BaseEntity, ITenantScoped
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     public Guid BroadcasterId { get; set; }
 
@@ -35,8 +36,7 @@ public class GiveawayWinner : BaseEntity, ITenantScoped
     /// string set), carried over from the winning <c>GiveawayEntry</c> — S065: lets fulfillment resolve
     /// the right DM sender instead of assuming Twitch.
     /// </summary>
-    public string Provider { get; set; } =
-        NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch;
+    public string Provider { get; set; } = AuthEnums.Platform.Twitch;
 
     /// <summary>The winner's native user id on <see cref="Provider"/> (S065).</summary>
     public string? ProviderUserId { get; set; }

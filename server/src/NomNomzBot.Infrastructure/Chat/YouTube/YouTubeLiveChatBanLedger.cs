@@ -64,7 +64,7 @@ public sealed class YouTubeLiveChatBanLedger : IYouTubeLiveChatBanLedger
     )
     {
         // The consumed-row exclusion is explicit (not left to the ambient soft-delete filter) so the
-        // ledger's own contract holds in any context. Id is a UUIDv7 (time-ordered) — the tie-break keeps
+        // ledger's own contract holds in any context. Id is a MonotonicGuid (strictly creation-ordered) — the tie-break keeps
         // "newest" deterministic when two bans land inside one CreatedAt tick (timeout immediately
         // escalated to a permanent ban).
         YouTubeLiveChatBan? latest = await _db
