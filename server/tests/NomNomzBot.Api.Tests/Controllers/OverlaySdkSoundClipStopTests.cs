@@ -40,7 +40,7 @@ public sealed class OverlaySdkSoundClipStopTests
         string sdk = Sdk();
         int start = sdk.IndexOf("function playSound(", StringComparison.Ordinal);
         start.Should().BeGreaterThan(-1, "the SDK must still play sound clips");
-        int next = sdk.IndexOf("// TTS plays one utterance", start, StringComparison.Ordinal);
+        int next = sdk.IndexOf("// The lane plays one item", start, StringComparison.Ordinal);
         return sdk[start..(next > start ? next : sdk.Length)];
     }
 
@@ -72,7 +72,8 @@ public sealed class OverlaySdkSoundClipStopTests
     {
         string play = PlaySoundBody();
 
-        play.Should().Contain("currentSound = el;");
+        play.Should().Contain("el.isClip = true;");
+        Sdk().Should().Contain("if (el.isClip) currentSound = el;");
     }
 
     [Fact]
@@ -99,7 +100,7 @@ public sealed class OverlaySdkSoundClipStopTests
         handleBranch.Should().BeGreaterThan(allBranch);
 
         string all = stop[allBranch..handleBranch];
-        all.Should().Contain("currentSound.pause()");
+        all.Should().Contain("stopCurrentClip();");
         all.Should().Contain("soundHandles[h].pause()");
     }
 
@@ -113,6 +114,6 @@ public sealed class OverlaySdkSoundClipStopTests
         string tail = stop[(handleBranch + 1)..];
 
         // The fallback after the handle branch's own return must still reach the current-slot stop.
-        tail.Should().Contain("if (currentSound) { currentSound.pause(); currentSound = null; }");
+        tail.Should().Contain("stopCurrentClip();");
     }
 }

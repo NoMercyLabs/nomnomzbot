@@ -107,7 +107,7 @@ public sealed class OverlaySdkTtsPlaybackTests
 
         // playNextTts must refuse to advance while paused — otherwise "pause" only stops the CURRENT
         // utterance and the queue keeps draining behind it.
-        playNext.Should().Contain("if (ttsPaused) return;");
+        playNext.Should().Contain("ttsPaused && !el.isClip");
 
         sdk.Should().Contain("case \"pause\": ttsPause(); break;");
         sdk.Should().Contain("case \"resume\": ttsResume(); break;");
@@ -131,8 +131,8 @@ public sealed class OverlaySdkTtsPlaybackTests
         string clear = sdk[clearStart..clearEnd];
 
         clear.Should().Contain(".pause()");
-        // "= []" (not shift/splice) — clear must drop the ENTIRE queue, not just the current utterance.
-        clear.Should().Contain("ttsQueue = [];");
+        // A filter (not shift/splice) — clear must drop EVERY queued line, not just the current one; clips stay.
+        clear.Should().Contain("ttsQueue = ttsQueue.filter(");
     }
 
     [Fact]

@@ -193,17 +193,23 @@ public sealed class OverlaySdkController : ControllerBase
           // (a server-rendered audio URL); client_edge TTS arrives as TtsSpeak (browser speechSynthesis,
           // no audio bytes). Widgets that want to react visually still get the raw events via on(...).
           var soundHandles = {}; // handle -> HTMLAudioElement, for StopSound(handle) / StopSound(all)
-          // S-OBS-06: a clip started with no handle is the single "current" unhandled clip — starting another
-          // one always stops it first, so sound clips can no longer stack and play concurrently. A handle is
-          // its own independent slot (stopped only by its own handle, or by StopSound(all)).
+          // One audio lane (UF·T9): TTS lines and clips started with no handle share ttsQueue, in arrival
+          // order, and only the head plays — so a line and a clip never overlap. S-OBS-06: the unhandled
+          // clip PLAYING now is currentSound, and a new unhandled clip stops it and plays at once, ahead of
+          // whatever waits. A handle is its own independent slot, outside the lane (stopped only by its own
+          // handle, or by StopSound(all)); a looping handled clip therefore never holds TTS back.
           var currentSound = null;
 
           function playSound(payload) {
+            var replaced = false;
             if (payload.handle) {
               var existingHandled = soundHandles[payload.handle];
               if (existingHandled) existingHandled.pause();
             } else if (currentSound) {
               currentSound.pause();
+              ttsQueue.shift();
+              currentSound = null;
+              replaced = true;
             }
 
             var el = document.createElement("audio");
@@ -215,25 +221,29 @@ public sealed class OverlaySdkController : ControllerBase
               el.addEventListener("ended", function () {
                 if (soundHandles[payload.handle] === el) delete soundHandles[payload.handle];
               });
-            } else {
-              currentSound = el;
-              el.addEventListener("ended", function () { if (currentSound === el) currentSound = null; });
+              el.play().catch(function (e) { report("audio playback blocked: " + ((e && e.message) || e)); });
+              return;
             }
-            el.play().catch(function (e) { report("audio playback blocked: " + ((e && e.message) || e)); });
+            el.isClip = true;
+            if (replaced) ttsQueue.unshift(el); else ttsQueue.push(el);
+            if (replaced || ttsQueue.length === 1) playNextTts();
           }
 
-          // TTS plays one utterance at a time — overlapping voices are unintelligible, and a busy chat can
-          // dispatch several within a second.
+          // The lane plays one item at a time — overlapping voices are unintelligible, and a busy chat can
+          // dispatch several TTS lines within a second.
           var ttsQueue = [];
-          // Set by a dashboard-pushed "pause" control; playNextTts refuses to advance while true, and a
-          // fresh utterance arriving mid-pause is queued but not auto-started (see speakTts below).
+          // Set by a dashboard-pushed "pause" control; playNextTts refuses to advance onto a TTS line while
+          // true, and a fresh line arriving mid-pause is queued but not auto-started (see speakTts below).
+          // A paused line stays at the head, so it holds the clips behind it until resume.
           var ttsPaused = false;
           function playNextTts() {
-            if (ttsPaused) return;
             var el = ttsQueue[0];
-            if (!el) return;
+            if (!el || (ttsPaused && !el.isClip)) return;
+            if (el.isClip) currentSound = el;
             var advance = function () {
+              if (ttsQueue[0] !== el) return;
               ttsQueue.shift();
+              if (currentSound === el) currentSound = null;
               playNextTts();
             };
             // Listeners go on once per element: a pause then resume calls this again for the same element.
@@ -243,7 +253,7 @@ public sealed class OverlaySdkController : ControllerBase
               el.addEventListener("error", advance);
             }
             el.play().catch(function (e) {
-              report("tts playback blocked: " + ((e && e.message) || e));
+              report(el.isClip ? "audio playback blocked: " + ((e && e.message) || e) : "tts playback blocked: " + ((e && e.message) || e));
               advance();
             });
           }
@@ -251,20 +261,23 @@ public sealed class OverlaySdkController : ControllerBase
           // Dashboard-driven live queue controls (skip/clear/pause/resume) — pushed as a "TtsQueueControl"
           // hub target from TtsConfigController's playback/* endpoints. The server never sees what is
           // queued or playing (that state lives only here), so these mutate ttsQueue/ttsPaused directly.
+          // They act on TTS lines only: a clip in the lane is left to play, and is started when its turn comes.
           function ttsSkip() {
             var el = ttsQueue[0];
-            if (el) { el.pause(); ttsQueue.shift(); }
+            if (el && !el.isClip) { el.pause(); ttsQueue.shift(); }
             playNextTts();
           }
           function ttsClear() {
             var el = ttsQueue[0];
-            if (el) el.pause();
-            ttsQueue = [];
+            var lineWasPlaying = el && !el.isClip;
+            if (lineWasPlaying) el.pause();
+            ttsQueue = ttsQueue.filter(function (queued) { return queued.isClip; });
+            if (lineWasPlaying) playNextTts();
           }
           function ttsPause() {
             ttsPaused = true;
             var el = ttsQueue[0];
-            if (el) el.pause();
+            if (el && !el.isClip) el.pause();
           }
           function ttsResume() {
             ttsPaused = false;
@@ -280,9 +293,18 @@ public sealed class OverlaySdkController : ControllerBase
             }
           }
 
+          // Stops the unhandled clip that is playing and lets the lane move on to whatever waits behind it.
+          function stopCurrentClip() {
+            if (!currentSound) return;
+            currentSound.pause();
+            ttsQueue.shift();
+            currentSound = null;
+            playNextTts();
+          }
+
           function stopSound(payload) {
             if (payload.all) {
-              if (currentSound) { currentSound.pause(); currentSound = null; }
+              stopCurrentClip();
               Object.keys(soundHandles).forEach(function (h) { soundHandles[h].pause(); delete soundHandles[h]; });
               return;
             }
@@ -291,7 +313,7 @@ public sealed class OverlaySdkController : ControllerBase
               if (el) { el.pause(); delete soundHandles[payload.handle]; }
               return;
             }
-            if (currentSound) { currentSound.pause(); currentSound = null; }
+            stopCurrentClip();
           }
 
           // Cached browser voice list — some browsers populate it async via voiceschanged, so a lookup right
