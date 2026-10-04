@@ -89,12 +89,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 - **S-WIDGET-EVENT-LABEL** Found by the docs writer 2026-10-04. The editor labels `event_type` "Event type
   (optional)" (`strings.xml:3025`) for every step, but `widget_event` requires it (`WidgetEventAction.cs:50`);
   only `send_webhook` treats it as optional (`SendWebhookAction.cs:76`). Done when the label is right for each step.
-- **S-WATCH-STREAK-MESSAGE** Found by the docs fact-check 2026-10-04. A viewer who shares a watch streak can add a
-  message, and the notice carries it (`ChatTranslators.cs:363,376` reads it for other notices), but the
-  `WatchStreakReceivedEvent` built at `ChatTranslators.cs:405-416` never sets `CustomMessage`. So the response
-  variable `streak.message` (`WatchStreakHandler.cs:67`) is always empty on a live stream; only the sample sets it.
-  Done-when: the shared message reaches `CustomMessage` and `streak.message`; a translator test with a real
-  `channel.chat.notification` watch_streak payload failed first.
 - **S-BUILTIN-EFFECTIVE-ROLE** Found 2026-10-04 while fixing S-CHAT-TRIGGER-EFFECTIVE-ROLE. The command gate lets a
   built-in run on the EFFECTIVE role (`ChatMessageHandler.cs:286,346`), but the built-in then gets the badge level
   (`RoleLevel = BadgeLevel(@event)`, `ChatMessageHandler.cs:313,530`). Built-ins that check `RoleLevel` themselves
