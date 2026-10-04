@@ -39,13 +39,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (`editor.js:1146-1153`). Done-when: the save is refused with the file, line and column of the import (for
   example esbuild's `import-is-undefined` raised to an error), in the same `data.errors` shape as other build
   problems; a test failed first.
-- **S-SCRIPT-CHAT-SEND-FAILURE** Found by the docs writer 2026-10-04. `IChatProvider.SendMessageAsync` returns
-  `false` when the message could not be sent and says callers MUST honour it (`IChatProvider.cs:41-47`), but the
-  script bridge drops that value in `chat.send` and in the `chat.reply` fallback (`ScriptHostBridge.cs:375`, `:405`),
-  so a script whose message never reached chat sees success and `nnz.lastError` stays null. Done-when: a failed send
-  sets `nnz.lastError` with a host error code and the call reports failure as its declared type allows; a test with a
-  provider that returns `false` failed first. Check every other bridge call that drops a `bool` or `Result` from a
-  provider and report N of M.
 - **S-TESTRUN-SKIPS-VALIDATION** Found by the docs fact-check 2026-10-04. An editor test run captures every write
   (`chat.send`, `chat.reply`, `music.queue`, `storage.set`/`delete`, `tts.speak`, `tts.voice.set`, `widget.emit`,
   `reward.update`, `schedule.pipeline`, `actions.invoke:*`) and returns a canned success before the live bridge's
