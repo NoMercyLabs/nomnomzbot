@@ -75,6 +75,10 @@ public sealed class PlaybackStateChangedEvent : DomainEventBase
     /// permitted, so a provider that never reports them never falsely disables a control.</summary>
     public bool CanSetShuffle { get; init; } = true;
 
+    /// <summary>True when this event reports that the track named by <see cref="TrackUri"/> finished or failed
+    /// (YouTube's ENDED or ERROR report), so a consumer that waits for the end of that track can act.</summary>
+    public bool TrackEnded { get; init; }
+
     /// <summary>True when the player lets the bot change the repeat mode.</summary>
     public bool CanSetRepeat { get; init; } = true;
 

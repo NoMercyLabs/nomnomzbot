@@ -19,7 +19,8 @@ namespace NomNomzBot.Infrastructure.Music;
 public sealed class YouTubePlayerReportService(
     IYouTubePlayerStateStore store,
     IYouTubePlayerDispatcher players,
-    IEventBus eventBus
+    IEventBus eventBus,
+    IPlayOnceResumeTracker resumeTracker
 ) : IYouTubePlayerReportService
 {
     public async Task<Result> ReportAsync(
@@ -60,13 +61,17 @@ public sealed class YouTubePlayerReportService(
             positionMs
         );
 
-        if (parsed is YouTubePlayerState.Ended or YouTubePlayerState.Error)
-            await HandOverNextAsync(broadcasterId, cancellationToken);
-
         bool changed =
             previous is null
             || previous.State != parsed
             || !string.Equals(previous.VideoId, videoId, StringComparison.Ordinal);
+        bool ended = parsed is YouTubePlayerState.Ended or YouTubePlayerState.Error;
+
+        // A play-once video that ended is followed by the interrupted one, which the resume handler starts
+        // off the event below; the waiting request plays after that one, so it is not handed over here.
+        if (ended && !(changed && ResumePending(broadcasterId, videoId)))
+            await players.HandOverNextAsync(broadcasterId, cancellationToken);
+
         if (changed)
             await PublishAsync(
                 broadcasterId,
@@ -74,27 +79,20 @@ public sealed class YouTubePlayerReportService(
                 parsed,
                 positionMs,
                 known,
+                ended,
                 cancellationToken
             );
         return Result.Success();
     }
 
-    private async Task HandOverNextAsync(Guid broadcasterId, CancellationToken cancellationToken)
-    {
-        YouTubeQueuedTrack? next = store.TakeNext(broadcasterId);
-        if (next is null)
-            return;
-
-        IReadOnlyList<Guid> open = await players.FindPlayersAsync(broadcasterId, cancellationToken);
-        if (open.Count == 0)
-        {
-            store.SetNext(broadcasterId, next);
-            return;
-        }
-
-        await players.PlayAsync(broadcasterId, open, next.VideoId, cancellationToken);
-        store.MarkPushed(broadcasterId, next);
-    }
+    private bool ResumePending(Guid broadcasterId, string videoId) =>
+        resumeTracker.TryPeek(broadcasterId, out PlayOnceResumeState pending)
+        && pending.PriorTrackUri is not null
+        && string.Equals(
+            pending.InterruptingTrackUri,
+            YouTubeMusicProvider.WatchUrl(videoId),
+            StringComparison.Ordinal
+        );
 
     private Task PublishAsync(
         Guid broadcasterId,
@@ -102,6 +100,7 @@ public sealed class YouTubePlayerReportService(
         YouTubePlayerState state,
         long positionMs,
         YouTubeQueuedTrack? known,
+        bool trackEnded,
         CancellationToken cancellationToken
     ) =>
         eventBus.PublishAsync(
@@ -109,10 +108,11 @@ public sealed class YouTubePlayerReportService(
             {
                 BroadcasterId = broadcasterId,
                 IsPlaying = state == YouTubePlayerState.Playing,
+                TrackEnded = trackEnded,
                 TrackName = known?.Title,
                 Artist = known?.Artist,
                 Provider = "youtube",
-                TrackUri = $"https://www.youtube.com/watch?v={videoId}",
+                TrackUri = YouTubeMusicProvider.WatchUrl(videoId),
                 ProgressMs = (int)Math.Clamp(positionMs, 0, int.MaxValue),
                 RepeatMode = MusicRepeatMode.Off,
                 VolumePercent = 100,

@@ -105,7 +105,12 @@ public sealed class YouTubePlayerOwnerTests
         Rig rig = new()
         {
             Provider = YouTubeProviderFactory.Create(db: db, playerState: store, players: players),
-            Reports = new YouTubePlayerReportService(store, players, bus),
+            Reports = new YouTubePlayerReportService(
+                store,
+                players,
+                bus,
+                new PlayOnceResumeTracker()
+            ),
             Store = store,
             Notifier = notifier,
             Bus = bus,

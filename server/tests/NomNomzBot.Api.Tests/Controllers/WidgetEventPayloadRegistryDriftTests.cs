@@ -183,6 +183,32 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
         dts.Should().Contain("  fields: Record<string, string>;");
     }
 
+    [Theory]
+    [InlineData("youtube.pause")]
+    [InlineData("youtube.resume")]
+    [InlineData("youtube.stop")]
+    [InlineData("youtube.seek")]
+    public void The_youtube_transport_events_are_registered_sampled_and_typed_in_the_event_map(
+        string eventType
+    )
+    {
+        WidgetEventPayloadEntry? entry = Registry.Events.FirstOrDefault(e => e.Name == eventType);
+        entry.Should().NotBeNull();
+        entry.PayloadType.Should().NotBeNull();
+        WidgetTestSamples.EventTypes.Should().Contain(eventType);
+        WidgetTestSamples
+            .For(eventType, DateTimeOffset.UnixEpoch)
+            .GetType()
+            .Should()
+            .Be(entry.PayloadType);
+
+        string dts = new SdkTypeEmitter(new EventCatalog(), null, null, Registry).EmitTypeScript(
+            SdkContext.Widget
+        );
+
+        dts.Should().Contain($"  '{eventType}': Nnz{entry.PayloadType!.Name};");
+    }
+
     /// <summary>The eventType argument (first literal, no other quotes before it) of an overlay alert push.</summary>
     [GeneratedRegex(@"OverlayAlertBroadcast\s*\.\s*ToOverlaysAsync\(\s*[^""]*?""(?<name>[^""]+)""")]
     private static partial Regex OverlayAlertCall();

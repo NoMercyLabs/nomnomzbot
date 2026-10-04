@@ -103,7 +103,7 @@ public sealed class YouTubePlayerHandOverTests
             playerState: store,
             players: players
         );
-        YouTubePlayerReportService reports = new(store, players, bus);
+        YouTubePlayerReportService reports = new(store, players, bus, new PlayOnceResumeTracker());
         return new(provider, reports, notifier, bus, clock);
     }
 

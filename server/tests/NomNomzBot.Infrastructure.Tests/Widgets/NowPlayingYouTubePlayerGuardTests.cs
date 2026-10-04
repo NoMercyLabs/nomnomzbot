@@ -48,6 +48,23 @@ public sealed class NowPlayingYouTubePlayerGuardTests
         source.Should().Contain("NomNomz.off('youtube.play'");
     }
 
+    [Theory]
+    [InlineData("youtube.pause", "pauseVideo()")]
+    [InlineData("youtube.resume", "playVideo()")]
+    [InlineData("youtube.stop", "stopVideo()")]
+    [InlineData("youtube.seek", "seekTo(")]
+    public void The_widget_pauses_and_resumes_the_player_on_the_bots_transport_events(
+        string eventType,
+        string playerCall
+    )
+    {
+        string source = Source();
+
+        source.Should().Contain($"NomNomz.on('{eventType}'");
+        source.Should().Contain($"NomNomz.off('{eventType}'");
+        source.Should().Contain(playerCall);
+    }
+
     [Fact]
     public void The_video_plays_through_the_iframe_player_api_so_state_changes_are_visible()
     {

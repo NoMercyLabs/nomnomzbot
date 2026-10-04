@@ -44,16 +44,19 @@ public sealed class PlayOnceResumeHandler : IEventHandler<PlaybackStateChangedEv
 {
     private readonly IPlayOnceResumeTracker _tracker;
     private readonly IMusicService _music;
+    private readonly IYouTubePlayerDispatcher _players;
     private readonly ILogger<PlayOnceResumeHandler> _logger;
 
     public PlayOnceResumeHandler(
         IPlayOnceResumeTracker tracker,
         IMusicService music,
+        IYouTubePlayerDispatcher players,
         ILogger<PlayOnceResumeHandler> logger
     )
     {
         _tracker = tracker;
         _music = music;
+        _players = players;
         _logger = logger;
     }
 
@@ -69,7 +72,14 @@ public sealed class PlayOnceResumeHandler : IEventHandler<PlaybackStateChangedEv
             return;
 
         // The interrupting track's own expected start — not the resume signal.
-        if (string.Equals(@event.TrackUri, pending.InterruptingTrackUri, StringComparison.Ordinal))
+        if (
+            !@event.TrackEnded
+            && string.Equals(
+                @event.TrackUri,
+                pending.InterruptingTrackUri,
+                StringComparison.Ordinal
+            )
+        )
             return;
 
         if (!_tracker.TryTake(@event.BroadcasterId, out pending))
@@ -92,6 +102,10 @@ public sealed class PlayOnceResumeHandler : IEventHandler<PlaybackStateChangedEv
                 @event.BroadcasterId,
                 resumed.ErrorMessage
             );
+
+            // The ended once video left the waiting request for after the resume; with no resume it plays now.
+            if (@event.TrackEnded)
+                await _players.HandOverNextAsync(@event.BroadcasterId, cancellationToken);
             return;
         }
 

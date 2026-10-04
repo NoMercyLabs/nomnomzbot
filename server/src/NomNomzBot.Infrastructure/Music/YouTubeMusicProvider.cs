@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.YouTube;
+using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -32,8 +33,9 @@ namespace NomNomzBot.Infrastructure.Music;
 /// </list>
 /// Playback rides the browser-source IFrame player by design (music-sr.md §3.5.2): the SR fair queue is
 /// the source of truth and the overlay drives playback, so the transport capabilities
-/// (Volume/Seek/Previous/Shuffle/Repeat/TransferDevice) are permanently absent — the YouTube Data API has
-/// no playback-transport control — and consumers gate those members off with <c>CAPABILITY_UNSUPPORTED</c>.
+/// (Volume/Previous/Shuffle/Repeat/TransferDevice) are absent — the YouTube Data API has no
+/// playback-transport control — and consumers gate those members off with <c>CAPABILITY_UNSUPPORTED</c>.
+/// Pause, resume, seek and skip are sent to the owning overlay player as widget events.
 /// Now-playing likewise comes from the IFrame relay over the hub, not the Data API.
 ///
 /// Live-reference notes (YouTube Data API v3, verified 2026-07-05):
@@ -53,7 +55,10 @@ namespace NomNomzBot.Infrastructure.Music;
 ///   subscriptions insert (snippet.resourceId kind=youtube#channel) / list(?mine=true[&amp;forChannelId=])
 ///   → id → delete(?id={subscriptionId}).
 /// </summary>
-public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageApi
+public sealed class YouTubeMusicProvider
+    : IMusicProvider,
+        IMusicProviderManageApi,
+        IMusicProviderPlayNow
 {
     private const string ProviderName = "youtube";
     private const string YouTubeApiBase = "https://www.googleapis.com/youtube/v3";
@@ -89,8 +94,8 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
     /// <summary>
     /// The §3.5/§3.10 YouTube set (music-sr.md line 325): search-fed queue + the per-user manage surface.
     /// <c>Library</c> = videos.rate (like/dislike) + the liked-videos read; <c>Playlists</c> = playlists.*
-    /// + playlistItems.*; <c>Subscriptions</c> = subscriptions.* (channel follows). No transport flags —
-    /// the Data API has no playback control (those ride the embedded player).
+    /// + playlistItems.*; <c>Subscriptions</c> = subscriptions.* (channel follows). <c>PlaybackControl</c>
+    /// + <c>Skip</c> + <c>Seek</c> ride the embedded player; the Data API has no other transport control.
     /// </summary>
     public MusicProviderCapabilities Capabilities =>
         MusicProviderCapabilities.Search
@@ -99,27 +104,66 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         | MusicProviderCapabilities.AcceptsSongRequests
         | MusicProviderCapabilities.Library
         | MusicProviderCapabilities.Playlists
-        | MusicProviderCapabilities.Subscriptions;
+        | MusicProviderCapabilities.Subscriptions
+        | MusicProviderCapabilities.PlaybackControl
+        | MusicProviderCapabilities.Skip
+        | MusicProviderCapabilities.Seek;
 
     /// <summary>The app-level Data API key is present, so search/resolve can reach YouTube.</summary>
     private bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey);
 
-    public Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
+    public async Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("YouTubeMusicProvider.PlayAsync not yet implemented");
-        return Task.CompletedTask;
+        IReadOnlyList<Guid> owner = await OwnerAsync(broadcasterId, cancellationToken);
+        await _players.ResumeAsync(broadcasterId, owner, cancellationToken);
     }
 
-    public Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
+    public async Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("YouTubeMusicProvider.PauseAsync not yet implemented");
-        return Task.CompletedTask;
+        IReadOnlyList<Guid> owner = await OwnerAsync(broadcasterId, cancellationToken);
+        await _players.PauseAsync(broadcasterId, owner, cancellationToken);
     }
 
-    public Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
+    public async Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("YouTubeMusicProvider.SkipAsync not yet implemented");
-        return Task.CompletedTask;
+        bool handedOver = await _players.HandOverNextAsync(broadcasterId, cancellationToken);
+        if (!handedOver)
+            await _players.StopAsync(broadcasterId, cancellationToken);
+    }
+
+    public async Task<bool> PlayNowAsync(
+        Guid broadcasterId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? videoId = ExtractVideoId(trackUri);
+        if (videoId is null)
+            return false;
+
+        IReadOnlyList<Guid> players = await _players.FindPlayersAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (players.Count == 0)
+            return false;
+
+        YouTubeQueuedTrack queued = await DescribeAsync(broadcasterId, videoId, cancellationToken);
+        await _players.PlayAsync(broadcasterId, players, videoId, cancellationToken);
+        _playerState.MarkPushed(broadcasterId, queued);
+        return true;
+    }
+
+    private async Task<IReadOnlyList<Guid>> OwnerAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        IReadOnlyList<Guid> owner = await _players.FindPlayersAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        return owner.Count > 0 ? owner : throw new NoActiveDeviceException(ProviderName);
     }
 
     public Task PreviousAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
@@ -140,14 +184,14 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         return Task.CompletedTask;
     }
 
-    public Task SeekAsync(
+    public async Task SeekAsync(
         Guid broadcasterId,
         int positionSeconds,
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug("YouTubeMusicProvider.SeekAsync has no API-side transport");
-        return Task.CompletedTask;
+        IReadOnlyList<Guid> owner = await OwnerAsync(broadcasterId, cancellationToken);
+        await _players.SeekAsync(broadcasterId, owner, positionSeconds * 1000L, cancellationToken);
     }
 
     public Task SetShuffleAsync(
@@ -199,6 +243,34 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         // §3.5.2: the Data API has no "currently playing" concept. The channel's overlay IFrame player reports
         // it over the OverlayHub; a report counts only while it is fresh (a closed page goes silent).
         YouTubePlayerReport? report = _playerState.GetFresh(broadcasterId);
+
+        // A video pushed to the player is the current one from the push on; the report still names the old
+        // video until the player answers, and its progress belongs to that old video.
+        YouTubeQueuedTrack? pending = _playerState.PendingPushed(broadcasterId);
+        if (pending is not null)
+        {
+            bool reportIsForPending = string.Equals(
+                report?.VideoId,
+                pending.VideoId,
+                StringComparison.Ordinal
+            );
+            return Task.FromResult<TrackInfo?>(
+                new()
+                {
+                    TrackName = pending.Title,
+                    Artist = pending.Artist,
+                    Album = string.Empty,
+                    TrackUri = WatchUrl(pending.VideoId),
+                    Provider = ProviderName,
+                    ProviderTrackId = pending.VideoId,
+                    IsPlaying = true,
+                    ProgressMs = reportIsForPending
+                        ? (int)Math.Clamp(report!.PositionMs, 0, int.MaxValue)
+                        : 0,
+                }
+            );
+        }
+
         if (report?.State is not (YouTubePlayerState.Playing or YouTubePlayerState.Paused))
             return Task.FromResult<TrackInfo?>(null);
 
@@ -1176,7 +1248,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         snippet?.LiveBroadcastContent is null
         || string.Equals(snippet.LiveBroadcastContent, "none", StringComparison.OrdinalIgnoreCase);
 
-    private static string WatchUrl(string videoId) => $"https://www.youtube.com/watch?v={videoId}";
+    internal static string WatchUrl(string videoId) => $"https://www.youtube.com/watch?v={videoId}";
 
     private static string? BestThumbnailUrl(YouTubeThumbnails? thumbnails) =>
         thumbnails?.High?.Url ?? thumbnails?.Medium?.Url ?? thumbnails?.Default?.Url;

@@ -100,7 +100,12 @@ public sealed class OverlayHubYouTubeReportTests
     }
 
     private static YouTubePlayerReportService ReportService(YouTubePlayerStateStore store) =>
-        new(store, Substitute.For<IYouTubePlayerDispatcher>(), Substitute.For<IEventBus>());
+        new(
+            store,
+            Substitute.For<IYouTubePlayerDispatcher>(),
+            Substitute.For<IEventBus>(),
+            new PlayOnceResumeTracker()
+        );
 
     [Fact]
     public async Task A_report_for_another_channels_widget_is_refused_and_stores_nothing()

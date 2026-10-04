@@ -174,6 +174,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
+            Substitute.For<IYouTubePlayerDispatcher>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 
@@ -211,6 +212,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
+            Substitute.For<IYouTubePlayerDispatcher>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 
@@ -258,6 +260,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
+            Substitute.For<IYouTubePlayerDispatcher>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 
@@ -290,6 +293,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
+            Substitute.For<IYouTubePlayerDispatcher>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 

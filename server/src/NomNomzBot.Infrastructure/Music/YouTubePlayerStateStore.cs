@@ -60,6 +60,9 @@ public interface IYouTubePlayerStateStore
     /// <summary>The last pushed track when its video id is <paramref name="videoId"/>, else null.</summary>
     YouTubeQueuedTrack? PushedTrack(Guid broadcasterId, string videoId);
 
+    /// <summary>The pushed track while the player has not answered for it yet and the push is not stale, else null.</summary>
+    YouTubeQueuedTrack? PendingPushed(Guid broadcasterId);
+
     void SetNext(Guid broadcasterId, YouTubeQueuedTrack track);
 
     YouTubeQueuedTrack? TakeNext(Guid broadcasterId);
@@ -153,6 +156,15 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
         ChannelPlayer player = PlayerOf(broadcasterId);
         lock (player)
             return string.Equals(player.Pushed?.VideoId, videoId, StringComparison.Ordinal)
+                ? player.Pushed
+                : null;
+    }
+
+    public YouTubeQueuedTrack? PendingPushed(Guid broadcasterId)
+    {
+        ChannelPlayer player = PlayerOf(broadcasterId);
+        lock (player)
+            return player.AwaitingAnswer && _clock.GetUtcNow() - player.PushedAt < Staleness
                 ? player.Pushed
                 : null;
     }

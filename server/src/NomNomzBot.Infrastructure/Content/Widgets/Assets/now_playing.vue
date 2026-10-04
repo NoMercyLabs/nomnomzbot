@@ -125,6 +125,10 @@ const showYoutubeVideo = computed<boolean>(
 // in card mode too.
 interface YouTubePlayerHandle {
   loadVideoById(videoId: string): void
+  pauseVideo(): void
+  playVideo(): void
+  stopVideo(): void
+  seekTo(seconds: number, allowSeekAhead: boolean): void
   getCurrentTime(): number
   getVideoData(): { video_id: string }
 }
@@ -147,6 +151,9 @@ interface YouTubeWindow extends Window {
 const ytMount = ref<HTMLElement | null>(null)
 let ytPlayer: YouTubePlayerHandle | null = null
 let ytApiPromise: Promise<void> | null = null
+// A video was handed over and has not reported PLAYING yet; a seek that arrives meanwhile waits for it.
+let ytLoading: boolean = false
+let ytPendingSeekSeconds: number | null = null
 
 // IFrame API state codes: 0 ended, 1 playing, 2 paused.
 const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED' }
@@ -165,9 +172,17 @@ function loadYouTubeApi(): Promise<void> {
   return ytApiPromise
 }
 
+function applyPendingYouTubeSeek(player: YouTubePlayerHandle): void {
+  ytLoading = false
+  if (ytPendingSeekSeconds === null) return
+  player.seekTo(ytPendingSeekSeconds, true)
+  ytPendingSeekSeconds = null
+}
+
 function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
   const state: string | undefined = YT_STATE_NAMES[code]
   if (!state) return
+  if (state === 'PLAYING') applyPendingYouTubeSeek(player)
   NomNomz.reportYouTubePlayerState(player.getVideoData().video_id, state, Math.round(player.getCurrentTime() * 1000))
     .catch(() => { /* offline: the next state change reports again */ })
 }
@@ -175,6 +190,8 @@ function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
 async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undefined): Promise<void> {
   const videoId: string = d?.videoId || ''
   if (!videoId) return
+  ytLoading = true
+  ytPendingSeekSeconds = null
   if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
   try {
     await loadYouTubeApi()
@@ -193,6 +210,33 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
       onStateChange: (e) => reportYouTubeState(e.target, e.data),
     },
   })
+}
+
+// The player's own state changes then report PAUSED / PLAYING back to the bot.
+function onYouTubePause(): void {
+  ytPlayer?.pauseVideo()
+}
+
+function onYouTubeResume(): void {
+  ytPlayer?.playVideo()
+}
+
+// Right after `youtube.play` the new video is still loading, so the position is held until it reports PLAYING.
+function onYouTubeSeek(d: NnzWidgetEventMap['youtube.seek'] | null | undefined): void {
+  if (typeof d?.positionMs !== 'number') return
+  const seconds: number = d.positionMs / 1000
+  if (ytLoading || !ytPlayer) { ytPendingSeekSeconds = seconds; return }
+  ytPlayer.seekTo(seconds, true)
+}
+
+// stopVideo() emits state 5 (cued), which YT_STATE_NAMES ignores, so the end is reported explicitly.
+function onYouTubeStop(): void {
+  if (!ytPlayer) return
+  const videoId: string = ytPlayer.getVideoData().video_id
+  const positionMs: number = Math.round(ytPlayer.getCurrentTime() * 1000)
+  ytPlayer.stopVideo()
+  NomNomz.reportYouTubePlayerState(videoId, 'ENDED', positionMs)
+    .catch(() => { /* offline: the bot keeps the video as playing until the next report */ })
 }
 
 function onTrackSavedChanged(d: NnzWidgetEventMap['track_saved_changed'] | null | undefined): void {
@@ -256,6 +300,10 @@ onMounted(() => {
   NomNomz.on('now_playing', onNowPlaying)
   NomNomz.on('track_saved_changed', onTrackSavedChanged)
   NomNomz.on('youtube.play', onYouTubePlay)
+  NomNomz.on('youtube.pause', onYouTubePause)
+  NomNomz.on('youtube.resume', onYouTubeResume)
+  NomNomz.on('youtube.stop', onYouTubeStop)
+  NomNomz.on('youtube.seek', onYouTubeSeek)
 })
 
 onUnmounted(() => {
@@ -265,6 +313,10 @@ onUnmounted(() => {
   NomNomz.off('now_playing', onNowPlaying)
   NomNomz.off('track_saved_changed', onTrackSavedChanged)
   NomNomz.off('youtube.play', onYouTubePlay)
+  NomNomz.off('youtube.pause', onYouTubePause)
+  NomNomz.off('youtube.resume', onYouTubeResume)
+  NomNomz.off('youtube.stop', onYouTubeStop)
+  NomNomz.off('youtube.seek', onYouTubeSeek)
   disconnectSpotify()
 })
 

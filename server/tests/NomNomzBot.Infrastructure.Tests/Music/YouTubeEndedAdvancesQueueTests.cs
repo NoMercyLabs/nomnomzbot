@@ -165,7 +165,12 @@ public sealed class YouTubeEndedAdvancesQueueTests
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>()
         );
-        YouTubePlayerReportService reports = new(playerStore, players, bus);
+        YouTubePlayerReportService reports = new(
+            playerStore,
+            players,
+            bus,
+            new PlayOnceResumeTracker()
+        );
         SongRequestQueueReconciler reconciler = new(
             queues,
             music,

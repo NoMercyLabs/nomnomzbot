@@ -40,16 +40,12 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Transport_members_fail_closed_on_a_provider_without_the_capability()
     {
-        // YouTube-only channel: the YouTube Data API has no playback transport, so every
-        // transport member gates off (§3.5) with CAPABILITY_UNSUPPORTED — no exception.
+        // YouTube-only channel: pause, resume and skip ride the overlay player (YouTubeTransportControlTests);
+        // every other transport member gates off (§3.5) with CAPABILITY_UNSUPPORTED — no exception.
         (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "youtube");
         string channel = ChannelId.ToString();
 
-        (await sut.PlayAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-        (await sut.PauseAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-        (await sut.SkipAsync(channel, "4242")).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.PreviousAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-        (await sut.SeekAsync(channel, 5_000)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.SetShuffleAsync(channel, true)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.SetRepeatAsync(channel, "track"))
             .ErrorCode.Should()

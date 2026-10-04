@@ -215,6 +215,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
+        catch (NoActiveDeviceException)
+        {
+            return NothingPlaying();
+        }
 
         await PublishPlaybackStateChangedAsync(
             tenantId,
@@ -258,14 +262,28 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             // this is a playback-context primitive, not a song request) then skip straight to it. The
             // provider's context (playlist/album) is never replaced, so whatever plays after this track
             // finishes is exactly what the context would have played next on its own.
-            bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
-            if (!pushed)
-                return Result.Failure(
-                    "Couldn't queue the track on the music provider.",
-                    "PROVIDER_ERROR"
-                );
+            if (provider is IMusicProviderPlayNow playNow)
+            {
+                // A provider whose player takes "play this now" directly (YouTube's overlay player) keeps
+                // its own waiting queue untouched, so a queued request still plays after this track.
+                bool playing = await playNow.PlayNowAsync(tenantId, trackUri, cancellationToken);
+                if (!playing)
+                    return Result.Failure(
+                        "Couldn't play the track on the music provider.",
+                        "PROVIDER_ERROR"
+                    );
+            }
+            else
+            {
+                bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+                if (!pushed)
+                    return Result.Failure(
+                        "Couldn't queue the track on the music provider.",
+                        "PROVIDER_ERROR"
+                    );
 
-            await provider.SkipAsync(tenantId, cancellationToken);
+                await provider.SkipAsync(tenantId, cancellationToken);
+            }
         }
         catch (PremiumRequiredException ex)
         {
@@ -273,10 +291,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         }
         catch (NoActiveDeviceException)
         {
-            return Result.Failure(
-                "Nothing is playing on any device right now.",
-                "NO_ACTIVE_DEVICE"
-            );
+            return NothingPlaying();
         }
         catch (MusicAuthenticationFailedException)
         {
@@ -325,6 +340,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         catch (PremiumRequiredException ex)
         {
             return PremiumRequired(ex);
+        }
+        catch (NoActiveDeviceException)
+        {
+            return NothingPlaying();
         }
 
         await PublishPlaybackStateChangedAsync(
@@ -399,6 +418,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         catch (PremiumRequiredException ex)
         {
             return PremiumRequired(ex);
+        }
+        catch (NoActiveDeviceException)
+        {
+            return NothingPlaying();
         }
 
         if (skippedTrack?.TrackName is { } skippedTrackName)
@@ -1302,6 +1325,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             $"The active music provider does not support {operation}.",
             "CAPABILITY_UNSUPPORTED"
         );
+
+    private static Result NothingPlaying() =>
+        Result.Failure("Nothing is playing on any device right now.", "NO_ACTIVE_DEVICE");
 
     private static Result PremiumRequired(PremiumRequiredException ex) =>
         Result.Failure(ex.Message, "PREMIUM_REQUIRED");
