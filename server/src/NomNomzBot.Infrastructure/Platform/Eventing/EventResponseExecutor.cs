@@ -186,6 +186,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 ),
                 "pipeline" => await RunPipelineAsync(
                     broadcasterId,
+                    eventTypeKey,
                     config.PipelineId,
                     userId,
                     userDisplayName,
@@ -383,6 +384,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
 
     private async Task<EventResponseOutcome> RunPipelineAsync(
         Guid broadcasterId,
+        string eventTypeKey,
         Guid? pipelineId,
         string? userId,
         string? userDisplayName,
@@ -400,6 +402,16 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         if (pipeline is null || !pipeline.IsEnabled)
             return EventResponseOutcome.None;
 
+        // The run's steps can see which event started it (event.name, the same key a wait_for_event resume
+        // uses), so a shoutout step can tell a raid from any other trigger. A copy: the caller's bag is shared.
+        Dictionary<string, string> pipelineVariables = new(
+            variables,
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            ["event.name"] = eventTypeKey,
+        };
+
         PipelineExecutionResult result = await _pipeline.ExecuteAsync(
             new()
             {
@@ -409,7 +421,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 TriggeredByUserId = userId ?? string.Empty,
                 TriggeredByDisplayName = userDisplayName ?? string.Empty,
                 RawMessage = string.Empty,
-                InitialVariables = variables,
+                InitialVariables = pipelineVariables,
             },
             ct
         );

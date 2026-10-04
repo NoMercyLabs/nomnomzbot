@@ -38,8 +38,9 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 ///   cooldown_minutes — Per-user cooldown in minutes (default: 60).
 ///   global_cooldown_minutes — Global shoutout cooldown in minutes (default: 2).
 ///   tts — When true, also reads the resolved announcement aloud via the channel's configured TTS pipeline
-///         (default: false — silent). Set true on a manual/chat-triggered shoutout; leave false/omitted on
-///         an automated one.
+///         (default: false — silent, except on a raid, where it defaults to true). Set true on a
+///         manual/chat-triggered shoutout; leave false/omitted on an automated one; false always wins.
+///         A raid also announces inside a cooldown (only the native Helix call is skipped).
 ///   template — Per-invocation template override (e.g. a value drawn from a pick_from_list step for a
 ///              varied/snarky rotation). Takes priority over the channel's stored ShoutoutTemplate, which
 ///              in turn takes priority over the built-in default.
@@ -56,6 +57,7 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 /// </summary>
 public sealed class ShoutoutAction : ICommandAction
 {
+    private const string RaidEventName = "channel.raid";
     private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
 
     private static readonly TimeSpan DefaultPerUserCooldown = TimeSpan.FromMinutes(60);
@@ -171,8 +173,16 @@ public sealed class ShoutoutAction : ICommandAction
         TimeSpan perUserCooldown = TimeSpan.FromMinutes(perUserMinutes);
         TimeSpan globalCooldown = TimeSpan.FromMinutes(globalMinutes > 0 ? globalMinutes : 2);
 
+        // A raid is the one trigger where the raider must always be greeted (old-bot parity: the legacy bot
+        // passed skipApiCall inside a cooldown and still announced). So a raid skips only the native Helix
+        // call inside a cooldown; every other run is skipped whole.
+        bool isRaid =
+            ctx.Variables.TryGetValue("event.name", out string? eventName)
+            && string.Equals(eventName, RaidEventName, StringComparison.OrdinalIgnoreCase);
+
         // Check cooldowns via ChannelContext
         ChannelContext? channelCtx = _registry.Get(ctx.BroadcasterId);
+        bool skipNativeCall = false;
         if (channelCtx is not null)
         {
             DateTimeOffset now = _timeProvider.GetUtcNow();
@@ -183,11 +193,15 @@ public sealed class ShoutoutAction : ICommandAction
                 && now - channelCtx.LastGlobalShoutout.Value < globalCooldown
             )
             {
-                _logger.LogDebug(
-                    "Shoutout to {UserId} skipped — global cooldown active",
-                    rawUserId
-                );
-                return ActionResult.Success("skipped (global cooldown)");
+                if (!isRaid)
+                {
+                    _logger.LogDebug(
+                        "Shoutout to {UserId} skipped — global cooldown active",
+                        rawUserId
+                    );
+                    return ActionResult.Success("skipped (global cooldown)");
+                }
+                skipNativeCall = true;
             }
 
             // Per-user cooldown
@@ -196,21 +210,23 @@ public sealed class ShoutoutAction : ICommandAction
                 && now - lastSo < perUserCooldown
             )
             {
-                _logger.LogDebug(
-                    "Shoutout to {UserId} skipped — per-user cooldown active",
-                    rawUserId
-                );
-                return ActionResult.Success("skipped (per-user cooldown)");
+                if (!isRaid)
+                {
+                    _logger.LogDebug(
+                        "Shoutout to {UserId} skipped — per-user cooldown active",
+                        rawUserId
+                    );
+                    return ActionResult.Success("skipped (per-user cooldown)");
+                }
+                skipNativeCall = true;
             }
         }
 
         // rawUserId is the Twitch id of the channel to shout out. The sub-client resolves this channel's
         // tenant Guid → Twitch id internally and sends the shoutout as its own moderator.
-        Result result = await _chat.SendShoutoutAsync(
-            ctx.BroadcasterId,
-            rawUserId,
-            ctx.CancellationToken
-        );
+        Result result = skipNativeCall
+            ? Result.Failure("native shoutout skipped: cooldown active")
+            : await _chat.SendShoutoutAsync(ctx.BroadcasterId, rawUserId, ctx.CancellationToken);
         bool success = result.IsSuccess;
 
         if (success && channelCtx is not null)
@@ -300,7 +316,8 @@ public sealed class ShoutoutAction : ICommandAction
         // parity (ShoutoutQueueService.ExecuteShoutoutAsync called SendCachedTts(ttsText, TargetUserId, ...)).
         // Stamping the broadcaster's own id here instead collapsed every shoutout onto one voice, silently
         // losing the per-target variety a streamer configured through UserTtsVoices.
-        if (action.GetBool("tts") && channel is not null)
+        // A raid speaks by default (old-bot parity); an explicit tts:false still wins.
+        if (action.GetBool("tts", isRaid) && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
                 new(

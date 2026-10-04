@@ -299,6 +299,7 @@ public sealed class EventResponseExecutorTests
                     && r.TriggeredByUserId == "42"
                     && r.TriggeredByDisplayName == "Streamer"
                     && r.InitialVariables["title"] == "Birds"
+                    && r.InitialVariables["event.name"] == "stream.online"
                 ),
                 Arg.Any<CancellationToken>()
             );
