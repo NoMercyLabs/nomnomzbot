@@ -16,6 +16,7 @@ using NomNomzBot.Application.Alerts.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -289,5 +290,88 @@ public sealed class AlertQueueServiceTests
 
         Result<AlertQueueDto> queue = await service.GetQueueAsync(channel);
         queue.Value.OverlayConnected.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_turned_off_alerts_widget_gets_no_push_even_with_a_page_attached_and_the_entry_stays_queued()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedAlertsGalleryItemAsync(database);
+
+        FakePresenceRegistry presence = new() { Attached = true };
+        IWidgetEventNotifier notifier = Substitute.For<IWidgetEventNotifier>();
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<WidgetDetail> surface = await NewWidgetService(db, presence)
+            .EnsureSystemWidgetAsync(channel.ToString(), "alerts");
+        surface.IsSuccess.Should().BeTrue(surface.ErrorMessage);
+        await db
+            .Widgets.Where(w => w.Id == surface.Value.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(w => w.IsEnabled, false));
+        db.ChangeTracker.Clear();
+
+        AlertQueueService service = new(
+            db,
+            NewWidgetService(db, presence),
+            presence,
+            notifier,
+            Clock
+        );
+
+        Result<AlertQueueEntryDto> result = await service.EnqueueAsync(
+            channel,
+            "twitch",
+            "follow",
+            new { user = "TooLate" }
+        );
+
+        result.Value.Status.Should().Be(AlertQueueStatus.Queued);
+        result.Value.DeliveredAt.Should().BeNull();
+        await notifier
+            .DidNotReceiveWithAnyArgs()
+            .SendWidgetEventAsync(default, default, default!, default);
+
+        await using WidgetTestDbContext verifyDb = database.NewContext();
+        AlertQueueEntry stored = await verifyDb.AlertQueueEntries.SingleAsync(e =>
+            e.BroadcasterId == channel
+        );
+        stored.Status.Should().Be(AlertQueueStatus.Queued);
+        stored.DeliveredAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task An_alerts_widget_not_subscribed_to_the_event_gets_no_push_and_the_entry_stays_queued()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedAlertsGalleryItemAsync(database);
+
+        FakePresenceRegistry presence = new() { Attached = true };
+        IWidgetEventNotifier notifier = Substitute.For<IWidgetEventNotifier>();
+
+        await using WidgetTestDbContext db = database.NewContext();
+        AlertQueueService service = new(
+            db,
+            NewWidgetService(db, presence),
+            presence,
+            notifier,
+            Clock
+        );
+
+        // "raid" is not in the seeded alerts widget's default event list.
+        Result<AlertQueueEntryDto> result = await service.EnqueueAsync(
+            channel,
+            "twitch",
+            "raid",
+            new { user = "Raider" }
+        );
+
+        result.Value.Status.Should().Be(AlertQueueStatus.Queued);
+        await notifier
+            .DidNotReceiveWithAnyArgs()
+            .SendWidgetEventAsync(default, default, default!, default);
     }
 }

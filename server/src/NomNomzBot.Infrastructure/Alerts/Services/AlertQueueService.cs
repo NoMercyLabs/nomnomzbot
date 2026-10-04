@@ -94,7 +94,13 @@ public sealed class AlertQueueService : IAlertQueueService
             cancellationToken
         );
 
-        if (surface.IsSuccess && _presence.IsWidgetAttached(broadcasterId, surface.Value.Id))
+        // Same gate as WidgetAlertRouting.Subscribers: a turned-off widget, or one not listening for this
+        // event, gets nothing. The entry then stays Queued, exactly like "no page attached".
+        if (
+            surface is { IsSuccess: true, Value.IsEnabled: true }
+            && surface.Value.EventSubscriptions.Contains(kind)
+            && _presence.IsWidgetAttached(broadcasterId, surface.Value.Id)
+        )
         {
             await _notifier.SendWidgetEventAsync(
                 broadcasterId,
