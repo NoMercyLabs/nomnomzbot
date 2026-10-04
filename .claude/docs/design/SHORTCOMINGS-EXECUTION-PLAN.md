@@ -78,7 +78,8 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   UF·T9: On the one audio page, sound is one at a time: a TTS line that arrives during a sound clip waits
   for the clip's `ended`, and a clip that arrives during a TTS line waits for the line (today `playSound`
   and the TTS queue run independently, `OverlaySdkController.cs:199-242`). An SDK test proves both
-  orders. The no-Audio-Source inbox item is Critical while the channel is live and reads "TTS has nowhere
+  orders. (Landed d6b33b197: TTS lines and unhandled clips share one lane in arrival order; a
+  handled clip stays its own slot; TTS skip, clear and pause leave clips alone.) The no-Audio-Source inbox item is Critical while the channel is live and reads "TTS has nowhere
   to play. Add the TTS source in OBS." It replaces the transient `tts_no_output` alert, which checks
   `tts_speak` subscribers rather than the audio page (`TtsSpeakBroadcastHandler.cs:93-127`).
   UF·T11: The TTS page hands out the Audio Source page as **TTS source for OBS** (today `GET
