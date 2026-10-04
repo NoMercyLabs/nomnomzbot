@@ -10,7 +10,6 @@
 
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
@@ -27,7 +26,8 @@ namespace NomNomzBot.Infrastructure.Commands;
 /// <see cref="IScheduledPipelineService"/> over the <see cref="ScheduledPipelineTask"/> rows. Scheduling clamps
 /// the delay to a safe range and (with a dedupe key) replaces the live pending row in place rather than stacking;
 /// firing marks the row terminal BEFORE dispatch so a mid-dispatch crash can never re-fire, and a task overdue
-/// beyond <see cref="StaleGrace"/> is expired instead of run (a long-late deferred action is wrong to fire).
+/// beyond <see cref="StaleGrace"/> is expired instead of run (a long-late deferred action is wrong to fire). Fired
+/// tasks are handed to the <see cref="IScheduledPipelineDispatcher"/>, which runs them in the background.
 /// </summary>
 public sealed class ScheduledPipelineService : IScheduledPipelineService
 {
@@ -50,23 +50,19 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
     };
 
     private readonly IApplicationDbContext _db;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IScheduledPipelineDispatcher _dispatcher;
     private readonly TimeProvider _clock;
     private readonly ILogger<ScheduledPipelineService> _logger;
 
-    // The engine is resolved lazily on a fresh scope at fire time rather than constructor-injected: a `run_code`
-    // action reaches IScriptRunner → IScheduledPipelineService (the schedule.pipeline capability), so a direct
-    // engine dependency here would close a static DI cycle (engine → run_code → runner → scheduler → engine).
-    // Dispatching on its own scope also isolates each deferred run's DbContext, matching the redemption path.
     public ScheduledPipelineService(
         IApplicationDbContext db,
-        IServiceScopeFactory scopeFactory,
+        IScheduledPipelineDispatcher dispatcher,
         TimeProvider clock,
         ILogger<ScheduledPipelineService> logger
     )
     {
         _db = db;
-        _scopeFactory = scopeFactory;
+        _dispatcher = dispatcher;
         _clock = clock;
         _logger = logger;
     }
@@ -310,52 +306,25 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
         }
         await _db.SaveChangesAsync(cancellationToken);
 
+        // Hand the runs to the background dispatcher: the sweep returns at once, so one channel's slow
+        // pipeline can never hold up the next sweep or another channel's due runs.
         foreach (ScheduledPipelineTask task in toDispatch)
-            await DispatchAsync(task, cancellationToken);
+            _dispatcher.Enqueue(
+                new ScheduledPipelineRun(
+                    task.Id,
+                    task.PipelineName,
+                    new PipelineRequest
+                    {
+                        BroadcasterId = task.BroadcasterId,
+                        PipelineId = task.PipelineId,
+                        TriggeredByUserId = task.TriggeredByUserId,
+                        TriggeredByDisplayName = task.TriggeredByDisplayName,
+                        InitialVariables = DeserializeVariables(task.VariablesJson),
+                    }
+                )
+            );
 
         return due.Count;
-    }
-
-    /// <summary>
-    /// Best-effort dispatch through the pipeline engine. The engine returns a failed result (never throws) when
-    /// the target pipeline was deleted or won't parse; a genuine fault is caught and logged so one bad task can
-    /// never break the sweep or leave a poisoned row behind (the row is already marked fired).
-    /// </summary>
-    private async Task DispatchAsync(ScheduledPipelineTask task, CancellationToken ct)
-    {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            IPipelineEngine engine = scope.ServiceProvider.GetRequiredService<IPipelineEngine>();
-            PipelineExecutionResult result = await engine.ExecuteAsync(
-                new()
-                {
-                    BroadcasterId = task.BroadcasterId,
-                    PipelineId = task.PipelineId,
-                    TriggeredByUserId = task.TriggeredByUserId,
-                    TriggeredByDisplayName = task.TriggeredByDisplayName,
-                    InitialVariables = DeserializeVariables(task.VariablesJson),
-                },
-                ct
-            );
-            if (result.Outcome == PipelineOutcome.Failed)
-                _logger.LogWarning(
-                    "Deferred pipeline {PipelineId} ({PipelineName}) for channel {Channel} fired but failed: {Error}",
-                    task.PipelineId,
-                    task.PipelineName,
-                    task.BroadcasterId,
-                    result.ErrorMessage
-                );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Deferred pipeline {PipelineId} for channel {Channel} threw during dispatch",
-                task.PipelineId,
-                task.BroadcasterId
-            );
-        }
     }
 
     private static Dictionary<string, string> DeserializeVariables(string variablesJson)

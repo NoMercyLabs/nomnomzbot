@@ -90,7 +90,10 @@ public sealed class SchedulePipelineActionTests
             .GetRequiredService<IServiceScopeFactory>();
         ScheduledPipelineService service = new(
             db,
-            scopeFactory,
+            new ScheduledPipelineDispatcher(
+                scopeFactory,
+                NullLogger<ScheduledPipelineDispatcher>.Instance
+            ),
             new FakeTimeProvider(Start),
             NullLogger<ScheduledPipelineService>.Instance
         );

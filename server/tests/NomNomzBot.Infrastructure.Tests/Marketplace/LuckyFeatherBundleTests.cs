@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json.Linq;
@@ -72,7 +71,8 @@ public sealed class LuckyFeatherBundleTests
         FakeTimeProvider Clock,
         IScheduledPipelineService Scheduler,
         IScriptStorageService Storage,
-        IPipelineEngine Engine
+        IPipelineEngine Engine,
+        ScheduledPipelineDispatcher Dispatcher
     );
 
     private static Harness Build()
@@ -189,25 +189,26 @@ public sealed class LuckyFeatherBundleTests
 
         FakeTimeProvider clock = new(Start);
         IPipelineEngine engine = Substitute.For<IPipelineEngine>();
-        // ScheduledPipelineService resolves IPipelineEngine through a fresh DI scope per dispatch (mirroring
+        // The dispatcher resolves IPipelineEngine through a fresh DI scope per run (mirroring
         // ScheduledPipelineExpiryServiceTests' own harness), so a minimal service collection stands in for
         // the app's real container.
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(engine);
-        services.AddSingleton<ILogger<ScheduledPipelineService>>(
-            NullLogger<ScheduledPipelineService>.Instance
-        );
         ServiceProvider provider = services.BuildServiceProvider();
+        ScheduledPipelineDispatcher dispatcher = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<ScheduledPipelineDispatcher>.Instance
+        );
         IScheduledPipelineService scheduler = new ScheduledPipelineService(
             db,
-            provider.GetRequiredService<IServiceScopeFactory>(),
+            dispatcher,
             clock,
             NullLogger<ScheduledPipelineService>.Instance
         );
         IScriptStorageService storage = new ScriptStorageService(db);
 
-        return new(db, import, widgets, clock, scheduler, storage, engine);
+        return new(db, import, widgets, clock, scheduler, storage, engine, dispatcher);
     }
 
     // The real ScriptRunner (JintScriptExecutor + real ScriptHostBridgeFactory over the real storage +
@@ -525,6 +526,8 @@ public sealed class LuckyFeatherBundleTests
 
         h.Clock.Advance(TimeSpan.FromSeconds(LuckyFeatherBundle.HoldDurationSeconds + 5));
         int fired = await h.Scheduler.FireDueAsync();
+        using CancellationTokenSource drainTimeout = new(TimeSpan.FromSeconds(10));
+        await h.Dispatcher.DrainAsync(drainTimeout.Token);
 
         fired.Should().Be(1);
         await h

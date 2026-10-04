@@ -72,6 +72,10 @@ public sealed class ScheduledPipelineExpiryServiceTests
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(engine);
         services.AddSingleton<TimeProvider>(clock);
+        services.AddSingleton<IScheduledPipelineDispatcher, ScheduledPipelineDispatcher>();
+        services.AddSingleton<ILogger<ScheduledPipelineDispatcher>>(
+            NullLogger<ScheduledPipelineDispatcher>.Instance
+        );
         services.AddScoped<IScheduledPipelineService, ScheduledPipelineService>();
         services.AddSingleton<ILogger<ScheduledPipelineService>>(
             NullLogger<ScheduledPipelineService>.Instance
@@ -93,10 +97,15 @@ public sealed class ScheduledPipelineExpiryServiceTests
 
         ScheduledPipelineExpiryService sut = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            provider.GetRequiredService<IScheduledPipelineDispatcher>(),
             clock,
             NullLogger<ScheduledPipelineExpiryService>.Instance
         );
         await sut.TickAsync(CancellationToken.None);
+        using CancellationTokenSource drainTimeout = new(TimeSpan.FromSeconds(10));
+        await provider
+            .GetRequiredService<IScheduledPipelineDispatcher>()
+            .DrainAsync(drainTimeout.Token);
 
         await engine
             .Received(1)
@@ -133,6 +142,10 @@ public sealed class ScheduledPipelineExpiryServiceTests
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(engine);
         services.AddSingleton<TimeProvider>(clock);
+        services.AddSingleton<IScheduledPipelineDispatcher, ScheduledPipelineDispatcher>();
+        services.AddSingleton<ILogger<ScheduledPipelineDispatcher>>(
+            NullLogger<ScheduledPipelineDispatcher>.Instance
+        );
         services.AddScoped<IScheduledPipelineService, ScheduledPipelineService>();
         services.AddSingleton<ILogger<ScheduledPipelineService>>(
             NullLogger<ScheduledPipelineService>.Instance
@@ -145,10 +158,15 @@ public sealed class ScheduledPipelineExpiryServiceTests
 
         ScheduledPipelineExpiryService sut = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            provider.GetRequiredService<IScheduledPipelineDispatcher>(),
             clock,
             NullLogger<ScheduledPipelineExpiryService>.Instance
         );
         await sut.TickAsync(CancellationToken.None);
+        using CancellationTokenSource drainTimeout = new(TimeSpan.FromSeconds(10));
+        await provider
+            .GetRequiredService<IScheduledPipelineDispatcher>()
+            .DrainAsync(drainTimeout.Token);
 
         await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         (await db.ScheduledPipelineTasks.SingleAsync())
@@ -170,6 +188,7 @@ public sealed class ScheduledPipelineExpiryServiceTests
 
         ScheduledPipelineExpiryService sut = new(
             scopeFactory,
+            Substitute.For<IScheduledPipelineDispatcher>(),
             clock,
             NullLogger<ScheduledPipelineExpiryService>.Instance
         );

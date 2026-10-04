@@ -1194,6 +1194,10 @@ public static class DependencyInjection
         // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
         services.AddSingleton<Application.Contracts.Tts.ITtsProfanityCensor, TtsProfanityCensor>();
 
+        // Background runner for fired scheduled pipeline tasks — singleton (one shared set of per-channel queues
+        // and run slots). Does not end in "Service", so registered explicitly here.
+        services.AddSingleton<IScheduledPipelineDispatcher, ScheduledPipelineDispatcher>();
+
         // Per-channel TTS dispatch ordering lock — singleton (its whole point is one shared set of gates
         // across every request, not a fresh one per scope). Does not end in "Service", so registered here.
         services.AddSingleton<

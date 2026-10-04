@@ -59,19 +59,32 @@ public sealed class ScheduledPipelineServiceTests
         return db;
     }
 
-    private static ScheduledPipelineService Build(
+    // xUnit builds one instance per test, so the dispatcher built with the service is this test's own.
+    private ScheduledPipelineDispatcher? _dispatcher;
+
+    private ScheduledPipelineService Build(
         AuthDbContext db,
         FakeTimeProvider clock,
         IPipelineEngine? engine = null
     )
     {
-        // The service resolves the engine on a fresh scope at fire time; register it so that scope can hand it back.
+        // The dispatcher resolves the engine on a fresh scope at run time; register it so that scope can hand it back.
         ServiceCollection services = new();
         services.AddSingleton(engine ?? Substitute.For<IPipelineEngine>());
         IServiceScopeFactory scopeFactory = services
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
-        return new(db, scopeFactory, clock, NullLogger<ScheduledPipelineService>.Instance);
+        _dispatcher = new(scopeFactory, NullLogger<ScheduledPipelineDispatcher>.Instance);
+        return new(db, _dispatcher, clock, NullLogger<ScheduledPipelineService>.Instance);
+    }
+
+    /// <summary>Runs a sweep, then waits for the background runs it queued, so the engine calls can be asserted.</summary>
+    private async Task<int> FireDueAndDrainAsync(ScheduledPipelineService sut)
+    {
+        int fired = await sut.FireDueAsync();
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        await _dispatcher!.DrainAsync(timeout.Token);
+        return fired;
     }
 
     private static IReadOnlyDictionary<string, string> Vars(params (string, string)[] kv) =>
@@ -314,7 +327,7 @@ public sealed class ScheduledPipelineServiceTests
         );
 
         clock.Advance(TimeSpan.FromSeconds(31));
-        int fired = await sut.FireDueAsync();
+        int fired = await FireDueAndDrainAsync(sut);
 
         fired.Should().Be(1);
         // The engine received the saved pipeline id, actor, and variables — the deferred run keeps its context.
@@ -344,8 +357,10 @@ public sealed class ScheduledPipelineServiceTests
         await sut.ScheduleAsync(ChannelA, PipelineId, 10, Vars(), "1", "A");
         clock.Advance(TimeSpan.FromSeconds(11));
 
-        (await sut.FireDueAsync()).Should().Be(1);
-        (await sut.FireDueAsync()).Should().Be(0, "a fired task is terminal and must not re-fire");
+        (await FireDueAndDrainAsync(sut)).Should().Be(1);
+        (await FireDueAndDrainAsync(sut))
+            .Should()
+            .Be(0, "a fired task is terminal and must not re-fire");
 
         await engine
             .Received(1)
@@ -362,13 +377,13 @@ public sealed class ScheduledPipelineServiceTests
         await sut.ScheduleAsync(ChannelA, PipelineId, 300, Vars(), "1", "A");
 
         clock.Advance(TimeSpan.FromSeconds(30)); // still 270s early
-        int fired = await sut.FireDueAsync();
+        int fired = await FireDueAndDrainAsync(sut);
 
         fired.Should().Be(0);
         (await db.ScheduledPipelineTasks.SingleAsync())
             .Status.Should()
             .Be(ScheduledPipelineTaskStatus.Pending);
-        await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
     }
 
     [Fact]
@@ -382,13 +397,13 @@ public sealed class ScheduledPipelineServiceTests
 
         // Simulate a long downtime: the task came due 10s in, but we only sweep well past the grace window.
         clock.Advance(ScheduledPipelineService.StaleGrace + TimeSpan.FromMinutes(5));
-        int handled = await sut.FireDueAsync();
+        int handled = await FireDueAndDrainAsync(sut);
 
         handled.Should().Be(1);
         (await db.ScheduledPipelineTasks.SingleAsync())
             .Status.Should()
             .Be(ScheduledPipelineTaskStatus.Expired);
-        await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default); // a long-late revert must NOT run
+        await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!); // a long-late revert must NOT run
     }
 
     [Fact]
@@ -413,7 +428,7 @@ public sealed class ScheduledPipelineServiceTests
         await sut.ScheduleAsync(ChannelA, PipelineId, 10, Vars(), "1", "A");
         clock.Advance(TimeSpan.FromSeconds(11));
 
-        int fired = await sut.FireDueAsync();
+        int fired = await FireDueAndDrainAsync(sut);
 
         // The sweep survives a failed dispatch and the row is still terminal (no poisoned pending row lingers).
         fired.Should().Be(1);

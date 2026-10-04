@@ -51,7 +51,10 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
 
         ScheduledPipelineService scheduler = new(
             db,
-            provider.GetRequiredService<IServiceScopeFactory>(),
+            new ScheduledPipelineDispatcher(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                NullLogger<ScheduledPipelineDispatcher>.Instance
+            ),
             clock,
             NullLogger<ScheduledPipelineService>.Instance
         );
@@ -605,9 +608,12 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         await db.SaveChangesAsync();
         ScheduledPipelineService scheduler = new(
             db,
-            new ServiceCollection()
-                .BuildServiceProvider()
-                .GetRequiredService<IServiceScopeFactory>(),
+            new ScheduledPipelineDispatcher(
+                new ServiceCollection()
+                    .BuildServiceProvider()
+                    .GetRequiredService<IServiceScopeFactory>(),
+                NullLogger<ScheduledPipelineDispatcher>.Instance
+            ),
             clock,
             NullLogger<ScheduledPipelineService>.Instance
         );

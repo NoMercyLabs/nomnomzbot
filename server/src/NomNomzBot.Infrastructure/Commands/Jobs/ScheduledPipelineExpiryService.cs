@@ -17,8 +17,8 @@ namespace NomNomzBot.Infrastructure.Commands.Jobs;
 
 /// <summary>
 /// Fires DEFERRED, one-shot pipeline runs when they come due (the durable side of the scheduling primitive). Every
-/// tick, <see cref="IScheduledPipelineService.FireDueAsync"/> marks due pending tasks terminal and dispatches them
-/// through the pipeline engine — so a delayed action (a voice-swap auto-revert, a feather auto-hide) runs at its
+/// tick, <see cref="IScheduledPipelineService.FireDueAsync"/> marks due pending tasks terminal and hands them to
+/// the background dispatcher, which runs them through the pipeline engine — so a delayed action (a voice-swap auto-revert, a feather auto-hide) runs at its
 /// moment even across a restart. The very first tick after boot is the startup sweep: any task that came due while
 /// the process was down fires now (or, if overdue beyond the service's stale-grace window, is expired). Mirrors the
 /// <c>RedemptionTimerExpiryService</c> shape: a periodic scan on a fresh DI scope, clock-driven and cross-tenant.
@@ -27,17 +27,23 @@ public sealed class ScheduledPipelineExpiryService : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(5);
 
+    /// <summary>How long shutdown waits for in-flight runs before cancelling them (the host's own limit is 30 s).</summary>
+    internal static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(20);
+
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IScheduledPipelineDispatcher _dispatcher;
     private readonly TimeProvider _clock;
     private readonly ILogger<ScheduledPipelineExpiryService> _logger;
 
     public ScheduledPipelineExpiryService(
         IServiceScopeFactory scopeFactory,
+        IScheduledPipelineDispatcher dispatcher,
         TimeProvider clock,
         ILogger<ScheduledPipelineExpiryService> logger
     )
     {
         _scopeFactory = scopeFactory;
+        _dispatcher = dispatcher;
         _clock = clock;
         _logger = logger;
     }
@@ -67,6 +73,18 @@ public sealed class ScheduledPipelineExpiryService : BackgroundService
                 break;
             }
         }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        // Stop sweeping first, then give the runs already handed to the dispatcher a bounded time to finish.
+        await base.StopAsync(cancellationToken);
+        using CancellationTokenSource timeout = new(DrainTimeout, _clock);
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            timeout.Token
+        );
+        await _dispatcher.DrainAsync(linked.Token);
     }
 
     // Internal so tests can drive a single deterministic tick (InternalsVisibleTo is wired).
