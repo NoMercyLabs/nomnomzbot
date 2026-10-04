@@ -3022,7 +3022,7 @@
     <string name="pipelines_block_cancel_live_game">Cancel live game</string>
     <string name="pipelines_block_var_compare">Compare values</string>
     <string name="pipelines_field_endpoint">Outbound endpoint</string>
-    <string name="pipelines_field_event_type">Event type (optional)</string>
+    <string name="pipelines_field_event_type">Event type</string>
     <string name="pipelines_field_list">Pick-list</string>
     <string name="pipelines_field_pick_variable">Store pick in variable (optional)</string>
     <string name="pipelines_field_compare_left">Left value (e.g. {user})</string>

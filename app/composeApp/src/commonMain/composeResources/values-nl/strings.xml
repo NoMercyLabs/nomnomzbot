@@ -3017,7 +3017,7 @@
     <string name="pipelines_block_cancel_live_game">Live game annuleren</string>
     <string name="pipelines_block_var_compare">Waarden vergelijken</string>
     <string name="pipelines_field_endpoint">Uitgaand eindpunt</string>
-    <string name="pipelines_field_event_type">Gebeurtenistype (optioneel)</string>
+    <string name="pipelines_field_event_type">Gebeurtenistype</string>
     <string name="pipelines_field_list">Keuzelijst</string>
     <string name="pipelines_field_pick_variable">Keuze opslaan in variabele (optioneel)</string>
     <string name="pipelines_field_compare_left">Linkerwaarde (bijv. {user})</string>
