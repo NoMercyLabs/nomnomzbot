@@ -41,7 +41,9 @@ public sealed class OverlaySdkController : ControllerBase
            API: on / off / onAny / onSettings / settings / reportError (unchanged from the postMessage era), plus
            actions.invoke(actionType, params?, variables?) -> Promise<{ success, output, error, errorCode, variables }>,
            which runs one pipeline action as the channel owner. It rejects only when the socket is not connected.
-           actions.claim(key) -> Promise<boolean> is true only for the first open copy of the widget to claim key. */
+           actions.claim(key) -> Promise<boolean> is true only for the first open copy of the widget to claim key.
+           reportYouTubePlayerState(videoId, state, positionMs) -> Promise<boolean> tells the bot what a YouTube player
+           page plays (state PLAYING, PAUSED or ENDED); true when the bot accepted the report. */
         (function () {
           "use strict";
           var RS = String.fromCharCode(30); // SignalR JSON hub-protocol record separator (0x1e)
@@ -404,6 +406,11 @@ public sealed class OverlaySdkController : ControllerBase
             return callHub("ClaimOnce", [widgetId, String(key)]);
           }
 
+          // A YouTube player page reports what it plays; the hub counts it only for this page's own widget.
+          function reportYouTubePlayerState(videoId, state, positionMs) {
+            return callHub("ReportYouTubePlayerState", [widgetId, String(videoId), String(state), Math.round(Number(positionMs) || 0)]);
+          }
+
           function callHub(target, args) {
             return new Promise(function (resolve, reject) {
               if (!widgetId || !ws || ws.readyState !== WebSocket.OPEN) {
@@ -454,6 +461,7 @@ public sealed class OverlaySdkController : ControllerBase
             onSettings: onSettings,
             reportError: report,
             actions: { invoke: invokeAction, claim: claim },
+            reportYouTubePlayerState: reportYouTubePlayerState,
             get settings() { return currentSettings; },
           };
           window.NomNomz = api;

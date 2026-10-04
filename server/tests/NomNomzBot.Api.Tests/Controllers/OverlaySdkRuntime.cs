@@ -110,6 +110,20 @@ internal sealed class OverlaySdkRuntime
         Receive(message);
     }
 
+    /// <summary>Delivers the hub's completion for one of the page's invocations.</summary>
+    public void Complete(string invocationId, object result) =>
+        Receive(
+            JsonSerializer.Serialize(
+                new
+                {
+                    type = 3,
+                    invocationId,
+                    result,
+                },
+                HubJson
+            )
+        );
+
     /// <summary>How many audio elements the page has started playing.</summary>
     public int AudioPlays => (int)_engine.Evaluate("__plays").AsNumber();
 

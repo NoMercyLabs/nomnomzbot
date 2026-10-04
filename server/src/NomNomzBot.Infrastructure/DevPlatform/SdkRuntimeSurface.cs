@@ -241,6 +241,15 @@ internal static class SdkRuntimeSurface
             "  /** Logs the message and reports it to the server as a widget runtime error. */"
         );
         sb.AppendLine("  reportError(message: string): void;");
+        sb.AppendLine(
+            "  /** A YouTube player page tells the bot what it plays: state is 'PLAYING', 'PAUSED' or 'ENDED', positionMs the"
+        );
+        sb.AppendLine(
+            "   *  playhead in milliseconds. Resolves true when the bot accepted it; rejects when the overlay is offline. */"
+        );
+        sb.AppendLine(
+            "  reportYouTubePlayerState(videoId: string, state: string, positionMs: number): Promise<boolean>;"
+        );
         sb.AppendLine($"  readonly settings: {settingsType};");
         sb.AppendLine("  readonly actions: NnzOverlayActions;");
         sb.AppendLine("}");

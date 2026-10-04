@@ -119,6 +119,82 @@ const showYoutubeVideo = computed<boolean>(
   () => cfg.youtubeMode === 'video' && isPlaying.value && !!youtubeVideoId.value
 )
 
+// ── YouTube player (IFrame Player API) ────────────────────────────────────────
+// The bot hands the head of the song queue over as `youtube.play`; this page plays it and reports PLAYING,
+// PAUSED and ENDED with the position (ms) back to the bot. The player stays mounted while hidden so audio plays
+// in card mode too.
+interface YouTubePlayerHandle {
+  loadVideoById(videoId: string): void
+  getCurrentTime(): number
+  getVideoData(): { video_id: string }
+}
+interface YouTubeStateEvent { data: number, target: YouTubePlayerHandle }
+interface YouTubeNamespace {
+  Player: new (el: HTMLElement, options: {
+    width: string
+    height: string
+    videoId: string
+    playerVars: Record<string, number>
+    events: { onStateChange: (e: YouTubeStateEvent) => void }
+  }) => YouTubePlayerHandle
+}
+declare const YT: YouTubeNamespace
+interface YouTubeWindow extends Window {
+  YT?: YouTubeNamespace
+  onYouTubeIframeAPIReady?: () => void
+}
+
+const ytMount = ref<HTMLElement | null>(null)
+let ytPlayer: YouTubePlayerHandle | null = null
+let ytApiPromise: Promise<void> | null = null
+
+// IFrame API state codes: 0 ended, 1 playing, 2 paused.
+const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED' }
+
+function loadYouTubeApi(): Promise<void> {
+  if (ytApiPromise) return ytApiPromise
+  ytApiPromise = new Promise((resolve, reject) => {
+    const w: YouTubeWindow = window
+    if (w.YT) { resolve(); return }
+    w.onYouTubeIframeAPIReady = () => resolve()
+    const script = document.createElement('script')
+    script.src = 'https://www.youtube.com/iframe_api'
+    script.onerror = () => { ytApiPromise = null; reject(new Error('YouTube IFrame API failed to load')) }
+    document.head.appendChild(script)
+  })
+  return ytApiPromise
+}
+
+function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
+  const state: string | undefined = YT_STATE_NAMES[code]
+  if (!state) return
+  NomNomz.reportYouTubePlayerState(player.getVideoData().video_id, state, Math.round(player.getCurrentTime() * 1000))
+    .catch(() => { /* offline: the next state change reports again */ })
+}
+
+async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undefined): Promise<void> {
+  const videoId: string = d?.videoId || ''
+  if (!videoId) return
+  if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
+  try {
+    await loadYouTubeApi()
+  } catch (e) {
+    console.error('[now_playing]', e)
+    return
+  }
+  if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
+  if (!ytMount.value) return
+  ytPlayer = new YT.Player(ytMount.value, {
+    width: '100%',
+    height: '100%',
+    videoId,
+    playerVars: { autoplay: 1, controls: 0 },
+    events: {
+      onStateChange: (e) => reportYouTubeState(e.target, e.data),
+    },
+  })
+}
+
 function onTrackSavedChanged(d: NnzWidgetEventMap['track_saved_changed'] | null | undefined): void {
   const data: Partial<NnzWidgetEventMap['track_saved_changed']> = d || {}
   heartIsSaved.value = !!data.isSaved
@@ -179,6 +255,7 @@ onMounted(() => {
   })
   NomNomz.on('now_playing', onNowPlaying)
   NomNomz.on('track_saved_changed', onTrackSavedChanged)
+  NomNomz.on('youtube.play', onYouTubePlay)
 })
 
 onUnmounted(() => {
@@ -187,6 +264,7 @@ onUnmounted(() => {
   if (typeof NomNomz === 'undefined') return
   NomNomz.off('now_playing', onNowPlaying)
   NomNomz.off('track_saved_changed', onTrackSavedChanged)
+  NomNomz.off('youtube.play', onYouTubePlay)
   disconnectSpotify()
 })
 
@@ -336,15 +414,11 @@ function enableAudio(): void {
 </script>
 
 <template>
-  <iframe
-    v-if="showYoutubeVideo"
-    class="nnz-youtube-video"
-    :src="`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=1&controls=0`"
-    allow="autoplay; encrypted-media"
-    frameborder="0"
-  />
+  <div :class="showYoutubeVideo ? 'nnz-youtube-video' : 'nnz-youtube-hidden'">
+    <div ref="ytMount" />
+  </div>
   <div
-    v-else-if="isPlaying && track"
+    v-if="!showYoutubeVideo && isPlaying && track"
     class="nnz-nowplaying"
     :class="'layout-' + cfg.layout"
     :style="{ '--accent': cfg.accentColor }"
@@ -493,6 +567,13 @@ function enableAudio(): void {
   35% { transform: scale(1); opacity: 1; }
   75% { transform: scale(1); opacity: 1; }
   100% { transform: scale(0.8) translateY(-14px); opacity: 0; }
+}
+.nnz-youtube-hidden {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 .nnz-youtube-video {
   position: fixed;

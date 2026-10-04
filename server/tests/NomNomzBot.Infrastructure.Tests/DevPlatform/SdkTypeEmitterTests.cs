@@ -386,6 +386,10 @@ public sealed class SdkTypeEmitterTests
                 "  invoke<T extends NnzActionsWithOptionalParams>(actionType: T, params?: NnzActionParams[T], variables?: Record<string, string | number>): Promise<NnzActionResult>;"
             );
         ts.Should().Contain("  claim(key: string): Promise<boolean>;");
+        ts.Should()
+            .Contain(
+                "  reportYouTubePlayerState(videoId: string, state: string, positionMs: number): Promise<boolean>;"
+            );
         ts.Should().Contain("  readonly settings: Record<string, unknown>;");
         ts.Should().Contain("declare const WIDGET_ID: string;");
         ts.Should().Contain("declare const WIDGET_TOKEN: string;");

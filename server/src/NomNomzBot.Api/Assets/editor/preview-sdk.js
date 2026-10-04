@@ -64,6 +64,11 @@
     return Promise.resolve(true);
   }
 
+  // A preview plays nothing for the bot, so there is nothing to report; it resolves as accepted.
+  function reportYouTubePlayerState() {
+    return Promise.resolve(true);
+  }
+
   function report(message) {
     tell({ kind: "error", message: String(message) });
   }
@@ -84,6 +89,7 @@
     onAny: onAny,
     onSettings: onSettings,
     reportError: report,
+    reportYouTubePlayerState: reportYouTubePlayerState,
     actions: { invoke: invokeAction, claim: claim },
     get settings() { return currentSettings; },
   };
