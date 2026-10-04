@@ -25,6 +25,7 @@ using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -66,6 +67,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IBuiltinResponseComposer _composer;
     private const int MaxFirstChatChecked = 50_000;
+    private const string DenialTtsCooldownKey = "tts:permission-denied";
+    private static readonly TimeSpan DenialTtsCooldown = TimeSpan.FromSeconds(30);
 
     private readonly ILogger<ChatMessageHandler> _logger;
 
@@ -788,18 +791,101 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             ct
         );
 
-    private Task SendPermissionDeniedNoticeAsync(
+    /// <summary>
+    /// The denial line goes to chat and is ALSO spoken with TTS in the broadcaster's voice — old-bot parity
+    /// (TwitchCommandService.ExecuteCommand sent the same line to SendCachedTts for the broadcaster and to chat).
+    /// The speech is best-effort and rate-limited per viewer, so a spammed denial never floods the TTS queue.
+    /// </summary>
+    private async Task SendPermissionDeniedNoticeAsync(
         ChatMessageReceivedEvent @event,
         ChannelContext ctx,
         CancellationToken ct
-    ) =>
-        SendSystemNoticeAsync(
+    )
+    {
+        string text = await ComposeSystemTextAsync(
             @event,
             ctx,
             BuiltinResponseSlots.SystemReplies.PermissionDenied,
             "You don't have permission to use that command.",
             ct
         );
+        await SendResponseAsync(@event, text, ct);
+        await SpeakDenialAsync(@event, ctx, text, ct);
+    }
+
+    private async Task SpeakDenialAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        string text,
+        CancellationToken ct
+    )
+    {
+        string cooldownChannelKey = @event.BroadcasterId.ToString();
+        if (
+            _cooldowns.IsOnCooldown(
+                cooldownChannelKey,
+                DenialTtsCooldownKey,
+                IsCooldownExempt(@event),
+                @event.UserId
+            )
+        )
+            return;
+        _cooldowns.SetCooldown(
+            cooldownChannelKey,
+            DenialTtsCooldownKey,
+            DenialTtsCooldown,
+            @event.UserId
+        );
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            ITtsDispatchService? tts = scope.ServiceProvider.GetService<ITtsDispatchService>();
+            IUserService? users = scope.ServiceProvider.GetService<IUserService>();
+            if (tts is null || users is null)
+                return;
+
+            Result<UserDto> owner = await users.GetOrCreateAsync(
+                ctx.TwitchChannelId,
+                ctx.ChannelName,
+                ctx.DisplayName ?? ctx.ChannelName,
+                AuthEnums.Platform.Twitch,
+                ct
+            );
+            if (owner.IsFailure || !Guid.TryParse(owner.Value.Id, out Guid ownerUserId))
+                return;
+
+            Result<TtsDispatchOutcome> spoken = await tts.RequestSpeakAsync(
+                new(
+                    BroadcasterId: @event.BroadcasterId,
+                    RequestedByUserId: ownerUserId,
+                    RequestedByTwitchUserId: ctx.TwitchChannelId,
+                    RequestedByDisplayName: ctx.DisplayName ?? ctx.ChannelName,
+                    Text: text,
+                    VoiceIdOverride: null,
+                    BitsAmount: 0,
+                    CommunityStanding: "broadcaster",
+                    SourceMessageId: @event.MessageId,
+                    StreamId: null
+                ),
+                ct
+            );
+            if (spoken.IsFailure)
+                _logger.LogDebug(
+                    "Denial TTS not spoken in {Channel}: {Error}",
+                    @event.BroadcasterId,
+                    spoken.ErrorMessage
+                );
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Denial TTS failed in {Channel}", @event.BroadcasterId);
+        }
+    }
 
     /// <summary>
     /// The single notice sent to the invoker when a pipeline-backed command run PartiallyFailed
@@ -851,9 +937,22 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         string slot,
         string neutralFallback,
         CancellationToken ct
+    ) =>
+        await SendResponseAsync(
+            @event,
+            await ComposeSystemTextAsync(@event, ctx, slot, neutralFallback, ct),
+            ct
+        );
+
+    private async Task<string> ComposeSystemTextAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        string slot,
+        string neutralFallback,
+        CancellationToken ct
     )
     {
-        string text = await _composer.ComposeAsync(
+        return await _composer.ComposeAsync(
             new()
             {
                 BroadcasterId = @event.BroadcasterId,
@@ -864,7 +963,6 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             },
             ct
         );
-        return await SendResponseAsync(@event, text, ct);
     }
 
     /// <summary>
