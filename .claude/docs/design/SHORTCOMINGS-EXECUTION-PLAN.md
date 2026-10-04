@@ -55,6 +55,13 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `ScriptHostBridge.cs:556-560` is not caught, so a failed send faults the whole script ("Script execution
   faulted.", `JintScriptExecutor.cs:501-505`). Done-when: a failed send returns `false` and sets `nnz.lastError`,
   as the contract says; a test that makes the send throw failed first.
+- **S-SCRIPT-CHAT-SEND-FAILURE** Found by the docs writer 2026-10-04. `IChatProvider.SendMessageAsync` returns
+  `false` when the message could not be sent and says callers MUST honour it (`IChatProvider.cs:41-47`), but the
+  script bridge drops that value in `chat.send` and in the `chat.reply` fallback (`ScriptHostBridge.cs:375`, `:405`),
+  so a script whose message never reached chat sees success and `nnz.lastError` stays null. Done-when: a failed send
+  sets `nnz.lastError` with a host error code and the call reports failure as its declared type allows; a test with a
+  provider that returns `false` failed first. Check every other bridge call that drops a `bool` or `Result` from a
+  provider and report N of M.
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
