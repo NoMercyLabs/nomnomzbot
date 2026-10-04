@@ -56,12 +56,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `ReportYouTubePlayerState` (nothing calls it yet, so `nowPlaying` is still null); ENDED advances the queue.
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
-- **S-ROTATED-TOKEN-OPEN-PAGE** Found by the docs writer 2026-10-04. The overlay hub checks a widget token only
-  when a page connects (`OverlayHub.cs:67-77`), so after a rotate (and after the 15-minute grace,
-  `WidgetService.cs:1118`) a page that is already open with the old address keeps receiving events until it
-  reloads. A rotate after a leak does not cut the leaked page off, and the result dialog (`strings.xml:1734`)
-  says the overlay goes blank. Done-when: when the old token's grace ends (or at once on a second rotate),
-  connections that joined with it are dropped; the dialog text matches; a test failed first.
 - **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
   overlay rows give every action the full accent: 8 `TextButton`s with `tokens.primary` text
   (`WidgetsScreen.kt:943, 957, 1046, 1059, 1077, 1137, 1150, 1640`), so a row reads as six equal-weight
