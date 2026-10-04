@@ -97,12 +97,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
   audit (atlas Phase 4), not the delivery. Runs after the SDK fixes above so no page documents a bug.
-- **S-EDITOR-I18N** The web code editor (`server/src/NomNomzBot.Api/Assets/editor/editor.js` and
-  `index.html`) writes every label in English inside the bundle ("Run test", "Running…", panel titles,
-  status text), so a Dutch dashboard shows an English editor. The gallery widget names and
-  descriptions in `FirstPartyWidgetCatalogue.cs` are English literals in the same way. Done-when: the
-  editor takes its labels from the app's resource strings (en and nl) in the open message, the gallery
-  names and descriptions resolve through resource keys, and a test fails when a bundle label has no key.
 ---
 
 ## OWNER PUNCH LIST 2026-09-10 — remaining follow-ups
