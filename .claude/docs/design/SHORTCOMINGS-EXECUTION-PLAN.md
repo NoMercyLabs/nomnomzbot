@@ -133,6 +133,13 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   comment naming `follow` and `cheer` (`WidgetTemplateCatalogue.cs:38-39`), so a fresh widget subscribes to both and
   **Test** opens a menu for events it never handles. Done-when: a name inside a JS comment (in a script file or an
   HTML `<script>` block) adds no event; a real call still does; a test with the Blank template failed first.
+- **S-BUILTIN-EFFECTIVE-ROLE** Found 2026-10-04 while fixing S-CHAT-TRIGGER-EFFECTIVE-ROLE. The command gate lets a
+  built-in run on the EFFECTIVE role (`ChatMessageHandler.cs:286,346`), but the built-in then gets the badge level
+  (`RoleLevel = BadgeLevel(@event)`, `ChatMessageHandler.cs:313,530`). Built-ins that check `RoleLevel` themselves
+  treat a badge-less Editor, a bot-granted role or a `!permit` as a viewer: `CommandsBuiltin.cs:170` (which
+  commands are listed), `SongRequestBuiltin.cs:337,346`, `UpdateUserInfoBuiltin.cs:70`, `GameBuiltins.cs:143`.
+  `MusicModerationGate.cs:37` already asks the resolver itself. Done-when: every `RoleLevel` consumer (N of M)
+  sees the effective level, resolved at most once per message; a test with a badge-less Editor failed first.
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
