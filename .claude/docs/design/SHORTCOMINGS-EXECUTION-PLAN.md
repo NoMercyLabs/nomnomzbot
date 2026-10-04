@@ -113,12 +113,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Done-when: only the listed unit names are accepted (own-key check), every other name gives NaN as the
   documented contract says; a Jint test failed first. Check the other bootstrap lookups by name for the same
   pattern and report N of M.
-- **S-ALERTS-WHEN-OFF** Found by the docs fact-check 2026-10-04. Queued alerts go to the alerts system widget
-  whenever a page of it is attached (`AlertQueueService.cs:91-105`); that path checks neither "turned on" nor
-  the event list, unlike the general routing (`WidgetAlertRouting.cs:23-24`). An alerts page left open keeps
-  playing alerts after the streamer turns the widget off. Done-when: a turned-off alerts widget gets no alert
-  and the entry is handled the same way as "no page attached"; a test failed first. Check every other direct
-  `SendWidgetEventAsync` caller for the same skipped check and report N of M.
 - **S-ROTATED-TOKEN-OPEN-PAGE** Found by the docs writer 2026-10-04. The overlay hub checks a widget token only
   when a page connects (`OverlayHub.cs:67-77`), so after a rotate (and after the 15-minute grace,
   `WidgetService.cs:1118`) a page that is already open with the old address keeps receiving events until it
