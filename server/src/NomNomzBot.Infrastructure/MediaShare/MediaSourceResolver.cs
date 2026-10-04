@@ -11,9 +11,9 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.MediaShare.Services;
 
@@ -32,19 +32,19 @@ public sealed partial class MediaSourceResolver : IMediaSourceResolver
 
     private readonly ITwitchClipsApi _clips;
     private readonly HttpClient _http;
-    private readonly string _youTubeApiKey;
+    private readonly IYouTubeApiKeyResolver _youTubeApiKeys;
     private readonly ILogger<MediaSourceResolver> _logger;
 
     public MediaSourceResolver(
         ITwitchClipsApi clips,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration,
+        IYouTubeApiKeyResolver youTubeApiKeys,
         ILogger<MediaSourceResolver> logger
     )
     {
         _clips = clips;
         _http = httpClientFactory.CreateClient("youtube");
-        _youTubeApiKey = configuration["YouTube:ApiKey"] ?? string.Empty;
+        _youTubeApiKeys = youTubeApiKeys;
         _logger = logger;
     }
 
@@ -117,7 +117,8 @@ public sealed partial class MediaSourceResolver : IMediaSourceResolver
         CancellationToken ct
     )
     {
-        if (string.IsNullOrEmpty(_youTubeApiKey))
+        string? youTubeApiKey = await _youTubeApiKeys.GetAsync(ct);
+        if (youTubeApiKey is null)
             return Result.Failure<ResolvedMedia>(
                 "YouTube submissions are unavailable — the server has no YouTube Data API key.",
                 "SERVICE_UNAVAILABLE"
@@ -125,7 +126,7 @@ public sealed partial class MediaSourceResolver : IMediaSourceResolver
 
         string requestUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"
-            + $"&id={Uri.EscapeDataString(videoId)}&key={Uri.EscapeDataString(_youTubeApiKey)}";
+            + $"&id={Uri.EscapeDataString(videoId)}&key={Uri.EscapeDataString(youTubeApiKey)}";
 
         try
         {

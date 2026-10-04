@@ -41,18 +41,28 @@ public static class CredentialSource
 /// explicit decision to use the shared one. A shipped config default alone is never enough.
 /// </param>
 /// <param name="Supported">False for providers whose credentials this build has no way to use.</param>
+/// <param name="ApiKeySource">
+/// Which source supplies the YouTube Data API key (stored, environment or unset); null for every other
+/// provider, which has no API key. The key itself is never carried.
+/// </param>
 public sealed record ProviderCredentialDto(
     string Provider,
     string? ClientId,
     string ClientIdSource,
     string SecretSource,
     bool AppDecisionRecorded,
-    bool Supported
+    bool Supported,
+    string? ApiKeySource = null
 );
 
 /// <summary>
 /// A credential write. Both fields optional and independent: sending only a secret rotates the secret and
 /// leaves the id alone, which is the common case. A BLANK field means "leave it", never "clear it" — clearing
 /// is <c>DELETE</c>, so a half-filled form can never silently wipe a working credential.
+/// <para><c>ApiKey</c> is the YouTube Data API key and is accepted for the <c>youtube</c> provider only.</para>
 /// </summary>
-public sealed record SaveProviderCredentialRequest(string? ClientId, string? ClientSecret);
+public sealed record SaveProviderCredentialRequest(
+    string? ClientId,
+    string? ClientSecret,
+    string? ApiKey = null
+);

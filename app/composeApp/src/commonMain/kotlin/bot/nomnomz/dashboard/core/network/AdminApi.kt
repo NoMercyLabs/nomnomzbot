@@ -697,7 +697,8 @@ interface AdminApi {
  *
  * [clientId] is the RESOLVED id — what the OAuth flows will actually send — and is safe to show: it appears
  * in every OAuth URL a viewer's browser already sees. There is no secret field, by design; [secretSource]
- * says only whether one exists and which source wins.
+ * says only whether one exists and which source wins. [apiKeySource] does the same for the YouTube Data API
+ * key and is null for every other provider.
  */
 @Serializable
 data class ProviderCredential(
@@ -707,12 +708,14 @@ data class ProviderCredential(
     val secretSource: String = "unset",
     val appDecisionRecorded: Boolean = false,
     val supported: Boolean = true,
+    val apiKeySource: String? = null,
 )
 
 @Serializable
 data class SaveProviderCredentialBody(
     val clientId: String? = null,
     val clientSecret: String? = null,
+    val apiKey: String? = null,
 )
 
 class AdminApiImpl(private val client: ApiClient) : AdminApi {

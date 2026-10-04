@@ -33,6 +33,9 @@ public sealed class ProviderCredentialService : IProviderCredentialService
     private readonly IApplicationDbContext _db;
     private readonly IConfiguration _configuration;
     private readonly ITokenProtector _protector;
+    private const string YouTubeProvider = "youtube";
+    private const string YouTubeApiKeyRow = "youtube.api_key";
+
     private readonly ISystemCredentialsProvider _credentials;
 
     public ProviderCredentialService(
@@ -86,12 +89,19 @@ public sealed class ProviderCredentialService : IProviderCredentialService
         if (normalized is null)
             return Errors.NotFound<ProviderCredentialDto>("Provider", provider);
 
+        if (!string.IsNullOrWhiteSpace(request.ApiKey) && normalized != YouTubeProvider)
+            return Result.Failure<ProviderCredentialDto>(
+                "Only the youtube provider takes an API key.",
+                "VALIDATION_FAILED"
+            );
+
         if (
             string.IsNullOrWhiteSpace(request.ClientId)
             && string.IsNullOrWhiteSpace(request.ClientSecret)
+            && string.IsNullOrWhiteSpace(request.ApiKey)
         )
             return Result.Failure<ProviderCredentialDto>(
-                "Nothing to save — supply a client id, a client secret, or both.",
+                "Nothing to save — supply a client id, a client secret, an API key, or a combination.",
                 "VALIDATION_FAILED"
             );
 
@@ -111,6 +121,14 @@ public sealed class ProviderCredentialService : IProviderCredentialService
                 cancellationToken
             );
 
+        if (!string.IsNullOrWhiteSpace(request.ApiKey))
+            await UpsertAsync(
+                YouTubeApiKeyRow,
+                request.ApiKey.Trim(),
+                secure: true,
+                cancellationToken
+            );
+
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success(await DescribeAsync(normalized, cancellationToken));
     }
@@ -124,7 +142,10 @@ public sealed class ProviderCredentialService : IProviderCredentialService
         if (normalized is null)
             return Errors.NotFound<ProviderCredentialDto>("Provider", provider);
 
-        string[] keys = [$"{normalized}.client_id", $"{normalized}.client_secret"];
+        List<string> keys = [$"{normalized}.client_id", $"{normalized}.client_secret"];
+        if (normalized == YouTubeProvider)
+            keys.Add(YouTubeApiKeyRow);
+
         List<Domain.Platform.Entities.Configuration> stored = await _db
             .Configurations.Where(c => c.BroadcasterId == null && keys.Contains(c.Key))
             .ToListAsync(cancellationToken);
@@ -154,6 +175,13 @@ public sealed class ProviderCredentialService : IProviderCredentialService
         );
         string? envSecret = _configuration[$"{section}:ClientSecret"];
 
+        string? apiKeySource = null;
+        if (provider == YouTubeProvider)
+            apiKeySource = SourceOf(
+                await ReadStoredAsync(YouTubeApiKeyRow, cancellationToken),
+                _configuration["YouTube:ApiKey"]
+            );
+
         return new(
             Provider: provider,
             // The RESOLVED id — what the OAuth flows will actually send — not merely the stored one, so the
@@ -165,7 +193,8 @@ public sealed class ProviderCredentialService : IProviderCredentialService
                 provider,
                 cancellationToken
             ),
-            Supported: true
+            Supported: true,
+            ApiKeySource: apiKeySource
         );
     }
 

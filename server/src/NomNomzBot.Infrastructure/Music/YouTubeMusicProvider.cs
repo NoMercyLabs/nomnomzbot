@@ -11,7 +11,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
@@ -66,7 +65,7 @@ public sealed class YouTubeMusicProvider
     private const int RatingIdsPerRequest = 50; // videos.getRating id cap per live reference.
 
     private readonly HttpClient _http;
-    private readonly string _apiKey;
+    private readonly IYouTubeApiKeyResolver _apiKeys;
     private readonly IYouTubeAccessTokenProvider _accessTokens;
     private readonly ILogger<YouTubeMusicProvider> _logger;
     private readonly IYouTubePlayerStateStore _playerState;
@@ -74,7 +73,7 @@ public sealed class YouTubeMusicProvider
 
     public YouTubeMusicProvider(
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration,
+        IYouTubeApiKeyResolver apiKeys,
         IYouTubeAccessTokenProvider accessTokens,
         IYouTubePlayerStateStore playerState,
         IYouTubePlayerDispatcher players,
@@ -84,7 +83,7 @@ public sealed class YouTubeMusicProvider
         _playerState = playerState;
         _players = players;
         _http = httpClientFactory.CreateClient("youtube");
-        _apiKey = configuration["YouTube:ApiKey"] ?? string.Empty;
+        _apiKeys = apiKeys;
         _accessTokens = accessTokens;
         _logger = logger;
     }
@@ -109,8 +108,9 @@ public sealed class YouTubeMusicProvider
         | MusicProviderCapabilities.Skip
         | MusicProviderCapabilities.Seek;
 
-    /// <summary>The app-level Data API key is present, so search/resolve can reach YouTube.</summary>
-    private bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey);
+    /// <summary>The app-level Data API key (saved first, then configuration), read per request; null when unset.</summary>
+    private Task<string?> ApiKeyAsync(CancellationToken cancellationToken) =>
+        _apiKeys.GetAsync(cancellationToken);
 
     public async Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
@@ -302,7 +302,8 @@ public sealed class YouTubeMusicProvider
     {
         // Unconfigured key ⇒ the feature was never set up for this deployment; empty query genuinely has
         // no possible match — both stay distinct from a live provider outage.
-        if (!IsConfigured)
+        string? apiKey = await ApiKeyAsync(cancellationToken);
+        if (apiKey is null)
             return ([], MusicProviderFailureReason.NotConfigured);
         if (string.IsNullOrWhiteSpace(query))
             return ([], MusicProviderFailureReason.None);
@@ -312,7 +313,7 @@ public sealed class YouTubeMusicProvider
             $"{YouTubeApiBase}/search?part=snippet&type=video&videoEmbeddable=true"
             + $"&maxResults={limit}"
             + $"&q={Uri.EscapeDataString(query)}"
-            + $"&key={Uri.EscapeDataString(_apiKey)}";
+            + $"&key={Uri.EscapeDataString(apiKey)}";
 
         (YouTubeSearchResponse? search, MusicProviderFailureReason searchFailure) =
             await GetJsonAsync<YouTubeSearchResponse>(searchUrl, "search.list", cancellationToken);
@@ -332,7 +333,7 @@ public sealed class YouTubeMusicProvider
             return ([], MusicProviderFailureReason.None);
 
         (Dictionary<string, YouTubeVideo> byId, MusicProviderFailureReason videosFailure) =
-            await FetchVideosByIdAsync(orderedIds, cancellationToken);
+            await FetchVideosByIdAsync(orderedIds, apiKey, cancellationToken);
         if (videosFailure != MusicProviderFailureReason.None)
             return ([], videosFailure);
 
@@ -364,13 +365,14 @@ public sealed class YouTubeMusicProvider
         string? videoId = ExtractVideoId(uriOrId);
         if (videoId is null)
             return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
-        if (!IsConfigured)
+        string? apiKey = await ApiKeyAsync(cancellationToken);
+        if (apiKey is null)
             return (null, MusicProviderFailureReason.NotConfigured);
 
         string videosUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"
             + $"&id={videoId}"
-            + $"&key={Uri.EscapeDataString(_apiKey)}";
+            + $"&key={Uri.EscapeDataString(apiKey)}";
 
         (YouTubeVideoListResponse? response, MusicProviderFailureReason failure) =
             await GetJsonAsync<YouTubeVideoListResponse>(
@@ -1205,12 +1207,16 @@ public sealed class YouTubeMusicProvider
     private async Task<(
         Dictionary<string, YouTubeVideo> ById,
         MusicProviderFailureReason Failure
-    )> FetchVideosByIdAsync(IReadOnlyList<string> orderedIds, CancellationToken cancellationToken)
+    )> FetchVideosByIdAsync(
+        IReadOnlyList<string> orderedIds,
+        string apiKey,
+        CancellationToken cancellationToken
+    )
     {
         string videosUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"
             + $"&id={string.Join(",", orderedIds)}"
-            + $"&key={Uri.EscapeDataString(_apiKey)}";
+            + $"&key={Uri.EscapeDataString(apiKey)}";
 
         (YouTubeVideoListResponse? response, MusicProviderFailureReason failure) =
             await GetJsonAsync<YouTubeVideoListResponse>(

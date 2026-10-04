@@ -349,4 +349,121 @@ public sealed class ProviderCredentialServiceTests
             .SecretSource.Should()
             .Be(CredentialSource.Unset);
     }
+
+    private const string FakeApiKey = "test-key-123";
+
+    [Fact]
+    public async Task A_saved_youtube_api_key_is_sealed_under_its_own_AAD_and_opens_to_the_key()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+
+        await service.SaveAsync("youtube", new(null, null, FakeApiKey));
+
+        Domain.Platform.Entities.Configuration row = db.Configurations.Single(c =>
+            c.BroadcasterId == null && c.Key == "youtube.api_key"
+        );
+        row.SecureValue.Should().NotBeNullOrEmpty();
+        row.SecureValue.Should().NotBe(FakeApiKey);
+        row.Value.Should().BeNull();
+
+        TokenProtectionContext aad = SystemCredentialsProvider.ContextFor("youtube.api_key");
+        aad.Should().Be(new TokenProtectionContext("system", "youtube", "api_key"));
+        (await new ReversibleProtector().TryUnprotectAsync(row.SecureValue!, aad))
+            .Should()
+            .Be(FakeApiKey);
+    }
+
+    [Fact]
+    public async Task The_api_key_never_appears_in_the_save_or_list_response()
+    {
+        (ProviderCredentialService service, _) = Build(
+            new() { ["YouTube:ApiKey"] = "env-key-456" }
+        );
+
+        Result<ProviderCredentialDto> saved = await service.SaveAsync(
+            "youtube",
+            new(null, null, FakeApiKey)
+        );
+        IReadOnlyList<ProviderCredentialDto> listed = (await service.ListAsync()).Value;
+
+        string serialized =
+            System.Text.Json.JsonSerializer.Serialize(saved.Value)
+            + System.Text.Json.JsonSerializer.Serialize(listed);
+        serialized.Should().NotContain(FakeApiKey);
+        serialized.Should().NotContain("env-key-456");
+    }
+
+    [Fact]
+    public async Task The_api_key_source_reads_unset_then_environment_then_stored()
+    {
+        (ProviderCredentialService unsetService, _) = Build();
+        Row((await unsetService.ListAsync()).Value, "youtube")
+            .ApiKeySource.Should()
+            .Be(CredentialSource.Unset);
+
+        (ProviderCredentialService envService, _) = Build(new() { ["YouTube:ApiKey"] = "env-key" });
+        Row((await envService.ListAsync()).Value, "youtube")
+            .ApiKeySource.Should()
+            .Be(CredentialSource.Environment);
+
+        Result<ProviderCredentialDto> saved = await envService.SaveAsync(
+            "youtube",
+            new(null, null, FakeApiKey)
+        );
+        saved.Value.ApiKeySource.Should().Be(CredentialSource.Stored);
+    }
+
+    [Fact]
+    public async Task Clearing_youtube_removes_the_stored_key_and_falls_back_to_the_config_key()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build(
+            new() { ["YouTube:ApiKey"] = "env-key" }
+        );
+        await service.SaveAsync("youtube", new(null, null, FakeApiKey));
+
+        Result<ProviderCredentialDto> cleared = await service.ClearAsync("youtube");
+
+        cleared.Value.ApiKeySource.Should().Be(CredentialSource.Environment);
+        db.Configurations.Any(c => c.Key == "youtube.api_key").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task An_api_key_alone_is_a_valid_save_and_leaves_the_oauth_credentials_alone()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+        await service.SaveAsync("youtube", new("keep-id", "keep-secret"));
+
+        Result<ProviderCredentialDto> result = await service.SaveAsync(
+            "youtube",
+            new(null, null, FakeApiKey)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ClientId.Should().Be("keep-id");
+        result.Value.SecretSource.Should().Be(CredentialSource.Stored);
+        db.Configurations.Count(c => c.Key.StartsWith("youtube.")).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task An_api_key_for_a_provider_that_has_none_is_refused_and_stores_nothing()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+
+        Result<ProviderCredentialDto> result = await service.SaveAsync(
+            "twitch",
+            new("id", null, FakeApiKey)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        db.Configurations.Any(c => c.Key == "twitch.api_key").Should().BeFalse();
+        db.Configurations.Any(c => c.Key == "twitch.client_id").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Providers_without_an_api_key_report_no_api_key_source()
+    {
+        (ProviderCredentialService service, _) = Build();
+
+        Row((await service.ListAsync()).Value, "twitch").ApiKeySource.Should().BeNull();
+    }
 }

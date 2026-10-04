@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
@@ -468,7 +469,8 @@ internal static class YouTubeProviderFactory
         IApplicationDbContext? db = null,
         FakeIntegrationTokenVault? vault = null,
         IYouTubePlayerStateStore? playerState = null,
-        IYouTubePlayerDispatcher? players = null
+        IYouTubePlayerDispatcher? players = null,
+        IYouTubeApiKeyResolver? keyResolver = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -495,7 +497,8 @@ internal static class YouTubeProviderFactory
 
         return new(
             factory,
-            configuration,
+            keyResolver
+                ?? new YouTubeApiKeyResolver(NullSystemCredentialsProvider.Instance, configuration),
             accessTokens,
             store,
             players

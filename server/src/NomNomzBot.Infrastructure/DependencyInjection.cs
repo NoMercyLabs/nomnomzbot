@@ -894,6 +894,8 @@ public static class DependencyInjection
             Platform.Configuration.SystemCredentialsProvider
         >();
 
+        services.AddSingleton<IYouTubeApiKeyResolver, YouTubeApiKeyResolver>();
+
         // Per-channel BYOC credential resolution (S-BYOC-spotify-a) — layers a channel's own OAuth app
         // credentials over the system-level ones above, on the same DB-scoped-per-read pattern. Singleton
         // for the same reason: it creates its own scope per read so it never shares a DbContext with its

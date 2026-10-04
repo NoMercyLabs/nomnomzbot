@@ -16,6 +16,8 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.MediaShare.Services;
 using NomNomzBot.Domain.MediaShare.Entities;
 using NomNomzBot.Infrastructure.MediaShare;
+using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Tests.Music;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.MediaShare;
@@ -67,7 +69,12 @@ public sealed class MediaSourceResolverTests
             )
             .Build();
 
-        return new(clipsApi, factory, config, NullLogger<MediaSourceResolver>.Instance);
+        return new(
+            clipsApi,
+            factory,
+            new YouTubeApiKeyResolver(NullSystemCredentialsProvider.Instance, config),
+            NullLogger<MediaSourceResolver>.Instance
+        );
     }
 
     private static ITwitchClipsApi BuildClipsApi(params TwitchClip[] clips)
