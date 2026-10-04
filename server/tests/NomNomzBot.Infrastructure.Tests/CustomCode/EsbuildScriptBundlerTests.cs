@@ -57,7 +57,7 @@ public sealed class EsbuildScriptBundlerTests
 
         bundle.IsFailure.Should().BeTrue();
         bundle.ErrorCode.Should().Be("SCRIPT_BUILD_FAILED");
-        bundle.ErrorMessage.Should().Be("index.ts:2:19: Could not resolve \"./scenes\"");
+        bundle.ErrorMessage.Should().Be("index.ts:2:20: Could not resolve \"./scenes\"");
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class EsbuildScriptBundlerTests
 
         bundle.IsFailure.Should().BeTrue();
         bundle.ErrorCode.Should().Be("SCRIPT_BUILD_FAILED");
-        bundle.ErrorMessage.Should().StartWith("index.ts:1:14: Could not resolve \"lodash\"");
+        bundle.ErrorMessage.Should().StartWith("index.ts:1:15: Could not resolve \"lodash\"");
     }
 
     [Fact]
@@ -153,8 +153,8 @@ public sealed class EsbuildScriptBundlerTests
         bundle
             .ErrorMessage.Should()
             .Be(
-                "index.ts:1:14: Could not resolve \"./a\"\n"
-                    + "index.ts:2:14: Could not resolve \"./b\""
+                "index.ts:1:15: Could not resolve \"./a\"\n"
+                    + "index.ts:2:15: Could not resolve \"./b\""
             );
     }
 

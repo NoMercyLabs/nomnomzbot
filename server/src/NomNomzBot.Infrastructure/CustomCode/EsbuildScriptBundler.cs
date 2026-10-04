@@ -142,7 +142,7 @@ public sealed partial class EsbuildScriptBundler(
             return string.Join(
                 '\n',
                 errors.Select(e =>
-                    $"{e.Position.File}:{e.Position.Line}:{e.Position.Column - 1}: {e.Message}"
+                    $"{e.Position.File}:{e.Position.Line}:{e.Position.Column}: {e.Message}"
                 )
             );
         return string.IsNullOrWhiteSpace(standardError)
