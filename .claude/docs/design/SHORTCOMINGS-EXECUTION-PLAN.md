@@ -119,14 +119,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   command key only if the variables are the same, else a new sample source); a resolver test failed first.
   Noted, not in scope: the resolver also types `PipelineTriggers` rows (`:111-139`) that nothing dispatches at
   runtime yet (only `PipelineTreeCompatibilityService.UpcastTriggers` reads the type).
-- **S-CHAT-TRIGGER-EFFECTIVE-ROLE** Found by the docs writer 2026-10-04. Item 24c gave a command pipeline the
-  EFFECTIVE role (`ChatMessageHandler.cs:438-447`, `ResolveEffectiveRoleTokenAsync` at `:1094`: a badge-less
-  Editor, a bot-granted membership or a `!permit` elevation counts). A chat trigger did not get it: its gate
-  uses the badge only (`:1138` `BadgeLevel`) and its pipeline gets the badge `user.role` (`:1367` via
-  `BuildInitialVariables` `:1515`). So the same viewer passes a role check in a command and fails it in a chat
-  trigger. Done-when: the chat-trigger gate and its `user.role` use the effective role like the command path;
-  a test for a badge-less Editor failed first. Check the other `BadgeLevel` sites (`:313`, `:530`) and report
-  N of M.
 - **S-WIDGET-EVENTS-FROM-COMMENTS** Found by the docs writer 2026-10-04, checked against the code. A save adds every
   `NomNomz.on('<name>'` the regex finds in the built bundle to the widget's events (`WidgetEventSubscriptions.cs`,
   called at `WidgetService.cs:798,957`), comments included. The Blank widget template has no handler, only a help
