@@ -89,6 +89,19 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   So one channel's slow pipelines delay every other channel's scheduled runs and can silently drop them.
   Done-when: a slow run of one channel does not delay or expire another channel's due run (dispatch does not
   block the sweep; bounded concurrency; order kept within a channel); a test with a run that blocks failed first.
+- **S-WIDGET-EVENT-DATA** Found by the docs writer 2026-10-04. The pipeline step `widget_event` marks no field
+  `Templated` (`WidgetEventAction.cs:39-58`), so the engine never fills `{user}`-style templates in it
+  (`PipelineEngine.cs:849-866` resolves only `Templated` fields). Its `data` field is Text, so the widget gets
+  the raw text, not a JSON object (`WidgetEventAction.cs:122`, `PipelinesApi.kt:382-404`). Done when `data` and
+  `event_type` are `Templated`, a step with data `{"user":"{user}"}` reaches the widget as an object with the name
+  filled in (the engine's `ResolvedStringToElement` already keeps object/array roots), and a test proves both.
+- **S-WIDGET-EVENT-PRESENCE** Found by the docs writer 2026-10-04. `widget_event` returns success when no browser
+  source has the widget open (`WidgetEventAction.cs:92-100`), so the run log says it worked while nothing showed.
+  `IOverlayPresenceRegistry.IsWidgetAttached` already answers this for TTS. Done when the step fails with a plain
+  reason when the widget is not attached, and a test proves both cases.
+- **S-WIDGET-EVENT-LABEL** Found by the docs writer 2026-10-04. The editor labels `event_type` "Event type
+  (optional)" (`strings.xml:3025`) for every step, but `widget_event` requires it (`WidgetEventAction.cs:50`);
+  only `send_webhook` treats it as optional (`SendWebhookAction.cs:76`). Done when the label is right for each step.
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
