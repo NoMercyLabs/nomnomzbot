@@ -100,12 +100,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   variable `streak.message` (`WatchStreakHandler.cs:67`) is always empty on a live stream; only the sample sets it.
   Done-when: the shared message reaches `CustomMessage` and `streak.message`; a translator test with a real
   `channel.chat.notification` watch_streak payload failed first.
-- **S-WIDGET-EVENTS-FROM-COMMENTS** Found by the docs writer 2026-10-04, checked against the code. A save adds every
-  `NomNomz.on('<name>'` the regex finds in the built bundle to the widget's events (`WidgetEventSubscriptions.cs`,
-  called at `WidgetService.cs:798,957`), comments included. The Blank widget template has no handler, only a help
-  comment naming `follow` and `cheer` (`WidgetTemplateCatalogue.cs:38-39`), so a fresh widget subscribes to both and
-  **Test** opens a menu for events it never handles. Done-when: a name inside a JS comment (in a script file or an
-  HTML `<script>` block) adds no event; a real call still does; a test with the Blank template failed first.
 - **S-BUILTIN-EFFECTIVE-ROLE** Found 2026-10-04 while fixing S-CHAT-TRIGGER-EFFECTIVE-ROLE. The command gate lets a
   built-in run on the EFFECTIVE role (`ChatMessageHandler.cs:286,346`), but the built-in then gets the badge level
   (`RoleLevel = BadgeLevel(@event)`, `ChatMessageHandler.cs:313,530`). Built-ins that check `RoleLevel` themselves
