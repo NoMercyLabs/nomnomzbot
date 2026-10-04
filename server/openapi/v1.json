@@ -100860,6 +100860,12 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "inboundUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Safe read projection — the `AuthSecret` is never echoed; only its presence is surfaced."
@@ -114272,6 +114278,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "project": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectDto"
+              }
             ]
           }
         },
