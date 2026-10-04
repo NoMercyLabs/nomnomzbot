@@ -26,6 +26,7 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BuildError
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptVersion
@@ -356,6 +357,10 @@ class CodeScriptsController(
                             variablesSet = result.variablesSet,
                             console = result.console,
                             timeline = result.timeline.map { row -> EditorTestRunTimelineEntry(row.seq, row.kind, row.text) },
+                            errors =
+                                result.errorPosition
+                                    ?.let { position -> listOf(BuildError("runtime", result.error ?: "", position.file, position.line, position.column)) }
+                                    .orEmpty(),
                         ),
                     )
                 else -> EditorOutcome.Failed("No result.")
@@ -496,7 +501,7 @@ class CodeScriptsController(
                 api.putProject(id, ProjectDto(files = files, manifest = project.manifest))
         ) {
             is ApiResult.Ok -> CompileFeedback(ok = true, message = compiledMessage)
-            is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
+            is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message, errors = result.error.errors)
         }
 
     private suspend fun loadListSilent() {

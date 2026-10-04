@@ -35,6 +35,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 // The one shared HttpClient (frontend-structure.md F7 — exactly one client). It is base-URL- and
 // token-agnostic at construction: the active backend URL and the bearer token are read on EVERY
@@ -580,6 +583,11 @@ class ApiClient(
             } catch (_: Throwable) {
                 ""
             }
+        return errorFromBody(response.status.value, response.status.description, text)
+    }
+
+    /** Builds the normalized failure from a status line and the raw body; pure, so the shapes are testable. */
+    internal fun errorFromBody(status: Int, reasonPhrase: String?, text: String): ApiError {
         val problem: ProblemDetails? =
             try {
                 if (text.isNotBlank()) json.decodeFromString(ProblemDetails.serializer(), text) else null
@@ -600,20 +608,34 @@ class ApiClient(
                 null
             }
         return ApiError(
-            status = response.status.value,
+            status = status,
             // Prefer the StatusResponseDto envelope's `code` (the failing Result.ErrorCode, e.g.
             // PROVIDER_NOT_CONFIGURED) — this is how a caller branches on WHY a request failed, not just
             // its HTTP status. Problem-details `type` is the alternate machine-readable slot when THAT shape
             // is what came back; the bare status number is the last-resort fallback.
-            code = envelope?.code ?: problem?.type ?: response.status.value.toString(),
+            code = envelope?.code ?: problem?.type ?: status.toString(),
             message = failureMessage(
-                response.status.value,
+                status,
                 problem?.detail ?: envelope?.message,
                 problem?.title,
-                response.status.description,
+                reasonPhrase,
             ),
             traceId = problem?.traceId,
+            errors = buildErrorsOf(envelope?.data),
         )
     }
+
+    // `data.errors` of a rejected project save. Each item is decoded on its own, so one malformed entry (or a `data`
+    // of another shape) drops only itself — never the failure's message.
+    private fun buildErrorsOf(data: JsonElement?): List<BuildError> =
+        ((data as? JsonObject)?.get("errors") as? JsonArray)
+            .orEmpty()
+            .mapNotNull { item ->
+                try {
+                    json.decodeFromJsonElement(BuildError.serializer(), item)
+                } catch (_: Exception) {
+                    null
+                }
+            }
 
 }

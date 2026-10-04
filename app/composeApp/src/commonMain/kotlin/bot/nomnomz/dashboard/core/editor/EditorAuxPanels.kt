@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.editor
 
+import bot.nomnomz.dashboard.core.network.BuildError
+
 // The multi-file project editor's optional auxiliary panels (S-CODE-COLLAPSE): version history and a captured
 // dry-run. Both used to live on a separate pre-editor page (code scripts) or a Compose dialog reached from the
 // list (widgets); this is the seam that lets either caller surface them INSIDE the editor itself — a side view
@@ -71,6 +73,8 @@ data class EditorTestRunResult(
     val variablesSet: Map<String, String>? = null,
     val console: List<String>? = null,
     val timeline: List<EditorTestRunTimelineEntry> = emptyList(),
+    /** Where the failing run threw, as editor-underlinable errors; empty when the run passed. */
+    val errors: List<BuildError> = emptyList(),
 )
 
 /** One row of the ordered test-run timeline; [kind] is chat, effect or console. */

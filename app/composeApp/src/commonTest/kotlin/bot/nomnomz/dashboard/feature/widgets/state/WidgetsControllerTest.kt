@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BuildError
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -511,6 +512,44 @@ class WidgetsControllerTest {
         assertEquals(listOf("w-1" to mapOf("index.vue" to "<broken")), widgetsApi.savedProjects)
         assertEquals(
             listOf(CompileFeedback(ok = false, message = "Unexpected token '<' at 3:1")),
+            editor.feedbacks,
+        )
+    }
+
+    @Test
+    fun a_failed_widget_save_hands_the_editor_every_build_error_with_its_position() = runTest {
+        val buildError: BuildError = BuildError("build", "Unexpected token", "index.vue", 3, 1)
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(id = "w-1", name = "Timer", framework = "vue", activeVersionId = "v-1")
+                    )
+                ),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.vue" to "<old/>"),
+                            manifest = ProjectManifestDto(entry = "index.vue", kind = "widget", framework = "vue"),
+                        )
+                    ),
+                putProjectResult =
+                    ApiResult.Failure(
+                        ApiError(400, "VALIDATION_FAILED", "Unexpected token", errors = listOf(buildError))
+                    ),
+            )
+        val editor = FakeProjectEditor(toSave = listOf("<broken"))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vue", activeVersionId = "v-1"),
+            messages,
+        )
+
+        assertEquals(
+            listOf(CompileFeedback(ok = false, message = "Unexpected token", errors = listOf(buildError))),
             editor.feedbacks,
         )
     }

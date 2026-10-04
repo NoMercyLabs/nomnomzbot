@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.editor
 
+import bot.nomnomz.dashboard.core.network.BuildError
 import kotlinx.serialization.json.JsonObject
 
 // Contract for opening the multi-file dev-platform code editor over the dashboard (dev-platform.md §5, Pillar 3).
@@ -101,4 +102,4 @@ data class EditorPreviewWidget(
 )
 
 /** The outcome of a compile the editor renders inline — green on success, red with the real build error. */
-data class CompileFeedback(val ok: Boolean, val message: String)
+data class CompileFeedback(val ok: Boolean, val message: String, val errors: List<BuildError> = emptyList())

@@ -1420,6 +1420,8 @@ function showTestRunResult(data) {
         return;
     }
 
+    // A run that threw underlines the line it threw on; a clean run clears the old underline.
+    showBuildErrors(data.errors);
     dom.testRunStatus.hidden = false;
     dom.testRunStatus.dataset.ok = String(Boolean(data.success));
     dom.testRunStatus.textContent = data.success

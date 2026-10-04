@@ -445,7 +445,7 @@ class WidgetsController(
         when (val result: ApiResult<WidgetVersionDetail> =
             widgetsApi.putProject(channel, widgetId, ProjectDto(files = files, manifest = manifest))) {
             is ApiResult.Ok -> CompileFeedback(ok = true, message = messages.compiled)
-            is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
+            is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message, errors = result.error.errors)
         }
 
     // A one-file seed project for a widget with no saved project yet — mirrors the backend's single-file scaffold

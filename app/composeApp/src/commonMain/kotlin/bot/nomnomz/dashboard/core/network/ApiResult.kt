@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import kotlinx.serialization.Serializable
+
 // The single result type every facade returns (frontend.md §3.1) — mirrors the backend
 // StatusResponseDto<T> / problem-details envelopes. Operations never throw across the
 // facade boundary or return null; they return Ok or Failure.
@@ -25,4 +27,16 @@ data class ApiError(
     val code: String?,
     val message: String,
     val traceId: String? = null,
+    /** Every build problem a rejected project save listed, each with its file, line and column when known. */
+    val errors: List<BuildError> = emptyList(),
+)
+
+/** One build or runtime problem the backend located in a project file (the `data.errors` items of a failed save). */
+@Serializable
+data class BuildError(
+    val code: String? = null,
+    val message: String = "",
+    val file: String? = null,
+    val line: Int? = null,
+    val column: Int? = null,
 )

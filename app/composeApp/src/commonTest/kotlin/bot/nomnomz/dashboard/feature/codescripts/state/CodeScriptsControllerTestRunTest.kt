@@ -34,6 +34,8 @@ import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
 import bot.nomnomz.dashboard.core.network.TestTrigger
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
+import bot.nomnomz.dashboard.core.network.BuildError
+import bot.nomnomz.dashboard.core.network.SourcePosition
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.TimelineEntry
 import kotlin.test.Test
@@ -113,6 +115,41 @@ class CodeScriptsControllerTestRunTest {
         val result: EditorTestRunResult = (editor.outcome as EditorOutcome.Ok).value
         assertEquals(mapOf("mood" to "happy"), result.variablesSet)
         assertEquals(listOf("mood is happy", "warn: careful"), result.console)
+    }
+
+    @Test
+    fun the_editor_test_run_panel_gets_the_failing_line_so_the_editor_can_underline_it() = runTest {
+        val captured =
+            TestRunResult(
+                success = false,
+                error = "boom (line 3, column 5)",
+                durationMs = 3,
+                hostCallCount = 0,
+                errorPosition = SourcePosition(file = "index.ts", line = 3, column = 5),
+            )
+        val editor = TestRunPressingEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(ApiResult.Ok(captured)), editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        val result: EditorTestRunResult = (editor.outcome as EditorOutcome.Ok).value
+        assertEquals(
+            listOf(BuildError(code = "runtime", message = "boom (line 3, column 5)", file = "index.ts", line = 3, column = 5)),
+            result.errors,
+        )
+    }
+
+    @Test
+    fun a_successful_test_run_hands_the_editor_no_errors() = runTest {
+        val captured = TestRunResult(success = true, durationMs = 3, hostCallCount = 0)
+        val editor = TestRunPressingEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(ApiResult.Ok(captured)), editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        assertTrue((editor.outcome as EditorOutcome.Ok).value.errors.isEmpty())
     }
 
     @Test

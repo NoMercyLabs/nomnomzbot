@@ -231,7 +231,13 @@ data class TestRunResult(
     val console: List<String>? = null,
     /** Every effect, chat message and console line in the order it happened; empty for run kinds without one. */
     val timeline: List<TimelineEntry> = emptyList(),
+    /** Where the failing script threw; null when the run passed or the position is unknown. */
+    val errorPosition: SourcePosition? = null,
 )
+
+/** A position in a script file (backend `ScriptSourcePosition`). */
+@Serializable
+data class SourcePosition(val file: String? = null, val line: Int = 0, val column: Int = 0)
 
 /** One row of a dry-run timeline (backend `TimelineEntryDto`); [kind] is chat, effect or console. */
 @Serializable

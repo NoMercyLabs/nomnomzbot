@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 // Hand-authored mirrors of the backend auth contract for this slice. These move into the
 // committed OpenAPI-generated layer (core/network/generated, frontend-structure.md §5) when
@@ -77,7 +78,12 @@ data class CurrentUser(
  * from here or it is lost and the caller sees only a bare status code.
  */
 @Serializable
-data class ErrorEnvelope(val message: String? = null, val code: String? = null)
+data class ErrorEnvelope(
+    val message: String? = null,
+    val code: String? = null,
+    /** Kept as raw JSON: a failure may carry an object (`{"errors":[...]}`), a string or an array here. */
+    val data: JsonElement? = null,
+)
 
 /** RFC-7807 problem details the backend returns for 4xx/5xx. */
 @Serializable

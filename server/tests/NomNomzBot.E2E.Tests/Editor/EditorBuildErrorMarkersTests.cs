@@ -39,6 +39,15 @@ public sealed class EditorBuildErrorMarkersTests : EditorPageTest
         await Page.WaitForTimeoutAsync(300);
     }
 
+    private async Task PostTestRunResultAsync(string json)
+    {
+        await Page.EvaluateAsync(
+            "(json) => window.postMessage({ type: 'nnz:editor:testRunResult', ...JSON.parse(json) }, window.location.origin)",
+            json
+        );
+        await Page.WaitForTimeoutAsync(300);
+    }
+
     private async Task<IReadOnlyList<BuildMarker>> MarkersAsync() =>
         (
             await Page.EvaluateAsync<JsonElement>(
@@ -120,6 +129,38 @@ public sealed class EditorBuildErrorMarkersTests : EditorPageTest
         Assert.Single(await MarkersAsync());
 
         await PostCompiledAsync("""{ "ok": true, "message": "compiled" }""");
+
+        Assert.Empty(await MarkersAsync());
+    }
+
+    [E2EFact]
+    public async Task A_test_run_that_threw_underlines_the_line_it_threw_on()
+    {
+        await OpenProjectAsync();
+        await Expect(Page.Locator("#shell")).ToBeVisibleAsync();
+
+        await PostTestRunResultAsync(
+            """{ "ok": true, "success": false, "error": "boom", "errors": [ { "message": "boom", "file": "index.js", "line": 3, "column": 7 } ] }"""
+        );
+
+        BuildMarker marker = Assert.Single(await MarkersAsync());
+        Assert.Equal("index.js", marker.File);
+        Assert.Equal(3, marker.Line);
+        Assert.Equal(7, marker.Column);
+        Assert.Equal("boom", marker.Message);
+    }
+
+    [E2EFact]
+    public async Task A_clean_test_run_clears_the_old_underline()
+    {
+        await OpenProjectAsync();
+        await Expect(Page.Locator("#shell")).ToBeVisibleAsync();
+        await PostCompiledAsync(
+            """{ "ok": false, "message": "1 error", "errors": [ { "message": "x", "file": "index.js", "line": 2, "column": 1 } ] }"""
+        );
+        Assert.Single(await MarkersAsync());
+
+        await PostTestRunResultAsync("""{ "ok": true, "success": true }""");
 
         Assert.Empty(await MarkersAsync());
     }

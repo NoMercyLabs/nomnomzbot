@@ -10,10 +10,12 @@
 
 package bot.nomnomz.dashboard.core.editor
 
+import bot.nomnomz.dashboard.core.network.BuildError
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -152,6 +154,7 @@ object EditorBridgeProtocol {
                 put("type", COMPILED)
                 put("ok", feedback.ok)
                 put("message", feedback.message)
+                putBuildErrors(feedback.errors)
             }
         )
 
@@ -210,8 +213,29 @@ object EditorBridgeProtocol {
                         }
                     ),
                 )
+                putBuildErrors(result.errors)
             }
         )
+
+    // The located problems the editor underlines; absent (not empty) when there are none, so an older editor page
+    // and a clean reply stay byte-identical to what they were before positions existed.
+    private fun JsonObjectBuilder.putBuildErrors(errors: List<BuildError>) {
+        if (errors.isEmpty()) return
+        put(
+            "errors",
+            JsonArray(
+                errors.map { error ->
+                    buildJsonObject {
+                        error.code?.let { code -> put("code", code) }
+                        put("message", error.message)
+                        error.file?.let { file -> put("file", file) }
+                        error.line?.let { line -> put("line", line) }
+                        error.column?.let { column -> put("column", column) }
+                    }
+                }
+            ),
+        )
+    }
 
     fun testRunFailure(message: String): String =
         encode(

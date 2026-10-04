@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.editor
 
+import bot.nomnomz.dashboard.core.network.BuildError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -61,5 +62,73 @@ class EditorBridgeProtocolTest {
         val encoded: String = EditorBridgeProtocol.compiled(CompileFeedback(ok = true, message = "Built \"v3\"\nok"))
 
         assertEquals("""{"type":"nnz:editor:compiled","ok":true,"message":"Built \"v3\"\nok"}""", encoded)
+    }
+
+    @Test
+    fun aCompiledReplyCarriesEachErrorWithItsFileLineAndColumn() {
+        val encoded: String =
+            EditorBridgeProtocol.compiled(
+                CompileFeedback(
+                    ok = false,
+                    message = "2 errors",
+                    errors =
+                        listOf(
+                            BuildError(code = "build", message = "bad token", file = "lib.ts", line = 2, column = 18),
+                            BuildError(code = "build", message = "no entry", file = null, line = null, column = null),
+                        ),
+                )
+            )
+
+        assertEquals(
+            """{"type":"nnz:editor:compiled","ok":false,"message":"2 errors","errors":[""" +
+                """{"code":"build","message":"bad token","file":"lib.ts","line":2,"column":18},""" +
+                """{"code":"build","message":"no entry"}]}""",
+            encoded,
+        )
+    }
+
+    @Test
+    fun aCompiledReplyWithoutErrorsHasNoErrorsField() {
+        val encoded: String = EditorBridgeProtocol.compiled(CompileFeedback(ok = false, message = "failed"))
+
+        assertEquals("""{"type":"nnz:editor:compiled","ok":false,"message":"failed"}""", encoded)
+    }
+
+    @Test
+    fun aTestRunResultCarriesTheErrorPositionAsAnErrorForTheEditorToUnderline() {
+        val result: EditorTestRunResult =
+            EditorTestRunResult(
+                success = false,
+                durationMs = 4,
+                hostCallCount = 0,
+                error = "boom (line 3, column 5)",
+                chatOutput = emptyList(),
+                effects = emptyList(),
+                errors = listOf(BuildError(code = "runtime", message = "boom", file = "index.ts", line = 3, column = 5)),
+            )
+
+        val encoded: String = EditorBridgeProtocol.testRunResult(result)
+
+        assertTrue(
+            encoded.contains(
+                """"errors":[{"code":"runtime","message":"boom","file":"index.ts","line":3,"column":5}]"""
+            ),
+            encoded,
+        )
+    }
+
+    @Test
+    fun aTestRunResultWithoutAnErrorPositionHasNoErrorsField() {
+        val result: EditorTestRunResult =
+            EditorTestRunResult(
+                success = true,
+                durationMs = 4,
+                hostCallCount = 0,
+                error = null,
+                chatOutput = emptyList(),
+                effects = emptyList(),
+            )
+
+        assertTrue(!EditorBridgeProtocol.testRunResult(result).contains("\"errors\""))
     }
 }
