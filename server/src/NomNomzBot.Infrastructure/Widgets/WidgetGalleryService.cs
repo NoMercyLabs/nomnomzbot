@@ -44,7 +44,7 @@ public partial class WidgetGalleryService(
     private const string VerifiedCommunityTier = "verified_community";
     private const string GitHubSourceKind = "github";
 
-    private static readonly string[] Frameworks = ["vue", "react", "vanilla"];
+    private static readonly string[] Frameworks = ["vue", "vanilla"];
 
     [GeneratedRegex("^[0-9a-f]{40}$")]
     private static partial Regex FullCommitSha();
@@ -132,14 +132,14 @@ public partial class WidgetGalleryService(
                 "A name of at most 255 characters is required.",
                 "VALIDATION_FAILED"
             );
-        if (string.Equals(request.Framework, "svelte", StringComparison.OrdinalIgnoreCase))
+        if (WidgetFrameworkSupport.IsUnsupported(request.Framework))
             return Result.Failure<GalleryItemDetail>(
-                "Framework 'svelte' needs the plugin-based build, which is not available. Use 'vanilla', 'react', or 'vue'.",
-                "WIDGET_FRAMEWORK_UNSUPPORTED"
+                WidgetFrameworkSupport.UnsupportedMessage(request.Framework),
+                WidgetFrameworkSupport.UnsupportedCode
             );
         if (!Frameworks.Contains(request.Framework, StringComparer.OrdinalIgnoreCase))
             return Result.Failure<GalleryItemDetail>(
-                "Framework must be vue, react, or vanilla.",
+                "Framework must be vue or vanilla.",
                 "VALIDATION_FAILED"
             );
         Result<string> repoUrl = NormalizeGitHubUrl(request.GitHubRepoUrl);

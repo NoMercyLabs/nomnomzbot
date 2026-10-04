@@ -84,6 +84,13 @@ public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
         ProjectManifest manifest = input.Manifest;
         string framework = manifest.Framework.Trim().ToLowerInvariant();
 
+        // React and svelte have no build and runtime support — refuse before anything else, the same way everywhere.
+        if (WidgetFrameworkSupport.IsUnsupported(manifest.Framework))
+            return Failed(
+                WidgetFrameworkSupport.UnsupportedMessage(manifest.Framework),
+                WidgetFrameworkSupport.UnsupportedCode
+            );
+
         // The manifest entry must be one of the project's files — the module esbuild (or the pass-through) reads.
         if (!input.Files.TryGetValue(manifest.Entry, out string? entryContent))
             return Failed(
@@ -125,54 +132,10 @@ public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
         if (framework == "vue")
             return await BuildVueAsync(input, cancellationToken);
 
-        // The standalone esbuild binary transpiles + bundles JS/TS/JSX natively (loader by extension). Svelte needs
-        // the plugin-based build (a tracked follow-on) — fail honestly rather than silently mis-compiling.
-        if (framework != "react")
-            return Failed(
-                $"Framework '{manifest.Framework}' needs the plugin-based build, which is not available on the "
-                    + "standalone esbuild path yet. Use 'vanilla', 'react', or 'vue'.",
-                "WIDGET_FRAMEWORK_UNSUPPORTED"
-            );
-
-        return await BuildBundledAsync(
-            input.Files,
-            manifest,
-            ["--jsx=automatic"],
-            framework,
-            cancellationToken
+        return Failed(
+            $"Framework '{manifest.Framework}' is not a known widget framework. Use 'vanilla' or 'vue'.",
+            WidgetFrameworkSupport.UnsupportedCode
         );
-    }
-
-    // React/TS/JS: materialize the file set verbatim, bundle from the entry. esbuild resolves relative imports and
-    // selects a loader per file extension (.tsx/.ts/.jsx/.js), so a `lib/` module the entry imports is pulled in.
-    private async Task<Result<WidgetBuildOutput>> BuildBundledAsync(
-        IReadOnlyDictionary<string, string> files,
-        ProjectManifest manifest,
-        IReadOnlyList<string> extraArgs,
-        string framework,
-        CancellationToken cancellationToken
-    )
-    {
-        string workDir = CreateTempDir();
-        try
-        {
-            MaterializeFiles(workDir, files);
-            List<string> arguments =
-            [
-                "--bundle",
-                "--format=iife",
-                "--minify",
-                "--charset=utf8",
-                .. ExternalArgs(manifest.Dependencies),
-                .. extraArgs,
-                NormalizeRelative(manifest.Entry),
-            ];
-            return await RunEsbuildAsync(workDir, arguments, framework, cancellationToken);
-        }
-        finally
-        {
-            TryDeleteDir(workDir);
-        }
     }
 
     // Vue: stage A compiles every .vue in the set to an ES module (default-exporting the component + injecting its
@@ -357,10 +320,6 @@ public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
             code,
             errorData: new ProjectBuildFailure([new(code, message, null, null, null)])
         );
-
-    // Each allowlisted declared dependency is kept external (host-injected/vendored), never bundled from a registry.
-    private IEnumerable<string> ExternalArgs(IReadOnlyList<string> dependencies) =>
-        dependencies.Select(dependency => $"--external:{dependency.Trim()}");
 
     // Rejects any path that could escape the temp dir (rooted, drive-qualified, or containing a `..` segment) — a
     // project's file paths are untrusted, and they become real files on disk.

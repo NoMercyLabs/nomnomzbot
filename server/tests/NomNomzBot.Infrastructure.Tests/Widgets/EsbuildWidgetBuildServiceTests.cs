@@ -39,6 +39,14 @@ public sealed class EsbuildWidgetBuildServiceTests
             NullLogger<EsbuildWidgetBuildService>.Instance
         );
 
+    // A vue project whose entry is a plain .ts module (no SFC), so the compiler is never involved and the build goes
+    // straight to esbuild through the synthetic mount module.
+    private static WidgetBuildInput VueTs(string source) =>
+        new(
+            new("index.ts", "widget", "vue", []),
+            new Dictionary<string, string> { ["index.ts"] = source }
+        );
+
     private static string Sha256Hex(string content) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
 
@@ -84,7 +92,7 @@ public sealed class EsbuildWidgetBuildServiceTests
     }
 
     [Fact]
-    public async Task React_materializes_the_entry_and_invokes_esbuild_bundling_the_returned_bundle()
+    public async Task Vue_materializes_the_project_and_invokes_esbuild_bundling_the_returned_bundle()
     {
         const string bundle = "(()=>{var e=1;})();";
         const string warnings = "▲ [WARNING] Unused import";
@@ -95,9 +103,7 @@ public sealed class EsbuildWidgetBuildServiceTests
             .Returns(new ProcessRunResult(true, 0, bundle, warnings));
         EsbuildWidgetBuildService service = Build(runner);
 
-        Result<WidgetBuildOutput> result = await service.BuildAsync(
-            WidgetBuildInput.SingleFile("react", "export default () => <div/>;")
-        );
+        Result<WidgetBuildOutput> result = await service.BuildAsync(VueTs("export default {};"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.CompiledBundle.Should().Be(bundle);
@@ -112,11 +118,11 @@ public sealed class EsbuildWidgetBuildServiceTests
         captured.WorkingDirectory.Should().NotBeNullOrEmpty();
         captured.Arguments.Should().Contain("--bundle");
         captured.Arguments.Should().Contain("--format=iife");
-        captured.Arguments.Should().Contain("index.tsx"); // the single-file react entry
+        captured.Arguments.Should().Contain("__nnz_mount__.ts"); // the mount module that imports the entry
     }
 
     [Fact]
-    public async Task React_build_failure_surfaces_esbuild_stderr()
+    public async Task Vue_build_failure_surfaces_esbuild_stderr()
     {
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         runner
@@ -131,9 +137,7 @@ public sealed class EsbuildWidgetBuildServiceTests
             );
         EsbuildWidgetBuildService service = Build(runner);
 
-        Result<WidgetBuildOutput> result = await service.BuildAsync(
-            WidgetBuildInput.SingleFile("react", "broken(")
-        );
+        Result<WidgetBuildOutput> result = await service.BuildAsync(VueTs("broken("));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("WIDGET_BUILD_FAILED");
@@ -149,9 +153,7 @@ public sealed class EsbuildWidgetBuildServiceTests
             .Returns(new ProcessRunResult(false, -1, string.Empty, "No such file"));
         EsbuildWidgetBuildService service = Build(runner);
 
-        Result<WidgetBuildOutput> result = await service.BuildAsync(
-            WidgetBuildInput.SingleFile("react", "x")
-        );
+        Result<WidgetBuildOutput> result = await service.BuildAsync(VueTs("export default {};"));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("WIDGET_BUILD_TOOL_UNAVAILABLE");
@@ -160,9 +162,13 @@ public sealed class EsbuildWidgetBuildServiceTests
 
     [Theory]
     [InlineData("svelte")]
-    public async Task Plugin_frameworks_fail_honestly_rather_than_mis_compiling(string framework)
+    [InlineData("react")]
+    [InlineData("React")]
+    public async Task Unsupported_frameworks_fail_honestly_rather_than_mis_compiling(
+        string framework
+    )
     {
-        // Svelte still needs the plugin-based build (Vue is supported via IVueSfcCompiler + esbuild).
+        // Svelte and react have no build and runtime support (Vue is supported via IVueSfcCompiler + esbuild).
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         EsbuildWidgetBuildService service = Build(runner);
 
@@ -172,6 +178,8 @@ public sealed class EsbuildWidgetBuildServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("WIDGET_FRAMEWORK_UNSUPPORTED");
+        result.ErrorMessage.Should().ContainEquivalentOf(framework);
+        result.ErrorMessage.Should().Contain("vanilla").And.Contain("vue");
         await runner
             .DidNotReceive()
             .RunAsync(Arg.Any<ProcessRunRequest>(), Arg.Any<CancellationToken>());

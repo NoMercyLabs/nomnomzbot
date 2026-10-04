@@ -86,6 +86,12 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
+        if (WidgetFrameworkSupport.IsUnsupported(request.Framework))
+            return Result.Failure<WidgetDetail>(
+                WidgetFrameworkSupport.UnsupportedMessage(request.Framework),
+                WidgetFrameworkSupport.UnsupportedCode
+            );
+
         if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
@@ -1485,13 +1491,16 @@ public class WidgetService : IWidgetService
     }
 
     // A project save either persists a successful version or returns a failure — there is no `error` row. Translate
-    // the build boundary's coded failures to an app error code the API maps sanely: a bundler/validation problem is a
+    // the build boundary's coded failures to an app error code the API maps sanely: a bundler/validation problem or an unsupported framework is a
     // 400 (user input), a missing build tool a 503. The build's message (the reason / build log) is surfaced verbatim.
     private static string MapProjectBuildFailureCode(string? buildErrorCode)
     {
-        return buildErrorCode == "WIDGET_BUILD_TOOL_UNAVAILABLE"
-            ? "SERVICE_UNAVAILABLE"
-            : "VALIDATION_FAILED";
+        return buildErrorCode switch
+        {
+            "WIDGET_BUILD_TOOL_UNAVAILABLE" => "SERVICE_UNAVAILABLE",
+            WidgetFrameworkSupport.UnsupportedCode => WidgetFrameworkSupport.UnsupportedCode,
+            _ => "VALIDATION_FAILED",
+        };
     }
 
     private static WidgetVersionSummary ToVersionSummary(WidgetVersion v)

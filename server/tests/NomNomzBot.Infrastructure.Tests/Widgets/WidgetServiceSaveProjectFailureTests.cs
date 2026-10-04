@@ -134,20 +134,42 @@ public sealed class WidgetServiceSaveProjectFailureTests : IClassFixture<VueSfcC
         return JsonDocument.Parse(json).RootElement.GetProperty("errors");
     }
 
+    [Theory]
+    [InlineData("react")]
+    [InlineData("svelte")]
+    public async Task SaveProject_UnsupportedFramework_FailsWithTheFrameworkCodeAndStoresNothing(
+        string framework
+    )
+    {
+        (Result<WidgetVersionDetail> saved, int versions) = await SaveAsync(
+            this,
+            framework,
+            new() { ["index.tsx"] = "export default () => null;" },
+            "index.tsx"
+        );
+
+        saved.IsFailure.Should().BeTrue();
+        saved.ErrorCode.Should().Be("WIDGET_FRAMEWORK_UNSUPPORTED");
+        JsonElement errors = ErrorsOf(saved);
+        errors.GetArrayLength().Should().Be(1);
+        errors[0].GetProperty("code").GetString().Should().Be("WIDGET_FRAMEWORK_UNSUPPORTED");
+        versions.Should().Be(0, "a rejected save stores no version");
+    }
+
     [Fact]
-    public async Task SaveProject_ReactSyntaxErrorInAnImportedFile_CarriesItsFileLineAndColumn()
+    public async Task SaveProject_VueTsSyntaxErrorInAnImportedFile_CarriesItsFileLineAndColumn()
     {
         Dictionary<string, string> files = new()
         {
-            ["index.tsx"] = "import { v } from './lib/util';\ndocument.title = v;\n",
+            ["index.ts"] = "import { v } from './lib/util';\ndocument.title = v;\n",
             ["lib/util.ts"] = "export const a = 1;\nexport const v = ;\n",
         };
 
         (Result<WidgetVersionDetail> saved, int versions) = await SaveAsync(
             this,
-            "react",
+            "vue",
             files,
-            "index.tsx"
+            "index.ts"
         );
 
         saved.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -163,16 +185,16 @@ public sealed class WidgetServiceSaveProjectFailureTests : IClassFixture<VueSfcC
     }
 
     [Fact]
-    public async Task SaveProject_ReactSyntaxErrorsInTwoFiles_CarriesBothProblems()
+    public async Task SaveProject_VueTsSyntaxErrorsInTwoFiles_CarriesBothProblems()
     {
         Dictionary<string, string> files = new()
         {
-            ["index.tsx"] = "import './a';\nimport './b';\n",
+            ["index.ts"] = "import './a';\nimport './b';\n",
             ["a.ts"] = "let x = 1;\nlet y = ;\n",
             ["b.ts"] = "let q = (;\n",
         };
 
-        (Result<WidgetVersionDetail> saved, _) = await SaveAsync(this, "react", files, "index.tsx");
+        (Result<WidgetVersionDetail> saved, _) = await SaveAsync(this, "vue", files, "index.ts");
 
         saved.ErrorCode.Should().Be("VALIDATION_FAILED");
         JsonElement errors = ErrorsOf(saved);
@@ -282,9 +304,9 @@ public sealed class WidgetServiceSaveProjectFailureTests : IClassFixture<VueSfcC
         );
         (Result<WidgetVersionDetail> badDependency, _) = await SaveAsync(
             this,
-            "react",
-            new() { ["index.tsx"] = "let a = 1;" },
-            "index.tsx",
+            "vue",
+            new() { ["index.ts"] = "let a = 1;" },
+            "index.ts",
             "left-pad"
         );
 

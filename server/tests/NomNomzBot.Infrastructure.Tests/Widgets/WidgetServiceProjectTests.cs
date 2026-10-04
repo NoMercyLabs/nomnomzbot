@@ -234,18 +234,19 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
     }
 
     [Fact]
-    public async Task SaveProject_ReactCrossFileImport_BundlesTheImportedModuleIntoTheStoredBundle()
+    public async Task SaveProject_VueTsCrossFileImport_BundlesTheImportedModuleIntoTheStoredBundle()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
         Guid channel = await SeedChannelAsync(database);
-        Guid widget = await SeedWidgetAsync(database, channel, "react");
+        Guid widget = await SeedWidgetAsync(database, channel, "vue");
         Dictionary<string, string> files = new()
         {
-            ["index.tsx"] =
+            ["index.ts"] =
                 "import { GREETING } from './lib/util';\n"
                 + "const el = document.createElement('div');\n"
                 + "el.textContent = GREETING;\n"
-                + "document.body.appendChild(el);\n",
+                + "document.body.appendChild(el);\n"
+                + "export default {};\n",
             ["lib/util.ts"] = $"export const GREETING: string = '{CrossFileMarker}';\n",
         };
 
@@ -256,7 +257,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
             result = await service.SaveProjectAsync(
                 channel.ToString(),
                 widget.ToString(),
-                Project("react", "index.tsx", files)
+                Project("vue", "index.ts", files)
             );
         }
 
@@ -280,7 +281,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
 
             Widget storedWidget = await db.Widgets.SingleAsync(w => w.Id == widget);
             storedWidget.ActiveVersionId.Should().Be(stored.Id);
-            storedWidget.Framework.Should().Be("react"); // manifest framework synced onto the widget
+            storedWidget.Framework.Should().Be("vue"); // manifest framework synced onto the widget
         }
     }
 
@@ -289,20 +290,20 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
         Guid channel = await SeedChannelAsync(database);
-        Guid widget = await SeedWidgetAsync(database, channel, "react");
-        Dictionary<string, string> files = new() { ["index.tsx"] = "export default 1;" };
+        Guid widget = await SeedWidgetAsync(database, channel, "vue");
+        Dictionary<string, string> files = new() { ["index.ts"] = "export default 1;" };
 
         await using WidgetTestDbContext db = database.NewContext();
         WidgetService service = NewService(db, Substitute.For<IEventBus>());
         Result<WidgetVersionDetail> result = await service.SaveProjectAsync(
             channel.ToString(),
             widget.ToString(),
-            Project("react", "main.tsx", files) // entry not present
+            Project("vue", "main.ts", files) // entry not present
         );
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
-        result.ErrorMessage.Should().Contain("main.tsx");
+        result.ErrorMessage.Should().Contain("main.ts");
         (await db.WidgetVersions.AnyAsync(v => v.WidgetId == widget)).Should().BeFalse();
     }
 
@@ -311,10 +312,10 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
         Guid channel = await SeedChannelAsync(database);
-        Guid widget = await SeedWidgetAsync(database, channel, "react");
+        Guid widget = await SeedWidgetAsync(database, channel, "vue");
         Dictionary<string, string> files = new()
         {
-            ["index.tsx"] = "import _ from 'lodash';\nexport default () => _.identity(1);\n",
+            ["index.ts"] = "import _ from 'lodash';\nexport default () => _.identity(1);\n",
         };
 
         await using WidgetTestDbContext db = database.NewContext();
@@ -322,7 +323,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         Result<WidgetVersionDetail> result = await service.SaveProjectAsync(
             channel.ToString(),
             widget.ToString(),
-            Project("react", "index.tsx", files, "lodash")
+            Project("vue", "index.ts", files, "lodash")
         );
 
         result.IsFailure.Should().BeTrue();

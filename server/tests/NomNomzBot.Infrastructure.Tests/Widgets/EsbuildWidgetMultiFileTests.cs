@@ -55,20 +55,21 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
         );
 
     [Fact]
-    public async Task Multi_file_react_project_bundles_the_imported_lib_module_into_one_bundle()
+    public async Task Multi_file_vue_project_with_a_ts_entry_bundles_the_imported_lib_module_into_one_bundle()
     {
         // The entry imports a symbol from a sibling lib/ module and uses it — esbuild must pull the module's code
         // (its distinctive string literal) into the single output bundle.
         Dictionary<string, string> files = new()
         {
-            ["index.tsx"] =
+            ["index.ts"] =
                 "import { GREETING } from './lib/util';\n"
                 + "const el = document.createElement('div');\n"
                 + "el.textContent = GREETING;\n"
-                + "document.body.appendChild(el);\n",
+                + "document.body.appendChild(el);\n"
+                + "export default {};\n",
             ["lib/util.ts"] = $"export const GREETING: string = '{CrossFileMarker}';\n",
         };
-        WidgetBuildInput input = new(new("index.tsx", "widget", "react", []), files);
+        WidgetBuildInput input = new(new("index.ts", "widget", "vue", []), files);
 
         Result<WidgetBuildOutput> result = await RealBuild().BuildAsync(input);
 
@@ -86,7 +87,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
     }
 
     [Fact]
-    public async Task Single_file_and_multi_file_react_run_through_the_same_temp_dir_bundler_without_stdin()
+    public async Task Single_file_and_multi_file_vue_run_through_the_same_temp_dir_bundler_without_stdin()
     {
         // The course-correction guarantee: a single-file convenience input and a genuine multi-file project reach
         // esbuild the SAME way — materialized to a temp working dir and bundled from the manifest entry, with NO
@@ -99,21 +100,26 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
             .Returns(new ProcessRunResult(true, 0, "(()=>{})();", string.Empty));
         EsbuildWidgetBuildService service = FakeBuild(runner);
 
-        // (a) single-file convenience — thin sugar over a one-entry project.
-        await service.BuildAsync(WidgetBuildInput.SingleFile("react", "export default () => 1;"));
+        // (a) a one-file project.
+        await service.BuildAsync(
+            new(
+                new("index.ts", "widget", "vue", []),
+                new Dictionary<string, string> { ["index.ts"] = "export default {};\n" }
+            )
+        );
         // (b) genuine multi-file project (entry importing a lib/ module).
         Dictionary<string, string> multiFile = new()
         {
-            ["index.tsx"] = "import { X } from './lib/x';\nexport default X;\n",
+            ["index.ts"] = "import { X } from './lib/x';\nexport default X;\n",
             ["lib/x.ts"] = "export const X = 1;\n",
         };
-        await service.BuildAsync(new(new("index.tsx", "widget", "react", []), multiFile));
+        await service.BuildAsync(new(new("index.ts", "widget", "vue", []), multiFile));
 
         captured.Should().HaveCount(2);
         captured.Should().OnlyContain(r => r.FileName == "esbuild");
         captured.Should().OnlyContain(r => r.StandardInput == null); // no stdin single-source path remains
         captured.Should().OnlyContain(r => !string.IsNullOrEmpty(r.WorkingDirectory)); // temp-dir materialization both times
-        captured.Should().OnlyContain(r => r.Arguments.Contains("index.tsx")); // bundled from the manifest entry
+        captured.Should().OnlyContain(r => r.Arguments.Contains("__nnz_mount__.ts")); // bundled from the mount module that imports the entry
         captured.Should().OnlyContain(r => r.Arguments.Contains("--bundle"));
     }
 
@@ -194,9 +200,9 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
         // A declared dependency outside the allowlist is denied up-front (deny-by-default) — no npm, no esbuild.
         Dictionary<string, string> files = new()
         {
-            ["index.tsx"] = "import _ from 'lodash';\nexport default () => _.identity(1);\n",
+            ["index.ts"] = "import _ from 'lodash';\nexport default () => _.identity(1);\n",
         };
-        WidgetBuildInput input = new(new("index.tsx", "widget", "react", ["lodash"]), files);
+        WidgetBuildInput input = new(new("index.ts", "widget", "vue", ["lodash"]), files);
 
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         Result<WidgetBuildOutput> result = await FakeBuild(runner).BuildAsync(input);
@@ -211,33 +217,10 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
     }
 
     [Fact]
-    public async Task An_allowlisted_dependency_is_accepted_and_kept_external()
-    {
-        // `vue` is on the allowlist, so it passes the gate and is handed to esbuild as an external (never bundled).
-        const string bundle = "(()=>{})();";
-        ProcessRunRequest? captured = null;
-        IProcessRunner runner = Substitute.For<IProcessRunner>();
-        runner
-            .RunAsync(Arg.Do<ProcessRunRequest>(r => captured = r), Arg.Any<CancellationToken>())
-            .Returns(new ProcessRunResult(true, 0, bundle, string.Empty));
-        Dictionary<string, string> files = new()
-        {
-            ["index.tsx"] = "import { createApp } from 'vue';\nexport default createApp;\n",
-        };
-        WidgetBuildInput input = new(new("index.tsx", "widget", "react", ["vue"]), files);
-
-        Result<WidgetBuildOutput> result = await FakeBuild(runner).BuildAsync(input);
-
-        result.IsSuccess.Should().BeTrue();
-        captured.Should().NotBeNull();
-        captured!.Arguments.Should().Contain("--external:vue");
-    }
-
-    [Fact]
     public async Task A_manifest_entry_absent_from_the_files_fails_cleanly()
     {
-        Dictionary<string, string> files = new() { ["index.tsx"] = "export default 1;" };
-        WidgetBuildInput input = new(new("main.tsx", "widget", "react", []), files);
+        Dictionary<string, string> files = new() { ["index.ts"] = "export default 1;" };
+        WidgetBuildInput input = new(new("main.ts", "widget", "vue", []), files);
 
         Result<WidgetBuildOutput> result = await FakeBuild(Substitute.For<IProcessRunner>())
             .BuildAsync(input);
@@ -250,7 +233,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
     public async Task A_file_path_that_escapes_the_project_is_rejected_before_touching_disk()
     {
         Dictionary<string, string> files = new() { ["../evil.ts"] = "export default 1;" };
-        WidgetBuildInput input = new(new("../evil.ts", "widget", "react", []), files);
+        WidgetBuildInput input = new(new("../evil.ts", "widget", "vue", []), files);
 
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         Result<WidgetBuildOutput> result = await FakeBuild(runner).BuildAsync(input);

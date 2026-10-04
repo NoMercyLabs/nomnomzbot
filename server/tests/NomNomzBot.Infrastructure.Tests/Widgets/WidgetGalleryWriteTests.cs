@@ -126,8 +126,13 @@ public sealed class WidgetGalleryWriteTests
             .BeTrue();
     }
 
-    [Fact]
-    public async Task Submit_refuses_svelte_with_the_build_service_code_and_stores_nothing()
+    [Theory]
+    [InlineData("svelte")]
+    [InlineData("react")]
+    [InlineData("React")]
+    public async Task Submit_refuses_svelte_with_the_build_service_code_and_stores_nothing(
+        string framework
+    )
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
         (WidgetGalleryService service, WidgetTestDbContext db, RecordingEventBus bus) = New(
@@ -136,7 +141,7 @@ public sealed class WidgetGalleryWriteTests
 
         Result<GalleryItemDetail> submitted = await service.SubmitAsync(
             Submitter,
-            Submission(framework: "svelte")
+            Submission(framework: framework)
         );
 
         submitted.IsFailure.Should().BeTrue();
