@@ -56,9 +56,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Player API and reports PLAYING, PAUSED and ENDED via `NomNomz.reportYouTubePlayerState` (0067dbb90; checked
   by a source guard only, not yet in a browser); an ENDED report advances the queue and plays the next once
   (20e3f7ceb, tests only: it already worked). Left: the bot sends `youtube.play` to every open player widget, so
-  two open now playing sources both play the audio (one player must own it); play, pause and skip are
-  log-only stubs (`YouTubeMusicProvider.cs:107-121`), so `!skip` and the dashboard controls do nothing for
-  YouTube; with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
+  two open now playing sources both play the audio (one player must own it); YouTube declares no
+  PlaybackControl or Skip capability, so `!skip`, pause and resume are refused as unsupported
+  (`MusicService.cs:311,376`; the provider stubs at `YouTubeMusicProvider.cs:107-121` are unreachable), though
+  the embedded player could do all three; with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
   reconnected." (`YouTubeMusicProvider.cs:295` NotConnected -> `MusicService.cs` MISSING_SCOPE), advice the
   streamer cannot act on (the operator must set the key); a dev-box browser check that a request plays and
   `nowPlaying` returns it.
