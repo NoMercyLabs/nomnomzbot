@@ -370,6 +370,15 @@
     "feedback-one-item-per-builder-and-checked-docs.md",
     "feedback-limit-builds-not-builders.md"
    ]
+  },
+  {
+   "id": "dispatch-one-sentence-report",
+   "require": "report:[ \\t]*one sentence",
+   "text": "Every brief ends with 'Report: one sentence; details go to a file.' The agent never repeats lists or status already on disk.",
+   "source": "Stoney 2026-10-04: \"Stop eens met het nutteloos verspillen van tokens. Gewoon het werk uitvoeren en gewoon kort één klein kutzinnetje\"; memory feedback-one-line-reports-no-repeats.md",
+   "covers": [
+    "feedback-one-line-reports-no-repeats.md"
+   ]
   }
  ],
  "output": [
@@ -384,6 +393,14 @@
   }
  ],
  "session_only": [
+  {
+   "id": "legacy-parity-ledger",
+   "text": "Old-bot behaviour is matched from a full ledger built by script from C:/Projects/StoneyEagle/nomercy-bot (every command, event handler, reply, TTS use, timer), each marked matched/partial/missing with file:line; every gap is a plan slice; scripts/check-parity-ledger.py guards the ledger. Never wait for the owner to notice a gap.",
+   "source": "Stoney 2026-10-04: \"i am frustrated that i have to ask once more to match behavior from my old bot\"; memory feedback-legacy-parity-full-ledger.md",
+   "covers": [
+    "feedback-legacy-parity-full-ledger.md"
+   ]
+  },
   {
    "id": "process-defect",
    "text": "A correction from the owner is a process defect: fix the rule, hook or check that let it happen, not just the visible surface.",
