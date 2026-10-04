@@ -43,12 +43,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   parses as a double (`ScriptHostBridge.cs:902-911`) and reaches the provider as `NaN%`, where the comment says a bad
   value keeps the default. Done-when: a non-finite value is treated as absent; a test failed first. Starts after
   S-SCRIPT-CHAT-SEND-FAILURE lands (same file).
-- **S-WIDGET-EVENT-PRESENCE** Found by the docs writer 2026-10-04. `widget_event` returns success when no browser
-  source has the widget open (`WidgetEventAction.cs:92-100`), so the run log says it worked while nothing showed.
-  `IOverlayPresenceRegistry.IsWidgetAttached` already answers this for TTS. Done when the step fails with a plain
-  reason when the widget is not attached, and a test proves both cases.
-  The script call `widget.emit` has the same gap: it returns true with no page open (`ScriptHostBridge.cs:556-571`);
-  done-when covers both paths (found by the send-to-a-widget writer 2026-10-04).
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
