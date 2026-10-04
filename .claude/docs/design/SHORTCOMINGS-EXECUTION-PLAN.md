@@ -30,8 +30,10 @@ page); `docs/sdk/help/known-problems.md` is the defect list for the slices below
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
 - **S-SCRIPT-MISSING-EXPORT** Found by the docs fact-check 2026-10-04, reproduced with the real esbuild and flags
-  (`EsbuildScriptBundler.cs:76-91`). A script that imports a name another file does not export still saves:
-  esbuild exits 0 and emits `(void 0)(...)`, `CompileAsync` only parses (`JintScriptExecutor.cs:260-261`),
+  (`EsbuildScriptBundler.cs:76-91`). A direct named import of a missing export already fails the build ("No matching export",
+  checked by the builder 2026-10-04). Two cases still save: a namespace member the file does not export
+  (`import * as h`, then `h.missing()`) and a named import from a file with no exports. For those esbuild only warns,
+  exits 0 and emits `(void 0)(...)`, `CompileAsync` only parses (`JintScriptExecutor.cs:260-261`),
   `CodeScriptService.cs:540-547` marks the version valid, and the first run faults with `TypeError: (void 0) is
   not a function`. The editor marks it red (TS2305/TS2306), but a red mark does not block Save
   (`editor.js:1146-1153`). Done-when: the save is refused with the file, line and column of the import (for
