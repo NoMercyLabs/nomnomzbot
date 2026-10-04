@@ -553,10 +553,21 @@ public sealed class ScriptHostBridge(
                 );
         }
 
-        widgetNotifier
-            .SendWidgetEventAsync(broadcasterId, widget.Id, args[1], data, ct)
-            .GetAwaiter()
-            .GetResult();
+        try
+        {
+            widgetNotifier
+                .SendWidgetEventAsync(broadcasterId, widget.Id, args[1], data, ct)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            // The SDK promises false for a failed send; only the run's own cancellation may still stop the script.
+            return Fail(
+                ScriptHostErrorCodes.UpstreamFailed,
+                "The widget event could not be sent to the overlay."
+            );
+        }
         return "ok";
     }
 
