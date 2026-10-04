@@ -134,6 +134,28 @@ public sealed class NnzSdkBootstrapTests
         r.HostCallCount.Should().Be(0);
     }
 
+    // nnz.json.stringify is typed `string`. JSON.stringify returns undefined (it does not throw) for a value JSON
+    // cannot represent, so the script must see the text 'null', never undefined.
+    [Theory]
+    [InlineData("undefined")]
+    [InlineData("function () {}")]
+    [InlineData("Symbol('s')")]
+    [InlineData("{ toJSON: function () { return undefined; } }")]
+    public async Task Json_stringify_returns_the_text_null_for_a_value_json_cannot_represent(
+        string valueJs
+    )
+    {
+        ScriptExecutionOutcomeResult r = await Run(
+            $"var s = nnz.json.stringify({valueJs}); bot.setVar('type', typeof s); bot.setVar('text', String(s));",
+            Grant(),
+            NoBridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.VariablesOut["type"].Should().Be("string");
+        r.VariablesOut["text"].Should().Be("null");
+    }
+
     [Fact]
     public async Task Api_chat_send_reaches_the_host_with_the_right_key_and_args_when_granted()
     {

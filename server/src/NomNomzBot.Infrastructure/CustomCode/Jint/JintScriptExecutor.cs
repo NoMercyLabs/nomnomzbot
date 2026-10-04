@@ -157,7 +157,9 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             },
             json: {
                 parse: function (text) { try { return JSON.parse(String(text)); } catch (e) { return null; } },
-                stringify: function (value) { try { return JSON.stringify(value); } catch (e) { return 'null'; } }
+                // JSON.stringify returns undefined (no throw) for undefined, a function, a symbol, or a toJSON that
+                // yields one; the declared type is string, so those become 'null' like a throwing value does.
+                stringify: function (value) { try { var s = JSON.stringify(value); return typeof s === 'string' ? s : 'null'; } catch (e) { return 'null'; } }
             },
             random: {
                 int: function (min, max) { return nnz.math.randomInt(min, max); },
