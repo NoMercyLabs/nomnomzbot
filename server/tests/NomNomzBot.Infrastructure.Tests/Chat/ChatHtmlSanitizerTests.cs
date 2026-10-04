@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using FluentAssertions;
 using NomNomzBot.Infrastructure.Chat;
 
@@ -215,6 +216,35 @@ public sealed class ChatHtmlSanitizerTests
         );
 
         clean.Should().Contain($@"width=""{expected}""").And.Contain(@"height=""300""");
+    }
+
+    [Fact]
+    public void Concurrent_messages_each_drop_only_their_own_off_scheme_media()
+    {
+        // The sanitiser is one shared instance; chat from many channels runs through it at the same time.
+        ConcurrentBag<string> wrong = [];
+
+        Parallel.For(
+            0,
+            20_000,
+            new ParallelOptions { MaxDegreeOfParallelism = 16 },
+            i =>
+            {
+                bool offScheme = i % 2 == 0;
+                string html = offScheme
+                    ? $@"<p>{i}<img src=""http://x.example/{i}.gif""></p>"
+                    : $@"<p>{i}<img src=""https://x.example/{i}.gif""></p>";
+                string expected = offScheme
+                    ? $"<p>{i}</p>"
+                    : $@"<p>{i}<img src=""https://x.example/{i}.gif""></p>";
+
+                string clean = ChatHtmlSanitizer.Sanitize(html);
+                if (clean != expected)
+                    wrong.Add($"{i}: {clean}");
+            }
+        );
+
+        wrong.Should().BeEmpty();
     }
 
     [Fact]

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Runtime.CompilerServices;
 using Ganss.Xss;
 
 namespace NomNomzBot.Infrastructure.Chat;
@@ -206,8 +207,9 @@ public static class ChatHtmlSanitizer
         // image/player under a caption that still reads correctly (the exact "caption resolved, media didn't" bug:
         // a truthful renderer must never show a captioned placeholder for media that was never actually attached).
         // Track every element that just lost its src/poster here, and drop the whole element once sanitisation of
-        // that node finishes.
-        HashSet<AngleSharp.Dom.IElement> elementsWithDroppedUrl = [];
+        // that node finishes. The one sanitiser serves every channel's chat at once, so the record is thread-safe, and
+        // weak so a finished message's DOM is not kept alive by it.
+        ConditionalWeakTable<AngleSharp.Dom.IElement, object> elementsWithDroppedUrl = new();
         sanitizer.RemovingAttribute += (_, e) =>
         {
             bool isSrcOnMediaTag =
@@ -215,14 +217,14 @@ public static class ChatHtmlSanitizer
                 && e.Tag.TagName is "IMG" or "SOURCE" or "VIDEO" or "AUDIO";
             bool isPosterOnVideo = e.Attribute.Name == "poster" && e.Tag.TagName is "VIDEO";
             if (isSrcOnMediaTag || isPosterOnVideo)
-                elementsWithDroppedUrl.Add(e.Tag);
+                elementsWithDroppedUrl.AddOrUpdate(e.Tag, e.Tag);
         };
         sanitizer.PostProcessNode += (_, e) =>
         {
             if (e.Node is not AngleSharp.Dom.IElement element)
                 return;
 
-            if (elementsWithDroppedUrl.Contains(element))
+            if (elementsWithDroppedUrl.TryGetValue(element, out object? _))
             {
                 element.Remove();
                 return;
