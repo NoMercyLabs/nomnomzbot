@@ -64,14 +64,20 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
     private readonly string _apiKey;
     private readonly IYouTubeAccessTokenProvider _accessTokens;
     private readonly ILogger<YouTubeMusicProvider> _logger;
+    private readonly IYouTubePlayerStateStore _playerState;
+    private readonly IYouTubePlayerDispatcher _players;
 
     public YouTubeMusicProvider(
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         IYouTubeAccessTokenProvider accessTokens,
+        IYouTubePlayerStateStore playerState,
+        IYouTubePlayerDispatcher players,
         ILogger<YouTubeMusicProvider> logger
     )
     {
+        _playerState = playerState;
+        _players = players;
         _http = httpClientFactory.CreateClient("youtube");
         _apiKey = configuration["YouTube:ApiKey"] ?? string.Empty;
         _accessTokens = accessTokens;
@@ -190,9 +196,26 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         bool isBackgroundPoll = false
     )
     {
-        // §3.5.2: YouTube now-playing is reported by the browser-source IFrame player relayed over the
-        // OverlayHub, not by the Data API (which has no "currently playing" concept). Null here.
-        return Task.FromResult<TrackInfo?>(null);
+        // §3.5.2: the Data API has no "currently playing" concept. The channel's overlay IFrame player reports
+        // it over the OverlayHub; a report counts only while it is fresh (a closed page goes silent).
+        YouTubePlayerReport? report = _playerState.GetFresh(broadcasterId);
+        if (report?.State is not (YouTubePlayerState.Playing or YouTubePlayerState.Paused))
+            return Task.FromResult<TrackInfo?>(null);
+
+        YouTubeQueuedTrack? known = _playerState.PushedTrack(broadcasterId, report.VideoId);
+        return Task.FromResult<TrackInfo?>(
+            new()
+            {
+                TrackName = known?.Title ?? string.Empty,
+                Artist = known?.Artist ?? string.Empty,
+                Album = string.Empty,
+                TrackUri = WatchUrl(report.VideoId),
+                Provider = ProviderName,
+                ProviderTrackId = report.VideoId,
+                IsPlaying = report.State == YouTubePlayerState.Playing,
+                ProgressMs = (int)Math.Clamp(report.PositionMs, 0, int.MaxValue),
+            }
+        );
     }
 
     public async Task<(
@@ -300,16 +323,48 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         return (MapToTrackInfo(video), MusicProviderFailureReason.None);
     }
 
-    public Task<bool> AddToQueueAsync(
+    public async Task<bool> AddToQueueAsync(
         Guid broadcasterId,
         string trackUri,
         CancellationToken cancellationToken = default
     )
     {
-        // §3.5.2: YouTube plays through our browser-source IFrame player, not a provider-side queue. The
-        // SR fair queue (IMusicService) is the single source of truth and the overlay drives playback,
-        // so there is nothing to push to a YouTube-side queue — the head-push is an accepting no-op.
-        return Task.FromResult(true);
+        // §3.5.2: YouTube plays through the channel's browser-source IFrame player, not a provider-side
+        // queue. The hand-over goes to that open page: an idle player is told to play now, a busy one gets
+        // the video in its one-slot "next" buffer until it reports the current video ended. No open player
+        // page means nothing can play, so the hand-over is refused.
+        string? videoId = ExtractVideoId(trackUri);
+        if (videoId is null)
+            return false;
+
+        IReadOnlyList<Guid> players = await _players.FindPlayersAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (players.Count == 0)
+            return false;
+
+        YouTubeQueuedTrack queued = await DescribeAsync(broadcasterId, videoId, cancellationToken);
+        if (_playerState.IsBusy(broadcasterId))
+        {
+            _playerState.SetNext(broadcasterId, queued);
+            return true;
+        }
+
+        await _players.PlayAsync(broadcasterId, players, videoId, cancellationToken);
+        _playerState.MarkPushed(broadcasterId, queued);
+        return true;
+    }
+
+    /// <summary>The title and channel for the video; empty strings when it cannot be resolved (best effort).</summary>
+    private async Task<YouTubeQueuedTrack> DescribeAsync(
+        Guid broadcasterId,
+        string videoId,
+        CancellationToken cancellationToken
+    )
+    {
+        (TrackInfo? track, _) = await ResolveTrackAsync(broadcasterId, videoId, cancellationToken);
+        return new(videoId, track?.TrackName ?? string.Empty, track?.Artist ?? string.Empty);
     }
 
     public Task<IReadOnlyList<TrackInfo>?> GetQueueAsync(
@@ -317,9 +372,23 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         CancellationToken cancellationToken = default
     )
     {
-        // Same reason as AddToQueueAsync above: there is no YouTube-side queue to read back. Our own
-        // fair queue (IMusicService) is already the single source of truth here.
-        return Task.FromResult<IReadOnlyList<TrackInfo>?>(null);
+        // The only provider-side queue is the player's one-slot "next" buffer (see AddToQueueAsync).
+        YouTubeQueuedTrack? next = _playerState.PeekNext(broadcasterId);
+        IReadOnlyList<TrackInfo> queue = next is null
+            ? []
+            :
+            [
+                new()
+                {
+                    TrackName = next.Title,
+                    Artist = next.Artist,
+                    Album = string.Empty,
+                    TrackUri = WatchUrl(next.VideoId),
+                    Provider = ProviderName,
+                    ProviderTrackId = next.VideoId,
+                },
+            ];
+        return Task.FromResult<IReadOnlyList<TrackInfo>?>(queue);
     }
 
     public Task<string?> GetEmbeddedPlaybackTokenAsync(

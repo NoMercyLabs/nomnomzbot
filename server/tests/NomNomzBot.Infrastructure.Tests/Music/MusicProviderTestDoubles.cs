@@ -23,10 +23,12 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Music;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -464,7 +466,9 @@ internal static class YouTubeProviderFactory
         string? apiKey = null,
         HttpMessageHandler? handler = null,
         IApplicationDbContext? db = null,
-        FakeIntegrationTokenVault? vault = null
+        FakeIntegrationTokenVault? vault = null,
+        IYouTubePlayerStateStore? playerState = null,
+        IYouTubePlayerDispatcher? players = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -487,6 +491,18 @@ internal static class YouTubeProviderFactory
             new NomNomzBot.Infrastructure.Identity.ConnectionRefreshGate()
         );
 
-        return new(factory, configuration, accessTokens, NullLogger<YouTubeMusicProvider>.Instance);
+        return new(
+            factory,
+            configuration,
+            accessTokens,
+            playerState ?? new YouTubePlayerStateStore(TimeProvider.System),
+            players
+                ?? new YouTubePlayerDispatcher(
+                    database,
+                    Substitute.For<IOverlayPresenceRegistry>(),
+                    Substitute.For<IWidgetEventNotifier>()
+                ),
+            NullLogger<YouTubeMusicProvider>.Instance
+        );
     }
 }

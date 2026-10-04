@@ -1,0 +1,102 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
+
+namespace NomNomzBot.Infrastructure.Music;
+
+public sealed class YouTubePlayerReportService(
+    IYouTubePlayerStateStore store,
+    IYouTubePlayerDispatcher players,
+    IEventBus eventBus
+) : IYouTubePlayerReportService
+{
+    public async Task<Result> ReportAsync(
+        Guid broadcasterId,
+        string videoId,
+        string state,
+        long positionMs,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(videoId))
+            return Result.Failure("A YouTube player report needs a video id.", "INVALID_VIDEO_ID");
+        if (!Enum.TryParse(state, ignoreCase: true, out YouTubePlayerState parsed))
+            return Result.Failure($"Unknown YouTube player state '{state}'.", "INVALID_STATE");
+
+        // Looked up before an ended video hands over to the next one, which replaces the pushed track.
+        YouTubeQueuedTrack? known = store.PushedTrack(broadcasterId, videoId);
+        YouTubePlayerReport? previous = store.Report(broadcasterId, videoId, parsed, positionMs);
+
+        if (parsed is YouTubePlayerState.Ended or YouTubePlayerState.Error)
+            await HandOverNextAsync(broadcasterId, cancellationToken);
+
+        bool changed =
+            previous is null
+            || previous.State != parsed
+            || !string.Equals(previous.VideoId, videoId, StringComparison.Ordinal);
+        if (changed)
+            await PublishAsync(
+                broadcasterId,
+                videoId,
+                parsed,
+                positionMs,
+                known,
+                cancellationToken
+            );
+        return Result.Success();
+    }
+
+    private async Task HandOverNextAsync(Guid broadcasterId, CancellationToken cancellationToken)
+    {
+        YouTubeQueuedTrack? next = store.TakeNext(broadcasterId);
+        if (next is null)
+            return;
+
+        IReadOnlyList<Guid> open = await players.FindPlayersAsync(broadcasterId, cancellationToken);
+        if (open.Count == 0)
+        {
+            store.SetNext(broadcasterId, next);
+            return;
+        }
+
+        await players.PlayAsync(broadcasterId, open, next.VideoId, cancellationToken);
+        store.MarkPushed(broadcasterId, next);
+    }
+
+    private Task PublishAsync(
+        Guid broadcasterId,
+        string videoId,
+        YouTubePlayerState state,
+        long positionMs,
+        YouTubeQueuedTrack? known,
+        CancellationToken cancellationToken
+    ) =>
+        eventBus.PublishAsync(
+            new PlaybackStateChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                IsPlaying = state == YouTubePlayerState.Playing,
+                TrackName = known?.Title,
+                Artist = known?.Artist,
+                Provider = "youtube",
+                TrackUri = $"https://www.youtube.com/watch?v={videoId}",
+                ProgressMs = (int)Math.Clamp(positionMs, 0, int.MaxValue),
+                RepeatMode = MusicRepeatMode.Off,
+                VolumePercent = 100,
+                ObservedAt = DateTimeOffset.UtcNow,
+            },
+            cancellationToken
+        );
+}

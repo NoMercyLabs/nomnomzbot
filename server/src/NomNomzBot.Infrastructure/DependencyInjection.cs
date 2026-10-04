@@ -387,6 +387,14 @@ public static class DependencyInjection
         // channel) so Pause/Play/the play-pause toggle can publish their state-changed event immediately
         // off a known-fresh snapshot instead of a second live provider round trip in the critical path.
         services.AddSingleton<INowPlayingCache, NowPlayingCache>();
+        // The overlay YouTube player's own reports, the video pushed to it and the one waiting behind it:
+        // singleton, because the scoped provider and the scoped report service must see the same state.
+        services.AddSingleton<IYouTubePlayerStateStore, YouTubePlayerStateStore>();
+        services.AddScoped<IYouTubePlayerDispatcher, YouTubePlayerDispatcher>();
+        services.AddScoped<
+            Application.Music.Services.IYouTubePlayerReportService,
+            YouTubePlayerReportService
+        >();
         // S001b — durable mirror of the fair queue (write-through on every mutation) + the once-at-startup
         // restore that replays it back into the (freshly empty) singleton store above before any live
         // traffic can reach it.
