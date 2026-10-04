@@ -46,13 +46,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   sets `nnz.lastError` with a host error code and the call reports failure as its declared type allows; a test with a
   provider that returns `false` failed first. Check every other bridge call that drops a `bool` or `Result` from a
   provider and report N of M.
-- **S-WIDGET-SETTINGS-DEFAULTS** Found by the docs writer 2026-10-04. The `default` of each field in a widget's
-  `settings.json` never reaches the widget page until the streamer saves the settings form once: the overlay
-  manifest sends only the saved bag (`WidgetService.cs:1267`), the SDK seeds from it (`OverlaySdkController.cs:57`,
-  `:180`), and nothing merges the declared defaults. The editor types say every setting always has a value
-  (`WidgetSettingsTypeWriter.cs`), so typed widget code reads `undefined` at run time. Done-when: a widget page
-  receives every declared default for a field the streamer never saved (manifest, join `initialState` and
-  `WidgetSettingsChanged` alike), so the generated type holds; a test failed first.
 - **S-TESTRUN-SKIPS-VALIDATION** Found by the docs fact-check 2026-10-04. An editor test run captures every write
   (`chat.send`, `chat.reply`, `music.queue`, `storage.set`/`delete`, `tts.speak`, `tts.voice.set`, `widget.emit`,
   `reward.update`, `schedule.pipeline`, `actions.invoke:*`) and returns a canned success before the live bridge's
