@@ -152,6 +152,7 @@ public sealed class MusicPipelineActionsTests
             .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing());
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        StubNotInPlaylist(manage);
         manage
             .AddPlaylistTracksAsync(
                 ChannelId,
@@ -197,6 +198,7 @@ public sealed class MusicPipelineActionsTests
             .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns("spotify");
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        StubNotInPlaylist(manage);
         manage
             .AddPlaylistTracksAsync(
                 ChannelId,
@@ -312,6 +314,7 @@ public sealed class MusicPipelineActionsTests
             .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing());
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        StubNotInPlaylist(manage);
         manage
             .AddPlaylistTracksAsync(
                 ChannelId,
@@ -360,6 +363,7 @@ public sealed class MusicPipelineActionsTests
             .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing(uri: "spotify:track:37i9dQZF1DXcBWIGoYBM5M"));
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        StubNotInPlaylist(manage);
         manage
             .AddPlaylistTracksAsync(
                 ChannelId,
@@ -388,6 +392,176 @@ public sealed class MusicPipelineActionsTests
         result.Output.Should().Be("Added Current Song to the playlist.");
         result.Output.Should().NotContain("playlist-1");
         result.Output.Should().NotContain("spotify:track:");
+    }
+
+    private static void StubNotInPlaylist(IMusicProviderManageApi manage) =>
+        manage
+            .IsTrackInPlaylistAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+
+    private static (
+        PlaylistAddAction Action,
+        IMusicProviderManageApi Manage,
+        IChatProvider Chat
+    ) AlreadyInPlaylistSetup(Result<bool> check)
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns("spotify");
+        music
+            .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Playing());
+        IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        manage
+            .IsTrackInPlaylistAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                "spotify:track:current",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(check);
+        manage
+            .AddPlaylistTracksAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
+        return (action, manage, chat);
+    }
+
+    [Fact]
+    public async Task Playlist_add_never_adds_a_track_already_in_the_playlist_and_sends_the_already_message()
+    {
+        (PlaylistAddAction action, IMusicProviderManageApi manage, IChatProvider chat) =
+            AlreadyInPlaylistSetup(Result.Success(true));
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def(
+                "playlist_add",
+                ("playlist_id", "playlist-1"),
+                ("message", "Added {track_name}."),
+                ("already_message", "{track_name} is already on the list, Bamo.")
+            )
+        );
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("Current Song is already on the list, Bamo.");
+        await manage
+            .DidNotReceive()
+            .AddPlaylistTracksAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "Current Song is already on the list, Bamo.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Playlist_add_with_an_empty_already_message_stays_silent_for_a_duplicate()
+    {
+        (PlaylistAddAction action, IMusicProviderManageApi manage, IChatProvider chat) =
+            AlreadyInPlaylistSetup(Result.Success(true));
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def("playlist_add", ("playlist_id", "playlist-1"))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await manage
+            .DidNotReceive()
+            .AddPlaylistTracksAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task Playlist_add_adds_a_new_track_once_and_sends_the_normal_message()
+    {
+        (PlaylistAddAction action, IMusicProviderManageApi manage, IChatProvider chat) =
+            AlreadyInPlaylistSetup(Result.Success(false));
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def(
+                "playlist_add",
+                ("playlist_id", "playlist-1"),
+                ("message", "Added {track_name}."),
+                ("already_message", "duplicate")
+            )
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await manage
+            .Received(1)
+            .AddPlaylistTracksAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                Arg.Is<IReadOnlyList<string>>(uris =>
+                    uris.Count == 1 && uris[0] == "spotify:track:current"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.Received(1)
+            .SendMessageAsync(ChannelId, "Added Current Song.", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Playlist_add_fails_with_the_check_error_and_never_adds_blindly()
+    {
+        (PlaylistAddAction action, IMusicProviderManageApi manage, IChatProvider chat) =
+            AlreadyInPlaylistSetup(Result.Failure<bool>("playlist unreadable", "CHECK_FAILED"));
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def("playlist_add", ("playlist_id", "playlist-1"))
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("playlist unreadable");
+        await manage
+            .DidNotReceive()
+            .AddPlaylistTracksAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]

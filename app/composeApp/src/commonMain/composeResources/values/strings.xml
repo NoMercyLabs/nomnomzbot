@@ -5292,6 +5292,7 @@
     <string name="pipeline_play_sound_volume_help">The playback volume for this clip, from 0 (silent) to 100 (full volume). Leave blank to use the clip's own default.</string>
     <string name="pipeline_play_sound_wait_for_finish_help">Pauses the rest of the pipeline until this clip finishes playing, instead of continuing immediately.</string>
     <string name="pipeline_play_track_once_track_uri_help">The track to play right now. Whatever was already playing resumes automatically once this one ends.</string>
+    <string name="pipeline_playlist_add_already_message_help">The chat message sent when the track is already in the playlist. Blank says nothing.</string>
     <string name="pipeline_playlist_add_message_help">The chat message sent after the track is added. Blank uses the default.</string>
     <string name="pipeline_playlist_add_playlist_id_help">Which playlist the track is added to.</string>
     <string name="pipeline_playlist_add_track_uri_help">The track to add. Blank adds the currently playing track.</string>

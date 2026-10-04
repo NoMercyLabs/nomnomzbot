@@ -30,6 +30,8 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 ///                 Streamer-editable, resolved through the shared <see cref="ITemplateResolver"/>
 ///                 grammar, so it can reference {track_name} and {playlist_id} instead of hardcoding
 ///                 the raw provider id.
+///   already_message — chat template sent instead when the track is already in the playlist
+///                 (optional; empty sends nothing). Same variables as <c>message</c>.
 ///
 /// Usage example:
 ///   { "type": "playlist_add", "playlist_id": "37i9dQZF1DXcBWIGoYBM5M", "message": "Added {track_name} to the bangers playlist!" }
@@ -71,6 +73,12 @@ public sealed class PlaylistAddAction : ICommandAction
                 PipelineActionFieldKind.Text,
                 Templated: true,
                 Description: new("pipeline.playlist_add.message.help")
+            ),
+            new(
+                "already_message",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.playlist_add.already_message.help")
             ),
         ];
 
@@ -120,6 +128,33 @@ public sealed class PlaylistAddAction : ICommandAction
             trackName = now.TrackName;
         }
 
+        Result<bool> present = await _manage.IsTrackInPlaylistAsync(
+            ctx.BroadcasterId,
+            provider,
+            playlistId,
+            trackUri,
+            ctx.CancellationToken
+        );
+        if (present.IsFailure)
+            return ActionResult.Failure(
+                present.ErrorMessage ?? "failed to check the playlist for the track"
+            );
+
+        Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
+        {
+            ["playlist_id"] = playlistId,
+            ["track_uri"] = trackUri,
+            ["track_name"] = trackName ?? trackUri,
+        };
+
+        if (present.Value)
+        {
+            string alreadyTemplate = action.GetString("already_message") ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(alreadyTemplate))
+                return ActionResult.Success();
+            return await SendResolvedAsync(ctx, alreadyTemplate, seed);
+        }
+
         Result added = await _manage.AddPlaylistTracksAsync(
             ctx.BroadcasterId,
             provider,
@@ -130,13 +165,19 @@ public sealed class PlaylistAddAction : ICommandAction
         if (added.IsFailure)
             return ActionResult.Failure(added.ErrorMessage ?? "failed to add track to playlist");
 
-        string template = action.GetString("message") ?? DefaultMessageTemplate;
-        Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
-        {
-            ["playlist_id"] = playlistId,
-            ["track_uri"] = trackUri,
-            ["track_name"] = trackName ?? trackUri,
-        };
+        return await SendResolvedAsync(
+            ctx,
+            action.GetString("message") ?? DefaultMessageTemplate,
+            seed
+        );
+    }
+
+    private async Task<ActionResult> SendResolvedAsync(
+        PipelineExecutionContext ctx,
+        string template,
+        Dictionary<string, string> seed
+    )
+    {
         string resolved = await _resolver.ResolveAsync(
             template,
             seed,
@@ -150,7 +191,7 @@ public sealed class PlaylistAddAction : ICommandAction
     private static string ResolveParam(string value, Dictionary<string, string> vars)
     {
         if (value.StartsWith('{') && value.EndsWith('}'))
-            vars.TryGetValue(value[1..^1], out value!);
-        return value ?? string.Empty;
+            return vars.TryGetValue(value[1..^1], out string? resolved) ? resolved : string.Empty;
+        return value;
     }
 }

@@ -665,6 +665,7 @@
     "pipeline.play_tts.description",
     "pipeline.play_tts.text.help",
     "pipeline.play_tts.voice.help",
+    "pipeline.playlist_add.already_message.help",
     "pipeline.playlist_add.description",
     "pipeline.playlist_add.message.help",
     "pipeline.playlist_add.playlist_id.help",
