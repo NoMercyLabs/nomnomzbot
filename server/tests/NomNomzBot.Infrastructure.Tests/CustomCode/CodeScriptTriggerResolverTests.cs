@@ -366,6 +366,127 @@ public sealed class CodeScriptTriggerResolverTests
         result.Value.Should().Equal("channel.follow");
     }
 
+    private static PipelineStep RunPipeline(
+        Guid broadcaster,
+        Guid callerPipelineId,
+        Guid targetPipelineId,
+        string? mode
+    ) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = broadcaster,
+            PipelineId = callerPipelineId,
+            ActionType = "run_pipeline",
+            ConfigJson = mode is null
+                ? $$"""{"pipeline":"{{targetPipelineId}}"}"""
+                : $$"""{"pipeline":"{{targetPipelineId}}","mode":"{{mode}}"}""",
+            Order = 0,
+        };
+
+    private static NomNomzBot.Domain.Commands.Entities.Timer NewTimer(Guid pipelineId) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = Channel,
+            Name = "tick",
+            PipelineId = pipelineId,
+        };
+
+    [Theory]
+    [InlineData(null, new[] { "command", "timer" })]
+    [InlineData("inline", new[] { "command", "timer" })]
+    [InlineData("detached", new[] { "timer" })]
+    [InlineData("DETACHED", new[] { "timer" })]
+    public async Task A_script_in_a_sub_pipeline_also_gets_the_keys_of_an_inline_caller(
+        string? mode,
+        string[] expected
+    )
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "sub");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline sub = NewPipeline(Channel, "sub");
+            Pipeline caller = NewPipeline(Channel, "caller");
+            seed.Pipelines.AddRange(sub, caller);
+            seed.CodeScripts.Add(script);
+            seed.PipelineSteps.AddRange(
+                RunCode(Channel, sub.Id, script.Id),
+                RunPipeline(Channel, caller.Id, sub.Id, mode)
+            );
+            seed.Timers.Add(NewTimer(sub.Id));
+            seed.Commands.Add(NewCommand(Channel, caller.Id, "go"));
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        Result<IReadOnlyList<string>> result = await Build(db)
+            .GetTriggerKeysAsync(script.Id, CancellationToken.None);
+
+        result.Value.Should().Equal(expected);
+    }
+
+    [Fact]
+    public async Task Callers_are_followed_transitively_and_a_call_cycle_ends()
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "deep");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline a = NewPipeline(Channel, "a");
+            Pipeline b = NewPipeline(Channel, "b");
+            Pipeline c = NewPipeline(Channel, "c");
+            seed.Pipelines.AddRange(a, b, c);
+            seed.CodeScripts.Add(script);
+            seed.PipelineSteps.AddRange(
+                RunCode(Channel, a.Id, script.Id),
+                RunPipeline(Channel, b.Id, a.Id, "inline"),
+                RunPipeline(Channel, a.Id, b.Id, "inline"),
+                RunPipeline(Channel, c.Id, b.Id, null)
+            );
+            seed.Timers.Add(NewTimer(a.Id));
+            seed.EventResponses.Add(NewEventResponse(Channel, c.Id, "channel.follow"));
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        Result<IReadOnlyList<string>> result = await Build(db)
+            .GetTriggerKeysAsync(script.Id, CancellationToken.None);
+
+        result.Value.Should().Equal("channel.follow", "timer");
+    }
+
+    [Fact]
+    public async Task Another_channels_inline_caller_adds_no_keys()
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "sub");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline sub = NewPipeline(Channel, "sub");
+            Pipeline foreign = NewPipeline(OtherChannel, "theirs");
+            seed.Pipelines.AddRange(sub, foreign);
+            seed.CodeScripts.Add(script);
+            seed.PipelineSteps.AddRange(
+                RunCode(Channel, sub.Id, script.Id),
+                RunPipeline(OtherChannel, foreign.Id, sub.Id, "inline")
+            );
+            seed.Timers.Add(NewTimer(sub.Id));
+            seed.EventResponses.Add(NewEventResponse(OtherChannel, foreign.Id, "channel.raid"));
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        Result<IReadOnlyList<string>> result = await Build(db)
+            .GetTriggerKeysAsync(script.Id, CancellationToken.None);
+
+        result.Value.Should().Equal("timer");
+    }
+
     [Fact]
     public async Task A_script_no_pipeline_runs_has_no_trigger_keys()
     {

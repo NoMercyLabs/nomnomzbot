@@ -62,6 +62,8 @@ public sealed class CodeScriptTriggerResolver(
         if (pipelineIds.Count == 0)
             return Result.Success<IReadOnlyList<string>>([]);
 
+        pipelineIds = await AddInlineCallersAsync(broadcasterId, pipelineIds, cancellationToken);
+
         bool hasCommand = await db.Commands.AnyAsync(
             command =>
                 command.BroadcasterId == broadcasterId
@@ -151,6 +153,70 @@ public sealed class CodeScriptTriggerResolver(
         return Result.Success<IReadOnlyList<string>>([
             .. keys.OrderBy(key => key, StringComparer.Ordinal),
         ]);
+    }
+
+    /// <summary>
+    /// An inline <c>run_pipeline</c> runs its target in the caller's context, so the caller's triggers seed the
+    /// target's variables too. Walks the inline callers of the pipelines, transitively; a detached call starts
+    /// with its args only and adds nothing. Own channel only; a visited set ends a call cycle.
+    /// </summary>
+    private async Task<List<Guid>> AddInlineCallersAsync(
+        Guid broadcasterId,
+        List<Guid> pipelineIds,
+        CancellationToken cancellationToken
+    )
+    {
+        List<(Guid CallerId, string ConfigJson)> steps = (
+            await db
+                .PipelineSteps.Where(step =>
+                    step.BroadcasterId == broadcasterId && step.ActionType == "run_pipeline"
+                )
+                .Select(step => new { step.PipelineId, step.ConfigJson })
+                .ToListAsync(cancellationToken)
+        )
+            .Select(step => (step.PipelineId, step.ConfigJson))
+            .ToList();
+
+        ILookup<Guid, Guid> callersByTarget = steps
+            .Select(step => (step.CallerId, Target: ReadInlineTarget(step.ConfigJson)))
+            .Where(call => call.Target is not null)
+            .ToLookup(call => call.Target!.Value, call => call.CallerId);
+
+        HashSet<Guid> visited = [.. pipelineIds];
+        Queue<Guid> pending = new(pipelineIds);
+        while (pending.TryDequeue(out Guid target))
+            foreach (Guid caller in callersByTarget[target])
+                if (visited.Add(caller))
+                    pending.Enqueue(caller);
+
+        return [.. visited];
+    }
+
+    private static Guid? ReadInlineTarget(string configJson)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(configJson);
+            JsonElement root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return null;
+            if (
+                root.TryGetProperty("mode", out JsonElement mode)
+                && mode.ValueKind == JsonValueKind.String
+                && string.Equals(mode.GetString(), "detached", StringComparison.OrdinalIgnoreCase)
+            )
+                return null;
+            return
+                root.TryGetProperty("pipeline", out JsonElement target)
+                && target.ValueKind == JsonValueKind.String
+                && Guid.TryParse(target.GetString(), out Guid targetId)
+                ? targetId
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static string? ReadEventType(string configJson)
