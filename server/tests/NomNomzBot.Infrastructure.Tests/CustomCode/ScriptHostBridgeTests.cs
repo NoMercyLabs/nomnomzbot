@@ -778,6 +778,44 @@ public sealed class ScriptHostBridgeTests
         seen.PitchPercent.Should().BeNull();
     }
 
+    // JavaScript's String(NaN) and String(Infinity) parse as doubles; they must count as no override, the way
+    // any other bad value does, so the provider never receives "NaN%".
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("-Infinity")]
+    public void Tts_speak_treats_a_rate_or_pitch_that_is_not_a_finite_number_as_absent(
+        string notFinite
+    )
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        TtsSpeakRequest? seen = null;
+        tts.RequestSpeakAsync(Arg.Do<TtsSpeakRequest>(r => seen = r), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        VoiceId: "en-US-Aria",
+                        Provider: "edge",
+                        CharacterCount: 5,
+                        DurationMs: 400,
+                        PlaybackUrl: null
+                    )
+                )
+            );
+
+        Build(tts: tts)
+            .Resolve("tts.speak")(
+                "tts.speak",
+                ["hello", "en-US-Aria", notFinite, notFinite],
+                CancellationToken.None
+            );
+
+        seen.Should().NotBeNull();
+        seen!.RatePercent.Should().BeNull();
+        seen.PitchPercent.Should().BeNull();
+    }
+
     // ── widget.emit ──
 
     private static readonly Guid WidgetId = Guid.Parse("0192a000-0000-7000-8000-00000000e0c1");

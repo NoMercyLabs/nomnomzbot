@@ -920,19 +920,20 @@ public sealed class ScriptHostBridge(
         return null;
     }
 
-    // An optional trailing numeric arg (e.g. tts.speak's rate/pitch overrides): absent, blank, or
-    // unparseable is null rather than a thrown/guest-visible error — a script that omits or fat-fingers
-    // the override just gets the provider's default rate/pitch, never a failed call.
+    // An optional trailing numeric arg (e.g. tts.speak's rate/pitch overrides): absent, blank,
+    // unparseable or not finite (NaN, Infinity) is null rather than a thrown/guest-visible error — a script
+    // that omits or fat-fingers the override just gets the provider's default rate/pitch, never a failed call.
     private static double? ParseOptionalDouble(IReadOnlyList<string> args, int index)
     {
         if (args.Count <= index || string.IsNullOrWhiteSpace(args[index]))
             return null;
-        return double.TryParse(
-            args[index],
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out double parsed
-        )
+        return
+            double.TryParse(
+                args[index],
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double parsed
+            ) && double.IsFinite(parsed)
             ? parsed
             : null;
     }
