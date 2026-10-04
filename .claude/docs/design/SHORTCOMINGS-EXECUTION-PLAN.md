@@ -824,10 +824,6 @@ than each consumer needing their own clone-and-customize pass.
   "fetch allowlist" (`spec/code-execution-sandbox.md:40`). Done-when:
   adding a host in the dashboard lets a webhook to it save, disabling or deleting it makes the same
   save fail, and a counted blast radius shows before delete.
-- **S-EGRESS-GUARD-MULTICAST** `EgressAddressGuard` blocks private, loopback, link-local, CGNAT, ULA
-  and unspecified ranges but not IPv4 multicast (224.0.0.0/4), the reserved 240.0.0.0/4 block or
-  IPv6 multicast (ff00::/8). Done-when: table tests block 224.0.0.1, 239.255.255.250, 240.0.0.1 and
-  ff02::1 (plain and IPv4-mapped) while a public address still passes.
 - **S-CUSTOMDATA-PUSH** CustomData inbound webhook adapter, or hide the push option until it exists.
   `CustomDataSource.InboundWebhookEndpointId` is defined but nothing ever sets it, so a push source
   cannot receive anything. Done-when: a push source created in the dashboard gets an inbound
