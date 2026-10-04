@@ -35,6 +35,7 @@ public sealed class ScriptRunnerTests
     private static (ScriptRunner Sut, AuthDbContext Db) Build(
         NomNomzBot.Domain.Chat.Interfaces.IChatProvider? chat = null,
         IScriptExecutor? executor = null,
+        IScriptExecutionMeter? failingMeter = null,
         params string[] granted
     )
     {
@@ -61,10 +62,11 @@ public sealed class ScriptRunnerTests
                     )
                 )
             );
-        IScriptExecutionMeter meter = Substitute.For<IScriptExecutionMeter>();
-        meter
-            .CheckSandboxBudgetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new QuotaCheck(true, -1, 0, default, default)));
+        IScriptExecutionMeter meter = failingMeter ?? Substitute.For<IScriptExecutionMeter>();
+        if (failingMeter is null)
+            meter
+                .CheckSandboxBudgetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+                .Returns(Result.Success(new QuotaCheck(true, -1, 0, default, default)));
         meter
             .RecordSandboxUsageAsync(
                 Arg.Any<Guid>(),
@@ -235,5 +237,27 @@ public sealed class ScriptRunnerTests
         ScriptRunResult r = (await sut.RunAsync(id, Invocation())).Value;
 
         r.Outcome.Should().Be(ScriptExecutionOutcome.Faulted);
+    }
+
+    [Fact]
+    public async Task A_failed_quota_check_denies_the_run_and_the_script_never_executes()
+    {
+        IScriptExecutionMeter failing = Substitute.For<IScriptExecutionMeter>();
+        failing
+            .CheckSandboxBudgetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<QuotaCheck>("usage store down", "USAGE_DOWN"));
+        IScriptExecutor executor = Substitute.For<IScriptExecutor>();
+        (ScriptRunner sut, AuthDbContext db) = Build(executor: executor, failingMeter: failing);
+        Guid id = await SeedAsync(db, enabled: true, withValidVersion: true);
+
+        Result<ScriptRunResult> result = await sut.RunAsync(id, Invocation());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Outcome.Should().Be(ScriptExecutionOutcome.Denied);
+        result.Value.DenialReason.Should().Be(ScriptDenialReason.QuotaExceeded);
+        result
+            .Value.ErrorMessage.Should()
+            .Be("Sandbox execution quota could not be verified, so the script was not run.");
+        await executor.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default!, default!);
     }
 }

@@ -50,22 +50,18 @@ public sealed class ScriptRunner(
         if (!script.IsEnabled)
             return Faulted("Script is disabled.", ScriptDenialReason.ScriptDisabled);
 
-        // Meter-gate: refuse before execution when the tenant is over its sandbox-exec-ms budget (fail-closed).
+        // Meter-gate: refuse before execution when the tenant is over its sandbox-exec-ms budget, or when the
+        // budget cannot be checked at all (fail-closed: an unmetered run is never allowed).
         Result<QuotaCheck> budget = await meter.CheckSandboxBudgetAsync(
             script.BroadcasterId,
             cancellationToken
         );
-        if (budget is { IsSuccess: true, Value.Allowed: false })
-            return Result.Success(
-                new ScriptRunResult(
-                    ScriptExecutionOutcome.Denied,
-                    new Dictionary<string, string>(),
-                    Output: null,
-                    StopPipeline: false,
-                    ErrorMessage: "Sandbox execution quota exhausted for this period.",
-                    DenialReason: ScriptDenialReason.QuotaExceeded
-                )
+        if (budget.IsFailure)
+            return DeniedByQuota(
+                "Sandbox execution quota could not be verified, so the script was not run."
             );
+        if (!budget.Value.Allowed)
+            return DeniedByQuota("Sandbox execution quota exhausted for this period.");
 
         CodeScriptVersion? version = script.CurrentVersionId is { } versionId
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(
@@ -174,6 +170,18 @@ public sealed class ScriptRunner(
                 StopPipeline: false,
                 ErrorMessage: message,
                 DenialReason: reason
+            )
+        );
+
+    private static Result<ScriptRunResult> DeniedByQuota(string message) =>
+        Result.Success(
+            new ScriptRunResult(
+                ScriptExecutionOutcome.Denied,
+                new Dictionary<string, string>(),
+                Output: null,
+                StopPipeline: false,
+                ErrorMessage: message,
+                DenialReason: ScriptDenialReason.QuotaExceeded
             )
         );
 }
