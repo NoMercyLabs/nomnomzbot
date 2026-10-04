@@ -176,11 +176,28 @@ class CompactMultiColumnRowGuardTest {
         val sectionEnd: Int = source.indexOf("\nprivate fun FeatureFlagOverrideActions(", sectionStart)
         val section: String = source.substring(sectionStart, if (sectionEnd > 0) sectionEnd else source.length)
 
-        if (!section.contains("windowSize.isCompact")) {
-            fail("FeatureFlagOverrideRow no longer branches on the size class — the action trio would crowd the field again")
+        // Since dce22dc86 the row picks its layout from its OWN width (InfoActionsRow), not the window class:
+        // a Medium or Expanded window still gives the row only the pane beside the sidebar.
+        if (!Regex("""\bInfoActionsRow\(""").containsMatchIn(section)) {
+            fail("FeatureFlagOverrideRow no longer routes through InfoActionsRow — the action trio would crowd the field again")
         }
-        if (!section.contains("FlowRow(")) {
-            fail("FeatureFlagOverrideRow's Compact branch no longer wraps the action trio in a FlowRow")
+        if (section.contains("windowSize")) {
+            fail("FeatureFlagOverrideRow branches on the window class again — a narrow pane in a wide window would crowd")
+        }
+
+        val rowSource: String =
+            File("src/commonMain/kotlin/bot/nomnomz/dashboard/core/designsystem/component/InfoActionsRow.kt").readText()
+        if (!rowSource.contains("constraints.maxWidth")) {
+            fail("InfoActionsRow no longer reads the width it is given, so it cannot tell when the field is squeezed")
+        }
+        if (!rowSource.contains("maxIntrinsicWidth")) {
+            fail("InfoActionsRow no longer measures the width its actions want before choosing side-by-side or stacked")
+        }
+        if (!rowSource.contains("FlowRow(")) {
+            fail("InfoActionsRow no longer wraps its actions in a FlowRow")
+        }
+        if (rowSource.contains("windowSize")) {
+            fail("InfoActionsRow picks its layout from the window class instead of its own width")
         }
     }
 }
