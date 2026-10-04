@@ -16,7 +16,7 @@ namespace NomNomzBot.Infrastructure.Sandbox;
 /// <summary>
 /// The SSRF resolved-IP guard (code-execution-sandbox.md §7.1 step 4). After resolve-then-pin, EVERY resolved IP
 /// of an egress target must pass this before the socket opens. Fail-closed: an internal / link-local / cloud-
-/// metadata / CGNAT / ULA / unspecified / unknown-family address is blocked, including the IPv4-mapped-IPv6 form
+/// metadata / CGNAT / ULA / multicast / reserved / unspecified / unknown-family address is blocked, including the IPv4-mapped-IPv6 form
 /// (the classic bypass). Pure — no DNS, no I/O.
 /// </summary>
 public static class EgressAddressGuard
@@ -44,7 +44,7 @@ public static class EgressAddressGuard
         || (b[0] == 192 && b[1] == 168) // 192.168.0.0/16 private
         || (b[0] == 169 && b[1] == 254) // 169.254.0.0/16 link-local (incl. 169.254.169.254 metadata)
         || (b[0] == 100 && b[1] is >= 64 and <= 127) // 100.64.0.0/10 CGNAT
-        || (b[0] == 255 && b[1] == 255 && b[2] == 255 && b[3] == 255); // broadcast
+        || b[0] >= 224; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved (incl. 255.255.255.255 broadcast)
 
     private static bool IsBlockedV6(IPAddress address)
     {
@@ -55,6 +55,7 @@ public static class EgressAddressGuard
 
         byte[] b = address.GetAddressBytes();
         return (b[0] & 0xFE) == 0xFC // fc00::/7 unique-local
-            || (b[0] == 0xFE && (b[1] & 0xC0) == 0x80); // fe80::/10 link-local
+            || (b[0] == 0xFE && (b[1] & 0xC0) == 0x80) // fe80::/10 link-local
+            || b[0] == 0xFF; // ff00::/8 multicast
     }
 }

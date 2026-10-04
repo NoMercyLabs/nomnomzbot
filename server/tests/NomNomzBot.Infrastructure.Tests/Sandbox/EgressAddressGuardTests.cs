@@ -38,6 +38,12 @@ public sealed class EgressAddressGuardTests
     [InlineData("fe80::1")] // link-local
     [InlineData("::ffff:169.254.169.254")] // v4-mapped metadata bypass attempt
     [InlineData("::ffff:10.0.0.1")] // v4-mapped private bypass attempt
+    [InlineData("224.0.0.1")] // IPv4 multicast (lower edge)
+    [InlineData("239.255.255.250")] // IPv4 multicast (SSDP, upper block)
+    [InlineData("240.0.0.1")] // reserved 240.0.0.0/4
+    [InlineData("ff02::1")] // IPv6 multicast
+    [InlineData("::ffff:224.0.0.1")] // v4-mapped multicast
+    [InlineData("::ffff:240.0.0.1")] // v4-mapped reserved
     public void Blocks_internal_and_metadata_addresses(string ip)
     {
         EgressAddressGuard.IsBlocked(IPAddress.Parse(ip)).Should().BeTrue();
@@ -52,6 +58,7 @@ public sealed class EgressAddressGuardTests
     [InlineData("172.32.0.1")] // just above 172.16.0.0/12
     [InlineData("100.63.255.255")] // just below 100.64.0.0/10 CGNAT
     [InlineData("100.128.0.1")] // just above 100.64.0.0/10 CGNAT
+    [InlineData("223.255.255.255")] // just below 224.0.0.0/4 multicast
     public void Allows_genuinely_public_addresses(string ip)
     {
         EgressAddressGuard.IsBlocked(IPAddress.Parse(ip)).Should().BeFalse();
