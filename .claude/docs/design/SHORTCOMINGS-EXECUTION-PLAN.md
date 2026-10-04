@@ -91,16 +91,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   sees the effective level, resolved at most once per message; a test with a badge-less Editor failed first.
   Same class: a command's template response builds its variables at `ChatMessageHandler.cs:560` without the
   effective `user.role` the pipeline path sets (`:443-444`), so `{user.role}` in a reply shows the badge role.
-- **S-RESOLVER-SUBPIPELINES** Found by the docs fact-check 2026-10-04, checked against the code. An inline
-  `run_pipeline` runs the target pipeline in the caller's context, with the caller's variables plus its args
-  (`RunPipelineAction.cs:123`, `PipelineEngine.cs:1162-1230` `callerCtx.Variables`). The editor's trigger resolver
-  looks only at triggers bound directly to the script's own pipeline (`CodeScriptTriggerResolver.cs:55-117`). A
-  script in a sub-pipeline that has its own timer and is also called inline from a command pipeline gets a
-  timer-only type, so the editor flags the command variables it really gets (owner goal: a 100% type-safe editor).
-  A detached call starts with the args only (`RunPipelineAction.cs:160-162`), so it adds no caller keys.
-  Done-when: the resolver follows inline `run_pipeline` steps to their callers (transitively, cycle-safe, own
-  tenant only) and adds the callers' trigger keys; a resolver test with a timer sub-pipeline called inline from a
-  command pipeline failed first.
 - **S-WIDGET-EMIT-FALSY-DATA** Found by the send-to-a-widget writer 2026-10-04. `widget.emit` declares `data?: unknown`
   (`SdkRuntimeSurface.cs:658`), but the overlay replaces any falsy data with `{}` (`OverlaySdkController.cs:376`
   `e.data || {}`), and the editor preview does the same (`preview-sdk.js:77`). A script that sends `false`, `0` or
