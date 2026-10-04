@@ -75,19 +75,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   S-CMP-A11Y-DIALOG: upstream CMP-9368, `ComposeWebSemanticsListener.kt:120-152` on 1.9.0.) Done-when: each
   row has at most one accent action, the badge is quiet when every item has it; each with a test that failed
   first, and a screenshot on dev.
-- **S-UF-AUDIO-ONE-SOURCE** (stream-facing) Follow-up to the one-audio-source rule (owner 2026-10-02, shipped
-  as S-SDK-WIDGET-DELIVERY). Done-when: each UF line below has a test that failed first.
-  UF·T9: On the one audio page, sound is one at a time: a TTS line that arrives during a sound clip waits
-  for the clip's `ended`, and a clip that arrives during a TTS line waits for the line (today `playSound`
-  and the TTS queue run independently, `OverlaySdkController.cs:199-242`). An SDK test proves both
-  orders. (Landed d6b33b197: TTS lines and unhandled clips share one lane in arrival order; a
-  handled clip stays its own slot; TTS skip, clear and pause leave clips alone.) The no-Audio-Source inbox item is Critical while the channel is live and reads "TTS has nowhere
-  to play. Add the TTS source in OBS." It replaces the transient `tts_no_output` alert, which checks
-  `tts_speak` subscribers rather than the audio page (`TtsSpeakBroadcastHandler.cs:93-127`).
-  UF·T11: The TTS page hands out the Audio Source page as **TTS source for OBS** (today `GET
-  /tts/overlay` ensures and returns the `tts_caption` URL, `TtsConfigController.cs:66-90`, labelled
-  "Browser-source URL", `strings.xml:804`). A controller test asserts the returned URL is the `tts_audio`
-  widget's. (Landed 5c61e5832.)
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
