@@ -494,7 +494,9 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  min(values: number[]): number;");
         sb.AppendLine("  /** The largest value. */");
         sb.AppendLine("  max(values: number[]): number;");
-        sb.AppendLine("  /** A random whole number from min to max, both included. */");
+        sb.AppendLine(
+            "  /** A random whole number from min to max, both included. The ends can be in either order. Returns NaN when there is no whole number between them, for example randomInt(1.2, 1.8). */"
+        );
         sb.AppendLine("  randomInt(min: number, max: number): number;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -539,7 +541,9 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzRandom {");
-        sb.AppendLine("  /** A random whole number from min to max, both included. */");
+        sb.AppendLine(
+            "  /** A random whole number from min to max, both included. The ends can be in either order. Returns NaN when there is no whole number between them, for example int(1.2, 1.8). */"
+        );
         sb.AppendLine("  int(min: number, max: number): number;");
         sb.AppendLine("  /** A random item, or undefined when the list is empty. */");
         sb.AppendLine("  pick<T>(items: readonly T[]): T | undefined;");

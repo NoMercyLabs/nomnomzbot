@@ -142,7 +142,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 avg: function (values) { return values.length ? nnz.math.sum(values) / values.length : 0; },
                 min: function (values) { return Math.min.apply(null, values.map(Number)); },
                 max: function (values) { return Math.max.apply(null, values.map(Number)); },
-                randomInt: function (min, max) { min = Math.ceil(Number(min)); max = Math.floor(Number(max)); return Math.floor(Math.random() * (max - min + 1)) + min; }
+                randomInt: function (min, max) { var a = Number(min), b = Number(max); var lo = Math.ceil(Math.min(a, b)); var hi = Math.floor(Math.max(a, b)); if (lo > hi) { return NaN; } return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
             },
             str: {
                 padStart: function (value, length, pad) { return String(value).padStart(Number(length), pad === undefined || pad === null ? ' ' : String(pad)); },
