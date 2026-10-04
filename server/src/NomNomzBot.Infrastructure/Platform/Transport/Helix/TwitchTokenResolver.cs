@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,10 @@ public sealed class TwitchTokenResolver(
     // re-mints instead of refreshing, and never nags a reauth).
     internal const string AppServiceName = "twitch_app";
     private const string PlatformSubject = "_platform";
+
+    // (broadcaster, scope) -> fingerprint of the grant the gap was last reported against. Process-wide because the
+    // resolver is scoped but the snapshot builders re-check the same gap every few minutes.
+    private static readonly ConcurrentDictionary<(Guid, string), string> ReportedGaps = new();
 
     public async Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default)
     {
@@ -230,21 +235,39 @@ public sealed class TwitchTokenResolver(
 
         // The single chokepoint every sub-client's per-method scope pre-check calls — so emitting here makes the
         // proactive precheck path feed the same reactive missing-scope surface as a runtime 403, for ALL clients,
-        // without touching each one. The handler is idempotent, so re-emitting on every failed call is harmless.
-        if (!granted && connection is not null)
-            await eventBus.PublishAsync(
-                new TwitchHelixReauthRequiredEvent
-                {
-                    BroadcasterId = broadcasterId,
-                    Provider = "twitch",
-                    ServiceName = "twitch",
-                    Reason = TwitchErrorCodes.MissingScope,
-                    MissingScope = scope,
-                },
-                ct
-            );
+        // without touching each one. A gap already reported against this exact grant is not re-published: every
+        // publish is journaled, writes a row and recomputes the inbox. A changed grant reports it again.
+        if (connection is null)
+            return granted;
 
-        return granted;
+        (Guid, string) gap = (broadcasterId, scope.ToLowerInvariant());
+        if (granted)
+        {
+            ReportedGaps.TryRemove(gap, out _);
+            return true;
+        }
+
+        string fingerprint = string.Join(
+            ' ',
+            connection.Scopes.Select(s => s.ToLowerInvariant()).Order(StringComparer.Ordinal)
+        );
+        if (ReportedGaps.TryGetValue(gap, out string? seen) && seen == fingerprint)
+            return false;
+
+        ReportedGaps[gap] = fingerprint;
+        await eventBus.PublishAsync(
+            new TwitchHelixReauthRequiredEvent
+            {
+                BroadcasterId = broadcasterId,
+                Provider = "twitch",
+                ServiceName = "twitch",
+                Reason = TwitchErrorCodes.MissingScope,
+                MissingScope = scope,
+            },
+            ct
+        );
+
+        return false;
     }
 
     /// <summary>

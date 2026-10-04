@@ -49,6 +49,7 @@ public sealed class TwitchManagementSnapshotBuilder(
         // `[RequireAction("moderation:*")]` then 403s and their dashboard goes blank). Better to keep a stale
         // grant one extra cycle than to wrongly revoke a live one.
         bool modsComplete = true;
+        bool modsReadFailed = false;
         string? cursor = null;
         int pageGuard = 0;
         do
@@ -60,13 +61,15 @@ public sealed class TwitchManagementSnapshotBuilder(
             );
             if (page.IsFailure)
             {
-                logger.LogWarning(
+                logger.Log(
+                    TwitchSnapshotLogLevel.For(page.ErrorCode),
                     "Management snapshot: reading moderators for {BroadcasterId} failed: {Error} ({Code}) — moderator roles left intact (not pruned this run)",
                     broadcasterId,
                     page.ErrorMessage,
                     page.ErrorCode
                 );
                 modsComplete = false;
+                modsReadFailed = true;
                 break;
             }
 
@@ -75,7 +78,7 @@ public sealed class TwitchManagementSnapshotBuilder(
                 Guid? userId = await ResolveUserIdAsync(
                     mod.UserId,
                     mod.UserLogin,
-                    mod.UserName ?? mod.UserLogin,
+                    mod.UserName,
                     ct
                 );
                 if (userId is { } id)
@@ -96,9 +99,9 @@ public sealed class TwitchManagementSnapshotBuilder(
 
         if (modsComplete)
             authoritative.Add(MembershipSource.TwitchBadge);
-        else
+        else if (!modsReadFailed)
             logger.LogWarning(
-                "Management snapshot: moderator snapshot for {BroadcasterId} was incomplete (a failed page or unresolved member) — moderator roles left intact (not pruned this run)",
+                "Management snapshot: moderator snapshot for {BroadcasterId} was incomplete (an unresolved member) — moderator roles left intact (not pruned this run)",
                 broadcasterId
             );
 
@@ -139,7 +142,8 @@ public sealed class TwitchManagementSnapshotBuilder(
         }
         else
         {
-            logger.LogWarning(
+            logger.Log(
+                TwitchSnapshotLogLevel.For(editorsResult.ErrorCode),
                 "Management snapshot: reading channel editors for {BroadcasterId} failed: {Error} ({Code}) — editor roles left intact (not pruned this run)",
                 broadcasterId,
                 editorsResult.ErrorMessage,

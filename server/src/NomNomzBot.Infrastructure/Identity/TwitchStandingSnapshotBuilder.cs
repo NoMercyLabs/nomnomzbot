@@ -60,7 +60,8 @@ public sealed class TwitchStandingSnapshotBuilder(
                 );
             if (page.IsFailure)
             {
-                logger.LogWarning(
+                logger.Log(
+                    TwitchSnapshotLogLevel.For(page.ErrorCode),
                     "Standing snapshot: reading subscribers for {BroadcasterId} failed: {Error} ({Code}) — subscriber standings left intact (not pruned this run)",
                     broadcasterId,
                     page.ErrorMessage,
@@ -79,7 +80,7 @@ public sealed class TwitchStandingSnapshotBuilder(
                 Guid? userId = await ResolveUserIdAsync(
                     sub.UserId,
                     sub.UserLogin,
-                    sub.UserName ?? sub.UserLogin,
+                    sub.UserName,
                     ct
                 );
                 if (userId is { } id)
@@ -104,7 +105,8 @@ public sealed class TwitchStandingSnapshotBuilder(
             );
             if (page.IsFailure)
             {
-                logger.LogWarning(
+                logger.Log(
+                    TwitchSnapshotLogLevel.For(page.ErrorCode),
                     "Standing snapshot: reading VIPs for {BroadcasterId} failed: {Error} ({Code}) — VIP standings left intact (not pruned this run)",
                     broadcasterId,
                     page.ErrorMessage,
@@ -119,7 +121,7 @@ public sealed class TwitchStandingSnapshotBuilder(
                 Guid? userId = await ResolveUserIdAsync(
                     vip.UserId,
                     vip.UserLogin,
-                    vip.UserName ?? vip.UserLogin,
+                    vip.UserName,
                     ct
                 );
                 if (userId is { } id)
