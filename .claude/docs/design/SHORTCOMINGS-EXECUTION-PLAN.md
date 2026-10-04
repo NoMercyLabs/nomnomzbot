@@ -128,14 +128,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `GetCurrentTrackAsync` reads; overlay player plays the head and reports state; ENDED advances the queue).
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
-- **S-VANILLA-SDK-ORDER** Found by the docs writer 2026-10-04. A vanilla widget page gets its config and
-  `/overlay/sdk.js` spliced in just before `</head>` (`OverlayHostController.cs:205-210`), though the method
-  says it runs "before the app runs". A widget script placed in `<head>` runs first and finds no `NomNomz`.
-  Done-when: the config and SDK go in right after the opening `<head>` tag (or before the first `<script>`),
-  so they run before every widget script; the body and no-head fallbacks keep that promise too. The matching
-  is literal (`OverlayHostController.cs:212-215`): a `<body class="x">` is not matched, so the scripts go in
-  front of the whole page, before `<!DOCTYPE>`; tags with attributes must match. A test with a head script and
-  one with an attributed body tag failed first.
 - **S-CONVERT-PROTO-KEYS** Found by the docs fact-check 2026-10-04. `nnz.units.convert` looks unit names up
   with `temp[f]` and `dims[i][f] !== undefined` (`JintScriptExecutor.cs:99-116`), so a name every JS object
   inherits (`constructor`, `toString`, `valueOf`, ...) counts as a unit: `convert(5, 'constructor',
