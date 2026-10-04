@@ -83,8 +83,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Root cause: the playback driver for YouTube is the `ISongRequestSequencer` of `spec/music-sr.md` §3.5.2
   ("target, not built"; YouTube plays through the browser-source IFrame, track-end via `onStateChange(ENDED)`).
   Order: first a scout proves end to end on the dev box whether a YouTube song request ever plays today;
-  then the §3.5.2 sequencer is built in slices (player report hub method + per-channel state holder that
-  `GetCurrentTrackAsync` reads; overlay player plays the head and reports state; ENDED advances the queue).
+  then the §3.5.2 sequencer is built in slices. Landed: the request is handed to the open player page
+  (e678957d5); the hub method `ReportYouTubePlayerState` and the per-channel state store that
+  `GetCurrentTrackAsync` reads (67a473549). Left: the overlay player plays the head and calls
+  `ReportYouTubePlayerState` (nothing calls it yet, so `nowPlaying` is still null); ENDED advances the queue.
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
 - **S-ROTATED-TOKEN-OPEN-PAGE** Found by the docs writer 2026-10-04. The overlay hub checks a widget token only
