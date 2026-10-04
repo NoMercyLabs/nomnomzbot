@@ -26,7 +26,8 @@ using NomNomzBot.Infrastructure.TestRun;
 namespace NomNomzBot.Infrastructure.CustomCode;
 
 /// <summary>
-/// The code-script DRY-RUN (custom-code.md §6). Runs the script's current valid version through the REAL hardened
+/// The code-script DRY-RUN (custom-code.md §6). Runs the script's current valid version (or, when the request carries
+/// project files, those files compiled through the save gate and never stored) through the REAL hardened
 /// executor and the REAL host bridge — but wrapped in a <see cref="CaptureScriptHostBridge"/>, so reads run live and
 /// every side-effecting capability is recorded, never dispatched. Unlike the live <see cref="ScriptRunner"/> it does
 /// NOT gate on the sandbox meter, does NOT record usage, and does NOT touch the script row (LastRanAt / errors) — a
@@ -40,7 +41,8 @@ public sealed class ScriptTestRunService(
     IScriptCapabilityBroker broker,
     IScriptHostBridgeFactory bridgeFactory,
     ITtsDispatchService ttsDispatch,
-    ITriggerSampleCatalog samples
+    ITriggerSampleCatalog samples,
+    ICodeScriptService codeScripts
 ) : IScriptTestRunService
 {
     public async Task<Result<TestRunResultDto>> RunAsync(
@@ -59,25 +61,24 @@ public sealed class ScriptTestRunService(
         if (script is null)
             return Result.Failure<TestRunResultDto>("Script not found.", "NOT_FOUND");
 
-        CodeScriptVersion? version = script.CurrentVersionId is { } versionId
-            ? await db.CodeScriptVersions.FirstOrDefaultAsync(
-                v => v.Id == versionId,
-                cancellationToken
-            )
-            : null;
-        if (version is null || version.ValidationStatus != "valid" || version.CompiledJs is null)
+        Result<CompiledScriptProject> source = await ResolveSourceAsync(
+            script,
+            request,
+            cancellationToken
+        );
+        if (source.IsFailure)
             return Result.Failure<TestRunResultDto>(
-                "Script has no valid published version to test.",
-                "VALIDATION_FAILED"
+                source.ErrorMessage,
+                source.ErrorCode,
+                errorData: source.ErrorData
             );
+        CompiledScriptProject compiled = source.Value;
 
         // Same deny-by-default grant the live run builds — a disallowed declared capability denies the test-run too,
         // so the author gets the honest verdict without any effect ever firing.
-        List<string> declared =
-            JsonConvert.DeserializeObject<List<string>>(version.DeclaredCapabilitiesJson) ?? [];
         Result<ScriptCapabilityGrant> grant = await broker.BuildGrantAsync(
             broadcasterId,
-            declared,
+            compiled.DeclaredCapabilities,
             cancellationToken
         );
         if (grant.IsFailure)
@@ -118,8 +119,8 @@ public sealed class ScriptTestRunService(
         CaptureSink sink = new();
         ScriptExecutionRequest execRequest = new(
             Guid.NewGuid().ToString("N")[..12],
-            version.CompiledJs,
-            version.CompiledHash ?? string.Empty,
+            compiled.CompiledJs,
+            compiled.CompiledHash,
             new(triggeringUserId, sample?.UserDisplayName ?? "Test Run", request.Args, seeded),
             ScriptResourceBudget.Baseline,
             sink.AddConsoleLine,
@@ -185,6 +186,42 @@ public sealed class ScriptTestRunService(
                 Timeline = sink.Timeline,
                 ErrorPosition = success ? null : outcome.ErrorPosition,
             }
+        );
+    }
+
+    // Project files in the request run through the save gate without being stored; with none, the script's current
+    // version runs, as before.
+    private async Task<Result<CompiledScriptProject>> ResolveSourceAsync(
+        CodeScript script,
+        ScriptTestRunRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.Project is not null)
+            return await codeScripts.CompileProjectAsync(
+                script.Id,
+                request.Project,
+                cancellationToken
+            );
+
+        CodeScriptVersion? version = script.CurrentVersionId is { } versionId
+            ? await db.CodeScriptVersions.FirstOrDefaultAsync(
+                v => v.Id == versionId,
+                cancellationToken
+            )
+            : null;
+        if (version is null || version.ValidationStatus != "valid" || version.CompiledJs is null)
+            return Result.Failure<CompiledScriptProject>(
+                "Script has no valid published version to test.",
+                "VALIDATION_FAILED"
+            );
+
+        return Result.Success(
+            new CompiledScriptProject(
+                version.CompiledJs,
+                version.CompiledHash ?? string.Empty,
+                JsonConvert.DeserializeObject<List<string>>(version.DeclaredCapabilitiesJson) ?? []
+            )
         );
     }
 

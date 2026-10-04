@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DevPlatform.Dtos;
 
 namespace NomNomzBot.Application.Contracts.CustomCode;
 
@@ -22,7 +23,8 @@ public sealed record ScriptTestRunRequest(
     IReadOnlyDictionary<string, string> Variables,
     IReadOnlyList<string> Args,
     string? Trigger = null,
-    string? Role = null
+    string? Role = null,
+    ProjectDto? Project = null
 );
 
 /// <summary>One trigger sample the editor offers for a test run (<c>GET code-scripts/test-triggers</c>).</summary>

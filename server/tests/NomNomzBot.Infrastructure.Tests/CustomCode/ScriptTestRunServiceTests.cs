@@ -15,12 +15,14 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Widgets.Bundling;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
@@ -110,7 +112,16 @@ public sealed class ScriptTestRunServiceTests
                 broker,
                 bridgeFactory,
                 tts,
-                samples
+                samples,
+                new CodeScriptService(
+                    db,
+                    tenant,
+                    executor ?? new JintScriptExecutor(),
+                    ScriptBundlers.Real(),
+                    new RecordingEventBus(),
+                    TimeProvider.System,
+                    new WidgetDependencyAllowlist()
+                )
             ),
             db,
             storage
@@ -676,5 +687,74 @@ public sealed class ScriptTestRunServiceTests
         result.Timeline.Select(t => t.Text).Should().Equal("first", "middle", "last");
         result.Timeline[^1].Kind.Should().Be("chat");
         result.Timeline.Select(t => t.Seq).Should().Equal(1, 2, 3);
+    }
+
+    private static ProjectDto EditorProject(string code) =>
+        new(
+            new Dictionary<string, string> { ["index.ts"] = code },
+            new("index.ts", "script", "typescript", [])
+        );
+
+    [Fact]
+    public async Task Given_project_files_the_run_executes_them_and_stores_nothing()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, "nnz.api.chat.send('saved code');", ["chat.send"]);
+        Guid? liveBefore = db.CodeScripts.Single(s => s.Id == id).CurrentVersionId;
+
+        Result<TestRunResultDto> result = await sut.RunAsync(
+            id,
+            Request() with
+            {
+                Project = EditorProject("nnz.api.chat.send('editor code');"),
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Success.Should().BeTrue(result.Value.Error);
+        result.Value.ChatOutput.Should().Equal("editor code");
+        db.CodeScriptVersions.Count(v => v.CodeScriptId == id).Should().Be(1);
+        db.CodeScripts.Single(s => s.Id == id).CurrentVersionId.Should().Be(liveBefore);
+    }
+
+    [Fact]
+    public async Task Project_files_with_a_syntax_error_fail_with_the_reason_and_line_and_store_nothing()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, "nnz.api.chat.send('saved code');", ["chat.send"]);
+        Guid? liveBefore = db.CodeScripts.Single(s => s.Id == id).CurrentVersionId;
+
+        Result<TestRunResultDto> result = await sut.RunAsync(
+            id,
+            Request() with
+            {
+                Project = EditorProject("let a = 1;\nlet b = 2;\nlet c = ;\n"),
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("index.ts:3:9");
+        ProjectBuildFailure failure = result
+            .ErrorData.Should()
+            .BeOfType<ProjectBuildFailure>()
+            .Subject;
+        failure.Errors.Should().ContainSingle();
+        failure.Errors[0].Line.Should().Be(3);
+        failure.Errors[0].File.Should().Be("index.ts");
+        db.CodeScriptVersions.Count(v => v.CodeScriptId == id).Should().Be(1);
+        db.CodeScripts.Single(s => s.Id == id).CurrentVersionId.Should().Be(liveBefore);
+    }
+
+    [Fact]
+    public async Task Without_project_files_the_saved_version_runs()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, "nnz.api.chat.send('saved code');", ["chat.send"]);
+
+        Result<TestRunResultDto> result = await sut.RunAsync(id, Request());
+
+        result.Value.Success.Should().BeTrue(result.Value.Error);
+        result.Value.ChatOutput.Should().Equal("saved code");
     }
 }

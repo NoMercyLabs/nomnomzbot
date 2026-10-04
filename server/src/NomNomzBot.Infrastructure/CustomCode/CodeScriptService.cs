@@ -398,6 +398,80 @@ public sealed class CodeScriptService(
         if (script is null)
             return Result.Failure<CodeScriptVersionDto>("Script not found.", "NOT_FOUND");
 
+        int nextVersion =
+            await db
+                .CodeScriptVersions.Where(v => v.CodeScriptId == script.Id)
+                .MaxAsync(v => (int?)v.Version, cancellationToken)
+            ?? 0;
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+
+        Result<CodeScriptVersion> built = await ValidateAndBuildAsync(
+            script,
+            nextVersion + 1,
+            project,
+            cancellationToken
+        );
+        if (built.IsFailure)
+            return Result.Failure<CodeScriptVersionDto>(
+                built.ErrorMessage,
+                built.ErrorCode,
+                errorData: built.ErrorData
+            );
+        CodeScriptVersion version = built.Value;
+
+        // A clean compile: append the version, store the whole project, and hot-swap it live (publish).
+        db.CodeScriptVersions.Add(version);
+        version.PublishedAt = now;
+        script.CurrentVersionId = version.Id;
+        script.UpdatedAt = now;
+        await db.SaveChangesAsync(cancellationToken);
+        await EmitValidatedAsync(version, cancellationToken);
+
+        return Result.Success(ToVersionDto(version));
+    }
+
+    public async Task<Result<CompiledScriptProject>> CompileProjectAsync(
+        Guid codeScriptId,
+        ProjectDto project,
+        CancellationToken cancellationToken = default
+    )
+    {
+        CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
+        if (script is null)
+            return Result.Failure<CompiledScriptProject>("Script not found.", "NOT_FOUND");
+
+        Result<CodeScriptVersion> built = await ValidateAndBuildAsync(
+            script,
+            versionNumber: 0,
+            project,
+            cancellationToken
+        );
+        if (built.IsFailure)
+            return Result.Failure<CompiledScriptProject>(
+                built.ErrorMessage,
+                built.ErrorCode,
+                errorData: built.ErrorData
+            );
+
+        CodeScriptVersion version = built.Value;
+        return Result.Success(
+            new CompiledScriptProject(
+                version.CompiledJs ?? string.Empty,
+                version.CompiledHash ?? string.Empty,
+                Deserialize<List<string>>(version.DeclaredCapabilitiesJson) ?? []
+            )
+        );
+    }
+
+    // The save gate, shared by a save and a test run so both reject the same project for the same reason. Nothing is
+    // persisted here; the caller decides what to do with the compiled (unsaved) version.
+    private async Task<Result<CodeScriptVersion>> ValidateAndBuildAsync(
+        CodeScript script,
+        int versionNumber,
+        ProjectDto project,
+        CancellationToken ct
+    )
+    {
         ProjectManifest manifest = project.Manifest.ToManifest();
 
         // Pre-build gate (dev-platform.md §4.2), mirroring the widget build's guards: entry present, safe paths,
@@ -410,43 +484,24 @@ public sealed class CodeScriptService(
         if (validation.IsFailure)
             // Surface the specific reason (missing entry / unsafe path / un-allowlisted dependency) but under one
             // stable, 400-mapped code so the editor treats every save rejection uniformly.
-            return Result.Failure<CodeScriptVersionDto>(
-                validation.ErrorMessage,
-                "VALIDATION_FAILED"
-            );
-
-        int nextVersion =
-            await db
-                .CodeScriptVersions.Where(v => v.CodeScriptId == script.Id)
-                .MaxAsync(v => (int?)v.Version, cancellationToken)
-            ?? 0;
-        DateTime now = clock.GetUtcNow().UtcDateTime;
+            return Result.Failure<CodeScriptVersion>(validation.ErrorMessage, "VALIDATION_FAILED");
 
         // Compile the manifest entry (validate-on-save). Unlike the audit-keeping create/version paths, a project
-        // save that fails to compile persists NO version — the caller gets the reason to fix and resubmit.
+        // that fails to compile yields NO version — the caller gets the reason to fix and resubmit.
         CodeScriptVersion version = await BuildVersionFromProjectAsync(
             script,
-            nextVersion + 1,
+            versionNumber,
             project.Files,
             manifest,
-            cancellationToken
+            ct
         );
         if (version.ValidationStatus != "valid")
-            return Result.Failure<CodeScriptVersionDto>(
+            return Result.Failure<CodeScriptVersion>(
                 FirstValidationError(version),
                 "VALIDATION_FAILED",
                 errorData: AllValidationErrors(version)
             );
-
-        // A clean compile: append the version, store the whole project, and hot-swap it live (publish).
-        db.CodeScriptVersions.Add(version);
-        version.PublishedAt = now;
-        script.CurrentVersionId = version.Id;
-        script.UpdatedAt = now;
-        await db.SaveChangesAsync(cancellationToken);
-        await EmitValidatedAsync(version, cancellationToken);
-
-        return Result.Success(ToVersionDto(version));
+        return Result.Success(version);
     }
 
     public async Task<Result> SetEnabledAsync(

@@ -98,6 +98,17 @@ public interface ICodeScriptService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Run the save gate on a project (validation, then compile) and return the compiled result without storing
+    /// anything: no version row, no pointer change, no event. A failure is the same one <see cref="SaveProjectAsync"/>
+    /// returns, with the same reason and positions.
+    /// </summary>
+    Task<Result<CompiledScriptProject>> CompileProjectAsync(
+        Guid codeScriptId,
+        ProjectDto project,
+        CancellationToken cancellationToken = default
+    );
+
     Task<Result> SetEnabledAsync(
         Guid codeScriptId,
         bool isEnabled,
