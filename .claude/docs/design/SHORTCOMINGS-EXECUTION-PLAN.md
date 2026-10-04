@@ -65,7 +65,8 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   storage key passes a test run with `nnz.lastError` null, while the same call fails live
   (`ScriptHostBridge.cs:368-372`). Done-when: each captured write runs the same argument validation as the live
   call (one shared validator per capability, no copy), so a test run reports the same `nnz.lastError` the live run
-  would; a test per capability failed first; N of 11 reported. Starts after S-SCRIPT-CHAT-SEND-FAILURE lands
+  would; a test per capability failed first; N of 11 reported. For `widget.emit` this includes the widget lookup: a test
+  run now returns true for a widget that does not exist or is turned off (`CaptureScriptHostBridge.cs:47`). Starts after S-SCRIPT-CHAT-SEND-FAILURE lands
   (same file).
 - **S-TTS-NAN-RATE** Found by the docs fact-check 2026-10-04. A script's speed or pitch of `NaN` or `Infinity`
   parses as a double (`ScriptHostBridge.cs:902-911`) and reaches the provider as `NaN%`, where the comment says a bad
@@ -88,6 +89,8 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   source has the widget open (`WidgetEventAction.cs:92-100`), so the run log says it worked while nothing showed.
   `IOverlayPresenceRegistry.IsWidgetAttached` already answers this for TTS. Done when the step fails with a plain
   reason when the widget is not attached, and a test proves both cases.
+  The script call `widget.emit` has the same gap: it returns true with no page open (`ScriptHostBridge.cs:556-571`);
+  done-when covers both paths (found by the send-to-a-widget writer 2026-10-04).
 - **S-WIDGET-EVENT-LABEL** Found by the docs writer 2026-10-04. The editor labels `event_type` "Event type
   (optional)" (`strings.xml:3025`) for every step, but `widget_event` requires it (`WidgetEventAction.cs:50`);
   only `send_webhook` treats it as optional (`SendWebhookAction.cs:76`). Done when the label is right for each step.
@@ -119,6 +122,11 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   commands are listed), `SongRequestBuiltin.cs:337,346`, `UpdateUserInfoBuiltin.cs:70`, `GameBuiltins.cs:143`.
   `MusicModerationGate.cs:37` already asks the resolver itself. Done-when: every `RoleLevel` consumer (N of M)
   sees the effective level, resolved at most once per message; a test with a badge-less Editor failed first.
+- **S-WIDGET-EMIT-FALSY-DATA** Found by the send-to-a-widget writer 2026-10-04. `widget.emit` declares `data?: unknown`
+  (`SdkRuntimeSurface.cs:658`), but the overlay replaces any falsy data with `{}` (`OverlaySdkController.cs:376`
+  `e.data || {}`), and the editor preview does the same (`preview-sdk.js:77`). A script that sends `false`, `0` or
+  `''` gives the widget `{}`. Done-when: only a missing or null `data` becomes `{}` in the overlay and the preview;
+  `false`, `0` and `''` arrive unchanged; a test failed first.
 - **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
   millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
   sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
