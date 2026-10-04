@@ -167,6 +167,34 @@ class CodeScriptsControllerTestRunTest {
     }
 
     @Test
+    fun a_test_run_refused_for_a_compile_error_hands_the_editor_that_error_at_its_line() = runTest {
+        val compileError = BuildError(code = "TS2304", message = "Cannot find name 'foo'.", file = "index.ts", line = 3, column = 7)
+        val failure = ApiError(400, "VALIDATION_FAILED", "Cannot find name 'foo'.", errors = listOf(compileError))
+        val editor = TestRunPressingEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(ApiResult.Failure(failure)), editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        val result: EditorTestRunResult = (editor.outcome as EditorOutcome.Ok).value
+        assertEquals(false, result.success)
+        assertEquals("Cannot find name 'foo'.", result.error)
+        assertEquals(listOf(compileError), result.errors)
+    }
+
+    @Test
+    fun a_test_run_failure_without_build_errors_still_reaches_the_editor_as_text() = runTest {
+        val failure = ApiError(0, "NETWORK", "offline")
+        val editor = TestRunPressingEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(ApiResult.Failure(failure)), editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        assertEquals(EditorOutcome.Failed("offline"), editor.outcome)
+    }
+
+    @Test
     fun a_successful_test_run_hands_the_editor_no_errors() = runTest {
         val captured = TestRunResult(success = true, durationMs = 3, hostCallCount = 0)
         val editor = TestRunPressingEditor()

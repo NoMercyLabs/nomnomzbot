@@ -344,6 +344,18 @@ class CodeScriptsController(
             when {
                 current !is CodeScriptsState.Editing || current.detail.id != id ->
                     EditorOutcome.Failed("The editor session ended.")
+                error != null && current.testBuildErrors.isNotEmpty() ->
+                    EditorOutcome.Ok(
+                        EditorTestRunResult(
+                            success = false,
+                            durationMs = 0,
+                            hostCallCount = 0,
+                            error = error,
+                            chatOutput = emptyList(),
+                            effects = emptyList(),
+                            errors = current.testBuildErrors,
+                        ),
+                    )
                 error != null -> EditorOutcome.Failed(error)
                 result != null ->
                     EditorOutcome.Ok(
@@ -413,13 +425,14 @@ class CodeScriptsController(
     ) {
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
-        _state.value = current.copy(testRunning = true, testError = null)
+        _state.value = current.copy(testRunning = true, testError = null, testBuildErrors = emptyList())
 
         when (
             val result: ApiResult<TestRunResult> = api.testRun(id, ScriptTestRunBody(variables, args, trigger, role, files?.let { projectBody(current.project, it) }))
         ) {
             is ApiResult.Ok -> updateEditing(id) { it.copy(testRunning = false, testResult = result.value, testError = null) }
-            is ApiResult.Failure -> updateEditing(id) { it.copy(testRunning = false, testError = result.error.message) }
+            is ApiResult.Failure ->
+                updateEditing(id) { it.copy(testRunning = false, testError = result.error.message, testBuildErrors = result.error.errors) }
         }
     }
 
@@ -580,5 +593,7 @@ sealed interface CodeScriptsState {
         val testRunning: Boolean = false,
         val testResult: TestRunResult? = null,
         val testError: String? = null,
+        /** The compile errors a refused test run listed, each with its file, line and column. */
+        val testBuildErrors: List<BuildError> = emptyList(),
     ) : CodeScriptsState
 }
