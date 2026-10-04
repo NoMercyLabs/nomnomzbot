@@ -72,16 +72,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   reloads. A rotate after a leak does not cut the leaked page off, and the result dialog (`strings.xml:1734`)
   says the overlay goes blank. Done-when: when the old token's grace ends (or at once on a second rotate),
   connections that joined with it are dropped; the dialog text matches; a test failed first.
-- **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
-  that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
-  looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
-  `String(x)` bindings). `ScriptResourceBudget.MaxEgressBytes` (256 KB) is declared and never read. A script
-  cannot stop its pipeline: `StopPipeline` is always false (`JintScriptExecutor.cs:482`, `ScriptRunner.cs`)
-  although `RunCodeAction.cs:77` honours it. A compile or runtime error reaches the editor with no line or
-  column (`CodeScriptService.cs:536-568`). `ScriptTestRunService.cs:150` and `ScriptRunner.cs:131` read
-  `Result.Value` unchecked. Done-when: each has a test that failed first; a left-out argument means the
-  documented default or a clear script error, never the text "undefined"; egress over the cap is refused with a
-  clear error; a script can stop its pipeline through a typed SDK call; the editor underlines the error line.
 - **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
   overlay rows give every action the full accent: 8 `TextButton`s with `tokens.primary` text
   (`WidgetsScreen.kt:943, 957, 1046, 1059, 1077, 1137, 1150, 1640`), so a row reads as six equal-weight
