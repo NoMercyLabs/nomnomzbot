@@ -34,7 +34,7 @@ public sealed class YouTubePlayerReportService(
     {
         if (string.IsNullOrWhiteSpace(videoId))
             return Result.Failure("A YouTube player report needs a video id.", "INVALID_VIDEO_ID");
-        if (!Enum.TryParse(state, ignoreCase: true, out YouTubePlayerState parsed))
+        if (!TryParseState(state, out YouTubePlayerState parsed))
             return Result.Failure($"Unknown YouTube player state '{state}'.", "INVALID_STATE");
 
         IReadOnlyList<Guid> owner = await players.FindPlayersAsync(
@@ -84,6 +84,12 @@ public sealed class YouTubePlayerReportService(
             );
         return Result.Success();
     }
+
+    // Only the four names: Enum.TryParse alone also takes a number ("7") or a comma list ("Playing, Paused").
+    private static bool TryParseState(string state, out YouTubePlayerState parsed) =>
+        Enum.TryParse(state, ignoreCase: true, out parsed)
+        && Enum.GetNames<YouTubePlayerState>()
+            .Contains(state.Trim(), StringComparer.OrdinalIgnoreCase);
 
     private bool ResumePending(Guid broadcasterId, string videoId) =>
         resumeTracker.TryPeek(broadcasterId, out PlayOnceResumeState pending)
