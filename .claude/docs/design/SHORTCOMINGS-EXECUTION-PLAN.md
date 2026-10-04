@@ -106,13 +106,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `GetCurrentTrackAsync` reads; overlay player plays the head and reports state; ENDED advances the queue).
   Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
   with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
-- **S-CONVERT-PROTO-KEYS** Found by the docs fact-check 2026-10-04. `nnz.units.convert` looks unit names up
-  with `temp[f]` and `dims[i][f] !== undefined` (`JintScriptExecutor.cs:99-116`), so a name every JS object
-  inherits (`constructor`, `toString`, `valueOf`, ...) counts as a unit: `convert(5, 'constructor',
-  'constructor')` takes the temperature path and returns 5, `convert(5, 'toString', 'c')` returns -268.15.
-  Done-when: only the listed unit names are accepted (own-key check), every other name gives NaN as the
-  documented contract says; a Jint test failed first. Check the other bootstrap lookups by name for the same
-  pattern and report N of M.
 - **S-ROTATED-TOKEN-OPEN-PAGE** Found by the docs writer 2026-10-04. The overlay hub checks a widget token only
   when a page connects (`OverlayHub.cs:67-77`), so after a rotate (and after the 15-minute grace,
   `WidgetService.cs:1118`) a page that is already open with the old address keeps receiving events until it
