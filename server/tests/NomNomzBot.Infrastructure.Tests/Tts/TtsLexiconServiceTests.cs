@@ -223,6 +223,43 @@ public sealed class TtsLexiconServiceTests
     }
 
     [Fact]
+    public async Task ApplyAsync_WordKind_AlsoConsumesALeadingAt_LikeTheOldBot()
+    {
+        Harness h = Build();
+        await h.Service.CreateAsync(Tenant, Rule("stoney_eagle", "Stoney Eagle"));
+
+        (await h.Service.ApplyAsync(Tenant, "thanks @stoney_eagle!"))
+            .Should()
+            .Be("thanks Stoney Eagle!");
+        (await h.Service.ApplyAsync(Tenant, "thanks stoney_eagle!"))
+            .Should()
+            .Be("thanks Stoney Eagle!");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WordKind_KeepsAnAtThatFollowsAWordCharacter()
+    {
+        Harness h = Build();
+        await h.Service.CreateAsync(Tenant, Rule("stoney_eagle", "Stoney Eagle"));
+
+        // The "@" is consumed only when no word character precedes it.
+        (await h.Service.ApplyAsync(Tenant, "mail me at a@stoney_eagle"))
+            .Should()
+            .Be("mail me at a@Stoney Eagle");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_ExactKind_KeepsTheAt()
+    {
+        Harness h = Build();
+        await h.Service.CreateAsync(Tenant, Rule("stoney_eagle", "Stoney Eagle", "exact"));
+
+        (await h.Service.ApplyAsync(Tenant, "thanks @stoney_eagle!"))
+            .Should()
+            .Be("thanks @Stoney Eagle!");
+    }
+
+    [Fact]
     public async Task ApplyAsync_SinglePass_ReplacementsAreNeverReMatched()
     {
         Harness h = Build();

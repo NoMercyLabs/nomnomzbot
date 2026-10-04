@@ -186,7 +186,8 @@ public class TtsLexiconService : ITtsLexiconService
             string escaped = Regex.Escape(entry.Phrase);
             bool exact = entry.MatchKind == TtsLexiconMatchKinds.Exact;
             // word: lookarounds instead of \b so phrases that start/end on punctuation still bound correctly.
-            string pattern = exact ? escaped : $@"(?<!\w){escaped}(?!\w)";
+            // A leading "@" goes with the name (old-bot parity: "@name" is spoken as the replacement alone).
+            string pattern = exact ? escaped : $@"(?<!\w)@?{escaped}(?!\w)";
             RegexOptions options = RegexOptions.CultureInvariant;
             if (!exact)
                 options |= RegexOptions.IgnoreCase;
