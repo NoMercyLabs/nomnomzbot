@@ -261,6 +261,170 @@ public sealed class ChatTriggerMatchingTests
             );
     }
 
+    /// <summary>
+    /// A handler whose scope factory really resolves the elevation seam: the badge-less viewer maps to a
+    /// User whose effective level is <paramref name="effectiveLevel"/> (30 = Editor on the unified ladder).
+    /// </summary>
+    private static (
+        ChatMessageHandler Sut,
+        IInboundOriginChatSender Chat,
+        IPipelineEngine Pipeline,
+        Application.Contracts.Authorization.IRoleResolver Resolver
+    ) BuildWithResolver(ChannelContext ctx, int effectiveLevel)
+    {
+        Guid viewerUser = Guid.CreateVersion7();
+        NomNomzBot.Application.Identity.Services.IUserService users =
+            Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>();
+        users
+            .GetOrCreateAsync(
+                "tw-viewer-1",
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new NomNomzBot.Application.Identity.Dtos.UserDto(
+                        viewerUser.ToString(),
+                        "viewer",
+                        "Viewer",
+                        null,
+                        null,
+                        DateTime.UnixEpoch,
+                        DateTime.UnixEpoch
+                    )
+                )
+            );
+        Application.Contracts.Authorization.IRoleResolver resolver =
+            Substitute.For<Application.Contracts.Authorization.IRoleResolver>();
+        resolver
+            .ResolveEffectiveLevelAsync(viewerUser, Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(effectiveLevel));
+
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton(users)
+            .AddSingleton(resolver)
+            .BuildServiceProvider();
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        ITemplateResolver templates = Substitute.For<ITemplateResolver>();
+        templates
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult($"resolved:{callInfo.ArgAt<string>(0)}"));
+        IInboundOriginChatSender chat = NoopChatSender();
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+
+        ChatMessageHandler sut = new(
+            registry,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            new CooldownManager(TimeProvider.System),
+            chat,
+            pipeline,
+            builtins,
+            templates,
+            Substitute.For<IEventBus>(),
+            new(),
+            TimeProvider.System,
+            new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
+            NullLogger<ChatMessageHandler>.Instance
+        );
+        return (sut, chat, pipeline, resolver);
+    }
+
+    [Fact]
+    public async Task A_badge_less_editor_clears_a_moderator_floor_trigger()
+    {
+        // The command gate counts the EFFECTIVE role (a badge-less Editor membership); a chat trigger
+        // used to read the badge only, so the same viewer passed a command and failed the trigger.
+        ChannelContext ctx = NewContext();
+        CachedChatTrigger trigger = Trigger("secret", minLevel: 10); // moderator floor
+        ctx.ChatTriggers[trigger.Id] = trigger;
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _, _) = BuildWithResolver(
+            ctx,
+            effectiveLevel: 30
+        );
+
+        await sut.HandleAsync(Line("the secret word"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "resolved:hi {user}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_viewer_whose_effective_role_is_below_the_floor_stays_blocked()
+    {
+        ChannelContext ctx = NewContext();
+        CachedChatTrigger trigger = Trigger("secret", minLevel: 10);
+        ctx.ChatTriggers[trigger.Id] = trigger;
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _, _) = BuildWithResolver(
+            ctx,
+            effectiveLevel: 0
+        );
+
+        await sut.HandleAsync(Line("the secret word"), CancellationToken.None);
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task A_trigger_pipeline_gets_the_effective_role_and_resolves_it_once_per_message()
+    {
+        ChannelContext ctx = NewContext();
+        CachedChatTrigger trigger = Trigger(
+            "secret",
+            response: null,
+            pipelineJson: """{"steps":[]}""",
+            minLevel: 10
+        );
+        ctx.ChatTriggers[trigger.Id] = trigger;
+        (
+            ChatMessageHandler sut,
+            _,
+            IPipelineEngine pipeline,
+            Application.Contracts.Authorization.IRoleResolver resolver
+        ) = BuildWithResolver(ctx, effectiveLevel: 30);
+        PipelineRequest? captured = null;
+        pipeline
+            .ExecuteAsync(Arg.Do<PipelineRequest>(r => captured = r), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-1",
+                    Outcome = PipelineOutcome.Completed,
+                    Duration = TimeSpan.Zero,
+                }
+            );
+
+        await sut.HandleAsync(Line("the secret word"), CancellationToken.None);
+
+        captured.Should().NotBeNull("the effective Editor clears the moderator floor");
+        captured!
+            .InitialVariables["user.role"]
+            .Should()
+            .Be(
+                "editor",
+                "the trigger pipeline carries the RESOLVED effective role, like a command"
+            );
+        await resolver
+            .Received(1)
+            .ResolveEffectiveLevelAsync(Arg.Any<Guid>(), Broadcaster, Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task A_bound_pipeline_runs_with_the_speakers_variables_instead_of_a_chat_line()
     {

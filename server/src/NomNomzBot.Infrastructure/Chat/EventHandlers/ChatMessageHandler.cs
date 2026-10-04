@@ -1123,9 +1123,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         responses.Length == 0 ? string.Empty : NoImmediateRepeatPicker.Pick(responses, commandKey);
 
     /// <summary>
-    /// Matches the channel's cached keyword triggers against an ordinary chat line: role floor first,
-    /// then the pattern, then the per-trigger channel cooldown (the spam guard) — FIRST match wins, so
-    /// one line never fires a barrage. A matched trigger runs its bound pipeline (the full reaction
+    /// Matches the channel's cached keyword triggers against an ordinary chat line: the pattern first,
+    /// then the role floor, then the per-trigger channel cooldown (the spam guard) — FIRST match wins, so
+    /// one line never fires a barrage. The floor checks the EFFECTIVE role, exactly like the command gate:
+    /// the badge first, and only when the badge is below the floor the resolver (bot-granted roles,
+    /// permits), at most once per message. A matched trigger runs its bound pipeline (the full reaction
     /// chain) or sends its resolved template line. Failures never reach the chat hot path.
     /// </summary>
     private async Task FireChatTriggersAsync(
@@ -1135,14 +1137,32 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        int speakerLevel = BadgeLevel(@event);
+        int badgeLevel = BadgeLevel(@event);
+        bool isBroadcaster = badgeLevel == PermissionLevel.Broadcaster.ToLevelValue();
+        bool resolverAsked = false;
+        int? resolvedLevel = null;
         string cooldownChannelKey = @event.BroadcasterId.ToString();
+
+        async Task<int> EffectiveLevelAsync()
+        {
+            if (isBroadcaster)
+                return badgeLevel;
+            if (!resolverAsked)
+            {
+                resolvedLevel = await TryResolveEffectiveLevelAsync(@event, ct);
+                resolverAsked = true;
+            }
+            return Math.Max(badgeLevel, resolvedLevel ?? badgeLevel);
+        }
 
         foreach (CachedChatTrigger trigger in ctx.ChatTriggers.Values)
         {
-            if (speakerLevel < trigger.MinPermissionLevel)
-                continue;
             if (!TriggerMatches(trigger, text))
+                continue;
+            if (
+                badgeLevel < trigger.MinPermissionLevel
+                && await EffectiveLevelAsync() < trigger.MinPermissionLevel
+            )
                 continue;
 
             string cooldownKey = $"trigger:{trigger.Id:N}";
@@ -1158,7 +1178,10 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
             try
             {
-                await ExecuteChatTriggerAsync(trigger, @event, text, ct);
+                string roleToken = ChatRole.ToToken(
+                    AuthorizationLadder.FromLevelValue(await EffectiveLevelAsync())
+                );
+                await ExecuteChatTriggerAsync(trigger, @event, text, roleToken, ct);
             }
             catch (Exception ex)
             {
@@ -1361,10 +1384,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CachedChatTrigger trigger,
         ChatMessageReceivedEvent @event,
         string text,
+        string effectiveRoleToken,
         CancellationToken ct
     )
     {
         Dictionary<string, string> variables = BuildInitialVariables(@event, text);
+        variables["user.role"] = effectiveRoleToken;
 
         if (!string.IsNullOrWhiteSpace(trigger.PipelineGraphJson))
         {
