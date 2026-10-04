@@ -11,4 +11,5 @@
 package bot.nomnomz.dashboard.feature.widgets.ui
 
 // The frameworks the widget build accepts, and so the only ones the app offers to create, submit or filter by.
-internal val WIDGET_FRAMEWORKS: List<String> = listOf("vanilla", "vue", "react")
+// React has no overlay runtime yet: the server refuses it with WIDGET_FRAMEWORK_UNSUPPORTED.
+internal val WIDGET_FRAMEWORKS: List<String> = listOf("vanilla", "vue")

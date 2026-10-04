@@ -159,7 +159,7 @@ data class GalleryItemDetail(
 /**
  * The community submit body (backend `SubmitGalleryItemRequest`) — a signed-in user proposes a GitHub-hosted
  * widget for review. [pinnedCommitSha] must be the FULL 40-hex commit; [gitHubRepoUrl] must be a
- * `https://github.com/{owner}/{repo}` URL. [framework] is `vanilla | vue | react`.
+ * `https://github.com/{owner}/{repo}` URL. [framework] is `vanilla | vue`.
  */
 @Serializable
 data class SubmitGalleryItemBody(

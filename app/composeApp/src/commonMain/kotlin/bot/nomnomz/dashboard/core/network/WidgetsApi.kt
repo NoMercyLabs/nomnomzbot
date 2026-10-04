@@ -333,7 +333,7 @@ data class UpdateWidgetBody(
     val eventSubscriptions: List<String>? = null,
 )
 
-/** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue | react`. */
+/** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue`. */
 @Serializable
 data class CreateWidgetBody(
     val name: String,

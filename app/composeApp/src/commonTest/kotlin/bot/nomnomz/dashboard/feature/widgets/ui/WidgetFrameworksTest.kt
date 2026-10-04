@@ -17,7 +17,8 @@ import kotlin.test.assertFalse
 class WidgetFrameworksTest {
     @Test
     fun onlyFrameworksTheBuildAcceptsAreOffered() {
-        assertEquals(listOf("vanilla", "vue", "react"), WIDGET_FRAMEWORKS)
+        assertEquals(listOf("vanilla", "vue"), WIDGET_FRAMEWORKS)
+        assertFalse("react" in WIDGET_FRAMEWORKS)
         assertFalse("svelte" in WIDGET_FRAMEWORKS)
     }
 }
