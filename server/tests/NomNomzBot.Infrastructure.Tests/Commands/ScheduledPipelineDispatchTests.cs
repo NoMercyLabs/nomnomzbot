@@ -197,11 +197,11 @@ public sealed class ScheduledPipelineDispatchTests
         int fired = await sut.FireDueAsync().WaitAsync(Limit);
 
         fired.Should().Be(2);
+        // The two runs start on their own tasks, in either order; wait for both before reading the timeline.
         await TestWait.UntilAsync(
-            () => fake.Started(pipelineB),
-            "channel B's run to reach the engine"
+            () => fake.Started(pipelineA) && fake.Started(pipelineB),
+            "both channels' runs to reach the engine"
         );
-        fake.Started(pipelineA).Should().BeTrue();
         fake.Timeline.Should()
             .NotContain($"end:{pipelineA}", "channel A's run is still blocked inside the engine");
 
