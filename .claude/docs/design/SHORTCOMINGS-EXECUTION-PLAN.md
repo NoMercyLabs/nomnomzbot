@@ -55,8 +55,8 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `GetCurrentTrackAsync` reads (67a473549); the now playing widget plays `youtube.play` through the IFrame
   Player API and reports PLAYING, PAUSED and ENDED via `NomNomz.reportYouTubePlayerState` (0067dbb90; checked
   by a source guard only, not yet in a browser); an ENDED report advances the queue and plays the next once
-  (20e3f7ceb, tests only: it already worked). Left: the bot sends `youtube.play` to every open player widget, so
-  two open now playing sources both play the audio (one player must own it); YouTube declares no
+  (20e3f7ceb, tests only: it already worked); one player widget owns the audio (the last accepted reporter
+  while attached, else the earliest created) and a stray report is refused (e699fe184). Left: YouTube declares no
   PlaybackControl or Skip capability, so `!skip`, pause and resume are refused as unsupported
   (`MusicService.cs:311,376`; the provider stubs at `YouTubeMusicProvider.cs:107-121` are unreachable), though
   the embedded player could do all three; with no `YouTube:ApiKey` a YouTube request is refused as "The music connection needs to be
