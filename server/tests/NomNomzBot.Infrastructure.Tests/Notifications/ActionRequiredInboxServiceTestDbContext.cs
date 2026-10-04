@@ -160,6 +160,13 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             e.Ignore(c => c.Events);
             e.Ignore(c => c.PlatformConnections);
         });
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Tags);
+            e.Ignore(s => s.ContentLabels);
+            e.Ignore(s => s.Channel);
+        });
         b.Entity<BotAccount>(e => e.HasKey(a => a.Id));
         b.Entity<ChannelBotAuthorization>(e =>
         {
@@ -209,6 +216,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(SecurityNotice),
         typeof(BotAccount),
         typeof(ChannelBotAuthorization),
+        typeof(NomNomzBot.Domain.Stream.Entities.Stream),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -296,7 +304,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Stream.Entities.Stream>();
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();

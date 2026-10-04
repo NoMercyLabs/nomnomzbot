@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
@@ -30,6 +31,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
     private readonly IChannelRegistry _registry;
+    private readonly IActionRequiredChangeNotifier _inbox;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChannelOfflineHandler> _logger;
 
@@ -37,6 +39,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         IServiceScopeFactory scopeFactory,
         IPipelineEngine pipeline,
         IChannelRegistry registry,
+        IActionRequiredChangeNotifier inbox,
         TimeProvider timeProvider,
         ILogger<ChannelOfflineHandler> logger
     )
@@ -44,6 +47,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         _scopeFactory = scopeFactory;
         _pipeline = pipeline;
         _registry = registry;
+        _inbox = inbox;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -96,6 +100,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 
         channel.IsLive = false;
         await db.SaveChangesAsync(cancellationToken);
+        _inbox.NotifyChanged(broadcasterId);
 
         _logger.LogInformation(
             "Channel {BroadcasterId} went OFFLINE after {Duration}",

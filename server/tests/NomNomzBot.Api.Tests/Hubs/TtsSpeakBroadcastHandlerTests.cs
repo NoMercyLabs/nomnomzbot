@@ -11,6 +11,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
@@ -50,7 +51,6 @@ public sealed class TtsSpeakBroadcastHandlerTests
             db,
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
-            Substitute.For<IDashboardNotifier>(),
             new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
@@ -105,7 +105,6 @@ public sealed class TtsSpeakBroadcastHandlerTests
             db,
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
-            Substitute.For<IDashboardNotifier>(),
             new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
@@ -140,101 +139,29 @@ public sealed class TtsSpeakBroadcastHandlerTests
             && json.GetProperty("audioUrl").ValueKind == JsonValueKind.Null;
     }
 
-    /// <summary>
-    /// TTS reported every utterance as spoken whether or not a browser source was open on a subscribing
-    /// widget, so when the streamer had not added the TTS overlay the stream heard NOTHING while the bot,
-    /// the logs and the dashboard all looked healthy. That silence is now stated.
-    /// </summary>
-    [Fact]
-    public async Task An_utterance_with_no_attached_browser_source_is_reported_not_silently_dropped()
+    private static async Task<ILogger<TtsSpeakBroadcastHandler>> SpeakAsync(bool audioPageConnected)
     {
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
-        db.Widgets.Add(
-            new Widget
-            {
-                Id = Guid.NewGuid(),
-                BroadcasterId = channel,
-                Name = "TTS Audio",
-                IsEnabled = true,
-                EventSubscriptions = ["tts_speak"],
-            }
-        );
-        await db.SaveChangesAsync();
-
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
-        presence.IsWidgetAttached(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(false);
-        IDashboardNotifier dashboard = Substitute.For<IDashboardNotifier>();
+        presence.IsAudioSourceConnected(channel).Returns(audioPageConnected);
+        ILogger<TtsSpeakBroadcastHandler> logger = Substitute.For<
+            ILogger<TtsSpeakBroadcastHandler>
+        >();
 
         TtsSpeakBroadcastHandler handler = new(
             db,
             Substitute.For<IWidgetNotifier>(),
             presence,
-            dashboard,
             new ChannelAudioMixService(db),
-            NullLogger<TtsSpeakBroadcastHandler>.Instance
+            logger
         );
 
         await handler.HandleAsync(
             new()
             {
                 BroadcasterId = channel,
-                Text = "nobody can hear this",
-                VoiceId = "en-US-AvaNeural",
-                Provider = "azure",
-                CharacterCount = 20,
-                DurationMs = 1000,
-                RequestedByTwitchUserId = "u1",
-                DispatchMode = "self_host",
-                AudioUrl = "data:audio/mpeg;base64,AAAA",
-            }
-        );
-
-        await dashboard
-            .Received(1)
-            .SendAlertAsync(
-                channel.ToString(),
-                Arg.Is<AlertDto>(a => a.Type == "tts_no_output"),
-                Arg.Any<CancellationToken>()
-            );
-    }
-
-    /// <summary>No alert when a browser source IS attached — the warning must not cry wolf every utterance.</summary>
-    [Fact]
-    public async Task An_utterance_with_an_attached_browser_source_raises_no_alert()
-    {
-        await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid channel = Guid.CreateVersion7();
-        db.Widgets.Add(
-            new Widget
-            {
-                Id = Guid.NewGuid(),
-                BroadcasterId = channel,
-                Name = "TTS Audio",
-                IsEnabled = true,
-                EventSubscriptions = ["tts_speak"],
-            }
-        );
-        await db.SaveChangesAsync();
-
-        IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
-        presence.IsWidgetAttached(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(true);
-        IDashboardNotifier dashboard = Substitute.For<IDashboardNotifier>();
-
-        TtsSpeakBroadcastHandler handler = new(
-            db,
-            Substitute.For<IWidgetNotifier>(),
-            presence,
-            dashboard,
-            new ChannelAudioMixService(db),
-            NullLogger<TtsSpeakBroadcastHandler>.Instance
-        );
-
-        await handler.HandleAsync(
-            new()
-            {
-                BroadcasterId = channel,
-                Text = "this one is audible",
+                Text = "is anyone listening",
                 VoiceId = "en-US-AvaNeural",
                 Provider = "azure",
                 CharacterCount = 19,
@@ -244,10 +171,36 @@ public sealed class TtsSpeakBroadcastHandlerTests
                 AudioUrl = "data:audio/mpeg;base64,AAAA",
             }
         );
+        return logger;
+    }
 
-        await dashboard
-            .DidNotReceive()
-            .SendAlertAsync(Arg.Any<string>(), Arg.Any<AlertDto>(), Arg.Any<CancellationToken>());
+    /// <summary>
+    /// With no Audio Source page open the line plays nowhere. The dashboard learns it from the inbox item, so
+    /// the handler logs the warning for the operator and sends no transient alert (it has no dashboard notifier).
+    /// </summary>
+    [Fact]
+    public async Task An_utterance_with_no_audio_page_logs_one_warning()
+    {
+        ILogger<TtsSpeakBroadcastHandler> logger = await SpeakAsync(audioPageConnected: false);
+
+        List<string> warnings = logger
+            .ReceivedCalls()
+            .Where(c =>
+                c.GetMethodInfo().Name == "Log"
+                && (LogLevel)c.GetArguments()[0]! == LogLevel.Warning
+            )
+            .Select(c => c.GetArguments()[2]!.ToString()!)
+            .ToList();
+        warnings.Should().ContainSingle().Which.Should().Contain("no Audio Source page is open");
+    }
+
+    /// <summary>No warning when an Audio Source page IS connected, so the log does not cry wolf every utterance.</summary>
+    [Fact]
+    public async Task An_utterance_with_a_connected_audio_page_logs_no_warning()
+    {
+        ILogger<TtsSpeakBroadcastHandler> logger = await SpeakAsync(audioPageConnected: true);
+
+        logger.ReceivedCalls().Should().BeEmpty();
     }
 
     /// <summary>
@@ -281,7 +234,6 @@ public sealed class TtsSpeakBroadcastHandlerTests
             db,
             Substitute.For<IWidgetNotifier>(),
             Substitute.For<IOverlayPresenceRegistry>(),
-            Substitute.For<IDashboardNotifier>(),
             new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
@@ -335,7 +287,6 @@ public sealed class TtsSpeakBroadcastHandlerTests
             db,
             Substitute.For<IWidgetNotifier>(),
             Substitute.For<IOverlayPresenceRegistry>(),
-            Substitute.For<IDashboardNotifier>(),
             new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );

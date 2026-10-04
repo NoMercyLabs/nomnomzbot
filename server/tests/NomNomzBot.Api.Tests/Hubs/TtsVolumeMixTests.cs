@@ -72,7 +72,6 @@ public sealed class TtsVolumeMixTests
             db,
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
-            Substitute.For<IDashboardNotifier>(),
             MixOf(master, tts),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );

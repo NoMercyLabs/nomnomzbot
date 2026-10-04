@@ -348,7 +348,6 @@ public sealed class OverlayAudioRoutingTests
             db,
             notifier,
             Substitute.For<IOverlayPresenceRegistry>(),
-            Substitute.For<IDashboardNotifier>(),
             new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );

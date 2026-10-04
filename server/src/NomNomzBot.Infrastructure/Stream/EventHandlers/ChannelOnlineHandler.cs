@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
@@ -32,16 +33,19 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
+    private readonly IActionRequiredChangeNotifier _inbox;
     private readonly ILogger<ChannelOnlineHandler> _logger;
 
     public ChannelOnlineHandler(
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
+        IActionRequiredChangeNotifier inbox,
         ILogger<ChannelOnlineHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
+        _inbox = inbox;
         _logger = logger;
     }
 
@@ -117,6 +121,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         db.Streams.Add(stream);
 
         await db.SaveChangesAsync(cancellationToken);
+        _inbox.NotifyChanged(broadcasterId);
 
         // Reset per-session in-memory state and populate live tracking.
         // GetOrCreateAsync ensures the channel is in the registry even after an eviction window.

@@ -15,6 +15,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.datetime.Instant
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.attention_audio_source_missing_live_message
+import nomnomzbot.composeapp.generated.resources.attention_audio_source_missing_live_title
 import nomnomzbot.composeapp.generated.resources.attention_audio_source_missing_message
 import nomnomzbot.composeapp.generated.resources.attention_audio_source_missing_title
 
@@ -41,5 +43,23 @@ class AttentionAudioSourceMissingTest {
     @Test
     fun the_message_maps_to_the_audio_source_fix() {
         assertEquals(AttentionText(Res.string.attention_audio_source_missing_message), attentionMessageOf(item))
+    }
+
+    private val liveItem =
+        ActionRequiredItem(
+            kind = "audio_source_missing",
+            severity = "critical",
+            titleKey = "attention_audio_source_missing_live_title",
+            messageKey = "attention_audio_source_missing_live_message",
+            deepLinkRoute = "widgets",
+        )
+
+    @Test
+    fun the_live_title_and_message_map_to_the_critical_strings() {
+        assertEquals(
+            AttentionText(Res.string.attention_audio_source_missing_live_title),
+            attentionTitleOf(liveItem, Instant.parse("2026-10-03T12:00:00Z")),
+        )
+        assertEquals(AttentionText(Res.string.attention_audio_source_missing_live_message), attentionMessageOf(liveItem))
     }
 }

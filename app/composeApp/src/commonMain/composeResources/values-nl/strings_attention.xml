@@ -57,5 +57,7 @@
     <string name="attention_spotify_blocked_message">Spotify heeft je Spotify-app geblokkeerd na te veel verzoeken. Verzoeknummers en nu-speelt wachten tot dan. Wil je nu verder? Maak een nieuwe app in het Spotify Developer Dashboard en vul de Client ID en Client Secret in op de pagina Integraties.</string>
     <string name="attention_audio_source_missing_title">Geluiden hebben geen Audio Source</string>
     <string name="attention_audio_source_missing_message">Voeg de Audio Source-widget toe als browserbron in OBS. Tot die tijd spelen geluiden en TTS af vanaf een andere overlaypagina.</string>
+    <string name="attention_audio_source_missing_live_title">De TTS-bron ontbreekt</string>
+    <string name="attention_audio_source_missing_live_message">TTS kan nergens afspelen. Voeg de TTS-bron toe in OBS.</string>
     <string name="attention_unknown_title">Er vraagt iets je aandacht</string>
 </resources>

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -16,7 +15,6 @@ using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Events;
-using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
@@ -34,7 +32,6 @@ public sealed class TtsSpeakBroadcastHandler(
     IApplicationDbContext db,
     IWidgetNotifier notifier,
     IOverlayPresenceRegistry presence,
-    IDashboardNotifier dashboard,
     IChannelAudioMixService mix,
     ILogger<TtsSpeakBroadcastHandler> logger
 ) : IEventHandler<TtsUtteranceDispatchedEvent>
@@ -47,7 +44,7 @@ public sealed class TtsSpeakBroadcastHandler(
         CancellationToken cancellationToken = default
     )
     {
-        await ReportIfNothingIsListeningAsync(@event.BroadcasterId, cancellationToken);
+        WarnIfNoAudioPage(@event.BroadcasterId);
         // Captions and indicators only need the words: the audio plays once, on the audio page, from the raw
         // TtsSpeak below. A widget event that carried audio would be played by every page that received it.
         if (@event.AudioUrl is not null)
@@ -97,45 +94,18 @@ public sealed class TtsSpeakBroadcastHandler(
     }
 
     /// <summary>
-    /// A dispatched utterance is delivered to every widget subscribing <c>tts_speak</c> whether or not a
-    /// browser source is actually open on one, so TTS reported success while the stream heard nothing at all —
-    /// which is exactly how it went unnoticed for days. If no subscribing widget is attached, say so: a
-    /// warning in the log and an alert on the dashboard, rather than silence that looks like success.
+    /// TTS reported success while no Audio Source page was open and the stream heard nothing. The inbox item
+    /// <c>audio-source-missing</c> tells the streamer; the log line is for the operator.
     /// </summary>
-    private async Task ReportIfNothingIsListeningAsync(
-        Guid broadcasterId,
-        CancellationToken cancellationToken
-    )
+    private void WarnIfNoAudioPage(Guid broadcasterId)
     {
-        List<Widget> widgets = await db
-            .Widgets.AsNoTracking()
-            .Where(w => w.BroadcasterId == broadcasterId)
-            .ToListAsync(cancellationToken);
-
-        List<Widget> subscribers = WidgetAlertRouting
-            .Subscribers(widgets, WidgetEventType)
-            .ToList();
-        if (subscribers.Any(w => presence.IsWidgetAttached(broadcasterId, w.Id)))
+        if (presence.IsAudioSourceConnected(broadcasterId))
             return;
 
-        string reason =
-            subscribers.Count == 0
-                ? "no widget on this channel subscribes tts_speak"
-                : "no browser source is open on the TTS widget";
         logger.LogWarning(
-            "TTS spoke for channel {BroadcasterId} but nothing could play it: {Reason}. Add the Audio Source "
-                + "overlay as a browser source in OBS.",
-            broadcasterId,
-            reason
-        );
-        await dashboard.SendAlertAsync(
-            broadcasterId.ToString(),
-            new(
-                "tts_no_output",
-                "TTS spoke but nothing played it — add the Audio Source overlay as a browser source in OBS.",
-                new { reason, subscribingWidgets = subscribers.Count }
-            ),
-            cancellationToken
+            "TTS spoke for channel {BroadcasterId} but no Audio Source page is open to play it. Add the TTS "
+                + "source in OBS.",
+            broadcasterId
         );
     }
 }

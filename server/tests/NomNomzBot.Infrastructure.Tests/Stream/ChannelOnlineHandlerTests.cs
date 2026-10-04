@@ -35,7 +35,11 @@ public sealed class ChannelOnlineHandlerTests
     private static readonly Guid Broadcaster = Guid.Parse("0192f000-0000-7000-8000-0000000000c1");
     private static readonly Guid Owner = Guid.Parse("0192f000-0000-7000-8000-0000000000c9");
 
-    private static (ChannelOnlineHandler Sut, AuthDbContext Db) Build(ChannelContext? ctx = null)
+    private static (
+        ChannelOnlineHandler Sut,
+        AuthDbContext Db,
+        LiveStateCapturingNotifier Inbox
+    ) Build(ChannelContext? ctx = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -74,18 +78,20 @@ public sealed class ChannelOnlineHandlerTests
             .AddSingleton(Substitute.For<ITwitchStreamsApi>())
             .BuildServiceProvider();
 
+        LiveStateCapturingNotifier inbox = new(db);
         ChannelOnlineHandler sut = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             registry,
+            inbox,
             NullLogger<ChannelOnlineHandler>.Instance
         );
-        return (sut, db);
+        return (sut, db, inbox);
     }
 
     [Fact]
     public async Task A_stale_open_stream_from_a_missed_offline_is_closed_when_the_channel_goes_live_again()
     {
-        (ChannelOnlineHandler sut, AuthDbContext db) = Build();
+        (ChannelOnlineHandler sut, AuthDbContext db, _) = Build();
         DateTimeOffset staleStart = new(2026, 8, 20, 10, 0, 0, TimeSpan.Zero);
         db.Streams.Add(
             new()
@@ -139,7 +145,7 @@ public sealed class ChannelOnlineHandlerTests
             ChannelName = "streamer9",
             LastStreamStartedAt = oldStart,
         };
-        (ChannelOnlineHandler sut, AuthDbContext _) = Build(ctx);
+        (ChannelOnlineHandler sut, _, _) = Build(ctx);
 
         await sut.HandleAsync(
             new ChannelOnlineEvent
@@ -156,5 +162,25 @@ public sealed class ChannelOnlineHandlerTests
         ctx.WentLiveAt.Should().Be(newStart);
         ctx.LastStreamStartedAt.Should()
             .BeNull("an older stream's start must never survive a new go-live");
+    }
+
+    [Fact]
+    public async Task The_inbox_is_signalled_once_after_IsLive_is_saved()
+    {
+        (ChannelOnlineHandler sut, _, LiveStateCapturingNotifier inbox) = Build();
+
+        await sut.HandleAsync(
+            new ChannelOnlineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer9",
+                StreamTitle = "New session",
+                GameName = "Just Chatting",
+                StartedAt = new(2026, 8, 27, 18, 0, 0, TimeSpan.Zero),
+            }
+        );
+
+        inbox.Calls.Should().Equal((Broadcaster, true));
     }
 }
