@@ -48,6 +48,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.realtime.HubConfigChanged
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Economy page state machine the screen renders: resolve the active channel, then surface the real
@@ -97,6 +102,30 @@ class EconomyControllerTest {
         assertEquals(leaderboard, ready.leaderboard)
         // The leaderboard read is addressed to the resolved channel.
         assertEquals("ch1", economyApi.lastLeaderboardChannelId)
+    }
+
+    @Test
+    fun a_savings_jar_hub_change_reloads_the_jar_balance_and_any_other_domain_does_not() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                jarBalances = listOf(100L, 150L),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+        assertEquals(100L, (controller.state.value as EconomyState.Ready).savingsJars.single().balance)
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 8)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(broadcasterId = "ch1", domain = "commands")))
+        assertEquals(1, economyApi.jarReads, "a commands change is not a jar change")
+
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(broadcasterId = "ch1", domain = "savings-jar")))
+        assertEquals(2, economyApi.jarReads)
+        assertEquals(150L, (controller.state.value as EconomyState.Ready).savingsJars.single().balance)
     }
 
     @Test
@@ -695,6 +724,7 @@ private class FakeEconomyApi(
     private val accountsByPage: Map<Int, ApiResult<PaginatedEnvelope<CurrencyAccountSummary>>> = emptyMap(),
     private val earningRulesResult: ApiResult<List<EarningRule>> = ApiResult.Ok(emptyList()),
     private val catalogResult: ApiResult<List<CatalogItem>> = ApiResult.Ok(emptyList()),
+    private val jarBalances: List<Long> = emptyList(),
 ) : EconomyApi {
     // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
     // stays a real implementation of the interface rather than a partial one.
@@ -839,7 +869,16 @@ private class FakeEconomyApi(
         return ApiResult.Ok(EarningRule())
     }
 
-    override suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>> = ApiResult.Ok(emptyList())
+    // Successive jar-list reads return the next balance (the last one repeats); empty means no jars at all.
+    var jarReads: Int = 0
+        private set
+
+    override suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>> {
+        if (jarBalances.isEmpty()) return ApiResult.Ok(emptyList())
+        val balance: Long = jarBalances[minOf(jarReads, jarBalances.lastIndex)]
+        jarReads++
+        return ApiResult.Ok(listOf(SavingsJar(id = "jar1", name = "Shared", balance = balance)))
+    }
 
     override suspend fun createSavingsJar(channelId: String, request: CreateSavingsJarBody): ApiResult<SavingsJar> =
         ApiResult.Ok(SavingsJar())

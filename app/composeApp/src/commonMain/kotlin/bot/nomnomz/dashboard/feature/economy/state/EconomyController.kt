@@ -86,7 +86,7 @@ class EconomyController(
      * the page opened. Without it the only way to see a change was a manual reload.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
-        hubEvents.onConfigChange("catalog") { load() }
+        hubEvents.onConfigChange("catalog", "savings-jar") { load() }
     }
 
     suspend fun load() {
