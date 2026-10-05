@@ -25,6 +25,7 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Application.ViewerData.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
@@ -548,7 +549,14 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // ── Target DB lookups (id, name, follow age, pronoun grammar) ───────
         bool needsBareName = needed.Contains("name");
         if (
-            NeedsAny(needed, "target.id", "target.name", "target.displayname", "target.followAge")
+            NeedsAny(
+                needed,
+                "target.id",
+                "target.name",
+                "target.displayname",
+                "target.known",
+                "target.followAge"
+            )
             || needsTargetGrammar
             || (hasTargetContext && needsBareName)
         )
@@ -569,6 +577,18 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // {target.displayname}: the stored display name when the user is known, else the typed text.
         if (needed.Contains("target.displayname"))
             vars.TryAdd("target.displayname", vars.GetValueOrDefault("target", string.Empty));
+
+        // {target.known}: "true" only when the typed target matches a stored user. No target typed,
+        // an unknown login and a failed lookup all read "false".
+        if (needed.Contains("target.known"))
+            vars.TryAdd("target.known", "false");
+
+        // {tts.audioconnected}: whether an Audio Source page is open for this channel right now.
+        if (needed.Contains("tts.audioconnected") && broadcasterId is not null)
+            vars.TryAdd(
+                "tts.audioconnected",
+                ResolveAudioSourceConnected(broadcasterId.Value) ? "true" : "false"
+            );
 
         // Bare grammar vars mirror the target (if present) else the caller; anything still unset (no
         // user/target resolved, or a resolved one with no pronoun on record) gets the universal
@@ -844,6 +864,26 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
     }
 
+    private bool ResolveAudioSourceConnected(Guid broadcasterId)
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            return scope
+                .ServiceProvider.GetRequiredService<IOverlayPresenceRegistry>()
+                .IsAudioSourceConnected(broadcasterId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to read overlay presence for {BroadcasterId}",
+                broadcasterId
+            );
+            return false;
+        }
+    }
+
     private async Task ResolveTargetAsync(
         Dictionary<string, string> vars,
         string targetName,
@@ -866,6 +906,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
             if (target is null)
                 return;
+
+            vars.TryAdd("target.known", "true");
 
             // {{target.id}} is the Twitch user string id, not the internal Guid PK.
             vars.TryAdd("target.id", target.TwitchUserId!);

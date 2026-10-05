@@ -5190,6 +5190,7 @@
     <string name="template_helper_target_follow_age">Hoe lang het @vermelde doel het kanaal al volgt</string>
     <string name="template_helper_target_gendered_term">Een term die past bij het geslacht van het @vermelde doel</string>
     <string name="template_helper_target_id">Het platform-ID van het @vermelde doel</string>
+    <string name="template_helper_target_known">Of het @vermelde doel een gebruiker is die de bot kent (true of false)</string>
     <string name="template_helper_target_lastmessage">Het meest recente chatbericht van het @vermelde doel</string>
     <string name="template_helper_target_lastmessage_full">Het meest recente chatbericht van het @vermelde doel, nooit ingekort</string>
     <string name="template_helper_target_link">Een profiellink voor het @vermelde doel</string>
@@ -5212,6 +5213,7 @@
     <string name="template_helper_raw_message">Het ruwe chatbericht dat de trigger veroorzaakte (Discord pipeline seed-alias)</string>
     <string name="template_helper_time">De huidige lokale tijd</string>
     <string name="template_helper_time_utc">De huidige UTC-tijd</string>
+    <string name="template_helper_tts_audioconnected">Of er een Audio Source-pagina open staat voor het kanaal, zodat TTS te horen is (true of false)</string>
     <string name="template_helper_transform">Past een tekstbewerking toe (hoofdletters/kleine letters/titel/omgekeerd/etc.) op de omsloten tekst</string>
     <string name="template_helper_user">De inlognaam van de gebruiker die dit activeerde</string>
     <string name="template_helper_user_account_age">Hoe lang geleden het account van de gebruiker is aangemaakt</string>

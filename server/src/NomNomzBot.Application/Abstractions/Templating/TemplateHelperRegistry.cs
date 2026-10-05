@@ -154,6 +154,7 @@ public static class TemplateHelperRegistry
             Literal("stream.viewers", AllContexts, "template.helper.stream_viewers"),
             Literal("stream.isLive", AllContexts, "template.helper.stream_is_live"),
             Literal("stream.startedAt", AllContexts, "template.helper.stream_started_at"),
+            Literal("tts.audioconnected", AllContexts, "template.helper.tts_audioconnected"),
             Literal("status", AllContexts, "template.helper.status"),
             Literal("tense", AllContexts, "template.helper.tense"),
             // ── Delivering platform (event response only; the event that fired the template) ──
@@ -504,6 +505,7 @@ public static class TemplateHelperRegistry
             Literal("target", TriggerContexts, "template.helper.target"),
             Literal("target.name", TriggerContexts, "template.helper.target_name"),
             Literal("target.displayname", TriggerContexts, "template.helper.target_displayname"),
+            Literal("target.known", TriggerContexts, "template.helper.target_known"),
             Literal("target.id", TriggerContexts, "template.helper.target_id"),
             Literal("target.followAge", TriggerContexts, "template.helper.target_follow_age"),
             Literal("target.lastmessage", TriggerContexts, "template.helper.target_lastmessage"),

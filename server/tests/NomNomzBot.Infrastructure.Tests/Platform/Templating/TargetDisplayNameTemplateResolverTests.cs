@@ -97,4 +97,22 @@ public sealed class TargetDisplayNameTemplateResolverTests
 
         resolved.Should().Be("[]");
     }
+
+    [Fact]
+    public async Task A_target_the_database_does_not_know_renders_target_known_as_false()
+    {
+        string unknown = await ResolveAsync("{target.known}", "NobodyHere");
+        string known = await ResolveAsync("{target.known}", "SUS_USER");
+
+        unknown.Should().Be("false");
+        known.Should().Be("true");
+    }
+
+    [Fact]
+    public async Task No_target_given_renders_target_known_as_false()
+    {
+        string resolved = await ResolveAsync("[{target.known}]", string.Empty);
+
+        resolved.Should().Be("[false]");
+    }
 }

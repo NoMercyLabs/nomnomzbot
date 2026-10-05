@@ -5206,6 +5206,7 @@
     <string name="template_helper_target_follow_age">How long the @mention target has followed the channel</string>
     <string name="template_helper_target_gendered_term">A gendered term for the @mention target</string>
     <string name="template_helper_target_id">The @mention target platform ID</string>
+    <string name="template_helper_target_known">Whether the @mention target matches a user the bot knows (true or false)</string>
     <string name="template_helper_target_lastmessage">The @mention target most recent chat message</string>
     <string name="template_helper_target_lastmessage_full">The @mention target most recent chat message, never cut short</string>
     <string name="template_helper_target_link">A profile link for the @mention target</string>
@@ -5228,6 +5229,7 @@
     <string name="template_helper_raw_message">The raw triggering chat message (Discord pipeline seed alias)</string>
     <string name="template_helper_time">The current local time</string>
     <string name="template_helper_time_utc">The current UTC time</string>
+    <string name="template_helper_tts_audioconnected">Whether an Audio Source page is open for the channel, so TTS can be heard (true or false)</string>
     <string name="template_helper_transform">Applies a text transform (upper/lower/title/reverse/etc.) to the wrapped text</string>
     <string name="template_helper_user">The triggering user login name</string>
     <string name="template_helper_user_account_age">How long ago the triggering user account was created</string>
