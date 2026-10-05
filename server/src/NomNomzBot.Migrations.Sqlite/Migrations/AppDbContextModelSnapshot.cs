@@ -5275,6 +5275,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("AnnounceOnConnect")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("AutoShoutoutEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("BillingTierKey")
                         .IsRequired()
                         .HasMaxLength(20)

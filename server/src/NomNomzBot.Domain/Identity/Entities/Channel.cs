@@ -177,6 +177,11 @@ public class Channel : SoftDeletableEntity
     /// </summary>
     public bool AnnounceOnConnect { get; set; }
 
+    /// <summary>
+    /// When on, a known streamer's first chat of a stream gets an automatic shoutout; off for every channel unless the owner turns it on.
+    /// </summary>
+    public bool AutoShoutoutEnabled { get; set; }
+
     [ForeignKey(nameof(OwnerUserId))]
     public virtual User User { get; set; } = null!;
 
