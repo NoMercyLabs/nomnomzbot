@@ -11,11 +11,15 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -32,6 +36,8 @@ public sealed class SongRequestAction : ICommandAction
 {
     private readonly IMusicService _music;
     private readonly IChatProvider _chat;
+    private readonly IBuiltinResponseComposer _composer;
+    private readonly IChannelRegistry _registry;
     private readonly ILogger<SongRequestAction> _logger;
 
     public string ActionType => "song_request";
@@ -52,9 +58,13 @@ public sealed class SongRequestAction : ICommandAction
     public SongRequestAction(
         IMusicService music,
         IChatProvider chat,
+        IBuiltinResponseComposer composer,
+        IChannelRegistry registry,
         ILogger<SongRequestAction> logger
     )
     {
+        _composer = composer;
+        _registry = registry;
         _music = music;
         _chat = chat;
         _logger = logger;
@@ -85,44 +95,27 @@ public sealed class SongRequestAction : ICommandAction
             ctx.TriggeredByUserId
         );
 
+        SongRequestReplyContext replyContext = new(
+            ctx.BroadcasterId,
+            PersonalityTone.Normalize(_registry.Get(ctx.BroadcasterId)?.Personality),
+            ctx.TriggeredByDisplayName,
+            requesterRoleLevel,
+            IsReward: ctx.RedemptionId is not null
+        );
+
         if (requested.IsFailure)
         {
-            if (requested.ErrorCode == "NOT_FOUND")
-            {
-                await _chat.SendMessageAsync(
-                    ctx.BroadcasterId,
-                    $"@{ctx.TriggeredByDisplayName} No tracks found for \"{query}\".",
-                    ctx.CancellationToken
-                );
-                return ActionResult.Failure($"no tracks found for query: {query}");
-            }
-
-            // Each refusal reason gets its own honest chat wording — "no provider" and "provider
-            // erroring" are not the same as "your specific song was refused" (TRACK_BLOCKED).
-            string chatMessage = requested.ErrorCode switch
-            {
-                "SR_DISABLED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "MIN_TRUST_LEVEL" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "TRACK_BLOCKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "SR_REVOKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "SERVICE_UNAVAILABLE" =>
-                    $"@{ctx.TriggeredByDisplayName} Song requests aren't set up for this channel yet.",
-                // A real playlist/album/episode/show/artist link — never a search miss.
-                "UNSUPPORTED_CONTENT_TYPE" =>
-                    $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "TRACK_UNAVAILABLE" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "PROVIDER_NOT_CONFIGURED" =>
-                    $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                // Admission-gate refusals (MusicService.EnqueueResolvedAsync) — the requester is over a
-                // real, configured limit, not facing an outage. Must never fall through to the generic
-                // "couldn't reach the music service" wording below (S-OWN12).
-                "QUEUE_FULL" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "PER_USER_LIMIT" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                "DUPLICATE_TRACK" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
-                _ =>
-                    $"@{ctx.TriggeredByDisplayName} Couldn't reach the music service — try again in a moment.",
-            };
-            await _chat.SendMessageAsync(ctx.BroadcasterId, chatMessage, ctx.CancellationToken);
+            string refusal = await new SongRequestRefusalReplies(_composer).RefusalReplyAsync(
+                replyContext,
+                query,
+                requested,
+                ctx.CancellationToken
+            );
+            await _chat.SendMessageAsync(
+                ctx.BroadcasterId,
+                $"@{ctx.TriggeredByDisplayName} {refusal}",
+                ctx.CancellationToken
+            );
             return ActionResult.Failure(requested.ErrorMessage ?? "failed to add track to queue");
         }
 
@@ -133,15 +126,63 @@ public sealed class SongRequestAction : ICommandAction
         // queue snapshot — the caller's newest entry matching what was just queued.
         string code = await ResolveJustQueuedCodeAsync(ctx, track);
 
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = ctx.TriggeredByDisplayName,
+            ["track.name"] = track.Name,
+            ["track.artist"] = track.Artist,
+        };
+        string confirmation;
+        if (string.IsNullOrEmpty(code))
+        {
+            variables["track.link"] = TrackLinks.ToWebLink(track.Uri);
+            confirmation = await ComposeAsync(
+                replyContext,
+                BuiltinResponseSlots.SongRequest.Added,
+                "Added {track.name} by {track.artist} to the queue. {track.link}",
+                variables,
+                ctx.CancellationToken
+            );
+        }
+        else
+        {
+            variables["request.code"] = code;
+            confirmation = await ComposeAsync(
+                replyContext,
+                BuiltinResponseSlots.SongRequest.AddedWithCode,
+                "Added to queue: {track.name} by {track.artist} (code {request.code})",
+                variables,
+                ctx.CancellationToken
+            );
+        }
+
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,
-            string.IsNullOrEmpty(code)
-                ? $"@{ctx.TriggeredByDisplayName} Added to queue: {track.Name} by {track.Artist}"
-                : $"@{ctx.TriggeredByDisplayName} Added to queue: {track.Name} by {track.Artist} (code {code})",
+            $"@{ctx.TriggeredByDisplayName} {confirmation}",
             ctx.CancellationToken
         );
         return ActionResult.Success($"queued: {track.Name}");
     }
+
+    private Task<string> ComposeAsync(
+        SongRequestReplyContext replyContext,
+        string slot,
+        string neutralFallback,
+        IReadOnlyDictionary<string, string> variables,
+        CancellationToken ct
+    ) =>
+        _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = replyContext.BroadcasterId,
+                Personality = replyContext.Personality,
+                BuiltinKey = BuiltinResponseSlots.SongRequest.Key,
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+                Variables = variables,
+            },
+            ct
+        );
 
     /// <summary>The just-admitted request's short speakable code (Domain SongCode), or empty when it
     /// cannot be found — e.g. a provider that dequeues faster than this read, or a legacy entry.</summary>

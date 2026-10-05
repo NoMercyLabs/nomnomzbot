@@ -37,10 +37,10 @@ public sealed class MusicServiceCapacityTests
 {
     private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-0000000ad001");
 
-    private static string SearchJson(string id) =>
+    internal static string SearchJson(string id, int durationMs = 200000) =>
         """
-            {"tracks":{"items":[{"name":"Song __ID__","uri":"spotify:track:__ID__","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
-            """.Replace("__ID__", id);
+            {"tracks":{"items":[{"name":"Song __ID__","uri":"spotify:track:__ID__","duration_ms":__DUR__,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
+            """.Replace("__ID__", id).Replace("__DUR__", durationMs.ToString());
 
     [Fact]
     public async Task A_queue_at_its_configured_cap_refuses_the_next_request_before_pushing_it()
@@ -88,24 +88,25 @@ public sealed class MusicServiceCapacityTests
 
     // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
     // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
-    private static int QueuePushCount(RecordingHttpHandler handler) =>
+    internal static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
             url.StartsWith("POST", StringComparison.Ordinal)
             && url.Contains("/me/player/queue", StringComparison.Ordinal)
         );
 
-    private static async Task<Result> RequestAsync(
+    internal static async Task<Result> RequestAsync(
         MusicService sut,
         RecordingHttpHandler handler,
         string trackId,
-        string requestedBy
+        string requestedBy,
+        int durationMs = 200000
     )
     {
         handler.ClearRoutes();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
             HttpStatusCode.OK,
-            SearchJson(trackId)
+            SearchJson(trackId, durationMs)
         );
         handler.RespondWhen(
             r =>
@@ -119,7 +120,7 @@ public sealed class MusicServiceCapacityTests
         return await sut.AddToQueueAsync(ChannelId.ToString(), $"song {trackId}", requestedBy);
     }
 
-    private static (MusicService Sut, RecordingHttpHandler Handler) Build(MusicConfigDto config)
+    internal static (MusicService Sut, RecordingHttpHandler Handler) Build(MusicConfigDto config)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(

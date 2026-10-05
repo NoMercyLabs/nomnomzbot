@@ -492,6 +492,16 @@ public static partial class ToneTemplateCatalog
                 "Denied. {requested.by} queued \"{track.name}\" already. One copy is plenty, I promise.",
                 "I am not queueing \"{track.name}\" twice. {requested.by} beat you to it. Scroll up next time.",
                 "Groundbreaking choice — {requested.by} thought of \"{track.name}\" first. Pick something else.",
+                "@{user}, great minds think alike... or you just don't pay attention to the queue. Either way, that song is already queued!",
+                "Congratulations @{user}! That song is already in the queue. Maybe check next time?",
+                "Plot twist @{user}: That song is already queued up!",
+                "Ooof @{user}, that's already in the queue bestie.",
+                "Breaking news: Local viewer @{user} discovers they can't ctrl+f the song queue.",
+                "That song is already queued @{user}, but don't worry - now you know!",
+                "Aww sweetie @{user}, that's already playing soon!",
+                "Oh honey @{user}... bless your heart. That song is already in line.",
+                "Achievement unlocked @{user}: 'Didn't Check the Queue!'",
+                "Fun fact @{user}: That song is already queued! Less fun fact: You didn't check first.",
             ],
             hype:
             [

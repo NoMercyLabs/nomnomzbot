@@ -41,6 +41,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 {
     /// <summary>Upper bound on the queue-changed snapshot — overlays render a top-of-queue list, never the full backlog.</summary>
     private const int QueueSnapshotSize = 10;
+    private const int MaxTrackDurationMs = 10 * 60 * 1000;
 
     private readonly IEnumerable<IMusicProvider> _providers;
     private readonly IApplicationDbContext _db;
@@ -756,6 +757,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" is blocked in this channel.",
                 "TRACK_BLOCKED",
+                errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
+            );
+
+        // Length cap (legacy parity): a track over ten minutes never reaches the fair queue.
+        if (trackInfo.DurationMs > MaxTrackDurationMs)
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" exceeds the maximum allowed duration of 10 minutes.",
+                "TRACK_TOO_LONG",
                 errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
             );
 

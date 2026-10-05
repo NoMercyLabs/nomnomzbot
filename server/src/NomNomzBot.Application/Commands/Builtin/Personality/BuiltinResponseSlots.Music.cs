@@ -84,6 +84,20 @@ public static partial class BuiltinResponseSlots
         /// <summary>The music service needs a Premium account for this; <c>{track.name}</c> is set.</summary>
         public const string PremiumRequired = "premiumrequired";
 
+        /// <summary>The track is longer than the 10 minute cap; <c>{track.name}</c>/<c>{user}</c> are set.</summary>
+        public const string TrackTooLong = "tracktoolong";
+
+        /// <summary>
+        /// Same refusal on the reward path, where the redeemed points go back; <c>{track.name}</c>/<c>{user}</c> are set.
+        /// </summary>
+        public const string TrackTooLongRefunded = "tracktoolongrefunded";
+
+        /// <summary>
+        /// Track added by a reward or pipeline, with the request's speakable code for <c>!wrongsong</c>;
+        /// <c>{track.name}</c>/<c>{track.artist}</c>/<c>{request.code}</c>/<c>{user}</c> are set.
+        /// </summary>
+        public const string AddedWithCode = "addedwithcode";
+
         /// <summary>The music connection lost its login and must be reconnected; <c>{track.name}</c> is set.</summary>
         public const string AuthFailed = "authfailed";
 

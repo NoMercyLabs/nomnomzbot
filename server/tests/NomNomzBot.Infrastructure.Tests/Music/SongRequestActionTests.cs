@@ -12,10 +12,16 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -104,12 +110,18 @@ public sealed class SongRequestActionTests
         ActionResult result = await sut.ExecuteAsync(Ctx(), Def("xyz"));
 
         result.Succeeded.Should().BeFalse();
-        await chat.Received()
-            .SendMessageAsync(
-                ChannelId,
-                Arg.Is<string>(m => m.Contains("No tracks found")),
-                Arg.Any<CancellationToken>()
-            );
+        List<string> pool =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.NotFound
+                )
+                .Select(t => "@Bamo " + t.Replace("{query}", "xyz").Replace("{user}", "Bamo")),
+        ];
+        string sent = (string)chat.ReceivedCalls().Single().GetArguments()[1]!;
+        pool.Should().NotBeEmpty().And.Contain(sent);
     }
 
     [Fact]
@@ -141,7 +153,7 @@ public sealed class SongRequestActionTests
         await chat.Received()
             .SendMessageAsync(
                 ChannelId,
-                Arg.Is<string>(m => m.Contains("aren't set up")),
+                Arg.Is<string>(m => m == "@Bamo This command is currently disabled."),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -180,7 +192,8 @@ public sealed class SongRequestActionTests
         (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
             Result.Failure<MusicTrack>(
                 "You already have 2 request(s) queued — wait for one to play before adding more.",
-                "PER_USER_LIMIT"
+                "PER_USER_LIMIT",
+                errorData: new MusicRequestRefusal(Limit: 2)
             )
         );
 
@@ -218,12 +231,193 @@ public sealed class SongRequestActionTests
             );
     }
 
+    [Fact]
+    public async Task A_reward_that_picked_a_too_long_track_says_the_point_was_refunded()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "too long",
+                "TRACK_TOO_LONG",
+                errorData: new MusicRequestRefusal("Song Q", "Artist")
+            )
+        );
+        PipelineExecutionContext ctx = Ctx(redemptionId: "redemption-1");
+
+        await sut.ExecuteAsync(ctx, Def("song q"));
+
+        await chat.Received()
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo Failed to add to queue. \"Song Q\" exceeds the maximum allowed duration of 10 minutes, your point has been refunded.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_chat_request_for_a_too_long_track_does_not_promise_a_refund()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "too long",
+                "TRACK_TOO_LONG",
+                errorData: new MusicRequestRefusal("Song Q", "Artist")
+            )
+        );
+
+        await sut.ExecuteAsync(Ctx(), Def("song q"));
+
+        await chat.Received()
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo Failed to add to queue. \"Song Q\" exceeds the maximum allowed duration of 10 minutes.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_refusal_speaks_in_the_channels_tone_never_in_the_services_own_sentence()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "RAW SERVICE SENTENCE",
+                "QUEUE_FULL",
+                errorData: new MusicRequestRefusal(Limit: 7)
+            ),
+            PersonalityTone.Sassy
+        );
+
+        await sut.ExecuteAsync(Ctx(), Def("song q"));
+
+        List<string> pool =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.QueueFull
+                )
+                .Select(t => "@Bamo " + t.Replace("{queue.max}", "7")),
+        ];
+        string sent = (string)chat.ReceivedCalls().Single().GetArguments()[1]!;
+        sent.Should().NotContain("RAW SERVICE SENTENCE");
+        pool.Should().Contain(sent);
+    }
+
+    [Fact]
+    public async Task A_duplicate_reward_names_the_first_requester_from_the_duplicate_pool()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "RAW SERVICE SENTENCE",
+                "DUPLICATE_TRACK",
+                errorData: new MusicRequestRefusal("Song Q", "Artist", "viewer1")
+            ),
+            PersonalityTone.Sassy
+        );
+
+        await sut.ExecuteAsync(Ctx(), Def("song q"));
+
+        List<string> pool =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.Duplicate
+                )
+                .Select(t =>
+                    "@Bamo "
+                    + t.Replace("{track.name}", "Song Q")
+                        .Replace("{requested.by}", "viewer1")
+                        .Replace("{user}", "Bamo")
+                ),
+        ];
+        string sent = (string)chat.ReceivedCalls().Single().GetArguments()[1]!;
+        pool.Should().Contain(sent);
+    }
+
+    [Fact]
+    public async Task The_confirmation_comes_from_the_added_with_code_slot()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Success(
+                new MusicTrack("spotify:track:abc", "Song Q", "Artist", null, null, 0, "spotify")
+            )
+        );
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    null,
+                    [new MusicQueueItem("Song Q", "Artist", null, 0, "Bamo", Code: "N4PT")]
+                )
+            );
+
+        await sut.ExecuteAsync(Ctx(), Def("lofi beats"));
+
+        List<string> pool =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.AddedWithCode
+                )
+                .Select(t =>
+                    "@Bamo "
+                    + t.Replace("{track.name}", "Song Q")
+                        .Replace("{track.artist}", "Artist")
+                        .Replace("{request.code}", "N4PT")
+                        .Replace("{user}", "Bamo")
+                ),
+        ];
+        string sent = (string)chat.ReceivedCalls().Single().GetArguments()[1]!;
+        pool.Should().NotBeEmpty().And.Contain(sent);
+        sent.Should().Contain("N4PT");
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     private static (SongRequestAction Sut, IMusicService Music, IChatProvider Chat) Build(
-        Result<MusicTrack> requestResult
+        Result<MusicTrack> requestResult,
+        string personality = PersonalityTone.Informative
     )
     {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> v in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{v.Key}}}", v.Value);
+                return Task.FromResult(template);
+            });
+        BuiltinResponseComposer composer = new(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry
+            .Get(ChannelId)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = ChannelId,
+                    TwitchChannelId = "1",
+                    ChannelName = "chan",
+                    Personality = personality,
+                }
+            );
+
         IMusicService music = Substitute.For<IMusicService>();
         music
             .RequestTrackAsync(
@@ -242,13 +436,20 @@ public sealed class SongRequestActionTests
             .Returns(new MusicQueue(null, []));
 
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongRequestAction sut = new(music, chat, NullLogger<SongRequestAction>.Instance);
+        SongRequestAction sut = new(
+            music,
+            chat,
+            composer,
+            registry,
+            NullLogger<SongRequestAction>.Instance
+        );
         return (sut, music, chat);
     }
 
-    private static PipelineExecutionContext Ctx() =>
+    private static PipelineExecutionContext Ctx(string? redemptionId = null) =>
         new()
         {
+            RedemptionId = redemptionId,
             BroadcasterId = ChannelId,
             TriggeredByUserId = "twitch-42",
             TriggeredByDisplayName = "Bamo",

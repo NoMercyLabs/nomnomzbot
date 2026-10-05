@@ -168,6 +168,60 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.TrackTooLong,
+            variables: ["track.name", "user"],
+            informative:
+            [
+                "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of 10 minutes.",
+            ],
+            friendly:
+            [
+                "Sorry, \"{track.name}\" is longer than the 10 minute limit, so I could not add it. Pick a shorter one!",
+            ],
+            sassy: ["\"{track.name}\" is over 10 minutes. This is a queue, not a marathon."],
+            hype: ["\"{track.name}\" IS OVER 10 MINUTES. TOO LONG. FIND A SHORTER BANGER."],
+            chill: ["\"{track.name}\" is over 10 minutes. too long, pick a shorter one."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.TrackTooLongRefunded,
+            variables: ["track.name", "user"],
+            informative:
+            [
+                "Failed to add to queue. \"{track.name}\" exceeds the maximum allowed duration of 10 minutes, your point has been refunded.",
+            ],
+            friendly:
+            [
+                "Sorry, \"{track.name}\" is longer than the 10 minute limit, so I could not add it. Your points are back, pick a shorter one!",
+            ],
+            sassy:
+            [
+                "\"{track.name}\" is over 10 minutes. This is a queue, not a marathon. Points refunded.",
+            ],
+            hype: ["\"{track.name}\" IS OVER 10 MINUTES. TOO LONG. POINTS REFUNDED, GO AGAIN."],
+            chill: ["\"{track.name}\" is over 10 minutes. points refunded, pick a shorter one."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.AddedWithCode,
+            variables: ["request.code", "track.artist", "track.name", "user"],
+            informative: ["Added to queue: {track.name} by {track.artist} (code {request.code})"],
+            friendly:
+            [
+                "Added \"{track.name}\" by {track.artist} to the queue! (code {request.code})",
+            ],
+            sassy: ["Fine, {track.name} by {track.artist} is in the queue. (code {request.code})"],
+            hype: ["{track.name} BY {track.artist} IS IN THE QUEUE! (code {request.code})"],
+            chill: ["queued {track.name} by {track.artist}. (code {request.code})"]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.QueueFull,
             variables: ["queue.max"],
             informative: ["The queue is full ({queue.max} max) — try again once it's shorter."],
@@ -742,6 +796,7 @@ public static partial class ToneTemplateCatalog
         samples["queue.more"] = "";
         samples["queue.max"] = "25";
         samples["request.limit"] = "3";
+        samples["request.code"] = "K7QM";
         samples["request.position"] = "2";
         samples["trust.level"] = "Follower";
         samples["volume.level"] = "60";

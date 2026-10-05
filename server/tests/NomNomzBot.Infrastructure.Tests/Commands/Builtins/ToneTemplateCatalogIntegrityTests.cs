@@ -71,6 +71,64 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void The_sassy_duplicate_song_pool_carries_the_old_bots_ten_lines_with_the_user_name()
+    {
+        IReadOnlyList<string> lines = ToneTemplateCatalog.Get(
+            PersonalityTone.Sassy,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.Duplicate
+        );
+
+        lines
+            .Should()
+            .Contain(
+                "Congratulations @{user}! That song is already in the queue. Maybe check next time?"
+            )
+            .And.Contain("Achievement unlocked @{user}: 'Didn't Check the Queue!'")
+            .And.Contain(
+                "Fun fact @{user}: That song is already queued! Less fun fact: You didn't check first."
+            );
+        lines.Count(l => l.Contains("@{user}")).Should().Be(10);
+        lines.Should().NotContain(l => l.Contains("{name}"));
+    }
+
+    [Fact]
+    public void A_too_long_track_refusal_has_a_line_in_every_tone_and_the_refunded_one_says_so()
+    {
+        foreach (string tone in Tones)
+        {
+            ToneTemplateCatalog
+                .Get(
+                    tone,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.TrackTooLong
+                )
+                .Should()
+                .NotBeEmpty($"{tone} needs its own too-long line");
+            ToneTemplateCatalog
+                .Get(
+                    tone,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.TrackTooLongRefunded
+                )
+                .Should()
+                .NotBeEmpty($"{tone} needs its own refunded too-long line");
+        }
+
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.SongRequest.Key,
+                BuiltinResponseSlots.SongRequest.TrackTooLongRefunded
+            )
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Contain("10 minutes")
+            .And.EndWith(", your point has been refunded.");
+    }
+
+    [Fact]
     public void Every_slot_ships_a_default_line_the_editor_can_show_and_reset_to()
     {
         List<string> missing =
