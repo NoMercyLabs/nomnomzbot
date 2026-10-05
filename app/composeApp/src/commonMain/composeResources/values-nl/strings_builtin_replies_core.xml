@@ -56,6 +56,10 @@
     <string name="builtin_reply_dice_accountunresolved_description">Het account van de speler is niet gevonden.</string>
     <string name="builtin_reply_slots_accountunresolved_label">Account niet gevonden</string>
     <string name="builtin_reply_slots_accountunresolved_description">Het account van de speler is niet gevonden.</string>
+    <string name="builtin_reply_botstatus_connectionlost_label">Twitch-verbinding kwijt</string>
+    <string name="builtin_reply_botstatus_connectionlost_description">De bot is de Twitch-eventverbinding kwijt. Wordt één keer per storing gezegd.</string>
+    <string name="builtin_reply_botstatus_connectionrestored_label">Twitch-verbinding terug</string>
+    <string name="builtin_reply_botstatus_connectionrestored_description">De Twitch-eventverbinding is terug nadat de bot meldde dat die weg was.</string>
     <string name="builtin_reply_botstatus_goingoffline_label">Bot herstart</string>
     <string name="builtin_reply_botstatus_goingoffline_description">De bot stopt en geen andere bot neemt het over.</string>
     <string name="builtin_reply_var_user">De weergavenaam van de kijker</string>

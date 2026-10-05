@@ -1032,6 +1032,45 @@ public static partial class ToneTemplateCatalog
             chill: ["restarting for an update, back in a bit."]
         );
 
+        // ── bot status / Twitch event connection lost + restored — no variables ──
+        Add(
+            catalog,
+            BuiltinResponseSlots.BotStatus.Key,
+            BuiltinResponseSlots.BotStatus.ConnectionLost,
+            variables: [],
+            informative:
+            [
+                "Lost connection to Twitch events — channel point redeems and commands are paused while I reconnect. Hang tight!",
+            ],
+            friendly:
+            [
+                "I lost my link to Twitch events — redeems and commands are paused while I reconnect. Hang tight!",
+            ],
+            sassy:
+            [
+                "Twitch dropped my event connection. Redeems and commands are on pause while I sort it out.",
+            ],
+            hype:
+            [
+                "LOST THE TWITCH EVENT LINK. REDEEMS AND COMMANDS ARE PAUSED WHILE I RECONNECT. HANG TIGHT!",
+            ],
+            chill:
+            [
+                "lost the twitch event link, redeems and commands are paused while i reconnect. hang tight.",
+            ]
+        );
+        Add(
+            catalog,
+            BuiltinResponseSlots.BotStatus.Key,
+            BuiltinResponseSlots.BotStatus.ConnectionRestored,
+            variables: [],
+            informative: ["Reconnected! Channel point redeems and commands are working again."],
+            friendly: ["I'm back! Redeems and commands are working again."],
+            sassy: ["Reconnected. Redeems and commands work again, you're welcome."],
+            hype: ["RECONNECTED! REDEEMS AND COMMANDS ARE WORKING AGAIN!"],
+            chill: ["reconnected, redeems and commands are working again."]
+        );
+
         return catalog;
     }
 

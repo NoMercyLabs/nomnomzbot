@@ -56,6 +56,10 @@
     <string name="builtin_reply_dice_accountunresolved_description">The player's account could not be found.</string>
     <string name="builtin_reply_slots_accountunresolved_label">Account not found</string>
     <string name="builtin_reply_slots_accountunresolved_description">The player's account could not be found.</string>
+    <string name="builtin_reply_botstatus_connectionlost_label">Twitch connection lost</string>
+    <string name="builtin_reply_botstatus_connectionlost_description">The bot lost its Twitch event connection. Said once per outage.</string>
+    <string name="builtin_reply_botstatus_connectionrestored_label">Twitch connection back</string>
+    <string name="builtin_reply_botstatus_connectionrestored_description">The Twitch event connection is back after the bot said it was lost.</string>
     <string name="builtin_reply_botstatus_goingoffline_label">Bot restarting</string>
     <string name="builtin_reply_botstatus_goingoffline_description">The bot stops and no other bot takes over.</string>
     <string name="builtin_reply_var_user">The viewer's display name</string>

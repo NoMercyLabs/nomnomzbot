@@ -1736,6 +1736,7 @@ public static class DependencyInjection
         // only profile today, so the WebSocket transport is wired unconditionally.
         services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
         services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
+        services.AddSingleton<EventSubOutageLedger>();
 
         // The conduit + shard owner behind the zero-downtime blue/green handover (twitch-eventsub §10).
         // Inert without an app secret: EnsureConduitAsync then fails no_token and the per-owner sessions stay.

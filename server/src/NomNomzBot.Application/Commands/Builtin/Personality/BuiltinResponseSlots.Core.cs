@@ -265,5 +265,11 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The bot is stopping with no successor taking over (restart / crash-restart / manual stop).</summary>
         public const string GoingOffline = "goingoffline";
+
+        /// <summary>The Twitch event connection dropped unplanned — redeems and commands are paused. Once per outage.</summary>
+        public const string ConnectionLost = "connectionlost";
+
+        /// <summary>The Twitch event connection is back after an announced outage.</summary>
+        public const string ConnectionRestored = "connectionrestored";
     }
 }
