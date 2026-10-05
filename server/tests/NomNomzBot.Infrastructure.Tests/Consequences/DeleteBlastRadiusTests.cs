@@ -32,6 +32,7 @@ using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Sound;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
+using NomNomzBot.Infrastructure.Tests.Rewards;
 
 namespace NomNomzBot.Infrastructure.Tests.Consequences;
 
@@ -132,7 +133,8 @@ public class DeleteBlastRadiusTests
             db,
             Substitute.For<ITwitchChannelPointsApi>(),
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
     private static GiveawayCodePoolService NewPools(BlastRadiusTestDbContext db) =>

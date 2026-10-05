@@ -9,8 +9,10 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -29,6 +31,10 @@ public class RewardService : IRewardService
     private readonly TimeProvider _clock;
     private readonly ILogger<RewardService> _logger;
 
+    // Resolved per call, never captured: IEventResponseExecutor -> IPipelineEngine -> every ICommandAction
+    // (redemption fulfil/refund take IRewardService), so injecting the executor directly is a DI cycle.
+    private readonly IServiceProvider _services;
+
     /// <summary>How many dependent names the preview lists by name before it just counts them.</summary>
     private const int SampleSize = 5;
 
@@ -43,13 +49,15 @@ public class RewardService : IRewardService
         IApplicationDbContext db,
         ITwitchChannelPointsApi channelPoints,
         TimeProvider clock,
-        ILogger<RewardService> logger
+        ILogger<RewardService> logger,
+        IServiceProvider services
     )
     {
         _db = db;
         _channelPoints = channelPoints;
         _clock = clock;
         _logger = logger;
+        _services = services;
     }
 
     public async Task<Result<RewardDetail>> CreateAsync(
@@ -291,6 +299,7 @@ public class RewardService : IRewardService
             reward.Response = request.Response;
         if (request.IsEnabled.HasValue)
             reward.IsEnabled = request.IsEnabled.Value;
+        bool wasPaused = reward.IsPaused;
         if (request.IsPaused.HasValue)
             reward.IsPaused = request.IsPaused.Value;
         if (request.IsUserInputRequired.HasValue)
@@ -304,7 +313,34 @@ public class RewardService : IRewardService
 
         await _db.SaveChangesAsync(cancellationToken);
 
+        if (wasPaused != reward.IsPaused)
+            await FirePauseTransitionAsync(reward, cancellationToken);
+
         return Result.Success(ToDetail(reward));
+    }
+
+    /// <summary>
+    /// Fires <c>reward.paused</c>/<c>reward.resumed</c> for a pause the bot itself made. The local row already
+    /// carries the new flag, so the Twitch echo reaching <c>RewardLifecycleHandler</c> sees no change and fires
+    /// nothing — this is the one place that transition is announced.
+    /// </summary>
+    private async Task FirePauseTransitionAsync(Reward reward, CancellationToken cancellationToken)
+    {
+        IEventResponseExecutor executor = _services.GetRequiredService<IEventResponseExecutor>();
+        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["reward"] = reward.Title,
+            ["reward.id"] = reward.TwitchRewardId ?? reward.Id.ToString(),
+            ["cost"] = (reward.Cost ?? 0).ToString(),
+        };
+        await executor.ExecuteAsync(
+            reward.BroadcasterId,
+            reward.IsPaused ? "reward.paused" : "reward.resumed",
+            userId: null,
+            userDisplayName: null,
+            variables,
+            cancellationToken
+        );
     }
 
     public async Task<Result> DeleteAsync(

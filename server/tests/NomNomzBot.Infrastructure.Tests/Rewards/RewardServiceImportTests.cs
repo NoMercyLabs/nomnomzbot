@@ -59,7 +59,8 @@ public sealed class RewardServiceImportTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
         return (sut, db, points);
     }
@@ -108,7 +109,8 @@ public sealed class RewardServiceImportTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
         return (sut, db, points);
     }

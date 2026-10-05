@@ -42,6 +42,7 @@ using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
+using NomNomzBot.Infrastructure.Tests.Rewards;
 using NSubstitute;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
@@ -187,7 +188,8 @@ public sealed class BundleParityTypesTests
             db,
             channelPoints,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
         TimerManagementService timers = new(
             db,

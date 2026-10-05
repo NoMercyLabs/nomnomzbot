@@ -35,7 +35,8 @@ public sealed class RewardServiceRedemptionsTests
             db,
             Substitute.For<ITwitchChannelPointsApi>(),
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
     private static Redemption Redeem(string id, string status, DateTime at) =>
@@ -152,7 +153,8 @@ public sealed class RewardServiceRedemptionsTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
         Result result = await sut.SetRedemptionStatusAsync(
@@ -184,7 +186,8 @@ public sealed class RewardServiceRedemptionsTests
             db,
             Substitute.For<ITwitchChannelPointsApi>(),
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
         Result result = await sut.SetRedemptionStatusAsync(Channel.ToString(), "nope", "FULFILLED");
@@ -219,7 +222,8 @@ public sealed class RewardServiceRedemptionsTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
         Result result = await sut.SetRedemptionStatusAsync(
@@ -256,7 +260,8 @@ public sealed class RewardServiceRedemptionsTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
         Result result = await sut.SetRedemptionStatusAsync(
@@ -288,7 +293,8 @@ public sealed class RewardServiceRedemptionsTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
 
         Result result = await sut.SetRedemptionStatusAsync(

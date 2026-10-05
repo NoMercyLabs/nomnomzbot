@@ -22,6 +22,7 @@ using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.PlatformContent.Templates;
 using NomNomzBot.Infrastructure.Rewards;
 using NSubstitute;
+using NomNomzBot.Infrastructure.Tests.Rewards;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
 
@@ -97,7 +98,8 @@ public sealed class PlatformTemplateRewardTests : IAsyncDisposable
             _h.Db,
             _channelPoints,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
         _installer = new(_h.Db, rewards);
     }

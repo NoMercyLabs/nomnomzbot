@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Rewards;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Seeding;
@@ -51,7 +52,8 @@ public sealed class RewardServiceSyncTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
         return (sut, db, points);
     }

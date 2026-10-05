@@ -54,7 +54,8 @@ public sealed class RewardServiceCreateTests
             db,
             points,
             TimeProvider.System,
-            NullLogger<RewardService>.Instance
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
         );
         return (sut, db, points);
     }
