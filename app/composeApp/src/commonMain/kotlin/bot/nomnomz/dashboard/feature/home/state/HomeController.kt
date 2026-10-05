@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.feature.attention.state.ATTENTION_HUB_DOMAIN
+import bot.nomnomz.dashboard.feature.attention.state.AttentionController
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodConfig
@@ -93,6 +94,12 @@ class HomeController(
     /** Called once after the primary channel resolves with the streamer's chat color (#RRGGBB or null). */
     private val onChatColorResolved: ((String?) -> Unit)? = null,
     private val feedback: Feedback = NoOpFeedback,
+    /**
+     * The shell-wide attention store (H4: one attention system, two placements). When given, Home renders and
+     * dismisses THROUGH it, so the sidebar trigger and the Home inbox never disagree; without it (tests) Home
+     * keeps its own fetch.
+     */
+    private val attention: AttentionController? = null,
 ) {
     private val _state: MutableStateFlow<HomeState> = MutableStateFlow(HomeState.Loading)
 
@@ -165,9 +172,14 @@ class HomeController(
                         is ApiResult.Failure -> emptyList()
                     }
                 val actionRequired: List<ActionRequiredItem> =
-                    when (val r: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel.id)) {
-                        is ApiResult.Ok -> r.value
-                        is ApiResult.Failure -> emptyList()
+                    if (attention != null) {
+                        attention.load(channel.id)
+                        attention.items.value
+                    } else {
+                        when (val r: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel.id)) {
+                            is ApiResult.Ok -> r.value
+                            is ApiResult.Failure -> emptyList()
+                        }
                     }
                 val pipelinesResult: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)
                 val integrationsResult: ApiResult<List<IntegrationStatus>> = integrationsApi.status(channel.id)
@@ -384,6 +396,10 @@ class HomeController(
      */
     private suspend fun refreshAttention() {
         val channel: String = channelId ?: return
+        if (attention != null) {
+            attention.refresh()
+            return
+        }
         when (val r: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel)) {
             is ApiResult.Ok -> {
                 val latest: HomeState = _state.value
@@ -402,9 +418,25 @@ class HomeController(
      */
     suspend fun dismissAttentionItem(item: ActionRequiredItem) {
         val channel: String = channelId ?: return
-        when (val result: ApiResult<Unit> = notificationsApi.dismissActionRequired(channel, listOf(item.id))) {
+        val result: ApiResult<Unit> =
+            attention?.dismiss(item) ?: notificationsApi.dismissActionRequired(channel, listOf(item.id))
+        when (result) {
             is ApiResult.Ok -> removeAttentionItem(item.id)
             is ApiResult.Failure -> feedback.error(Res.string.home_attention_error, result.error.message)
+        }
+    }
+
+    /**
+     * Mirror the shared attention store into [HomeState.Ready.actionRequired] for as long as the caller collects
+     * (HomeScreen runs it for the page's lifetime). A dismiss from the sidebar, or a push-driven refetch, reaches
+     * the Home inbox through this one path. No-op without a shared store.
+     */
+    suspend fun mirrorAttention() {
+        attention?.items?.collect { items ->
+            val current: HomeState = _state.value
+            if (current is HomeState.Ready && current.actionRequired != items) {
+                _state.value = current.copy(actionRequired = items)
+            }
         }
     }
 
@@ -524,6 +556,7 @@ class HomeController(
         }
         val shrunkItem: ActionRequiredItem = ready.item.copy(queueItemIds = remainingIds, count = remaining.size)
         _heldReview.value = ready.copy(item = shrunkItem, messages = remaining, actionError = null)
+        attention?.replace(shrunkItem)
         val current: HomeState = _state.value
         if (current is HomeState.Ready) {
             _state.value = current.copy(
@@ -533,6 +566,7 @@ class HomeController(
     }
 
     private fun removeAttentionItem(itemId: String) {
+        attention?.remove(itemId)
         val current: HomeState = _state.value
         if (current is HomeState.Ready) {
             _state.value = current.copy(actionRequired = current.actionRequired.filterNot { it.id == itemId })

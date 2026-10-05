@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.feature.attention.state.AttentionController
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
@@ -925,12 +926,46 @@ class HomeControllerTest {
 
     // ─── Attention-inbox test helpers ─────────────────────────────────────────
 
+    @Test
+    fun dismissAttentionItem_through_the_shared_store_drops_it_from_the_sidebar_and_the_home_inbox_at_once() = runTest {
+        val item: ActionRequiredItem = tokenItem(id = "twitch-scope:channel:read:ads:0")
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(item)))
+        val shared = AttentionController(notificationsApi)
+        val controller = attentionController(notificationsApi = notificationsApi, attention = shared)
+        controller.load()
+        assertEquals(listOf(item.id), shared.items.value.map { it.id })
+        assertEquals(listOf(item.id), (controller.state.value as HomeState.Ready).actionRequired.map { it.id })
+
+        controller.dismissAttentionItem(item)
+
+        assertEquals(listOf(listOf("twitch-scope:channel:read:ads:0")), notificationsApi.dismissedIds)
+        assertTrue(shared.items.value.isEmpty())
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+    }
+
+    @Test
+    fun a_dismiss_from_the_sidebar_store_reaches_the_home_inbox_through_the_mirror() = runTest {
+        val item: ActionRequiredItem = tokenItem(id = "token:conn1:123")
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(item)))
+        val shared = AttentionController(notificationsApi)
+        val controller = attentionController(notificationsApi = notificationsApi, attention = shared)
+        controller.load()
+        val mirror = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.mirrorAttention() }
+
+        shared.dismiss(item)
+
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+        mirror.cancel()
+    }
+
     private fun attentionController(
         notificationsApi: FakeNotificationsApi = FakeNotificationsApi(),
         moderationApi: FakeModerationApi = FakeModerationApi(),
         feedback: Feedback = NoOpFeedback,
+        attention: AttentionController? = null,
     ): HomeController =
         HomeController(
+            attention = attention,
             channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
             dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
             streamApi = FakeStreamApi(),

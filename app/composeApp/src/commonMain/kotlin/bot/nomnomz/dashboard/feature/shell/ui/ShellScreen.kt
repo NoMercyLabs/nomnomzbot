@@ -88,6 +88,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -228,6 +229,7 @@ import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_supermod
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
+import nomnomzbot.composeapp.generated.resources.home_attention_error
 import nomnomzbot.composeapp.generated.resources.hub_alert
 import nomnomzbot.composeapp.generated.resources.shell_channel_bot_not_installed
 import nomnomzbot.composeapp.generated.resources.shell_channel_moderate_hint
@@ -409,10 +411,19 @@ fun ShellScreen(
         if (channel != null) graph.attentionController.load(channel) else graph.attentionController.reset()
     }
     LaunchedEffect(hubEvents) { graph.attentionController.subscribeToHub(hubEvents) }
+    val attentionScope: CoroutineScope = rememberCoroutineScope()
     val attentionSurface: @Composable (Modifier) -> Unit = { surfaceModifier ->
         AttentionSurface(
             items = attentionItems,
             onNavigate = { route -> requestedRoute = route },
+            onDismiss = { item ->
+                attentionScope.launch {
+                    val result: ApiResult<Unit> = graph.attentionController.dismiss(item)
+                    if (result is ApiResult.Failure) {
+                        graph.feedbackController.error(Res.string.home_attention_error, result.error.message)
+                    }
+                }
+            },
             modifier = surfaceModifier,
         )
     }

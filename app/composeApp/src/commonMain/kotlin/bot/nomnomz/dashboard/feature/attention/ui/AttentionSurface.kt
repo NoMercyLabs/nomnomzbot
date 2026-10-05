@@ -38,6 +38,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.feature.attention.state.AttentionSeverity
 import bot.nomnomz.dashboard.feature.attention.state.attentionRouteOf
 import bot.nomnomz.dashboard.feature.attention.state.highestSeverity
@@ -46,6 +48,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.attention_surface_label_many
 import nomnomzbot.composeapp.generated.resources.attention_surface_label_one
 import nomnomzbot.composeapp.generated.resources.attention_surface_title
+import nomnomzbot.composeapp.generated.resources.home_attention_dismiss
 import org.jetbrains.compose.resources.stringResource
 
 /** Test tag of the shell's attention trigger. */
@@ -61,6 +64,7 @@ const val ATTENTION_SURFACE_TAG: String = "attention-surface"
 fun AttentionSurface(
     items: List<ActionRequiredItem>,
     onNavigate: (ShellRoute) -> Unit,
+    onDismiss: (ActionRequiredItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val severity: AttentionSeverity = highestSeverity(items) ?: return
@@ -112,6 +116,14 @@ fun AttentionSurface(
                             open = false
                             onNavigate(route)
                         }
+                    },
+                    // Opening the item is the row's one primary action; dismiss stays a quiet ghost glyph.
+                    trailing = { item ->
+                        GlyphButton(
+                            icon = CloseGlyph,
+                            label = stringResource(Res.string.home_attention_dismiss),
+                            onClick = { onDismiss(item) },
+                        )
                     },
                 )
             }

@@ -83,6 +83,29 @@ class AttentionController(private val notificationsApi: NotificationsApi) {
         }
     }
 
+    /**
+     * Dismiss [item] through the persisted dismissal endpoint. On success the item leaves the shared store at
+     * once, so every placement (sidebar trigger, Home inbox) drops it together, and the backend excludes its key
+     * from every later read. No optimistic update: a failed dismiss keeps the item and returns the backend error
+     * for the caller to surface.
+     */
+    suspend fun dismiss(item: ActionRequiredItem): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Ok(Unit)
+        val result: ApiResult<Unit> = notificationsApi.dismissActionRequired(channel, listOf(item.id))
+        if (result is ApiResult.Ok) remove(item.id)
+        return result
+    }
+
+    /** Drop the item with [itemId] from the store (its condition was handled in place, e.g. a held group reviewed). */
+    fun remove(itemId: String) {
+        _items.value = _items.value.filterNot { it.id == itemId }
+    }
+
+    /** Replace the item with [item]'s id by [item] (a held group that shrank after one message was reviewed). */
+    fun replace(item: ActionRequiredItem) {
+        _items.value = _items.value.map { if (it.id == item.id) item else it }
+    }
+
     private suspend fun fetchOnce() {
         val channel: String = channelId ?: return
         when (val result: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel)) {
