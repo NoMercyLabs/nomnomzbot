@@ -461,6 +461,7 @@ public static partial class ToneTemplateCatalog
         samples["user"] = "StreamFan42";
         samples["uptime"] = "2 hours 14 minutes";
         samples["commands"] = "!uptime, !song, !sr, !lurk";
+        samples["prefix"] = "!";
         samples["command"] = "!socials";
         samples["description"] = "Links to all my socials.";
         samples["age"] = "3 years 2 months";

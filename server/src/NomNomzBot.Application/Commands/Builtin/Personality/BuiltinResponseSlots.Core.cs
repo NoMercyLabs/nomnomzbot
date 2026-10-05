@@ -33,7 +33,7 @@ public static partial class BuiltinResponseSlots
     {
         public const string Key = "commands";
 
-        /// <summary>At least one trigger is enabled; <c>{user}</c>/<c>{commands}</c> are set.</summary>
+        /// <summary>At least one trigger is enabled; <c>{user}</c>/<c>{commands}</c>/<c>{prefix}</c> are set.</summary>
         public const string List = "list";
 
         /// <summary>No triggers are enabled in the channel; <c>{user}</c> is set.</summary>
@@ -47,6 +47,15 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>A described command was found; <c>{user}</c>/<c>{command}</c>/<c>{description}</c> are set.</summary>
         public const string Described = "described";
+
+        /// <summary>No argument; <c>{user}</c>/<c>{prefix}</c> are set.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>No command with that name; <c>{user}</c>/<c>{command}</c>/<c>{prefix}</c> are set.</summary>
+        public const string Unknown = "unknown";
+
+        /// <summary>The command exists but carries no description; <c>{user}</c>/<c>{command}</c>/<c>{prefix}</c> are set.</summary>
+        public const string NoDescription = "nodescription";
     }
 
     /// <summary><c>!lurk</c>/<c>!unlurk</c> — the caller's lurking-flag flip.</summary>

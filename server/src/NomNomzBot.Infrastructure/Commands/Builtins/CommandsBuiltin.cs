@@ -83,8 +83,7 @@ public sealed class CommandsBuiltin : IBuiltinCommand
                     Personality = context.Personality,
                     BuiltinKey = BuiltinResponseSlots.Commands.Key,
                     Slot = BuiltinResponseSlots.Commands.Empty,
-                    NeutralFallback =
-                        $"@{context.TriggeringUserDisplayName} there are no commands enabled in this channel yet.",
+                    NeutralFallback = "No commands available.",
                     Variables = new Dictionary<string, string>
                     {
                         ["user"] = context.TriggeringUserDisplayName,
@@ -101,11 +100,12 @@ public sealed class CommandsBuiltin : IBuiltinCommand
                 BuiltinKey = BuiltinResponseSlots.Commands.Key,
                 Slot = BuiltinResponseSlots.Commands.List,
                 NeutralFallback =
-                    $"@{context.TriggeringUserDisplayName} available commands: {string.Join(", ", triggers)}",
+                    $"{string.Join(", ", triggers)} — Use {context.CommandPrefix}help <command> for details.",
                 Variables = new Dictionary<string, string>
                 {
                     ["user"] = context.TriggeringUserDisplayName,
                     ["commands"] = string.Join(", ", triggers),
+                    ["prefix"] = context.CommandPrefix,
                 },
             },
             ct

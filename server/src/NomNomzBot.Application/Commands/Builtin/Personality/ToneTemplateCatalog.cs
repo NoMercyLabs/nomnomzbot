@@ -622,51 +622,135 @@ public static partial class ToneTemplateCatalog
             chill: ["skipped.", "next one. skipped.", "gone. moving on."]
         );
 
-        // ── !commands / !help (generic) / list ({user} {commands}) ─────────────
+        // -- !commands / list ({user} {commands} {prefix}) --
         Add(
             catalog,
             BuiltinResponseSlots.Commands.Key,
             BuiltinResponseSlots.Commands.List,
-            variables: ["commands", "user"],
-            informative: ["@{user} available commands: {commands}"],
+            variables: ["commands", "prefix", "user"],
+            informative: ["{commands} — Use {prefix}help <command> for details."],
             friendly:
             [
-                "@{user} here's what you can use: {commands}",
-                "@{user} happy to help — try one of these: {commands}",
+                "@{user} here's what you can use: {commands} — Use {prefix}help <command> for details.",
+                "@{user} happy to help — try one of these: {commands} — Use {prefix}help <command> for details.",
             ],
             sassy:
             [
-                "@{user} the commands are: {commands}. Yes, all of them. Read the whole list this time.",
-                "@{user} here's every command, since apparently that wasn't obvious: {commands}",
+                "@{user} the commands are: {commands}. Yes, all of them. Use {prefix}help <command> for details, and read the whole thing this time.",
+                "@{user} here's every command, since apparently that wasn't obvious: {commands} — Use {prefix}help <command> for details.",
             ],
-            hype: ["@{user} HERE'S THE FULL ARSENAL: {commands}"],
-            chill: ["@{user} commands: {commands}"]
+            hype:
+            [
+                "@{user} HERE'S THE FULL ARSENAL: {commands} — Use {prefix}help <command> for details.",
+            ],
+            chill: ["@{user} commands: {commands} — use {prefix}help <command> for details."]
         );
 
-        // ── !commands / !help (generic) / empty ({user}) ────────────────────────
+        // -- !commands / empty ({user}) --
         Add(
             catalog,
             BuiltinResponseSlots.Commands.Key,
             BuiltinResponseSlots.Commands.Empty,
             variables: ["user"],
-            informative: ["@{user} there are no commands enabled in this channel yet."],
+            informative: ["No commands available."],
             friendly: ["@{user} nothing enabled yet — check back soon!"],
             sassy: ["@{user} no commands enabled. It's quiet. Too quiet."],
             hype: ["@{user} NOTHING ENABLED YET. THE STREAMER IS SLEEPING ON THIS."],
             chill: ["@{user} nothing enabled yet."]
         );
 
-        // ── !help <name> / described ({user} {command} {description}) ───────────
+        // -- !help <name> / described ({user} {command} {description}) --
         Add(
             catalog,
             BuiltinResponseSlots.Help.Key,
             BuiltinResponseSlots.Help.Described,
             variables: ["command", "description", "user"],
-            informative: ["@{user} !{command}: {description}"],
-            friendly: ["@{user} good question! !{command}: {description}"],
-            sassy: ["@{user} !{command}: {description}. You could've read the pins, but sure."],
-            hype: ["@{user} !{command}: {description}. NOW GO USE IT."],
+            informative: ["!{command} — {description}"],
+            friendly: ["@{user} good question! !{command} — {description}"],
+            sassy: ["@{user} !{command} — {description}. You could've read the pins, but sure."],
+            hype: ["@{user} !{command} — {description}. NOW GO USE IT."],
             chill: ["@{user} !{command} — {description}"]
+        );
+
+        // -- !help / usage ({user} {prefix}) --
+        Add(
+            catalog,
+            BuiltinResponseSlots.Help.Key,
+            BuiltinResponseSlots.Help.Usage,
+            variables: ["prefix", "user"],
+            informative:
+            [
+                "Use {prefix}help <command> to get help for a specific command, or {prefix}commands to see what's available.",
+            ],
+            friendly:
+            [
+                "@{user} use {prefix}help <command> to get help for a specific command, or {prefix}commands to see what's available!",
+            ],
+            sassy:
+            [
+                "@{user} it's {prefix}help <command>. Or {prefix}commands if you want the whole list. Not hard.",
+            ],
+            hype:
+            [
+                "@{user} USE {prefix}help <command> FOR A SPECIFIC COMMAND, OR {prefix}commands FOR THE FULL ARSENAL.",
+            ],
+            chill:
+            [
+                "@{user} {prefix}help <command> for a specific command, or {prefix}commands to see what's available.",
+            ]
+        );
+
+        // -- !help <name> / unknown ({user} {command} {prefix}) --
+        Add(
+            catalog,
+            BuiltinResponseSlots.Help.Key,
+            BuiltinResponseSlots.Help.Unknown,
+            variables: ["command", "prefix", "user"],
+            informative:
+            [
+                "Unknown command \"{command}\". Use {prefix}commands to see what's available.",
+            ],
+            friendly:
+            [
+                "@{user} hmm, I don't know a command called \"{command}\". Use {prefix}commands to see what's available!",
+            ],
+            sassy:
+            [
+                "@{user} \"{command}\"? Never heard of it. Use {prefix}commands to see what's available.",
+            ],
+            hype: ["@{user} \"{command}\" DOESN'T EXIST. USE {prefix}commands TO SEE WHAT DOES."],
+            chill:
+            [
+                "@{user} no command \"{command}\". use {prefix}commands to see what's available.",
+            ]
+        );
+
+        // -- !help <name> / no description ({user} {command} {prefix}) --
+        Add(
+            catalog,
+            BuiltinResponseSlots.Help.Key,
+            BuiltinResponseSlots.Help.NoDescription,
+            variables: ["command", "prefix", "user"],
+            informative:
+            [
+                "{prefix}{command} — no help text yet. Use {prefix}commands to see what's available.",
+            ],
+            friendly:
+            [
+                "@{user} {prefix}{command} exists, but nobody wrote help text for it yet. Use {prefix}commands to see what's available!",
+            ],
+            sassy:
+            [
+                "@{user} {prefix}{command} is real, but it comes with no instructions. Use {prefix}commands to see what's available.",
+            ],
+            hype:
+            [
+                "@{user} {prefix}{command} EXISTS BUT HAS NO HELP TEXT YET. USE {prefix}commands FOR THE REST.",
+            ],
+            chill:
+            [
+                "@{user} {prefix}{command} has no help text yet. use {prefix}commands to see what's available.",
+            ]
         );
 
         // ── !lurk / lurking ({user}) ─────────────────────────────────────────────

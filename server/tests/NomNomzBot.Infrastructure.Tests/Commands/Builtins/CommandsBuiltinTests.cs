@@ -216,12 +216,16 @@ public sealed class CommandsBuiltinTests
                     BuiltinResponseSlots.Commands.Key,
                     BuiltinResponseSlots.Commands.List
                 )
-                .Select(t => t.Replace("{user}", "Stoney_Eagle").Replace("{commands}", "!sr")),
+                .Select(t =>
+                    t.Replace("{user}", "Stoney_Eagle")
+                        .Replace("{commands}", "!sr")
+                        .Replace("{prefix}", "!")
+                ),
         ];
         sassyVariants.Should().Contain(sassy.Value);
 
         // Default tone still reads exactly as it did before this slice (regression).
-        informative.Value.Should().Be("@Stoney_Eagle available commands: !sr");
+        informative.Value.Should().Be("!sr — Use !help <command> for details.");
     }
 
     private static BuiltinCommandDto Dto(
@@ -268,10 +272,10 @@ public sealed class CommandsBuiltinTests
         Result<string> viewer = await builtin.ExecuteAsync(Context(roleLevel: 0));
         Result<string> moderator = await builtin.ExecuteAsync(Context(roleLevel: 10));
 
-        viewer.Value.Should().Be("@Stoney_Eagle available commands: !lurk, !uptime");
+        viewer.Value.Should().Be("!lurk, !uptime — Use !help <command> for details.");
         moderator
             .Value.Should()
-            .Be("@Stoney_Eagle available commands: !followage, !lurk, !raid, !title, !uptime");
+            .Be("!followage, !lurk, !raid, !title, !uptime — Use !help <command> for details.");
     }
 
     [Fact]
@@ -291,6 +295,41 @@ public sealed class CommandsBuiltinTests
 
         result
             .Value.Should()
-            .Be("@Stoney_Eagle available commands: ?discord, hello, #hug, ?uptime");
+            .Be("?discord, hello, #hug, ?uptime — Use ?help <command> for details.");
+    }
+
+    [Fact]
+    public async Task Every_tone_carries_the_help_hint_and_the_same_command_list()
+    {
+        CommandsBuiltin builtin = BuiltinOver(
+            [FakeCommand("sr", isEnabled: true)],
+            [Dto("uptime", enabled: true, cooldown: 5)]
+        );
+
+        foreach (
+            string tone in new[]
+            {
+                PersonalityTone.Informative,
+                PersonalityTone.Friendly,
+                PersonalityTone.Sassy,
+                PersonalityTone.Hype,
+                PersonalityTone.Chill,
+            }
+        )
+        {
+            Result<string> result = await builtin.ExecuteAsync(Context(tone));
+            result.Value.Should().Contain("!sr, !uptime", tone);
+            result.Value.Should().Contain("!help <command>", tone);
+        }
+    }
+
+    [Fact]
+    public async Task With_nothing_enabled_the_informative_reply_is_the_legacy_sentence()
+    {
+        CommandsBuiltin builtin = BuiltinOver([], []);
+
+        Result<string> result = await builtin.ExecuteAsync(Context());
+
+        result.Value.Should().Be("No commands available.");
     }
 }
