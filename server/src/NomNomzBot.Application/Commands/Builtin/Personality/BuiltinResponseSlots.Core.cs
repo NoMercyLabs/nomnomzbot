@@ -265,6 +265,15 @@ public static partial class BuiltinResponseSlots
         public const string NothingRan = "nothingran";
     }
 
+    /// <summary>A channel point reward redemption the bot refuses — spoken in the channel's personality like a command reply.</summary>
+    public static class Reward
+    {
+        public const string Key = "reward";
+
+        /// <summary>The viewer is below the reward's permission, so the redemption is refunded.</summary>
+        public const string NoPermission = "nopermission";
+    }
+
     /// <summary>The bot's own status lines — not a chat command, but spoken in the channel's personality like one.</summary>
     public static class BotStatus
     {

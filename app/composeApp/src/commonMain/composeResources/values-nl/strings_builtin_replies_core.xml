@@ -102,6 +102,8 @@
     <string name="builtin_reply_botstatus_connectionrestored_description">De Twitch-eventverbinding is terug nadat de bot meldde dat die weg was.</string>
     <string name="builtin_reply_botstatus_goingoffline_label">Bot herstart</string>
     <string name="builtin_reply_botstatus_goingoffline_description">De bot stopt en geen andere bot neemt het over.</string>
+    <string name="builtin_reply_reward_nopermission_label">Beloning niet toegestaan</string>
+    <string name="builtin_reply_reward_nopermission_description">Een kijker wisselt een beloning in die zijn rol niet mag gebruiken, en de punten worden terugbetaald.</string>
     <string name="builtin_reply_var_user">De weergavenaam van de kijker</string>
     <string name="builtin_reply_var_uptime">Hoe lang de stream al live is</string>
     <string name="builtin_reply_var_commands">De lijst met commando's</string>

@@ -264,6 +264,8 @@
     "builtin.reply.quote.show.label",
     "builtin.reply.quote.updated.description",
     "builtin.reply.quote.updated.label",
+    "builtin.reply.reward.nopermission.description",
+    "builtin.reply.reward.nopermission.label",
     "builtin.reply.shoutout.announcement.description",
     "builtin.reply.shoutout.announcement.label",
     "builtin.reply.skip.failed.description",

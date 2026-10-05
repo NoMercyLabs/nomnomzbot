@@ -12,8 +12,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -38,10 +44,18 @@ public sealed class RewardRedeemedHandlerTests
         RewardRedeemedHandler Handler,
         AuthDbContext Db,
         IPipelineEngine Engine,
-        IEventResponseExecutor Executor
+        IEventResponseExecutor Executor,
+        IRewardService Rewards,
+        IChatProvider Chat,
+        IBuiltinResponseComposer Composer
     );
 
-    private static Harness Build()
+    private const string ViewerTwitchId = "twitch-viewer-1";
+
+    private static readonly Guid ViewerUserId = Guid.Parse("0192a000-0000-7000-8000-00000000c403");
+
+    /// <param name="viewerLevel">The unified-ladder level the role resolver reports for the redeeming viewer.</param>
+    private static Harness Build(int viewerLevel = 0)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
@@ -59,10 +73,52 @@ public sealed class RewardRedeemedHandlerTests
         IEventResponseExecutor executor = Substitute.For<IEventResponseExecutor>();
         IRedemptionTimerService timers = Substitute.For<IRedemptionTimerService>();
 
+        IRewardService rewards = Substitute.For<IRewardService>();
+        rewards
+            .SetRedemptionStatusAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
+        composer
+            .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call => "composed:" + call.Arg<BuiltinResponseRequest>().Slot);
+        IRoleResolver roles = Substitute.For<IRoleResolver>();
+        roles
+            .ResolveEffectiveLevelAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(viewerLevel));
+
+        db.Users.Add(
+            new()
+            {
+                Id = ViewerUserId,
+                TwitchUserId = ViewerTwitchId,
+                Username = "viewer",
+                UsernameNormalized = "viewer",
+                DisplayName = "Viewer",
+            }
+        );
+        db.SaveChanges();
+
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(executor)
             .AddSingleton(timers)
+            .AddSingleton(rewards)
+            .AddSingleton(chat)
+            .AddSingleton(composer)
+            .AddSingleton(roles)
             .BuildServiceProvider();
 
         RewardRedeemedHandler handler = new(
@@ -72,7 +128,7 @@ public sealed class RewardRedeemedHandlerTests
             NullLogger<RewardRedeemedHandler>.Instance
         );
 
-        return new(handler, db, engine, executor);
+        return new(handler, db, engine, executor, rewards, chat, composer);
     }
 
     private static RewardRedeemedEvent Redemption(string twitchRewardId) =>
@@ -82,7 +138,7 @@ public sealed class RewardRedeemedHandlerTests
             RewardId = twitchRewardId,
             RewardTitle = "Play a sound",
             RedemptionId = "redemption-1",
-            UserId = "twitch-viewer-1",
+            UserId = ViewerTwitchId,
             UserDisplayName = "Viewer",
             Cost = 100,
         };
@@ -212,5 +268,101 @@ public sealed class RewardRedeemedHandlerTests
         await h
             .Executor.DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default, default!, default, default, default!);
+    }
+
+    private static async Task AddPipelineRewardAsync(Harness h, string permission)
+    {
+        h.Db.Pipelines.Add(
+            new()
+            {
+                Id = BoundPipelineId,
+                BroadcasterId = Channel,
+                Name = "airhorn",
+                TriggerKind = "reward",
+                GraphJsonCache = """{"actions":[{"type":"play_sound","clip":"airhorn"}]}""",
+            }
+        );
+        h.Db.Rewards.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Channel,
+                Title = "Mods only sound",
+                TwitchRewardId = "tw-reward-4",
+                PipelineId = BoundPipelineId,
+                Permission = permission,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// A reward's Permission floor was stored but never enforced: a plain viewer could redeem a moderator-only
+    /// reward and run its pipeline. Legacy refused the redemption: points back (CANCELED) and a chat line.
+    /// </summary>
+    [Fact]
+    public async Task A_redemption_by_a_viewer_below_the_reward_permission_is_refunded_and_runs_no_pipeline()
+    {
+        Harness h = Build(viewerLevel: PermissionLevel.Subscriber.ToLevelValue());
+        await AddPipelineRewardAsync(h, "moderator");
+
+        await h.Handler.HandleAsync(Redemption("tw-reward-4"));
+
+        await h
+            .Rewards.Received(1)
+            .SetRedemptionStatusAsync(
+                Channel.ToString(),
+                "redemption-1",
+                "CANCELED",
+                "tw-reward-4",
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Composer.Received(1)
+            .ComposeAsync(
+                Arg.Is<BuiltinResponseRequest>(r =>
+                    r.BroadcasterId == Channel
+                    && r.BuiltinKey == BuiltinResponseSlots.Reward.Key
+                    && r.Slot == BuiltinResponseSlots.Reward.NoPermission
+                    && r.Variables != null
+                    && r.Variables["user"] == "Viewer"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "composed:nopermission", Arg.Any<CancellationToken>());
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+        await h
+            .Executor.DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default, default!, default, default, default!);
+    }
+
+    [Theory]
+    [InlineData("moderator", 10)]
+    [InlineData("moderator", 40)]
+    [InlineData("everyone", 0)]
+    public async Task A_redemption_by_a_viewer_at_or_above_the_reward_permission_runs_the_pipeline_as_before(
+        string permission,
+        int viewerLevel
+    )
+    {
+        Harness h = Build(viewerLevel);
+        await AddPipelineRewardAsync(h, permission);
+
+        await h.Handler.HandleAsync(Redemption("tw-reward-4"));
+
+        await h
+            .Engine.Received(1)
+            .ExecuteAsync(
+                Arg.Is<PipelineRequest>(r =>
+                    r.PipelineId == BoundPipelineId && r.RedemptionId == "redemption-1"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Rewards.DidNotReceiveWithAnyArgs()
+            .SetRedemptionStatusAsync(default!, default!, default!);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 }

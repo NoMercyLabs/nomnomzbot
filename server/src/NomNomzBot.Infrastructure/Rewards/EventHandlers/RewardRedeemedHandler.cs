@@ -87,6 +87,21 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             return;
         }
 
+        // A viewer below the reward's permission is refunded and told so; nothing of the reward runs
+        // (legacy parity: no timer, no pipeline, no generic response).
+        if (
+            reward is not null
+            && await RewardPermissionGate.TryRefuseAsync(
+                scope.ServiceProvider,
+                db,
+                reward,
+                @event,
+                _logger,
+                cancellationToken
+            )
+        )
+            return;
+
         // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
         // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response.
         if (reward?.TimerDurationSeconds is { } timerSeconds and > 0)

@@ -24,6 +24,7 @@ public static partial class ToneTemplateCatalog
         AddDiscordSlots(catalog);
         AddLeaderboardSlots(catalog);
         AddSystemSlots(catalog);
+        AddRewardSlots(catalog);
         foreach (string gameKey in GameKeys)
             AddGameSlots(catalog, gameKey);
     }
@@ -247,6 +248,27 @@ public static partial class ToneTemplateCatalog
             sassy: ["Top {leaderboard.metric}, for those keeping score: {leaderboard.list}"],
             hype: ["TOP {leaderboard.metric}! THE LEGENDS: {leaderboard.list}"],
             chill: ["top {leaderboard.metric}: {leaderboard.list}"]
+        );
+    }
+
+    private static void AddRewardSlots(Dictionary<(string, string), SlotEntry> catalog)
+    {
+        Add(
+            catalog,
+            BuiltinResponseSlots.Reward.Key,
+            BuiltinResponseSlots.Reward.NoPermission,
+            variables: ["user"],
+            informative:
+            [
+                "@{user}, you don't have permission to use this reward. Your points have been refunded.",
+            ],
+            friendly:
+            [
+                "@{user}, sorry, this reward isn't available to you. Your points have been refunded!",
+            ],
+            sassy: ["@{user}, that reward isn't for you. Your points are back, no harm done."],
+            hype: ["@{user}, THAT REWARD ISN'T UNLOCKED FOR YOU! POINTS REFUNDED!"],
+            chill: ["@{user}, that reward isn't for you. points refunded."]
         );
     }
 
