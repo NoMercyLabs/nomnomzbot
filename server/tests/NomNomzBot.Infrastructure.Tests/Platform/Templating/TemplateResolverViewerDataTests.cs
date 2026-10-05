@@ -258,6 +258,111 @@ public sealed class TemplateResolverViewerDataTests
         resolved.Should().Be("42 msgs, 2h 1m, since 2026-01-05, 2 redeems, 1 songs");
     }
 
+    private void SeedProfile(
+        Guid user,
+        string twitchId,
+        long messages,
+        long commands,
+        DateTime? firstSeen
+    ) =>
+        _analytics
+            .GetProfileAsync(Channel, user, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new ViewerProfileDto(
+                        user,
+                        twitchId,
+                        "Seeded",
+                        firstSeen,
+                        null,
+                        TotalWatchSeconds: 0,
+                        TotalMessages: messages,
+                        TotalCommandsUsed: commands,
+                        TotalRedemptions: 0,
+                        TotalSongRequests: 0,
+                        IsFollower: false,
+                        IsSubscriber: false,
+                        SubTier: null,
+                        IsAnalyticsOptedOut: false
+                    )
+                )
+            );
+
+    [Fact]
+    public async Task TargetStats_ExposeCommandsDaysAndAveragePerDay()
+    {
+        SeedProfile(Bob, "222", 100, 7, DateTime.UtcNow.AddDays(-10).AddHours(-1));
+
+        string resolved = await _resolver.ResolveAsync(
+            "{target.commands} {target.days} {target.avgperday}",
+            TwitchSeeds(target: "Bob"),
+            Channel
+        );
+
+        resolved.Should().Be("7 10 10");
+    }
+
+    [Fact]
+    public async Task ViewerStats_ExposeCommandsDaysAndAveragePerDay()
+    {
+        SeedProfile(Alice, "111", 100, 7, DateTime.UtcNow.AddDays(-10).AddHours(-1));
+
+        string resolved = await _resolver.ResolveAsync(
+            "{viewer.commands} {viewer.days} {viewer.avgperday}",
+            TwitchSeeds(),
+            Channel
+        );
+
+        resolved.Should().Be("7 10 10");
+    }
+
+    [Fact]
+    public async Task TargetDays_ForAProfileFirstSeenToday_IsOneNotZero()
+    {
+        SeedProfile(Bob, "222", 30, 0, DateTime.UtcNow);
+
+        string resolved = await _resolver.ResolveAsync(
+            "{target.days} {target.avgperday}",
+            TwitchSeeds(target: "Bob"),
+            Channel
+        );
+
+        resolved.Should().Be("1 30");
+    }
+
+    [Fact]
+    public async Task TargetBotPercent_IsCommandsOverMessagesLikeTheOldSus()
+    {
+        SeedProfile(Alice, "111", 100, 7, DateTime.UtcNow.AddDays(-3));
+        SeedProfile(Bob, "222", 3, 2, DateTime.UtcNow.AddDays(-3));
+
+        string bob = await _resolver.ResolveAsync(
+            "{target.botpercent}",
+            TwitchSeeds(target: "Bob"),
+            Channel
+        );
+        string alice = await _resolver.ResolveAsync(
+            "{target.botpercent} {viewer.botpercent}",
+            TwitchSeeds(target: "Alice"),
+            Channel
+        );
+
+        bob.Should().Be("66");
+        alice.Should().Be("7 7");
+    }
+
+    [Fact]
+    public async Task BotPercent_WithNoMessages_IsZeroAndDaysWithNoFirstSeenIsZero()
+    {
+        string resolved = await _resolver.ResolveAsync(
+            "{target.botpercent} {target.days} {target.avgperday} {target.commands}",
+            TwitchSeeds(target: "Bob"),
+            Channel
+        );
+
+        resolved.Should().Be("0 0 0 0");
+    }
+
     [Fact]
     public async Task ViewerStats_ForANeverSeenViewer_RenderHonestZeros()
     {

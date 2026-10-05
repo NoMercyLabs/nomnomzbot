@@ -5174,7 +5174,11 @@
     <string name="template_helper_streamer">De weergavenaam van de kanaaleigenaar</string>
     <string name="template_helper_subject">Het voornaamwoord in onderwerpvorm (bijv. zij)</string>
     <string name="template_helper_target">De inlognaam van het @vermelde doel</string>
+    <string name="template_helper_target_avgperday">Het @vermelde doel: gemiddeld aantal chatberichten per dag sinds de eerste keer gezien</string>
+    <string name="template_helper_target_botpercent">Het @vermelde doel: aandeel chatberichten dat een commando was, als heel percentage</string>
+    <string name="template_helper_target_commands">Het @vermelde doel: totaal aantal keer dat een commando is gebruikt</string>
     <string name="template_helper_target_data">Een gegevensveld per kijker voor het @vermelde doel (bijv. {target.data.key})</string>
+    <string name="template_helper_target_days">Het @vermelde doel: hele dagen sinds de eerste keer gezien (minimaal 1 zodra gezien)</string>
     <string name="template_helper_target_firstseen">Wanneer het @vermelde doel voor het eerst in de chat werd gezien</string>
     <string name="template_helper_target_follow_age">Hoe lang het @vermelde doel het kanaal al volgt</string>
     <string name="template_helper_target_gendered_term">Een term die past bij het geslacht van het @vermelde doel</string>
@@ -5220,7 +5224,11 @@
     <string name="template_helper_user_tense">De op live/offline afgestemde werkwoordstijd voor de gebruiker</string>
     <string name="template_helper_user_verb">Een werkwoord dat overeenkomt met de gebruiker (bijv. {user.verb:speelt|spelen})</string>
     <string name="template_helper_verb">Een werkwoord dat overeenkomt met het gespiegelde onderwerp (bijv. {verb:speelt|spelen})</string>
+    <string name="template_helper_viewer_avgperday">De activerende gebruiker: gemiddeld aantal chatberichten per dag sinds de eerste keer gezien</string>
+    <string name="template_helper_viewer_botpercent">De activerende gebruiker: aandeel chatberichten dat een commando was, als heel percentage</string>
+    <string name="template_helper_viewer_commands">De activerende gebruiker: totaal aantal keer dat een commando is gebruikt</string>
     <string name="template_helper_viewer_data">Een gegevensveld per kijker voor de gebruiker (bijv. {viewer.data.key})</string>
+    <string name="template_helper_viewer_days">De activerende gebruiker: hele dagen sinds de eerste keer gezien (minimaal 1 zodra gezien)</string>
     <string name="template_helper_viewer_firstseen">Wanneer de gebruiker voor het eerst in de chat werd gezien</string>
     <string name="template_helper_viewer_messages">Het totale aantal chatberichten van de gebruiker</string>
     <string name="template_helper_viewer_redemptions">Het totale aantal kanaalpunt-inwisselingen van de gebruiker</string>

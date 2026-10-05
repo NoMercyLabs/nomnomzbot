@@ -989,7 +989,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
             "viewer.watchtime",
             "viewer.firstseen",
             "viewer.redemptions",
-            "viewer.songrequests"
+            "viewer.songrequests",
+            "viewer.commands",
+            "viewer.days",
+            "viewer.avgperday",
+            "viewer.botpercent"
         );
         bool targetStats = NeedsAny(
             needed,
@@ -997,7 +1001,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
             "target.watchtime",
             "target.firstseen",
             "target.redemptions",
-            "target.songrequests"
+            "target.songrequests",
+            "target.commands",
+            "target.days",
+            "target.avgperday",
+            "target.botpercent"
         );
 
         if (viewerDataKeys.Count == 0 && targetDataKeys.Count == 0 && !viewerStats && !targetStats)
@@ -1115,6 +1123,19 @@ public sealed partial class TemplateResolver : ITemplateResolver
             );
             vars.TryAdd($"{prefix}.redemptions", (profile?.TotalRedemptions ?? 0).ToString());
             vars.TryAdd($"{prefix}.songrequests", (profile?.TotalSongRequests ?? 0).ToString());
+            long totalMessages = profile?.TotalMessages ?? 0;
+            long totalCommands = profile?.TotalCommandsUsed ?? 0;
+            // Legacy Roast.cs:205-206 / Sus.cs:128-150: whole days since first seen (min 1), 0 when never seen.
+            long days = profile?.FirstSeenAt is { } firstSeen
+                ? Math.Max(1, (long)(DateTime.UtcNow - firstSeen).TotalDays)
+                : 0;
+            vars.TryAdd($"{prefix}.commands", totalCommands.ToString());
+            vars.TryAdd($"{prefix}.days", days.ToString());
+            vars.TryAdd($"{prefix}.avgperday", (days > 0 ? totalMessages / days : 0).ToString());
+            vars.TryAdd(
+                $"{prefix}.botpercent",
+                (totalMessages > 0 ? totalCommands * 100 / totalMessages : 0).ToString()
+            );
         }
     }
 

@@ -5190,7 +5190,11 @@
     <string name="template_helper_streamer">The channel owner display name</string>
     <string name="template_helper_subject">The subject-case pronoun (e.g. they)</string>
     <string name="template_helper_target">The @mention target login name</string>
+    <string name="template_helper_target_avgperday">The @mention target average chat messages per day since first seen</string>
+    <string name="template_helper_target_botpercent">The @mention target share of chat messages that were commands, as a whole percent</string>
+    <string name="template_helper_target_commands">The @mention target total commands used</string>
     <string name="template_helper_target_data">A per-viewer data field for the @mention target (e.g. {target.data.key})</string>
+    <string name="template_helper_target_days">The @mention target whole days since first seen (at least 1 once seen)</string>
     <string name="template_helper_target_firstseen">When the @mention target was first seen in chat</string>
     <string name="template_helper_target_follow_age">How long the @mention target has followed the channel</string>
     <string name="template_helper_target_gendered_term">A gendered term for the @mention target</string>
@@ -5236,7 +5240,11 @@
     <string name="template_helper_user_tense">The live/offline-aware tense for the triggering user</string>
     <string name="template_helper_user_verb">A singular/plural verb agreeing with the triggering user (e.g. {user.verb:plays|play})</string>
     <string name="template_helper_verb">A singular/plural verb agreeing with the mirrored subject (e.g. {verb:plays|play})</string>
+    <string name="template_helper_viewer_avgperday">The triggering user average chat messages per day since first seen</string>
+    <string name="template_helper_viewer_botpercent">The triggering user share of chat messages that were commands, as a whole percent</string>
+    <string name="template_helper_viewer_commands">The triggering user total commands used</string>
     <string name="template_helper_viewer_data">A per-viewer data field for the triggering user (e.g. {viewer.data.key})</string>
+    <string name="template_helper_viewer_days">The triggering user whole days since first seen (at least 1 once seen)</string>
     <string name="template_helper_viewer_firstseen">When the triggering user was first seen in chat</string>
     <string name="template_helper_viewer_messages">The triggering user total chat message count</string>
     <string name="template_helper_viewer_redemptions">The triggering user total channel point redemption count</string>

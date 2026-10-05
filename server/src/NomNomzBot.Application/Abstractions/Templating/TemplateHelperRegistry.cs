@@ -490,6 +490,10 @@ public static class TemplateHelperRegistry
             Literal("viewer.firstseen", TriggerContexts, "template.helper.viewer_firstseen"),
             Literal("viewer.redemptions", TriggerContexts, "template.helper.viewer_redemptions"),
             Literal("viewer.songrequests", TriggerContexts, "template.helper.viewer_songrequests"),
+            Literal("viewer.commands", TriggerContexts, "template.helper.viewer_commands"),
+            Literal("viewer.days", TriggerContexts, "template.helper.viewer_days"),
+            Literal("viewer.avgperday", TriggerContexts, "template.helper.viewer_avgperday"),
+            Literal("viewer.botpercent", TriggerContexts, "template.helper.viewer_botpercent"),
             Prefixed(
                 "viewer.data.<key>",
                 "viewer.data.",
@@ -519,6 +523,10 @@ public static class TemplateHelperRegistry
             Literal("target.firstseen", TriggerContexts, "template.helper.target_firstseen"),
             Literal("target.redemptions", TriggerContexts, "template.helper.target_redemptions"),
             Literal("target.songrequests", TriggerContexts, "template.helper.target_songrequests"),
+            Literal("target.commands", TriggerContexts, "template.helper.target_commands"),
+            Literal("target.days", TriggerContexts, "template.helper.target_days"),
+            Literal("target.avgperday", TriggerContexts, "template.helper.target_avgperday"),
+            Literal("target.botpercent", TriggerContexts, "template.helper.target_botpercent"),
             Prefixed(
                 "target.data.<key>",
                 "target.data.",
