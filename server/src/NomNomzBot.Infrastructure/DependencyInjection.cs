@@ -796,6 +796,7 @@ public static class DependencyInjection
         // Same shape for event-response defaults (S048b): EventResponseDefaultsSeedOnOnboardingHandler
         // injects the concrete seeder directly for the same immediate-seed-on-onboarding reason.
         services.AddScoped<Content.Commands.EventResponseDefaultsSeeder>();
+        services.AddScoped<Content.Commands.RaidResponseFlowSeeder>();
 
         // Service impls bound by their I<X>Service interface (scoped). Singletons,
         // deployment-variant, and special-construction interfaces stay explicit below

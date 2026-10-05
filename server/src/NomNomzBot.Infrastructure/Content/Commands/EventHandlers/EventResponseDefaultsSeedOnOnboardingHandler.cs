@@ -25,6 +25,7 @@ namespace NomNomzBot.Infrastructure.Content.Commands.EventHandlers;
 /// </summary>
 public sealed class EventResponseDefaultsSeedOnOnboardingHandler(
     EventResponseDefaultsSeeder seeder,
+    RaidResponseFlowSeeder raidResponseSeeder,
     ILogger<EventResponseDefaultsSeedOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -36,6 +37,7 @@ public sealed class EventResponseDefaultsSeedOnOnboardingHandler(
         try
         {
             await seeder.SeedAsync(@event.BroadcasterId, ct);
+            await raidResponseSeeder.SeedAsync(@event.BroadcasterId, ct);
 
             logger.LogInformation(
                 "Onboarding seed (event responses): default triggers seeded for {BroadcasterId} ({Name})",
