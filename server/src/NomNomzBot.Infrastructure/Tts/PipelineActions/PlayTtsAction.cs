@@ -85,10 +85,10 @@ public sealed class PlayTtsAction : ICommandAction
     {
         List<TtsSpeakSegment>? segments = null;
         string text;
-        if (action.Parameters is not null && action.Parameters.ContainsKey("segments"))
+        if (action.Parameters?.TryGetValue("segments", out JsonElement rawSegments) == true)
         {
             (List<TtsSpeakSegment>? parsed, string? segmentError) = await ResolveSegmentsAsync(
-                action.Parameters["segments"],
+                rawSegments,
                 ctx
             );
             if (parsed is null)
