@@ -120,6 +120,9 @@ kotlin {
             implementation(libs.kotlinx.browser)
             // Web REST engine — Fetch-backed (frontend.md §2).
             implementation(libs.ktor.client.js)
+            // IANA time zone data for kotlinx-datetime on wasmJs (its README: js-joda has none built in);
+            // registered by core/time/ZoneDatabase.wasmJs.kt.
+            implementation(npm("@js-joda/timezone", "2.3.0"))
         }
     }
 }

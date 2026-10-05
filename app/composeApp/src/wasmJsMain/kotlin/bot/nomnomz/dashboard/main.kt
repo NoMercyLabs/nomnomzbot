@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.connection.readReturnedConnect
 import bot.nomnomz.dashboard.core.connection.readReturnedSession
 import bot.nomnomz.dashboard.core.di.AppGraph
 import bot.nomnomz.dashboard.core.feedback.connectReturnFeedback
+import bot.nomnomz.dashboard.core.time.loadZoneDatabase
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 // the same establish→/me path the desktop flow uses, so the gate lands on the shell.
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
+    loadZoneDatabase()
     val graph = AppGraph()
 
     val returned: SessionTokens? = readReturnedSession()
