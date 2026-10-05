@@ -11,11 +11,13 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
@@ -56,9 +58,31 @@ public sealed class PlatformBotReadinessGateTests
             vault,
             Substitute.For<ITwitchAuthService>(),
             Substitute.For<ITwitchAppTokenProvider>(),
-            new RecordingEventBus()
+            new RecordingEventBus(),
+            SelfHostProfile()
         );
         return (new(resolver), vault);
+    }
+
+    private static IDeploymentProfileService SelfHostProfile()
+    {
+        IDeploymentProfileService profile = Substitute.For<IDeploymentProfileService>();
+        profile.Current.Returns(
+            new DeploymentProfileSnapshot(
+                Guid.NewGuid(),
+                DeploymentMode.SelfHostLite,
+                false,
+                default,
+                default,
+                default,
+                default,
+                default,
+                default,
+                false,
+                default
+            )
+        );
+        return profile;
     }
 
     [Fact]
@@ -177,6 +201,6 @@ public sealed class PlatformBotReadinessGateTests
             Guid connectionId,
             IReadOnlyList<string> actualScopes,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Result.Success<IReadOnlyList<string>>(actualScopes));
+        ) => Task.FromResult(Result.Success(actualScopes));
     }
 }

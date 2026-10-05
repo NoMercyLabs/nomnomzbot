@@ -14,10 +14,12 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -43,7 +45,8 @@ public sealed class TwitchTokenResolver(
     IIntegrationTokenVault vault,
     ITwitchAuthService authService,
     ITwitchAppTokenProvider appTokenProvider,
-    IEventBus eventBus
+    IEventBus eventBus,
+    IDeploymentProfileService deploymentProfile
 ) : ITwitchTokenResolver
 {
     private const string UserProvider = AuthEnums.IntegrationProvider.Twitch;
@@ -67,7 +70,9 @@ public sealed class TwitchTokenResolver(
         //   2. Self-host fallback: until a bot account is registered, the bot speaks as the streamer's
         //      OWN main account — the single owner's `twitch` user connection. The streamer grant carries
         //      `user:write:chat` + `user:read:chat` (scaling-qos.md §6), so it can send/read chat as the bot.
-        // `no_token` only when neither identity exists (a fresh, un-onboarded install).
+        //      Single-tenant self-host only: on a multi-tenant profile one streamer's token is never another
+        //      channel's bot, so the lookup stops at `no_token`.
+        // `no_token` when neither identity exists (a fresh, un-onboarded install) or the fallback is not allowed.
         IntegrationConnection? connection =
             await ConnectionAsync(null, BotProvider, ct) ?? await OwnerUserConnectionAsync(ct);
 
@@ -273,17 +278,25 @@ public sealed class TwitchTokenResolver(
     /// <summary>
     /// The self-host owner's own Twitch user connection used as the bot identity when no dedicated bot account
     /// is registered (onboarding.md two-account model: the main account IS the bot until a custom bot is added).
-    /// Self-host is single-tenant (deployment-profile.md), so there is exactly one streamer <c>twitch</c>
-    /// connection; ordered by creation so the result is deterministic if more than one ever exists.
+    /// Tenant isolation: a channel never borrows another streamer's token. The fallback exists only on a
+    /// self-host profile (the operator IS the owner) and only while exactly one streamer <c>twitch</c>
+    /// connection exists — with two or more there is no single "owner", so no row is picked.
     /// </summary>
-    private async Task<IntegrationConnection?> OwnerUserConnectionAsync(CancellationToken ct) =>
-        await db
+    private async Task<IntegrationConnection?> OwnerUserConnectionAsync(CancellationToken ct)
+    {
+        if (deploymentProfile.Current.Mode == DeploymentMode.Saas)
+            return null;
+
+        List<IntegrationConnection> streamerConnections = await db
             .IntegrationConnections.IgnoreQueryFilters()
             .Where(c =>
                 c.Provider == UserProvider && c.BroadcasterId != null && c.DeletedAt == null
             )
-            .OrderBy(c => c.CreatedAt)
-            .FirstOrDefaultAsync(ct);
+            .Take(2)
+            .ToListAsync(ct);
+
+        return streamerConnections.Count == 1 ? streamerConnections[0] : null;
+    }
 
     /// <summary>The active (non-deleted) connection for a <c>(tenant, provider)</c>, or null when none exists.</summary>
     private async Task<IntegrationConnection?> ConnectionAsync(
