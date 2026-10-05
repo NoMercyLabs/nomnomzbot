@@ -770,4 +770,37 @@ public sealed class ShoutoutActionTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("@")]
+    public async Task A_missing_user_fails_with_the_legacy_text_that_reaches_chat(string userId)
+    {
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build();
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout(userId));
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("You need to specify a user to shoutout!");
+        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task An_unexpected_error_fails_with_the_legacy_text_and_sends_nothing()
+    {
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi users) = Build();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns<Result<IReadOnlyList<TwitchUser>>>(_ =>
+                throw new InvalidOperationException("boom")
+            );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("An error occurred while processing the shoutout.");
+        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+    }
 }

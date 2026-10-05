@@ -165,6 +165,15 @@ public static partial class BuiltinResponseSlots
 
         /// <summary><c>!voice set</c> without a name.</summary>
         public const string SetUsage = "setusage";
+
+        /// <summary><c>!voice</c> without anything after it: the list of subcommands.</summary>
+        public const string Usage = "usage";
+
+        /// <summary><c>!voice &lt;word&gt;</c> where the word is no subcommand and matches no voice.</summary>
+        public const string UnknownCommand = "unknowncommand";
+
+        /// <summary>Roulette has no voices to pick from.</summary>
+        public const string NoVoicesForRoulette = "novoicesforroulette";
     }
 
     /// <summary><c>!media</c> — submit a clip or video to the media queue (media-share.md section 4).</summary>

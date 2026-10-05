@@ -86,6 +86,12 @@
     <string name="builtin_reply_voice_getusage_description">Iemand vraagt stemmen op zonder taal.</string>
     <string name="builtin_reply_voice_setusage_label">Uitleg stem instellen</string>
     <string name="builtin_reply_voice_setusage_description">Iemand stelt een stem in zonder naam.</string>
+    <string name="builtin_reply_voice_usage_label">Uitleg stemcommando</string>
+    <string name="builtin_reply_voice_usage_description">Iemand typt het stemcommando zonder iets erachter.</string>
+    <string name="builtin_reply_voice_unknowncommand_label">Onbekend stemcommando</string>
+    <string name="builtin_reply_voice_unknowncommand_description">Iemand typt een woord dat geen stemcommando is en bij geen enkele stem past.</string>
+    <string name="builtin_reply_voice_novoicesforroulette_label">Geen stemmen voor roulette</string>
+    <string name="builtin_reply_voice_novoicesforroulette_description">De bot heeft geen stemmen om het rad mee te draaien.</string>
     <string name="builtin_reply_media_usage_label">Uitleg</string>
     <string name="builtin_reply_media_usage_description">Iemand deelt media zonder link.</string>
     <string name="builtin_reply_media_accountunresolved_label">Account niet gevonden</string>

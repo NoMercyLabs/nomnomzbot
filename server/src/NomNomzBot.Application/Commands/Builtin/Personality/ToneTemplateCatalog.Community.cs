@@ -46,7 +46,7 @@ public static partial class ToneTemplateCatalog
         samples["voice.locale"] = "en-US";
         samples["voice.gender"] = "Female";
         samples["voice.count"] = "3";
-        samples["voice.language"] = "en";
+        samples["voice.language"] = "EN";
         samples["voice.list"] = "Ana, Guy, Jenny";
         samples["voice.languages"] = "EN: en-GB, en-US | NL: nl-NL";
         samples["voice.more"] = "5";
@@ -393,10 +393,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.Current,
             variables: ["voice.id"],
-            informative:
-            [
-                "Your TTS voice is {voice.id}. Change it with !voice <search>, or !voice clear to use the channel default.",
-            ],
+            informative: ["Current voice: {voice.id}"],
             friendly:
             [
                 "Your TTS voice is {voice.id}! Want another? Try !voice <search>, or !voice clear for the channel default.",
@@ -417,10 +414,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.CurrentDefault,
             variables: [],
-            informative:
-            [
-                "You're using the channel default TTS voice. Pick your own with !voice <search> — e.g. !voice british female.",
-            ],
+            informative: ["No voice set. Use !voice get <language> to find voices."],
             friendly:
             [
                 "You're on the channel default voice. Pick your own with !voice <search> — like !voice british female!",
@@ -468,7 +462,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.Set,
             variables: ["voice.gender", "voice.locale", "voice.name"],
-            informative: ["Your TTS voice is now {voice.name} [{voice.locale} {voice.gender}]."],
+            informative: ["✅ Voice set to {voice.name}!"],
             friendly: ["All set — your voice is now {voice.name} [{voice.locale} {voice.gender}]!"],
             sassy:
             [
@@ -524,7 +518,7 @@ public static partial class ToneTemplateCatalog
             variables: ["query"],
             informative:
             [
-                "No voice matched \"{query}\". Try a name, a language like en-US, or an accent like british.",
+                "Voice '{query}' not found. Use !voice get <language> to see available voices.",
             ],
             friendly:
             [
@@ -560,7 +554,12 @@ public static partial class ToneTemplateCatalog
             variables: ["voice.gender", "voice.locale", "voice.name"],
             informative:
             [
-                "The wheel has spoken - your voice is now {voice.name} [{voice.locale} {voice.gender}]. No takebacks.",
+                "The wheel has spoken! Your next TTS message will be in... {voice.name} ({voice.locale}). Good luck.",
+                "Voice roulette says: {voice.name} ({voice.locale}). No takebacks.",
+                "Spinning the wheel... {voice.name} ({voice.locale})! May the odds be ever in your favor.",
+                "The RNG gods have chosen: {voice.name} ({voice.locale}). We are not responsible for what happens next.",
+                "And the random voice is... {voice.name} ({voice.locale})! Chat, place your bets on how this sounds.",
+                "Voice roulette has landed on {voice.name} ({voice.locale}). This should be interesting.",
             ],
             friendly:
             [
@@ -582,7 +581,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.Languages,
             variables: ["voice.languages"],
-            informative: ["Languages: {voice.languages}"],
+            informative: ["Available languages: {voice.languages}"],
             friendly: ["Here are the languages I can speak: {voice.languages}"],
             sassy: ["I'm quite the polyglot: {voice.languages}"],
             hype: ["LANGUAGES UNLOCKED: {voice.languages}"],
@@ -594,10 +593,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.Voices,
             variables: ["voice.language", "voice.list"],
-            informative:
-            [
-                "{voice.language} voices: {voice.list}. Pick one with !voice set <name>.",
-            ],
+            informative: ["{voice.language} voices: {voice.list}"],
             friendly:
             [
                 "Voices for {voice.language}: {voice.list}. Pick one with !voice set <name>!",
@@ -639,10 +635,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.NoVoicesForLanguage,
             variables: ["voice.language"],
-            informative:
-            [
-                "No voices for {voice.language}. Try !voice languages to see what is available.",
-            ],
+            informative: ["No voices found for '{voice.language}'. Try !voice languages"],
             friendly:
             [
                 "I don't have voices for {voice.language}. Try !voice languages to see what I do have!",
@@ -657,7 +650,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.NoVoices,
             variables: [],
-            informative: ["No TTS voices are available right now."],
+            informative: ["No TTS voices available."],
             friendly: ["I can't find any TTS voices right now — please try again later."],
             sassy: ["The voice catalogue is empty. Everyone is speechless. Literally."],
             hype: ["NO VOICES AVAILABLE RIGHT NOW! CHECK BACK SOON!"],
@@ -669,10 +662,7 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.GetUsage,
             variables: [],
-            informative:
-            [
-                "Usage: !voice get <language> - e.g. !voice get en, or !voice get en-US.",
-            ],
+            informative: ["Usage: !voice get <language> (e.g. !voice get en or !voice get en-US)"],
             friendly:
             [
                 "To list voices, type !voice get <language> — like !voice get en, or !voice get en-US.",
@@ -687,11 +677,77 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.Voice.SetUsage,
             variables: [],
-            informative: ["Usage: !voice set <name> - e.g. !voice set Ana."],
+            informative:
+            [
+                "Usage: !voice set <name> (e.g. !voice set Ana, !voice set en-US-AnaNeural)",
+            ],
             friendly: ["To pick a voice, type !voice set <name> — like !voice set Ana."],
             sassy: ["Set it to what? !voice set <name> — e.g. !voice set Ana."],
             hype: ["!VOICE SET <NAME> — LIKE !VOICE SET ANA!"],
             chill: ["!voice set <name>, e.g. !voice set Ana."]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.Usage,
+            variables: [],
+            informative:
+            [
+                "Voice commands: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+            ],
+            friendly:
+            [
+                "Here is what I can do: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+            ],
+            sassy:
+            [
+                "Pick a lane: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+            ],
+            hype:
+            [
+                "!VOICE LANGUAGES | !VOICE GET <LANGUAGE> | !VOICE SET <NAME> | !VOICE CURRENT | !VOICE ROULETTE!",
+            ],
+            chill: ["!voice languages | get <language> | set <name> | current | roulette"]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.UnknownCommand,
+            variables: [],
+            informative:
+            [
+                "Unknown voice command. Use: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+            ],
+            friendly:
+            [
+                "I don't know that one. Try: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+            ],
+            sassy:
+            [
+                "That is not a voice command. Use: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+            ],
+            hype:
+            [
+                "UNKNOWN VOICE COMMAND! USE: !VOICE LANGUAGES | !VOICE GET <LANGUAGE> | !VOICE SET <NAME> | !VOICE CURRENT | !VOICE ROULETTE",
+            ],
+            chill:
+            [
+                "unknown voice command. try !voice languages | get <language> | set <name> | current | roulette",
+            ]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.NoVoicesForRoulette,
+            variables: [],
+            informative: ["No voices available for roulette!"],
+            friendly: ["I have no voices to spin the wheel with right now!"],
+            sassy: ["The wheel is empty. Nothing to spin."],
+            hype: ["NO VOICES ON THE WHEEL RIGHT NOW!"],
+            chill: ["no voices for roulette."]
         );
     }
 

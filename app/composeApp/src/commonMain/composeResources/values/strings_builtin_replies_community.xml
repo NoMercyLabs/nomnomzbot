@@ -86,6 +86,12 @@
     <string name="builtin_reply_voice_getusage_description">Someone asks for voices without a language.</string>
     <string name="builtin_reply_voice_setusage_label">Set usage</string>
     <string name="builtin_reply_voice_setusage_description">Someone sets a voice without a name.</string>
+    <string name="builtin_reply_voice_usage_label">Voice help</string>
+    <string name="builtin_reply_voice_usage_description">Someone types the voice command with nothing after it.</string>
+    <string name="builtin_reply_voice_unknowncommand_label">Unknown voice command</string>
+    <string name="builtin_reply_voice_unknowncommand_description">Someone types a word that is no voice command and matches no voice.</string>
+    <string name="builtin_reply_voice_novoicesforroulette_label">No voices for roulette</string>
+    <string name="builtin_reply_voice_novoicesforroulette_description">The bot has no voices to spin the wheel with.</string>
     <string name="builtin_reply_media_usage_label">Usage</string>
     <string name="builtin_reply_media_usage_description">Someone shares media without a link.</string>
     <string name="builtin_reply_media_accountunresolved_label">Account not found</string>

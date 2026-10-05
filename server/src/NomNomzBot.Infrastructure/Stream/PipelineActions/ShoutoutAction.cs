@@ -61,6 +61,11 @@ public sealed class ShoutoutAction : ICommandAction
     private const string FallbackGame = "something awesome";
     private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
 
+    // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
+    // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
+    private const string MissingUserText = "You need to specify a user to shoutout!";
+    private const string UnexpectedErrorText = "An error occurred while processing the shoutout.";
+
     private static readonly TimeSpan DefaultPerUserCooldown = TimeSpan.FromMinutes(60);
     private static readonly TimeSpan DefaultGlobalCooldown = TimeSpan.FromMinutes(2);
 
@@ -140,13 +145,26 @@ public sealed class ShoutoutAction : ICommandAction
         ActionDefinition action
     )
     {
+        try
+        {
+            return await RunAsync(ctx, action);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Shoutout action failed unexpectedly");
+            return ActionResult.Failure(UnexpectedErrorText);
+        }
+    }
+
+    private async Task<ActionResult> RunAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    {
         string rawUserId = ShoutoutSender.ResolveVariable(
             action.GetString("user_id") ?? string.Empty,
             ctx.Variables
         );
         rawUserId = MentionParser.ParseUserMention(rawUserId);
         if (string.IsNullOrWhiteSpace(rawUserId))
-            return ActionResult.Failure("shoutout action requires a non-empty 'user_id'");
+            return ActionResult.Failure(MissingUserText);
 
         // A curated shoutout list holds channel NAMES; Helix wants the numeric id — resolve a login. Either
         // way, resolve the full user record here (not just the id) — the announcement template needs the

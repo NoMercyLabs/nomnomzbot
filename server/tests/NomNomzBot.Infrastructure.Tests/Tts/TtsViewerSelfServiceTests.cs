@@ -228,17 +228,6 @@ public sealed class TtsViewerSelfServiceTests
         (await db.UserTtsVoices.AnyAsync()).Should().BeFalse();
     }
 
-    [Fact]
-    public async Task Voice_command_with_no_args_shows_the_default_hint_when_unset()
-    {
-        (TtsConfigService config, _) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
-
-        Result<string> reply = await sut.ExecuteAsync(Ctx(""));
-
-        reply.Value.Should().Contain("channel default");
-    }
-
     // S053 — tts.md §6.2: !voice <full-id> and !voice <friendly-name> must resolve to the SAME real voice, and
     // an id in the wrong case must still resolve. Asserts the resolved voice identity actually persisted, not
     // merely that the command reported success.
@@ -359,7 +348,7 @@ public sealed class TtsViewerSelfServiceTests
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("guy"));
 
-        reply.Value.Should().Be("Your TTS voice is now Guy (US) [en-US Male].");
+        reply.Value.Should().Be("✅ Voice set to Guy (US)!");
     }
 
     [Fact]
@@ -388,8 +377,125 @@ public sealed class TtsViewerSelfServiceTests
         Result<string> picked = await sut.ExecuteAsync(Ctx("guy"));
         Result<string> cleared = await sut.ExecuteAsync(Ctx("clear"));
 
-        picked.Value.Should().Be("Your TTS voice is now Guy (US) [en-US Male].");
+        picked.Value.Should().Be("✅ Voice set to Guy (US)!");
         cleared.Value.Should().Be("Back to the house voice.");
         (await db.UserTtsVoices.AnyAsync()).Should().BeFalse("the clear still ran");
+    }
+
+    // -- !voice legacy texts: the informative line says what the old bot said ------------------------
+
+    private static readonly string[] LegacyRouletteLines =
+    [
+        "The wheel has spoken! Your next TTS message will be in... {0}. Good luck.",
+        "Voice roulette says: {0}. No takebacks.",
+        "Spinning the wheel... {0}! May the odds be ever in your favor.",
+        "The RNG gods have chosen: {0}. We are not responsible for what happens next.",
+        "And the random voice is... {0}! Chat, place your bets on how this sounds.",
+        "Voice roulette has landed on {0}. This should be interesting.",
+    ];
+
+    private const string LegacyUsage =
+        "Voice commands: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette";
+
+    private static async Task<string> SayAsync(string args, bool emptyCatalogue = false)
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        if (emptyCatalogue)
+        {
+            db.TtsVoices.RemoveRange(db.TtsVoices);
+            await db.SaveChangesAsync();
+        }
+        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        Result<string> reply = await sut.ExecuteAsync(Ctx(args));
+        reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
+        return reply.Value;
+    }
+
+    [Fact]
+    public async Task Voice_without_arguments_answers_the_legacy_usage_line() =>
+        (await SayAsync("")).Should().Be(LegacyUsage);
+
+    [Fact]
+    public async Task Voice_unknown_bare_word_answers_the_legacy_unknown_command_line() =>
+        (await SayAsync("zzzz"))
+            .Should()
+            .Be(
+                "Unknown voice command. Use: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette"
+            );
+
+    [Fact]
+    public async Task Voice_languages_answers_the_legacy_line() =>
+        (await SayAsync("languages"))
+            .Should()
+            .Be("Available languages: AR: ar-IQ | CA: ca-ES | EN: en-GB, en-US");
+
+    [Fact]
+    public async Task Voice_languages_with_an_empty_catalogue_answers_the_legacy_line() =>
+        (await SayAsync("languages", emptyCatalogue: true)).Should().Be("No TTS voices available.");
+
+    [Fact]
+    public async Task Voice_get_without_a_language_answers_the_legacy_usage() =>
+        (await SayAsync("get"))
+            .Should()
+            .Be("Usage: !voice get <language> (e.g. !voice get en or !voice get en-US)");
+
+    [Fact]
+    public async Task Voice_get_unknown_language_answers_the_legacy_line() =>
+        (await SayAsync("get zz")).Should().Be("No voices found for 'zz'. Try !voice languages");
+
+    [Fact]
+    public async Task Voice_get_language_lists_the_voices_under_an_uppercase_language() =>
+        (await SayAsync("get en")).Should().Be("EN voices: Sonia, Ana, Guy");
+
+    [Fact]
+    public async Task Voice_set_without_a_name_answers_the_legacy_usage() =>
+        (await SayAsync("set"))
+            .Should()
+            .Be("Usage: !voice set <name> (e.g. !voice set Ana, !voice set en-US-AnaNeural)");
+
+    [Fact]
+    public async Task Voice_set_unknown_name_answers_the_legacy_not_found_line() =>
+        (await SayAsync("set zzzz"))
+            .Should()
+            .Be("Voice 'zzzz' not found. Use !voice get <language> to see available voices.");
+
+    [Fact]
+    public async Task Voice_current_after_a_set_answers_the_legacy_line()
+    {
+        (TtsConfigService config, _) = await BuildAsync();
+        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        await sut.ExecuteAsync(Ctx("set guy"));
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("current"));
+
+        reply.Value.Should().Be("Current voice: en-US-GuyNeural");
+    }
+
+    [Fact]
+    public async Task Voice_current_without_own_voice_answers_the_legacy_default_line() =>
+        (await SayAsync("current"))
+            .Should()
+            .Be("No voice set. Use !voice get <language> to find voices.");
+
+    [Fact]
+    public async Task Voice_roulette_with_an_empty_catalogue_answers_the_legacy_line() =>
+        (await SayAsync("roulette", emptyCatalogue: true))
+            .Should()
+            .Be("No voices available for roulette!");
+
+    [Fact]
+    public async Task Voice_roulette_speaks_one_of_the_six_legacy_lines_with_the_stored_voice()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("roulette"));
+
+        UserTtsVoice row = await db.UserTtsVoices.SingleAsync();
+        TtsVoice stored = await db.TtsVoices.SingleAsync(v => v.Id == row.VoiceId);
+        string shown = $"{stored.DisplayName} ({stored.Locale})";
+        reply
+            .Value.Should()
+            .BeOneOf(LegacyRouletteLines.Select(line => string.Format(line, shown)));
     }
 }

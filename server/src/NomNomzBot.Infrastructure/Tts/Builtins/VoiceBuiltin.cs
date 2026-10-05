@@ -62,7 +62,13 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         string args = context.Args.Trim();
 
         if (args.Length == 0)
-            return await ShowAsync(context, ct);
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.Usage,
+                "Voice commands: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+                null,
+                ct
+            );
 
         string[] parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         string head = parts[0].ToLowerInvariant();
@@ -79,7 +85,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                 ? await ReplyAsync(
                     context,
                     BuiltinResponseSlots.Voice.GetUsage,
-                    "Usage: !voice get <language> - e.g. !voice get en, or !voice get en-US.",
+                    "Usage: !voice get <language> (e.g. !voice get en or !voice get en-US)",
                     null,
                     ct
                 )
@@ -88,13 +94,13 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                 ? await ReplyAsync(
                     context,
                     BuiltinResponseSlots.Voice.SetUsage,
-                    "Usage: !voice set <name> - e.g. !voice set Ana.",
+                    "Usage: !voice set <name> (e.g. !voice set Ana, !voice set en-US-AnaNeural)",
                     null,
                     ct
                 )
-                : await SetAsync(context, rest, ct),
+                : await SetAsync(context, rest, bare: false, ct),
             "roulette" => await RouletteAsync(context, ct),
-            _ => await SetAsync(context, args, ct),
+            _ => await SetAsync(context, args, bare: true, ct),
         };
     }
 
@@ -122,7 +128,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         return await ReplyAsync(
             context,
             BuiltinResponseSlots.Voice.Languages,
-            "Languages: {voice.languages}",
+            "Available languages: {voice.languages}",
             Vars(("voice.languages", list)),
             ct
         );
@@ -156,7 +162,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             return await ReplyAsync(
                 context,
                 BuiltinResponseSlots.Voice.NoVoicesForLanguage,
-                "No voices for {voice.language}. Try !voice languages to see what is available.",
+                "No voices found for '{voice.language}'. Try !voice languages",
                 Vars(("voice.language", query)),
                 ct
             );
@@ -171,7 +177,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                 BuiltinResponseSlots.Voice.VoicesMore,
                 "{voice.language} voices: {voice.list} (+{voice.more} more). Pick one with !voice set <name>.",
                 Vars(
-                    ("voice.language", query),
+                    ("voice.language", query.ToUpperInvariant()),
                     ("voice.list", names),
                     ("voice.more", (matches.Count - shown).ToString())
                 ),
@@ -180,8 +186,8 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             : await ReplyAsync(
                 context,
                 BuiltinResponseSlots.Voice.Voices,
-                "{voice.language} voices: {voice.list}. Pick one with !voice set <name>.",
-                Vars(("voice.language", query), ("voice.list", names)),
+                "{voice.language} voices: {voice.list}",
+                Vars(("voice.language", query.ToUpperInvariant()), ("voice.list", names)),
                 ct
             );
     }
@@ -194,7 +200,13 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     {
         IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
         if (catalogue.Count == 0)
-            return await NoVoicesAsync(context, ct);
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.NoVoicesForRoulette,
+                "No voices available for roulette!",
+                null,
+                ct
+            );
 
         TtsVoiceDto pick = NoImmediateRepeatPicker.Pick(
             catalogue,
@@ -212,7 +224,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         return await ReplyAsync(
             context,
             BuiltinResponseSlots.Voice.Roulette,
-            "The wheel has spoken - your voice is now {voice.name} [{voice.locale} {voice.gender}]. No takebacks.",
+            "The wheel has spoken! Your next TTS message will be in... {voice.name} ({voice.locale}). Good luck.",
             PickVars(pick),
             ct
         );
@@ -273,14 +285,14 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             return await ReplyAsync(
                 context,
                 BuiltinResponseSlots.Voice.Current,
-                "Your TTS voice is {voice.id}. Change it with !voice <search>, or !voice clear to use the channel default.",
+                "Current voice: {voice.id}",
                 Vars(("voice.id", voice.VoiceId)),
                 ct
             );
         return await ReplyAsync(
             context,
             BuiltinResponseSlots.Voice.CurrentDefault,
-            "You're using the channel default TTS voice. Pick your own with !voice <search> — e.g. !voice british female.",
+            "No voice set. Use !voice get <language> to find voices.",
             null,
             ct
         );
@@ -319,6 +331,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     private async Task<Result<string>> SetAsync(
         BuiltinCommandContext context,
         string query,
+        bool bare,
         CancellationToken ct
     )
     {
@@ -327,13 +340,21 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             ct
         );
         if (matches.IsFailure || matches.Value.Items.Count == 0)
-            return await ReplyAsync(
-                context,
-                BuiltinResponseSlots.Voice.NoMatch,
-                "No voice matched \"{query}\". Try a name, a language like en-US, or an accent like british.",
-                Vars(("query", query)),
-                ct
-            );
+            return bare
+                ? await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Voice.UnknownCommand,
+                    "Unknown voice command. Use: !voice languages | !voice get <language> | !voice set <name> | !voice current | !voice roulette",
+                    null,
+                    ct
+                )
+                : await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Voice.NoMatch,
+                    "Voice '{query}' not found. Use !voice get <language> to see available voices.",
+                    Vars(("query", query)),
+                    ct
+                );
 
         TtsVoiceDto pick = BestMatch(matches.Value.Items, query);
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
@@ -357,7 +378,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             : await ReplyAsync(
                 context,
                 BuiltinResponseSlots.Voice.Set,
-                "Your TTS voice is now {voice.name} [{voice.locale} {voice.gender}].",
+                "✅ Voice set to {voice.name}!",
                 PickVars(pick),
                 ct
             );
@@ -401,7 +422,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         ReplyAsync(
             context,
             BuiltinResponseSlots.Voice.NoVoices,
-            "No TTS voices are available right now.",
+            "No TTS voices available.",
             null,
             ct
         );
