@@ -54,7 +54,7 @@ import org.jetbrains.compose.resources.stringResource
 // through the wizard's per-provider credential endpoint (IntegrationsController.saveProviderCredentials →
 // PUT …/setup/credentials/{provider}). On a successful save the host proceeds straight to OAuth.
 //
-// This is the dashboard-side generalization of the Twitch settings BYOC card (TwitchAppCredentialsCard): the
+// This is the dashboard-side generalization of the Twitch settings BYOC card (TwitchAppCredentialsSection): the
 // same structure (state line is implicit here — the card only shows while UNregistered — guide + redirect chip
 // + id/secret fields + save), parameterized by provider rather than Twitch-specific. It is purely
 // presentational: it owns no API; the host wires [onSave] to the controller and re-checks registration.

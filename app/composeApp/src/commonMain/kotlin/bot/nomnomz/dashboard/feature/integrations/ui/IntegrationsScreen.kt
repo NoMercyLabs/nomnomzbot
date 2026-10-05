@@ -66,7 +66,6 @@ import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsState
 import bot.nomnomz.dashboard.feature.integrations.state.ProviderConnection
 import bot.nomnomz.dashboard.feature.integrations.state.RegrantState
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
-import bot.nomnomz.dashboard.feature.settings.ui.TwitchAppCredentialsCard
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -88,8 +87,6 @@ import nomnomzbot.composeapp.generated.resources.integrations_bot_device_instruc
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_open
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_title
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_waiting
-import nomnomzbot.composeapp.generated.resources.integrations_bot_subtitle
-import nomnomzbot.composeapp.generated.resources.integrations_bot_title
 import nomnomzbot.composeapp.generated.resources.integrations_discord_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_discord_title
 import nomnomzbot.composeapp.generated.resources.integrations_kick_subtitle
@@ -317,10 +314,6 @@ fun IntegrationsScreen(
                         )
                     }
 
-                    // The Twitch application is an integration like any other (it's the credential the whole
-                    // platform OAuth runs on), so it lives here with the bot account — not in Settings.
-                    TwitchAppCredentialsCard(controller = twitchAppController, manage = manage)
-
                     // The secret-free bot device login panel while one is awaiting approval at twitch.tv/activate.
                     current.botDevice?.let { device: BotDeviceState ->
                         BotDevicePanel(
@@ -328,13 +321,16 @@ fun IntegrationsScreen(
                             onCancel = { controller.cancelBotDevice() },
                         )
                     }
-                    BotRow(
-                        connected = current.bot.connected,
-                        accountName = current.bot.accountName,
-                        busy = current.busy is BusyTarget.Bot || current.botDevice != null,
+                    // The Twitch app (the credential the platform OAuth runs on) and the bot account it signs in
+                    // are one thing to the operator, so they share one card.
+                    TwitchCard(
+                        appController = twitchAppController,
+                        botConnected = current.bot.connected,
+                        botAccountName = current.bot.accountName,
+                        botBusy = current.busy is BusyTarget.Bot || current.botDevice != null,
                         manage = manage,
-                        onConnect = { scope.launch { controller.connectBot() } },
-                        onDisconnect = { scope.launch { controller.disconnectBot() } },
+                        onConnectBot = { scope.launch { controller.connectBot() } },
+                        onDisconnectBot = { scope.launch { controller.disconnectBot() } },
                     )
                     ProviderRow(
                         title = Res.string.integrations_spotify_title,
@@ -536,30 +532,6 @@ fun IntegrationsScreen(
 }
 
 @Composable
-private fun BotRow(
-    connected: Boolean,
-    accountName: String?,
-    busy: Boolean,
-    manage: ManageDecision,
-    onConnect: () -> Unit,
-    onDisconnect: () -> Unit,
-) {
-    IntegrationCard(
-        title = stringResource(Res.string.integrations_bot_title),
-        subtitle = stringResource(Res.string.integrations_bot_subtitle),
-        connected = connected,
-        accountName = accountName,
-        needsReauth = false,
-        busy = busy,
-        manage = manage,
-        onConnect = onConnect,
-        // Disconnect is admin-gated server-side (the ManageGate hides it for non-admins). Disconnecting then
-        // connecting a different account is how the operator CHANGES the bot.
-        onDisconnect = if (connected) onDisconnect else null,
-    )
-}
-
-@Composable
 private fun ProviderRow(
     title: StringResource,
     subtitle: StringResource,
@@ -655,14 +627,50 @@ private fun IntegrationCard(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
-    Row(
+    IntegrationRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
             .border(width = spacing.s0_5 / 2, color = tokens.border, shape = RoundedCornerShape(tokens.radius.lg))
             .padding(horizontal = spacing.s4, vertical = spacing.s4),
+        title = title,
+        subtitle = subtitle,
+        connected = connected,
+        accountName = accountName,
+        needsReauth = needsReauth,
+        decryptFailed = decryptFailed,
+        loginOnly = loginOnly,
+        busy = busy,
+        manage = manage,
+        onConnect = onConnect,
+        onDisconnect = onDisconnect,
+    )
+}
+
+// One integration's status line + its actions, without card chrome: a stand-alone card ([IntegrationCard]) and
+// a part of a bigger card ([TwitchCard]) render the same row.
+@Composable
+internal fun IntegrationRow(
+    title: String,
+    subtitle: String,
+    connected: Boolean,
+    accountName: String?,
+    needsReauth: Boolean,
+    busy: Boolean,
+    manage: ManageDecision,
+    onConnect: () -> Unit,
+    onDisconnect: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    decryptFailed: Boolean = false,
+    loginOnly: Boolean = false,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
