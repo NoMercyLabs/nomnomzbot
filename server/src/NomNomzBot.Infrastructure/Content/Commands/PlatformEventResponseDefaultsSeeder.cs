@@ -47,6 +47,12 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         ["channel.raid"] = "{user} is raiding with {viewers} viewers! Welcome raiders!",
     };
 
+    /// <summary>The types that ship ON: the legacy alerts plus the poll result, which the old bot also announced.</summary>
+    internal static readonly HashSet<string> EnabledByDefault = new(
+        LegacyMessages.Keys.Append("channel.poll.end"),
+        StringComparer.Ordinal
+    );
+
     public int Order => 12;
 
     public async Task SeedAsync(CancellationToken ct = default)
@@ -72,7 +78,7 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 continue;
 
             db.PlatformEventResponseDefaults.Add(
-                new() { EventType = eventType, IsEnabled = LegacyMessages.ContainsKey(eventType) }
+                new() { EventType = eventType, IsEnabled = EnabledByDefault.Contains(eventType) }
             );
         }
         await db.SaveChangesAsync(ct);

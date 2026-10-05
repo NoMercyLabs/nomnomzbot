@@ -74,6 +74,7 @@ public sealed class PollEndedHandler
     protected override Dictionary<string, string> BuildVariables(PollEndedEvent e)
     {
         PollChoice? winner = e.Choices.OrderByDescending(c => c.Votes).FirstOrDefault();
+        int total = e.Choices.Sum(c => c.Votes);
         return new(StringComparer.OrdinalIgnoreCase)
         {
             ["poll.id"] = e.PollId,
@@ -81,9 +82,24 @@ public sealed class PollEndedHandler
             ["poll.status"] = e.Status,
             ["poll.winner"] = winner?.Title ?? string.Empty,
             ["poll.winner.votes"] = winner?.Votes.ToString() ?? "0",
-            ["poll.results"] = string.Join(", ", e.Choices.Select(c => $"{c.Title}: {c.Votes}")),
+            ["poll.winner.percentage"] =
+                winner is null || total == 0 ? string.Empty : $" ({Percent(winner.Votes, total)}%)",
+            ["poll.results"] = string.Join(
+                " | ",
+                e.Choices.Select(c =>
+                    total == 0
+                        ? $"{c.Title}: {c.Votes}"
+                        : $"{c.Title}: {c.Votes} ({Percent(c.Votes, total)}%)"
+                )
+            ),
         };
     }
+
+    /// <summary>Only a poll that ran to its end announces a winner; a terminated or archived one stays silent.</summary>
+    protected override bool Responds(PollEndedEvent e) =>
+        string.Equals(e.Status, "completed", StringComparison.OrdinalIgnoreCase);
+
+    private static int Percent(int votes, int total) => votes * 100 / total;
 
     protected override PollEndedEvent SampleEvent(DateTimeOffset now) =>
         new()

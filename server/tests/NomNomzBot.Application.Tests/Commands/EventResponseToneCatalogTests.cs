@@ -32,11 +32,12 @@ public sealed partial class EventResponseToneCatalogTests
     public static TheoryData<string> Events() => [.. EventResponseToneCatalog.EventTypes];
 
     [Fact]
-    public void The_catalogue_covers_the_nine_events_that_ship_on_plus_the_ad_break_and_all_are_real_event_types()
+    public void The_catalogue_covers_the_nine_events_that_ship_on_plus_the_poll_result_and_the_ad_break_and_all_are_real_event_types()
     {
         EventResponseToneCatalog
             .EventTypes.Should()
-            .HaveCount(10)
+            .HaveCount(11)
+            .And.Contain("channel.poll.end")
             .And.Contain("channel.ad_break.begin");
         EventResponseToneCatalog
             .EventTypes.Should()

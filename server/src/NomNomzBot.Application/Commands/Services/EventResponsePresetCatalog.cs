@@ -64,6 +64,17 @@ public static class EventResponsePresetCatalog
         Preset("channel.cheer", ["user", "user.id", "bits", "message", "anonymous"]),
         Preset("channel.raid", ["user", "user.id", "user.name", "viewers"]),
         Preset(
+            "channel.poll.end",
+            [
+                "poll.title",
+                "poll.status",
+                "poll.winner",
+                "poll.winner.votes",
+                "poll.winner.percentage",
+                "poll.results",
+            ]
+        ),
+        Preset(
             "channel.channel_points_custom_reward_redemption.add",
             ["user", "user.id", "reward", "reward.id", "redemption.id", "cost", "input"]
         ),

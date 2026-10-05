@@ -171,6 +171,43 @@ public static class TemplateHelperRegistry
                 "template.helper.ad_automatic",
                 eventScoped: true
             ),
+            // Polls (channel.poll.end only)
+            Literal(
+                "poll.title",
+                EventSourceOnlyContexts,
+                "template.helper.poll_title",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.status",
+                EventSourceOnlyContexts,
+                "template.helper.poll_status",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.winner",
+                EventSourceOnlyContexts,
+                "template.helper.poll_winner",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.winner.votes",
+                EventSourceOnlyContexts,
+                "template.helper.poll_winner_votes",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.winner.percentage",
+                EventSourceOnlyContexts,
+                "template.helper.poll_winner_percentage",
+                eventScoped: true
+            ),
+            Literal(
+                "poll.results",
+                EventSourceOnlyContexts,
+                "template.helper.poll_results",
+                eventScoped: true
+            ),
             // ── Follow (channel.follow) ──────────────────────────────────────
             Literal(
                 "followed_at",

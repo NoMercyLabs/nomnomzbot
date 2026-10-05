@@ -18,6 +18,7 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_cheer
 import nomnomzbot.composeapp.generated.resources.event_type_channel_follow
 import nomnomzbot.composeapp.generated.resources.event_type_channel_points_redemption
 import nomnomzbot.composeapp.generated.resources.event_type_channel_poll_begin
+import nomnomzbot.composeapp.generated.resources.event_type_channel_poll_end
 import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_begin
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_out
@@ -79,6 +80,7 @@ internal val EventTypeLabels: Map<String, StringResource> =
         "stream.online" to Res.string.event_type_stream_online,
         "stream.offline" to Res.string.event_type_stream_offline,
         "channel.poll.begin" to Res.string.event_type_channel_poll_begin,
+        "channel.poll.end" to Res.string.event_type_channel_poll_end,
         "channel.prediction.begin" to Res.string.event_type_channel_prediction_begin,
         "channel.channel_points_custom_reward_redemption.add" to Res.string.event_type_channel_points_redemption,
         "reward.paused" to Res.string.event_type_reward_paused,

@@ -101,6 +101,12 @@ public sealed partial class TemplateHelperCoverageTests
         // TemplateResolver.cs. See TemplateHelperRegistry's EventSourceOnlyContexts doc comment for
         // the full handler list this covers.
         "followed_at",
+        "poll.title", // supplied by PollEndedHandler.BuildVariables, same seed-passthrough shape
+        "poll.status",
+        "poll.winner",
+        "poll.winner.votes",
+        "poll.winner.percentage",
+        "poll.results",
         "tier",
         "months",
         "streak",

@@ -3513,6 +3513,7 @@
     <string name="event_type_stream_online">Stream Online</string>
     <string name="event_type_stream_offline">Stream Offline</string>
     <string name="event_type_channel_poll_begin">Poll Started</string>
+    <string name="event_type_channel_poll_end">Poll Ended</string>
     <string name="event_type_channel_prediction_begin">Prediction Started</string>
     <string name="event_type_channel_points_redemption">Reward Redeemed</string>
     <string name="event_type_reward_paused">Reward Paused</string>
@@ -5103,6 +5104,12 @@
     <string name="template_helper_music_favorite_outcome">What happened: queued, none, or unavailable</string>
     <string name="template_helper_ad_duration">The ad break length (e.g. "3 minutes")</string>
     <string name="template_helper_ad_automatic">Whether the ad break was automatic ("true") or requester-triggered ("false")</string>
+    <string name="template_helper_poll_title">The poll question</string>
+    <string name="template_helper_poll_status">How the poll ended (completed, terminated or archived)</string>
+    <string name="template_helper_poll_winner">The winning choice</string>
+    <string name="template_helper_poll_winner_votes">The number of votes the winning choice got</string>
+    <string name="template_helper_poll_winner_percentage">The winning share as text, like (68%), or nothing when no one voted</string>
+    <string name="template_helper_poll_results">Every choice with its votes and share, separated by |</string>
     <string name="template_helper_followed_at">When the follow happened</string>
     <string name="template_helper_tier">The subscription tier (e.g. "Tier 1")</string>
     <string name="template_helper_months">Cumulative months subscribed</string>
@@ -5514,6 +5521,7 @@
     <string name="eventresponse_preset_channel_subscription_gift_received_anonymous_template">An anonymous gifter gave a sub to {user}!</string>
     <string name="eventresponse_preset_channel_cheer_template">{user} cheered {bits} bits — thank you!</string>
     <string name="eventresponse_preset_channel_raid_template">{user} is raiding with {viewers} viewers — welcome, raiders!</string>
+    <string name="eventresponse_preset_channel_poll_end_template">The poll {poll.title} is over - {poll.winner} won{poll.winner.percentage}!</string>
     <string name="eventresponse_preset_channel_channel_points_custom_reward_redemption_add_template">{user} redeemed {reward}!</string>
     <string name="eventresponse_preset_reward_paused_template">{reward} is paused for now — redemptions are on hold.</string>
     <string name="eventresponse_preset_reward_resumed_template">{reward} is back — redeem away!</string>

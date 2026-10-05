@@ -392,7 +392,7 @@ public sealed class EventResponseToneTests
         rows.Where(r => r.IsEnabled)
             .Select(r => r.EventType)
             .Should()
-            .BeEquivalentTo(PlatformEventResponseDefaultsSeeder.LegacyMessages.Keys);
+            .BeEquivalentTo(PlatformEventResponseDefaultsSeeder.EnabledByDefault);
     }
 
     [Fact]

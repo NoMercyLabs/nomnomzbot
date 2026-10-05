@@ -95,6 +95,12 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
     /// </summary>
     protected virtual bool Announces(TEvent @event) => true;
 
+    /// <summary>
+    /// Whether this event may speak in chat. Unlike <see cref="Announces"/> it still logs the event; a handler
+    /// overrides it when only some events of its type get a response (a poll that was cut short stays silent).
+    /// </summary>
+    protected virtual bool Responds(TEvent @event) => true;
+
     public Type EventType => typeof(TEvent);
 
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
@@ -108,6 +114,8 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         await LogChannelEventAsync(db, @event, broadcasterId, ct);
+        if (!Responds(@event))
+            return;
 
         // THE one execution path for configured responses — shared with every other trigger source.
         IEventResponseExecutor executor =
@@ -125,7 +133,12 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
 
     public async Task<EventResponseOutcome> ReplayAsync(IDomainEvent @event, CancellationToken ct)
     {
-        if (@event is not TEvent typed || typed.BroadcasterId == Guid.Empty || !Announces(typed))
+        if (
+            @event is not TEvent typed
+            || typed.BroadcasterId == Guid.Empty
+            || !Announces(typed)
+            || !Responds(typed)
+        )
             return EventResponseOutcome.None;
 
         using IServiceScope scope = ScopeFactory.CreateScope();

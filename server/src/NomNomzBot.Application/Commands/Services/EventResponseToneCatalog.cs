@@ -404,6 +404,35 @@ public static class EventResponseToneCatalog
             ]
         );
 
+        Add(
+            catalog,
+            "channel.poll.end",
+            informative:
+            [
+                "\U0001F4CA Poll ended: \"{poll.title}\" \u2014 Winner: {poll.winner}{poll.winner.percentage} | {poll.results}",
+            ],
+            friendly:
+            [
+                "The poll \"{poll.title}\" is done! {poll.winner} won{poll.winner.percentage}. Thank you all for voting!",
+                "Thanks for voting! \"{poll.title}\" went to {poll.winner}{poll.winner.percentage}.",
+            ],
+            sassy:
+            [
+                "\"{poll.title}\" is settled. {poll.winner} won{poll.winner.percentage}. The rest of you can sulk quietly.",
+                "{poll.winner} takes the poll \"{poll.title}\"{poll.winner.percentage}. Democracy has spoken.",
+            ],
+            hype:
+            [
+                "THE POLL IS IN! {poll.winner} WINS \"{poll.title}\"{poll.winner.percentage}! LET'S GOOO!",
+                "{poll.winner} TAKES THE POLL{poll.winner.percentage}! THANK YOU FOR VOTING!",
+            ],
+            chill:
+            [
+                "poll's done. {poll.winner} won{poll.winner.percentage}.",
+                "\"{poll.title}\" went to {poll.winner}{poll.winner.percentage}. thanks for voting.",
+            ]
+        );
+
         // The ad-break default ships off; these lines speak for a channel that turns its own row on and leaves
         // the text empty. {user} is empty on an automatic break, so the lines use only the duration.
         Add(

@@ -3497,6 +3497,7 @@
     <string name="event_type_stream_online">Stream online</string>
     <string name="event_type_stream_offline">Stream offline</string>
     <string name="event_type_channel_poll_begin">Poll gestart</string>
+    <string name="event_type_channel_poll_end">Poll afgelopen</string>
     <string name="event_type_channel_prediction_begin">Voorspelling gestart</string>
     <string name="event_type_channel_points_redemption">Beloning ingewisseld</string>
     <string name="event_type_reward_paused">Beloning gepauzeerd</string>
@@ -5087,6 +5088,12 @@
     <string name="template_helper_music_favorite_outcome">Wat er gebeurde: queued, none of unavailable</string>
     <string name="template_helper_ad_duration">De lengte van de reclamepauze (bijv. "3 minuten")</string>
     <string name="template_helper_ad_automatic">Of de reclamepauze automatisch was ("true") of aangevraagd ("false")</string>
+    <string name="template_helper_poll_title">De vraag van de poll</string>
+    <string name="template_helper_poll_status">Hoe de poll eindigde (completed, terminated of archived)</string>
+    <string name="template_helper_poll_winner">De winnende keuze</string>
+    <string name="template_helper_poll_winner_votes">Het aantal stemmen van de winnende keuze</string>
+    <string name="template_helper_poll_winner_percentage">Het winnende aandeel als tekst, zoals (68%), of niets als niemand stemde</string>
+    <string name="template_helper_poll_results">Elke keuze met stemmen en aandeel, gescheiden door |</string>
     <string name="template_helper_followed_at">Wanneer de follow gebeurde</string>
     <string name="template_helper_tier">Het abonnementsniveau (bijv. "Tier 1")</string>
     <string name="template_helper_months">Cumulatief aantal maanden geabonneerd</string>
@@ -5498,6 +5505,7 @@
     <string name="eventresponse_preset_channel_subscription_gift_received_anonymous_template">Een anonieme gever heeft {user} een sub cadeau gedaan!</string>
     <string name="eventresponse_preset_channel_cheer_template">{user} heeft {bits} bits gecheerd — bedankt!</string>
     <string name="eventresponse_preset_channel_raid_template">{user} raidt met {viewers} kijkers — welkom, raiders!</string>
+    <string name="eventresponse_preset_channel_poll_end_template">De poll {poll.title} is afgelopen - {poll.winner} won{poll.winner.percentage}!</string>
     <string name="eventresponse_preset_channel_channel_points_custom_reward_redemption_add_template">{user} heeft {reward} ingewisseld!</string>
     <string name="eventresponse_preset_reward_paused_template">{reward} is even gepauzeerd — inwisselen ligt stil.</string>
     <string name="eventresponse_preset_reward_resumed_template">{reward} is terug — inwisselen maar!</string>
