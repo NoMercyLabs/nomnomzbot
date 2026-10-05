@@ -402,7 +402,7 @@
   {
    "id": "codex-out-arc-takes-over",
    "match": "type\\W{1,6}error\\W.{0,300}hit your usage limit|You.ve hit your usage limit\\..{0,200}try again at",
-   "text": "Codex is out of credits. Arc takes over now on the same branch/issue with its own Sonnet agents (max 3 at a time). Never park deferrable work waiting for a Codex reset.",
+   "text": "Codex is out of credits. Arc takes over now on the same branch/issue with its own Sonnet agents (within the global limits: 6 read-only, 2 build). Never park deferrable work waiting for a Codex reset.",
    "source": "memory feedback-codex-out-arc-takes-over.md",
    "covers": [
     "feedback-codex-out-arc-takes-over.md"
@@ -410,6 +410,14 @@
   }
  ],
  "session_only": [
+  {
+   "id": "worker-after-crash",
+   "text": "Worker mode ended 2026-10-05: once the worker's last in-flight jobs are done, the main session runs the work through local Fable agents (Agent tool) and sends no cross-session relays, which cost tokens.",
+   "source": "Stoney 2026-10-05: \"why are you not using your worker session like we agreed to?!\"; memory feedback-worker-after-crash.md",
+   "covers": [
+    "feedback-worker-after-crash.md"
+   ]
+  },
   {
    "id": "legacy-parity-ledger",
    "text": "Old-bot behaviour is matched from a full ledger built by script from C:/Projects/StoneyEagle/nomercy-bot (every command, event handler, reply, TTS use, timer), each marked matched/partial/missing with file:line; every gap is a plan slice; scripts/check-parity-ledger.py guards the ledger. Never wait for the owner to notice a gap.",
@@ -546,10 +554,18 @@
   },
   {
    "id": "parallelism-cap-three-agents",
-   "text": "Run at most 3 agents at once, any model. More trips the session rate limit and kills them all mid-work. Queue the rest.",
+   "text": "Run up to 6 read-only agents and 2 that build or test at once (global rule). Keep both build lanes busy and the next slice briefed; never open 11 at once.",
    "source": "memory parallelism-cap-three-agents.md",
    "covers": [
     "parallelism-cap-three-agents.md"
+   ]
+  },
+  {
+   "id": "rate-limit-sized-to-provider",
+   "text": "Every external API limiter takes its ceiling from one conservative provider-budget constant, and pollers take their cadence from that budget, never from a fixed interval. A guard test ties cadence x calls per tick <= ceiling <= provider budget.",
+   "source": "memory feedback-rate-limit-sized-to-provider.md",
+   "covers": [
+    "feedback-rate-limit-sized-to-provider.md"
    ]
   },
   {
