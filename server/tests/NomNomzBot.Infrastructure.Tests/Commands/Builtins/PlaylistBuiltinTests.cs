@@ -12,22 +12,41 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Music;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 
 /// <summary>
-/// <c>!playlist</c> (legacy parity, S068d) proves the summary is built from the REAL queue returned by
-/// <see cref="IMusicService.GetQueueAsync"/> — seeded fake current-track/queue entries must show up verbatim
-/// in the rendered text, not a hardcoded string — and that a fully idle channel gets a truthful empty reply.
+/// <c>!playlist</c> (legacy parity) answers with the link to the channel's bangers playlist, built from the
+/// configured playlist id and provider, and says so plainly when none is configured or the provider has no
+/// public link form. Replies use the old bot's wording in the informative tone.
 /// </summary>
-public sealed class PlaylistBuiltinTests
+public sealed class PlaylistBuiltinTests : IDisposable
 {
     private static readonly Guid Broadcaster = Guid.Parse("0192a000-0000-7000-8000-00000000a601");
 
-    private static ITemplateResolver FakeResolver()
+    private readonly MusicConfigDbFixture _config = new();
+    private readonly IMusicService _music = Substitute.For<IMusicService>();
+
+    public void Dispose() => _config.Dispose();
+
+    private PlaylistBuiltin Sut() => new(_music, _config.Service, FakeComposer());
+
+    private static BuiltinCommandContext Context() =>
+        new()
+        {
+            BroadcasterId = Broadcaster,
+            TriggeringUserId = "viewer-1",
+            TriggeringUserDisplayName = "Viewer",
+            Personality = PersonalityTone.Informative,
+        };
+
+    private static IBuiltinResponseComposer FakeComposer()
     {
         ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
         resolver
@@ -46,81 +65,92 @@ public sealed class PlaylistBuiltinTests
                     template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
                 return Task.FromResult(template);
             });
-        return resolver;
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
     }
 
-    private static BuiltinCommandContext Context() =>
-        new()
-        {
-            BroadcasterId = Broadcaster,
-            TriggeringUserId = "viewer-1",
-            TriggeringUserDisplayName = "Viewer",
-        };
+    private Task Choose(string? id, string? provider) =>
+        _config.Service.UpdateConfigAsync(
+            Broadcaster.ToString(),
+            new UpdateMusicConfigDto { BangerPlaylistId = id, BangerPlaylistProvider = provider }
+        );
 
     [Fact]
-    public async Task Reply_contains_the_real_queried_current_track_and_upcoming_entries()
+    public async Task Spotify_playlist_gives_the_open_spotify_link()
     {
-        NowPlaying current = new(
-            TrackName: "Toxic",
-            Artist: "Britney Spears",
-            Album: null,
-            ImageUrl: null,
-            DurationMs: 200_000,
-            ProgressMs: 1_000,
-            IsPlaying: true,
-            Volume: 60,
-            RequestedBy: "viewer2",
-            Provider: "spotify"
-        );
-        List<MusicQueueItem> queued =
-        [
-            new("Blinding Lights", "The Weeknd", null, 200_000, "viewer3"),
-            new("Levitating", "Dua Lipa", null, 190_000, "viewer4"),
-        ];
+        await Choose("37i9dQZF1DXcBWIGoYBM5M", "spotify");
 
-        IMusicService music = Substitute.For<IMusicService>();
-        music
-            .GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
-            .Returns(new MusicQueue(current, queued));
-
-        PlaylistBuiltin sut = new(
-            music,
-            new BuiltinResponseComposer(
-                FakeResolver(),
-                NoPlatformBuiltinReplies.Instance,
-                FakeChannelBuiltinReplies.None
-            )
-        );
-
-        Result<string> result = await sut.ExecuteAsync(Context());
+        Result<string> result = await Sut().ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("Toxic").And.Contain("Britney Spears");
-        result.Value.Should().Contain("Blinding Lights").And.Contain("The Weeknd");
-        result.Value.Should().Contain("Levitating").And.Contain("Dua Lipa");
-        result.Value.Should().Contain("2");
+        result
+            .Value.Should()
+            .Be(
+                "The bangers playlist is: https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+            );
     }
 
     [Fact]
-    public async Task Idle_channel_with_nothing_playing_and_empty_queue_reports_truthfully()
+    public async Task Youtube_playlist_gives_the_youtube_playlist_link()
     {
-        IMusicService music = Substitute.For<IMusicService>();
-        music
-            .GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
-            .Returns(new MusicQueue(null, []));
+        await Choose("PLabc123", "youtube");
 
-        PlaylistBuiltin sut = new(
-            music,
-            new BuiltinResponseComposer(
-                FakeResolver(),
-                NoPlatformBuiltinReplies.Instance,
-                FakeChannelBuiltinReplies.None
-            )
-        );
+        Result<string> result = await Sut().ExecuteAsync(Context());
 
-        Result<string> result = await sut.ExecuteAsync(Context());
+        result
+            .Value.Should()
+            .Be("The bangers playlist is: https://www.youtube.com/playlist?list=PLabc123");
+    }
+
+    [Fact]
+    public async Task Without_a_stored_provider_the_active_provider_decides_the_link()
+    {
+        await Choose("37i9dQZF1DXcBWIGoYBM5M", null);
+        _music
+            .GetActiveProviderKeyAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns("spotify");
+
+        Result<string> result = await Sut().ExecuteAsync(Context());
+
+        result
+            .Value.Should()
+            .Be(
+                "The bangers playlist is: https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+            );
+    }
+
+    [Fact]
+    public async Task No_playlist_configured_says_so()
+    {
+        Result<string> result = await Sut().ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("Nothing is playing").And.Contain("queue is empty");
+        result.Value.Should().Be("No playlist ID configured.");
+    }
+
+    [Fact]
+    public async Task A_provider_without_a_public_link_form_says_playlist_not_found()
+    {
+        await Choose("some-id", "unknownprovider");
+
+        Result<string> result = await Sut().ExecuteAsync(Context());
+
+        result.Value.Should().Be("Playlist not found.");
+    }
+
+    [Fact]
+    public async Task No_provider_at_all_says_playlist_not_found()
+    {
+        await Choose("some-id", null);
+        _music
+            .GetActiveProviderKeyAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+
+        Result<string> result = await Sut().ExecuteAsync(Context());
+
+        result.Value.Should().Be("Playlist not found.");
     }
 }

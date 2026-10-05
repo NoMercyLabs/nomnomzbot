@@ -639,40 +639,37 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.Playlist.Key,
-            BuiltinResponseSlots.Playlist.Empty,
-            variables: [],
-            informative: ["Nothing is playing and the queue is empty."],
-            friendly: ["Nothing is playing and the queue is empty — request a song with !sr!"],
-            sassy: ["Nothing is playing and the queue is empty. Very avant-garde."],
-            hype: ["NOTHING PLAYING. QUEUE EMPTY. SEND SONGS WITH !sr!"],
-            chill: ["nothing playing, queue is empty."]
+            BuiltinResponseSlots.Playlist.Link,
+            variables: ["playlist.url"],
+            informative: ["The bangers playlist is: {playlist.url}"],
+            friendly: ["Here is the bangers playlist, enjoy! {playlist.url}"],
+            sassy: ["The bangers playlist, since you asked: {playlist.url}"],
+            hype: ["THE BANGERS PLAYLIST IS HERE: {playlist.url}"],
+            chill: ["bangers playlist: {playlist.url}"]
         );
 
         Add(
             catalog,
             BuiltinResponseSlots.Playlist.Key,
-            BuiltinResponseSlots.Playlist.Summary,
-            variables: ["playlist.count", "playlist.nowplaying", "playlist.upcoming"],
-            informative:
-            [
-                "Now playing: {playlist.nowplaying} — up next: {playlist.upcoming} ({playlist.count} queued)",
-            ],
-            friendly:
-            [
-                "Now playing {playlist.nowplaying}! Up next: {playlist.upcoming} ({playlist.count} queued)",
-            ],
-            sassy:
-            [
-                "Now playing: {playlist.nowplaying}. Up next: {playlist.upcoming}. {playlist.count} queued, none of them your fault.",
-            ],
-            hype:
-            [
-                "NOW PLAYING: {playlist.nowplaying}. UP NEXT: {playlist.upcoming} ({playlist.count} QUEUED)!",
-            ],
-            chill:
-            [
-                "playing {playlist.nowplaying}. next: {playlist.upcoming} ({playlist.count} queued).",
-            ]
+            BuiltinResponseSlots.Playlist.NoPlaylist,
+            variables: [],
+            informative: ["No playlist ID configured."],
+            friendly: ["No bangers playlist is set up yet."],
+            sassy: ["No playlist ID configured. The bangers are homeless."],
+            hype: ["NO BANGERS PLAYLIST SET UP YET!"],
+            chill: ["no bangers playlist set up."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Playlist.Key,
+            BuiltinResponseSlots.Playlist.NotFound,
+            variables: [],
+            informative: ["Playlist not found."],
+            friendly: ["I could not find the bangers playlist."],
+            sassy: ["Playlist not found. The bangers went missing."],
+            hype: ["PLAYLIST NOT FOUND!"],
+            chill: ["could not find the playlist."]
         );
     }
 
@@ -700,9 +697,7 @@ public static partial class ToneTemplateCatalog
         samples["request.position"] = "2";
         samples["trust.level"] = "Follower";
         samples["volume.level"] = "60";
-        samples["playlist.nowplaying"] = "Never Gonna Give You Up by Rick Astley";
-        samples["playlist.upcoming"] = "Take On Me by a-ha, Africa by Toto";
-        samples["playlist.count"] = "2";
+        samples["playlist.url"] = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M";
         samples["song.requester"] = "StreamFan42";
         samples["song.source"] = "request";
         samples["song.provider"] = "spotify";

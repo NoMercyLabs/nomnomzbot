@@ -11,20 +11,26 @@
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
-/// <c>!playlist</c> (legacy parity, S068d) — a summary of the current music queue: the playing track plus
-/// how many are lined up behind it, read live from <see cref="IMusicService.GetQueueAsync"/> — the same
-/// queue read <c>!queue</c> (<see cref="QueueBuiltin"/>) uses. No provider surface returns a shareable
-/// queue/playlist URL (<see cref="IMusicService"/> has no such member), so this stays a chat summary rather
-/// than inventing a link.
+/// <c>!playlist</c> (legacy parity) — answers with the link to the channel's bangers playlist, the one
+/// <see cref="BangerBuiltin"/> adds to. No provider returns a web URL for a playlist
+/// (<see cref="MusicPlaylistDto"/> has none), so the link is built from the stored playlist id for each
+/// provider with a known public form. The playing queue is <c>!queue</c>'s job, not this command's.
 /// </summary>
-public sealed class PlaylistBuiltin(IMusicService music, IBuiltinResponseComposer composer)
-    : IBuiltinCommand
+public sealed class PlaylistBuiltin(
+    IMusicService music,
+    IMusicConfigService config,
+    IBuiltinResponseComposer composer
+) : IBuiltinCommand
 {
+    private const string SpotifyPlaylistUrl = "https://open.spotify.com/playlist/";
+    private const string YouTubePlaylistUrl = "https://www.youtube.com/playlist?list=";
+
     public string BuiltinKey => "playlist";
     public int DefaultCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0;
@@ -34,53 +40,63 @@ public sealed class PlaylistBuiltin(IMusicService music, IBuiltinResponseCompose
         CancellationToken ct = default
     )
     {
-        MusicQueue queue = await music.GetQueueAsync(context.BroadcasterId.ToString(), ct);
-
-        bool nothingPlaying = queue.CurrentTrack is null;
-        bool queueEmpty = queue.Queue.Count == 0;
-
-        if (nothingPlaying && queueEmpty)
-        {
-            string empty = await composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinResponseSlots.Playlist.Key,
-                    Slot = BuiltinResponseSlots.Playlist.Empty,
-                    NeutralFallback = "Nothing is playing and the queue is empty.",
-                },
+        string broadcasterId = context.BroadcasterId.ToString();
+        Result<MusicConfigDto> loaded = await config.GetConfigAsync(broadcasterId, ct);
+        string? playlistId = loaded.IsSuccess ? loaded.Value.BangerPlaylistId : null;
+        if (string.IsNullOrWhiteSpace(playlistId))
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Playlist.NoPlaylist,
+                "No playlist ID configured.",
+                [],
                 ct
             );
-            return Result.Success(empty);
-        }
 
-        string nowPlaying = queue.CurrentTrack is { } current
-            ? $"{current.TrackName} by {current.Artist}"
-            : "nothing right now";
+        string? provider =
+            loaded.Value.BangerPlaylistProvider
+            ?? await music.GetActiveProviderKeyAsync(broadcasterId, ct);
+        string? url = ToWebLink(provider, playlistId);
+        if (url is null)
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Playlist.NotFound,
+                "Playlist not found.",
+                [],
+                ct
+            );
 
-        string upcoming = queueEmpty
-            ? "nothing queued after this"
-            : string.Join(", ", queue.Queue.Take(5).Select(t => $"{t.TrackName} by {t.Artist}"));
-
-        string message = await composer.ComposeAsync(
-            new()
-            {
-                BroadcasterId = context.BroadcasterId,
-                Personality = context.Personality,
-                BuiltinKey = BuiltinResponseSlots.Playlist.Key,
-                Slot = BuiltinResponseSlots.Playlist.Summary,
-                NeutralFallback =
-                    "Now playing: {playlist.nowplaying} — up next: {playlist.upcoming} ({playlist.count} queued)",
-                Variables = new Dictionary<string, string>
-                {
-                    ["playlist.nowplaying"] = nowPlaying,
-                    ["playlist.upcoming"] = upcoming,
-                    ["playlist.count"] = queue.Queue.Count.ToString(),
-                },
-            },
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Playlist.Link,
+            "The bangers playlist is: {playlist.url}",
+            new Dictionary<string, string> { ["playlist.url"] = url },
             ct
         );
-        return Result.Success(message);
     }
+
+    private static string? ToWebLink(string? provider, string playlistId) =>
+        provider?.ToLowerInvariant() switch
+        {
+            "spotify" => SpotifyPlaylistUrl + playlistId,
+            "youtube" => YouTubePlaylistUrl + playlistId,
+            _ => null,
+        };
+
+    private async Task<Result<string>> ReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string fallback,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    ) =>
+        Result.Success(
+            await composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Playlist.Key,
+                slot,
+                fallback,
+                variables,
+                ct
+            )
+        );
 }

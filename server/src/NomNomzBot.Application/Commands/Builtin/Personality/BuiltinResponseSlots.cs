@@ -52,7 +52,7 @@ public static partial class BuiltinResponseSlots
             [FollowAge.Key] = [FollowAge.Age],
             [Discord.Key] = [Discord.Invite],
             [Leaderboard.Key] = [Leaderboard.Top],
-            [Playlist.Key] = [Playlist.Summary],
+            [Playlist.Key] = [Playlist.Link, Playlist.NoPlaylist, Playlist.NotFound],
             [Forgetme.Key] = [Forgetme.Done],
             [Stats.Key] = [Stats.Profile],
         };

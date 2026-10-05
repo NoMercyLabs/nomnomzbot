@@ -230,15 +230,18 @@ public static partial class BuiltinResponseSlots
         public const string Disabled = "disabled";
     }
 
-    /// <summary><c>!playlist</c> — the channel's playlist summary.</summary>
+    /// <summary><c>!playlist</c> — the link to the channel's bangers playlist.</summary>
     public static class Playlist
     {
         public const string Key = "playlist";
 
-        /// <summary>Nothing plays and the queue is empty — no variables.</summary>
-        public const string Empty = "empty";
+        /// <summary>The bangers playlist link; <c>{playlist.url}</c> is set.</summary>
+        public const string Link = "link";
 
-        /// <summary>The summary line; <c>{playlist.nowplaying}</c>/<c>{playlist.upcoming}</c>/<c>{playlist.count}</c> are set.</summary>
-        public const string Summary = "summary";
+        /// <summary>No bangers playlist is configured — no variables.</summary>
+        public const string NoPlaylist = "noplaylist";
+
+        /// <summary>The configured playlist has no public link on its provider — no variables.</summary>
+        public const string NotFound = "notfound";
     }
 }
