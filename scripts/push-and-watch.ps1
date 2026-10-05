@@ -45,14 +45,16 @@ function Invoke-Native {
 
 Push-Location $repo
 try {
+    # Read the SHA once, BEFORE the push, and push exactly that commit: a commit landed on this shared
+    # tree during the push moved HEAD, and the watch then waited for a run that could never exist.
+    [string]$sha = (git rev-parse HEAD).Trim()
     if (-not $DryRun) {
-        Write-Host '== pushing HEAD to origin/master =='
-        Invoke-Native 'git push failed - rebase onto origin/master and retry' { git push origin HEAD:master }
+        Write-Host "== pushing $($sha.Substring(0,9)) to origin/master =="
+        Invoke-Native 'git push failed - rebase onto origin/master and retry' { git push origin "${sha}:refs/heads/master" }
     }
 
     # The run for the just-pushed commit does not exist instantly; poll briefly for it by SHA rather
     # than grabbing "the latest run", which can be someone else's push.
-    [string]$sha = (git rev-parse HEAD).Trim()
     # Filter in PowerShell rather than with `gh -q`: a jq expression containing the SHA has to survive
     # PowerShell quoting AND jq quoting, and it silently matched nothing when it did not.
     [string]$runId = $null
