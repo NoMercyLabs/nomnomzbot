@@ -18,6 +18,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -65,6 +66,7 @@ public sealed class ChannelOfflineHandlerTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             inbox,
+            new ShoutoutQueue(),
             new FakeTimeProvider(new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero)),
             NullLogger<ChannelOfflineHandler>.Instance
         );
@@ -81,4 +83,63 @@ public sealed class ChannelOfflineHandlerTests
 
         inbox.Calls.Should().Equal((Broadcaster, false));
     }
+
+    [Fact]
+    public async Task Going_offline_clears_the_shoutouts_still_waiting_in_that_channels_queue_and_leaves_other_channels_alone()
+    {
+        ShoutoutQueue queue = new();
+        Guid otherChannel = Guid.Parse("0192f000-0000-7000-8000-0000000000d2");
+        queue.Enqueue(WaitingShoutout(Broadcaster, "501"));
+        queue.Enqueue(WaitingShoutout(otherChannel, "502"));
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(AuthTestBuilder.NewContext())
+            .AddSingleton(Substitute.For<IEventResponseExecutor>())
+            .BuildServiceProvider();
+        ChannelOfflineHandler sut = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IChannelRegistry>(),
+            new LiveStateCapturingNotifier(AuthTestBuilder.NewContext()),
+            queue,
+            new FakeTimeProvider(new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero)),
+            NullLogger<ChannelOfflineHandler>.Instance
+        );
+
+        await sut.HandleAsync(
+            new ChannelOfflineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer8",
+                StreamDuration = TimeSpan.FromHours(1),
+            }
+        );
+
+        queue.Peek(Broadcaster).Should().BeNull();
+        queue.Peek(otherChannel)!.Target.Id.Should().Be("502");
+    }
+
+    private static QueuedShoutout WaitingShoutout(Guid broadcasterId, string targetId) =>
+        new(
+            broadcasterId,
+            new(
+                Id: targetId,
+                Login: "login" + targetId,
+                DisplayName: "Name" + targetId,
+                Type: "",
+                BroadcasterType: "",
+                Description: "",
+                ProfileImageUrl: "",
+                OfflineImageUrl: "",
+                ViewCount: 0,
+                CreatedAt: DateTimeOffset.UnixEpoch
+            ),
+            "line",
+            false,
+            "viewer-1",
+            IsRaid: false,
+            TimeSpan.FromMinutes(2),
+            TimeSpan.FromMinutes(60),
+            DateTimeOffset.UnixEpoch
+        );
 }

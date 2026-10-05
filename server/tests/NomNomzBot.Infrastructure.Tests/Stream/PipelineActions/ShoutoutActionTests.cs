@@ -10,7 +10,6 @@
 
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
@@ -41,6 +40,17 @@ public sealed class ShoutoutActionTests
             TriggeredByDisplayName = "Viewer",
             MessageId = "m1",
             RawMessage = "!so target",
+        };
+
+    /// <summary>A run no chat message started (timer, event response, owner action): no message id.</summary>
+    private static PipelineExecutionContext AutomatedCtx() =>
+        new()
+        {
+            BroadcasterId = Channel,
+            TriggeredByUserId = "tw-1",
+            TriggeredByDisplayName = "Viewer",
+            MessageId = string.Empty,
+            RawMessage = string.Empty,
         };
 
     private static ActionDefinition Shoutout(string userId) =>
@@ -108,15 +118,14 @@ public sealed class ShoutoutActionTests
             )
             .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
 
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
             AuthTestBuilder.NewContext(),
             resolver,
             Substitute.For<ITtsDispatchService>(),
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
         return (sut, chat, users);
     }
@@ -243,15 +252,14 @@ public sealed class ShoutoutActionTests
         );
         await db.SaveChangesAsync();
 
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
             db,
             resolver,
             Substitute.For<ITtsDispatchService>(),
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
 
         ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
@@ -332,15 +340,14 @@ public sealed class ShoutoutActionTests
         );
         await db.SaveChangesAsync();
 
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
             db,
             resolver,
             Substitute.For<ITtsDispatchService>(),
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
 
         ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
@@ -427,15 +434,14 @@ public sealed class ShoutoutActionTests
         );
         await db.SaveChangesAsync();
 
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
             db,
             resolver,
             Substitute.For<ITtsDispatchService>(),
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
 
         ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
@@ -538,15 +544,14 @@ public sealed class ShoutoutActionTests
             }
         );
         await db.SaveChangesAsync();
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
             db,
             resolver,
             tts,
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
 
         // Manual invocation (e.g. chat-triggered !so): tts:true speaks the announcement.
@@ -581,7 +586,7 @@ public sealed class ShoutoutActionTests
     }
 
     /// <summary>
-    /// A shoutout skipped by cooldown must be visible to the invoker as a distinguishable, non-generic
+    /// An automated (not manual, not raid) shoutout skipped by cooldown must be visible to the invoker as a distinguishable, non-generic
     /// outcome — not collapsed into the same bare "success" a real shoutout produces, and not silent (a
     /// debug-only log the chat-side caller never sees). Proves the returned Output actually names the reason,
     /// and that no shoutout/announcement Helix calls happen while the cooldown is live.
@@ -613,18 +618,17 @@ public sealed class ShoutoutActionTests
         channelCtx.LastGlobalShoutout = TimeProvider.System.GetUtcNow();
         registry.Get(Channel).Returns(channelCtx);
 
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             registry,
             AuthTestBuilder.NewContext(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<ITtsDispatchService>(),
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
 
-        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+        ActionResult result = await sut.ExecuteAsync(AutomatedCtx(), Shoutout("123456"));
 
         result.Succeeded.Should().BeTrue();
         result.Output.Should().NotBeNullOrWhiteSpace();

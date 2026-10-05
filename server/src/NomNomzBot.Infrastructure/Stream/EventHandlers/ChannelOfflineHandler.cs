@@ -32,6 +32,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
     private readonly IPipelineEngine _pipeline;
     private readonly IChannelRegistry _registry;
     private readonly IActionRequiredChangeNotifier _inbox;
+    private readonly IShoutoutQueue _shoutoutQueue;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChannelOfflineHandler> _logger;
 
@@ -40,6 +41,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         IPipelineEngine pipeline,
         IChannelRegistry registry,
         IActionRequiredChangeNotifier inbox,
+        IShoutoutQueue shoutoutQueue,
         TimeProvider timeProvider,
         ILogger<ChannelOfflineHandler> logger
     )
@@ -48,6 +50,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         _pipeline = pipeline;
         _registry = registry;
         _inbox = inbox;
+        _shoutoutQueue = shoutoutQueue;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -60,6 +63,9 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty)
             return;
+
+        // The shoutout queue lives for one stream session (old-bot parity): nothing waits across a live edge.
+        _shoutoutQueue.Clear(broadcasterId);
 
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =

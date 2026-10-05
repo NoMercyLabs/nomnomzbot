@@ -406,6 +406,11 @@ public static class DependencyInjection
             (MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
         );
         services.AddHostedService<SongRequestQueueRestoreHostedService>();
+        // A manual or raid shoutout inside Twitch's global cooldown waits here (in memory, per stream
+        // session) and the worker releases it once the cooldown has passed.
+        services.AddSingleton<IShoutoutQueue, Stream.ShoutoutQueue>();
+        services.AddScoped<IShoutoutSender, Stream.ShoutoutSender>();
+        services.AddHostedService<Stream.ShoutoutQueueWorker>();
         // Polls every connected music integration at a flat 1s cadence and publishes PlaybackStateChangedEvent
         // on any state the bot didn't cause itself (streamer's own phone/desktop app, a track ending, a manual
         // seek) — without this registration the class compiles and is fully tested but nothing ever runs it, so

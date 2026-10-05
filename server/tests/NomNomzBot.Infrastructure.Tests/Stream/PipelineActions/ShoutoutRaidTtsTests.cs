@@ -10,7 +10,6 @@
 
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
@@ -134,15 +133,14 @@ public sealed class ShoutoutRaidTtsTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Channel).Returns(channelCtx);
 
-        ShoutoutAction sut = new(
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             registry,
             db,
             resolver,
             tts,
-            TimeProvider.System,
-            NullLogger<ShoutoutAction>.Instance
+            TimeProvider.System
         );
         return new()
         {
@@ -217,7 +215,7 @@ public sealed class ShoutoutRaidTtsTests
     }
 
     [Fact]
-    public async Task A_raid_shoutout_inside_the_global_cooldown_still_announces_and_speaks_but_skips_the_native_call()
+    public async Task A_raid_shoutout_inside_the_global_cooldown_waits_instead_of_announcing_early()
     {
         Rig rig = await BuildAsync();
         rig.ChannelCtx.LastGlobalShoutout = TimeProvider.System.GetUtcNow();
@@ -225,9 +223,10 @@ public sealed class ShoutoutRaidTtsTests
         ActionResult result = await rig.Sut.ExecuteAsync(EventCtx("channel.raid"), Step(null));
 
         result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("queued (global cooldown)");
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
-        await AssertRaiderLineAnnouncedAsync(rig);
-        await AssertRaiderLineSpokenAsync(rig);
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     [Fact]

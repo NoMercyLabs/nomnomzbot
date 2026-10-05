@@ -13,11 +13,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -39,7 +41,7 @@ public sealed class ChannelOnlineHandlerTests
         ChannelOnlineHandler Sut,
         AuthDbContext Db,
         LiveStateCapturingNotifier Inbox
-    ) Build(ChannelContext? ctx = null)
+    ) Build(ChannelContext? ctx = null, IShoutoutQueue? shoutoutQueue = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -83,6 +85,7 @@ public sealed class ChannelOnlineHandlerTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             registry,
             inbox,
+            shoutoutQueue ?? new ShoutoutQueue(),
             NullLogger<ChannelOnlineHandler>.Instance
         );
         return (sut, db, inbox);
@@ -183,4 +186,53 @@ public sealed class ChannelOnlineHandlerTests
 
         inbox.Calls.Should().Equal((Broadcaster, true));
     }
+
+    [Fact]
+    public async Task Going_live_clears_the_shoutouts_still_waiting_in_that_channels_queue_and_leaves_other_channels_alone()
+    {
+        ShoutoutQueue queue = new();
+        Guid otherChannel = Guid.Parse("0192f000-0000-7000-8000-0000000000c2");
+        queue.Enqueue(WaitingShoutout(Broadcaster, "501"));
+        queue.Enqueue(WaitingShoutout(otherChannel, "502"));
+        (ChannelOnlineHandler sut, _, _) = Build(shoutoutQueue: queue);
+
+        await sut.HandleAsync(
+            new ChannelOnlineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer9",
+                StreamTitle = "New session",
+                GameName = "Just Chatting",
+                StartedAt = new(2026, 8, 27, 18, 0, 0, TimeSpan.Zero),
+            }
+        );
+
+        queue.Peek(Broadcaster).Should().BeNull();
+        queue.Peek(otherChannel)!.Target.Id.Should().Be("502");
+    }
+
+    private static QueuedShoutout WaitingShoutout(Guid broadcasterId, string targetId) =>
+        new(
+            broadcasterId,
+            new(
+                Id: targetId,
+                Login: "login" + targetId,
+                DisplayName: "Name" + targetId,
+                Type: "",
+                BroadcasterType: "",
+                Description: "",
+                ProfileImageUrl: "",
+                OfflineImageUrl: "",
+                ViewCount: 0,
+                CreatedAt: DateTimeOffset.UnixEpoch
+            ),
+            "line",
+            false,
+            "viewer-1",
+            IsRaid: false,
+            TimeSpan.FromMinutes(2),
+            TimeSpan.FromMinutes(60),
+            DateTimeOffset.UnixEpoch
+        );
 }

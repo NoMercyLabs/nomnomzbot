@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -34,18 +35,21 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly IActionRequiredChangeNotifier _inbox;
+    private readonly IShoutoutQueue _shoutoutQueue;
     private readonly ILogger<ChannelOnlineHandler> _logger;
 
     public ChannelOnlineHandler(
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
         IActionRequiredChangeNotifier inbox,
+        IShoutoutQueue shoutoutQueue,
         ILogger<ChannelOnlineHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
         _inbox = inbox;
+        _shoutoutQueue = shoutoutQueue;
         _logger = logger;
     }
 
@@ -57,6 +61,9 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty)
             return;
+
+        // The shoutout queue lives for one stream session (old-bot parity): nothing waits across a live edge.
+        _shoutoutQueue.Clear(broadcasterId);
 
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
