@@ -1798,8 +1798,11 @@ public sealed class SpotifyMusicProvider
             "Spotify API request failed",
             cancellationToken
         );
-        if (response is null || response.RequestMessage is null)
-            return response; // null, or the stand-in 429 for a cooling channel: nothing to classify.
+        // Null, or a 429 (real or the cooling stand-in): nothing to classify. Never key this on
+        // RequestMessage — a handler-built response (every test fake) carries none, and the 401/403
+        // classification was silently skipped for all of them (2026-10-06).
+        if (response is null || response.StatusCode == HttpStatusCode.TooManyRequests)
+            return response;
 
         await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
         return response;
@@ -1941,8 +1944,8 @@ public sealed class SpotifyMusicProvider
             "Spotify player command failed",
             cancellationToken
         );
-        if (sent is null || sent.RequestMessage is null)
-            return sent; // null, or the stand-in 429 for a cooling channel.
+        if (sent is null || sent.StatusCode == HttpStatusCode.TooManyRequests)
+            return sent; // null, or a 429 (real, or the stand-in for a cooling channel).
         HttpResponseMessage response = sent;
 
         if (
