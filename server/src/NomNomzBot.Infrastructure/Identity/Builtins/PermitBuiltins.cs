@@ -39,7 +39,7 @@ internal static class PermitBuiltinSupport
 
     private const string AccountUnresolvedCode = "ACCOUNT_UNRESOLVED";
     private const string NoTargetCode = "NO_TARGET";
-    private const string TargetNotFoundCode = "TARGET_NOT_FOUND";
+    internal const string TargetNotFoundCode = "TARGET_NOT_FOUND";
     private const string TargetUnresolvedCode = "TARGET_UNRESOLVED";
     private const string ForbiddenCode = "FORBIDDEN";
 

@@ -1158,6 +1158,9 @@ public static class DependencyInjection
         // Temporary-delegation chat surface (!permit/!unpermit) — permit:issue-gated in-command.
         services.AddScoped<IBuiltinCommand, Identity.Builtins.PermitBuiltin>();
         services.AddScoped<IBuiltinCommand, Identity.Builtins.UnpermitBuiltin>();
+        // Broadcaster-only manual community-standing override (!whitelist / !unwhitelist).
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.WhitelistBuiltin>();
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.UnwhitelistBuiltin>();
         // Viewer stats (!stats + legacy-parity alias !profile) — composes existing read-models.
         services.AddScoped<IBuiltinCommand, Tts.Builtins.VoiceBuiltin>();
         services.AddScoped<IBuiltinCommand, ViewerData.Builtins.StatsBuiltin>();

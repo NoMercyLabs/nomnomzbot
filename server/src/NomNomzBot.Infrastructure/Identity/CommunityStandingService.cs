@@ -43,6 +43,10 @@ public sealed class CommunityStandingService(
             s => s.BroadcasterId == broadcasterId && s.UserId == userId,
             cancellationToken
         );
+        // A broadcaster override is never replaced by a synced read; only another manual write changes it.
+        if (existing is { Source: StandingSource.Manual } && source != StandingSource.Manual)
+            return Result.Success();
+
         CommunityStanding old = existing?.Standing ?? CommunityStanding.Everyone;
         DateTime now = clock.GetUtcNow().UtcDateTime;
 
@@ -85,6 +89,53 @@ public sealed class CommunityStandingService(
             );
 
         return Result.Success();
+    }
+
+    public Task<Result> SetManualStandingAsync(
+        Guid broadcasterId,
+        Guid userId,
+        CommunityStanding standing,
+        CancellationToken cancellationToken = default
+    ) =>
+        UpsertStandingAsync(
+            broadcasterId,
+            userId,
+            standing,
+            StandingSource.Manual,
+            subTier: null,
+            cancellationToken
+        );
+
+    public async Task<Result<bool>> RemoveManualStandingAsync(
+        Guid broadcasterId,
+        Guid userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ChannelCommunityStanding? row = await db.ChannelCommunityStandings.FirstOrDefaultAsync(
+            s =>
+                s.BroadcasterId == broadcasterId
+                && s.UserId == userId
+                && s.Source == StandingSource.Manual,
+            cancellationToken
+        );
+        if (row is null)
+            return Result.Success(false);
+
+        db.ChannelCommunityStandings.Remove(row);
+        await db.SaveChangesAsync(cancellationToken);
+        await eventBus.PublishAsync(
+            new CommunityStandingChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                TargetUserId = userId,
+                OldStanding = row.Standing,
+                NewStanding = CommunityStanding.Everyone,
+                Source = StandingSource.Manual,
+            },
+            cancellationToken
+        );
+        return Result.Success(true);
     }
 
     public async Task<Result<CommunityStanding>> GetStandingAsync(
@@ -243,6 +294,9 @@ public sealed class CommunityStandingService(
     {
         if (current is not { } cur)
             return desired; // no row yet — create at the Twitch standing
+
+        if (currentSource == StandingSource.Manual)
+            return null; // a broadcaster override is never raised, lowered or replaced by a sync
 
         int curLevel = cur.ToLevel();
         int desLevel = desired.ToLevel();

@@ -23,6 +23,8 @@ public static partial class ToneTemplateCatalog
         AddMediaSlots(catalog);
         AddPermitSlots(catalog);
         AddUnpermitSlots(catalog);
+        AddWhitelistSlots(catalog);
+        AddUnwhitelistSlots(catalog);
     }
 
     private static void AddCommunitySamples(Dictionary<string, string> samples)
@@ -53,6 +55,7 @@ public static partial class ToneTemplateCatalog
         samples["media.title"] = "Insane 1v4 clutch";
         samples["permit.role"] = "Moderator";
         samples["permit.capability"] = "quotes:write";
+        samples["whitelist.level"] = "vip";
     }
 
     // ── !forgetme / done — the ONLY customizable data-rights line (gdpr-crypto.md section 9 part 1) ──

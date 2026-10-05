@@ -158,6 +158,30 @@
     <string name="builtin_reply_unpermit_revoked_description">Een permit van een gebruiker is verwijderd.</string>
     <string name="builtin_reply_unpermit_revokefailed_label">Intrekken mislukt</string>
     <string name="builtin_reply_unpermit_revokefailed_description">De permit kon niet worden verwijderd.</string>
+    <string name="builtin_reply_whitelist_usage_label">Uitleg</string>
+    <string name="builtin_reply_whitelist_usage_description">Iemand gebruikt het commando zonder een gebruiker en een niveau.</string>
+    <string name="builtin_reply_whitelist_notallowed_label">Niet toegestaan</string>
+    <string name="builtin_reply_whitelist_notallowed_description">De persoon is niet de streamer.</string>
+    <string name="builtin_reply_whitelist_invalidlevel_label">Onbekend niveau</string>
+    <string name="builtin_reply_whitelist_invalidlevel_description">Het niveau is niet subscriber, vip of moderator.</string>
+    <string name="builtin_reply_whitelist_targetnotfound_label">Gebruiker niet gevonden</string>
+    <string name="builtin_reply_whitelist_targetnotfound_description">De genoemde gebruiker staat niet op Twitch.</string>
+    <string name="builtin_reply_whitelist_granted_label">Toegang gegeven</string>
+    <string name="builtin_reply_whitelist_granted_description">Een gebruiker krijgt een uitzondering op de rechten.</string>
+    <string name="builtin_reply_whitelist_failed_label">Opslaan mislukt</string>
+    <string name="builtin_reply_whitelist_failed_description">De uitzondering kon niet worden opgeslagen.</string>
+    <string name="builtin_reply_unwhitelist_usage_label">Uitleg</string>
+    <string name="builtin_reply_unwhitelist_usage_description">Iemand gebruikt het commando zonder een gebruiker.</string>
+    <string name="builtin_reply_unwhitelist_notallowed_label">Niet toegestaan</string>
+    <string name="builtin_reply_unwhitelist_notallowed_description">De persoon is niet de streamer.</string>
+    <string name="builtin_reply_unwhitelist_targetnotfound_label">Gebruiker niet gevonden</string>
+    <string name="builtin_reply_unwhitelist_targetnotfound_description">De genoemde gebruiker staat niet op Twitch.</string>
+    <string name="builtin_reply_unwhitelist_removed_label">Uitzondering verwijderd</string>
+    <string name="builtin_reply_unwhitelist_removed_description">De uitzondering op de rechten van een gebruiker is verwijderd.</string>
+    <string name="builtin_reply_unwhitelist_nooverride_label">Geen uitzondering</string>
+    <string name="builtin_reply_unwhitelist_nooverride_description">De gebruiker had geen uitzondering om te verwijderen.</string>
+    <string name="builtin_reply_unwhitelist_failed_label">Verwijderen mislukt</string>
+    <string name="builtin_reply_unwhitelist_failed_description">De uitzondering kon niet worden verwijderd.</string>
     <string name="builtin_reply_var_target_name">De naam van het kanaal in de shoutout</string>
     <string name="builtin_reply_var_target_link">Link naar het kanaal in de shoutout</string>
     <string name="builtin_reply_var_target_game">De game die ze het laatst speelden</string>
@@ -184,4 +208,5 @@
     <string name="builtin_reply_var_media_title">De titel van de clip of video</string>
     <string name="builtin_reply_var_permit_role">De rol</string>
     <string name="builtin_reply_var_permit_capability">Het recht of de rol die is genoemd</string>
+    <string name="builtin_reply_var_whitelist_level">Het niveau dat is genoemd</string>
 </resources>

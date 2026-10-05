@@ -32,6 +32,27 @@ public interface ICommunityStandingService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Writes a broadcaster-set override (<see cref="StandingSource.Manual"/>) that no sync path overwrites,
+    /// lowers or deletes. Replaces any synced row of the viewer.
+    /// </summary>
+    Task<Result> SetManualStandingAsync(
+        Guid broadcasterId,
+        Guid userId,
+        CommunityStanding standing,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Removes the viewer's manual override. <c>true</c> when one existed; <c>false</c> when there was none
+    /// (a synced row is never touched).
+    /// </summary>
+    Task<Result<bool>> RemoveManualStandingAsync(
+        Guid broadcasterId,
+        Guid userId,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The viewer's current standing (<c>Everyone</c> when none is recorded).</summary>
     Task<Result<CommunityStanding>> GetStandingAsync(
         Guid broadcasterId,

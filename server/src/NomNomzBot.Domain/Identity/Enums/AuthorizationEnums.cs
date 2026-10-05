@@ -63,6 +63,9 @@ public enum StandingSource
     ChatTags,
     EventSubBadge,
     HelixSeed,
+
+    /// <summary>Set by the broadcaster (<c>!whitelist</c>); no sync path ever overwrites, lowers or deletes it.</summary>
+    Manual,
 }
 
 /// <summary>Whether a <c>PermitGrant</c> grants a whole role or a single capability.</summary>

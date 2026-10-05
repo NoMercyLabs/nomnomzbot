@@ -158,6 +158,30 @@
     <string name="builtin_reply_unpermit_revoked_description">One permit of a user is removed.</string>
     <string name="builtin_reply_unpermit_revokefailed_label">Revoke failed</string>
     <string name="builtin_reply_unpermit_revokefailed_description">The permit could not be removed.</string>
+    <string name="builtin_reply_whitelist_usage_label">Usage</string>
+    <string name="builtin_reply_whitelist_usage_description">Someone uses the command without a user and a level.</string>
+    <string name="builtin_reply_whitelist_notallowed_label">Not allowed</string>
+    <string name="builtin_reply_whitelist_notallowed_description">The person is not the broadcaster.</string>
+    <string name="builtin_reply_whitelist_invalidlevel_label">Unknown level</string>
+    <string name="builtin_reply_whitelist_invalidlevel_description">The level is not subscriber, vip or moderator.</string>
+    <string name="builtin_reply_whitelist_targetnotfound_label">User not found</string>
+    <string name="builtin_reply_whitelist_targetnotfound_description">The mentioned user is not on Twitch.</string>
+    <string name="builtin_reply_whitelist_granted_label">Access given</string>
+    <string name="builtin_reply_whitelist_granted_description">A user gets a permission override.</string>
+    <string name="builtin_reply_whitelist_failed_label">Save failed</string>
+    <string name="builtin_reply_whitelist_failed_description">The override could not be saved.</string>
+    <string name="builtin_reply_unwhitelist_usage_label">Usage</string>
+    <string name="builtin_reply_unwhitelist_usage_description">Someone uses the command without a user.</string>
+    <string name="builtin_reply_unwhitelist_notallowed_label">Not allowed</string>
+    <string name="builtin_reply_unwhitelist_notallowed_description">The person is not the broadcaster.</string>
+    <string name="builtin_reply_unwhitelist_targetnotfound_label">User not found</string>
+    <string name="builtin_reply_unwhitelist_targetnotfound_description">The mentioned user is not on Twitch.</string>
+    <string name="builtin_reply_unwhitelist_removed_label">Override removed</string>
+    <string name="builtin_reply_unwhitelist_removed_description">The permission override of a user is removed.</string>
+    <string name="builtin_reply_unwhitelist_nooverride_label">No override</string>
+    <string name="builtin_reply_unwhitelist_nooverride_description">The user had no override to remove.</string>
+    <string name="builtin_reply_unwhitelist_failed_label">Remove failed</string>
+    <string name="builtin_reply_unwhitelist_failed_description">The override could not be removed.</string>
     <string name="builtin_reply_var_target_name">The shouted-out channel name</string>
     <string name="builtin_reply_var_target_link">Link to the shouted-out channel</string>
     <string name="builtin_reply_var_target_game">The game they last played</string>
@@ -184,4 +208,5 @@
     <string name="builtin_reply_var_media_title">The clip or video title</string>
     <string name="builtin_reply_var_permit_role">The role</string>
     <string name="builtin_reply_var_permit_capability">The right or role that was named</string>
+    <string name="builtin_reply_var_whitelist_level">The level that was named</string>
 </resources>
