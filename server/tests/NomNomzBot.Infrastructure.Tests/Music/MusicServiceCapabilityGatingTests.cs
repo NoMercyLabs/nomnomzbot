@@ -183,6 +183,32 @@ public sealed class MusicServiceCapabilityGatingTests
             );
     }
 
+    [Fact]
+    public async Task Playlists_carry_the_provider_key_of_the_active_provider()
+    {
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/me/playlists", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"items":[
+              {"id":"pl1","name":"Bangers","uri":"spotify:playlist:pl1","tracks":{"total":12}}
+            ]}
+            """
+        );
+
+        IReadOnlyList<MusicPlaylistDto> playlists = await sut.GetPlaylistsAsync(
+            ChannelId.ToString()
+        );
+
+        playlists.Should().ContainSingle();
+        playlists[0]
+            .Should()
+            .Be(
+                new MusicPlaylistDto("pl1", "Bangers", "spotify:playlist:pl1", 12, null, "spotify")
+            );
+    }
+
     [Theory]
     [InlineData("not-a-guid")]
     [InlineData("")]

@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
@@ -32,6 +33,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
+
+private const val PLAYLIST_PAGE_SIZE: Int = 50
+private const val PLAYLIST_MAX_PAGES: Int = 10
 
 // The Song Requests page's state-holder — the channel's live queue AND every song-request-specific
 // management capability: config (max queue, allowed providers, trust floor), the blocked-track list, and
@@ -87,11 +91,14 @@ class SongRequestsController(
             val configDeferred = async { songRequestsApi.config(channel.id) }
             val tokenDeferred = async { songRequestsApi.srPageToken(channel.id) }
             val blockedDeferred = async { songRequestsApi.blockedTracks(channel.id, page = blockedPage) }
+            val playlistsDeferred = async { loadAllPlaylists(channel.id) }
 
             val queueResult: ApiResult<List<QueuedSong>> = queueDeferred.await()
             val configResult: ApiResult<MusicConfig> = configDeferred.await()
             val tokenResult: ApiResult<String> = tokenDeferred.await()
             val blockedResult: ApiResult<BlockedTrackPage> = blockedDeferred.await()
+            // No connected music account (or no library scope) is not an error for the page: the picker is empty.
+            val playlists: List<MusicPlaylist> = playlistsDeferred.await()
 
             if (queueResult is ApiResult.Failure) {
                 _state.value = SongRequestsState.Error(queueResult.error.message)
@@ -113,6 +120,7 @@ class SongRequestsController(
             _state.value = SongRequestsState.Ready(
                 queue = queue,
                 config = config,
+                playlists = playlists,
                 srPageToken = srPageToken,
                 shareLink = shareLink,
                 tokenUrl = buildTokenUrl(baseUrlProvider(), srPageToken),
@@ -215,6 +223,42 @@ class SongRequestsController(
         }
     }
 
+    /**
+     * Point `!banger` at [playlist], saved under the provider the server listed it from ([MusicPlaylist.provider]),
+     * never a guess. An empty provider clears the stored one so `!banger` falls back to the playing song's provider.
+     * Reloads on success.
+     */
+    suspend fun chooseBangerPlaylist(playlist: MusicPlaylist) =
+        updateConfig(
+            UpdateMusicConfigBody(bangerPlaylistId = playlist.id, bangerPlaylistProvider = playlist.provider),
+        )
+
+    /**
+     * Every playlist of the connected account, page by page. The picker is a plain list, so it loads all pages
+     * (rather than a load-more control that hides playlists past the first 50) and stops at the first short page.
+     * [PLAYLIST_MAX_PAGES] bounds a runaway library. No connected account (or no library scope) fails the first
+     * page, which is not an error for the page: the picker is empty. A later failed page keeps what was loaded.
+     */
+    private suspend fun loadAllPlaylists(channel: String): List<MusicPlaylist> {
+        val all: MutableList<MusicPlaylist> = mutableListOf()
+        for (page: Int in 0 until PLAYLIST_MAX_PAGES) {
+            val result: ApiResult<List<MusicPlaylist>> =
+                songRequestsApi.playlists(channel, offset = page * PLAYLIST_PAGE_SIZE, limit = PLAYLIST_PAGE_SIZE)
+            val items: List<MusicPlaylist> = (result as? ApiResult.Ok)?.value ?: break
+            all += items
+            if (items.size < PLAYLIST_PAGE_SIZE) break
+        }
+        return all
+    }
+
+    /** Clear the `!banger` playlist choice (the backend reads an empty string as "clear"). Reloads on success. */
+    suspend fun clearBangerPlaylist() =
+        updateConfig(UpdateMusicConfigBody(bangerPlaylistId = "", bangerPlaylistProvider = ""))
+
+    /** Switch "create a playlist on first use" for `!banger`. Reloads on success. */
+    suspend fun setBangerAutoCreate(enabled: Boolean) =
+        updateConfig(UpdateMusicConfigBody(bangerAutoCreate = enabled))
+
     /** Rotate the SR-page token so the old share link stops working. */
     suspend fun rotateSrPageToken() {
         val channel: String = channelId ?: return
@@ -285,6 +329,8 @@ sealed interface SongRequestsState {
     data class Ready(
         val queue: List<QueuedSong>,
         val config: MusicConfig?,
+        // The connected account's playlists for the `!banger` picker; empty when none are readable.
+        val playlists: List<MusicPlaylist> = emptyList(),
         val srPageToken: String?,
         // The absolute, human-friendly public SR link (`{origin}/sr/@name`); null when the origin/login is unknown.
         val shareLink: String? = null,

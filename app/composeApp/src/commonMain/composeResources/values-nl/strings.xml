@@ -1302,6 +1302,14 @@
     <string name="songrequests_config_max_per_user">Max. per gebruiker</string>
     <string name="songrequests_config_trust">Minimaal vertrouwensniveau</string>
     <string name="songrequests_config_save">Opslaan</string>
+    <string name="songrequests_banger_title">Banger-afspeellijst</string>
+    <string name="songrequests_banger_hint">De afspeellijst waaraan !banger het huidige nummer toevoegt. Wijzigingen worden direct opgeslagen.</string>
+    <string name="songrequests_banger_playlist_label">Afspeellijst</string>
+    <string name="songrequests_banger_playlist_none">Geen afspeellijst gekozen</string>
+    <string name="songrequests_banger_provider_label">Aanbieder: %1$s</string>
+    <string name="songrequests_banger_provider_none">niet ingesteld</string>
+    <string name="songrequests_banger_auto_create">Maak een afspeellijst bij eerste gebruik</string>
+    <string name="songrequests_banger_clear">Keuze wissen</string>
     <string name="songrequests_token_title">Link verzoekpagina</string>
     <string name="songrequests_token_copy">Kopiëren</string>
     <string name="songrequests_token_rotate">Link vernieuwen…</string>

@@ -285,7 +285,10 @@ data class MusicDevice(
     val volumePercent: Int = 0,
 )
 
-/** A user playlist (backend `MusicPlaylistDto`). */
+/**
+ * A user playlist (backend `MusicPlaylistDto`). [provider] is the provider key (`spotify` or `youtube`) the
+ * server listed it from; empty only when an older server sent none.
+ */
 @Serializable
 data class MusicPlaylist(
     val id: String = "",
@@ -293,6 +296,7 @@ data class MusicPlaylist(
     val uri: String = "",
     val trackCount: Int = 0,
     val imageUrl: String? = null,
+    val provider: String = "",
 )
 
 // ── Blocked tracks ───────────────────────────────────────────────────────────

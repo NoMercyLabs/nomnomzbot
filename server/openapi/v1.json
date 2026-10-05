@@ -107691,7 +107691,8 @@
           "name",
           "uri",
           "trackCount",
-          "imageUrl"
+          "imageUrl",
+          "provider"
         ],
         "type": "object",
         "properties": {
@@ -107717,8 +107718,12 @@
               "null",
               "string"
             ]
+          },
+          "provider": {
+            "type": "string"
           }
-        }
+        },
+        "description": "A playlist of the channel's active music provider. Provider is the provider key\n(`spotify` or `youtube`) the list came from, so a client that saves the playlist stores it\nunder the provider that really owns it instead of guessing."
       },
       "MusicQueueDto": {
         "required": [

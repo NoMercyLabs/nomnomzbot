@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
@@ -488,6 +489,134 @@ class SongRequestsControllerTest {
         assertEquals(listOf("Song 26"), state.blockedTracks.map { it.title })
         assertEquals(26, state.blockedTotal)
     }
+    @Test
+    fun load_surfaces_the_channel_playlists_for_the_banger_picker() = runTest {
+        val playlists: List<MusicPlaylist> =
+            listOf(MusicPlaylist(id = "PL1", name = "Bangers", uri = "spotify:playlist:PL1", trackCount = 12))
+        val controller =
+            SongRequestsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeSongRequestsApi(
+                    queueResults = listOf(ApiResult.Ok(emptyList())),
+                    playlistsResult = ApiResult.Ok(playlists),
+                ),
+            )
+
+        controller.load()
+
+        val ready: SongRequestsState.Ready = controller.state.value as SongRequestsState.Ready
+        assertEquals(playlists, ready.playlists)
+    }
+
+    @Test
+    fun choosing_a_playlist_saves_the_provider_the_playlist_came_from_not_a_guess() = runTest {
+        // The channel prefers Spotify, but the server listed this playlist from YouTube: the saved provider
+        // must be the playlist's own.
+        val songRequestsApi: FakeSongRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())))
+        songRequestsApi.storedConfig = MusicConfig(preferredProvider = "spotify", allowSpotify = true)
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.chooseBangerPlaylist(
+            MusicPlaylist(id = "PLY", name = "Yt list", uri = "youtube:playlist:PLY", provider = "youtube"),
+        )
+
+        assertEquals(
+            listOf(UpdateMusicConfigBody(bangerPlaylistId = "PLY", bangerPlaylistProvider = "youtube")),
+            songRequestsApi.updateConfigCalls,
+        )
+        assertEquals("youtube", (controller.state.value as SongRequestsState.Ready).config!!.bangerPlaylistProvider)
+    }
+
+    @Test
+    fun load_pulls_every_playlist_page_not_only_the_first() = runTest {
+        // 120 playlists = pages of 50, 50, 20: the short third page ends the loop.
+        val library: List<MusicPlaylist> =
+            (1..120).map { MusicPlaylist(id = "PL$it", name = "List $it", provider = "spotify") }
+        val songRequestsApi: FakeSongRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())), playlistLibrary = library)
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+
+        val ready: SongRequestsState.Ready = controller.state.value as SongRequestsState.Ready
+        assertEquals(library, ready.playlists)
+        assertEquals(listOf(0 to 50, 50 to 50, 100 to 50), songRequestsApi.playlistPageCalls)
+    }
+
+    @Test
+    fun a_failing_playlist_list_leaves_the_page_ready_with_no_options() = runTest {
+        val controller =
+            SongRequestsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeSongRequestsApi(
+                    queueResults = listOf(ApiResult.Ok(emptyList())),
+                    playlistsResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no")),
+                ),
+            )
+
+        controller.load()
+
+        val ready: SongRequestsState.Ready = controller.state.value as SongRequestsState.Ready
+        assertEquals(emptyList(), ready.playlists)
+    }
+
+    @Test
+    fun choosing_a_banger_playlist_saves_id_and_provider_and_the_reload_shows_them() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.chooseBangerPlaylist(
+            MusicPlaylist(id = "PL1", name = "Bangers", uri = "spotify:playlist:PL1", provider = "spotify"),
+        )
+
+        assertEquals(
+            listOf(UpdateMusicConfigBody(bangerPlaylistId = "PL1", bangerPlaylistProvider = "spotify")),
+            songRequestsApi.updateConfigCalls,
+        )
+        val config: MusicConfig = (controller.state.value as SongRequestsState.Ready).config!!
+        assertEquals("PL1", config.bangerPlaylistId)
+        assertEquals("spotify", config.bangerPlaylistProvider)
+    }
+
+    @Test
+    fun clearing_the_banger_playlist_sends_empty_strings_and_the_reload_shows_no_choice() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())))
+        songRequestsApi.storedConfig = MusicConfig(bangerPlaylistId = "PL1", bangerPlaylistProvider = "spotify")
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.clearBangerPlaylist()
+
+        assertEquals(
+            listOf(UpdateMusicConfigBody(bangerPlaylistId = "", bangerPlaylistProvider = "")),
+            songRequestsApi.updateConfigCalls,
+        )
+        val config: MusicConfig = (controller.state.value as SongRequestsState.Ready).config!!
+        assertEquals(null, config.bangerPlaylistId)
+        assertEquals(null, config.bangerPlaylistProvider)
+    }
+
+    @Test
+    fun the_create_on_first_use_switch_saves_only_bangerAutoCreate_and_survives_the_reload() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())))
+        songRequestsApi.storedConfig = MusicConfig(bangerPlaylistId = "PL1", bangerPlaylistProvider = "spotify")
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.setBangerAutoCreate(true)
+
+        assertEquals(listOf(UpdateMusicConfigBody(bangerAutoCreate = true)), songRequestsApi.updateConfigCalls)
+        val config: MusicConfig = (controller.state.value as SongRequestsState.Ready).config!!
+        assertTrue(config.bangerAutoCreate)
+        assertEquals("PL1", config.bangerPlaylistId)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -518,6 +647,9 @@ private class FakeSongRequestsApi(
     private val blockedResult: ApiResult<BlockedTrackPage> = ApiResult.Ok(BlockedTrackPage()),
     private val blockResult: ApiResult<BlockedTrack> = ApiResult.Ok(BlockedTrack()),
     private val unblockResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val playlistsResult: ApiResult<List<MusicPlaylist>> = ApiResult.Ok(emptyList()),
+    // When set, replaces playlistsResult: serves the library page by page (offset/limit honoured).
+    private val playlistLibrary: List<MusicPlaylist>? = null,
 ) : SongRequestsApi {
     // Single-result convenience for the read-only tests (one queue() result, controls unused).
     constructor(result: ApiResult<List<QueuedSong>>) : this(queueResults = listOf(result))
@@ -578,10 +710,34 @@ private class FakeSongRequestsApi(
         return controlResult
     }
 
-    override suspend fun config(channelId: String): ApiResult<MusicConfig> = ApiResult.Ok(MusicConfig())
+    // The persisted config: updateConfig applies the PATCH the way the backend does (null = keep, empty string
+    // clears the banger playlist), so a reload through load() reads back what was saved.
+    var storedConfig: MusicConfig = MusicConfig()
+    val updateConfigCalls: MutableList<UpdateMusicConfigBody> = mutableListOf()
 
-    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
-        ApiResult.Ok(MusicConfig())
+    override suspend fun config(channelId: String): ApiResult<MusicConfig> = ApiResult.Ok(storedConfig)
+
+    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> {
+        updateConfigCalls.add(body)
+        val id: String? = body.bangerPlaylistId
+        val provider: String? = body.bangerPlaylistProvider
+        storedConfig =
+            storedConfig.copy(
+                bangerPlaylistId = if (id == null) storedConfig.bangerPlaylistId else id.ifEmpty { null },
+                bangerPlaylistProvider =
+                    if (provider == null) storedConfig.bangerPlaylistProvider else provider.ifEmpty { null },
+                bangerAutoCreate = body.bangerAutoCreate ?: storedConfig.bangerAutoCreate,
+            )
+        return ApiResult.Ok(storedConfig)
+    }
+
+    val playlistPageCalls: MutableList<Pair<Int, Int>> = mutableListOf()
+
+    override suspend fun playlists(channelId: String, offset: Int, limit: Int): ApiResult<List<MusicPlaylist>> {
+        playlistPageCalls += offset to limit
+        val library: List<MusicPlaylist> = playlistLibrary ?: return playlistsResult
+        return ApiResult.Ok(library.drop(offset).take(limit))
+    }
 
     override suspend fun srPageToken(channelId: String): ApiResult<String> = srPageTokenResult
 

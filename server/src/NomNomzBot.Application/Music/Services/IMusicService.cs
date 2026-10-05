@@ -277,12 +277,18 @@ public sealed record MusicDeviceDto(
     int VolumePercent
 );
 
+/// <summary>
+/// A playlist of the channel's active music provider. <paramref name="Provider"/> is the provider key
+/// (<c>spotify</c> or <c>youtube</c>) the list came from, so a client that saves the playlist stores it
+/// under the provider that really owns it instead of guessing.
+/// </summary>
 public sealed record MusicPlaylistDto(
     string Id,
     string Name,
     string Uri,
     int TrackCount,
-    string? ImageUrl
+    string? ImageUrl,
+    string Provider
 );
 
 /// <summary>A music track from a search result.</summary>

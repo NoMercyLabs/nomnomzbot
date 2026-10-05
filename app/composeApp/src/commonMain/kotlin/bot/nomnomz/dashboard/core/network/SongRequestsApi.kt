@@ -69,6 +69,9 @@ interface SongRequestsApi {
     /** Update (patch) the SR / music configuration. */
     suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig>
 
+    /** One page of the connected music account's playlists — the choices for the `!banger` target playlist. */
+    suspend fun playlists(channelId: String, offset: Int, limit: Int): ApiResult<List<MusicPlaylist>>
+
     /** Get (or mint) the channel's public SR-page shareable token. */
     suspend fun srPageToken(channelId: String): ApiResult<String>
 
@@ -125,6 +128,9 @@ class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
 
     override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
         client.putEnvelope("api/v1/channels/$channelId/music/config", body)
+
+    override suspend fun playlists(channelId: String, offset: Int, limit: Int): ApiResult<List<MusicPlaylist>> =
+        client.getEnvelope("api/v1/channels/$channelId/music/playlists?offset=$offset&limit=$limit")
 
     override suspend fun srPageToken(channelId: String): ApiResult<String> =
         client.getEnvelope("api/v1/channels/$channelId/music/sr-page-token")

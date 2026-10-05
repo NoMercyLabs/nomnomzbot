@@ -1708,7 +1708,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             cancellationToken
         );
         return playlists
-            .Select(p => new MusicPlaylistDto(p.Id, p.Name, p.Uri, p.TrackCount, p.ImageUrl))
+            .Select(p => new MusicPlaylistDto(
+                p.Id,
+                p.Name,
+                p.Uri,
+                p.TrackCount,
+                p.ImageUrl,
+                provider.Provider
+            ))
             .ToList()
             .AsReadOnly();
     }

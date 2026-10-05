@@ -1305,6 +1305,14 @@
     <string name="songrequests_config_max_per_user">Max per user</string>
     <string name="songrequests_config_trust">Minimum trust level</string>
     <string name="songrequests_config_save">Save</string>
+    <string name="songrequests_banger_title">Banger playlist</string>
+    <string name="songrequests_banger_hint">The playlist that !banger adds the playing song to. Changes save at once.</string>
+    <string name="songrequests_banger_playlist_label">Playlist</string>
+    <string name="songrequests_banger_playlist_none">No playlist chosen</string>
+    <string name="songrequests_banger_provider_label">Provider: %1$s</string>
+    <string name="songrequests_banger_provider_none">not set</string>
+    <string name="songrequests_banger_auto_create">Create a playlist on first use</string>
+    <string name="songrequests_banger_clear">Clear choice</string>
     <string name="songrequests_token_title">Song Request Page Link</string>
     <string name="songrequests_token_copy">Copy</string>
     <string name="songrequests_token_rotate">Rotate link…</string>

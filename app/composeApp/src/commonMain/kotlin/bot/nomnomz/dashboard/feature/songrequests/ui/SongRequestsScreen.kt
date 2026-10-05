@@ -63,6 +63,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.BlockedTrack
 import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -202,6 +203,10 @@ fun SongRequestsScreen(
                 ReadyContent(
                     queue = current.queue,
                     config = current.config,
+                    playlists = current.playlists,
+                    onBangerChoose = { playlist -> scope.launch { controller.chooseBangerPlaylist(playlist) } },
+                    onBangerClear = { scope.launch { controller.clearBangerPlaylist() } },
+                    onBangerAutoCreate = { enabled -> scope.launch { controller.setBangerAutoCreate(enabled) } },
                     srPageToken = current.srPageToken,
                     shareLink = current.shareLink,
                     tokenUrl = current.tokenUrl,
@@ -234,6 +239,10 @@ fun SongRequestsScreen(
 private fun ReadyContent(
     queue: List<QueuedSong>,
     config: MusicConfig?,
+    playlists: List<MusicPlaylist>,
+    onBangerChoose: (playlist: MusicPlaylist) -> Unit,
+    onBangerClear: () -> Unit,
+    onBangerAutoCreate: (Boolean) -> Unit,
     srPageToken: String?,
     shareLink: String?,
     tokenUrl: String?,
@@ -326,6 +335,16 @@ private fun ReadyContent(
                     config = config,
                     configure = configure,
                     onUpdate = onUpdateConfig,
+                )
+            }
+            item {
+                BangerSection(
+                    config = config,
+                    playlists = playlists,
+                    configure = configure,
+                    onChoose = onBangerChoose,
+                    onClear = onBangerClear,
+                    onAutoCreate = onBangerAutoCreate,
                 )
             }
         }
@@ -565,7 +584,7 @@ private fun ConfigSection(
 }
 
 @Composable
-private fun SrToggleRow(
+internal fun SrToggleRow(
     label: String,
     checked: Boolean,
     configure: ManageDecision,

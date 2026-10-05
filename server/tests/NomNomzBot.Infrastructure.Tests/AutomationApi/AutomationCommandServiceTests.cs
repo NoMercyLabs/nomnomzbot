@@ -25,7 +25,6 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NSubstitute;
-using MusicPlaylistDto = NomNomzBot.Application.Music.Services.MusicPlaylistDto;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
 
@@ -399,7 +398,7 @@ public sealed class AutomationCommandServiceTests
     {
         Harness h = Build();
         h.Music.GetDevicesAsync(Channel.ToString(), Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<MusicDeviceDto>)[new("dev-1", "Laptop", "Computer", true, 80)]);
+            .Returns([new("dev-1", "Laptop", "Computer", true, 80)]);
 
         Result<IReadOnlyList<AutomationDeviceDto>> result = await h.Service.GetDevicesAsync(
             Principal()
@@ -485,10 +484,7 @@ public sealed class AutomationCommandServiceTests
     {
         Harness h = Build();
         h.Music.GetPlaylistsAsync(Channel.ToString(), 0, 20, Arg.Any<CancellationToken>())
-            .Returns(
-                (IReadOnlyList<MusicPlaylistDto>)
-                    [new("pl-1", "Chill", "spotify:playlist:pl-1", 12, null)]
-            );
+            .Returns([new("pl-1", "Chill", "spotify:playlist:pl-1", 12, null, "spotify")]);
 
         Result<IReadOnlyList<AutomationPlaylistDto>> result = await h.Service.GetPlaylistsAsync(
             Principal(),
