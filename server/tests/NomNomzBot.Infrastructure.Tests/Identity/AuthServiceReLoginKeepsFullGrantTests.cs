@@ -27,27 +27,113 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// S-OWN01 — "the bot keeps asking for scope permissions the user already granted." Root cause: a plain
-/// re-login (<see cref="AuthService.HandleTwitchCallbackAsync"/> reaching the private
-/// <c>EstablishStreamerSessionAsync</c>) with no live web session cookie to resolve the channel up front
-/// (desktop, a fresh browser, or an expired session) requests only the base minimal scope set — Twitch's
-/// token response then carries only that narrower set. That response used to be vaulted verbatim, silently
-/// SHRINKING the connection's <c>Scopes</c> back down on every such re-login and re-opening every
-/// missing-scope gap the operator had already closed with an earlier additive re-grant. This proves the
-/// fix: the scopes handed to <see cref="IIntegrationTokenVault.UpsertConnectionAsync"/> and
-/// <see cref="IIntegrationTokenVault.StoreTokensAsync"/> are the union of what the connection already held
-/// and what this login's token carries — never a downgrade.
+/// "The bot keeps asking for scope permissions the user already granted" (seven reports). A plain re-login
+/// asks Twitch for the login minimum only, so its token holds only those scopes. Saving that token over the
+/// channel's full broadcaster token, even with the stored scope LIST unioned, left every Helix call on the
+/// narrow token; the next refresh read the real scopes off it, shrank the list, and every job re-raised its
+/// missing-scope row. A login whose token lacks a scope the healthy stored grant holds therefore keeps the
+/// stored token; any other login stores its token with the scopes it really carries.
 /// </summary>
-public sealed class AuthServiceReLoginUnionsScopesTests
+public sealed class AuthServiceReLoginKeepsFullGrantTests
 {
     private const string TwitchUserId = "tw-100";
+    private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-00000000f002");
 
     [Fact]
-    public async Task ReLogin_with_only_the_minimal_scope_set_does_not_drop_a_previously_granted_scope()
+    public async Task A_relogin_with_a_narrower_token_keeps_the_stored_full_grant_and_its_token()
+    {
+        AuthDbContext db = await SeedAsync(
+            AuthEnums.IntegrationStatus.Connected,
+            ["user:read:email", "channel:manage:raids", "moderator:read:followers"]
+        );
+        IIntegrationTokenVault vault = NewVault();
+        AuthService service = Build(db, vault, ["user:read:email"]);
+
+        Result<AuthResultDto> result = await service.HandleTwitchCallbackAsync(
+            new() { Code = "auth-code" },
+            new("web", "127.0.0.1", "test-agent")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await vault
+            .DidNotReceive()
+            .StoreTokensAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<StoreTokensDto>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await vault
+            .DidNotReceive()
+            .UpsertConnectionAsync(Arg.Any<UpsertConnectionDto>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_relogin_over_a_revoked_grant_stores_the_new_token_with_only_the_scopes_it_carries()
+    {
+        AuthDbContext db = await SeedAsync(
+            AuthEnums.IntegrationStatus.Revoked,
+            ["user:read:email", "channel:manage:raids"]
+        );
+        IIntegrationTokenVault vault = NewVault();
+        AuthService service = Build(db, vault, ["user:read:email"]);
+
+        Result<AuthResultDto> result = await service.HandleTwitchCallbackAsync(
+            new() { Code = "auth-code" },
+            new("web", "127.0.0.1", "test-agent")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await vault
+            .Received(1)
+            .StoreTokensAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<StoreTokensDto>(t => t.AccessToken == "access-token"),
+                Arg.Is<IReadOnlyList<string>>(scopes =>
+                    scopes.Count == 1 && scopes.Contains("user:read:email")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_login_whose_token_holds_every_stored_scope_replaces_the_stored_token()
+    {
+        AuthDbContext db = await SeedAsync(
+            AuthEnums.IntegrationStatus.Connected,
+            ["user:read:email", "channel:manage:raids"]
+        );
+        IIntegrationTokenVault vault = NewVault();
+        AuthService service = Build(
+            db,
+            vault,
+            ["user:read:email", "channel:manage:raids", "channel:read:vips"]
+        );
+
+        Result<AuthResultDto> result = await service.HandleTwitchCallbackAsync(
+            new() { Code = "auth-code" },
+            new("web", "127.0.0.1", "test-agent")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await vault
+            .Received(1)
+            .StoreTokensAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<StoreTokensDto>(t => t.AccessToken == "access-token"),
+                Arg.Is<IReadOnlyList<string>>(scopes =>
+                    scopes.Count == 3 && scopes.Contains("channel:read:vips")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // ─── scaffolding ──────────────────────────────────────────────────────────────────────────────────────
+
+    private static async Task<AuthDbContext> SeedAsync(string status, List<string> storedScopes)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         Guid ownerId = Guid.Parse("0192a000-0000-7000-8000-00000000f001");
-        Guid channelId = Guid.Parse("0192a000-0000-7000-8000-00000000f002");
 
         db.Users.Add(
             new()
@@ -62,7 +148,7 @@ public sealed class AuthServiceReLoginUnionsScopesTests
         db.Channels.Add(
             new()
             {
-                Id = channelId,
+                Id = ChannelId,
                 OwnerUserId = ownerId,
                 TwitchChannelId = TwitchUserId,
                 Name = "stoney",
@@ -70,33 +156,35 @@ public sealed class AuthServiceReLoginUnionsScopesTests
                 IsOnboarded = true,
             }
         );
-        // An earlier additive re-grant already widened this connection well past the login minimum — the
-        // OAuth response this re-login gets back (stubbed below) carries only "user:read:email".
         db.IntegrationConnections.Add(
             new()
             {
-                BroadcasterId = channelId,
+                BroadcasterId = ChannelId,
                 Provider = AuthEnums.IntegrationProvider.Twitch,
                 ProviderAccountId = TwitchUserId,
-                Status = "connected",
-                Scopes = ["user:read:email", "channel:manage:raids", "moderator:read:followers"],
+                Status = status,
+                Scopes = storedScopes,
             }
         );
         await db.SaveChangesAsync();
+        return db;
+    }
 
+    private static IIntegrationTokenVault NewVault()
+    {
         IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
         vault
             .UpsertConnectionAsync(Arg.Any<UpsertConnectionDto>(), Arg.Any<CancellationToken>())
-            .Returns(
+            .Returns(call =>
                 Result.Success(
                     new IntegrationConnectionDto(
                         Guid.NewGuid(),
-                        channelId,
+                        ChannelId,
                         "twitch",
                         TwitchUserId,
                         "stoney",
                         "connected",
-                        ["user:read:email"],
+                        call.Arg<UpsertConnectionDto>().Scopes,
                         false,
                         DateTime.UtcNow,
                         null,
@@ -112,46 +200,14 @@ public sealed class AuthServiceReLoginUnionsScopesTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
-
-        AuthService service = Build(db, vault);
-
-        OAuthCallbackDto callback = new() { Code = "auth-code" };
-        AuthContextDto context = new("web", "127.0.0.1", "test-agent");
-
-        Result<AuthResultDto> result = await service.HandleTwitchCallbackAsync(callback, context);
-
-        result.IsSuccess.Should().BeTrue();
-
-        // Both vault calls must carry the UNION, not the OAuth response's narrower "user:read:email" alone —
-        // the previously-granted scopes the operator already consented to must survive this re-login.
-        await vault
-            .Received(1)
-            .UpsertConnectionAsync(
-                Arg.Is<UpsertConnectionDto>(dto =>
-                    dto.Scopes.Contains("user:read:email")
-                    && dto.Scopes.Contains("channel:manage:raids")
-                    && dto.Scopes.Contains("moderator:read:followers")
-                ),
-                Arg.Any<CancellationToken>()
-            );
-        await vault
-            .Received(1)
-            .StoreTokensAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<StoreTokensDto>(),
-                Arg.Is<IReadOnlyList<string>>(scopes =>
-                    scopes.Contains("user:read:email")
-                    && scopes.Contains("channel:manage:raids")
-                    && scopes.Contains("moderator:read:followers")
-                ),
-                Arg.Any<CancellationToken>()
-            );
+        return vault;
     }
 
-    // ─── scaffolding (mirrors AuthServiceReAuthOnboardingRepublishTests.Build, but keeps the vault mock so
-    // the test above can assert on the arguments it was called with) ──────────────────────────────────────
-
-    private static AuthService Build(AuthDbContext db, IIntegrationTokenVault vault)
+    private static AuthService Build(
+        AuthDbContext db,
+        IIntegrationTokenVault vault,
+        string[] tokenScopes
+    )
     {
         ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
         credentials
@@ -166,7 +222,7 @@ public sealed class AuthServiceReLoginUnionsScopesTests
                     "access-token",
                     "refresh-token",
                     DateTime.UtcNow.AddHours(4),
-                    ["user:read:email"] // the login minimum this re-login's response carries back
+                    tokenScopes
                 )
             );
 
