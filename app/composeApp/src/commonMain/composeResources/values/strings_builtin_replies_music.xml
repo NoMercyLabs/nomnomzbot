@@ -106,6 +106,12 @@
     <string name="builtin_reply_skip_removefailed_description">A viewer request could not be removed from the queue.</string>
     <string name="builtin_reply_skip_removed_label">Request removed</string>
     <string name="builtin_reply_skip_removed_description">A viewer removed their own request from the queue.</string>
+    <string name="builtin_reply_skip_skippedown_label">Own request skipped</string>
+    <string name="builtin_reply_skip_skippedown_description">A viewer skipped the song they requested themselves.</string>
+    <string name="builtin_reply_skip_notyours_label">Not your request</string>
+    <string name="builtin_reply_skip_notyours_description">A viewer tried to skip a song someone else requested.</string>
+    <string name="builtin_reply_skip_nothingplaying_label">Nothing playing</string>
+    <string name="builtin_reply_skip_nothingplaying_description">A viewer tried to skip while no song is playing.</string>
     <string name="builtin_reply_volume_current_label">Volume level</string>
     <string name="builtin_reply_volume_current_description">Someone asks for the volume and it can be read.</string>
     <string name="builtin_reply_volume_set_label">Volume changed</string>
@@ -144,4 +150,5 @@
     <string name="builtin_reply_var_song_source">Request or autoplay</string>
     <string name="builtin_reply_var_song_provider">The music service</string>
     <string name="builtin_reply_var_song_attribution">Who requested it, or where it comes from</string>
+    <string name="builtin_reply_var_song_link">A link to the song</string>
 </resources>

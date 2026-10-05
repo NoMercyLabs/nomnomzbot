@@ -17,8 +17,8 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
 /// !skip — two distinct actions sharing one trigger word (S-PL8, owner report). Bare <c>!skip</c> (no
-/// argument) skips whatever is currently PLAYING — a moderation action, gated mod+, unchanged from
-/// before. <c>!skip N</c> is a VIEWER self-service action: it removes the caller's own Nth PENDING
+/// argument) skips whatever is currently PLAYING — a moderator (or a holder of the music moderate grant)
+/// skips any track; any other viewer skips only the track they requested, like the old bot. <c>!skip N</c> is a VIEWER self-service action: it removes the caller's own Nth PENDING
 /// request from the queue and never touches playback — before this fix <c>!skip N</c> silently ignored
 /// N and skipped the current track regardless of who typed it or what N was.
 /// </summary>
@@ -60,9 +60,14 @@ public sealed class SkipBuiltin(
         // branch opened the builtin to Everyone (see DefaultMinPermissionLevel above).
         // Moderator badge OR the music:queue:moderate grant — the same Gate-2 action the dashboard's
         // POST /music/skip requires, so one grant works in both places (MusicModerationGate).
-        if (!await gate.IsAllowedAsync(context, ct))
-            // The chat handler's own permission-denied line (system/permissiondenied).
-            return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
+        bool moderates = await gate.IsAllowedAsync(context, ct);
+        if (!moderates)
+        {
+            // Like the old bot: anyone may type !skip, but a viewer skips only the song they requested.
+            string? refusal = await RefuseViewerSkipAsync(context, ct);
+            if (refusal is not null)
+                return Result.Success(refusal);
+        }
 
         Result skipped = await music.SkipAsync(
             context.BroadcasterId.ToString(),
@@ -73,15 +78,66 @@ public sealed class SkipBuiltin(
         if (!skipped.IsSuccess)
             return Result.Success(await SkipFailureReplyAsync(context, skipped, ct));
 
-        string message = await composer.ComposeAsync(
-            context,
-            BuiltinKey,
-            BuiltinResponseSlots.Skip.Skipped,
-            "Skipped.",
-            ct: ct
-        );
+        string message = moderates
+            ? await composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.Skipped,
+                "Skipped to the next track.",
+                ct: ct
+            )
+            : await composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.SkippedOwn,
+                "Skipped your song.",
+                ct: ct
+            );
         return Result.Success(message);
     }
+
+    /// <summary>The reply that stops a non-moderator's skip (nothing playing, or not their request); null when the track is theirs.</summary>
+    private async Task<string?> RefuseViewerSkipAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    )
+    {
+        NowPlaying? now = await music.GetNowPlayingAsync(context.BroadcasterId.ToString(), ct);
+        if (now is null || string.IsNullOrEmpty(now.TrackName))
+            return await composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.NothingPlaying,
+                "No song is currently playing!",
+                ct: ct
+            );
+
+        if (IsCaller(now.RequestedBy, context))
+            return null;
+
+        return await composer.ComposeAsync(
+            context,
+            BuiltinKey,
+            BuiltinResponseSlots.Skip.NotYours,
+            "You can only skip songs you requested yourself.",
+            ct: ct
+        );
+    }
+
+    private static bool IsCaller(string? requestedBy, BuiltinCommandContext context) =>
+        !string.IsNullOrWhiteSpace(requestedBy)
+        && (
+            string.Equals(
+                requestedBy,
+                context.TriggeringUserDisplayName,
+                StringComparison.OrdinalIgnoreCase
+            )
+            || string.Equals(
+                requestedBy,
+                context.TriggeringUserLogin,
+                StringComparison.OrdinalIgnoreCase
+            )
+        );
 
     /// <summary>Phrases a failed skip from the service's typed error code — the service's own sentence stays in logs.</summary>
     private Task<string> SkipFailureReplyAsync(
@@ -402,63 +458,51 @@ public sealed class VolumeBuiltin(
         if (!await gate.IsAllowedAsync(context, ct))
             return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
 
+        // Like the old bot, nothing playing answers the same way for a read and for a set. The volume is
+        // read from the same place the dashboard reads it (NowPlaying), the only volume accessor the
+        // provider surface exposes — never a guessed number.
+        NowPlaying? nowPlaying = await music.GetNowPlayingAsync(
+            context.BroadcasterId.ToString(),
+            ct
+        );
+        if (nowPlaying is null)
+            return Result.Success(
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.Volume.Key,
+                    BuiltinResponseSlots.Volume.CannotRead,
+                    "No song is currently playing!",
+                    ct: ct
+                )
+            );
+
         if (string.IsNullOrWhiteSpace(context.Args))
-        {
-            // No argument — report the current volume instead of the old "do nothing but print
-            // usage" behaviour. Read from the same place the dashboard reads it from (NowPlaying),
-            // the only volume accessor the provider surface exposes; when that can't be read (no
-            // active track / provider doesn't report it) say so truthfully — never guess a number.
-            NowPlaying? nowPlaying = await music.GetNowPlayingAsync(
-                context.BroadcasterId.ToString(),
-                ct
+            return Result.Success(
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.Volume.Key,
+                    BuiltinResponseSlots.Volume.Current,
+                    "Current volume level is {volume.level}",
+                    new Dictionary<string, string>
+                    {
+                        ["volume.level"] = nowPlaying.Volume.ToString(),
+                    },
+                    ct
+                )
             );
-            if (nowPlaying is not null)
-                return Result.Success(
-                    await composer.ComposeAsync(
-                        context,
-                        BuiltinResponseSlots.Volume.Key,
-                        BuiltinResponseSlots.Volume.Current,
-                        "Volume is at {volume.level}%.",
-                        new Dictionary<string, string>
-                        {
-                            ["volume.level"] = nowPlaying.Volume.ToString(),
-                        },
-                        ct
-                    )
-                );
 
-            string cannotRead = await composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinResponseSlots.Volume.Key,
-                    Slot = BuiltinResponseSlots.Volume.CannotRead,
-                    NeutralFallback =
-                        "Can't read the current volume right now — nothing is playing.",
-                },
-                ct
+        // An out-of-range or non-numeric level is rejected, never clamped (the old bot did the same).
+        if (!int.TryParse(context.Args.Trim(), out int level) || level is < 0 or > 100)
+            return Result.Success(
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.Volume.Key,
+                    BuiltinResponseSlots.Volume.Usage,
+                    "Please provide a valid volume level between 0 and 100: !volume <level> (0-100).",
+                    ct: ct
+                )
             );
-            return Result.Success(cannotRead);
-        }
 
-        if (!int.TryParse(context.Args.Trim(), out int level))
-        {
-            string usage = await composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinResponseSlots.Volume.Key,
-                    Slot = BuiltinResponseSlots.Volume.Usage,
-                    NeutralFallback = "Usage: !volume <0-100>",
-                },
-                ct
-            );
-            return Result.Success(usage);
-        }
-
-        level = Math.Clamp(level, 0, 100);
         Result volume = await music.SetVolumeAsync(context.BroadcasterId.ToString(), level, ct);
         return Result.Success(
             volume.IsSuccess
@@ -523,15 +567,11 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
         if (now is null || string.IsNullOrEmpty(now.TrackName))
         {
             string nothing = await composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinKey,
-                    Slot = BuiltinResponseSlots.Song.Nothing,
-                    NeutralFallback = "Nothing is playing right now.",
-                },
-                ct
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Song.Nothing,
+                "No song is currently playing!",
+                ct: ct
             );
             return Result.Success(nothing);
         }
@@ -556,10 +596,12 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.Song.Playing,
-                NeutralFallback = "{song.status} {song.name} by {song.artist} {song.attribution}",
+                NeutralFallback =
+                    "The current song is: {song.name} by {song.artist} {song.link} {song.attribution}",
                 Variables = new Dictionary<string, string>
                 {
                     ["song.name"] = now.TrackName,
+                    ["song.link"] = TrackLinks.ToWebLink(now.TrackUri),
                     ["song.artist"] = now.Artist ?? string.Empty,
                     ["song.status"] = status,
                     // Empty when nobody requested it, so a custom template can branch on it.
@@ -571,6 +613,7 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
             },
             ct
         );
-        return Result.Success(message);
+        // A track with no known link leaves {song.link} empty; keep the sentence free of a dangling space.
+        return Result.Success(message.Trim());
     }
 }

@@ -18,7 +18,7 @@ public static partial class BuiltinResponseSlots
     {
         public const string Key = "song";
 
-        /// <summary>A track is playing; <c>{song.name}</c>/<c>{song.artist}</c>/<c>{song.status}</c> are set.</summary>
+        /// <summary>A track is playing; <c>{song.name}</c>/<c>{song.artist}</c>/<c>{song.status}</c>/<c>{song.link}</c> are set.</summary>
         public const string Playing = "playing";
 
         /// <summary>Nothing is playing.</summary>
@@ -146,6 +146,15 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The caller's request could not be removed; <c>{user}</c> is set.</summary>
         public const string RemoveFailed = "removefailed";
+
+        /// <summary>A viewer skipped the song they requested themselves — no variables.</summary>
+        public const string SkippedOwn = "skippedown";
+
+        /// <summary>A viewer tried to skip a song they did not request — no variables.</summary>
+        public const string NotYours = "notyours";
+
+        /// <summary>A viewer tried to skip while nothing is playing — no variables.</summary>
+        public const string NothingPlaying = "nothingplaying";
 
         /// <summary>The caller's own request was removed; <c>{user}</c>/<c>{track.name}</c>/<c>{track.artist}</c> are set.</summary>
         public const string Removed = "removed";

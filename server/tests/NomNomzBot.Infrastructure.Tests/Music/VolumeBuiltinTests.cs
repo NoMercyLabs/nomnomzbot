@@ -87,6 +87,15 @@ public sealed class VolumeBuiltinTests
             Provider: "spotify"
         );
 
+    private static IMusicService PlayingMusic()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Playing(50));
+        return music;
+    }
+
     [Fact]
     public async Task No_argument_reports_the_current_volume_read_from_the_same_source_the_setter_writes_to()
     {
@@ -113,7 +122,7 @@ public sealed class VolumeBuiltinTests
                 CancellationToken.None
             );
 
-        await music.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default, default);
+        await music.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default);
     }
 
     [Fact]
@@ -135,7 +144,7 @@ public sealed class VolumeBuiltinTests
     [Fact]
     public async Task Argument_still_sets_the_volume_and_is_unaffected_by_the_no_arg_change()
     {
-        IMusicService music = Substitute.For<IMusicService>();
+        IMusicService music = PlayingMusic();
         music
             .SetVolumeAsync(Broadcaster.ToString(), 55, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
@@ -153,7 +162,7 @@ public sealed class VolumeBuiltinTests
     [Fact]
     public async Task A_volume_change_the_provider_refuses_answers_from_its_slot_never_the_services_own_sentence()
     {
-        IMusicService music = Substitute.For<IMusicService>();
+        IMusicService music = PlayingMusic();
         music
             .SetVolumeAsync(Broadcaster.ToString(), 30, Arg.Any<CancellationToken>())
             .Returns(Result.Failure("internal provider detail 4410", "PREMIUM_REQUIRED"));
@@ -176,7 +185,7 @@ public sealed class VolumeBuiltinTests
     [Fact]
     public async Task A_channel_can_reword_the_volume_confirmation_and_the_level_still_fills_in()
     {
-        IMusicService music = Substitute.For<IMusicService>();
+        IMusicService music = PlayingMusic();
         music
             .SetVolumeAsync(Broadcaster.ToString(), 70, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
@@ -196,18 +205,14 @@ public sealed class VolumeBuiltinTests
     [Fact]
     public async Task Sassy_tone_produces_a_different_usage_message_than_the_default_tone()
     {
-        VolumeBuiltin sut = new(
-            Substitute.For<IMusicService>(),
-            FakeComposer(),
-            MusicGateTestKit.Gate(true)
-        );
+        VolumeBuiltin sut = new(PlayingMusic(), FakeComposer(), MusicGateTestKit.Gate(true));
 
         Result<string> sassy = await sut.ExecuteAsync(Ctx("not-a-number", PersonalityTone.Sassy));
-        Result<string> informative = await sut.ExecuteAsync(
-            Ctx("not-a-number", PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Ctx("not-a-number"));
 
-        informative.Value.Should().Be("Usage: !volume <0-100>");
+        informative
+            .Value.Should()
+            .Be("Please provide a valid volume level between 0 and 100: !volume <level> (0-100).");
         sassy.Value.Should().NotBe(informative.Value);
         ToneTemplateCatalog
             .Get(
@@ -229,13 +234,9 @@ public sealed class VolumeBuiltinTests
         VolumeBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(true));
 
         Result<string> sassy = await sut.ExecuteAsync(Ctx(string.Empty, PersonalityTone.Sassy));
-        Result<string> informative = await sut.ExecuteAsync(
-            Ctx(string.Empty, PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Ctx(string.Empty));
 
-        informative
-            .Value.Should()
-            .Be("Can't read the current volume right now — nothing is playing.");
+        informative.Value.Should().Be("No song is currently playing!");
         sassy.Value.Should().NotBe(informative.Value);
         ToneTemplateCatalog
             .Get(

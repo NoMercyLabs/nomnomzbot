@@ -394,11 +394,5 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
     /// URI scheme, which chat clients and this bot's own OG-preview resolver can't fetch metadata for. Falls
     /// back to the raw URI for any other/future provider that already hands back a real link.
     /// </summary>
-    private static string TrackWebLink(MusicTrack track)
-    {
-        const string spotifyUriPrefix = "spotify:track:";
-        return track.Uri.StartsWith(spotifyUriPrefix, StringComparison.Ordinal)
-            ? $"https://open.spotify.com/track/{track.Uri[spotifyUriPrefix.Length..]}"
-            : track.Uri;
-    }
+    private static string TrackWebLink(MusicTrack track) => TrackLinks.ToWebLink(track.Uri);
 }

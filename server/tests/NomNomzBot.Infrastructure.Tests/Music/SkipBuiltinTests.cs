@@ -159,8 +159,7 @@ public sealed class SkipBuiltinTests
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
-        // The composer picks one of the informative skip variants (ToneTemplateCatalog), not a fixed line.
-        result.Value.Should().BeOneOf("Skipped.", "Track skipped.", "Skipped the current track.");
+        result.Value.Should().Be("Skipped to the next track.");
         await music
             .Received(1)
             .SkipAsync(
@@ -181,19 +180,35 @@ public sealed class SkipBuiltinTests
     }
 
     [Fact]
-    public async Task Bare_skip_by_a_non_moderator_without_the_grant_is_refused_and_skips_nothing()
+    public async Task Bare_skip_by_a_non_moderator_without_the_grant_cannot_skip_someone_elses_song()
     {
         IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Song",
+                    "Artist",
+                    null,
+                    null,
+                    1000,
+                    0,
+                    true,
+                    50,
+                    "SomeoneElse",
+                    "spotify"
+                )
+            );
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
-        result.Value.Should().Be("You don't have permission to use that command.");
+        result.Value.Should().Be("You can only skip songs you requested yourself.");
         await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
-    public async Task The_permission_refusal_is_the_system_permissiondenied_reply_a_channel_can_reword()
+    public async Task The_volume_permission_refusal_is_the_system_permissiondenied_reply_a_channel_can_reword()
     {
         IMusicService music = Substitute.For<IMusicService>();
         FakeChannelBuiltinReplies channel = new FakeChannelBuiltinReplies().Set(
@@ -202,16 +217,16 @@ public sealed class SkipBuiltinTests
             BuiltinResponseSlots.SystemReplies.PermissionDenied,
             "Mods only, friend."
         );
-        SkipBuiltin sut = new(
+        VolumeBuiltin sut = new(
             music,
             FakeComposer(channel),
             MusicGateTestKit.Gate(holdsGrant: false)
         );
 
-        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
+        Result<string> result = await sut.ExecuteAsync(Ctx("40", ViewerLevel));
 
         result.Value.Should().Be("Mods only, friend.");
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
+        await music.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default);
     }
 
     [Fact]
@@ -293,6 +308,11 @@ public sealed class SkipBuiltinTests
     public async Task Volume_set_by_a_non_moderator_with_the_grant_reaches_the_provider_and_without_it_does_not()
     {
         IMusicService granted = Substitute.For<IMusicService>();
+        granted
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying("Song", "Artist", null, null, 1000, 0, true, 50, null, "spotify")
+            );
         granted
             .SetVolumeAsync(Broadcaster.ToString(), 40, Arg.Any<CancellationToken>())
             .Returns(Result.Success());

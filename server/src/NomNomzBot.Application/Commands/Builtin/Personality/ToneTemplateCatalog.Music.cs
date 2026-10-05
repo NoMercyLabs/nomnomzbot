@@ -382,18 +382,24 @@ public static partial class ToneTemplateCatalog
             variables: [],
             informative:
             [
-                "Usage: !skip <N> — removes YOUR Nth queued request. !skip with no number skips the current track (mods+).",
+                "Usage: !skip <N> — removes YOUR Nth queued request. !skip with no number skips the current track (mods skip any song; you can skip your own).",
             ],
             friendly:
             [
-                "Try !skip <N> to remove your Nth request. !skip alone skips the current track (mods only).",
+                "Try !skip <N> to remove your Nth request. !skip alone skips the current track (mods skip any song; you can skip your own).",
             ],
-            sassy: ["!skip <N> removes YOUR Nth request. !skip alone is for mods. Read again."],
+            sassy:
+            [
+                "!skip <N> removes YOUR Nth request. !skip alone skips the current track: mods any song, you only yours. Read again.",
+            ],
             hype:
             [
-                "!skip <N> REMOVES YOUR NTH REQUEST. !skip ALONE SKIPS THE CURRENT TRACK (MODS).",
+                "!skip <N> REMOVES YOUR NTH REQUEST. !skip ALONE SKIPS THE CURRENT TRACK (MODS ANY, YOU YOUR OWN).",
             ],
-            chill: ["!skip <N> removes your Nth request. !skip alone is mods only."]
+            chill:
+            [
+                "!skip <N> removes your Nth request. !skip alone skips the current track (mods any, you your own).",
+            ]
         );
 
         Add(
@@ -437,10 +443,46 @@ public static partial class ToneTemplateCatalog
 
         Add(
             catalog,
+            BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.Skip.SkippedOwn,
+            variables: [],
+            informative: ["Skipped your song."],
+            friendly: ["Done, I skipped your song!"],
+            sassy: ["Skipped your song. Own your choices, then un-own them."],
+            hype: ["YOUR SONG IS SKIPPED. NEXT ONE."],
+            chill: ["skipped your song."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.Skip.NotYours,
+            variables: [],
+            informative: ["You can only skip songs you requested yourself."],
+            friendly: ["You can only skip songs you requested yourself, sorry!"],
+            sassy: ["Nice try. You can only skip songs you requested yourself."],
+            hype: ["ONLY YOUR OWN REQUESTS CAN BE SKIPPED BY YOU."],
+            chill: ["you can only skip your own requests."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.Skip.NothingPlaying,
+            variables: [],
+            informative: ["No song is currently playing!"],
+            friendly: ["Nothing is playing right now, so there is nothing to skip!"],
+            sassy: ["Nothing is playing. There is nothing to skip. Impressive."],
+            hype: ["NOTHING PLAYING. NOTHING TO SKIP."],
+            chill: ["nothing's playing."]
+        );
+
+        Add(
+            catalog,
             BuiltinResponseSlots.Volume.Key,
             BuiltinResponseSlots.Volume.Current,
             variables: ["volume.level"],
-            informative: ["Volume is at {volume.level}%."],
+            informative: ["Current volume level is {volume.level}"],
             friendly: ["The volume is at {volume.level}% right now!"],
             sassy: ["Volume is at {volume.level}%. Yes, that is what you hear."],
             hype: ["VOLUME IS AT {volume.level}%!"],
@@ -638,6 +680,7 @@ public static partial class ToneTemplateCatalog
     {
         samples["song.name"] = "Never Gonna Give You Up";
         samples["song.artist"] = "Rick Astley";
+        samples["song.link"] = "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT";
         samples["song.status"] = "Now playing:";
         samples["track.name"] = "Never Gonna Give You Up";
         samples["track.artist"] = "Rick Astley";

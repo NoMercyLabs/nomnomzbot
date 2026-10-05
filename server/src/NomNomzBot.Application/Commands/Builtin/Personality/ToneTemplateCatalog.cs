@@ -211,42 +211,38 @@ public static partial class ToneTemplateCatalog
             [
                 "song.artist",
                 "song.attribution",
+                "song.link",
                 "song.name",
                 "song.provider",
                 "song.requester",
                 "song.source",
                 "song.status",
             ],
-            informative:
-            [
-                "{song.status} {song.name} by {song.artist}",
-                "Now playing: {song.name} by {song.artist}.",
-                "Currently playing {song.name} by {song.artist}.",
-            ],
+            informative: ["The current song is: {song.name} by {song.artist} {song.link}"],
             friendly:
             [
-                "We're vibing to {song.name} by {song.artist} — great pick!",
-                "Now playing {song.name} by {song.artist}. Enjoy!",
-                "This one's {song.name} by {song.artist}.",
+                "We're vibing to {song.name} by {song.artist} — great pick! {song.link}",
+                "Now playing {song.name} by {song.artist}. Enjoy! {song.link}",
+                "This one's {song.name} by {song.artist}. {song.link}",
             ],
             sassy:
             [
-                "It's {song.name} by {song.artist}. You could have read the overlay, but I'm flattered you asked.",
-                "{song.name} by {song.artist}. Yes, again. No, I don't pick them. I just endure them.",
-                "Currently {song.name} by {song.artist}. Bold choice by someone. Not naming names.",
-                "{song.name} by {song.artist}. The court will note nobody skipped it. Yet.",
+                "It's {song.name} by {song.artist}. You could have read the overlay, but I'm flattered you asked. {song.link}",
+                "{song.name} by {song.artist}. Yes, again. No, I don't pick them. I just endure them. {song.link}",
+                "Currently {song.name} by {song.artist}. Bold choice by someone. Not naming names. {song.link}",
+                "{song.name} by {song.artist}. The court will note nobody skipped it. Yet. {song.link}",
             ],
             hype:
             [
-                "{song.name} BY {song.artist}. ABSOLUTE TUNE. TURN IT UP.",
-                "WE ARE BLASTING {song.name} BY {song.artist}. NEIGHBORS BEWARE.",
-                "{song.name} BY {song.artist} AND IT GOES HARD. THAT'S THE TWEET.",
+                "{song.name} BY {song.artist}. ABSOLUTE TUNE. TURN IT UP. {song.link}",
+                "WE ARE BLASTING {song.name} BY {song.artist}. NEIGHBORS BEWARE. {song.link}",
+                "{song.name} BY {song.artist} AND IT GOES HARD. THAT'S THE TWEET. {song.link}",
             ],
             chill:
             [
-                "{song.status} {song.name} — {song.artist}.",
-                "playing {song.name} by {song.artist}.",
-                "{song.name}, {song.artist}. nice.",
+                "{song.status} {song.name} — {song.artist}. {song.link}",
+                "playing {song.name} by {song.artist}. {song.link}",
+                "{song.name}, {song.artist}. nice. {song.link}",
             ]
         );
 
@@ -256,12 +252,7 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Song.Key,
             BuiltinResponseSlots.Song.Nothing,
             variables: [],
-            informative:
-            [
-                "Nothing is playing right now.",
-                "No track is currently playing.",
-                "The player is idle at the moment.",
-            ],
+            informative: ["No song is currently playing!"],
             friendly:
             [
                 "Nothing playing at the moment — request something with !sr!",
@@ -599,7 +590,7 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Skip.Key,
             BuiltinResponseSlots.Skip.Skipped,
             variables: [],
-            informative: ["Skipped.", "Track skipped.", "Skipped the current track."],
+            informative: ["Skipped to the next track."],
             friendly:
             [
                 "Skipped! On to the next one.",
@@ -853,11 +844,14 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Volume.Key,
             BuiltinResponseSlots.Volume.Usage,
             variables: [],
-            informative: ["Usage: !volume <0-100>"],
-            friendly: ["Almost! Try: !volume <0-100>"],
-            sassy: ["Usage: !volume <0-100>. A number. Between zero and a hundred. That's it."],
-            hype: ["USAGE: !volume <0-100>. PICK A NUMBER AND SEND IT."],
-            chill: ["usage: !volume <0-100>"]
+            informative:
+            [
+                "Please provide a valid volume level between 0 and 100: !volume <level> (0-100).",
+            ],
+            friendly: ["Almost! Pick a volume level between 0 and 100: !volume <level> (0-100)."],
+            sassy: ["A number. Between zero and a hundred. That's it: !volume <level> (0-100)."],
+            hype: ["PICK A NUMBER FROM 0 TO 100 AND SEND IT: !volume <level> (0-100)."],
+            chill: ["volume needs a level from 0 to 100: !volume <level> (0-100)."]
         );
 
         // ── !volume / cannotread (no args) ───────────────────────────────────────
@@ -866,11 +860,11 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Volume.Key,
             BuiltinResponseSlots.Volume.CannotRead,
             variables: [],
-            informative: ["Can't read the current volume right now — nothing is playing."],
-            friendly: ["Can't check the volume right now — nothing's playing to read it from!"],
-            sassy: ["Can't read a volume off of silence. Get a track going first."],
-            hype: ["NOTHING PLAYING. NO VOLUME TO READ. START A TRACK FIRST."],
-            chill: ["can't read the volume — nothing's playing."]
+            informative: ["No song is currently playing!"],
+            friendly: ["Nothing's playing, so there's no volume to read or change!"],
+            sassy: ["Can't touch the volume of silence. Get a track going first."],
+            hype: ["NOTHING PLAYING. NO VOLUME TO TOUCH. START A TRACK FIRST."],
+            chill: ["nothing's playing, so no volume."]
         );
 
         // ── !whisper / twitchunavailable (no args) ───────────────────────────────
