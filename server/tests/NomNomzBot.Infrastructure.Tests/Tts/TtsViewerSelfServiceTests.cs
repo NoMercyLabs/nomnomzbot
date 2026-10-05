@@ -478,6 +478,55 @@ public sealed class TtsViewerSelfServiceTests
             .Be("No voice set. Use !voice get <language> to find voices.");
 
     [Fact]
+    public async Task Voice_set_with_several_equal_matches_lists_them_and_stores_nothing()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        db.TtsVoices.AddRange(
+            new TtsVoice
+            {
+                Id = "en-US-NatashaNeural",
+                Name = "NatashaNeural",
+                DisplayName = "Natasha (US)",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = "edge",
+            },
+            new TtsVoice
+            {
+                Id = "en-AU-NatalieNeural",
+                Name = "NatalieNeural",
+                DisplayName = "Natalie (AU)",
+                Locale = "en-AU",
+                Gender = "Female",
+                Provider = "edge",
+            }
+        );
+        await db.SaveChangesAsync();
+        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("set nat"));
+
+        reply.Value.Should().Be("Multiple matches: en-AU-NatalieNeural, en-US-NatashaNeural");
+        (await db.UserTtsVoices.AnyAsync())
+            .Should()
+            .BeFalse("an ambiguous name must not pick a voice");
+    }
+
+    [Fact]
+    public async Task Voice_current_without_own_voice_names_the_channel_default_voice()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        TtsVoice guy = await db.TtsVoices.SingleAsync(v => v.Id == "en-US-GuyNeural");
+        guy.IsDefault = true;
+        await db.SaveChangesAsync();
+        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("current"));
+
+        reply.Value.Should().Be("Using default: Guy (US). Set custom voice with !voice set <name>");
+    }
+
+    [Fact]
     public async Task Voice_roulette_with_an_empty_catalogue_answers_the_legacy_line() =>
         (await SayAsync("roulette", emptyCatalogue: true))
             .Should()

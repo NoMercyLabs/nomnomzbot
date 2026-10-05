@@ -53,6 +53,7 @@ public sealed class TtsDispatchServiceTests
         public required ITtsOverlayNotifier TtsOverlay { get; init; }
         public required IEventBus Bus { get; init; }
         public required ITtsLexiconService Lexicon { get; init; }
+        public required IChannelNamePronunciationService ChannelNames { get; init; }
     }
 
     private static Harness Build(
@@ -124,12 +125,18 @@ public sealed class TtsDispatchServiceTests
         IByokTtsProviderFactory byokProviders = Substitute.For<IByokTtsProviderFactory>();
         // The REAL lexicon service over the same context — dispatch tests prove the substitution and its
         // write-invalidated cache end to end, not a mock echoing input.
+        IChannelNamePronunciationService channelNames =
+            Substitute.For<IChannelNamePronunciationService>();
+        channelNames
+            .ListAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ChannelNamePronunciation>>([]));
         TtsLexiconService lexicon = new(
             db,
             new MemoryCacheService(
                 new MemoryCache(new MemoryCacheOptions()),
                 NullLogger<MemoryCacheService>.Instance
-            )
+            ),
+            channelNames
         );
 
         TtsDispatchService service = new(
@@ -157,6 +164,7 @@ public sealed class TtsDispatchServiceTests
             TtsOverlay = ttsOverlay,
             Bus = bus,
             Lexicon = lexicon,
+            ChannelNames = channelNames,
         };
     }
 
@@ -1046,6 +1054,33 @@ public sealed class TtsDispatchServiceTests
             );
         TtsUsageRecord ledger = await h.Db.TtsUsageRecords.SingleAsync();
         ledger.CharacterCount.Should().Be("Jaydee says hi to JDx".Length);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_SaysAChannelsNameTheWayItsOwnerSpelledThePronunciation()
+    {
+        Harness h = Build();
+        h.ChannelNames.ListAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult<IReadOnlyList<ChannelNamePronunciation>>([
+                    new("xX_JD_Xx", "Jaydee"),
+                ])
+            );
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("thanks @xX_JD_Xx for the redeem")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "thanks Jaydee for the redeem",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

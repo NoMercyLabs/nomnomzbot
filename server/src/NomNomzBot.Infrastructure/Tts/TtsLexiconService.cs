@@ -38,11 +38,17 @@ public class TtsLexiconService : ITtsLexiconService
 
     private readonly IApplicationDbContext _db;
     private readonly ICacheService _cache;
+    private readonly IChannelNamePronunciationService _channelNames;
 
-    public TtsLexiconService(IApplicationDbContext db, ICacheService cache)
+    public TtsLexiconService(
+        IApplicationDbContext db,
+        ICacheService cache,
+        IChannelNamePronunciationService channelNames
+    )
     {
         _db = db;
         _cache = cache;
+        _channelNames = channelNames;
     }
 
     private static string CacheKey(Guid broadcasterId) => $"tts:lexicon:{broadcasterId}";
@@ -170,10 +176,16 @@ public class TtsLexiconService : ITtsLexiconService
         if (string.IsNullOrEmpty(text))
             return text;
 
-        IReadOnlyList<TtsLexiconEntryDto> entries = await GetCachedEntriesAsync(
+        IReadOnlyList<TtsLexiconEntryDto> channelRules = await GetCachedEntriesAsync(
             broadcasterId,
             cancellationToken
         );
+        // The channel's own rules come first, so they win an overlap against a channel-name pronunciation.
+        List<TtsLexiconEntryDto> entries =
+        [
+            .. channelRules,
+            .. await ChannelNameRulesAsync(cancellationToken),
+        ];
         if (entries.Count == 0)
             return text;
 
@@ -223,6 +235,22 @@ public class TtsLexiconService : ITtsLexiconService
         }
         result.Append(text, cursor, text.Length - cursor);
         return result.ToString();
+    }
+
+    // Old-bot parity: every channel that set a pronunciation has its login (and @login) spoken that way.
+    private async Task<IEnumerable<TtsLexiconEntryDto>> ChannelNameRulesAsync(
+        CancellationToken cancellationToken
+    )
+    {
+        IReadOnlyList<ChannelNamePronunciation> names = await _channelNames.ListAsync(
+            cancellationToken
+        );
+        return names.Select(n => new TtsLexiconEntryDto(
+            Guid.Empty,
+            n.Name,
+            n.Pronunciation,
+            TtsLexiconMatchKinds.Word
+        ));
     }
 
     private readonly record struct LexiconMatch(

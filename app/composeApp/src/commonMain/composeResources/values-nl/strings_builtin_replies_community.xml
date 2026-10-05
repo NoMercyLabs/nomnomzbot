@@ -56,6 +56,8 @@
     <string name="builtin_reply_voice_current_description">Een kijker vraagt welke stem ze gebruiken en ze hebben er een gekozen.</string>
     <string name="builtin_reply_voice_currentdefault_label">Standaardstem</string>
     <string name="builtin_reply_voice_currentdefault_description">Een kijker vraagt welke stem ze gebruiken en ze gebruiken de kanaalstem.</string>
+    <string name="builtin_reply_voice_currentnone_label">Helemaal geen stem</string>
+    <string name="builtin_reply_voice_currentnone_description">Een kijker vraagt welke stem ze gebruiken, en noch de kijker noch het kanaal heeft er een.</string>
     <string name="builtin_reply_voice_cleared_label">Stem teruggezet</string>
     <string name="builtin_reply_voice_cleared_description">Een kijker gaat terug naar de kanaalstem.</string>
     <string name="builtin_reply_voice_clearfailed_label">Terugzetten mislukt</string>
@@ -66,6 +68,8 @@
     <string name="builtin_reply_voice_setmany_description">Een kijker kiest een stem en er passen meer stemmen.</string>
     <string name="builtin_reply_voice_setfailed_label">Instellen mislukt</string>
     <string name="builtin_reply_voice_setfailed_description">De stem kon niet worden ingesteld.</string>
+    <string name="builtin_reply_voice_multiplematches_label">Meerdere stemmen passen</string>
+    <string name="builtin_reply_voice_multiplematches_description">Een kijker zoekt een stem en er passen meerdere stemmen, dus de namen worden getoond.</string>
     <string name="builtin_reply_voice_nomatch_label">Geen stem gevonden</string>
     <string name="builtin_reply_voice_nomatch_description">Geen stem past bij de zoekopdracht van de kijker.</string>
     <string name="builtin_reply_voice_disabled_label">Stem kiezen uit</string>

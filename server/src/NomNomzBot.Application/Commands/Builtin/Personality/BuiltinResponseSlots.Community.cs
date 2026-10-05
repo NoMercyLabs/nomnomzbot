@@ -118,8 +118,14 @@ public static partial class BuiltinResponseSlots
         /// <summary>The viewer has their own voice.</summary>
         public const string Current = "current";
 
-        /// <summary>The viewer uses the channel default voice.</summary>
+        /// <summary>The viewer uses the channel default voice, which the reply names.</summary>
         public const string CurrentDefault = "currentdefault";
+
+        /// <summary>The viewer has no voice and the channel has no default voice either.</summary>
+        public const string CurrentNone = "currentnone";
+
+        /// <summary>The search matched several voices and none is the clear pick, so they are listed.</summary>
+        public const string MultipleMatches = "multiplematches";
 
         /// <summary>The viewer's voice was reset to the channel default.</summary>
         public const string Cleared = "cleared";

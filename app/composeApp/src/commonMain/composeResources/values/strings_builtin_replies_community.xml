@@ -56,6 +56,8 @@
     <string name="builtin_reply_voice_current_description">A viewer asks which voice they use, and they picked one.</string>
     <string name="builtin_reply_voice_currentdefault_label">Default voice</string>
     <string name="builtin_reply_voice_currentdefault_description">A viewer asks which voice they use, and they use the channel voice.</string>
+    <string name="builtin_reply_voice_currentnone_label">No voice at all</string>
+    <string name="builtin_reply_voice_currentnone_description">A viewer asks which voice they use, and neither they nor the channel has one.</string>
     <string name="builtin_reply_voice_cleared_label">Voice reset</string>
     <string name="builtin_reply_voice_cleared_description">A viewer goes back to the channel voice.</string>
     <string name="builtin_reply_voice_clearfailed_label">Reset failed</string>
@@ -66,6 +68,8 @@
     <string name="builtin_reply_voice_setmany_description">A viewer picks a voice and more voices match.</string>
     <string name="builtin_reply_voice_setfailed_label">Set failed</string>
     <string name="builtin_reply_voice_setfailed_description">The voice could not be set.</string>
+    <string name="builtin_reply_voice_multiplematches_label">Several voices match</string>
+    <string name="builtin_reply_voice_multiplematches_description">A viewer searches for a voice and several voices match, so the names are listed.</string>
     <string name="builtin_reply_voice_nomatch_label">No voice found</string>
     <string name="builtin_reply_voice_nomatch_description">No voice matches what the viewer searched for.</string>
     <string name="builtin_reply_voice_disabled_label">Voice picking off</string>

@@ -39,6 +39,9 @@ public sealed class VoiceBuiltin : IBuiltinCommand
 {
     private const string FeatureDisabledCode = "FEATURE_DISABLED";
 
+    /// <summary>The most voice ids one "Multiple matches" reply lists (old-bot cap).</summary>
+    private const int MaxListedMatches = 10;
+
     private readonly ITtsConfigService _tts;
     private readonly IBuiltinResponseComposer _composer;
 
@@ -289,13 +292,23 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                 Vars(("voice.id", voice.VoiceId)),
                 ct
             );
-        return await ReplyAsync(
-            context,
-            BuiltinResponseSlots.Voice.CurrentDefault,
-            "No voice set. Use !voice get <language> to find voices.",
-            null,
-            ct
-        );
+        IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
+        TtsVoiceDto? channelDefault = catalogue.FirstOrDefault(v => v.IsDefault);
+        return channelDefault is null
+            ? await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.CurrentNone,
+                "No voice set. Use !voice get <language> to find voices.",
+                null,
+                ct
+            )
+            : await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.CurrentDefault,
+                "Using default: {voice.name}. Set custom voice with !voice set <name>",
+                Vars(("voice.name", channelDefault.DisplayName)),
+                ct
+            );
     }
 
     private async Task<Result<string>> ClearAsync(
@@ -356,7 +369,27 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                     ct
                 );
 
-        TtsVoiceDto pick = BestMatch(matches.Value.Items, query);
+        IReadOnlyList<TtsVoiceDto> candidates = Candidates(matches.Value.Items, query);
+        if (candidates.Count > 1)
+        {
+            string list = string.Join(
+                ", ",
+                candidates
+                    .Select(v => v.Id)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .Take(MaxListedMatches)
+            );
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.MultipleMatches,
+                "Multiple matches: {voice.list}",
+                Vars(("voice.list", list)),
+                ct
+            );
+        }
+
+        TtsVoiceDto pick = candidates[0];
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
             context.BroadcasterId,
             context.TriggeringUserId,
@@ -466,25 +499,34 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     // Relevance beats catalogue order. The rung that matters most in chat is the BARE SPEAKER NAME: a viewer
     // types `!voice set Ana` meaning en-US-AnaNeural, and substring relevance alone hands them ar-IQ-RanaNeural
     // because it sorts first in the catalogue. Exact id, then exact name/display-name, then the speaker name
-    // (en-US-AnaNeural → "Ana"), then a speaker-name prefix, and only then catalogue order.
-    private static TtsVoiceDto BestMatch(IReadOnlyList<TtsVoiceDto> voices, string query)
+    // (en-US-AnaNeural → "Ana"), then a speaker-name prefix, and only then every substring hit. The first rung
+    // that matches wins; more than one voice on that rung means the name is ambiguous and the caller lists
+    // them (old-bot "Multiple matches") instead of silently picking one.
+    private static IReadOnlyList<TtsVoiceDto> Candidates(
+        IReadOnlyList<TtsVoiceDto> voices,
+        string query
+    )
     {
         string q = query.Trim();
-        return voices.FirstOrDefault(v =>
-                string.Equals(v.Id, q, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? voices.FirstOrDefault(v =>
-                string.Equals(v.Name, q, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? voices.FirstOrDefault(v =>
-                string.Equals(v.DisplayName, q, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? voices.FirstOrDefault(v =>
-                string.Equals(SpeakerName(v), q, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? voices.FirstOrDefault(v =>
-                SpeakerName(v).StartsWith(q, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? voices[0];
+        TtsVoiceDto? exactId = voices.FirstOrDefault(v =>
+            string.Equals(v.Id, q, StringComparison.OrdinalIgnoreCase)
+        );
+        if (exactId is not null)
+            return [exactId];
+
+        Func<TtsVoiceDto, bool>[] rungs =
+        [
+            v => string.Equals(v.Name, q, StringComparison.OrdinalIgnoreCase),
+            v => string.Equals(v.DisplayName, q, StringComparison.OrdinalIgnoreCase),
+            v => string.Equals(SpeakerName(v), q, StringComparison.OrdinalIgnoreCase),
+            v => SpeakerName(v).StartsWith(q, StringComparison.OrdinalIgnoreCase),
+        ];
+        foreach (Func<TtsVoiceDto, bool> rung in rungs)
+        {
+            List<TtsVoiceDto> hits = voices.Where(rung).ToList();
+            if (hits.Count > 0)
+                return hits;
+        }
+        return voices;
     }
 }

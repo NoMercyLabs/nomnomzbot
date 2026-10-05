@@ -14,9 +14,11 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
+using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Platform.Caching;
 using NomNomzBot.Infrastructure.Tts;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
@@ -36,6 +38,7 @@ public sealed class TtsLexiconServiceTests
     {
         public required TtsLexiconService Service { get; init; }
         public required TtsTestDbContext Db { get; init; }
+        public required IChannelNamePronunciationService ChannelNames { get; init; }
     }
 
     private static Harness Build()
@@ -45,7 +48,16 @@ public sealed class TtsLexiconServiceTests
             new MemoryCache(new MemoryCacheOptions()),
             NullLogger<MemoryCacheService>.Instance
         );
-        return new() { Service = new(db, cache), Db = db };
+        IChannelNamePronunciationService names = Substitute.For<IChannelNamePronunciationService>();
+        names
+            .ListAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ChannelNamePronunciation>>([]));
+        return new()
+        {
+            Service = new(db, cache, names),
+            Db = db,
+            ChannelNames = names,
+        };
     }
 
     private static UpsertTtsLexiconEntryDto Rule(

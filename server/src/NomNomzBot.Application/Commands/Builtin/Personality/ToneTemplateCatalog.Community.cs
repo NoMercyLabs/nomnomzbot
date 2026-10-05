@@ -416,24 +416,54 @@ public static partial class ToneTemplateCatalog
             catalog,
             key,
             BuiltinResponseSlots.Voice.CurrentDefault,
+            variables: ["voice.name"],
+            informative: ["Using default: {voice.name}. Set custom voice with !voice set <name>"],
+            friendly:
+            [
+                "You're on the channel default voice, {voice.name}. Pick your own with !voice <search> — like !voice british female!",
+            ],
+            sassy:
+            [
+                "You're on the default voice, {voice.name}, like everyone else. Stand out with !voice <search> — e.g. !voice british female.",
+            ],
+            hype:
+            [
+                "YOU'RE ON THE DEFAULT VOICE, {voice.name}! GRAB YOUR OWN WITH !VOICE <SEARCH> — LIKE !VOICE BRITISH FEMALE!",
+            ],
+            chill:
+            [
+                "on the default voice, {voice.name}. pick one with !voice <search>, e.g. !voice british female.",
+            ]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.CurrentNone,
             variables: [],
             informative: ["No voice set. Use !voice get <language> to find voices."],
             friendly:
             [
-                "You're on the channel default voice. Pick your own with !voice <search> — like !voice british female!",
+                "No voice is set yet. Find one with !voice get <language> — like !voice get en!",
             ],
-            sassy:
+            sassy: ["No voice set. Find one with !voice get <language>, if you care."],
+            hype: ["NO VOICE SET YET! FIND ONE WITH !VOICE GET <LANGUAGE>!"],
+            chill: ["no voice set. find one with !voice get <language>."]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.MultipleMatches,
+            variables: ["voice.list"],
+            informative: ["Multiple matches: {voice.list}"],
+            friendly:
             [
-                "You're on the default voice, like everyone else. Stand out with !voice <search> — e.g. !voice british female.",
+                "A few voices match that: {voice.list}. Say the full name of the one you want!",
             ],
-            hype:
-            [
-                "YOU'RE ON THE DEFAULT VOICE! GRAB YOUR OWN WITH !VOICE <SEARCH> — LIKE !VOICE BRITISH FEMALE!",
-            ],
-            chill:
-            [
-                "on the default voice. pick one with !voice <search>, e.g. !voice british female.",
-            ]
+            sassy: ["Several voices match: {voice.list}. Be specific."],
+            hype: ["MANY MATCHES: {voice.list}! SAY THE FULL NAME OF THE ONE YOU WANT!"],
+            chill: ["a few match: {voice.list}. use the full name."]
         );
 
         Add(
