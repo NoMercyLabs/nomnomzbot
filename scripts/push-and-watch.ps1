@@ -17,6 +17,7 @@
 #   scripts/push-and-watch.ps1                  # push HEAD:master, watch, auto-retry one flake
 #   scripts/push-and-watch.ps1 -NoRetry         # never re-run; a red is a red
 #   scripts/push-and-watch.ps1 -DryRun          # watches the run for the current HEAD, without pushing
+#   scripts/push-and-watch.ps1 -Commit <sha>   # push and watch the commit a batch gate checked, not HEAD
 #
 # Exit code is the verdict: 0 green, 1 red. On red it prints the failing jobs and the first error
 # lines, so the next step is diagnosis rather than another round of gh incantations.
@@ -29,7 +30,10 @@
 
 param(
     [switch]$NoRetry,
-    [switch]$DryRun
+    [switch]$DryRun,
+    # Push and watch this commit instead of HEAD: the commit a batch gate checked, when newer commits
+    # landed on the shared tree after the gate started.
+    [string]$Commit
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,7 +51,7 @@ Push-Location $repo
 try {
     # Read the SHA once, BEFORE the push, and push exactly that commit: a commit landed on this shared
     # tree during the push moved HEAD, and the watch then waited for a run that could never exist.
-    [string]$sha = (git rev-parse HEAD).Trim()
+    [string]$sha = if ($Commit) { (git rev-parse --verify "$Commit^{commit}").Trim() } else { (git rev-parse HEAD).Trim() }
     if (-not $DryRun) {
         Write-Host "== pushing $($sha.Substring(0,9)) to origin/master =="
         Invoke-Native 'git push failed - rebase onto origin/master and retry' { git push origin "${sha}:refs/heads/master" }
