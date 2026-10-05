@@ -2919,6 +2919,20 @@ than each consumer needing their own clone-and-customize pass.
   Depends: S-UF-T2b (preset field), S-UF-T11a.
   Done-when: a server test seeds one of each source and the endpoint returns five rows with the right editor
   routes; deleting the reward removes its row.
+- **S-TPL-TIMEZONE** [new] Template helpers for the time in another city or at an offset.
+  Owner, 2026-10-05: "future: time.Amsterdam or time.Paris and time offset options."
+  Build: `{time.<zone>}` where `<zone>` is an IANA city name (`{time.Amsterdam}`, `{time.Paris}`,
+  `{time.New_York}`) resolved against the IANA database; `{time.offset.<±hours>}` for a fixed offset from the
+  channel's time (`{time.offset.+3}`, `{time.offset.-5.5}`); both in the channel's clock format. An unknown
+  zone renders the helper name unchanged and is refused at save time by `ITemplateHelperValidator`. Register
+  both as `Prefixed` entries in `TemplateHelperRegistry` (AllContexts); a row each in `docs/templates/README.md`
+  with a rendered example.
+  Files: `TemplateResolver.cs` (next to `{time}` / `{time.utc}`), `TemplateHelperRegistry.cs`,
+  `TemplateHelperValidator.cs`, en + nl `template_helper_*` strings.
+  Depends: none.
+  Done-when: a resolver test at a fixed instant renders `{time.Amsterdam}` and `{time.Paris}` as the same
+  wall-clock time, `{time.New_York}` six hours earlier, `{time.offset.+3}` three hours after `{time}`; saving a
+  command with `{time.Atlantis}` is refused with the helper named.
 
 ## 🔒 Owner calls still open
 - SignalR/Redis backplane for multi-replica (S035) — single-instance acceptable for now?

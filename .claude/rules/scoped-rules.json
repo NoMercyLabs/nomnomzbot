@@ -569,6 +569,14 @@
    ]
   },
   {
+   "id": "agent-handoff-path-scratchpad",
+   "text": "Every brief names its handoff path in the session scratchpad (C:/Users/patri/AppData/Local/Temp/claude/c--Projects-NoMercyLabs-nomnomzbot/<session>/scratchpad/handoff-<slice>.md), never the main-tree .scratch (refused) or the worktree .scratch (deleted with an unchanged worktree). Builder briefs say: first code edit by tool call 6.",
+   "source": "memory agent-handoff-path-scratchpad.md",
+   "covers": [
+    "agent-handoff-path-scratchpad.md"
+   ]
+  },
+  {
    "id": "push-validated-batches",
    "text": "Push validated work in regular, properly sized batches: not every commit, not never. A batch boundary is when the in-flight feature lands. CI is watched in the background.",
    "source": "memory feedback-batch-commits-push-at-milestones.md",
