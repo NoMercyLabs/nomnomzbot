@@ -119,8 +119,87 @@ public sealed class RaidCommitFlowSeederTests
         steps.Should().HaveCount(3);
         steps[0].ActionType.Should().Be("obs_streaming");
         steps[1].ActionType.Should().Be("music_pause");
-        steps[2].ActionType.Should().Be("send_message");
-        steps[2].ConfigJson.Should().Contain("{user}");
+        steps[2].ActionType.Should().Be("announce");
+    }
+
+    /// <summary>
+    /// The old bot confirmed a raid with a chat ANNOUNCEMENT carrying the raided channel's link, not a
+    /// plain line. <c>OutgoingRaidAlertHandler</c> seeds <c>{user.name}</c> with the target's login.
+    /// </summary>
+    [Fact]
+    public async Task The_raid_confirmation_is_an_announcement_carrying_the_twitch_link()
+    {
+        (RaidCommitFlowSeeder seeder, SeedTestDbContext db) = Build();
+        db.EventResponses.Add(UntouchedStub(Tenant));
+        db.SaveChanges();
+
+        await seeder.SeedAsync(Tenant);
+
+        Guid pipelineId = db
+            .EventResponses.Single(r => r.BroadcasterId == Tenant)
+            .PipelineId!.Value;
+        PipelineStep confirm = StepsOf(db, pipelineId).Last();
+
+        confirm.ActionType.Should().Be("announce");
+        confirm
+            .ConfigJson.Should()
+            .Contain("We have raided out to https://twitch.tv/{user.name}, See you there!");
+        db.Pipelines.Single(p => p.Id == pipelineId)
+            .GraphJsonCache.Should()
+            .Contain("https://twitch.tv/{user.name}");
+    }
+
+    /// <summary>
+    /// A channel already wired to a built pipeline keeps it as-is, so a pipeline seeded earlier with the
+    /// old plain send_message line is not rewritten by this change.
+    /// </summary>
+    [Fact]
+    public async Task A_pipeline_seeded_earlier_with_the_old_send_message_line_is_not_rewritten()
+    {
+        (RaidCommitFlowSeeder seeder, SeedTestDbContext db) = Build();
+        Guid pipelineId = Guid.CreateVersion7();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = Tenant,
+                Name = "Raid committed",
+                TriggerKind = "event",
+                IsEnabled = true,
+                GraphJsonCache = "{}",
+            }
+        );
+        db.PipelineSteps.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                PipelineId = pipelineId,
+                BroadcasterId = Tenant,
+                ActionType = "send_message",
+                ConfigJson = """{"message":"We've raided out to {user}! Thanks for joining!"}""",
+                Order = 0,
+                IsEnabled = true,
+            }
+        );
+        db.EventResponses.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Tenant,
+                EventType = EventType,
+                ResponseType = "pipeline",
+                PipelineId = pipelineId,
+                IsEnabled = true,
+            }
+        );
+        db.SaveChanges();
+
+        await seeder.SeedAsync(Tenant);
+
+        PipelineStep only = db.PipelineSteps.Single();
+        only.ActionType.Should().Be("send_message");
+        only.ConfigJson.Should().Contain("Thanks for joining");
+        db.Pipelines.Should().ContainSingle();
     }
 
     [Fact]

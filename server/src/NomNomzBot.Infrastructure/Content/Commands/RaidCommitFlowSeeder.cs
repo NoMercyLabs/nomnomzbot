@@ -184,11 +184,12 @@ public sealed class RaidCommitFlowSeeder : ISeeder
         // matching the legacy bot's two separate try/catches around StopStreaming and PauseSpotify.
         yield return new("obs_streaming", """{"action":"stop"}""", ContinueOnError: true);
         yield return new("music_pause", "{}", ContinueOnError: true);
-        // {user} is the display name OutgoingRaidAlertHandler seeds for channel.raid.out (matches
-        // {user.id}/{user.name}/{viewers}, per EventResponsePresetCatalog).
+        // {user.name} is the raided channel's login, seeded by OutgoingRaidAlertHandler for channel.raid.out
+        // (with {user}/{user.id}/{viewers}, per EventResponsePresetCatalog). An announcement with the
+        // channel link, like the old bot's raid-out line.
         yield return new(
-            "send_message",
-            """{"message":"We've raided out to {user}! Thanks for joining!"}"""
+            "announce",
+            """{"message":"We have raided out to https://twitch.tv/{user.name}, See you there!"}"""
         );
     }
 }
