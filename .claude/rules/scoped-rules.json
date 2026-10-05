@@ -344,6 +344,23 @@
    "covers": [
     "feedback-one-item-per-builder-and-checked-docs.md"
    ]
+  },
+  {
+   "id": "parity-values-are-channel-data",
+   "paths": [
+    "**/server/src/**/RaidSuggestions/**"
+   ],
+   "brief": [
+    "S-PAR-",
+    "[Ll]egacy",
+    "[Pp]arity",
+    "old bot"
+   ],
+   "text": "A parity slice that copies one streamer's values from the old bot (categories, keywords, thresholds, weights, bands, word lists, reply texts) makes them per-channel data: the code reads them from channel settings and keeps no constant; a new channel gets neutral defaults it can edit in the dashboard; the streamer's own values are applied as data for that channel only (data pass), never hard-coded. A test proves two channels with different values behave differently.",
+   "source": "Stoney 2026-10-05: \"raid target scoring is streamer specific\" (5defd4e62 hard-coded his legacy raid rules for every channel); owner-decisions.md",
+   "covers": [
+    "feedback-parity-values-are-channel-data.md"
+   ]
   }
  ],
  "dispatch": [
