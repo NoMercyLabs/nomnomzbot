@@ -414,6 +414,10 @@ public static class DependencyInjection
         // A known streamer's first chat of a stream waits here for the old bot's auto-shoutout gates.
         services.AddSingleton<IAutoShoutoutScheduler, Stream.AutoShoutout.AutoShoutoutScheduler>();
         services.AddHostedService<Stream.AutoShoutout.AutoShoutoutWorker>();
+        services.AddScoped<
+            Application.Raids.IRaidHistoryReader,
+            Stream.RaidSuggestions.RaidHistoryReader
+        >();
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
         services.AddHostedService<Stream.AdBreak.AdBreakEndWorker>();
