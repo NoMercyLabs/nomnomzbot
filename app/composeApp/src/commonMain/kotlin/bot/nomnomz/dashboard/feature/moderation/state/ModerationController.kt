@@ -335,6 +335,14 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Whether automatic shoutouts are on. A failed read shows "off": the backend default, and the safe
+        // reading (the switch never claims a shoutout will fire when we could not confirm it).
+        val autoShoutoutEnabled: Boolean =
+            when (val result: ApiResult<Boolean> = moderationApi.autoShoutout(channel.id)) {
+                is ApiResult.Failure -> false
+                is ApiResult.Ok -> result.value
+            }
+
         // Twitch's OWN AutoMod levels (live Helix state). A failure means unreadable here — NOT "all levels 0";
         // the automation panel then says the state is unknown rather than claiming AutoMod filters nothing.
         val twitchAutoMod: TwitchAutoModSettings? =
@@ -409,6 +417,7 @@ class ModerationController(
                     !shieldEnabled &&
                     !anyAutomodEnabled &&
                     shoutoutTemplate.isNullOrBlank() &&
+                    !autoShoutoutEnabled &&
                     bansAvailable &&
                     blockedTermsAvailable &&
                     shieldAvailable
@@ -439,6 +448,7 @@ class ModerationController(
                     historyHasMore = historyHasMore,
                     historyFilter = ModerationHistoryFilter(),
                     shoutoutTemplate = shoutoutTemplate,
+                    autoShoutoutEnabled = autoShoutoutEnabled,
                     twitchAutoMod = twitchAutoMod,
                     trustPolicy = trustPolicy,
                     spamDefense = spamDefense,
@@ -898,6 +908,12 @@ class ModerationController(
     suspend fun setShoutoutTemplate(template: String) {
         val channel: String = channelId ?: return
         afterWrite(moderationApi.setShoutoutTemplate(channel, template.ifBlank { null }))
+    }
+
+    /** Turn this channel's automatic shoutouts on or off, then reload so the switch shows the saved value. */
+    suspend fun setAutoShoutout(enabled: Boolean) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.setAutoShoutout(channel, enabled))
     }
 
     /**
@@ -1390,6 +1406,8 @@ sealed interface ModerationState {
         // This channel's own custom shoutout announcement template (null/blank = built-in default) — also
         // what OTHER streamers see when THEY shout this channel out. See load().
         val shoutoutTemplate: String? = null,
+        // Whether this channel gives a known streamer an automatic shoutout on their first chat of a stream.
+        val autoShoutoutEnabled: Boolean = false,
         // Twitch's own AutoMod levels, null when the live read failed (unknown — never reported as "off").
         val twitchAutoMod: TwitchAutoModSettings? = null,
         // The channel's trust policy (S-OWN23), null when the read failed or no trust API is wired.

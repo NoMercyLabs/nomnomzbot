@@ -581,6 +581,8 @@
     <string name="moderation_shoutout_help">Hoe je aangekondigd wordt wanneer WELKE streamer dan ook op dit platform je shoutout geeft met !so — niet alleen je eigen shoutouts. Laat leeg voor de standaardtekst.</string>
     <string name="moderation_shoutout_label">Aankondigingssjabloon</string>
     <string name="moderation_shoutout_save">Opslaan</string>
+    <string name="moderation_auto_shoutout_label">Automatische shoutouts</string>
+    <string name="moderation_auto_shoutout_help">De eerste chat van een bekende streamer in een stream krijgt automatisch een shoutout, zodra de stream 10 minuten oud is.</string>
     <string name="moderation_automod_title">AutoMod-filters</string>
     <string name="moderation_automod_link">Links</string>
     <string name="moderation_automod_caps">Hoofdletters</string>

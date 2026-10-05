@@ -151,6 +151,7 @@ class ApiContractTest {
             UserModerationContext.serializer() to "UserModerationContextDto",
             ModerationActionLog.serializer() to "ModerationActionLog",
             ModerationActionResult.serializer() to "ModerationActionResult",
+            AutoShoutoutDto.serializer() to "AutoShoutoutDto",
             UnbanRequest.serializer() to "UnbanRequestDto",
             ViewerReport.serializer() to "ViewerReportDto",
             ResolveReportBody.serializer() to "ResolveViewerReportRequest",

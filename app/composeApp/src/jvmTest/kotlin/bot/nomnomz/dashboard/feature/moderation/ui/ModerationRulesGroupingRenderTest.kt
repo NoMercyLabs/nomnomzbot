@@ -109,6 +109,7 @@ class ModerationRulesGroupingRenderTest {
             historyHasMore = false,
             historyFilter = ModerationHistoryFilter(),
             shoutoutTemplate = null,
+            autoShoutoutEnabled = false,
             templateHelpersApi =
                 object : TemplateHelpersApi {
                     override suspend fun helpers(
@@ -177,6 +178,7 @@ class ModerationRulesGroupingRenderTest {
             onCreateChatFilter = { _, _, _, _, _, _ -> },
             onSendAnnouncement = { _, _ -> },
             onSaveShoutoutTemplate = {},
+            onToggleAutoShoutout = {},
         )
     }
 

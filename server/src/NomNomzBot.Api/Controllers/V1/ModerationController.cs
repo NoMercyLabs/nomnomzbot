@@ -1636,6 +1636,53 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<ShoutoutTemplateDto> { Data = new(template) });
     }
 
+    public record AutoShoutoutDto(bool Enabled);
+
+    /// <summary>
+    /// Whether this channel gives a known streamer an automatic shoutout on their first chat of a stream
+    /// (after the stream is 10 minutes old). Off by default.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("auto-shoutout")]
+    [ProducesResponseType<StatusResponseDto<AutoShoutoutDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAutoShoutout(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        bool enabled = await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => c.AutoShoutoutEnabled)
+            .FirstOrDefaultAsync(ct);
+        return Ok(new StatusResponseDto<AutoShoutoutDto> { Data = new(enabled) });
+    }
+
+    /// <summary>Turns this channel's automatic shoutouts on or off.</summary>
+    [RequireAction("moderation:shoutout")]
+    [HttpPut("auto-shoutout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetAutoShoutout(
+        string channelId,
+        [FromBody] AutoShoutoutDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Domain.Identity.Entities.Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            ct
+        );
+        if (channel is null)
+            return NotFoundResponse("Channel not found.");
+
+        channel.AutoShoutoutEnabled = request.Enabled;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /// <summary>Sets (or clears, with a null/empty template) the channel's custom shoutout announcement template.</summary>
     [RequireAction("moderation:shoutout")]
     [HttpPut("shoutout-template")]

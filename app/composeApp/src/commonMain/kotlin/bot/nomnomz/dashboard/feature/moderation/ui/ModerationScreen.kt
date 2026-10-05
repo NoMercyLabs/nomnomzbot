@@ -229,6 +229,8 @@ import nomnomzbot.composeapp.generated.resources.moderation_terms_remove
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
 import nomnomzbot.composeapp.generated.resources.moderation_terms_title
 import nomnomzbot.composeapp.generated.resources.moderation_terms_unavailable
+import nomnomzbot.composeapp.generated.resources.moderation_auto_shoutout_help
+import nomnomzbot.composeapp.generated.resources.moderation_auto_shoutout_label
 import nomnomzbot.composeapp.generated.resources.moderation_shoutout_title
 import nomnomzbot.composeapp.generated.resources.moderation_shoutout_help
 import nomnomzbot.composeapp.generated.resources.moderation_shoutout_label
@@ -612,6 +614,7 @@ fun ModerationScreen(
                     historyHasMore = current.historyHasMore,
                     historyFilter = current.historyFilter,
                     shoutoutTemplate = current.shoutoutTemplate,
+                    autoShoutoutEnabled = current.autoShoutoutEnabled,
                     templateHelpersApi = templateHelpersApi,
                     // Computed from the very config objects enforcement reads — never a hardcoded claim.
                     automationLines =
@@ -725,6 +728,7 @@ fun ModerationScreen(
                         scope.launch { controller.sendAnnouncement(msg, color) }
                     },
                     onSaveShoutoutTemplate = { t -> scope.launch { controller.setShoutoutTemplate(t) } },
+                    onToggleAutoShoutout = { on -> scope.launch { controller.setAutoShoutout(on) } },
                 )
         }
     }
@@ -828,6 +832,7 @@ internal fun BansList(
     historyHasMore: Boolean,
     historyFilter: ModerationHistoryFilter,
     shoutoutTemplate: String?,
+    autoShoutoutEnabled: Boolean,
     templateHelpersApi: TemplateHelpersApi,
     // The derived "what happens automatically" account, plus the two broadcaster-gated editors behind it.
     automationLines: List<AutomationLine>,
@@ -898,6 +903,7 @@ internal fun BansList(
     ) -> Unit,
     onSendAnnouncement: (message: String, color: String?) -> Unit,
     onSaveShoutoutTemplate: (String) -> Unit,
+    onToggleAutoShoutout: (Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1697,6 +1703,19 @@ internal fun BansList(
                     templateHelpersApi = templateHelpersApi,
                     onSave = onSaveShoutoutTemplate,
                 )
+            }
+        }
+        rulesSectionItem(section, RulesGroup.General, selectedRulesGroup, "shoutout-auto-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.padding(LocalSpacing.current.s4)) {
+                    SharedBanSwitchRow(
+                        label = stringResource(Res.string.moderation_auto_shoutout_label),
+                        hint = stringResource(Res.string.moderation_auto_shoutout_help),
+                        checked = autoShoutoutEnabled,
+                        manage = manage,
+                        onToggle = onToggleAutoShoutout,
+                    )
+                }
             }
         }
     }

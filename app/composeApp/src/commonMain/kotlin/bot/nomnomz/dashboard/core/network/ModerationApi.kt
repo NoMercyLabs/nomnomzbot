@@ -126,6 +126,12 @@ interface ModerationApi {
     /** Set (or clear, with null/blank) this channel's custom shoutout announcement template. */
     suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit>
 
+    /** Whether this channel gives a known streamer an automatic shoutout on their first chat of a stream. */
+    suspend fun autoShoutout(channelId: String): ApiResult<Boolean>
+
+    /** Turn this channel's automatic shoutouts on or off. */
+    suspend fun setAutoShoutout(channelId: String, enabled: Boolean): ApiResult<Unit>
+
     /**
      * This channel's own personal shoutout line for specific people — old-bot parity: a deliberate note
      * written for THIS target, independent of whether they've ever connected to NomNomzBot. Wins over the
@@ -502,6 +508,15 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         client.putUnit("api/v1/channels/$channelId/moderation/shoutout-template", ShoutoutTemplateDto(template))
 
     // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the list.
+    override suspend fun autoShoutout(channelId: String): ApiResult<Boolean> =
+        when (val result = client.getEnvelope<AutoShoutoutDto>("api/v1/channels/$channelId/moderation/auto-shoutout")) {
+            is ApiResult.Ok -> ApiResult.Ok(result.value.enabled)
+            is ApiResult.Failure -> result
+        }
+
+    override suspend fun setAutoShoutout(channelId: String, enabled: Boolean): ApiResult<Unit> =
+        client.putUnit("api/v1/channels/$channelId/moderation/auto-shoutout", AutoShoutoutDto(enabled))
+
     override suspend fun shoutoutOverrides(channelId: String): ApiResult<List<ShoutoutOverride>> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/shoutout-overrides")
 
@@ -837,6 +852,10 @@ data class ModerationStats(
 /** Mirrors the backend `ShoutoutTemplateDto` (null/blank template = the built-in default). */
 @Serializable
 data class ShoutoutTemplateDto(val template: String? = null)
+
+/** Mirrors the backend `ModerationController.AutoShoutoutDto`. */
+@Serializable
+data class AutoShoutoutDto(val enabled: Boolean = false)
 
 /** Mirrors the backend `ModerationController.ShoutoutOverrideDto`. */
 @Serializable

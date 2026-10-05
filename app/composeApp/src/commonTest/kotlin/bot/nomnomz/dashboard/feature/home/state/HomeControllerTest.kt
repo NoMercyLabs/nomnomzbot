@@ -1239,6 +1239,8 @@ private class FakeModerationApi : ModerationApi {
     override suspend fun stats(channelId: String) = error("stub")
     override suspend fun shoutoutTemplate(channelId: String) = error("stub")
     override suspend fun setShoutoutTemplate(channelId: String, template: String?) = error("stub")
+    override suspend fun autoShoutout(channelId: String) = error("stub")
+    override suspend fun setAutoShoutout(channelId: String, enabled: Boolean) = error("stub")
     override suspend fun shoutoutOverrides(channelId: String) = error("stub")
     override suspend fun setShoutoutOverride(
         channelId: String,

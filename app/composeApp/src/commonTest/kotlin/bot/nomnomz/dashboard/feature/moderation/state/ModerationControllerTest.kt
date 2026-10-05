@@ -218,6 +218,34 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun turning_automatic_shoutouts_on_sends_true_and_the_reloaded_page_shows_it_saved() = runTest {
+        // Shield on keeps the page Ready, so the switch is on screen while it is still off.
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Ok(ShieldStatus(enabled = true)),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+                FakeCommunityApi(),
+            )
+        controller.load()
+        assertEquals(false, (controller.state.value as ModerationState.Ready).autoShoutoutEnabled)
+
+        controller.setAutoShoutout(true)
+
+        assertEquals(listOf(true), moderationApi.autoShoutoutWrites)
+        assertEquals(true, (controller.state.value as ModerationState.Ready).autoShoutoutEnabled)
+
+        controller.setAutoShoutout(false)
+
+        assertEquals(listOf(true, false), moderationApi.autoShoutoutWrites)
+        assertEquals(false, (controller.state.value as ModerationState.Ready).autoShoutoutEnabled)
+    }
+
+    @Test
     fun load_surfaces_blocked_terms_and_removing_one_calls_the_api() = runTest {
         val moderationApi =
             FakeModerationApi(
@@ -1221,6 +1249,18 @@ internal class FakeModerationApi(
 
     override suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+
+    // A REAL in-memory switch: a write is what the next read returns, like the backend column.
+    var autoShoutoutStored: Boolean = false
+    val autoShoutoutWrites: MutableList<Boolean> = mutableListOf()
+
+    override suspend fun autoShoutout(channelId: String): ApiResult<Boolean> = ApiResult.Ok(autoShoutoutStored)
+
+    override suspend fun setAutoShoutout(channelId: String, enabled: Boolean): ApiResult<Unit> {
+        autoShoutoutWrites.add(enabled)
+        autoShoutoutStored = enabled
+        return ApiResult.Ok(Unit)
+    }
 
     // A REAL in-memory store, keyed the way the backend keys the row: (target, kind). A stub that swallowed
     // the write and always read back an empty list could not tell "saved the raid line" apart from "saved

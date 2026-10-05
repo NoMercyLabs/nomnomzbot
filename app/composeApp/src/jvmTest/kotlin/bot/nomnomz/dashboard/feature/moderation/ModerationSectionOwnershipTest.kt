@@ -97,6 +97,7 @@ class ModerationSectionOwnershipTest {
                     "chat-filters-card",
                     "shoutout-header",
                     "shoutout-card",
+                    "shoutout-auto-card",
                 ),
             // Find what happened.
             "History" to
@@ -159,7 +160,7 @@ class ModerationSectionOwnershipTest {
                     "escalation-card",
                 ),
             "Network" to setOf("shared-bans-header", "shared-bans-card"),
-            "General" to setOf("shoutout-header", "shoutout-card"),
+            "General" to setOf("shoutout-header", "shoutout-card", "shoutout-auto-card"),
         )
 
     @Test
@@ -240,8 +241,9 @@ class ModerationSectionOwnershipTest {
         // "rules-group-tabs" (the new job-group switch itself) plus "heat-header"/"heat-card" (heat auto-timeout
         // split out of the AutoMod card into its own Enforcement-group card — no control lost, just relocated).
         // Filtering then grew by 1 (owner request 2026-09-30): "terms-sweep", the per-channel outcome of a
-        // blocked term added to or removed from every channel the operator moderates.
+        // blocked term added to or removed from every channel the operator moderates. General then grew by 1
+        // (S-PAR-AUTO-SHOUTOUT, 2026-10-05): "shoutout-auto-card", the switch for automatic shoutouts.
         val owned: Int = expectedOwners.values.sumOf { it.size }
-        assertEquals(55, owned, "a moderation section was dropped or added without a decision")
+        assertEquals(56, owned, "a moderation section was dropped or added without a decision")
     }
 }
