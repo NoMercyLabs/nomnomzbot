@@ -32,15 +32,13 @@ public sealed class FollowAgeTemplateResolverTests
 {
     private static readonly Guid Channel = Guid.Parse("0192b400-0000-7000-9000-00000000e001");
 
-    private readonly PronounGrammarTestDbContext _db;
     private readonly ITwitchChannelsApi _channels = Substitute.For<ITwitchChannelsApi>();
-    private readonly FakeTimeProvider _time = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
     private readonly TemplateResolver _resolver;
 
     public FollowAgeTemplateResolverTests()
     {
-        _db = PronounGrammarTestDbContext.New();
-        _db.Users.Add(
+        PronounGrammarTestDbContext db = PronounGrammarTestDbContext.New();
+        db.Users.Add(
             new()
             {
                 TwitchUserId = "555",
@@ -49,13 +47,14 @@ public sealed class FollowAgeTemplateResolverTests
                 DisplayName = "Eve",
             }
         );
-        _db.SaveChanges();
+        db.SaveChanges();
 
+        FakeTimeProvider time = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         ITwitchHelixClient helix = Substitute.For<ITwitchHelixClient>();
         helix.Channels.Returns(_channels);
 
         ServiceCollection services = new();
-        services.AddSingleton<IApplicationDbContext>(_db);
+        services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(helix);
         ServiceProvider provider = services.BuildServiceProvider();
 
@@ -63,7 +62,7 @@ public sealed class FollowAgeTemplateResolverTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,
-            _time
+            time
         );
     }
 
@@ -91,7 +90,7 @@ public sealed class FollowAgeTemplateResolverTests
 
         string resolved = await ResolveFollowAge();
 
-        resolved.Should().Contain("year").And.NotContain("unknown");
+        resolved.Should().Be("1 year and 61 days");
     }
 
     [Fact]

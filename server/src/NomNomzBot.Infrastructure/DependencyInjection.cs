@@ -1124,6 +1124,7 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Commands.Builtins.LurkBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.UnlurkBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.AccountAgeBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.FollowAgeBuiltin>();
         services.AddScoped<IBuiltinCommand, Quotes.Builtins.QuoteBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SongRequestBuiltin>();
         services.AddScoped<Commands.Builtins.MusicModerationGate>();

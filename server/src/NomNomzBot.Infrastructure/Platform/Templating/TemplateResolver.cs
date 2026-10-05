@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
@@ -747,7 +748,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 return "unknown";
             if (follower.Value is null)
                 return "not following";
-            return FormatAge(
+            return LegacyAgeText.FollowAge(
                 _timeProvider.GetUtcNow().UtcDateTime - follower.Value.FollowedAt.UtcDateTime
             );
         }
@@ -783,7 +784,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
             // {{target.id}} is the Twitch user string id, not the internal Guid PK.
             vars.TryAdd("target.id", target.TwitchUserId!);
-            vars.TryAdd("target.name", target.Username ?? targetName);
+            vars.TryAdd("target.name", target.Username);
             if (needFollowAge && !vars.ContainsKey("target.followAge"))
                 vars["target.followAge"] =
                     broadcasterId is not null && !string.IsNullOrEmpty(target.TwitchUserId)
