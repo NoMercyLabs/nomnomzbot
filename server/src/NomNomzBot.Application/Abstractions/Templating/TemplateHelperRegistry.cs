@@ -429,6 +429,12 @@ public static class TemplateHelperRegistry
                 "template.helper.random_number"
             ),
             Prefixed(
+                "random.number.<min>.<max>[.<step>]",
+                "random.number.",
+                AllContexts,
+                "template.helper.random_number_range"
+            ),
+            Prefixed(
                 "random.pick.<a.b.c>",
                 "random.pick.",
                 AllContexts,

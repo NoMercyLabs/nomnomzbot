@@ -977,6 +977,7 @@
     "template.helper.present_tense",
     "template.helper.provider",
     "template.helper.random_number",
+    "template.helper.random_number_range",
     "template.helper.random_pick",
     "template.helper.random_user",
     "template.helper.raw_message",

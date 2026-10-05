@@ -454,6 +454,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
             }
         }
 
+        // ── Random numbers (no channel context needed) ────────────────────
+        ResolveRandomNumbers(vars, needed);
+
         // ── Random variables ──────────────────────────────────────────────
         if (
             channelCtx is not null
@@ -479,13 +482,6 @@ public sealed partial class TemplateResolver : ITemplateResolver
                                 $"random.user:{channelCtx.BroadcasterId}"
                             )
                             : vars.GetValueOrDefault("user", "someone");
-                }
-                else if (key.StartsWith("random.number.", StringComparison.OrdinalIgnoreCase))
-                {
-                    // random.number.100 → random 1-100
-                    string[] parts = key.Split('.');
-                    if (parts.Length == 3 && int.TryParse(parts[2], out int maxVal))
-                        vars[key] = Random.Shared.Next(1, maxVal + 1).ToString();
                 }
                 else if (key.StartsWith("random.pick.", StringComparison.OrdinalIgnoreCase))
                 {
@@ -766,6 +762,35 @@ public sealed partial class TemplateResolver : ITemplateResolver
         {
             _logger.LogDebug(ex, "Failed to resolve follow age for {UserId}", userTwitchId);
             return "unknown";
+        }
+    }
+
+    /// <summary>
+    /// <c>{random.number.N}</c> is 1..N; <c>{random.number.MIN.MAX}</c> and
+    /// <c>{random.number.MIN.MAX.STEP}</c> draw inside the range on the step. The same key twice in one
+    /// render gives one value. A malformed range stays raw so the author sees the mistake.
+    /// </summary>
+    private static void ResolveRandomNumbers(
+        Dictionary<string, string> vars,
+        HashSet<string> needed
+    )
+    {
+        foreach (
+            string key in needed.Where(n =>
+                n.StartsWith("random.number.", StringComparison.OrdinalIgnoreCase)
+            )
+        )
+        {
+            if (vars.ContainsKey(key))
+                continue;
+
+            string[] args = key.Split('.')[2..];
+            bool parsed =
+                args.Length == 1
+                    ? RandomNumberSpec.TryParse(["1", args[0]], out RandomNumberSpec spec)
+                    : RandomNumberSpec.TryParse(args, out spec);
+            if (parsed)
+                vars[key] = spec.Draw().ToString();
         }
     }
 
