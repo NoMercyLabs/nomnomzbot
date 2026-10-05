@@ -27,7 +27,7 @@ public sealed class ObsInputMuteAction(IObsControlService obs) : ObsActionBase(o
         [
             new(
                 "input",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_input_mute.input.help")
             ),
@@ -75,7 +75,7 @@ public sealed class ObsInputVolumeAction(IObsControlService obs) : ObsActionBase
         [
             new(
                 "input",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_input_volume.input.help")
             ),
@@ -124,7 +124,7 @@ public sealed class ObsMediaAction(IObsControlService obs) : ObsActionBase(obs)
         [
             new(
                 "input",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_media.input.help")
             ),
@@ -172,7 +172,7 @@ public sealed class ObsHotkeyAction(IObsControlService obs) : ObsActionBase(obs)
         [
             new(
                 "hotkey_name",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_hotkey.hotkey_name.help")
             ),
@@ -203,7 +203,7 @@ public sealed class ObsRefreshBrowserAction(IObsControlService obs) : ObsActionB
         [
             new(
                 "input",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_refresh_browser.input.help")
             ),
@@ -234,7 +234,7 @@ public sealed class ObsScreenshotAction(IObsControlService obs) : ObsActionBase(
         [
             new(
                 "source",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_screenshot.source.help")
             ),

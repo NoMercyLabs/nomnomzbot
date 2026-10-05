@@ -141,7 +141,7 @@ public sealed class VtsTriggerHotkeyAction(IVtsControlService vts) : VtsActionBa
         [
             new(
                 "hotkey",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.vts_trigger_hotkey.hotkey.help")
             ),

@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.PickLists.PipelineActions;
+using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -66,6 +67,7 @@ public sealed class PickFromListActionTests : IDisposable
         AddList("adjectives", ["mighty"]);
         AddList("broken", ["A[{list.pick.nope}]B"]);
         AddList("greetings", ["hi there"]);
+        AddList("lurk-lines", ["slides into the shadows"]);
         _db.SaveChanges();
 
         RecordingEventBus bus = new();
@@ -252,6 +254,28 @@ public sealed class PickFromListActionTests : IDisposable
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().NotBeNullOrWhiteSpace();
         ctx.Variables.Should().NotContainKey("pick");
+    }
+
+    [Fact]
+    public async Task A_pipeline_naming_a_list_saves_and_the_run_picks_from_that_list()
+    {
+        CommandConfigValidator validator = new([_action], new TemplateHelperValidator());
+        Dictionary<string, object?> config = new()
+        {
+            ["list"] = JsonSerializer.SerializeToElement("lurk-lines"),
+        };
+
+        Result<PipelineValidationResult> saved = await validator.ValidatePipelineAsync(
+            new([new PipelineStepInput("pick_from_list", config)])
+        );
+
+        saved.Value.IsValid.Should().BeTrue(saved.Value.ErrorMessage);
+
+        PipelineExecutionContext ctx = Context();
+        ActionResult result = await _action.ExecuteAsync(ctx, Action(("list", "lurk-lines")));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        ctx.Variables["pick"].Should().Be("slides into the shadows");
     }
 
     public void Dispose()

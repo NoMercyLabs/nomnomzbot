@@ -219,6 +219,32 @@ public class BaseControllerTests
         result.StatusCode.Should().Be(200);
     }
 
+    // A pipeline save the validator rejects is the caller's mistake, never a server fault.
+    [Theory]
+    [InlineData("INVALID_RESOURCE_ID")]
+    [InlineData("MISSING_ACTION_TYPE")]
+    [InlineData("UNKNOWN_ACTION_TYPE")]
+    [InlineData("BANNED_CONFIG_KEY")]
+    [InlineData("STEP_COUNT_EXCEEDED")]
+    [InlineData("UNKNOWN_TEMPLATE_HELPER")]
+    [InlineData("URL_IN_CONFIG")]
+    [InlineData("CREDENTIAL_IN_CONFIG")]
+    public void ResultResponseT_PipelineValidatorRejection_Returns400WithTheCode(string code)
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(
+                Result.Failure<string>("Field 'list' is not a valid resource reference.", code)
+            ) as ObjectResult;
+
+        result!.StatusCode.Should().Be(400);
+        StatusResponseDto<object> body = result
+            .Value.Should()
+            .BeOfType<StatusResponseDto<object>>()
+            .Subject;
+        body.Code.Should().Be(code);
+    }
+
     [Fact]
     public void ResultResponse_Failure_Returns500ForUnknownCode()
     {

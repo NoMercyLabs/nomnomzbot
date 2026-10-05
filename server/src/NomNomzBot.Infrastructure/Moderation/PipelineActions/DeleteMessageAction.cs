@@ -27,7 +27,7 @@ public sealed class DeleteMessageAction : ICommandAction
         [
             new(
                 "message_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Description: new("pipeline.delete_message.message_id.help")
             ),
         ];

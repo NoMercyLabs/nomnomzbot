@@ -320,6 +320,14 @@ internal static class PipelineActionParameterSurfaceScanner
 /// </summary>
 public sealed class PipelineActionFieldSchemaGuardTests
 {
+    // Ids an external service issues (a Spotify playlist id, a Twitch message id). They never carry our ULID wire form,
+    // so declaring them ResourceId would make the save-time owned-id check reject every real value.
+    private static readonly HashSet<string> ExternalIdFields =
+    [
+        "playlist_add.playlist_id",
+        "delete_message.message_id",
+    ];
+
     private static readonly Regex IdShaped = new(@"(^id$|_id$)", RegexOptions.IgnoreCase);
     private static readonly Regex NumberShaped = new(
         @"^(amount|bet|min|max|volume|duration|delta|step|number|r|g|b|a|x|y|rotation|size)$|(_seconds|_minutes|_ms)$",
@@ -365,6 +373,9 @@ public sealed class PipelineActionFieldSchemaGuardTests
         foreach (PipelineActionFieldDescriptor field in action.Fields)
         {
             if (field.Kind != PipelineActionFieldKind.Text)
+                continue;
+
+            if (ExternalIdFields.Contains($"{action.ActionType}.{field.Name}"))
                 continue;
 
             if (IdShaped.IsMatch(field.Name))

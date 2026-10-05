@@ -26,7 +26,7 @@ public sealed class ObsSwitchSceneAction(IObsControlService obs) : ObsActionBase
         [
             new(
                 "scene",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_switch_scene.scene.help")
             ),
@@ -57,7 +57,7 @@ public sealed class ObsSetPreviewSceneAction(IObsControlService obs) : ObsAction
         [
             new(
                 "scene",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_set_preview_scene.scene.help")
             ),
@@ -88,13 +88,13 @@ public sealed class ObsSetSourceAction(IObsControlService obs) : ObsActionBase(o
         [
             new(
                 "scene",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_set_source.scene.help")
             ),
             new(
                 "source",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_set_source.source.help")
             ),
@@ -139,13 +139,13 @@ public sealed class ObsFilterAction(IObsControlService obs) : ObsActionBase(obs)
         [
             new(
                 "source",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_filter.source.help")
             ),
             new(
                 "filter",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.obs_filter.filter.help")
             ),
@@ -190,7 +190,7 @@ public sealed class ObsTransitionAction(IObsControlService obs) : ObsActionBase(
         [
             new(
                 "transition",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Description: new("pipeline.obs_transition.transition.help")
             ),
             new(

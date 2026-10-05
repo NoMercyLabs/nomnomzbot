@@ -253,7 +253,7 @@ public sealed class MusicPlayTrackOnceAction : ICommandAction
         [
             new(
                 "track_uri",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.play_track_once.track_uri.help")
             ),
@@ -783,7 +783,7 @@ public sealed class MusicTransferDeviceAction : ICommandAction
         [
             new(
                 "deviceId",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.music_transfer_device.deviceId.help")
             ),
@@ -1037,7 +1037,7 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
         [
             new(
                 "playlistId",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.music_add_to_playlist.playlistId.help")
             ),
@@ -1095,7 +1095,7 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
         [
             new(
                 "playlistId",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.music_remove_from_playlist.playlistId.help")
             ),

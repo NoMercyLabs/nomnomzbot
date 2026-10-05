@@ -36,7 +36,7 @@ public sealed class SendDiscordNotificationAction : ICommandAction
         [
             new(
                 "trigger_type",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.send_discord_notification.trigger_type.help")
             ),

@@ -59,13 +59,13 @@ public sealed class PlaylistAddAction : ICommandAction
         [
             new(
                 "playlist_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.playlist_add.playlist_id.help")
             ),
             new(
                 "track_uri",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Description: new("pipeline.playlist_add.track_uri.help")
             ),
             new(

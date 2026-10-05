@@ -47,7 +47,7 @@ public sealed class PermitAction : ICommandAction
             ),
             new(
                 "role_or_capability",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.permit.role_or_capability.help")
             ),

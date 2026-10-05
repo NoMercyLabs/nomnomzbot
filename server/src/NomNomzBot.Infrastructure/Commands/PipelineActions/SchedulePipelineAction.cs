@@ -43,7 +43,7 @@ public sealed class SchedulePipelineAction : ICommandAction
         [
             new(
                 "pipeline",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.schedule_pipeline.pipeline.help")
             ),

@@ -33,7 +33,7 @@ public sealed class StartLiveGameAction(ILiveGameEngine engine) : ICommandAction
         [
             new(
                 "game_type",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Required: true,
                 Description: new("pipeline.start_live_game.game_type.help")
             ),

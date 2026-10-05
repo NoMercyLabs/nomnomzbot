@@ -233,6 +233,16 @@ public abstract class BaseController : ControllerBase
             or "INVALID_CALLBACK"
             or "INVALID_CHANNEL_ID"
             or "INVALID_GRAPH"
+            // The pipeline validator's save-time rejections (CommandConfigValidator): the caller's graph is
+            // wrong, never a server fault.
+            or "INVALID_RESOURCE_ID"
+            or "MISSING_ACTION_TYPE"
+            or "UNKNOWN_ACTION_TYPE"
+            or "BANNED_CONFIG_KEY"
+            or "STEP_COUNT_EXCEEDED"
+            or "UNKNOWN_TEMPLATE_HELPER"
+            or "URL_IN_CONFIG"
+            or "CREDENTIAL_IN_CONFIG"
             or "INVALID_PATH"
             or "INVALID_STATE"
             or "PROJECT_PATH_INVALID"

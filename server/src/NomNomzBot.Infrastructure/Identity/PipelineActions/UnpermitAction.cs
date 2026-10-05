@@ -43,7 +43,7 @@ public sealed class UnpermitAction : ICommandAction
             ),
             new(
                 "role_or_capability",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Text,
                 Description: new("pipeline.unpermit.role_or_capability.help")
             ),
         ];
