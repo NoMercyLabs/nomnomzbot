@@ -39,6 +39,8 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 ///         A manual or raid shoutout inside the global cooldown is queued; inside only the per-user cooldown
 ///         it announces and speaks at once with the native Helix call skipped. Any other run inside a
 ///         cooldown is skipped.
+///   priority — When true, the shoutout waits in the queue with raid priority (it runs before manual
+///              ones) instead of being skipped inside the global cooldown. Default false.
 ///   template — Per-invocation template override (e.g. a value drawn from a pick_from_list step for a
 ///              varied/snarky rotation). Takes priority over the channel's stored ShoutoutTemplate, which
 ///              in turn takes priority over the built-in default.
@@ -108,6 +110,11 @@ public sealed class ShoutoutAction : ICommandAction
                 "tts",
                 PipelineActionFieldKind.Boolean,
                 Description: new("pipeline.shoutout.tts.help")
+            ),
+            new(
+                "priority",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.shoutout.priority.help")
             ),
             new(
                 "template",
@@ -198,9 +205,12 @@ public sealed class ShoutoutAction : ICommandAction
         // global cooldown WAITS in the queue and then runs in full; inside only the per-user cooldown it runs
         // at once with the native Helix call skipped. Every other run (timer, event response, owner action)
         // is skipped whole. A manual run is one a chat message started, so it carries a message id.
+        // A step marked priority (a modiversary) waits with raid priority whatever started the run.
         bool isRaid =
-            ctx.Variables.TryGetValue("event.name", out string? eventName)
-            && string.Equals(eventName, RaidEventName, StringComparison.OrdinalIgnoreCase);
+            (
+                ctx.Variables.TryGetValue("event.name", out string? eventName)
+                && string.Equals(eventName, RaidEventName, StringComparison.OrdinalIgnoreCase)
+            ) || action.GetBool("priority");
         bool waits = isRaid || !string.IsNullOrEmpty(ctx.MessageId);
 
         ChannelContext? channelCtx = _registry.Get(ctx.BroadcasterId);

@@ -5344,6 +5344,7 @@
     <string name="pipeline_set_viewer_data_value_help">De waarde die voor deze kijker wordt opgeslagen. Ondersteunt sjabloonvariabelen (bijv. {{user.name}}).</string>
     <string name="pipeline_shoutout_cooldown_minutes_help">Minuten voordat dezelfde kijker opnieuw kan worden uitgelicht. Leeg laten voor geen afkoelperiode per kijker.</string>
     <string name="pipeline_shoutout_global_cooldown_minutes_help">Minuten voordat er weer een shoutout kan plaatsvinden, ongeacht de kijker. Leeg laten voor geen kanaalbrede afkoelperiode.</string>
+    <string name="pipeline_shoutout_priority_help">Wacht in de wachtrij met raid-voorrang, vóór handmatige shoutouts, in plaats van overgeslagen te worden tijdens de globale cooldown. Gebruik dit voor een mijlpaal zoals een modiversary.</string>
     <string name="pipeline_shoutout_template_help">Het chatbericht dat de shoutout plaatst. Ondersteunt sjabloonvariabelen (bijv. {{user.name}}). Leeg laten voor het standaard shoutout-bericht.</string>
     <string name="pipeline_shoutout_tts_help">Leest de shoutout ook hardop voor via tekst-naar-spraak. Bij een raid spreekt hij altijd, tenzij dit uit staat.</string>
     <string name="pipeline_shoutout_user_id_help">De kijker die wordt uitgelicht.</string>

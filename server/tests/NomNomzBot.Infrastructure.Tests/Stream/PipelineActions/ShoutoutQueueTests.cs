@@ -189,6 +189,18 @@ public sealed class ShoutoutQueueTests
             },
         };
 
+    private static ActionDefinition PriorityStep(string userId, bool priority) =>
+        new()
+        {
+            Type = "shoutout",
+            Parameters = new()
+            {
+                ["user_id"] = JsonSerializer.SerializeToElement(userId),
+                ["tts"] = JsonSerializer.SerializeToElement(true),
+                ["priority"] = JsonSerializer.SerializeToElement(priority),
+            },
+        };
+
     private static void StampGlobalCooldown(Rig rig) =>
         rig.ChannelCtx.LastGlobalShoutout = rig.Clock.GetUtcNow();
 
@@ -319,6 +331,48 @@ public sealed class ShoutoutQueueTests
         StampGlobalCooldown(rig);
 
         ActionResult result = await rig.Action.ExecuteAsync(Automated(), Step(ManualId));
+
+        result.Output.Should().Be("skipped (global cooldown)");
+        await AssertNothingSentAsync(rig);
+        rig.Queue.Peek(Channel).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_shoutout_step_marked_priority_inside_the_global_cooldown_waits_and_runs_before_a_manual_one()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        ActionResult result = await rig.Action.ExecuteAsync(
+            Automated(),
+            PriorityStep(RaiderId, priority: true)
+        );
+
+        result.Output.Should().Be("queued (global cooldown)");
+        await AssertNothingSentAsync(rig);
+        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(RaiderId);
+        rig.Queue.Peek(Channel)!.IsRaid.Should().BeTrue();
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        await AssertAnnouncedAsync(rig, RaiderId);
+        await rig
+            .Chat.DidNotReceive()
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_shoutout_step_with_priority_off_is_still_skipped_inside_the_global_cooldown()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+
+        ActionResult result = await rig.Action.ExecuteAsync(
+            Automated(),
+            PriorityStep(RaiderId, priority: false)
+        );
 
         result.Output.Should().Be("skipped (global cooldown)");
         await AssertNothingSentAsync(rig);

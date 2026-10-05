@@ -853,6 +853,7 @@
     "pipeline.shoutout.cooldown_minutes.help",
     "pipeline.shoutout.description",
     "pipeline.shoutout.global_cooldown_minutes.help",
+    "pipeline.shoutout.priority.help",
     "pipeline.shoutout.template.help",
     "pipeline.shoutout.tts.help",
     "pipeline.shoutout.user_id.help",
