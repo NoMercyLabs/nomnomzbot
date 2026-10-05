@@ -45,6 +45,7 @@ public sealed class EventResponseToneTests
     private const string Cheer = "channel.cheer";
     private const string AdBreak = "channel.ad_break.begin";
     private const string AdBreakEnd = "channel.ad_break.end";
+    private const string AdBreakUpcoming = "channel.ad_break.upcoming";
     private static readonly Guid SassyChannel = Guid.Parse("0199f300-0000-7000-8000-00000000c001");
     private static readonly Guid OwnTextChannel = Guid.Parse(
         "0199f300-0000-7000-8000-00000000c002"
@@ -243,6 +244,10 @@ public sealed class EventResponseToneTests
     [Theory]
     [InlineData(AdBreak, "An ad break has started for {ad.duration}. Please stay tuned!")]
     [InlineData(AdBreakEnd, "The ad break has ended. Thanks for your patience!")]
+    [InlineData(
+        AdBreakUpcoming,
+        "Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). Subscribers skip ads."
+    )]
     public async Task The_informative_ad_break_lines_are_the_old_bots_texts(
         string eventType,
         string expected
@@ -264,7 +269,12 @@ public sealed class EventResponseToneTests
             eventType,
             null,
             null,
-            new() { ["ad.duration"] = "3 minutes" }
+            new()
+            {
+                ["ad.duration"] = "3 minutes",
+                ["ad.when"] = "in ~3 minutes",
+                ["ad.seconds"] = "90",
+            }
         );
 
         SentTo(h, SassyChannel).Should().Equal(expected);

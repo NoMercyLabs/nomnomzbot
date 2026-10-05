@@ -3524,6 +3524,7 @@
     <string name="event_type_reward_disabled">Reward Disabled</string>
     <string name="event_type_channel_ad_break_begin">Ad Break Started</string>
     <string name="event_type_channel_ad_break_end">Ad Break Ended</string>
+    <string name="event_type_channel_ad_break_upcoming">Ad Break Warning</string>
     <string name="event_type_channel_ban">Ban or Timeout</string>
     <string name="event_type_channel_unban">Unban</string>
     <string name="event_type_channel_moderator_add">Moderator added</string>
@@ -5109,6 +5110,8 @@
     <string name="template_helper_music_favorite_count">How many times the viewer has requested that track</string>
     <string name="template_helper_music_favorite_outcome">What happened: queued, none, or unavailable</string>
     <string name="template_helper_ad_duration">The ad break length (e.g. "3 minutes")</string>
+    <string name="template_helper_ad_seconds">The length of the coming ad break in seconds (e.g. "90")</string>
+    <string name="template_helper_ad_when">When the next ad starts (e.g. "in ~3 minutes")</string>
     <string name="template_helper_ad_automatic">Whether the ad break was automatic ("true") or requester-triggered ("false")</string>
     <string name="template_helper_poll_title">The poll question</string>
     <string name="template_helper_poll_status">How the poll ended (completed, terminated or archived)</string>
@@ -5537,6 +5540,7 @@
     <string name="eventresponse_preset_reward_disabled_template">{reward} has been retired.</string>
     <string name="eventresponse_preset_channel_ad_break_begin_template">An ad break has started for {ad.duration}. Please stay tuned!</string>
     <string name="eventresponse_preset_channel_ad_break_end_template">The ad break has ended. Thanks for your patience!</string>
+    <string name="eventresponse_preset_channel_ad_break_upcoming_template">Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). Subscribers skip ads.</string>
     <string name="eventresponse_preset_channel_ban_template">{user} was shown the door by {moderator} ({duration}).</string>
     <string name="eventresponse_preset_channel_unban_template">{user} has been unbanned — welcome back.</string>
     <string name="eventresponse_preset_channel_moderator_add_template">{user} has been added as a moderator in the channel.</string>

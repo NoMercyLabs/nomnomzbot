@@ -240,6 +240,16 @@ internal static class WidgetTestSamples
             now,
             "TestViewer"
         ),
+        ["ad_schedule"] = now => new AdScheduleWidgetPayload(
+            now.AddMinutes(3),
+            now.AddMinutes(-57),
+            90,
+            0,
+            3,
+            now.AddMinutes(30),
+            180
+        ),
+        ["ad_upcoming"] = now => new AdUpcomingWidgetPayload(120, 120, 90, now.AddMinutes(2)),
         [YouTubePlayerDispatcher.PlayEventType] = _ => new YouTubePlayWidgetPayload(
             "dQw4w9WgXcQ",
             "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

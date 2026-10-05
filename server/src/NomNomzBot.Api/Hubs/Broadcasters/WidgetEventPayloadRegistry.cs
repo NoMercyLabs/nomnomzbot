@@ -76,6 +76,8 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("shoutout_received", typeof(ShoutoutReceivedAlertDto)),
         new("sr_queue", typeof(SrQueueWidgetPayload)),
         new("now_playing", typeof(NowPlayingWidgetPayload)),
+        new("ad_schedule", typeof(AdScheduleWidgetPayload)),
+        new("ad_upcoming", typeof(AdUpcomingWidgetPayload)),
         new(YouTubePlayerDispatcher.PlayEventType, typeof(YouTubePlayWidgetPayload)),
         new(YouTubePlayerDispatcher.PauseEventType, typeof(YouTubeTransportWidgetPayload)),
         new(YouTubePlayerDispatcher.ResumeEventType, typeof(YouTubeTransportWidgetPayload)),

@@ -88,6 +88,8 @@ public static class EventResponsePresetCatalog
         Preset("channel.ad_break.begin", ["user", "user.id", "ad.duration", "ad.automatic"]),
         // The break is over — the end line goes out once the break's duration passed.
         Preset("channel.ad_break.end", ["ad.duration"]),
+        // The warning about 3 minutes before the next ad — {ad.when} reads "in ~3 minutes", {ad.seconds} is the length.
+        Preset("channel.ad_break.upcoming", ["ad.when", "ad.seconds"]),
         // Moderation notices — channel.ban covers bans AND timeouts ({duration} = "permanent" or seconds).
         Preset("channel.ban", ["user", "user.id", "moderator", "reason", "duration"]),
         Preset("channel.unban", ["user", "user.id", "moderator"]),

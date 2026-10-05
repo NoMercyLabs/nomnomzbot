@@ -165,6 +165,19 @@ public static class TemplateHelperRegistry
                 "template.helper.ad_duration",
                 eventScoped: true
             ),
+            // channel.ad_break.upcoming (the warning before the next ad)
+            Literal(
+                "ad.when",
+                EventSourceOnlyContexts,
+                "template.helper.ad_when",
+                eventScoped: true
+            ),
+            Literal(
+                "ad.seconds",
+                EventSourceOnlyContexts,
+                "template.helper.ad_seconds",
+                eventScoped: true
+            ),
             Literal(
                 "ad.automatic",
                 EventSourceOnlyContexts,

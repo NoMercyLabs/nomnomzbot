@@ -592,6 +592,37 @@ public static class EventResponseToneCatalog
             chill: ["ads are done. thanks for waiting.", "we're back. thanks for hanging on."]
         );
 
+        // The warning before the next ad, said once at about 3 minutes. {ad.when} reads "in ~3 minutes" and
+        // {ad.seconds} is the break length in seconds.
+        Add(
+            catalog,
+            "channel.ad_break.upcoming",
+            informative:
+            [
+                "Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). Subscribers skip ads.",
+            ],
+            friendly:
+            [
+                "Friends, a short ad break is coming {ad.when} ({ad.seconds} seconds). Subscribers skip ads!",
+                "Quick heads up: ads {ad.when} for {ad.seconds} seconds. Subs do not see them!",
+            ],
+            sassy:
+            [
+                "Ads are coming {ad.when} for {ad.seconds} seconds. Subscribers skip them. Just saying.",
+                "{ad.seconds} seconds of ads {ad.when}. Subs get to skip. Think about it.",
+            ],
+            hype:
+            [
+                "AD BREAK COMING {ad.when}! {ad.seconds} SECONDS! SUBSCRIBERS SKIP THE ADS!",
+                "ADS {ad.when} FOR {ad.seconds} SECONDS! SUBS SKIP THEM!",
+            ],
+            chill:
+            [
+                "ads coming {ad.when}, {ad.seconds} seconds. subs skip them.",
+                "heads up, ad break {ad.when} for {ad.seconds} seconds.",
+            ]
+        );
+
         return catalog;
     }
 

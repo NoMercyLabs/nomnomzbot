@@ -94,6 +94,8 @@ public sealed partial class TemplateHelperCoverageTests
         "raw.message", // Discord-only seed aliases — supplied by DiscordGoLiveNotificationHandler /
         // SendDiscordNotificationAction, never assigned inside TemplateResolver.cs
         "ad.duration",
+        "ad.when", // supplied by AdScheduleWarner for channel.ad_break.upcoming, same seed-passthrough shape
+        "ad.seconds",
         "ad.automatic", // supplied by AdBreakBeganAlertHandler.BuildVariables, never assigned inside
         // TemplateResolver.cs
         // Supplied directly by each EventSub/webhook-ingest handler's BuildVariables — the same

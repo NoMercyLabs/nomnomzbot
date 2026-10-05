@@ -36,14 +36,15 @@ public sealed partial class EventResponseToneCatalogTests
     {
         EventResponseToneCatalog
             .EventTypes.Should()
-            .HaveCount(16)
+            .HaveCount(17)
             .And.Contain("channel.poll.end")
             .And.Contain("channel.ban")
             .And.Contain("channel.unban")
             .And.Contain("channel.moderator.add")
             .And.Contain("channel.moderator.remove")
             .And.Contain("channel.ad_break.begin")
-            .And.Contain("channel.ad_break.end");
+            .And.Contain("channel.ad_break.end")
+            .And.Contain("channel.ad_break.upcoming");
         EventResponseToneCatalog
             .EventTypes.Should()
             .OnlyContain(e => EventResponsePresetCatalog.EventTypes.Contains(e));

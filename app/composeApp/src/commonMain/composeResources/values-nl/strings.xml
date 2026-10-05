@@ -3508,6 +3508,7 @@
     <string name="event_type_reward_disabled">Beloning uitgeschakeld</string>
     <string name="event_type_channel_ad_break_begin">Advertentiepauze gestart</string>
     <string name="event_type_channel_ad_break_end">Advertentiepauze afgelopen</string>
+    <string name="event_type_channel_ad_break_upcoming">Advertentiewaarschuwing</string>
     <string name="event_type_channel_ban">Ban of timeout</string>
     <string name="event_type_channel_unban">Ban opgeheven</string>
     <string name="event_type_channel_moderator_add">Moderator toegevoegd</string>
@@ -5093,6 +5094,8 @@
     <string name="template_helper_music_favorite_count">Hoe vaak de kijker dat nummer heeft aangevraagd</string>
     <string name="template_helper_music_favorite_outcome">Wat er gebeurde: queued, none of unavailable</string>
     <string name="template_helper_ad_duration">De lengte van de reclamepauze (bijv. "3 minuten")</string>
+    <string name="template_helper_ad_seconds">De lengte van de komende reclamepauze in seconden (bijv. "90")</string>
+    <string name="template_helper_ad_when">Wanneer de volgende advertentie begint (bijv. "in ~3 minutes")</string>
     <string name="template_helper_ad_automatic">Of de reclamepauze automatisch was ("true") of aangevraagd ("false")</string>
     <string name="template_helper_poll_title">De vraag van de poll</string>
     <string name="template_helper_poll_status">Hoe de poll eindigde (completed, terminated of archived)</string>
@@ -5521,6 +5524,7 @@
     <string name="eventresponse_preset_reward_disabled_template">{reward} is uit de roulatie gehaald.</string>
     <string name="eventresponse_preset_channel_ad_break_begin_template">Er is een advertentiepauze begonnen van {ad.duration}. Blijf kijken!</string>
     <string name="eventresponse_preset_channel_ad_break_end_template">De advertentiepauze is voorbij. Bedankt voor je geduld!</string>
+    <string name="eventresponse_preset_channel_ad_break_upcoming_template">Let op: er komt een advertentiepauze {ad.when} ({ad.seconds} seconden). Abonnees slaan advertenties over.</string>
     <string name="eventresponse_preset_channel_ban_template">{user} is door {moderator} de deur gewezen ({duration}).</string>
     <string name="eventresponse_preset_channel_unban_template">{user} is weer toegelaten — welkom terug.</string>
     <string name="eventresponse_preset_channel_moderator_add_template">{user} is toegevoegd als moderator in het kanaal.</string>

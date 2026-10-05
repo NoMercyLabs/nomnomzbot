@@ -417,6 +417,9 @@ public static class DependencyInjection
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
         services.AddHostedService<Stream.AdBreak.AdBreakEndWorker>();
+        // A live channel's ad schedule is read once a minute; chat and the overlays hear the warnings before an ad.
+        services.AddSingleton<IAdScheduleWarner, Stream.AdBreak.AdScheduleWarner>();
+        services.AddHostedService<Stream.AdBreak.AdScheduleWorker>();
         // Polls every connected music integration at a flat 1s cadence and publishes PlaybackStateChangedEvent
         // on any state the bot didn't cause itself (streamer's own phone/desktop app, a track ending, a manual
         // seek) — without this registration the class compiles and is fully tested but nothing ever runs it, so
