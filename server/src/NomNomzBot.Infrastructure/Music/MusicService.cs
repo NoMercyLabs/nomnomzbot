@@ -643,7 +643,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             trackInfo,
             requestedBy,
             cancellationToken,
-            requesterUserId
+            requesterUserId,
+            requesterRoleLevel
         );
         if (enqueued.IsFailure)
             return Result.Failure<MusicTrack>(
@@ -747,7 +748,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         TrackInfo trackInfo,
         string? requestedBy,
         CancellationToken cancellationToken,
-        string? requesterUserId = null
+        string? requesterUserId = null,
+        int? requesterRoleLevel = null
     )
     {
         string trackUri = trackInfo.TrackUri;
@@ -789,11 +791,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             int ownedCount = snapshot.Count(e =>
                 string.Equals(e.OwnerKey, ownerKey, StringComparison.OrdinalIgnoreCase)
             );
-            if (ownedCount >= config.MaxRequestsPerUser)
+            int perUserCap = EffectivePerUserCap(config, requesterRoleLevel);
+            if (ownedCount >= perUserCap)
                 return Result.Failure(
-                    $"You already have {config.MaxRequestsPerUser} request(s) queued — wait for one to play before adding more.",
+                    $"You already have {perUserCap} request(s) queued — wait for one to play before adding more.",
                     "PER_USER_LIMIT",
-                    errorData: new MusicRequestRefusal(Limit: config.MaxRequestsPerUser)
+                    errorData: new MusicRequestRefusal(Limit: perUserCap)
                 );
         }
 
@@ -1254,6 +1257,42 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             "broadcaster" => PermissionLevel.Broadcaster,
             _ => PermissionLevel.Everyone,
         };
+
+    private static readonly IReadOnlyDictionary<string, PermissionLevel> RoleCapRungs =
+        new Dictionary<string, PermissionLevel>
+        {
+            ["viewer"] = PermissionLevel.Everyone,
+            ["subscriber"] = PermissionLevel.Subscriber,
+            ["vip"] = PermissionLevel.Vip,
+            ["moderator"] = PermissionLevel.Moderator,
+            ["broadcaster"] = PermissionLevel.Broadcaster,
+        };
+
+    /// <summary>
+    /// The most requests one person may have queued: the highest cap among the role rungs their level
+    /// reaches, where a rung with no value counts as <c>MaxRequestsPerUser</c>. A caller with no level
+    /// (the dashboard, the public page) gets <c>MaxRequestsPerUser</c>.
+    /// </summary>
+    private static int EffectivePerUserCap(MusicConfigDto config, int? requesterRoleLevel)
+    {
+        if (
+            requesterRoleLevel is not { } level
+            || config.MaxRequestsPerRole is not { Count: > 0 } caps
+        )
+            return config.MaxRequestsPerUser;
+
+        int best = 0;
+        foreach ((string role, PermissionLevel rung) in RoleCapRungs)
+        {
+            if (level < rung.ToLevelValue())
+                continue;
+            best = Math.Max(
+                best,
+                caps.TryGetValue(role, out int cap) ? cap : config.MaxRequestsPerUser
+            );
+        }
+        return best;
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 

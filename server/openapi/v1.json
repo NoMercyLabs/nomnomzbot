@@ -107859,6 +107859,20 @@
           "bangerAutoCreate": {
             "type": "boolean",
             "default": false
+          },
+          "maxRequestsPerRole": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
           }
         },
         "description": "Music configuration for a channel."
@@ -133238,6 +133252,21 @@
               "boolean"
             ],
             "description": "With no playlist chosen, `!banger` makes one on first use."
+          },
+          "maxRequestsPerRole": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            },
+            "description": "A song request cap per role (`viewer|subscriber|vip|moderator|broadcaster`, 1 to 50). A\nrequester gets the highest cap among the rungs they reach; a rung with no value uses\n`MaxRequestsPerUser`. The map is replaced whole when sent."
           }
         },
         "description": "Request to update music configuration."

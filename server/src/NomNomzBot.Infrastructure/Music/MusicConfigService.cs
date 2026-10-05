@@ -77,6 +77,8 @@ public class MusicConfigService : IMusicConfigService
             current.BangerPlaylistId = NullIfEmpty(request.BangerPlaylistId);
         if (request.BangerPlaylistProvider is not null)
             current.BangerPlaylistProvider = NullIfEmpty(request.BangerPlaylistProvider);
+        if (request.MaxRequestsPerRole is not null)
+            current.MaxRequestsPerRole = new(request.MaxRequestsPerRole);
         if (request.BangerAutoCreate.HasValue)
             current.BangerAutoCreate = request.BangerAutoCreate.Value;
 
@@ -155,7 +157,8 @@ public class MusicConfigService : IMusicConfigService
             d.MinTrustLevel,
             d.BangerPlaylistId,
             d.BangerPlaylistProvider,
-            d.BangerAutoCreate
+            d.BangerAutoCreate,
+            d.MaxRequestsPerRole.Count == 0 ? null : d.MaxRequestsPerRole
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
@@ -172,5 +175,6 @@ public class MusicConfigService : IMusicConfigService
         public string? BangerPlaylistId { get; set; }
         public string? BangerPlaylistProvider { get; set; }
         public bool BangerAutoCreate { get; set; }
+        public Dictionary<string, int> MaxRequestsPerRole { get; set; } = new();
     }
 }

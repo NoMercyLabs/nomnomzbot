@@ -23,7 +23,8 @@ public sealed record MusicConfigDto(
     string MinTrustLevel,
     string? BangerPlaylistId = null,
     string? BangerPlaylistProvider = null,
-    bool BangerAutoCreate = false
+    bool BangerAutoCreate = false,
+    IReadOnlyDictionary<string, int>? MaxRequestsPerRole = null
 );
 
 /// <summary>Request to update music configuration.</summary>
@@ -55,4 +56,12 @@ public sealed record UpdateMusicConfigDto
 
     /// <summary>With no playlist chosen, <c>!banger</c> makes one on first use.</summary>
     public bool? BangerAutoCreate { get; init; }
+
+    /// <summary>
+    /// A song request cap per role (<c>viewer|subscriber|vip|moderator|broadcaster</c>, 1 to 50). A
+    /// requester gets the highest cap among the rungs they reach; a rung with no value uses
+    /// <c>MaxRequestsPerUser</c>. The map is replaced whole when sent.
+    /// </summary>
+    [RoleRequestCaps]
+    public Dictionary<string, int>? MaxRequestsPerRole { get; init; }
 }
