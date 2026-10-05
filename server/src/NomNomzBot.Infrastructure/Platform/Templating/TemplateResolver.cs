@@ -548,7 +548,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // ── Target DB lookups (id, name, follow age, pronoun grammar) ───────
         bool needsBareName = needed.Contains("name");
         if (
-            NeedsAny(needed, "target.id", "target.name", "target.followAge")
+            NeedsAny(needed, "target.id", "target.name", "target.displayname", "target.followAge")
             || needsTargetGrammar
             || (hasTargetContext && needsBareName)
         )
@@ -565,6 +565,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 );
             }
         }
+
+        // {target.displayname}: the stored display name when the user is known, else the typed text.
+        if (needed.Contains("target.displayname"))
+            vars.TryAdd("target.displayname", vars.GetValueOrDefault("target", string.Empty));
 
         // Bare grammar vars mirror the target (if present) else the caller; anything still unset (no
         // user/target resolved, or a resolved one with no pronoun on record) gets the universal
@@ -866,6 +870,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
             // {{target.id}} is the Twitch user string id, not the internal Guid PK.
             vars.TryAdd("target.id", target.TwitchUserId!);
             vars.TryAdd("target.name", target.Username);
+            if (!string.IsNullOrWhiteSpace(target.DisplayName))
+                vars.TryAdd("target.displayname", target.DisplayName);
             if (needFollowAge && !vars.ContainsKey("target.followAge"))
                 vars["target.followAge"] =
                     broadcasterId is not null && !string.IsNullOrEmpty(target.TwitchUserId)

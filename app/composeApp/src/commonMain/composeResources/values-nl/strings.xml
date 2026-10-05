@@ -5183,7 +5183,8 @@
     <string name="template_helper_target_lastmessage_full">Het meest recente chatbericht van het @vermelde doel, nooit ingekort</string>
     <string name="template_helper_target_link">Een profiellink voor het @vermelde doel</string>
     <string name="template_helper_target_messages">Het totale aantal chatberichten van het @vermelde doel</string>
-    <string name="template_helper_target_name">De weergavenaam van het @vermelde doel</string>
+    <string name="template_helper_target_displayname">De opgeslagen weergavenaam van het @vermelde doel, of de getypte tekst als de gebruiker onbekend is</string>
+    <string name="template_helper_target_name">De inlognaam van het @vermelde doel</string>
     <string name="template_helper_target_object">Het voornaamwoord in objectvorm voor het @vermelde doel</string>
     <string name="template_helper_target_possessive">Het bezittelijk voornaamwoord voor het @vermelde doel</string>
     <string name="template_helper_target_present_tense">De tegenwoordige tijd van zijn voor het @vermelde doel</string>

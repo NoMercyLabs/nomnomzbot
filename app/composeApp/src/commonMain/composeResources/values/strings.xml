@@ -5199,7 +5199,8 @@
     <string name="template_helper_target_lastmessage_full">The @mention target most recent chat message, never cut short</string>
     <string name="template_helper_target_link">A profile link for the @mention target</string>
     <string name="template_helper_target_messages">The @mention target total chat message count</string>
-    <string name="template_helper_target_name">The @mention target display name</string>
+    <string name="template_helper_target_displayname">The @mention target's stored display name, or the typed text when the user is unknown</string>
+    <string name="template_helper_target_name">The @mention target login name</string>
     <string name="template_helper_target_object">The object-case pronoun for the @mention target</string>
     <string name="template_helper_target_possessive">The possessive pronoun for the @mention target</string>
     <string name="template_helper_target_present_tense">The present-tense to-be form for the @mention target</string>

@@ -1007,6 +1007,7 @@
     "template.helper.supporter_tier",
     "template.helper.target",
     "template.helper.target_data",
+    "template.helper.target_displayname",
     "template.helper.target_firstseen",
     "template.helper.target_follow_age",
     "template.helper.target_gendered_term",

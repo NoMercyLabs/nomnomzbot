@@ -499,6 +499,7 @@ public static class TemplateHelperRegistry
             // ── @mention target (command + event response) ─────────────────
             Literal("target", TriggerContexts, "template.helper.target"),
             Literal("target.name", TriggerContexts, "template.helper.target_name"),
+            Literal("target.displayname", TriggerContexts, "template.helper.target_displayname"),
             Literal("target.id", TriggerContexts, "template.helper.target_id"),
             Literal("target.followAge", TriggerContexts, "template.helper.target_follow_age"),
             Literal("target.lastmessage", TriggerContexts, "template.helper.target_lastmessage"),
