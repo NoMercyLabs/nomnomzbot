@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
@@ -46,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TimezonePickerField
+import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -249,8 +252,8 @@ private fun ScheduleContent(
                 // A one-time authenticated .ics snapshot download (the endpoint is Bearer-authed, so this is not
                 // a live webcal subscription). Shown only when there is a schedule to export.
                 onDownloadIcs?.let { download ->
-                    TextButton(onClick = download) {
-                        Text(stringResource(Res.string.schedule_download_ics), color = tokens.primary)
+                    OutlinedButton(onClick = download) {
+                        Text(stringResource(Res.string.schedule_download_ics))
                     }
                 }
             }
@@ -345,18 +348,17 @@ private fun SegmentRow(
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
                 TextButton(onClick = onEdit, enabled = enabled) {
-                    Text(
-                        text = stringResource(Res.string.schedule_edit),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    )
+                    Text(stringResource(Res.string.schedule_edit))
                 }
             }
             ManageGate(decision = manage) { enabled ->
-                TextButton(onClick = onDelete, enabled = enabled) {
-                    Text(
-                        text = stringResource(Res.string.schedule_delete),
-                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    )
+                Button(
+                    onClick = onDelete,
+                    variant = ButtonVariant.DestructiveGhost,
+                    size = ButtonSize.Sm,
+                    enabled = enabled,
+                ) {
+                    Text(stringResource(Res.string.schedule_delete))
                 }
             }
         }
@@ -415,7 +417,7 @@ private fun VacationCard(
             TimezonePickerField(zone = timezone, onZoneChange = { timezone = it }, modifier = Modifier.fillMaxWidth())
         }
         ManageGate(decision = manage) { canManage ->
-            Button(
+            OutlinedButton(
                 onClick = { onSetVacation(enabled, start, end, timezone) },
                 enabled = canManage && (!enabled || ScheduleTimes.isValidZone(timezone)),
             ) {
