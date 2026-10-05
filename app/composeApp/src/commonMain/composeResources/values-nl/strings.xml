@@ -3779,6 +3779,8 @@
     <string name="admin_tab_audit">Audit</string>
     <string name="admin_live_indicator">Live</string>
     <string name="admin_live_offline">Opnieuw verbinden…</string>
+    <string name="admin_access_denied_title">Geen toegang</string>
+    <string name="admin_access_denied_body">Je bent ingelogd, maar je account is geen platformbeheerder. Vraag een platformbeheerder om toegang als je die nodig hebt.</string>
     <string name="admin_registry_title">Kanaalregister (live)</string>
     <string name="admin_registry_empty">Nog geen live kanaalupdates.</string>
     <string name="admin_registry_live">Live</string>

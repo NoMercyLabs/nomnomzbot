@@ -201,6 +201,8 @@ data class AdminState(
      * a slow call on one tab never blocks the others or the tab bar. Empty once the initial load settles. */
     val loadingSections: Set<AdminSection> = emptySet(),
     val error: String? = null,
+    /** True when the server answered 403 to the admin reads: signed in, not allowed. The screen shows access denied. */
+    val accessDenied: Boolean = false,
     // ── Live operator-hub feed (AdminHub) ──
     /** True once the AdminHub WebSocket handshake completes — drives the "live" indicator (not polling). */
     val hubLive: Boolean = false,
@@ -519,14 +521,17 @@ class AdminController(
     suspend fun load() {
         _state.value = _state.value.copy(loadingSections = LOAD_SECTIONS, error = null)
 
+        fetchSnapshot()
+
+        // A 403 is "signed in, not allowed": no hub, no refresh, just the access-denied state.
+        if (_state.value.accessDenied) return
+
         // Connect the operator hub once — the handshake is gated on the caller's iam:manage grant, so a
         // non-privileged admin simply never establishes and the panel falls back to the REST snapshot.
         val url: String? = baseUrl()
         if (hubClient != null && url != null) {
             hubClient.connect(url, accessToken, refreshToken)
         }
-
-        fetchSnapshot()
     }
 
     /**
@@ -574,6 +579,9 @@ class AdminController(
             tiers = (tiersResult as? ApiResult.Ok)?.value ?: emptyList(),
             pricedUnits = (pricedUnitsResult as? ApiResult.Ok)?.value ?: emptyList(),
             loadingSections = emptySet(),
+            accessDenied = listOf(statsResult, channelsResult, usersResult, systemResult).all {
+                it is ApiResult.Failure && it.error.status == 403
+            },
             error = listOf(statsResult, channelsResult, usersResult, systemResult)
                 .filterIsInstance<ApiResult.Failure>()
                 .firstOrNull()

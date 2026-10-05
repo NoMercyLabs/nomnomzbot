@@ -353,6 +353,16 @@ class AppGraph {
         }
     }
 
+    // The operator hub's reconnect loop cannot tell a refused handshake (403, no iam:manage) from an expired
+    // token, so its refresh must never end the session: only a REST 401 may do that.
+    val hubTokenRefresher: suspend () -> Boolean = {
+        if (sessionStore.isActingAs) {
+            false
+        } else {
+            sessionStore.refreshKeepingSession { authApi.refresh(null) }
+        }
+    }
+
     init {
         // Wire the 401→refresh→retry interceptor. ApiClient and AuthApi are both ready at this point.
         // On any 401 (except the refresh endpoint itself), ApiClient silently calls refresh(), stores
@@ -894,7 +904,7 @@ class AppGraph {
             hubClient = adminHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,
-            refreshToken = tokenRefresher,
+            refreshToken = hubTokenRefresher,
             sessionStore = sessionStore,
             actAs = actAsCoordinator,
             tenantMembersApi = tenantMembersApi,

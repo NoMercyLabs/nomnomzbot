@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthPayload
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 // Proves the real session state machine that drives the App gate (frontend.md §5/§6). The gate renders
 // Connect while NotConnected and the Main shell while Connected, so these phase transitions ARE the routing
@@ -157,6 +159,29 @@ class SessionStoreTest {
         assertEquals(operator, store.user.value)
         assertEquals(generationBefore + 2, store.identityGeneration.value)
         assertEquals("operator-channel", store.persistedActiveChannel())
+    }
+
+    @Test
+    fun a_background_refresh_that_fails_leaves_the_session_signed_in() = runTest {
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        store.connect(profile, tokens)
+
+        val refreshed: Boolean = store.refreshKeepingSession { ApiResult.Failure(ApiError(401, "UNAUTHORIZED", "no cookie")) }
+
+        assertFalse(refreshed)
+        assertEquals(profile, store.activeProfile.value)
+        assertEquals("jwt-access-token", store.accessToken())
+    }
+
+    @Test
+    fun a_background_refresh_that_succeeds_installs_the_new_token() = runTest {
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        store.connect(profile, tokens)
+
+        val refreshed: Boolean = store.refreshKeepingSession { ApiResult.Ok(AuthPayload(accessToken = "fresh-jwt")) }
+
+        assertTrue(refreshed)
+        assertEquals("fresh-jwt", store.accessToken())
     }
 
     @Test

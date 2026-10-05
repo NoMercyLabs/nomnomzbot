@@ -3795,6 +3795,8 @@
     <string name="admin_tab_audit">Audit</string>
     <string name="admin_live_indicator">Live</string>
     <string name="admin_live_offline">Reconnecting…</string>
+    <string name="admin_access_denied_title">Access denied</string>
+    <string name="admin_access_denied_body">You are signed in, but your account is not a platform admin. Ask a platform admin if you need access.</string>
     <string name="admin_registry_title">Channel registry (live)</string>
     <string name="admin_registry_empty">No live channel updates yet.</string>
     <string name="admin_registry_live">Live</string>

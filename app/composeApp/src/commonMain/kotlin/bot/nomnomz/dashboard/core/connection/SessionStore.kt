@@ -302,6 +302,21 @@ class SessionStore(
         }
     }
 
+    /**
+     * A background refresh (the operator hub reconnect loop) that must never end the session: a token that
+     * cannot be refreshed is left for the next REST call to judge with its own 401.
+     */
+    suspend fun refreshKeepingSession(refresh: suspend () -> ApiResult<AuthPayload>): Boolean {
+        if (isActingAs) return false
+        return when (val result: ApiResult<AuthPayload> = refresh()) {
+            is ApiResult.Ok -> {
+                updateAccessToken(result.value.accessToken)
+                true
+            }
+            is ApiResult.Failure -> false
+        }
+    }
+
     /** Attach the signed-in identity resolved from `/me` after [connect]. */
     fun setUser(sessionUser: SessionUser) {
         _user.value = sessionUser

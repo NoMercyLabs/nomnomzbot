@@ -87,6 +87,8 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import bot.nomnomz.dashboard.feature.admin.state.ResolvedChannel
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
+import nomnomzbot.composeapp.generated.resources.admin_access_denied_body
+import nomnomzbot.composeapp.generated.resources.admin_access_denied_title
 import nomnomzbot.composeapp.generated.resources.admin_tab_iam
 import nomnomzbot.composeapp.generated.resources.admin_tab_platform_bot
 import nomnomzbot.composeapp.generated.resources.admin_tab_platform_defaults
@@ -391,6 +393,11 @@ fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsC
             modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s4),
         )
 
+        if (state.accessDenied) {
+            AdminAccessDenied()
+            return@Column
+        }
+
         // Level 1 — which JOB. Five groups, short enough to read at a glance even at Compact width
         // (AdminTabGroupingCompactWidthTest pins this: the group strip itself never needs to scroll).
         TabsList(modifier = Modifier.padding(horizontal = spacing.s6)) {
@@ -503,6 +510,28 @@ private fun TabContentOrSpinner(isLoading: Boolean, tokens: Tokens, content: @Co
  * Renders [error] as a destructive banner when set, nothing otherwise. Extracted from [AdminScreen] so it can be
  * mounted directly in a Compose UI test without constructing a full [AdminController] — see AdminScreenTest.
  */
+@Composable
+internal fun AdminAccessDenied() {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+    Column(
+        modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.admin_access_denied_title),
+            style = typography.lg,
+            color = tokens.foreground,
+        )
+        Text(
+            text = stringResource(Res.string.admin_access_denied_body),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+    }
+}
+
 @Composable
 internal fun AdminLoadErrorBanner(error: String?) {
     val spacing = LocalSpacing.current
