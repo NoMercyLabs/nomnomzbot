@@ -8,12 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Domain.Moderation.Enums;
 
 /// <summary>
 /// How a <c>ChatFilter</c> (moderation.md J.6) matches a chat message: a compiled <see cref="Regex"/>
 /// pattern, a <see cref="Blocklist"/> of literal terms, or a <see cref="LinkPolicy"/> (URL detection).
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ChatFilterType
 {
     Regex,

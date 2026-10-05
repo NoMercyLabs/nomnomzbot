@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Domain.Moderation.Enums;
 
 /// <summary>
@@ -17,6 +19,7 @@ namespace NomNomzBot.Domain.Moderation.Enums;
 /// warn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever
 /// arrives through the ladder.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ChatFilterAction
 {
     Delete,

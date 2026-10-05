@@ -3857,10 +3857,9 @@ private fun CreateRuleDialog(
 }
 
 // Dialog to create a new chat filter (J.6, S066): a regex pattern or a literal word list, with an action.
-// The wire enum values (ChatFilterType / ChatFilterAction) are sent by their exact C# member name — the
-// backend's built-in System.Text.Json enum reader accepts a quoted member-name string on write, even though
-// it always serializes reads back as the underlying ordinal (no JsonStringEnumConverter is registered on
-// either enum) — the row above renders whatever the backend returns either way.
+// The wire enum values (ChatFilterType / ChatFilterAction) travel by their exact C# member name in both
+// directions: both enums carry a JsonStringEnumConverter, so reads come back as names too, and the row
+// above renders the name the backend returns.
 @Composable
 private fun CreateChatFilterDialog(
     onConfirm: (

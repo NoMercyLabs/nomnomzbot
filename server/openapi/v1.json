@@ -98914,7 +98914,13 @@
         "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
       },
       "ChatFilterAction": {
-        "type": "integer",
+        "enum": [
+          "Delete",
+          "Timeout",
+          "Hold",
+          "Flag",
+          "Escalate"
+        ],
         "description": "What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout\napply a fixed action; ChatFilterAction.Hold/ChatFilterAction.Flag route the message to review; and\nChatFilterAction.Escalate defers the punishment to the per-channel escalation ladder (§3.11), which decides\nwarn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever\narrives through the ladder."
       },
       "ChatFilterDto": {
@@ -99023,7 +99029,11 @@
         "description": "The tester's verdict: whether the pattern compiles at all (string? ChatFilterTestResult.CompileError is non-null when it does\nnot — the same reason the save path would reject it) and, when it compiles, whether the sample matched."
       },
       "ChatFilterType": {
-        "type": "integer",
+        "enum": [
+          "Regex",
+          "Blocklist",
+          "LinkPolicy"
+        ],
         "description": "How a `ChatFilter` (moderation.md J.6) matches a chat message: a compiled ChatFilterType.Regex\npattern, a ChatFilterType.Blocklist of literal terms, or a ChatFilterType.LinkPolicy (URL detection)."
       },
       "ChatFragmentDto": {
