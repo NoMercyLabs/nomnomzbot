@@ -59,7 +59,7 @@ public sealed class BanSongBuiltin(
                     Personality = context.Personality,
                     BuiltinKey = BuiltinResponseSlots.BanSong.Key,
                     Slot = BuiltinResponseSlots.BanSong.Nothing,
-                    NeutralFallback = "Nothing is playing right now — there's no track to ban.",
+                    NeutralFallback = "No song is currently playing!",
                 },
                 ct
             );
@@ -72,7 +72,7 @@ public sealed class BanSongBuiltin(
                 nowPlaying.Provider,
                 nowPlaying.TrackUri,
                 nowPlaying.TrackName ?? nowPlaying.TrackUri,
-                Reason: "Banned via !bansong",
+                Reason: string.IsNullOrWhiteSpace(context.Args) ? null : context.Args.Trim(),
                 BlockedByUserId: context.TriggeringUserId
             ),
             ct
@@ -95,11 +95,19 @@ public sealed class BanSongBuiltin(
             return Result.Success(couldNotBan);
         }
 
+        // The block is what matters: a failed skip (no Premium, provider down) must not hide the ban.
+        await music.SkipAsync(
+            context.BroadcasterId.ToString(),
+            context.TriggeringUserId,
+            context.TriggeringPlatform,
+            ct
+        );
+
         string banned = await composer.ComposeAsync(
             context,
             BuiltinResponseSlots.BanSong.Key,
             BuiltinResponseSlots.BanSong.Banned,
-            "@{user} banned \"{track.name}\" from song requests.",
+            "{track.name} banned from being requested again.",
             new Dictionary<string, string>
             {
                 ["user"] = context.TriggeringUserDisplayName,

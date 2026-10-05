@@ -121,7 +121,7 @@ public sealed class BanSongBuiltinTests
         Result<string> result = await sut.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be("@SomeMod banned \"Never Gonna Give You Up\" from song requests.");
+        result.Value.Should().Be("Never Gonna Give You Up banned from being requested again.");
 
         await blockedTracks
             .Received(1)
@@ -193,6 +193,151 @@ public sealed class BanSongBuiltinTests
     }
 
     [Fact]
+    public async Task Banning_skips_the_track_and_stores_the_reason_the_mod_typed()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Bad Song",
+                    "Artist",
+                    null,
+                    null,
+                    200_000,
+                    1_000,
+                    true,
+                    50,
+                    null,
+                    "spotify",
+                    "spotify:track:bad"
+                )
+            );
+        music
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "mod-1",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
+        blockedTracks
+            .BlockAsync(Broadcaster, Arg.Any<BlockTrackRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new BlockedTrackDto(
+                        Guid.CreateVersion7(),
+                        "spotify",
+                        "spotify:track:bad",
+                        "Bad Song",
+                        "not stream-safe",
+                        "mod-1",
+                        DateTime.UtcNow
+                    )
+                )
+            );
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
+
+        BuiltinCommandContext context = new()
+        {
+            BroadcasterId = Broadcaster,
+            TriggeringUserId = "mod-1",
+            TriggeringUserDisplayName = "SomeMod",
+            RoleLevel = 10,
+            Personality = PersonalityTone.Informative,
+            Args = "not stream-safe",
+        };
+        Result<string> result = await sut.ExecuteAsync(context);
+
+        result.Value.Should().Be("Bad Song banned from being requested again.");
+        await blockedTracks
+            .Received(1)
+            .BlockAsync(
+                Broadcaster,
+                Arg.Is<BlockTrackRequest>(r => r.Reason == "not stream-safe"),
+                Arg.Any<CancellationToken>()
+            );
+        await music
+            .Received(1)
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "mod-1",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Banning_with_no_reason_stores_no_reason_and_a_failed_skip_still_confirms_the_ban()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "S",
+                    "A",
+                    null,
+                    null,
+                    1,
+                    1,
+                    true,
+                    50,
+                    null,
+                    "spotify",
+                    "spotify:track:s"
+                )
+            );
+        music
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("nope", "PROVIDER_UNAVAILABLE"));
+        IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
+        blockedTracks
+            .BlockAsync(Broadcaster, Arg.Any<BlockTrackRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new BlockedTrackDto(
+                        Guid.CreateVersion7(),
+                        "spotify",
+                        "spotify:track:s",
+                        "S",
+                        null,
+                        "mod-1",
+                        DateTime.UtcNow
+                    )
+                )
+            );
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context());
+
+        result.Value.Should().Be("S banned from being requested again.");
+        await blockedTracks
+            .Received(1)
+            .BlockAsync(
+                Broadcaster,
+                Arg.Is<BlockTrackRequest>(r => r.Reason == null),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Nothing_playing_never_calls_BlockAsync()
     {
         IMusicService music = Substitute.For<IMusicService>();
@@ -212,7 +357,7 @@ public sealed class BanSongBuiltinTests
         Result<string> result = await sut.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("Nothing is playing");
+        result.Value.Should().Be("No song is currently playing!");
 
         await blockedTracks
             .DidNotReceive()
@@ -238,9 +383,9 @@ public sealed class BanSongBuiltinTests
         );
 
         Result<string> sassy = await sut.ExecuteAsync(Context(PersonalityTone.Sassy));
-        Result<string> informative = await sut.ExecuteAsync(Context(PersonalityTone.Informative));
+        Result<string> informative = await sut.ExecuteAsync(Context());
 
-        informative.Value.Should().Be("Nothing is playing right now — there's no track to ban.");
+        informative.Value.Should().Be("No song is currently playing!");
         sassy.Value.Should().NotBe(informative.Value);
         ToneTemplateCatalog
             .Get(
@@ -288,7 +433,7 @@ public sealed class BanSongBuiltinTests
         );
 
         Result<string> sassy = await sut.ExecuteAsync(Context(PersonalityTone.Sassy));
-        Result<string> informative = await sut.ExecuteAsync(Context(PersonalityTone.Informative));
+        Result<string> informative = await sut.ExecuteAsync(Context());
 
         informative.Value.Should().Be("Could not ban that track — try again in a moment.");
         sassy.Value.Should().NotBe(informative.Value);

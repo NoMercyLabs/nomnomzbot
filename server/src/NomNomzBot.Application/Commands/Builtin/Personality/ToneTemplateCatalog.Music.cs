@@ -500,7 +500,7 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.BanSong.Key,
             BuiltinResponseSlots.BanSong.Banned,
             variables: ["track.name", "user"],
-            informative: ["@{user} banned \"{track.name}\" from song requests."],
+            informative: ["{track.name} banned from being requested again."],
             friendly:
             [
                 "@{user} banned \"{track.name}\" from song requests — it will not come back!",

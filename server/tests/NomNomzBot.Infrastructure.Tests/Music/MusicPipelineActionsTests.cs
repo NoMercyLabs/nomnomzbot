@@ -813,7 +813,7 @@ public sealed class MusicPipelineActionsTests
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
-                Arg.Is<string>(m => m.Contains("Couldn't skip")),
+                Arg.Is<string>(m => m.Contains("Failed to retract")),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -913,6 +913,116 @@ public sealed class MusicPipelineActionsTests
         await music
             .DidNotReceive()
             .RemoveFromQueueAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    // Legacy !wrongsong reply texts (WrongSong.cs), each addressed to the caller.
+
+    [Fact]
+    public async Task Song_wrong_replies_with_the_legacy_text_when_it_drops_a_queued_request()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, [new("First Pick", "A", null, 100, "Bamo")]));
+        music
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo Will auto-skip First Pick by A when it plays.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_replies_with_the_legacy_text_when_it_skips_the_playing_track()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    Playing() with
+                    {
+                        RequestedBy = "Bamo",
+                        TrackName = "Wrong Track",
+                    },
+                    []
+                )
+            );
+        music
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo Skipped Wrong Track by Artist.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_replies_with_the_legacy_text_when_the_caller_has_nothing_to_retract()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, []));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo You haven't requested any songs to retract.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_replies_with_the_legacy_text_when_the_skip_fails()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(Playing() with { RequestedBy = "Bamo" }, []));
+        music
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("PROVIDER_UNAVAILABLE", "nope"));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo Failed to retract your last song.",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ─── song_ban (!bansong) ──────────────────────────────────────────────────

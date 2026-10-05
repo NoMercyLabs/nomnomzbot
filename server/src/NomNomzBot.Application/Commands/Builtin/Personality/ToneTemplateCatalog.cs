@@ -824,7 +824,7 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.BanSong.Key,
             BuiltinResponseSlots.BanSong.Nothing,
             variables: [],
-            informative: ["Nothing is playing right now — there's no track to ban."],
+            informative: ["No song is currently playing!"],
             friendly: ["Nothing's playing right now, so there's nothing to ban!"],
             sassy: ["Nothing is playing. Banning silence would be a bold new frontier. Let's not."],
             hype: ["NOTHING PLAYING. NOTHING TO BAN. GET A TRACK GOING FIRST."],

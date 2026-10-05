@@ -134,7 +134,7 @@ public sealed class SongWrongAction : ICommandAction
 
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} Removed your request: {item.TrackName} by {item.Artist}",
+            $"@{ctx.TriggeredByDisplayName} Will auto-skip {item.TrackName} by {item.Artist} when it plays.",
             ctx.CancellationToken
         );
         return ActionResult.Success($"removed: {item.TrackName}");
@@ -163,7 +163,7 @@ public sealed class SongWrongAction : ICommandAction
         {
             await _chat.SendMessageAsync(
                 ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} You have no queued requests to remove.",
+                $"@{ctx.TriggeredByDisplayName} You haven't requested any songs to retract.",
                 ctx.CancellationToken
             );
             return ActionResult.Failure("no queued request for the triggering user");
@@ -181,7 +181,7 @@ public sealed class SongWrongAction : ICommandAction
             // as "the bot ignored me" while the user waits for it to stop.
             await _chat.SendMessageAsync(
                 ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} Couldn't skip your track — try again in a moment.",
+                $"@{ctx.TriggeredByDisplayName} Failed to retract your last song.",
                 ctx.CancellationToken
             );
             _logger.LogWarning(
@@ -194,7 +194,7 @@ public sealed class SongWrongAction : ICommandAction
 
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} Skipped your request: {playing!.TrackName} by {playing.Artist}",
+            $"@{ctx.TriggeredByDisplayName} Skipped {playing!.TrackName} by {playing.Artist}.",
             ctx.CancellationToken
         );
         return ActionResult.Success($"skipped: {playing.TrackName}");
