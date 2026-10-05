@@ -1895,4 +1895,86 @@ public sealed class ScriptHostBridgeTests
 
         seen!.Segments.Should().HaveCount(20);
     }
+
+    // tts.speak's fifth argument names whose saved voice speaks the line (a bot-authored line in the
+    // broadcaster's voice), instead of the triggering viewer's.
+    [Fact]
+    public async Task Tts_speak_can_name_the_speaker_whose_voice_is_used()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b2"),
+            "streamer",
+            "777001"
+        );
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+
+        Build(tts: tts, db: db)
+            .Resolve("tts.speak")(
+                "tts.speak",
+                ["hello chat", "", "", "", "streamer"],
+                CancellationToken.None
+            )
+            .Should()
+            .NotBeNull();
+
+        seen.Should().NotBeNull();
+        seen!.RequestedByTwitchUserId.Should().Be("777001");
+        seen.RequestedByTwitchUserId.Should().NotBe(Viewer.ToString());
+        seen.Text.Should().Be("hello chat");
+    }
+
+    [Fact]
+    public async Task Tts_speak_with_an_unknown_speaker_fails_without_dispatching()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        ScriptHostBridge bridge = Build(tts: tts);
+
+        bridge
+            .Resolve("tts.speak")(
+                "tts.speak",
+                ["hello", "", "", "", "ghost_speaker"],
+                CancellationToken.None
+            )
+            .Should()
+            .BeNull();
+
+        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.NotFound);
+    }
+
+    [Fact]
+    public async Task Stats_viewer_returns_commands_used_from_the_profile()
+    {
+        Guid bamo = Guid.Parse("0192a000-0000-7000-8000-00000000e0b3");
+        AuthDbContext db = await SeedViewerAsync(bamo, "bamo", "555003");
+        IViewerAnalyticsService analytics = Substitute.For<IViewerAnalyticsService>();
+        analytics
+            .GetProfileAsync(Channel, bamo, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new ViewerProfileDto(
+                        ViewerUserId: bamo,
+                        ViewerTwitchUserId: "555003",
+                        DisplayName: "bamo",
+                        FirstSeenAt: new DateTime(2026, 1, 5),
+                        LastSeenAt: new DateTime(2026, 7, 1),
+                        TotalWatchSeconds: 7200,
+                        TotalMessages: 420,
+                        TotalCommandsUsed: 37,
+                        TotalRedemptions: 3,
+                        TotalSongRequests: 9,
+                        IsFollower: true,
+                        IsSubscriber: false,
+                        SubTier: null,
+                        IsAnalyticsOptedOut: false
+                    )
+                )
+            );
+
+        string? json = Build(analytics: analytics, db: db)
+            .Resolve("stats.viewer")("stats.viewer", ["bamo"], CancellationToken.None);
+
+        JObject.Parse(json!).Value<long>("commands").Should().Be(37);
+    }
 }

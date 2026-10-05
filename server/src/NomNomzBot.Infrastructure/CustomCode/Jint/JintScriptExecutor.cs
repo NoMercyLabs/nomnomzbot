@@ -209,9 +209,9 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     // wizard" voice for one line) -- never persisted against the channel's TTS config. An
                     // undefined or null param is "no override" (''), never the literal "undefined"; trailing
                     // ones are dropped so a 1-arg call still sends one arg.
-                    speak: function (text, voiceId, ratePercent, pitchPercent) {
+                    speak: function (text, voiceId, ratePercent, pitchPercent, asUser) {
                         var args = ['tts.speak', need('tts.speak', 'the text to say', text)];
-                        var rest = [voiceId, ratePercent, pitchPercent];
+                        var rest = [voiceId, ratePercent, pitchPercent, asUser];
                         while (rest.length && (rest[rest.length - 1] === undefined || rest[rest.length - 1] === null)) rest.pop();
                         for (var i = 0; i < rest.length; i++) args.push(rest[i] === undefined || rest[i] === null ? '' : String(rest[i]));
                         var r = bot.call.apply(bot, args);

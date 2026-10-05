@@ -422,6 +422,24 @@ public sealed class NnzSdkBootstrapTests
     }
 
     [Fact]
+    public async Task Api_tts_speak_sends_the_named_speaker_as_the_fifth_arg()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "tts.speak" ? "{\"voiceId\":\"en-US-Aria\",\"characterCount\":5}" : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "nnz.api.tts.speak('hello', undefined, undefined, undefined, 'streamer');",
+            Grant("tts.speak"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        bridge.Calls[0].Args.Should().Equal("hello", "", "", "", "streamer");
+    }
+
+    [Fact]
     public async Task Compile_declares_capabilities_from_the_new_nnz_api_groups()
     {
         ScriptCompilation compilation = (
@@ -453,7 +471,7 @@ public sealed class NnzSdkBootstrapTests
         RecordingBridge bridge = new(
             (key, _) =>
                 key == "stats.viewer"
-                    ? "{\"messages\":420,\"watchtimeSeconds\":7200,\"firstSeen\":\"2026-01-05\",\"redemptions\":3,\"songRequests\":9}"
+                    ? "{\"messages\":420,\"watchtimeSeconds\":7200,\"firstSeen\":\"2026-01-05\",\"redemptions\":3,\"songRequests\":9,\"commands\":37}"
                     : null
         );
 
@@ -464,6 +482,7 @@ public sealed class NnzSdkBootstrapTests
             bot.setVar('watch', String(s.watchtimeSeconds));
             bot.setVar('first', s.firstSeen);
             bot.setVar('sr', String(s.songRequests));
+            bot.setVar('cmds', String(s.commands));
             """,
             Grant("stats.viewer"),
             bridge
@@ -476,6 +495,7 @@ public sealed class NnzSdkBootstrapTests
         r.VariablesOut["watch"].Should().Be("7200");
         r.VariablesOut["first"].Should().Be("2026-01-05");
         r.VariablesOut["sr"].Should().Be("9");
+        r.VariablesOut["cmds"].Should().Be("37");
     }
 
     [Fact]

@@ -177,6 +177,8 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  redemptions: number;");
         sb.AppendLine("  /** How many songs the viewer requested. 0 for a viewer never seen. */");
         sb.AppendLine("  songRequests: number;");
+        sb.AppendLine("  /** How many commands the viewer used. 0 for a viewer never seen. */");
+        sb.AppendLine("  commands: number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** A viewer's assigned TTS voice as nnz.api.tts.getVoice returns it. */");
@@ -679,10 +681,10 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("interface NnzApiTtsNamespace {");
         sb.AppendLine(
-            "  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. Null when TTS refused the line. */"
+            "  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. asUser is a login or id: the line then speaks in that user's saved voice instead of the triggering viewer's. Null when TTS refused the line or asUser is unknown. */"
         );
         sb.AppendLine(
-            "  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;"
+            "  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number, asUser?: string): NnzApiTtsResult | null;"
         );
         sb.AppendLine(
             "  /** Speaks 1 to 20 parts, each in its own voice, as ONE audio clip. Null when a part is invalid or TTS refused the line. */"
@@ -703,7 +705,7 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(
-            "/** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
+            "/** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests/commands used); the triggering user when no arg. */"
         );
         sb.AppendLine("interface NnzApiStatsNamespace {");
         sb.AppendLine(

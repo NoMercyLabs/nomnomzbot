@@ -631,12 +631,25 @@ public sealed partial class ScriptHostBridge(
         double? ratePercent = ParseOptionalDouble(args, 2);
         double? pitchPercent = ParseOptionalDouble(args, 3);
 
+        // Optional fifth arg: whose saved voice speaks the line (a login or id), e.g. the broadcaster for a
+        // bot-authored line. Absent/blank is the triggering viewer; an unknown name is a typed failure.
+        string? speakerTwitchId = triggeringUserId;
+        if (args.Count > 4 && !string.IsNullOrWhiteSpace(args[4]))
+        {
+            speakerTwitchId = ResolveViewerPlatformId(args[4], ct);
+            if (speakerTwitchId is null)
+            {
+                Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{args[4]}'.");
+                return _failureReturn;
+            }
+        }
+
         // The same shape PlayTtsAction hands the dispatcher: the gate (enabled + caps + censor + voice
         // resolution) runs host-side; a refusal is a typed failure the guest only ever sees as null.
         TtsSpeakRequest request = new(
             BroadcasterId: broadcasterId,
             RequestedByUserId: Guid.Empty,
-            RequestedByTwitchUserId: triggeringUserId,
+            RequestedByTwitchUserId: speakerTwitchId,
             RequestedByDisplayName: string.Empty,
             Text: args[0],
             VoiceIdOverride: voiceOverride,
@@ -907,6 +920,7 @@ public sealed partial class ScriptHostBridge(
                 firstSeen = profile?.FirstSeenAt?.ToString("yyyy-MM-dd"),
                 redemptions = profile?.TotalRedemptions ?? 0,
                 songRequests = profile?.TotalSongRequests ?? 0,
+                commands = profile?.TotalCommandsUsed ?? 0,
             }
         );
     }

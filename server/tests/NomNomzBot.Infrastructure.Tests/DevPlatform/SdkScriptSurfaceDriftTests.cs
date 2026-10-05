@@ -360,7 +360,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
         List<string> runtime = RuntimeNnzFunctions();
         List<string> declared = DeclaredNnzFunctions(ScriptDts());
 
-        runtime.Should().Contain("api.tts.speak=4", "the walk must reach the nested api wrappers");
+        runtime.Should().Contain("api.tts.speak=5", "the walk must reach the nested api wrappers");
         declared
             .Should()
             .BeEquivalentTo(

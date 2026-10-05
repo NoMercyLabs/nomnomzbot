@@ -314,8 +314,8 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiTtsNamespace {
-                  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. Null when TTS refused the line. */
-                  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;
+                  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. asUser is a login or id: the line then speaks in that user's saved voice instead of the triggering viewer's. Null when TTS refused the line or asUser is unknown. */
+                  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number, asUser?: string): NnzApiTtsResult | null;
                   /** Speaks 1 to 20 parts, each in its own voice, as ONE audio clip. Null when a part is invalid or TTS refused the line. */
                   speakSequence(segments: NnzApiTtsSegment[]): NnzApiTtsResult | null;
                   /** The voice assigned to a viewer. userIdOrLogin is optional and defaults to the user who triggered the script. null when the viewer uses the channel default or no viewer matches. */
@@ -367,6 +367,7 @@ public sealed class SdkTypeEmitterTests
                 """
             );
         ts.Should().Contain("interface NnzApiViewerStats {");
+        ts.Should().Contain("  commands: number;");
         ts.Should().Contain("interface NnzApiReward {");
         ts.Should().Contain("interface NnzApiRewardPatch {");
     }
