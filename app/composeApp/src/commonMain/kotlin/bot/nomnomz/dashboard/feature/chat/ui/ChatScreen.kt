@@ -130,6 +130,9 @@ import nomnomzbot.composeapp.generated.resources.chat_delete_title
 import nomnomzbot.composeapp.generated.resources.chat_empty
 import nomnomzbot.composeapp.generated.resources.chat_settings_emote_only
 import nomnomzbot.composeapp.generated.resources.chat_settings_followers_duration
+import nomnomzbot.composeapp.generated.resources.chat_settings_nonmod_delay
+import nomnomzbot.composeapp.generated.resources.chat_settings_nonmod_delay_duration
+import nomnomzbot.composeapp.generated.resources.chat_settings_unique
 import nomnomzbot.composeapp.generated.resources.chat_settings_followers_only
 import nomnomzbot.composeapp.generated.resources.chat_settings_panel_title
 import nomnomzbot.composeapp.generated.resources.chat_settings_slow_delay
@@ -1326,6 +1329,20 @@ private fun ChatModesBar(
                 active = settings.followersOnly,
                 enabled = enabled,
                 onToggle = { onToggle(settings.copy(followersOnly = !settings.followersOnly)) },
+            )
+            ChatModeChip(
+                label = stringResource(Res.string.chat_settings_unique),
+                active = settings.uniqueChatMode,
+                enabled = enabled,
+                onToggle = { onToggle(settings.copy(uniqueChatMode = !settings.uniqueChatMode)) },
+            )
+            ChatModeChip(
+                label = if (settings.nonModeratorChatDelay && settings.nonModeratorChatDelayDuration > 0)
+                    stringResource(Res.string.chat_settings_nonmod_delay_duration, settings.nonModeratorChatDelayDuration)
+                else stringResource(Res.string.chat_settings_nonmod_delay),
+                active = settings.nonModeratorChatDelay,
+                enabled = enabled,
+                onToggle = { onToggle(settings.copy(nonModeratorChatDelay = !settings.nonModeratorChatDelay)) },
             )
         }
     }

@@ -3387,6 +3387,9 @@
     <string name="chat_settings_emote_only">Emotes Only</string>
     <string name="chat_settings_followers_only">Followers Only</string>
     <string name="chat_settings_followers_duration">Min. %1$s min</string>
+    <string name="chat_settings_unique">Unique Chat</string>
+    <string name="chat_settings_nonmod_delay">Chat Delay</string>
+    <string name="chat_settings_nonmod_delay_duration">Chat Delay: %1$ss</string>
     <string name="chat_announce_action">Announce</string>
 
     <string name="community_shoutout_action">Shoutout</string>

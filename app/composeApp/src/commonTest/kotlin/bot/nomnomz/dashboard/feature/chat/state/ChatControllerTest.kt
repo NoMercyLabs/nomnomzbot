@@ -37,6 +37,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 // Proves the Chat page state machine the screen renders: resolve the active channel, surface the real recent
 // chat (empty as Empty, a failure of either step as Error), and act on it — send a line as the bot, delete a
@@ -688,6 +692,56 @@ private class FakeChannelsApi(
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
+/**
+ * A settings save is a whole-object PUT, so every field the server owns must survive the round trip through the
+ * client model. These tests decode the server's JSON (the shape `ChatSettingsDto` sends) and prove what a save
+ * after toggling one chip puts on the wire.
+ */
+class ChatSettingsSaveTest {
+    private val wire: Json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+        encodeDefaults = true
+    }
+
+    private val serverJson: String =
+        """{"slowMode":false,"slowModeDelay":30,"subscriberOnly":false,"emotesOnly":false,"followersOnly":false,""" +
+            """"followersOnlyDuration":0,"uniqueChatMode":true,"nonModeratorChatDelay":true,"nonModeratorChatDelayDuration":2}"""
+
+    @Test
+    fun saving_one_setting_keeps_the_unique_chat_and_non_moderator_delay_values() = runTest {
+        val loaded: ChatSettings = wire.decodeFromString(ChatSettings.serializer(), serverJson)
+        val api = FakeChatApi(
+            messagesResults = listOf(ApiResult.Ok(listOf(ChatMessage(id = "m1", userId = "u1", displayName = "Viewer", message = "hi")))),
+            settingsResult = ApiResult.Ok(loaded),
+        )
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+
+        controller.updateSettings(ready.settings!!.copy(slowMode = true))
+
+        assertEquals(1, api.updateSettingsBodies.size)
+        val sent: JsonObject =
+            wire.encodeToJsonElement(ChatSettings.serializer(), api.updateSettingsBodies.single()).jsonObject
+        assertEquals("true", sent["slowMode"]?.jsonPrimitive?.content)
+        assertEquals("true", sent["uniqueChatMode"]?.jsonPrimitive?.content)
+        assertEquals("true", sent["nonModeratorChatDelay"]?.jsonPrimitive?.content)
+        assertEquals("2", sent["nonModeratorChatDelayDuration"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun the_sent_body_names_the_three_chat_mode_fields() {
+        val body: JsonObject =
+            wire.encodeToJsonElement(ChatSettings.serializer(), ChatSettings()).jsonObject
+        assertTrue(
+            body.keys.containsAll(listOf("uniqueChatMode", "nonModeratorChatDelay", "nonModeratorChatDelayDuration")),
+            "sent keys were " + body.keys,
+        )
+    }
+}
+
 private class FakeChatApi(
     private val messagesResults: List<ApiResult<List<ChatMessage>>>,
     private val sendResult: ApiResult<Unit> = ApiResult.Ok(Unit),
@@ -704,6 +758,9 @@ private class FakeChatApi(
 
     var messagesCalls: Int = 0
         private set
+
+    // Every body handed to updateSettings, so tests can prove what a settings save actually sends.
+    val updateSettingsBodies: MutableList<ChatSettings> = mutableListOf()
 
     // Each send call recorded as (channel, message, senderIdentity) so tests prove the identity is passed through.
     val sendCalls: MutableList<Triple<String, String, String>> = mutableListOf()
@@ -782,7 +839,10 @@ private class FakeChatApi(
     override suspend fun updateSettings(
         channelId: String,
         settings: ChatSettings,
-    ): ApiResult<ChatSettings> = updateSettingsResult
+    ): ApiResult<ChatSettings> {
+        updateSettingsBodies.add(settings)
+        return updateSettingsResult
+    }
 
     override suspend fun announce(
         channelId: String,

@@ -3372,6 +3372,9 @@
     <string name="chat_settings_emote_only">Alleen Emotes</string>
     <string name="chat_settings_followers_only">Alleen Volgers</string>
     <string name="chat_settings_followers_duration">Min. %1$s min</string>
+    <string name="chat_settings_unique">Unieke Chat</string>
+    <string name="chat_settings_nonmod_delay">Chatvertraging</string>
+    <string name="chat_settings_nonmod_delay_duration">Chatvertraging: %1$ss</string>
     <string name="chat_announce_action">Aankondiging</string>
 
     <string name="community_shoutout_action">Shoutout</string>

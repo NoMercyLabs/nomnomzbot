@@ -209,10 +209,11 @@ data class ModerationActionBody(
 )
 
 /**
- * The channel's chat mode configuration (backend `ChatSettingsDto`). All six fields are settable; the backend
+ * The channel's chat mode configuration (backend `ChatSettingsDto`). All nine fields are settable; the backend
  * persists the whole object and the delay/duration values are irrelevant when the matching mode is disabled.
  * Field names mirror the DTO camelCase exactly — [slowMode] / [slowModeDelay] / [subscriberOnly] /
- * [emotesOnly] / [followersOnly] / [followersOnlyDuration].
+ * [emotesOnly] / [followersOnly] / [followersOnlyDuration] / [uniqueChatMode] / [nonModeratorChatDelay] /
+ * [nonModeratorChatDelayDuration]. The save is a whole-object PUT, so a field missing here is wiped on every save.
  */
 @Serializable
 data class ChatSettings(
@@ -222,6 +223,9 @@ data class ChatSettings(
     val emotesOnly: Boolean = false,
     val followersOnly: Boolean = false,
     val followersOnlyDuration: Int = 0,
+    val uniqueChatMode: Boolean = false,
+    val nonModeratorChatDelay: Boolean = false,
+    val nonModeratorChatDelayDuration: Int = 0,
 )
 
 /** The announce-to-chat request body (backend `AnnounceRequest`). */
