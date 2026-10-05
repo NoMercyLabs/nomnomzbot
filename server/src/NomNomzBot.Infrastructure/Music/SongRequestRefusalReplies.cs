@@ -175,6 +175,14 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            // Over the provider's budget, not down: the requester gets the wait, never an "outage".
+            "PROVIDER_RATE_LIMITED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.RateLimited,
+                "The music service is rate-limiting this channel — try again in about {retry.minutes} minute(s).",
+                new Dictionary<string, string> { ["retry.minutes"] = RetryMinutesText(data) },
+                ct
+            ),
             // A real playlist/album/episode/show/artist link — never a search miss.
             "UNSUPPORTED_CONTENT_TYPE" => ComposeAsync(
                 context,
@@ -259,6 +267,9 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
 
     private static string LimitText(MusicRequestRefusal? data) =>
         data?.Limit?.ToString() ?? "the limit";
+
+    private static string RetryMinutesText(MusicRequestRefusal? data) =>
+        data?.RetryMinutes?.ToString() ?? "a few";
 
     /// <summary>
     /// "No active music provider" is a different problem for a different person: only the broadcaster

@@ -119,6 +119,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The music service is having an outage — no variables.</summary>
         public const string ProviderUnavailable = "providerunavailable";
 
+        /// <summary>The music service rate-limited this channel; <c>{retry.minutes}</c> is set.</summary>
+        public const string RateLimited = "ratelimited";
+
         /// <summary>The link is a playlist, album, show or artist, not a track — no variables.</summary>
         public const string UnsupportedContent = "unsupportedcontent";
 

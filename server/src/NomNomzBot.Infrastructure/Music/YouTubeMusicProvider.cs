@@ -64,6 +64,10 @@ public sealed class YouTubeMusicProvider
     private const int MaxSearchResults = 50; // search.list maxResults hard cap (range 0–50).
     private const int RatingIdsPerRequest = 50; // videos.getRating id cap per live reference.
 
+    // playlistItems pages of 50 read by one "is this track in the playlist" check: 1,000 entries, the
+    // ceiling a chat command may spend from the daily quota on one answer.
+    internal const int MaxContainsPages = 20;
+
     private readonly HttpClient _http;
     private readonly IYouTubeApiKeyResolver _apiKeys;
     private readonly IYouTubeAccessTokenProvider _accessTokens;
@@ -696,8 +700,11 @@ public sealed class YouTubeMusicProvider
             $"{YouTubeApiBase}/playlistItems?part=contentDetails&maxResults=50"
             + $"&playlistId={Uri.EscapeDataString(playlistId)}";
         string? pageToken = null;
+        int pagesRead = 0;
         do
         {
+            if (pagesRead++ >= MaxContainsPages)
+                return Result.Success(false); // not found inside the budget: treated as not present.
             string url = pageToken is null
                 ? baseUrl
                 : $"{baseUrl}&pageToken={Uri.EscapeDataString(pageToken)}";

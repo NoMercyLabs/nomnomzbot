@@ -631,7 +631,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 failure,
                 query
             );
-            return ProviderFailureResult<MusicTrack>(failure);
+            return ProviderFailureResult<MusicTrack>(provider, tenantId, failure);
         }
         if (trackInfo is null)
             return Result.Failure<MusicTrack>($"No tracks found for \"{query}\".", "NOT_FOUND");
@@ -707,11 +707,25 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// needs attention, <c>PROVIDER_UNAVAILABLE</c> (distinct from this service's own
     /// <c>SERVICE_UNAVAILABLE</c> "no provider configured at all") so a transient outage never reads as
     /// "go connect Spotify" when it already IS connected, and <c>PROVIDER_NOT_CONFIGURED</c> when the
-    /// operator never set the provider's app-level key (reconnecting would change nothing).
+    /// operator never set the provider's app-level key (reconnecting would change nothing), and
+    /// <c>PROVIDER_RATE_LIMITED</c> with the minutes left on the provider's cooldown, so the requester is
+    /// told how long to wait instead of "temporarily unavailable" (2026-10-05: a 2h18m Spotify block read
+    /// as an outage in chat).
     /// </summary>
-    private static Result<T> ProviderFailureResult<T>(MusicProviderFailureReason failure) =>
+    private static Result<T> ProviderFailureResult<T>(
+        IMusicProvider provider,
+        Guid tenantId,
+        MusicProviderFailureReason failure
+    ) =>
         failure switch
         {
+            MusicProviderFailureReason.RateLimited => Result.Failure<T>(
+                "The music service is rate-limiting this channel.",
+                "PROVIDER_RATE_LIMITED",
+                errorData: new MusicRequestRefusal(
+                    RetryMinutes: RetryMinutesLeft(provider, tenantId)
+                )
+            ),
             MusicProviderFailureReason.NotConnected => Result.Failure<T>(
                 "The music connection needs to be reconnected.",
                 "MISSING_SCOPE"
@@ -734,6 +748,16 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "PROVIDER_UNAVAILABLE"
             ),
         };
+
+    /// <summary>Whole minutes until the provider lets this channel call again, never below one: a
+    /// cooldown the provider does not track (or that just ended) still reads as "try again in a minute".</summary>
+    private static int RetryMinutesLeft(IMusicProvider provider, Guid tenantId)
+    {
+        if (!provider.TryGetCoolingUntil(tenantId, out DateTimeOffset until))
+            return 1;
+        double minutes = Math.Ceiling((until - DateTimeOffset.UtcNow).TotalMinutes);
+        return Math.Max(1, (int)minutes);
+    }
 
     /// <summary>
     /// The shared admission path once a track has already been resolved: blocklist gate, fair-queue

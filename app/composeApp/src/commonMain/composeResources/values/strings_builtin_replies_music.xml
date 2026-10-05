@@ -88,6 +88,8 @@
     <string name="builtin_reply_sr_notconfigured_description">The bot owner has not added a YouTube API key, so YouTube requests cannot run.</string>
     <string name="builtin_reply_sr_providerunavailable_label">Music service down</string>
     <string name="builtin_reply_sr_providerunavailable_description">The music service has an outage.</string>
+    <string name="builtin_reply_sr_ratelimited_label">Music service rate limit</string>
+    <string name="builtin_reply_sr_ratelimited_description">The music service is rate-limiting this channel for a while.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Track links only</string>
     <string name="builtin_reply_sr_unsupportedcontent_description">A viewer pasted a playlist, album, show or artist link.</string>
     <string name="builtin_reply_sr_notplayable_label">Not playable here</string>
@@ -155,6 +157,7 @@
     <string name="builtin_reply_var_queue_max">The most songs the queue holds</string>
     <string name="builtin_reply_var_request_limit">The most requests one viewer may queue</string>
     <string name="builtin_reply_var_request_position">The queue position the viewer typed</string>
+    <string name="builtin_reply_var_retry_minutes">Minutes until the music service accepts calls again</string>
     <string name="builtin_reply_var_request_code">The request's code that !wrongsong uses</string>
     <string name="builtin_reply_var_trust_level">The lowest role allowed to request</string>
     <string name="builtin_reply_var_volume_level">The volume, from 0 to 100</string>

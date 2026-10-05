@@ -88,6 +88,8 @@
     <string name="builtin_reply_sr_notconfigured_description">De bot-eigenaar heeft geen YouTube API-sleutel toegevoegd, dus YouTube-verzoeken werken niet.</string>
     <string name="builtin_reply_sr_providerunavailable_label">Muziekdienst niet bereikbaar</string>
     <string name="builtin_reply_sr_providerunavailable_description">De muziekdienst heeft een storing.</string>
+    <string name="builtin_reply_sr_ratelimited_label">Muziekdienst-limiet</string>
+    <string name="builtin_reply_sr_ratelimited_description">De muziekdienst beperkt dit kanaal een tijdje.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Alleen nummerlinks</string>
     <string name="builtin_reply_sr_unsupportedcontent_description">Een kijker plakte een afspeellijst-, album-, show- of artiestlink.</string>
     <string name="builtin_reply_sr_notplayable_label">Hier niet afspeelbaar</string>
@@ -155,6 +157,7 @@
     <string name="builtin_reply_var_queue_max">Het maximale aantal nummers in de wachtrij</string>
     <string name="builtin_reply_var_request_limit">Het maximale aantal verzoeken per kijker</string>
     <string name="builtin_reply_var_request_position">De plek in de wachtrij die de kijker typte</string>
+    <string name="builtin_reply_var_retry_minutes">Minuten tot de muziekdienst weer aanvragen aanneemt</string>
     <string name="builtin_reply_var_request_code">De code van het verzoek die !wrongsong gebruikt</string>
     <string name="builtin_reply_var_trust_level">De laagste rol die mag aanvragen</string>
     <string name="builtin_reply_var_volume_level">Het volume, van 0 tot 100</string>

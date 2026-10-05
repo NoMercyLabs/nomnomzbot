@@ -30,9 +30,15 @@ public enum MusicProviderFailureReason
     /// reported as <see cref="NotConnected"/>.</summary>
     NotConfigured,
 
-    /// <summary>The provider was reached but errored, timed out, or rate-limited — a transient outage,
-    /// not an answer about whether the track exists.</summary>
+    /// <summary>The provider was reached but errored or timed out — a transient outage, not an answer
+    /// about whether the track exists.</summary>
     Unavailable,
+
+    /// <summary>The provider refused the call with a 429, or the channel is still inside the cooldown an
+    /// earlier 429 started (<see cref="TryGetCoolingUntil"/>), so the call was never sent. Distinct from
+    /// <see cref="Unavailable"/>: the service is up, this channel is over its budget, and the requester
+    /// can be told how long to wait.</summary>
+    RateLimited,
 
     /// <summary>The pasted link is a real, recognized provider link — but to a playlist, album, episode,
     /// show, or artist, not a single track. Song requests only ever admit one track at a time, so this is

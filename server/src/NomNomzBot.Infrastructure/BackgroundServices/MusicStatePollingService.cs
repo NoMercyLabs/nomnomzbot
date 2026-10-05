@@ -90,6 +90,14 @@ public sealed class MusicStatePollingService : BackgroundService
     // this long to notice playback starting, and hands that budget back to the channels actually playing.
     private static readonly TimeSpan QuietPollInterval = TimeSpan.FromSeconds(5);
 
+    // The cadence for a channel that IS playing. Progress between polls is a straight line the clients
+    // interpolate themselves, so a poll every second only re-confirmed what the last one implied, and it
+    // cost 30 calls per Spotify 30-second window per channel out of a per-app budget: one live channel
+    // (2026-10-05) earned a 2h18m Retry-After from the poll alone. The poll at the predicted track end
+    // (PredictedTrackEnd) keeps the "no more than 1 second of drift" promise for a natural track change;
+    // this safety poll catches a pause, skip or seek made outside the bot within five seconds.
+    private static readonly TimeSpan PlayingSafetyPollInterval = TimeSpan.FromSeconds(5);
+
     // A "seek" is flagged when observed progress diverges from the time-elapsed-implied progress by more than
     // this, while track + play state are otherwise unchanged. At a 1s poll interval this only needs to absorb
     // ordinary network/scheduling jitter between ticks, not multi-second slack — a genuine seek is still many
@@ -134,8 +142,8 @@ public sealed class MusicStatePollingService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "MusicStatePollingService starting ({FastSeconds}s while live/watched, {IdleSeconds}s otherwise).",
-            PollInterval.TotalSeconds,
+            "MusicStatePollingService starting ({FastSeconds}s safety poll while playing, {IdleSeconds}s otherwise).",
+            PlayingSafetyPollInterval.TotalSeconds,
             IdlePollInterval.TotalSeconds
         );
 
@@ -276,9 +284,31 @@ public sealed class MusicStatePollingService : BackgroundService
     private bool IsPollDue(Guid channelId, DateTimeOffset now)
     {
         TimeSpan cadence = CadenceFor(channelId);
-        return cadence <= PollInterval
+        if (
+            cadence <= PollInterval
             || !_lastPolledAt.TryGetValue(channelId, out DateTimeOffset lastPolled)
-            || now - lastPolled >= cadence;
+        )
+            return true;
+        if (now - lastPolled >= cadence)
+            return true;
+
+        // A natural track change lands on the tick the last observation predicts it, not up to a whole
+        // safety interval later — the one moment the overlay and the song-request queue must not miss.
+        DateTimeOffset? predictedEnd = PredictedTrackEnd(channelId);
+        return predictedEnd is { } end && end > lastPolled && now >= end;
+    }
+
+    /// <summary>When the playing track ends if nobody touches the player: last observed progress run forward
+    /// from the moment it was observed. <c>null</c> when the channel is not playing or the duration is unknown.</summary>
+    private DateTimeOffset? PredictedTrackEnd(Guid channelId)
+    {
+        if (
+            !_lastState.TryGetValue(channelId, out ChannelPlaybackSnapshot? last)
+            || !last.IsPlaying
+            || last.DurationMs <= 0
+        )
+            return null;
+        return last.ObservedAt + TimeSpan.FromMilliseconds(last.DurationMs - last.ProgressMs);
     }
 
     /// <summary>
@@ -297,7 +327,7 @@ public sealed class MusicStatePollingService : BackgroundService
             return QuietPollInterval;
         if (ctx is { IsLive: false, HasMusicDemand: false })
             return IdlePollInterval;
-        return IsActivelyPlaying(channelId) ? PollInterval : QuietPollInterval;
+        return IsActivelyPlaying(channelId) ? PlayingSafetyPollInterval : QuietPollInterval;
     }
 
     /// <summary>Whether the last observation for this channel had the player actually playing.</summary>
@@ -364,11 +394,27 @@ public sealed class MusicStatePollingService : BackgroundService
         }
 
         ChannelPlaybackSnapshot next = nowPlaying is null
-            ? new(false, null, 0, 100, observedAt, true, true, true, true, true, true, true, null)
+            ? new(
+                false,
+                null,
+                0,
+                0,
+                100,
+                observedAt,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                null
+            )
             : new ChannelPlaybackSnapshot(
                 nowPlaying.IsPlaying,
                 nowPlaying.TrackName,
                 nowPlaying.ProgressMs,
+                nowPlaying.DurationMs,
                 nowPlaying.Volume,
                 observedAt,
                 nowPlaying.CanSetShuffle,
@@ -514,6 +560,7 @@ public sealed class MusicStatePollingService : BackgroundService
         bool IsPlaying,
         string? TrackName,
         int ProgressMs,
+        int DurationMs,
         int VolumePercent,
         DateTimeOffset ObservedAt,
         bool CanSetShuffle,

@@ -30,5 +30,6 @@ public sealed record MusicRequestRefusal(
     string? RequestedBy = null,
     bool IsPlayingNow = false,
     int? Limit = null,
-    string? TrustLevel = null
+    string? TrustLevel = null,
+    int? RetryMinutes = null
 );
