@@ -29,6 +29,8 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift_received
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift_received_anonymous
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_message
+import nomnomzbot.composeapp.generated.resources.event_type_channel_moderator_add
+import nomnomzbot.composeapp.generated.resources.event_type_channel_moderator_remove
 import nomnomzbot.composeapp.generated.resources.event_type_channel_unban
 import nomnomzbot.composeapp.generated.resources.event_type_engagement_first_time_chatter
 import nomnomzbot.composeapp.generated.resources.event_type_engagement_modiversary
@@ -90,6 +92,8 @@ internal val EventTypeLabels: Map<String, StringResource> =
         "channel.ad_break.begin" to Res.string.event_type_channel_ad_break_begin,
         "channel.ban" to Res.string.event_type_channel_ban,
         "channel.unban" to Res.string.event_type_channel_unban,
+        "channel.moderator.add" to Res.string.event_type_channel_moderator_add,
+        "channel.moderator.remove" to Res.string.event_type_channel_moderator_remove,
         "engagement.first_time_chatter" to Res.string.event_type_engagement_first_time_chatter,
         "engagement.returning_chatter" to Res.string.event_type_engagement_returning_chatter,
         "engagement.watch_streak" to Res.string.event_type_engagement_watch_streak,

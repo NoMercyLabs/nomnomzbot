@@ -89,6 +89,9 @@ public static class EventResponsePresetCatalog
         // Moderation notices — channel.ban covers bans AND timeouts ({duration} = "permanent" or seconds).
         Preset("channel.ban", ["user", "user.id", "moderator", "reason", "duration"]),
         Preset("channel.unban", ["user", "user.id", "moderator"]),
+        // Moderator role notices — {user} is the user who gained or lost the role.
+        Preset("channel.moderator.add", ["user", "user.id"]),
+        Preset("channel.moderator.remove", ["user", "user.id"]),
         // Outgoing raid (channel.moderate's raid action) — {user} names the TARGET channel being raided.
         Preset("channel.raid.out", ["user", "user.id", "user.name", "viewers"]),
         // The countdown moment, distinct from the executed raid above — same variables, so a response can

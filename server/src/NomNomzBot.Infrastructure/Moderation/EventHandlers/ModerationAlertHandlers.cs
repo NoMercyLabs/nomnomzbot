@@ -19,11 +19,12 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
 /// <summary>
 /// The moderation-notice trigger sources: <c>channel.ban</c> (permanent bans AND timeouts — Twitch's own
-/// <c>channel.ban</c> topic covers both, split only by duration) and <c>channel.unban</c>. Variables:
+/// <c>channel.ban</c> topic covers both, split only by duration), <c>channel.unban</c>, and the moderator role
+/// notices <c>channel.moderator.add</c> / <c>channel.moderator.remove</c> (only <c>{user}</c> and <c>{user.id}</c>). Variables:
 /// <c>{user}</c> (the affected viewer), <c>{moderator}</c> (display name, falling back to the moderator id on
 /// non-Twitch ingests), <c>{reason}</c>, and <c>{duration}</c> ("permanent" for a ban, a human-readable span
-/// for a timeout). Grouped in one file because the three handlers are one surface — the same variable contract over
-/// the three moderation events.
+/// for a timeout). Grouped in one file because the five handlers are one surface — the same variable contract over
+/// the moderation events.
 /// </summary>
 public sealed class UserBannedAlertHandler
     : TwitchAlertHandlerBase<UserBannedEvent>,
@@ -145,5 +146,79 @@ public sealed class UserUnbannedAlertHandler
         };
 
     public Task HandleAsync(UserUnbannedEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
+}
+
+/// <summary>The <c>channel.moderator.add</c> trigger source — {user} is the new moderator.</summary>
+public sealed class ModeratorAddedAlertHandler
+    : TwitchAlertHandlerBase<ModeratorAddedEvent>,
+        IEventHandler<ModeratorAddedEvent>
+{
+    protected override string EventTypeKey => "channel.moderator.add";
+
+    public ModeratorAddedAlertHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<ModeratorAddedAlertHandler> l
+    )
+        : base(s, p, l) { }
+
+    protected override string? GetUserId(ModeratorAddedEvent e) => e.UserId;
+
+    protected override string? GetUserDisplayName(ModeratorAddedEvent e) => e.UserDisplayName;
+
+    protected override Dictionary<string, string> BuildVariables(ModeratorAddedEvent e) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["user"] = e.UserDisplayName,
+            ["user.id"] = e.UserId,
+        };
+
+    protected override ModeratorAddedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000007",
+            UserDisplayName = "ModMaya",
+            UserLogin = "modmaya",
+        };
+
+    public Task HandleAsync(ModeratorAddedEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
+}
+
+/// <summary>The <c>channel.moderator.remove</c> trigger source — {user} is the user who lost the role.</summary>
+public sealed class ModeratorRemovedAlertHandler
+    : TwitchAlertHandlerBase<ModeratorRemovedEvent>,
+        IEventHandler<ModeratorRemovedEvent>
+{
+    protected override string EventTypeKey => "channel.moderator.remove";
+
+    public ModeratorRemovedAlertHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<ModeratorRemovedAlertHandler> l
+    )
+        : base(s, p, l) { }
+
+    protected override string? GetUserId(ModeratorRemovedEvent e) => e.UserId;
+
+    protected override string? GetUserDisplayName(ModeratorRemovedEvent e) => e.UserDisplayName;
+
+    protected override Dictionary<string, string> BuildVariables(ModeratorRemovedEvent e) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["user"] = e.UserDisplayName,
+            ["user.id"] = e.UserId,
+        };
+
+    protected override ModeratorRemovedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000007",
+            UserDisplayName = "ModMaya",
+            UserLogin = "modmaya",
+        };
+
+    public Task HandleAsync(ModeratorRemovedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }

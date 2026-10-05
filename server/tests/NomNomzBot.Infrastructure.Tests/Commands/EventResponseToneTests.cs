@@ -392,7 +392,85 @@ public sealed class EventResponseToneTests
         rows.Where(r => r.IsEnabled)
             .Select(r => r.EventType)
             .Should()
-            .BeEquivalentTo(PlatformEventResponseDefaultsSeeder.EnabledByDefault);
+            .BeEquivalentTo(
+                PlatformEventResponseDefaultsSeeder
+                    .LegacyMessages.Keys.Concat([
+                        "channel.poll.end",
+                        "channel.ban",
+                        "channel.unban",
+                        "channel.moderator.add",
+                        "channel.moderator.remove",
+                    ])
+                    .ToList()
+            );
+    }
+
+    [Fact]
+    public async Task The_seeder_turns_an_untouched_moderation_row_on_and_leaves_an_admin_touched_one_off()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+        PlatformEventResponseDefault untouched = await db.PlatformEventResponseDefaults.SingleAsync(
+            d => d.EventType == "channel.ban"
+        );
+        PlatformEventResponseDefault turnedOff = await db.PlatformEventResponseDefaults.SingleAsync(
+            d => d.EventType == "channel.unban"
+        );
+        untouched.IsEnabled = false;
+        turnedOff.IsEnabled = false;
+        turnedOff.UpdatedByUserId = Admin;
+        await db.SaveChangesAsync();
+
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+
+        List<PlatformEventResponseDefault> rows = await db
+            .PlatformEventResponseDefaults.AsNoTracking()
+            .ToListAsync();
+        rows.Single(r => r.EventType == "channel.ban").IsEnabled.Should().BeTrue();
+        rows.Single(r => r.EventType == "channel.unban")
+            .IsEnabled.Should()
+            .BeFalse("an admin turned it off on purpose");
+    }
+
+    [Theory]
+    [InlineData("channel.ban", "@{user} has been banned from the channel. Reason: {reason}")]
+    [InlineData("channel.unban", "@{user} has been unbanned from the channel.")]
+    [InlineData("channel.moderator.add", "@{user} has been added as a moderator in the channel.")]
+    [InlineData(
+        "channel.moderator.remove",
+        "@{user} has been removed as a moderator in the channel."
+    )]
+    public async Task A_moderation_event_speaks_its_legacy_line_in_an_informative_channel(
+        string eventType,
+        string legacyLine
+    )
+    {
+        Harness h = await BuildAsync();
+        await SetChannelToneAsync(h, SassyChannel, PersonalityTone.Informative);
+
+        for (int i = 0; i < 60; i++)
+            await h.Executor.ExecuteAsync(
+                SassyChannel,
+                eventType,
+                "u1",
+                "viewer",
+                new()
+                {
+                    ["user"] = "viewer",
+                    ["user.id"] = "u1",
+                    ["moderator"] = "mod",
+                    ["reason"] = "spam",
+                    ["duration"] = "permanent",
+                }
+            );
+
+        List<string> sent = SentTo(h, SassyChannel);
+        sent.Should().HaveCount(60);
+        sent.Should()
+            .OnlyContain(m =>
+                EventResponseToneCatalog.Get(PersonalityTone.Informative, eventType).Contains(m)
+            );
+        sent.Should().Contain(legacyLine);
     }
 
     [Fact]

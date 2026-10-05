@@ -472,6 +472,8 @@
     "eventresponse.preset.channel_channel_points_custom_reward_redemption_add.template",
     "eventresponse.preset.channel_cheer.template",
     "eventresponse.preset.channel_follow.template",
+    "eventresponse.preset.channel_moderator_add.template",
+    "eventresponse.preset.channel_moderator_remove.template",
     "eventresponse.preset.channel_poll_end.template",
     "eventresponse.preset.channel_raid.template",
     "eventresponse.preset.channel_raid_out.template",

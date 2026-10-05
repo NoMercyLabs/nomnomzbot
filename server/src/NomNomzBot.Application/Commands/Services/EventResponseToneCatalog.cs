@@ -433,6 +433,110 @@ public static class EventResponseToneCatalog
             ]
         );
 
+        Add(
+            catalog,
+            "channel.ban",
+            informative:
+            [
+                "@{user} has been banned from the channel. Reason: {reason}",
+                "@{user} has been banned from the channel by {moderator}. Duration: {duration}. Reason: {reason}",
+            ],
+            friendly:
+            [
+                "{user} has been banned from the channel ({duration}). Reason: {reason}",
+                "{moderator} has had to ban {user} ({duration}). Reason: {reason}",
+            ],
+            sassy:
+            [
+                "{user} has been shown the door by {moderator} ({duration}). Reason: {reason}",
+                "Bye {user}. {moderator} says it is {duration}. Reason: {reason}",
+            ],
+            hype:
+            [
+                "{user} HAS BEEN BANNED BY {moderator}! DURATION: {duration}! REASON: {reason}",
+                "BANHAMMER! {user} IS GONE ({duration})! REASON: {reason}",
+            ],
+            chill:
+            [
+                "{user} has been banned ({duration}). reason: {reason}",
+                "{moderator} banned {user}. {duration}. {reason}",
+            ]
+        );
+
+        Add(
+            catalog,
+            "channel.unban",
+            informative:
+            [
+                "@{user} has been unbanned from the channel.",
+                "@{user} has been unbanned by {moderator}.",
+            ],
+            friendly:
+            [
+                "{user} has been unbanned. Welcome back!",
+                "{moderator} unbanned {user}. A fresh start!",
+            ],
+            sassy:
+            [
+                "{user} is unbanned. Try to behave this time.",
+                "{moderator} unbanned {user}. We will be watching.",
+            ],
+            hype:
+            [
+                "{user} IS UNBANNED! WELCOME BACK!",
+                "{moderator} UNBANNED {user}! THE LEGEND RETURNS!",
+            ],
+            chill: ["{user} is unbanned. welcome back.", "{moderator} unbanned {user}."]
+        );
+
+        Add(
+            catalog,
+            "channel.moderator.add",
+            informative:
+            [
+                "@{user} has been added as a moderator in the channel.",
+                "@{user} is now a moderator in the channel.",
+            ],
+            friendly:
+            [
+                "{user} is now a moderator. Thank you for helping out!",
+                "Welcome to the mod team, {user}!",
+            ],
+            sassy:
+            [
+                "{user} is now a moderator. Do try not to enjoy the power too much.",
+                "{user} got the sword. Chat, behave.",
+            ],
+            hype: ["{user} IS NOW A MODERATOR! LET'S GOOO!", "NEW MOD ALERT! WELCOME {user}!"],
+            chill: ["{user} is now a moderator.", "welcome to the mod team, {user}."]
+        );
+
+        Add(
+            catalog,
+            "channel.moderator.remove",
+            informative:
+            [
+                "@{user} has been removed as a moderator in the channel.",
+                "@{user} is no longer a moderator in the channel.",
+            ],
+            friendly:
+            [
+                "{user} is no longer a moderator. Thank you for your help!",
+                "Thanks for modding, {user}!",
+            ],
+            sassy:
+            [
+                "{user} has been relieved of their moderator duties.",
+                "{user} handed back the sword.",
+            ],
+            hype:
+            [
+                "{user} IS NO LONGER A MODERATOR! THANK YOU FOR YOUR SERVICE!",
+                "MOD DUTY OVER FOR {user}! RESPECT!",
+            ],
+            chill: ["{user} is no longer a moderator.", "thanks for modding, {user}."]
+        );
+
         // The ad-break default ships off; these lines speak for a channel that turns its own row on and leaves
         // the text empty. {user} is empty on an automatic break, so the lines use only the duration.
         Add(

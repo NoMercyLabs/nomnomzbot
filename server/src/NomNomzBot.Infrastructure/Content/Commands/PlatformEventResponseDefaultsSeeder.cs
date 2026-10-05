@@ -23,7 +23,9 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// <see cref="EventResponseToneCatalog"/> in each channel's tone until a platform admin writes text.
 /// GLOBAL reference data (Order 12). It ADDS missing event types and clears a message that still equals the
 /// <see cref="LegacyMessages"/> line this seeder wrote before tones existed, so an untouched row becomes
-/// tone-aware; any other message is an admin's edit and survives every redeploy.
+/// tone-aware; any other message is an admin's edit and survives every redeploy. The four
+/// <see cref="ModerationLines"/> types also start ON, and an existing row of those types that no admin ever
+/// touched is turned ON once.
 /// </summary>
 public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db) : ISeeder
 {
@@ -47,9 +49,20 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         ["channel.raid"] = "{user} is raiding with {viewers} viewers! Welcome raiders!",
     };
 
-    /// <summary>The types that ship ON: the legacy alerts plus the poll result, which the old bot also announced.</summary>
+    /// <summary>The moderation notices that ship ON like the old bot, with no fixed line: the tone catalogue speaks them.</summary>
+    internal static readonly IReadOnlySet<string> ModerationLines = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "channel.ban",
+        "channel.unban",
+        "channel.moderator.add",
+        "channel.moderator.remove",
+    };
+
+    /// <summary>The types that ship ON: the legacy alerts, the poll result and the moderation notices, which the old bot also announced.</summary>
     internal static readonly HashSet<string> EnabledByDefault = new(
-        LegacyMessages.Keys.Append("channel.poll.end"),
+        LegacyMessages.Keys.Append("channel.poll.end").Concat(ModerationLines),
         StringComparer.Ordinal
     );
 
@@ -67,6 +80,12 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 && string.Equals(row.Message, legacy, StringComparison.Ordinal)
             )
                 row.Message = null;
+
+            if (
+                ModerationLines.Contains(row.EventType)
+                && row is { IsEnabled: false, Message: null, UpdatedByUserId: null }
+            )
+                row.IsEnabled = true;
         }
 
         HashSet<string> present = existing
