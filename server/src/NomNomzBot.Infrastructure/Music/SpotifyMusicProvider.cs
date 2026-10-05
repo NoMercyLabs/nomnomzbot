@@ -384,6 +384,8 @@ public sealed class SpotifyMusicProvider
             );
             return ([], MusicProviderFailureReason.NotConnected);
         }
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            return ([], MusicProviderFailureReason.RateLimited);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning(
@@ -462,6 +464,8 @@ public sealed class SpotifyMusicProvider
         }
         if (response.StatusCode == HttpStatusCode.NotFound)
             return (null, MusicProviderFailureReason.None); // genuinely no such track.
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            return (null, MusicProviderFailureReason.RateLimited);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning(
@@ -889,6 +893,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Post,
             $"{SpotifyApiBase}/me/playlists",
             token,
+            broadcasterId,
             body,
             cancellationToken
         );
@@ -936,6 +941,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Put,
             $"{SpotifyApiBase}/playlists/{Uri.EscapeDataString(id)}",
             token,
+            broadcasterId,
             body,
             cancellationToken
         );
@@ -1006,6 +1012,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Post,
             $"{SpotifyApiBase}/playlists/{Uri.EscapeDataString(id)}/items",
             token,
+            broadcasterId,
             body,
             cancellationToken
         );
@@ -1093,6 +1100,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Delete,
             $"{SpotifyApiBase}/playlists/{Uri.EscapeDataString(id)}/items",
             token,
+            broadcasterId,
             body,
             cancellationToken
         );
@@ -1207,6 +1215,7 @@ public sealed class SpotifyMusicProvider
                     method,
                     url,
                     token,
+                    broadcasterId,
                     null,
                     cancellationToken
                 );
@@ -1263,6 +1272,7 @@ public sealed class SpotifyMusicProvider
                 method,
                 url,
                 token,
+                broadcasterId,
                 null,
                 cancellationToken
             );
@@ -1778,42 +1788,70 @@ public sealed class SpotifyMusicProvider
         bool isBackgroundPoll = false
     )
     {
-        if (CoolingResponse(broadcasterId) is { } cooling)
-            return cooling;
-
         HttpRequestMessage request = new(method, url);
         request.Headers.Authorization = new("Bearer", token);
         request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
+
+        HttpResponseMessage? response = await SendGatedAsync(
+            request,
+            broadcasterId,
+            "Spotify API request failed",
+            cancellationToken
+        );
+        if (response is null || response.RequestMessage is null)
+            return response; // null, or the stand-in 429 for a cooling channel: nothing to classify.
+
+        await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
+        return response;
+    }
+
+    /// <summary>
+    /// The ONE door every Spotify Web API request leaves through — reads, player commands and the
+    /// library/playlist manage surface alike. A channel inside its cooldown gets the stand-in 429 and
+    /// nothing is sent (2026-10-05: manage writes had their own un-gated send, so a cooling channel kept
+    /// calling and could extend its block); a real 429 starts the channel's cooldown from Retry-After.
+    /// 429 is retried by Polly inside the resilience handler on this same "spotify" HttpClient
+    /// (AddSpotifyResilienceHandler), honoring Retry-After with a floor and a capped attempt count — that is
+    /// the ONLY retry a 429 gets. A response that is STILL 429 here means every retry was exhausted, so the
+    /// channel is recorded as cooling rather than retried a second time on top of Polly's own. The body is
+    /// buffered up front so a caller's second read of the same response (403 premium-vs-forbidden,
+    /// NO_ACTIVE_DEVICE) never finds an exhausted stream. The caller's own token is the only cancellation
+    /// that means "stop": HttpClient's timeout raises TaskCanceledException too, and that is a failed call
+    /// to log and report as null, never an unhandled 500 (same fix as MusicStatePollingService).
+    /// </summary>
+    private async Task<HttpResponseMessage?> SendGatedAsync(
+        HttpRequestMessage request,
+        Guid broadcasterId,
+        string failureMessage,
+        CancellationToken cancellationToken
+    )
+    {
+        if (CoolingResponse(broadcasterId) is { } cooling)
+            return cooling;
+
+        // Every outbound request carries its channel, or it falls into the shared Guid.Empty fallback
+        // partition of the per-channel rate limiter in AddSpotifyResilienceHandler.
         request.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
+        if (!request.Options.TryGetValue(SpotifyRequestTags.IsBackgroundPoll, out bool _))
+            request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, false);
 
         try
         {
-            // 429 is retried by Polly, inside the resilience handler on this same "spotify" HttpClient
-            // (AddSpotifyResilienceHandler), honoring Retry-After with a floor and a capped attempt count —
-            // this is the ONLY retry a 429 gets. A response that is STILL 429 here means every retry was
-            // exhausted, so the channel is recorded as cooling rather than retried a second time on top of
-            // Polly's own (that double-retry, on a Retry-After Spotify sometimes sends as literally "0", is
-            // what let a rate-limited channel's poll cost up to 3 real calls with FailureCount never moving).
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 RecordRateLimit(broadcasterId, response);
-
-            // Buffer up front so ClassifyAuthAsync's own body read (403 premium-vs-forbidden
-            // disambiguation) never disturbs the caller's own subsequent read of the same response.
             await response.Content.LoadIntoBufferAsync();
-            await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
-
             return response;
         }
-        // Filter on the CALLER'S token, not the exception type. `ex is not OperationCanceledException`
-        // reads as "let shutdown through", but TaskCanceledException DERIVES from
-        // OperationCanceledException and HttpClient raises exactly that on its own timeout — so a slow
-        // Spotify call escaped this catch entirely and reached the controller as an unhandled 500 on
-        // GET /music/queue. Only a genuinely cancelled caller means "stop"; every other cancellation is a
-        // failed call to log and report as null. Same fix already applied in MusicStatePollingService.
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            _logger.LogError(ex, "Spotify API request failed: {Method} {Url}", method, url);
+            _logger.LogError(
+                ex,
+                "{Failure}: {Method} {Url}",
+                failureMessage,
+                request.Method,
+                request.RequestUri
+            );
             return null;
         }
     }
@@ -1886,12 +1924,6 @@ public sealed class SpotifyMusicProvider
         {
             HttpRequestMessage req = new(m, u);
             req.Headers.Authorization = new("Bearer", token);
-            // Every outbound Spotify request must carry its channel, or it falls into the shared
-            // Guid.Empty fallback partition in AddSpotifyResilienceHandler's per-channel rate limiter —
-            // this call previously did not, so every play/pause/skip/seek/shuffle/repeat/transfer/
-            // queue-add write shared one budget across every channel instead of each channel's own.
-            req.Options.Set(SpotifyRequestTags.IsBackgroundPoll, false);
-            req.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
             if (b is not null)
                 req.Content = JsonContent.Create(b);
             else if (m != HttpMethod.Get)
@@ -1903,27 +1935,15 @@ public sealed class SpotifyMusicProvider
             return req;
         }
 
-        if (CoolingResponse(broadcasterId) is { } cooling)
-            return cooling;
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await _http.SendAsync(BuildRequest(method, url, body), cancellationToken);
-            // Buffer the body up front: a failed response's error envelope is inspected here
-            // (premium/no-active-device) AND, on AddToQueueAsync, a second time by the caller to
-            // distinguish NO_ACTIVE_DEVICE from any other provider failure — a live network stream
-            // is forward-only, so without buffering the caller's re-read would see an empty body.
-            await response.Content.LoadIntoBufferAsync();
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogError(ex, "Spotify player command failed: {Method} {Url}", method, url);
-            return null;
-        }
-
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            RecordRateLimit(broadcasterId, response);
+        HttpResponseMessage? sent = await SendGatedAsync(
+            BuildRequest(method, url, body),
+            broadcasterId,
+            "Spotify player command failed",
+            cancellationToken
+        );
+        if (sent is null || sent.RequestMessage is null)
+            return sent; // null, or the stand-in 429 for a cooling channel.
+        HttpResponseMessage response = sent;
 
         if (
             response.StatusCode == HttpStatusCode.Forbidden
@@ -1943,31 +1963,27 @@ public sealed class SpotifyMusicProvider
             && _lastActiveDevice.TryGet(broadcasterId, out string? rememberedDeviceId)
         )
         {
-            HttpResponseMessage transfer;
-            try
-            {
-                transfer = await _http.SendAsync(
-                    BuildRequest(
-                        HttpMethod.Put,
-                        $"{SpotifyApiBase}/me/player",
-                        new { device_ids = new[] { rememberedDeviceId }, play = false }
-                    ),
-                    cancellationToken
-                );
-            }
-            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogError(ex, "Spotify auto-transfer to last device failed");
-                transfer = response; // fall through with the original NO_ACTIVE_DEVICE response
-            }
+            HttpResponseMessage? transfer = await SendGatedAsync(
+                BuildRequest(
+                    HttpMethod.Put,
+                    $"{SpotifyApiBase}/me/player",
+                    new { device_ids = new[] { rememberedDeviceId }, play = false }
+                ),
+                broadcasterId,
+                "Spotify auto-transfer to last device failed",
+                cancellationToken
+            );
 
-            if (transfer.IsSuccessStatusCode)
+            if (transfer is { IsSuccessStatusCode: true })
             {
-                response = await _http.SendAsync(
-                    BuildRequest(method, url, body),
-                    cancellationToken
-                );
-                await response.Content.LoadIntoBufferAsync();
+                // Fall through with the original NO_ACTIVE_DEVICE response when the retry itself fails.
+                response =
+                    await SendGatedAsync(
+                        BuildRequest(method, url, body),
+                        broadcasterId,
+                        "Spotify player command failed",
+                        cancellationToken
+                    ) ?? response;
             }
         }
 
@@ -2018,10 +2034,11 @@ public sealed class SpotifyMusicProvider
 
     /// <summary>Manage-surface send (library/playlists/follows) — JSON body support, no premium
     /// semantics (manage writes are not Premium-gated).</summary>
-    private async Task<HttpResponseMessage?> SendManageAsync(
+    private Task<HttpResponseMessage?> SendManageAsync(
         HttpMethod method,
         string url,
         string token,
+        Guid broadcasterId,
         object? body,
         CancellationToken cancellationToken
     )
@@ -2030,16 +2047,12 @@ public sealed class SpotifyMusicProvider
         request.Headers.Authorization = new("Bearer", token);
         if (body is not null)
             request.Content = JsonContent.Create(body);
-
-        try
-        {
-            return await _http.SendAsync(request, cancellationToken);
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogError(ex, "Spotify manage request failed: {Method} {Url}", method, url);
-            return null;
-        }
+        return SendGatedAsync(
+            request,
+            broadcasterId,
+            "Spotify manage request failed",
+            cancellationToken
+        );
     }
 
     private static Task<bool> IsPremiumRequiredAsync(

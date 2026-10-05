@@ -219,6 +219,28 @@ public sealed class SongRequestBuiltinTests
         result.Value.Should().NotContain("5531");
     }
 
+    /// <summary>
+    /// Live 2026-10-05: Spotify answered Retry-After 8284 s and chat said only "temporarily unavailable".
+    /// A rate limit is its own refusal and tells the viewer how long to wait.
+    /// </summary>
+    [Fact]
+    public async Task A_rate_limited_provider_tells_the_viewer_the_minutes_left_not_an_outage()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "service sentence 8284",
+                "PROVIDER_RATE_LIMITED",
+                errorData: new MusicRequestRefusal(RetryMinutes: 139)
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result.Value.Should().Contain("139");
+        result.Value.Should().NotContain("temporarily unavailable");
+        result.Value.Should().NotContain("8284");
+    }
+
     [Fact]
     public async Task A_missing_operator_key_answers_from_its_own_slot_and_names_who_can_fix_it()
     {

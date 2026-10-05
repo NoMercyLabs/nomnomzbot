@@ -93,11 +93,17 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Track_change_publishes_the_new_track()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
+        clock.Advance(TimeSpan.FromSeconds(5)); // the next safety poll is due
         music.SetResponse(ChannelA, NowPlayingState("Song B", isPlaying: true, progressMs: 500));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -112,8 +118,13 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task A_new_track_uri_raises_TrackChanged_once_with_every_field()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
             NowPlayingState("Song A", true, 1_000, trackUri: "spotify:track:a")
@@ -123,11 +134,17 @@ public sealed class MusicStatePollingServiceTests
             .Should()
             .BeEmpty("the first observation is a baseline, not a change");
 
+        clock.Advance(TimeSpan.FromSeconds(5));
         music.SetResponse(
             ChannelA,
             NowPlayingState("Song B", true, 500, trackUri: "spotify:track:b")
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        clock.Advance(TimeSpan.FromSeconds(5));
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song B", true, 5_500, trackUri: "spotify:track:b")
+        );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         TrackChangedEvent raised = bus.Published.OfType<TrackChangedEvent>().Single();
@@ -143,22 +160,29 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Pause_and_volume_changes_on_the_same_track_raise_no_TrackChanged()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
             NowPlayingState("Song A", true, 1_000, trackUri: "spotify:track:a")
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
+        clock.Advance(TimeSpan.FromSeconds(5));
         music.SetResponse(
             ChannelA,
-            NowPlayingState("Song A", true, 1_000, volumePercent: 30, trackUri: "spotify:track:a")
+            NowPlayingState("Song A", true, 6_000, volumePercent: 30, trackUri: "spotify:track:a")
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        clock.Advance(TimeSpan.FromSeconds(5));
         music.SetResponse(
             ChannelA,
-            NowPlayingState("Song A", false, 1_000, volumePercent: 30, trackUri: "spotify:track:a")
+            NowPlayingState("Song A", false, 6_000, volumePercent: 30, trackUri: "spotify:track:a")
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -169,14 +193,20 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task The_same_title_under_a_new_track_uri_still_raises_TrackChanged()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
             NowPlayingState("Intro", true, 1_000, trackUri: "spotify:track:one")
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
+        clock.Advance(TimeSpan.FromSeconds(5));
         music.SetResponse(
             ChannelA,
             NowPlayingState("Intro", true, 10, trackUri: "spotify:track:two")
@@ -227,12 +257,18 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Pause_flip_publishes_the_new_play_state()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
-        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: false, progressMs: 1_000));
+        clock.Advance(TimeSpan.FromSeconds(5));
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: false, progressMs: 6_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         List<PlaybackStateChangedEvent> published =
@@ -279,14 +315,22 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task A_null_poll_confirmed_over_consecutive_ticks_publishes_a_real_stop()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         music.SetResponse(ChannelA, null);
         for (int tick = 0; tick < MusicStatePollingService.NullConfirmationTicks; tick++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(5));
             await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        }
 
         List<PlaybackStateChangedEvent> published =
         [
@@ -345,8 +389,13 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Volume_only_change_publishes_too()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
             NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, volumePercent: 80)
@@ -356,9 +405,10 @@ public sealed class MusicStatePollingServiceTests
         // Nothing about track/play-state/seek changed — only the device volume did (streamer's phone,
         // hardware knob, another app). This must still publish so a Stream Deck mute key can reflect it
         // within one poll tick instead of waiting on its own separate fallback resync.
+        clock.Advance(TimeSpan.FromSeconds(5));
         music.SetResponse(
             ChannelA,
-            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, volumePercent: 35)
+            NowPlayingState("Song A", isPlaying: true, progressMs: 6_000, volumePercent: 35)
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -373,17 +423,23 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Permission_flip_with_nothing_else_changed_publishes_too()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
-            Build([ChannelA]);
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         // An ad break starts mid-track: Spotify now disallows skipping next. Track/play-state/volume/seek
         // are all otherwise identical — this must still publish so a Stream Deck skip key dims in real time
         // instead of only failing silently on the next press.
+        clock.Advance(TimeSpan.FromSeconds(5));
         music.SetResponse(
             ChannelA,
-            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, canSkipNext: false)
+            NowPlayingState("Song A", isPlaying: true, progressMs: 6_000, canSkipNext: false)
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -452,7 +508,7 @@ public sealed class MusicStatePollingServiceTests
             MusicStatePollingService sut,
             RecordingEventBus bus,
             FakeMusicService music,
-            FakeTimeProvider _,
+            FakeTimeProvider clock,
             RecordingHandover handover
         ) = Build([ChannelA, ChannelB]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
@@ -460,6 +516,10 @@ public sealed class MusicStatePollingServiceTests
 
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
         int publishedAfterFirstTick = bus.Published.Count;
+        // Five seconds on, the tracks have moved on by the same five seconds: no change to publish.
+        clock.Advance(TimeSpan.FromSeconds(5));
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 6_000));
+        music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 6_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         // The second tick observes identical state and publishes nothing — and must still ask, for BOTH
@@ -724,10 +784,10 @@ public sealed class MusicStatePollingServiceTests
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
         music.Calls.Should().HaveCount(1, "still cooling");
 
-        clock.Advance(TimeSpan.FromSeconds(2)); // past the deadline
-        // Natural progression over the elapsed 3s (1s + 2s) — keeps this a "nothing changed" observation so
+        clock.Advance(TimeSpan.FromSeconds(4)); // past the deadline, and the 5 s playing cadence has elapsed
+        // Natural progression over the elapsed 5s (1s + 4s) — keeps this a "nothing changed" observation so
         // the assertion below is purely about the poll/handover resuming, not about seek-drift detection.
-        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 4_000));
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 6_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         music.Calls.Should().HaveCount(2, "the cooldown cleared, so polling resumes");
@@ -770,10 +830,12 @@ public sealed class MusicStatePollingServiceTests
         music.Calls.Should().HaveCount(2, "it must still be polled, just five times less often");
     }
 
-    /// <summary>A channel that IS playing keeps full cadence — the overlay's responsiveness is the whole point,
-    /// and it is the idle traffic, never the useful traffic, that was starving the budget.</summary>
+    /// <summary>A live, playing channel costs Spotify at most one safety poll every
+    /// <c>PlayingSafetyPollInterval</c> (5 s) plus one poll at the predicted end of the track: 60 ticks
+    /// of one second must land far under the 60 calls the old 1 s cadence spent (kitte's channel, 2026-10-05,
+    /// was rate-limited for 2h18m by exactly that).</summary>
     [Fact]
-    public async Task A_channel_that_is_actually_playing_keeps_the_full_cadence()
+    public async Task A_playing_channel_spends_at_most_thirteen_calls_a_minute()
     {
         (
             MusicStatePollingService sut,
@@ -782,16 +844,63 @@ public sealed class MusicStatePollingServiceTests
             FakeTimeProvider clock,
             RecordingHandover _
         ) = Build([ChannelA]);
+        // 200 s track, 1 s in: no natural end inside the minute.
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
 
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
-        for (int tick = 0; tick < 3; tick++)
+        for (int tick = 0; tick < 60; tick++)
         {
             clock.Advance(TimeSpan.FromSeconds(1));
+            int elapsedMs = 1_000 + (tick + 1) * 1_000;
+            music.SetResponse(
+                ChannelA,
+                NowPlayingState("Song A", isPlaying: true, progressMs: elapsedMs)
+            );
             await sut.PollAllChannelsOnceAsync(CancellationToken.None);
         }
 
-        music.Calls.Should().HaveCount(4, "every second, while there is something to report");
+        music.Calls.Should().HaveCount(13, "one baseline plus one safety poll every 5 s");
+    }
+
+    /// <summary>The "no more than 1 second of drift" promise for a natural track change: the poller predicts
+    /// the track end from the last observed progress and polls on the tick it lands on, even though the
+    /// safety cadence alone would not be due yet.</summary>
+    [Fact]
+    public async Task A_playing_channel_is_polled_on_the_tick_its_track_is_predicted_to_end()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus _,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
+        // 200 s track observed at 192 s: predicted end 8 s away, between the 5 s and 10 s safety polls.
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 192_000)
+        );
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        List<int> callsAtSecond = [];
+        for (int tick = 1; tick <= 13; tick++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            int before = music.Calls.Count;
+            music.SetResponse(
+                ChannelA,
+                NowPlayingState("Song A", isPlaying: true, progressMs: 192_000 + tick * 1_000)
+            );
+            await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+            if (music.Calls.Count > before)
+                callsAtSecond.Add(tick);
+        }
+
+        // The predicted-end poll is a poll like any other: it resets the safety timer, so the next
+        // safety poll lands 5 s after it, not 5 s after the previous safety poll.
+        callsAtSecond
+            .Should()
+            .Equal([5, 8, 13], "safety at 5 s, predicted end at 8 s, safety 5 s after that poll");
     }
 
     /// <summary>Nobody live and nobody watching: the slowest tier, unchanged.</summary>

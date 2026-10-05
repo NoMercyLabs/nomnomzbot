@@ -303,6 +303,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.RateLimited,
+            variables: ["retry.minutes"],
+            informative:
+            [
+                "The music service is rate-limiting this channel — try again in about {retry.minutes} minute(s).",
+            ],
+            friendly:
+            [
+                "The music service needs a breather — try again in about {retry.minutes} minute(s)!",
+            ],
+            sassy: ["The music service cut us off for {retry.minutes} minute(s). Blame the quota."],
+            hype: ["THE MUSIC SERVICE NEEDS {retry.minutes} MINUTE(S). HOLD THAT REQUEST."],
+            chill: ["music service is rate-limited. try again in {retry.minutes} minute(s)."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.UnsupportedContent,
             variables: [],
             informative:
@@ -798,6 +816,7 @@ public static partial class ToneTemplateCatalog
         samples["request.limit"] = "3";
         samples["request.code"] = "K7QM";
         samples["request.position"] = "2";
+        samples["retry.minutes"] = "2";
         samples["trust.level"] = "Follower";
         samples["volume.level"] = "60";
         samples["playlist.url"] = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M";
