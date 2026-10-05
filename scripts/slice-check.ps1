@@ -199,9 +199,18 @@ try {
     # Caches inside the tree being inspected: the default home keys one ~170 MB cache per solution path, so
     # every removed worktree left its cache behind (4 GB on 2026-10-03, which tripped the disk floor).
     [string]$inspectCaches = Join-Path $server '../.scratch/jb-caches'
-    Invoke-Native 'jb inspectcode failed on slice files' {
-        dotnet jb inspectcode NomNomzBot.slnx --include="$inspectInclude" --no-build --format=Xml `
-            --output="$inspectReport" --severity=WARNING --caches-home="$inspectCaches"
+    Remove-Item $inspectReport -Force -ErrorAction SilentlyContinue
+    try {
+        Invoke-Native 'jb inspectcode failed on slice files' {
+            dotnet jb inspectcode NomNomzBot.slnx --include="$inspectInclude" --no-build --format=Xml `
+                --output="$inspectReport" --severity=WARNING --caches-home="$inspectCaches"
+        }
+    }
+    catch [System.Management.Automation.Host.HostException] {
+        # A background gate outlives the shell that started it; the host then fails to set the console title
+        # after jb is done (2026-10-05, a green slice reported exit 1). Only a finished jb with a report passes.
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $inspectReport)) { throw }
+        Write-Host 'console title error ignored: jb exited 0 and wrote its report'
     }
 
     # Gate by CATEGORY, not by a list of ids. The owner's examples (a redundant `!`, a mergeable
