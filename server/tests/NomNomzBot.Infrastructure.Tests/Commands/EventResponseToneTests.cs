@@ -510,9 +510,15 @@ public sealed class EventResponseToneTests
         foreach (
             (string eventType, string legacy) in PlatformEventResponseDefaultsSeeder.LegacyMessages
         )
+        {
+            // The gift recipient line became the old bot's sentence; the seeded text stays listed only so an untouched row is cleared.
+            if (eventType == "channel.subscription.gift.received")
+                continue;
+
             EventResponseToneCatalog
                 .FirstInformative(eventType)
                 .Should()
                 .Be(legacy, $"the {eventType} catalogue must keep the line channels already saw");
+        }
     }
 }

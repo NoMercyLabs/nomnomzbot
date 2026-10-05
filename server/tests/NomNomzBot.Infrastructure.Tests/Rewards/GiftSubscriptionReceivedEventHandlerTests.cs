@@ -133,9 +133,7 @@ public sealed class GiftSubscriptionReceivedEventHandlerTests
 
         // The text the chat/TTS actually gets: the default tone's first line rendered with those variables.
         string template = EventResponseToneCatalog.FirstInformative(ReceivedKey)!;
-        Render(template, variables)
-            .Should()
-            .Be("Lucky_Viewer was gifted a sub by Generous_Gifter!");
+        Render(template, variables).Should().Be("@Lucky_Viewer been gifted a tier 1 subscription!");
     }
 
     [Fact]
@@ -282,5 +280,44 @@ public sealed class GiftSubscriptionReceivedEventHandlerTests
             .Presets.Single(p => p.EventType == ReceivedKey)
             .Variables.Should()
             .Contain(["user", "user.id", "gifter", "gifter.id", "tier", "anonymous"]);
+    }
+
+    [Fact]
+    public async Task A_fresh_seed_makes_the_gift_recipient_default_speak_through_tts()
+    {
+        Harness h = Build();
+        await new PlatformEventResponseDefaultsSeeder(h.Db).SeedAsync();
+
+        List<PlatformEventResponseDefault> rows = await h
+            .Db.PlatformEventResponseDefaults.AsNoTracking()
+            .ToListAsync();
+
+        rows.Single(d => d.EventType == ReceivedKey).SpeakWithTts.Should().BeTrue();
+        rows.Where(d => d.SpeakWithTts)
+            .Select(d => d.EventType)
+            .Should()
+            .BeEquivalentTo([ReceivedKey]);
+    }
+
+    [Fact]
+    public async Task The_seeder_turns_tts_on_once_for_an_untouched_gift_recipient_row_and_leaves_an_admin_touched_one_alone()
+    {
+        Harness h = Build();
+        await new PlatformEventResponseDefaultsSeeder(h.Db).SeedAsync();
+        PlatformEventResponseDefault row = await h.Db.PlatformEventResponseDefaults.SingleAsync(d =>
+            d.EventType == ReceivedKey
+        );
+        row.SpeakWithTts = false;
+        await h.Db.SaveChangesAsync();
+
+        await new PlatformEventResponseDefaultsSeeder(h.Db).SeedAsync();
+        row.SpeakWithTts.Should().BeTrue();
+
+        row.SpeakWithTts = false;
+        row.UpdatedByUserId = Guid.CreateVersion7();
+        await h.Db.SaveChangesAsync();
+
+        await new PlatformEventResponseDefaultsSeeder(h.Db).SeedAsync();
+        row.SpeakWithTts.Should().BeFalse();
     }
 }

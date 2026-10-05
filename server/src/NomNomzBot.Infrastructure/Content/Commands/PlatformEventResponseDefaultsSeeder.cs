@@ -60,6 +60,14 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         "channel.moderator.remove",
     };
 
+    /// <summary>The types that also speak their line through TTS by default: the old bot spoke a gifted-sub recipient's line, like the sub line.</summary>
+    internal static readonly IReadOnlySet<string> SpokenByDefault = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "channel.subscription.gift.received",
+    };
+
     /// <summary>The types that ship ON: the legacy alerts, the poll result and the moderation notices, which the old bot also announced.</summary>
     internal static readonly HashSet<string> EnabledByDefault = new(
         LegacyMessages.Keys.Append("channel.poll.end").Concat(ModerationLines),
@@ -86,6 +94,12 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 && row is { IsEnabled: false, Message: null, UpdatedByUserId: null }
             )
                 row.IsEnabled = true;
+
+            if (
+                SpokenByDefault.Contains(row.EventType)
+                && row is { SpeakWithTts: false, Message: null, UpdatedByUserId: null }
+            )
+                row.SpeakWithTts = true;
         }
 
         HashSet<string> present = existing
@@ -97,7 +111,12 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 continue;
 
             db.PlatformEventResponseDefaults.Add(
-                new() { EventType = eventType, IsEnabled = EnabledByDefault.Contains(eventType) }
+                new()
+                {
+                    EventType = eventType,
+                    IsEnabled = EnabledByDefault.Contains(eventType),
+                    SpeakWithTts = SpokenByDefault.Contains(eventType),
+                }
             );
         }
         await db.SaveChangesAsync(ct);

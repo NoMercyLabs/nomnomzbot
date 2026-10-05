@@ -42,7 +42,7 @@ public sealed class CheerEventHandler
             ["user"] = e.IsAnonymous ? "Anonymous" : e.UserDisplayName,
             ["user.id"] = e.IsAnonymous ? string.Empty : e.UserId,
             ["bits"] = e.Bits.ToString(),
-            ["message"] = e.Message,
+            ["message"] = CheermoteText.Strip(e.Message),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
             ["provider"] = e.Provider,
         };
