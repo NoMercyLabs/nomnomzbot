@@ -28,6 +28,12 @@
     <string name="builtin_reply_sr_notfound_description">Geen nummer past bij het verzoek.</string>
     <string name="builtin_reply_sr_duplicate_label">Staat al in de wachtrij</string>
     <string name="builtin_reply_sr_duplicate_description">Het gevraagde nummer staat al in de wachtrij.</string>
+    <string name="builtin_reply_sr_tracktoolong_label">Nummer te lang</string>
+    <string name="builtin_reply_sr_tracktoolong_description">Het gevraagde nummer duurt langer dan 10 minuten en is niet toegevoegd.</string>
+    <string name="builtin_reply_sr_tracktoolongrefunded_label">Nummer te lang, punten terug</string>
+    <string name="builtin_reply_sr_tracktoolongrefunded_description">Een ingewisseld nummer duurt langer dan 10 minuten, is niet toegevoegd en de punten zijn teruggegeven.</string>
+    <string name="builtin_reply_sr_addedwithcode_label">Nummer toegevoegd met code</string>
+    <string name="builtin_reply_sr_addedwithcode_description">Een beloning of pipeline voegde een nummer toe, en het antwoord geeft de verzoekcode die !wrongsong gebruikt.</string>
     <string name="builtin_reply_sr_alreadyplaying_label">Speelt al</string>
     <string name="builtin_reply_sr_alreadyplaying_description">Het gevraagde nummer speelt nu al.</string>
     <string name="builtin_reply_sr_disabled_label">Verzoeken staan uit</string>
@@ -149,6 +155,7 @@
     <string name="builtin_reply_var_queue_max">Het maximale aantal nummers in de wachtrij</string>
     <string name="builtin_reply_var_request_limit">Het maximale aantal verzoeken per kijker</string>
     <string name="builtin_reply_var_request_position">De plek in de wachtrij die de kijker typte</string>
+    <string name="builtin_reply_var_request_code">De code van het verzoek die !wrongsong gebruikt</string>
     <string name="builtin_reply_var_trust_level">De laagste rol die mag aanvragen</string>
     <string name="builtin_reply_var_volume_level">Het volume, van 0 tot 100</string>
     <string name="builtin_reply_var_playlist_url">Een link naar de bangers-afspeellijst</string>

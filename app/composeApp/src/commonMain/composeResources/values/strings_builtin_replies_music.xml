@@ -28,6 +28,12 @@
     <string name="builtin_reply_sr_notfound_description">No song matches the request.</string>
     <string name="builtin_reply_sr_duplicate_label">Already in queue</string>
     <string name="builtin_reply_sr_duplicate_description">The requested song is already in the queue.</string>
+    <string name="builtin_reply_sr_tracktoolong_label">Song too long</string>
+    <string name="builtin_reply_sr_tracktoolong_description">The requested song is longer than 10 minutes, so it was not added.</string>
+    <string name="builtin_reply_sr_tracktoolongrefunded_label">Song too long, points refunded</string>
+    <string name="builtin_reply_sr_tracktoolongrefunded_description">A redeemed song is longer than 10 minutes, so it was not added and the points went back.</string>
+    <string name="builtin_reply_sr_addedwithcode_label">Song added with its code</string>
+    <string name="builtin_reply_sr_addedwithcode_description">A reward or pipeline added a song, and the reply gives the request code that !wrongsong uses.</string>
     <string name="builtin_reply_sr_alreadyplaying_label">Already playing</string>
     <string name="builtin_reply_sr_alreadyplaying_description">The requested song is playing right now.</string>
     <string name="builtin_reply_sr_disabled_label">Requests turned off</string>
@@ -149,6 +155,7 @@
     <string name="builtin_reply_var_queue_max">The most songs the queue holds</string>
     <string name="builtin_reply_var_request_limit">The most requests one viewer may queue</string>
     <string name="builtin_reply_var_request_position">The queue position the viewer typed</string>
+    <string name="builtin_reply_var_request_code">The request's code that !wrongsong uses</string>
     <string name="builtin_reply_var_trust_level">The lowest role allowed to request</string>
     <string name="builtin_reply_var_volume_level">The volume, from 0 to 100</string>
     <string name="builtin_reply_var_playlist_url">A link to the bangers playlist</string>

@@ -30,9 +30,9 @@ using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Giveaways;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Sound;
+using NomNomzBot.Infrastructure.Tests.Rewards;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
-using NomNomzBot.Infrastructure.Tests.Rewards;
 
 namespace NomNomzBot.Infrastructure.Tests.Consequences;
 

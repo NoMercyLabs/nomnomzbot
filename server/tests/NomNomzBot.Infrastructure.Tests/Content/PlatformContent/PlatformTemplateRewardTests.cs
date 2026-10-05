@@ -21,8 +21,8 @@ using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.PlatformContent.Templates;
 using NomNomzBot.Infrastructure.Rewards;
-using NSubstitute;
 using NomNomzBot.Infrastructure.Tests.Rewards;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
 
