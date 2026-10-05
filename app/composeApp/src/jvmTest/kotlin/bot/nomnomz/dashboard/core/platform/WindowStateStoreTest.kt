@@ -10,8 +10,9 @@
 
 package bot.nomnomz.dashboard.core.platform
 
+import bot.nomnomz.dashboard.core.TempDirs
 import java.io.File
-import java.nio.file.Files
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -23,7 +24,12 @@ class WindowStateStoreTest {
 
     private val default = WindowGeometry(x = 100f, y = 100f, width = 1320f, height = 920f, maximized = false)
 
-    private fun tempFile(): File = File(Files.createTempDirectory("window-state-test").toFile(), "window-state.json")
+    private val temp = TempDirs()
+
+    @AfterTest
+    fun deleteTempDirs() = temp.deleteAll()
+
+    private fun tempFile(): File = File(temp.create("window-state-test"), "window-state.json")
 
     @Test
     fun `a saved geometry survives restarting the store from disk`() {

@@ -10,8 +10,9 @@
 
 package bot.nomnomz.dashboard.core.platform
 
+import bot.nomnomz.dashboard.core.TempDirs
 import java.io.File
-import java.nio.file.Files
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -22,7 +23,12 @@ import kotlin.test.assertTrue
 // doesn't leak a secret slipped in by mistake either.
 class DesktopLogFileTest {
 
-    private fun tempFile(): File = File(Files.createTempDirectory("desktop-log-test").toFile(), "app.log")
+    private val temp = TempDirs()
+
+    @AfterTest
+    fun deleteTempDirs() = temp.deleteAll()
+
+    private fun tempFile(): File = File(temp.create("desktop-log-test"), "app.log")
 
     @Test
     fun `the log file is created on first write`() {

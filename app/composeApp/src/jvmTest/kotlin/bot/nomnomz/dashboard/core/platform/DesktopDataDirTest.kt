@@ -10,8 +10,9 @@
 
 package bot.nomnomz.dashboard.core.platform
 
+import bot.nomnomz.dashboard.core.TempDirs
 import java.io.File
-import java.nio.file.Files
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,7 +23,12 @@ import kotlin.test.assertTrue
 // and that a previously-wrong macOS directory is migrated rather than silently orphaned.
 class DesktopDataDirTest {
 
-    private fun tempHome(): File = Files.createTempDirectory("desktop-data-dir-test").toFile()
+    private val temp = TempDirs()
+
+    @AfterTest
+    fun deleteTempDirs() = temp.deleteAll()
+
+    private fun tempHome(): File = temp.create("desktop-data-dir-test")
 
     @Test
     fun `macOS resolves to Library Application Support`() {

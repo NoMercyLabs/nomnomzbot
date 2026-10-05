@@ -10,11 +10,12 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.TempDirs
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthPayload
 import java.io.File
-import java.nio.file.Files
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -32,7 +33,12 @@ import kotlinx.coroutines.test.runTest
 // disk survive", not just "the in-memory flags look right".
 class DesktopSessionExpiryTest {
 
-    private fun tempDir(): File = Files.createTempDirectory("session-expiry-test").toFile()
+    private val temp = TempDirs()
+
+    @AfterTest
+    fun deleteTempDirs() = temp.deleteAll()
+
+    private fun tempDir(): File = temp.create("session-expiry-test")
 
     private val connectionA =
         ConnectionProfile(id = "conn-a", displayName = "Bot A", baseUrl = "https://bot-a.example", source = ProfileSource.Manual)

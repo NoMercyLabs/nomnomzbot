@@ -10,8 +10,9 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.TempDirs
 import java.io.File
-import java.nio.file.Files
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,7 +26,12 @@ class TokenVaultEncryptionTest {
 
     private val secretToken = "super-secret-access-token-value-12345"
 
-    private fun tempDir(): File = Files.createTempDirectory("token-vault-test").toFile()
+    private val temp = TempDirs()
+
+    @AfterTest
+    fun deleteTempDirs() = temp.deleteAll()
+
+    private fun tempDir(): File = temp.create("token-vault-test")
 
     private fun assertNoFileContainsSecret(dir: File, secret: String) {
         val offenders: List<File> =
