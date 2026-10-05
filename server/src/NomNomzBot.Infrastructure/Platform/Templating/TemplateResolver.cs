@@ -456,6 +456,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
         // ── Random numbers (no channel context needed) ────────────────────
         ResolveRandomNumbers(vars, needed);
+        ResolveRolls(vars, needed);
 
         // ── Random variables ──────────────────────────────────────────────
         if (
@@ -791,6 +792,51 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     : RandomNumberSpec.TryParse(args, out spec);
             if (parsed)
                 vars[key] = spec.Draw().ToString();
+        }
+    }
+
+    /// <summary>
+    /// Named rolls. <c>{roll.NAME.MIN.MAX[.STEP]}</c> draws once and stores the value under NAME for this
+    /// render; <c>{roll.NAME}</c> reads it back and <c>{roll.NAME.complement}</c> gives 100 minus it, in any
+    /// order in the text. A read with no definition, or a malformed range, stays raw. If one name is defined
+    /// twice, the first definition in the text wins.
+    /// </summary>
+    private static void ResolveRolls(Dictionary<string, string> vars, HashSet<string> needed)
+    {
+        const string complement = "complement";
+        List<string[]> rolls =
+        [
+            .. needed
+                .Where(n => n.StartsWith("roll.", StringComparison.OrdinalIgnoreCase))
+                .Select(n => n.Split('.')),
+        ];
+
+        Dictionary<string, int> drawn = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string[] parts in rolls.Where(p => p.Length is 4 or 5))
+        {
+            if (
+                drawn.ContainsKey(parts[1])
+                || !RandomNumberSpec.TryParse(parts[2..], out RandomNumberSpec spec)
+            )
+                continue;
+
+            int value = spec.Draw();
+            drawn[parts[1]] = value;
+            vars[string.Join('.', parts)] = value.ToString();
+        }
+
+        foreach (string[] parts in rolls)
+        {
+            if (!drawn.TryGetValue(parts[1], out int value))
+                continue;
+
+            if (parts.Length == 2)
+                vars[string.Join('.', parts)] = value.ToString();
+            else if (
+                parts.Length == 3
+                && parts[2].Equals(complement, StringComparison.OrdinalIgnoreCase)
+            )
+                vars[string.Join('.', parts)] = (100 - value).ToString();
         }
     }
 

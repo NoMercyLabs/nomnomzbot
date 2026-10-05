@@ -435,6 +435,19 @@ public static class TemplateHelperRegistry
                 "template.helper.random_number_range"
             ),
             Prefixed(
+                "roll.<name>.<min>.<max>[.<step>]",
+                "roll.",
+                AllContexts,
+                "template.helper.roll"
+            ),
+            Prefixed("roll.<name>", "roll.", AllContexts, "template.helper.roll_read"),
+            Prefixed(
+                "roll.<name>.complement",
+                "roll.",
+                AllContexts,
+                "template.helper.roll_complement"
+            ),
+            Prefixed(
                 "random.pick.<a.b.c>",
                 "random.pick.",
                 AllContexts,

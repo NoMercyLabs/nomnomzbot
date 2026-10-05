@@ -5159,6 +5159,9 @@
     <string name="template_helper_provider">Het platform dat de gebeurtenis heeft afgeleverd (bijv. twitch of kick)</string>
     <string name="template_helper_random_number">Een willekeurig geheel getal van 1 tot en met N (bijv. {random.number.100})</string>
     <string name="template_helper_random_number_range">Een willekeurig geheel getal tussen een minimum en een maximum, met een optionele stap (bijv. {random.number.50.990.10})</string>
+    <string name="template_helper_roll">Een benoemde willekeurige worp, een keer per bericht getrokken: naam, minimum, maximum en een optionele stap (bijv. {roll.pct.60.98})</string>
+    <string name="template_helper_roll_read">De waarde van een benoemde worp opnieuw, zodat een worp op meerdere plekken kan staan (bijv. {roll.pct})</string>
+    <string name="template_helper_roll_complement">100 min een benoemde worp, voor twee percentages die samen 100 zijn (bijv. {roll.pct.complement})</string>
     <string name="template_helper_random_pick">Een willekeurige keuze uit een met punten gescheiden lijst (bijv. {random.pick.a.b.c})</string>
     <string name="template_helper_random_user">Een willekeurige chatter die momenteel in het kanaal is</string>
     <string name="template_helper_status">De livestatus van de stream (live of offline)</string>
