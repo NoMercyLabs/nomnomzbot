@@ -159,7 +159,8 @@ public sealed class PlayTtsAction : ICommandAction
             SourceMessageId: ctx.MessageId,
             StreamId: null,
             ChannelEventId: ctx.ChannelEventId,
-            RatePercent: ratePercent
+            RatePercent: ratePercent,
+            AssignVoiceIfMissing: !asField.Equals("broadcaster", StringComparison.OrdinalIgnoreCase)
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(

@@ -517,4 +517,22 @@ public sealed class PlayTtsActionTests
 
         action.Fields.Should().Contain(f => f.Name == "rate" && f.Templated && !f.Required);
     }
+
+    [Theory]
+    [InlineData("user", true)]
+    [InlineData("broadcaster", false)]
+    public async Task ExecuteAsync_OnlyAViewersLine_MayGetAnAssignedVoice(
+        string asValue,
+        bool expectedAssign
+    )
+    {
+        ActionResult result = await RunAsAsync(asValue, "chan-77", out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.AssignVoiceIfMissing == expectedAssign),
+                Arg.Any<CancellationToken>()
+            );
+    }
 }

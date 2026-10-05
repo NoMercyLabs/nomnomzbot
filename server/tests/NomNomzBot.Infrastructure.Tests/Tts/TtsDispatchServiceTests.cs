@@ -391,6 +391,98 @@ public sealed class TtsDispatchServiceTests
             );
     }
 
+    private static TtsVoice CatalogueVoice(string id, string locale, string provider = "edge") =>
+        new()
+        {
+            Id = id,
+            Name = id,
+            DisplayName = id,
+            Locale = locale,
+            Gender = "Female",
+            Provider = provider,
+        };
+
+    [Fact]
+    public async Task RequestSpeakAsync_ViewerWithNoVoice_GetsAnEnglishVoice_ThatIsSaved_AndKeptForTheNextLine()
+    {
+        Harness h = Build(defaultVoice: "default-voice");
+        h.Db.TtsVoices.AddRange(
+            CatalogueVoice("en-GB-SoniaNeural", "en-GB"),
+            CatalogueVoice("de-DE-KatjaNeural", "de-DE"),
+            CatalogueVoice("nl-NL-ColetteNeural", "nl-NL"),
+            CatalogueVoice("en-US-AriaNeural", "en-US", provider: "azure")
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> first = await h.Service.RequestSpeakAsync(Speak("one"));
+
+        first.IsSuccess.Should().BeTrue(first.ErrorMessage);
+        first.Value.VoiceId.Should().Be("en-GB-SoniaNeural");
+        List<UserTtsVoice> saved = await h.Db.UserTtsVoices.ToListAsync();
+        saved.Should().ContainSingle();
+        saved[0].BroadcasterId.Should().Be(Tenant);
+        saved[0].UserId.Should().Be(Viewer);
+        saved[0].VoiceId.Should().Be("en-GB-SoniaNeural");
+
+        h.Db.TtsVoices.Add(CatalogueVoice("en-AU-NatashaNeural", "en-AU"));
+        await h.Db.SaveChangesAsync();
+        for (int i = 0; i < 5; i++)
+        {
+            Result<TtsDispatchOutcome> again = await h.Service.RequestSpeakAsync(Speak("more"));
+            again.Value.VoiceId.Should().Be("en-GB-SoniaNeural");
+        }
+        (await h.Db.UserTtsVoices.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ViewerWithNoVoice_AndNoEnglishVoiceInTheCatalogue_UsesTheChannelDefault_AndSavesNothing()
+    {
+        Harness h = Build(defaultVoice: "default-voice");
+        h.Db.TtsVoices.Add(CatalogueVoice("de-DE-KatjaNeural", "de-DE"));
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hi"));
+
+        result.Value.VoiceId.Should().Be("default-voice");
+        (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_AssignmentSwitchedOff_UsesTheChannelDefault_AndSavesNothing()
+    {
+        Harness h = Build(defaultVoice: "default-voice");
+        h.Db.TtsVoices.Add(CatalogueVoice("en-GB-SoniaNeural", "en-GB"));
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hi") with
+            {
+                AssignVoiceIfMissing = false,
+            }
+        );
+
+        result.Value.VoiceId.Should().Be("default-voice");
+        (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_RequestNamingNoViewer_UsesTheChannelDefault_AndSavesNothing()
+    {
+        Harness h = Build(defaultVoice: "default-voice");
+        h.Db.TtsVoices.Add(CatalogueVoice("en-GB-SoniaNeural", "en-GB"));
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hi") with
+            {
+                RequestedByTwitchUserId = string.Empty,
+            }
+        );
+
+        result.Value.VoiceId.Should().Be("default-voice");
+        (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
+    }
+
     [Fact]
     public async Task RequestSpeakAsync_CensorEnabled_SynthesizesMaskedText()
     {

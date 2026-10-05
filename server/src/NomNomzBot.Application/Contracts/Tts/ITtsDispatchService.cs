@@ -115,6 +115,11 @@ public sealed record TtsQueueEntryDto(
 /// Per-utterance SSML pitch override (e.g. <c>-20</c> for a lower pitch), matching SSML's
 /// <c>pitch='+N%'</c> convention. <c>null</c> means the provider's default pitch. See <see cref="RatePercent"/>.
 /// </param>
+/// <param name="AssignVoiceIfMissing">
+/// When the speaking viewer has no saved voice, pick a random English catalogue voice and save it as theirs,
+/// like the old bot. <c>false</c> keeps the channel default voice and saves nothing; used for the
+/// broadcaster's own lines.
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -128,7 +133,8 @@ public sealed record TtsSpeakRequest(
     Guid? StreamId,
     string? ChannelEventId = null,
     double? RatePercent = null,
-    double? PitchPercent = null
+    double? PitchPercent = null,
+    bool AssignVoiceIfMissing = true
 );
 
 public enum TtsDispatchDisposition

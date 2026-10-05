@@ -180,6 +180,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             request.RequestedByTwitchUserId,
             request.VoiceIdOverride,
             config,
+            request.AssignVoiceIfMissing,
             ct
         );
         if (string.IsNullOrWhiteSpace(voiceId))
@@ -792,6 +793,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             requestedByTwitchUserId,
             voiceIdOverride,
             configResult.Value,
+            assignVoiceIfMissing: false,
             ct
         );
         if (string.IsNullOrWhiteSpace(voiceId))
@@ -806,6 +808,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string requestedByTwitchUserId,
         string? voiceIdOverride,
         TtsConfigDto config,
+        bool assignVoiceIfMissing,
         CancellationToken ct
     )
     {
@@ -822,6 +825,18 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 .FirstOrDefaultAsync(ct);
             if (!string.IsNullOrWhiteSpace(userVoice))
                 return userVoice;
+
+            if (assignVoiceIfMissing)
+            {
+                string? assigned = await AssignRandomEnglishVoiceAsync(
+                    broadcasterId,
+                    requestedByTwitchUserId,
+                    config.DefaultProvider,
+                    ct
+                );
+                if (!string.IsNullOrWhiteSpace(assigned))
+                    return assigned;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(config.DefaultVoiceId))
@@ -829,6 +844,54 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         IReadOnlyList<TtsVoiceInfo> voices = await _tts.GetAvailableVoicesAsync(ct);
         return voices.Count > 0 ? voices[0].Id : null;
+    }
+
+    /// <summary>
+    /// A viewer with no saved voice gets a random English voice of the channel's provider, and it is saved as
+    /// theirs so every later line sounds the same (the old bot did this). Null when the catalogue holds no
+    /// English voice for the provider: the channel default speaks and nothing is saved. When two lines race,
+    /// the unique (channel, viewer) index lets one row win and both lines use the winner.
+    /// </summary>
+    private async Task<string?> AssignRandomEnglishVoiceAsync(
+        Guid broadcasterId,
+        string requestedByTwitchUserId,
+        string provider,
+        CancellationToken ct
+    )
+    {
+        string providerLower = provider.ToLower();
+        List<string> englishVoiceIds = await _db
+            .TtsVoices.Where(v =>
+                v.Provider.ToLower() == providerLower && v.Locale.StartsWith("en-")
+            )
+            .Select(v => v.Id)
+            .ToListAsync(ct);
+        if (englishVoiceIds.Count == 0)
+            return null;
+
+        string chosen = englishVoiceIds[Random.Shared.Next(englishVoiceIds.Count)];
+        UserTtsVoice row = new()
+        {
+            BroadcasterId = broadcasterId,
+            UserId = requestedByTwitchUserId,
+            VoiceId = chosen,
+        };
+        _db.UserTtsVoices.Add(row);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            return chosen;
+        }
+        catch (DbUpdateException)
+        {
+            _db.UserTtsVoices.Remove(row);
+            return await _db
+                .UserTtsVoices.Where(v =>
+                    v.BroadcasterId == broadcasterId && v.UserId == requestedByTwitchUserId
+                )
+                .Select(v => v.VoiceId)
+                .FirstOrDefaultAsync(ct);
+        }
     }
 
     private Task<Result<TtsDispatchOutcome>> RejectRequestAsync(
