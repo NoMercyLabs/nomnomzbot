@@ -98000,7 +98000,8 @@
       },
       "ChannelNamePronunciationDto": {
         "required": [
-          "channelName"
+          "channelName",
+          "pronunciation"
         ],
         "type": "object",
         "properties": {
