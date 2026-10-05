@@ -34,7 +34,7 @@ class TtsResetDialogTest {
     private val changes: List<TtsResetChange> =
         listOf(
             TtsResetChange(TtsResetField.MaxCharacters, TtsResetValue.Number(120), TtsResetValue.Number(500)),
-            TtsResetChange(TtsResetField.Mode, TtsResetValue.Choice("byok"), TtsResetValue.Choice("client_edge")),
+            TtsResetChange(TtsResetField.Mode, TtsResetValue.Choice("byok"), TtsResetValue.Choice("self_host")),
             TtsResetChange(TtsResetField.ProfanityCensor, TtsResetValue.Flag(false), TtsResetValue.Flag(true)),
             TtsResetChange(TtsResetField.MinBits, TtsResetValue.Number(100), TtsResetValue.Number(null)),
         )
@@ -51,8 +51,8 @@ class TtsResetDialogTest {
 
         onNodeWithText("Max message length").assertExists()
         onNodeWithText("120 → 500").assertExists()
-        onNodeWithText("Dispatch mode").assertExists()
-        onNodeWithText("Bring your own key → Client (Edge)").assertExists()
+        onNodeWithText("Where voices come from").assertExists()
+        onNodeWithText("My own provider key → Free voices (recommended)").assertExists()
         onNodeWithText("Filter profanity").assertExists()
         onNodeWithText("Off → On").assertExists()
         onNodeWithText("100 → None").assertExists()
@@ -113,7 +113,7 @@ class TtsResetDialogTest {
         onNodeWithText("Instellingen terugzetten").assertIsEnabled()
         onNodeWithText("Annuleren").assertExists()
         onNodeWithText("Maximale berichtlengte").assertExists()
-        onNodeWithText("Eigen sleutel gebruiken → Client (Edge)").assertExists()
+        onNodeWithText("Mijn eigen providersleutel → Gratis stemmen (aanbevolen)").assertExists()
         onNodeWithText("Off → On").assertDoesNotExist()
         onNodeWithText("Uit → Aan").assertExists()
         onNodeWithText("100 → Geen").assertExists()

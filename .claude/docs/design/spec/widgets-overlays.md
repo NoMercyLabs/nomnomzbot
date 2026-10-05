@@ -74,7 +74,7 @@ A **system surface** is a channel-owned page that is never installed from the ga
 | Surface | Owner page | Behavior | Config |
 |---|---|---|---|
 | **Alert surface** | Alerts & Events (event responses) | **The one alert queue across every platform connection.** Renders every on-air alert an event response produces — `viewer.followed` / `viewer.subscribed` / `viewer.gifted` / `bits.cheered` / `channel.raided` / `supporter.*` (branched on `Kind`, `supporter-events.md`) — from Twitch, Kick, YouTube and X alike, strictly in order, one at a time. It consumes `IOverlayClient.WidgetEvent` pushes from the event-response engine; there is no per-platform alert page. | `events[]` (per-event enable), `sound`, `image`, `textTemplate`, `durationMs`, `minBits`, `minGiftCount`, `minAmount` |
-| **TTS surface** | TTS page (`tts.md` §6.2) | Holds the `<audio>` element for TTS. Consumes `IOverlayClient.TtsSpeak`; plays one utterance at a time from an **ordered audio queue** (AS-BUILT one `TtsSpeak` push = one utterance = one voice; multi-segment utterances are the S054 target, §7). Server-synthesized audio arrives as a `PlaySound` on the shared audio bus; `client_edge` utterances use the browser's `speechSynthesis` with `utter.voice`/`lang` resolved from `voiceId`/`locale`; an optional caption (speaking indicator + text) renders when `showText` is on. The former `tts_caption` gallery item is this surface. | `showText`, `voiceLabel`, `position`, `volume` |
+| **TTS surface** | TTS page (`tts.md` §6.2) | Holds the `<audio>` element for TTS. Consumes `IOverlayClient.TtsSpeak`; plays one utterance at a time from an **ordered audio queue** (AS-BUILT one `TtsSpeak` push = one utterance = one voice; multi-segment utterances are the S054 target, §7). Every utterance arrives as bot-synthesized audio (free Edge voices on the standard `self_host` plane, the channel's own key on `byok`) played by its `AudioUrl`; the browser's `speechSynthesis` is never used (the browser voice was retired 2026-10-05); an optional caption (speaking indicator + text) renders when `showText` is on. The former `tts_caption` gallery item is this surface. | `showText`, `voiceLabel`, `position`, `volume` |
 | **Sound surface** | Sound clips page (`sound-system.md`) | Sound plays on the **shared overlay audio bus**: the overlay SDK (`/overlay/sdk.js`) that every widget page loads holds the `<audio>` elements and handles `PlaySound` / `StopSound`, so a clip plays on whichever browser source is connected. **Single-clip rule (S-OBS-06, `75dd21483`):** a clip started with no `Handle` is the one "current" clip — starting another stops it first, so clips never stack. A clip with a `Handle` is its own independent slot, stopped only by that handle or by `StopSound(All)`. `POST /sound-clips/stop` (`sounds:write`) pushes `StopSound(All)`; with no overlay connected it reports `NOT_ATTACHED` instead of a silent no-op. | `volume` |
 
 The Alert, TTS and Sound surfaces are each added to OBS once (one browser source per surface); every other on-air element is a gallery widget.
@@ -557,7 +557,7 @@ public interface IOverlayClient
     Task Event(OverlayEventDto evt);                         // overlay group: the generic channel-wide event feed, OverlayEventDto(string Type, string Payload = raw JSON)
     Task PlaySound(PlaySoundPayload payload);                // overlay group: start a clip on the shared audio bus (§1.2 Sound)
     Task StopSound(StopSoundPayload payload);                // overlay group: stop one handle, or everything when All
-    Task TtsSpeak(TtsSpeakPayload payload);                  // overlay group: one client-edge utterance for the TTS surface (§1.2; tts.md §6.2)
+    Task TtsSpeak(TtsSpeakPayload payload);                  // overlay group: one utterance for the TTS surface (§1.2; tts.md §6.2)
     Task Retract(RetractPayload payload);                    // overlay group: moderation retraction (§2a)
 }
 ```
@@ -572,18 +572,18 @@ Hub server methods (`OverlayHub`): `JoinWidget(string widgetId)` -> `JoinWidgetR
 public sealed record TtsSpeakPayload(
     Guid BroadcasterId,        // tenant key (Guid) — overlay group scope
     string Text,               // the utterance text
-    string VoiceId,            // resolved voice (tts.md §6.2 precedence) — the surface sets utter.voice/lang from it on client_edge
+    string VoiceId,            // resolved voice (tts.md §6.2 precedence) — informational; the audio is already synthesized with it (see AudioUrl)
     string Provider,           // edge|elevenlabs|azure
     string? CueId,             // optional client-side dedupe / cancellation handle
     TtsSpeakOptions? Options,  // optional prosody overrides
-    string? Locale = null);    // BCP-47 hint; steers utter.lang when no browser voice matches VoiceId
+    string? Locale = null);    // BCP-47 hint for captions; the surface never picks a browser voice (every segment plays by AudioUrl)
 
 public sealed record TtsSpeakOptions(double? Rate, double? Pitch, double? Volume);
 ```
 
 #### S054 target — multi-segment utterances (NOT built)
 
-S054 (`SHORTCOMINGS-EXECUTION-PLAN.md`) replaces the single `Text`/`VoiceId`/`Provider` with an ordered segment array, so ONE push carries an utterance whose parts use different voices; the surface enqueues the utterance and plays its segments back-to-back (`client_edge` segments via `speechSynthesis` with `utter.voice`/`lang` from `VoiceId`; `byok`/`self_host` segments by `AudioUrl`). The `tts.md` request side (`TtsSegment` list, per-segment voice mode) is already written against this target shape.
+S054 (`SHORTCOMINGS-EXECUTION-PLAN.md`) replaces the single `Text`/`VoiceId`/`Provider` with an ordered segment array, so ONE push carries an utterance whose parts use different voices; the surface enqueues the utterance and plays its segments back-to-back (every segment plays by its `AudioUrl`; the bot synthesized it on `self_host` or `byok`). The `tts.md` request side (`TtsSegment` list, per-segment voice mode) is already written against this target shape.
 ```csharp
 // TARGET shape — not the shipped record above
 public sealed record TtsSpeakPayload(

@@ -310,7 +310,7 @@ now resolved by targeted edits and re-verified against the spec/schema files:
 | 5 | commands-pipelines | `BuiltinCommandContext` record defined (§3, line 421); every built-in `ExecuteAsync` binds it. |
 | 6 | custom-code | Events inherit canonical `DomainEventBase`; `BroadcasterId` is the base-supplied `Guid`, not redeclared. |
 | 7 | custom-code | `code:script:author` seed row re-planed to `management` (Broadcaster 40 / `critical`); owns the seed insertion point. |
-| 8 | tts | `IOverlayClient.TtsSpeak(TtsSpeakPayload)` + DTOs added to widgets-overlays §7; tts `client_edge` consumes them. |
+| 8 | tts | `IOverlayClient.TtsSpeak(TtsSpeakPayload)` + DTOs added to widgets-overlays §7; tts dispatch consumes them (bot-synthesized audio by `AudioUrl`). |
 | 9 | federation-oidc | `EventJournal.Source` enum extended with `federation` in the LOCKED schema (O.1). |
 | 10 | federation-oidc | `IFederationInboundTranslator` owns envelope→typed-event mapping (`moderation.ban.shared`→`SharedChatBanIssuedEvent`). |
 | 11 | federation-oidc | Inbound federated apply persists `Origin=federation` (distinct from Twitch-native `shared_chat`); moderation §3 leftover fixed inline. |

@@ -165,7 +165,6 @@ import nomnomzbot.composeapp.generated.resources.tts_label_voice
 import nomnomzbot.composeapp.generated.resources.tts_loading
 import nomnomzbot.composeapp.generated.resources.tts_max_length_invalid
 import nomnomzbot.composeapp.generated.resources.tts_mode_byok
-import nomnomzbot.composeapp.generated.resources.tts_mode_client_edge
 import nomnomzbot.composeapp.generated.resources.tts_mode_self_host
 import nomnomzbot.composeapp.generated.resources.tts_provider_azure
 import nomnomzbot.composeapp.generated.resources.tts_provider_edge
@@ -316,13 +315,17 @@ internal val PERMISSIONS: List<Pair<String, StringResource>> =
         "broadcaster" to Res.string.tts_permission_broadcaster,
     )
 
-// The TTS dispatch plane (backend TtsConfigDto.mode) — where synthesis runs. Fixed value set, picked as a chip.
+// The TTS dispatch plane (backend TtsConfigDto.mode) — where the voices come from. Fixed value set, picked as a
+// chip. `self_host` is the standard plane (free Edge voices synthesized by the bot); `byok` is the channel's own
+// provider key. The browser voice (`client_edge`) is retired: a stored value is shown and saved as `self_host`.
 internal val TTS_MODES: List<Pair<String, StringResource>> =
     listOf(
-        "client_edge" to Res.string.tts_mode_client_edge,
-        "byok" to Res.string.tts_mode_byok,
         "self_host" to Res.string.tts_mode_self_host,
+        "byok" to Res.string.tts_mode_byok,
     )
+
+internal const val TTS_MODE_SELF_HOST: String = "self_host"
+internal const val TTS_MODE_RETIRED_BROWSER_VOICE: String = "client_edge"
 
 // The preferred synthesis provider (backend TtsConfigDto.defaultProvider). Switching to azure/elevenlabs is how
 // a BYOK key is put to use. Fixed value set, picked as a chip.
@@ -384,13 +387,18 @@ private fun ReadyContent(
     onSaveNamePronunciation: (pronunciation: String) -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
-    val loaded: TtsConfig = state.config
+    // A stored `client_edge` (the retired browser voice) is shown as the standard plane. Normalizing the baseline
+    // keeps Save disabled with no edit, and makes any save send `self_host`.
+    val loaded: TtsConfig =
+        state.config.let {
+            if (it.mode == TTS_MODE_RETIRED_BROWSER_VOICE) it.copy(mode = TTS_MODE_SELF_HOST) else it
+        }
 
     // Local editable form, re-seeded whenever a new config loads (initial load or a successful save). Holding
     // it screen-side keeps the controller a thin persistence boundary; `remember(loaded)` resets every field
     // to the saved baseline so the "differs from loaded" check below is exact.
     var isEnabled: Boolean by remember(loaded) { mutableStateOf(loaded.isEnabled) }
-    // Dispatch plane (client_edge | byok | self_host) and preferred synthesis provider (edge | azure |
+    // Dispatch plane (self_host | byok) and preferred synthesis provider (edge | azure |
     // elevenlabs) — editable so a channel can switch to its BYOK provider.
     var mode: String by remember(loaded) { mutableStateOf(loaded.mode) }
     var defaultProvider: String by remember(loaded) { mutableStateOf(loaded.defaultProvider) }

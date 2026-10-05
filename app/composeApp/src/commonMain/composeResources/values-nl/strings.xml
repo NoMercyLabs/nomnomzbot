@@ -848,10 +848,9 @@
     <string name="tts_test_success">Gesynthetiseerd via %1$s (%2$d ms)</string>
     <string name="tts_test_error">Test mislukt: %1$s</string>
     <string name="tts_label_min_permission">Minimale rechten</string>
-    <string name="tts_label_mode">Verwerkingsmodus</string>
-    <string name="tts_mode_client_edge">Client (Edge)</string>
-    <string name="tts_mode_byok">Eigen sleutel gebruiken</string>
-    <string name="tts_mode_self_host">Zelf hosten</string>
+    <string name="tts_label_mode">Waar de stemmen vandaan komen</string>
+    <string name="tts_mode_byok">Mijn eigen providersleutel</string>
+    <string name="tts_mode_self_host">Gratis stemmen (aanbevolen)</string>
     <string name="tts_label_default_provider">Standaardprovider</string>
     <string name="tts_label_max_length">Maximale berichtlengte</string>
     <string name="tts_label_skip_bot_messages">Botberichten overslaan</string>
@@ -877,7 +876,7 @@
     <string name="tts_gender_female">Vrouw</string>
     <string name="tts_gender_neutral">Neutraal</string>
     <string name="tts_byok_title">Gebruik je eigen sleutel</string>
-    <string name="tts_byok_description">Draai Azure- of ElevenLabs-stemmen op je eigen account door je aanbiedersleutel op te slaan. Sleutels worden versleuteld en nooit meer getoond. Zet de dispatch-modus op BYOK en kies een standaardaanbieder om ze te gebruiken.</string>
+    <string name="tts_byok_description">Draai Azure- of ElevenLabs-stemmen op je eigen account door je aanbiedersleutel op te slaan. Sleutels worden versleuteld en nooit meer getoond. Kies 'Mijn eigen providersleutel' en een standaardaanbieder om ze te gebruiken.</string>
     <string name="tts_byok_stored">Sleutel opgeslagen</string>
     <string name="tts_byok_not_stored">Geen sleutel opgeslagen</string>
     <string name="tts_byok_key_label">API-sleutel</string>

@@ -22,6 +22,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -478,6 +479,52 @@ class TtsScreenTest {
         )
     }
 
+    // The browser voice (`client_edge`) is gone (Stoney, 2026-10-05: "edge tts is available everywhere and must be
+    // the standard. that lame outdated browser native tts goes away"). A config still carrying it renders as the
+    // free voices option, and a Save sends the server plane value, never `client_edge`.
+    @Test
+    fun a_client_edge_config_renders_as_free_voices_and_saves_the_server_plane() = runComposeUiTest {
+        // maxCharacters sits inside 1..500 so the form is valid and Save is gated only by "differs from loaded".
+        val ttsApi =
+            FakeTtsApi(configResult = ApiResult.Ok(TtsConfig(isEnabled = true, mode = "client_edge", maxCharacters = 200)))
+        val controller = TtsController(FakeChannelsApi(), ttsApi)
+        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
+        runBlocking {
+            controller.load()
+            queueController.load()
+        }
+
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                }
+            }
+        }
+        waitForIdle()
+
+        // The voice-source picker offers exactly the two remaining options, with no browser-voice chip.
+        onNodeWithContentDescription("Free voices (recommended)", useUnmergedTree = true).assertExists()
+        onNodeWithContentDescription("My own provider key", useUnmergedTree = true).assertExists()
+        assertEquals(
+            0,
+            onAllNodesWithContentDescription("Client (Edge)", useUnmergedTree = true).fetchSemanticsNodes().size,
+            "the browser voice must no longer be offered",
+        )
+        // Nothing was edited yet, so the loaded client_edge config (shown as free voices) is not a pending change.
+        onNodeWithText("Save").assertIsNotEnabled()
+
+        // One real edit, then Save: the request carries the server plane, not the retired browser value.
+        onAllNodes(isToggleable(), useUnmergedTree = true)[0].performClick()
+        waitForIdle()
+        onNodeWithText("Save").assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+
+        assertEquals(1, ttsApi.updateCalls.size, "Save must send exactly one update")
+        assertEquals("self_host", ttsApi.updateCalls.single().mode)
+        assertEquals(false, ttsApi.updateCalls.single().isEnabled)
+    }
+
     // ── Role gating survives the split ────────────────────────────────────────
 
     @Test
@@ -578,7 +625,7 @@ class TtsScreenTest {
     private val changedConfig: TtsConfig =
         TtsConfig(
             isEnabled = true,
-            mode = "client_edge",
+            mode = "self_host",
             defaultProvider = "edge",
             maxCharacters = 120,
             minPermission = "moderators",
@@ -778,8 +825,13 @@ private class FakeTtsApi(
         return resetResult
     }
 
-    override suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig> =
-        ApiResult.Ok(TtsConfig())
+    // Every config update the screen sent — proves what a Save actually puts on the wire.
+    val updateCalls: MutableList<TtsConfigUpdate> = mutableListOf()
+
+    override suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig> {
+        updateCalls.add(update)
+        return ApiResult.Ok(TtsConfig())
+    }
 
     override suspend fun setByokKey(channelId: String, provider: String, apiKey: String, region: String?): ApiResult<TtsConfig> =
         ApiResult.Ok(TtsConfig())

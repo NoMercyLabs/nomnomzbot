@@ -20,7 +20,7 @@ class TtsResetDiffTest {
     private val defaults: TtsConfig =
         TtsConfig(
             isEnabled = true,
-            mode = "client_edge",
+            mode = "self_host",
             defaultProvider = "edge",
             maxCharacters = 500,
             minPermission = "everyone",
@@ -59,7 +59,7 @@ class TtsResetDiffTest {
         assertEquals(
             listOf(
                 TtsResetChange(TtsResetField.Enabled, TtsResetValue.Flag(false), TtsResetValue.Flag(true)),
-                TtsResetChange(TtsResetField.Mode, TtsResetValue.Choice("byok"), TtsResetValue.Choice("client_edge")),
+                TtsResetChange(TtsResetField.Mode, TtsResetValue.Choice("byok"), TtsResetValue.Choice("self_host")),
                 TtsResetChange(
                     TtsResetField.DefaultProvider,
                     TtsResetValue.Choice("azure"),
