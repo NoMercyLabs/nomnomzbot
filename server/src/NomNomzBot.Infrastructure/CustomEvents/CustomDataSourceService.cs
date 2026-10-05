@@ -202,7 +202,13 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
         if (IsPush(request.SourceKind))
         {
-            Result provisioned = await SyncEndpointAsync(source, actorUserId, request, ct);
+            Result provisioned = await SyncEndpointAsync(
+                source,
+                source.Name,
+                actorUserId,
+                request,
+                ct
+            );
             if (provisioned.IsFailure)
                 return Result<CustomDataSourceDto>.Failure(
                     provisioned.ErrorMessage,
@@ -245,6 +251,34 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         }
     }
 
+    /// <summary>
+    /// Saves an UPDATED source. When the save throws, the endpoint this update created is deleted and the
+    /// source is detached first, so the compensating delete's own save cannot retry the failed update.
+    /// </summary>
+    private async Task SaveUpdatedSourceOrDiscardEndpointAsync(
+        CustomDataSource source,
+        Guid? createdEndpointId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            _db.Entry(source).State = EntityState.Detached;
+            if (createdEndpointId is { } endpointId)
+                await _endpoints.DeleteAsync(
+                    source.BroadcasterId,
+                    endpointId,
+                    CancellationToken.None
+                );
+
+            throw;
+        }
+    }
+
     public async Task<Result<CustomDataSourceDto>> UpdateAsync(
         Guid broadcasterId,
         Guid id,
@@ -264,7 +298,10 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                 "NOT_FOUND"
             );
 
-        // Name change — check for conflicts (only if actually changing)
+        // Name change — check for conflicts (only if actually changing). The new name is applied to the
+        // entity only after the endpoint work below: the endpoint service saves the shared context, and a
+        // field changed earlier would be flushed by that save instead of by the final one.
+        string newName = source.Name;
         if (!string.Equals(source.Name, request.Name, StringComparison.OrdinalIgnoreCase))
         {
             bool duplicate = await _db.CustomDataSources.AnyAsync(
@@ -278,7 +315,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                     "DUPLICATE_NAME"
                 );
 
-            source.Name = request.Name.ToLowerInvariant();
+            newName = request.Name.ToLowerInvariant();
         }
 
         Result fieldMapCheck = ValidateFieldMap(request.FieldMap);
@@ -309,6 +346,25 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                 "VALIDATION_FAILED"
             );
 
+        // The inbound endpoint follows the outcome of the source save. A new endpoint is created first
+        // (the endpoint service commits it on its own) and removed again when the save fails; the stale
+        // endpoint of a source that stops being push is deleted only once the save has succeeded.
+        Guid? previousEndpointId = source.InboundWebhookEndpointId;
+        Result synced = await SyncEndpointAsync(source, newName, actorUserId, request, ct);
+        if (synced.IsFailure)
+            return Result<CustomDataSourceDto>.Failure(synced.ErrorMessage, synced.ErrorCode);
+
+        Guid? createdEndpointId = previousEndpointId is null
+            ? source.InboundWebhookEndpointId
+            : null;
+        Guid? staleEndpointId = null;
+        if (!IsPush(request.SourceKind))
+        {
+            staleEndpointId = previousEndpointId;
+            source.InboundWebhookEndpointId = null;
+        }
+
+        source.Name = newName;
         source.DisplayName = request.DisplayName;
         source.SourceKind = request.SourceKind;
         source.PresetKey = request.PresetKey;
@@ -326,11 +382,10 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             );
         }
 
-        Result synced = await SyncEndpointAsync(source, actorUserId, request, ct);
-        if (synced.IsFailure)
-            return Result<CustomDataSourceDto>.Failure(synced.ErrorMessage, synced.ErrorCode);
+        await SaveUpdatedSourceOrDiscardEndpointAsync(source, createdEndpointId, ct);
 
-        await _db.SaveChangesAsync(ct);
+        if (staleEndpointId is { } staleId)
+            await _endpoints.DeleteAsync(broadcasterId, staleId, ct);
 
         return Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
     }
@@ -467,26 +522,20 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         string.Equals(sourceKind, PushKind, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Makes the inbound endpoint match the source: a push source owns one Generic endpoint (created, or its
-    /// secret and enabled flag kept in step); a source that is not push owns none.
+    /// Makes the inbound endpoint match a push source: it owns one Generic endpoint (created, or its secret
+    /// and enabled flag kept in step). A source that is not push needs nothing here; the caller deletes its
+    /// stale endpoint after the source save.
     /// </summary>
     private async Task<Result> SyncEndpointAsync(
         CustomDataSource source,
+        string sourceName,
         Guid actorUserId,
         UpsertCustomDataSourceRequest request,
         CancellationToken ct
     )
     {
         if (!IsPush(request.SourceKind))
-        {
-            if (source.InboundWebhookEndpointId is { } staleId)
-            {
-                await _endpoints.DeleteAsync(source.BroadcasterId, staleId, ct);
-                source.InboundWebhookEndpointId = null;
-            }
-
             return Result.Success();
-        }
 
         if (source.InboundWebhookEndpointId is { } endpointId)
         {
@@ -512,7 +561,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             actorUserId,
             new()
             {
-                Name = $"{source.Name} (custom data)",
+                Name = $"{sourceName} (custom data)",
                 Adapter = WebhookAdapterKind.Generic,
                 VerificationSecret = request.AuthSecret!,
                 IsEnabled = request.IsEnabled,

@@ -349,6 +349,63 @@ public sealed class CustomDataSourcePushTests
     }
 
     [Fact]
+    public async Task UpdateAsync_push_to_poll_whose_save_fails_keeps_the_source_and_its_live_endpoint()
+    {
+        Rig rig = await BuildAsync();
+        Result<CustomDataSourceDto> created = await rig.Service.CreateAsync(
+            Tenant,
+            Actor,
+            Request("push", Secret)
+        );
+        Guid endpointId = (await rig.Db.CustomDataSources.AsNoTracking().SingleAsync())
+            .InboundWebhookEndpointId!
+            .Value;
+        await rig.Db.Database.ExecuteSqlRawAsync(
+            "CREATE TRIGGER refuse_update BEFORE UPDATE ON CustomDataSources WHEN NEW.InboundWebhookEndpointId IS NULL "
+                + "BEGIN SELECT RAISE(ABORT, 'source update refused'); END;"
+        );
+
+        Func<Task> update = () =>
+            rig.Service.UpdateAsync(Tenant, created.Value.Id, Actor, Request("poll", null));
+
+        await update.Should().ThrowAsync<DbUpdateException>();
+        CustomDataSource stored = await rig.Db.CustomDataSources.AsNoTracking().SingleAsync();
+        stored.SourceKind.Should().Be("push");
+        stored.InboundWebhookEndpointId.Should().Be(endpointId);
+        (await rig.Db.InboundWebhookEndpoints.AsNoTracking().SingleAsync(e => e.Id == endpointId))
+            .DeletedAt.Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_poll_to_push_whose_save_fails_leaves_no_orphan_endpoint()
+    {
+        Rig rig = await BuildAsync();
+        Result<CustomDataSourceDto> created = await rig.Service.CreateAsync(
+            Tenant,
+            Actor,
+            Request("poll", null)
+        );
+        await rig.Db.Database.ExecuteSqlRawAsync(
+            "CREATE TRIGGER refuse_update BEFORE UPDATE ON CustomDataSources WHEN NEW.InboundWebhookEndpointId IS NOT NULL "
+                + "BEGIN SELECT RAISE(ABORT, 'source update refused'); END;"
+        );
+
+        Func<Task> update = () =>
+            rig.Service.UpdateAsync(Tenant, created.Value.Id, Actor, Request("push", Secret));
+
+        await update.Should().ThrowAsync<DbUpdateException>();
+        CustomDataSource stored = await rig.Db.CustomDataSources.AsNoTracking().SingleAsync();
+        stored.SourceKind.Should().Be("poll");
+        stored.InboundWebhookEndpointId.Should().BeNull();
+        List<InboundWebhookEndpoint> live = await rig
+            .Db.InboundWebhookEndpoints.AsNoTracking()
+            .Where(e => e.DeletedAt == null)
+            .ToListAsync();
+        live.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task UpdateAsync_switching_poll_to_push_creates_the_endpoint()
     {
         Rig rig = await BuildAsync();
