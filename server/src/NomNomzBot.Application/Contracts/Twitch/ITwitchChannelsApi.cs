@@ -27,6 +27,15 @@ public interface ITwitchChannelsApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Channel Information for foreign channels by raw Twitch broadcaster ids (up to 100 per call; larger lists
+    /// are split). No tenant is involved. App token; no scope. Ids Twitch does not know are absent from the list.
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchChannelInformation>>> GetChannelInformationByTwitchIdsAsync(
+        IReadOnlyList<string> twitchBroadcasterIds,
+        CancellationToken ct = default
+    );
+
     /// <summary>Modify Channel Information — title / category / language / tags / CCLs / branded-content. Requires <c>channel:manage:broadcast</c>.</summary>
     Task<Result> ModifyChannelInformationAsync(
         Guid broadcasterId,

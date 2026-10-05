@@ -87,6 +87,69 @@ public class TwitchChannelsApiTests
         transport.CallCount.Should().Be(0);
     }
 
+    private static TwitchChannelInformation Info(string id, string gameName) =>
+        new(id, "login" + id, "Name" + id, "en", "1", gameName, "t", 0, [], [], false);
+
+    [Fact]
+    public async Task GetChannelInformationByTwitchIds_SendsRawIdsAsBroadcasterId_WithAppToken_MapsGameName()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            ListResult = new List<TwitchChannelInformation>
+            {
+                Info("7", "Just Chatting"),
+                Info("8", "Chess"),
+            },
+        };
+        TwitchChannelsApi api = Build(transport);
+
+        Result<IReadOnlyList<TwitchChannelInformation>> result =
+            await api.GetChannelInformationByTwitchIdsAsync(["7", "8"]);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Select(i => i.GameName).Should().Equal("Just Chatting", "Chess");
+        transport.CallCount.Should().Be(1);
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("channels");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.App);
+        transport
+            .LastRequest.Query!.Where(q => q.Key == "broadcaster_id")
+            .Select(q => q.Value)
+            .Should()
+            .Equal("7", "8");
+    }
+
+    [Fact]
+    public async Task GetChannelInformationByTwitchIds_MoreThan100Ids_AreSplitIntoCallsOf100()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            ListResult = new List<TwitchChannelInformation>(),
+        };
+        TwitchChannelsApi api = Build(transport);
+        List<string> ids = [.. Enumerable.Range(1, 150).Select(i => i.ToString())];
+
+        Result<IReadOnlyList<TwitchChannelInformation>> result =
+            await api.GetChannelInformationByTwitchIdsAsync(ids);
+
+        result.IsSuccess.Should().BeTrue();
+        transport.Requests.Select(r => r.Query!.Count).Should().Equal(100, 50);
+    }
+
+    [Fact]
+    public async Task GetChannelInformationByTwitchIds_NoIds_ReturnsEmpty_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchChannelsApi api = Build(transport);
+
+        Result<IReadOnlyList<TwitchChannelInformation>> result =
+            await api.GetChannelInformationByTwitchIdsAsync([]);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+        transport.CallCount.Should().Be(0);
+    }
+
     [Fact]
     public async Task ModifyChannelInformation_MissingScope_ShortCircuits_WithoutCallingTransport()
     {

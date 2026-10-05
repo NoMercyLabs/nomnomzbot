@@ -206,6 +206,7 @@ public sealed class ShoutoutActionTests
             .. pool.Select(l =>
                 l.Replace("{target.name}", "numerictarget")
                     .Replace("{target.link}", "twitch.tv/numerictarget")
+                    .Replace("{target.game}", "something awesome")
             ),
         ];
         filled.Should().Contain(announced);

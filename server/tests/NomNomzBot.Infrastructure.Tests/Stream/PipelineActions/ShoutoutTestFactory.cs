@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -36,10 +37,12 @@ internal static class ShoutoutTestFactory
         ITemplateResolver resolver,
         ITtsDispatchService tts,
         TimeProvider time,
-        IShoutoutQueue? queue = null
+        IShoutoutQueue? queue = null,
+        ITwitchChannelsApi? channels = null
     ) =>
         new(
             users,
+            channels ?? NoChannelInfo(),
             registry,
             queue ?? new ShoutoutQueue(),
             Sender(chat, registry, db, tts, time),
@@ -48,6 +51,26 @@ internal static class ShoutoutTestFactory
             time,
             NullLogger<ShoutoutAction>.Instance
         );
+
+    /// <summary>A channels client whose category lookup fails — the shoutout then falls back to its default game text.</summary>
+    public static ITwitchChannelsApi NoChannelInfo()
+    {
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelInformationByTwitchIdsAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Task.FromResult(
+                    Result.Failure<IReadOnlyList<TwitchChannelInformation>>(
+                        "no info",
+                        TwitchErrorCodes.TwitchError
+                    )
+                )
+            );
+        return channels;
+    }
 
     /// <summary>The real composer over the given resolver, with no platform text and no channel override set.</summary>
     public static BuiltinResponseComposer Composer(ITemplateResolver resolver)

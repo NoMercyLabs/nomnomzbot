@@ -58,12 +58,14 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 public sealed class ShoutoutAction : ICommandAction
 {
     private const string RaidEventName = "channel.raid";
+    private const string FallbackGame = "something awesome";
     private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
 
     private static readonly TimeSpan DefaultPerUserCooldown = TimeSpan.FromMinutes(60);
     private static readonly TimeSpan DefaultGlobalCooldown = TimeSpan.FromMinutes(2);
 
     private readonly ITwitchUsersApi _users;
+    private readonly ITwitchChannelsApi _channels;
     private readonly IChannelRegistry _registry;
     private readonly IShoutoutQueue _queue;
     private readonly IShoutoutSender _sender;
@@ -112,6 +114,7 @@ public sealed class ShoutoutAction : ICommandAction
 
     public ShoutoutAction(
         ITwitchUsersApi users,
+        ITwitchChannelsApi channels,
         IChannelRegistry registry,
         IShoutoutQueue queue,
         IShoutoutSender sender,
@@ -122,6 +125,7 @@ public sealed class ShoutoutAction : ICommandAction
     )
     {
         _users = users;
+        _channels = channels;
         _registry = registry;
         _queue = queue;
         _sender = sender;
@@ -241,6 +245,17 @@ public sealed class ShoutoutAction : ICommandAction
         );
     }
 
+    /// <summary>The target's current Twitch category, or the old bot's "something awesome" when there is none.</summary>
+    private async Task<string> ResolveGameAsync(TwitchUser target, CancellationToken ct)
+    {
+        Result<IReadOnlyList<TwitchChannelInformation>> lookup =
+            await _channels.GetChannelInformationByTwitchIdsAsync([target.Id], ct);
+        string? game = lookup.IsSuccess
+            ? lookup.Value.FirstOrDefault(c => c.BroadcasterId == target.Id)?.GameName
+            : null;
+        return string.IsNullOrWhiteSpace(game) ? FallbackGame : game;
+    }
+
     private async Task<string> ComposeAnnouncementAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action,
@@ -263,6 +278,7 @@ public sealed class ShoutoutAction : ICommandAction
             ["target.id"] = target.Id,
             ["target.name"] = target.DisplayName,
             ["target.link"] = $"twitch.tv/{target.Login}",
+            ["target.game"] = await ResolveGameAsync(target, ctx.CancellationToken),
         };
         if (selection.Template is null)
             return await _composer.ComposeAsync(

@@ -28,6 +28,8 @@ public sealed class TwitchChannelsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchChannelsApi
 {
+    private const int MaxBroadcasterIdsPerCall = 100;
+
     public async Task<Result<TwitchChannelInformation>> GetChannelInformationAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -62,6 +64,36 @@ public sealed class TwitchChannelsApi(
         );
 
         return await transport.GetSingleAsync<TwitchChannelInformation>(userRequest, ct);
+    }
+
+    public async Task<
+        Result<IReadOnlyList<TwitchChannelInformation>>
+    > GetChannelInformationByTwitchIdsAsync(
+        IReadOnlyList<string> twitchBroadcasterIds,
+        CancellationToken ct = default
+    )
+    {
+        List<TwitchChannelInformation> channels = [];
+        foreach (string[] batch in twitchBroadcasterIds.Chunk(MaxBroadcasterIdsPerCall))
+        {
+            TwitchHelixRequest request = new(
+                HttpMethod.Get,
+                "channels",
+                TwitchHelixAuth.App,
+                Query:
+                [
+                    .. batch.Select(id => new KeyValuePair<string, string>("broadcaster_id", id)),
+                ]
+            );
+
+            Result<IReadOnlyList<TwitchChannelInformation>> page =
+                await transport.GetListAsync<TwitchChannelInformation>(request, ct);
+            if (page.IsFailure)
+                return page;
+            channels.AddRange(page.Value);
+        }
+
+        return Result.Success<IReadOnlyList<TwitchChannelInformation>>(channels);
     }
 
     [RequiresTwitchScope(TwitchScopes.ChannelManageBroadcast)]
@@ -235,7 +267,7 @@ public sealed class TwitchChannelsApi(
             await transport.GetPageAsync<TwitchChannelFollower>(request, ct);
         if (page.IsFailure)
             return page.WithValue<TwitchChannelFollower?>(null);
-        return Result.Success<TwitchChannelFollower?>(page.Value.Items.FirstOrDefault());
+        return Result.Success(page.Value.Items.FirstOrDefault());
     }
 
     [RequiresTwitchScope(TwitchScopes.ModeratorReadFollowers)]
