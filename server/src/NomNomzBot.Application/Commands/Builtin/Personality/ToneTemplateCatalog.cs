@@ -1040,7 +1040,7 @@ public static partial class ToneTemplateCatalog
             variables: [],
             informative:
             [
-                "Lost connection to Twitch events — channel point redeems and commands are paused while I reconnect. Hang tight!",
+                "⚠️ Lost connection to Twitch events — channel point redeems and commands are paused while I reconnect. Hang tight!",
             ],
             friendly:
             [
@@ -1064,7 +1064,7 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.BotStatus.Key,
             BuiltinResponseSlots.BotStatus.ConnectionRestored,
             variables: [],
-            informative: ["Reconnected! Channel point redeems and commands are working again."],
+            informative: ["✅ Reconnected! Channel point redeems and commands are working again."],
             friendly: ["I'm back! Redeems and commands are working again."],
             sassy: ["Reconnected. Redeems and commands work again, you're welcome."],
             hype: ["RECONNECTED! REDEEMS AND COMMANDS ARE WORKING AGAIN!"],

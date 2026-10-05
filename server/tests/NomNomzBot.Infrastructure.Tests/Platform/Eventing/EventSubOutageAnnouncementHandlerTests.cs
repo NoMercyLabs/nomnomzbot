@@ -33,9 +33,9 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 public sealed class EventSubOutageAnnouncementHandlerTests
 {
     private const string LostText =
-        "Lost connection to Twitch events — channel point redeems and commands are paused while I reconnect. Hang tight!";
+        "⚠️ Lost connection to Twitch events — channel point redeems and commands are paused while I reconnect. Hang tight!";
     private const string RestoredText =
-        "Reconnected! Channel point redeems and commands are working again.";
+        "✅ Reconnected! Channel point redeems and commands are working again.";
 
     private readonly ConcurrentQueue<(Guid Channel, string Message)> _sent = [];
     private readonly EventSubOutageLedger _ledger = new();
