@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -63,7 +64,8 @@ public sealed class ScriptHostBridgeTests
         IApplicationDbContext? db = null,
         ISevenTvUserPaintResolver? paintResolver = null,
         ScriptReplyTarget? replyTo = null,
-        long? egressCap = null
+        long? egressCap = null,
+        ITwitchUsersApi? twitchUsers = null
     ) =>
         BuildFor(
             Channel,
@@ -82,7 +84,8 @@ public sealed class ScriptHostBridgeTests
             db,
             paintResolver,
             replyTo,
-            egressCap
+            egressCap,
+            twitchUsers
         );
 
     // Same wiring, but bound to an arbitrary tenant — the tenant-isolation tests need a channel-B bridge.
@@ -103,7 +106,8 @@ public sealed class ScriptHostBridgeTests
         IApplicationDbContext? db = null,
         ISevenTvUserPaintResolver? paintResolver = null,
         ScriptReplyTarget? replyTo = null,
-        long? egressCap = null
+        long? egressCap = null,
+        ITwitchUsersApi? twitchUsers = null
     ) =>
         new(
             channel,
@@ -124,6 +128,7 @@ public sealed class ScriptHostBridgeTests
             db ?? AuthTestBuilder.NewContext(),
             paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
+            twitchUsers ?? Substitute.For<ITwitchUsersApi>(),
             egressCap
         );
 
@@ -1531,5 +1536,239 @@ public sealed class ScriptHostBridgeTests
             )
             .Should()
             .BeNull();
+    }
+
+    private static TwitchUser HelixUser(string id, string login, string displayName) =>
+        new(id, login, displayName, "", "", "", "", "", 0, DateTimeOffset.UnixEpoch);
+
+    private static string LastErrorCode(ScriptHostBridge bridge) =>
+        JObject.Parse(
+            bridge.Resolve(ScriptHostErrorCodes.LastErrorKey)(
+                "last.error",
+                [],
+                CancellationToken.None
+            )!
+        )["code"]!.Value<string>()!;
+
+    [Fact]
+    public void User_lookup_returns_the_twitch_profile_for_a_login_the_local_db_has_never_seen()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "neverchatted"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    HelixUser("777", "neverchatted", "NeverChatted"),
+                ])
+            );
+
+        string? json = Build(twitchUsers: users)
+            .Resolve("user.lookup")("user.lookup", ["@NeverChatted"], CancellationToken.None);
+
+        JObject profile = JObject.Parse(json!);
+        profile["id"]!.Value<string>().Should().Be("777");
+        profile["login"]!.Value<string>().Should().Be("neverchatted");
+        profile["displayName"]!.Value<string>().Should().Be("NeverChatted");
+        profile.Should().NotContainKey("email");
+        users
+            .Received(1)
+            .GetUsersByLoginsAsync(
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "neverchatted"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void User_lookup_returns_null_when_twitch_has_no_such_login()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
+        ScriptHostBridge bridge = Build(twitchUsers: users);
+
+        bridge
+            .Resolve("user.lookup")("user.lookup", ["nosuchlogin"], CancellationToken.None)
+            .Should()
+            .BeNull();
+
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.NotFound);
+    }
+
+    [Fact]
+    public void User_lookup_fails_closed_when_twitch_errors()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("Helix is down.", "twitch_error"));
+        ScriptHostBridge bridge = Build(twitchUsers: users);
+
+        bridge
+            .Resolve("user.lookup")("user.lookup", ["someone"], CancellationToken.None)
+            .Should()
+            .BeNull();
+
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.UpstreamFailed);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("two words")]
+    [InlineData("bad-name!")]
+    [InlineData("averyveryveryverylongloginnamethatcannotexist")]
+    public void User_lookup_refuses_a_value_that_cannot_be_a_twitch_login_without_calling_helix(
+        string login
+    )
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        ScriptHostBridge bridge = Build(twitchUsers: users);
+
+        bridge
+            .Resolve("user.lookup")("user.lookup", [login], CancellationToken.None)
+            .Should()
+            .BeNull();
+
+        users.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!);
+        LastErrorCode(bridge)
+            .Should()
+            .BeOneOf(ScriptHostErrorCodes.NotFound, ScriptHostErrorCodes.InvalidArgument);
+    }
+
+    [Fact]
+    public void User_lookup_stops_at_three_twitch_lookups_per_run()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([HelixUser("1", "a", "A")]));
+        ScriptHostBridge bridge = Build(twitchUsers: users);
+        HostImportDelegate lookup = bridge.Resolve("user.lookup");
+
+        for (int i = 0; i < 3; i++)
+            lookup("user.lookup", ["a"], CancellationToken.None).Should().NotBeNull();
+        string? fourth = lookup("user.lookup", ["a"], CancellationToken.None);
+
+        fourth.Should().BeNull();
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.LimitExceeded);
+        users.ReceivedWithAnyArgs(3).GetUsersByLoginsAsync(default!);
+    }
+
+    private static TtsVoiceDto VoiceIn(string id, string locale, string gender = "Female") =>
+        new(id, id, id + " display", locale, gender, "Edge", false, null, null, [], [], null, null);
+
+    private static ITtsConfigService VoiceCatalogue(params TtsVoiceDto[] voices)
+    {
+        ITtsConfigService config = Substitute.For<ITtsConfigService>();
+        config
+            .SearchVoicesAsync(Arg.Any<TtsVoiceQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new PagedList<TtsVoiceDto>(voices, 1, 200, voices.Length)));
+        return config;
+    }
+
+    [Fact]
+    public void Tts_voice_list_returns_the_catalogue_voices_for_the_provider()
+    {
+        ITtsConfigService config = VoiceCatalogue(
+            VoiceIn("en-US-JennyNeural", "en-US"),
+            VoiceIn("en-GB-RyanNeural", "en-GB", "Male"),
+            VoiceIn("nl-NL-ColetteNeural", "nl-NL")
+        );
+
+        string? json = Build(ttsConfig: config)
+            .Resolve("tts.voice.list")("tts.voice.list", ["Edge"], CancellationToken.None);
+
+        JArray voices = JArray.Parse(json!);
+        voices.Should().HaveCount(3);
+        voices[1]["voiceId"]!.Value<string>().Should().Be("en-GB-RyanNeural");
+        voices[1]["displayName"]!.Value<string>().Should().Be("en-GB-RyanNeural display");
+        voices[1]["locale"]!.Value<string>().Should().Be("en-GB");
+        voices[1]["gender"]!.Value<string>().Should().Be("Male");
+        config
+            .Received(1)
+            .SearchVoicesAsync(
+                Arg.Is<TtsVoiceQuery>(q => q.Provider == "Edge" && q.Page == 1),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void Tts_voice_list_with_a_full_locale_filters_in_the_query()
+    {
+        ITtsConfigService config = VoiceCatalogue(VoiceIn("en-US-JennyNeural", "en-US"));
+
+        string? json = Build(ttsConfig: config)
+            .Resolve("tts.voice.list")("tts.voice.list", ["Edge", "en-US"], CancellationToken.None);
+
+        JArray.Parse(json!).Should().HaveCount(1);
+        config
+            .Received(1)
+            .SearchVoicesAsync(
+                Arg.Is<TtsVoiceQuery>(q => q.Provider == "Edge" && q.Locale == "en-US"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void Tts_voice_list_with_a_bare_language_keeps_only_that_languages_voices()
+    {
+        ITtsConfigService config = VoiceCatalogue(
+            VoiceIn("en-US-JennyNeural", "en-US"),
+            VoiceIn("nl-NL-ColetteNeural", "nl-NL"),
+            VoiceIn("en-GB-RyanNeural", "en-GB"),
+            VoiceIn("eng-XX-NotEnglish", "eng-XX")
+        );
+
+        string? json = Build(ttsConfig: config)
+            .Resolve("tts.voice.list")("tts.voice.list", ["Edge", "en"], CancellationToken.None);
+
+        JArray
+            .Parse(json!)
+            .Select(v => v["voiceId"]!.Value<string>())
+            .Should()
+            .Equal("en-US-JennyNeural", "en-GB-RyanNeural");
+        config
+            .Received()
+            .SearchVoicesAsync(
+                Arg.Is<TtsVoiceQuery>(q => q.Provider == "Edge" && q.Locale == null),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void Tts_voice_list_never_returns_more_than_one_hundred_voices()
+    {
+        TtsVoiceDto[] many = Enumerable
+            .Range(0, 150)
+            .Select(i => VoiceIn($"en-US-Voice{i:000}", "en-US"))
+            .ToArray();
+        ITtsConfigService config = VoiceCatalogue(many);
+
+        string? json = Build(ttsConfig: config)
+            .Resolve("tts.voice.list")("tts.voice.list", [], CancellationToken.None);
+
+        JArray.Parse(json!).Should().HaveCount(100);
+    }
+
+    [Fact]
+    public void Tts_voice_list_fails_closed_to_an_empty_list_when_the_catalogue_errors()
+    {
+        ITtsConfigService config = Substitute.For<ITtsConfigService>();
+        config
+            .SearchVoicesAsync(Arg.Any<TtsVoiceQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PagedList<TtsVoiceDto>>("Catalogue down.", "INTERNAL_ERROR"));
+        ScriptHostBridge bridge = Build(ttsConfig: config);
+
+        string? json = bridge.Resolve("tts.voice.list")(
+            "tts.voice.list",
+            ["Edge"],
+            CancellationToken.None
+        );
+
+        JArray.Parse(json!).Should().BeEmpty();
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.UpstreamFailed);
     }
 }

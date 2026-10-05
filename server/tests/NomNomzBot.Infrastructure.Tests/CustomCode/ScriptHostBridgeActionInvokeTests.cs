@@ -22,6 +22,7 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Services;
@@ -141,7 +142,8 @@ public sealed class ScriptHostBridgeActionInvokeTests : IDisposable
                 _authorization,
                 _rateLimiter,
                 NullLogger<OwnerActionService>.Instance
-            )
+            ),
+            Substitute.For<ITwitchUsersApi>()
         );
 
     private static string? Call(IScriptHostBridge bridge, string key, params string[] args) =>

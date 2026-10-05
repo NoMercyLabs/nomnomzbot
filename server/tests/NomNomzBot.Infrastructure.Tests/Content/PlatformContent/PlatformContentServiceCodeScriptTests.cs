@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
@@ -451,7 +452,8 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<Application.Commands.Services.IScheduledPipelineService>(),
             db,
             Substitute.For<Application.Chat.Services.ISevenTvUserPaintResolver>(),
-            Substitute.For<IOwnerActionService>()
+            Substitute.For<IOwnerActionService>(),
+            Substitute.For<ITwitchUsersApi>()
         );
         return new(
             db,

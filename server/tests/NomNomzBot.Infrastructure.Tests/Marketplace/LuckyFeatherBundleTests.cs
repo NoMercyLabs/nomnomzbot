@@ -23,6 +23,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Marketplace.Services;
@@ -270,7 +271,8 @@ public sealed class LuckyFeatherBundleTests
             h.Scheduler,
             h.Db,
             paint ?? Substitute.For<ISevenTvUserPaintResolver>(),
-            Substitute.For<IOwnerActionService>()
+            Substitute.For<IOwnerActionService>(),
+            Substitute.For<ITwitchUsersApi>()
         );
 
         return new(h.Db, new JintScriptExecutor(), broker, meter, bridgeFactory, h.Clock);

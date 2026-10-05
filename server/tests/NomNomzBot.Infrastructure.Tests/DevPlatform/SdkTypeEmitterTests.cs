@@ -320,6 +320,8 @@ public sealed class SdkTypeEmitterTests
                   getVoice(userIdOrLogin?: string): NnzApiTtsVoice | null;
                   /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */
                   setVoice(userIdOrLogin: string, voiceId?: string): boolean;
+                  /** The voices of the catalogue, at most 100. provider is optional, for example Edge. locale is optional: en-US gives that locale, en gives every English locale. An empty array when the catalogue fails. */
+                  listVoices(provider?: string, locale?: string): NnzApiTtsVoiceOption[];
                 }
                 """
             );

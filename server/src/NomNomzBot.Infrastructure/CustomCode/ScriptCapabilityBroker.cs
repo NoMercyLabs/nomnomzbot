@@ -40,6 +40,8 @@ public sealed class ScriptCapabilityBroker(
         new("vars.write", "low", FeatureGate, SideEffecting: true),
         new("args.get", "low", FeatureGate, SideEffecting: false),
         new("user.get", "low", FeatureGate, SideEffecting: false),
+        // Public Twitch profile for a login the channel DB may never have seen (Helix Get Users, app token; 3 per run).
+        new("user.lookup", "low", FeatureGate, SideEffecting: false),
         new("chat.send", "tos", FeatureGate, SideEffecting: true),
         new("chat.reply", "tos", FeatureGate, SideEffecting: true),
         new("music.queue", "tos", FeatureGate, SideEffecting: true),
@@ -64,6 +66,8 @@ public sealed class ScriptCapabilityBroker(
         // voice catalogue and stays tenant-scoped; side-effecting low, no Twitch surface.
         new("tts.voice.get", "low", FeatureGate, SideEffecting: false),
         new("tts.voice.set", "low", FeatureGate, SideEffecting: true),
+        // Reads the voice catalogue (at most 100 voices per call); no write, no Twitch surface.
+        new("tts.voice.list", "low", FeatureGate, SideEffecting: false),
         // Schedules a saved pipeline to run once after a delay (the deferred-execution primitive — e.g. a
         // voice-swap script scheduling its own revert). Persists a task; no external/Twitch surface → low tier.
         new("schedule.pipeline", "low", FeatureGate, SideEffecting: true),

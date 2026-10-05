@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
@@ -97,7 +98,8 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
             db,
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
-            Substitute.For<IOwnerActionService>()
+            Substitute.For<IOwnerActionService>(),
+            Substitute.For<ITwitchUsersApi>()
         );
 
         ITriggerSampleCatalog samples = new TriggerSampleCatalog(

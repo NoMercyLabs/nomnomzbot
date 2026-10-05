@@ -169,6 +169,30 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  voiceId: string;");
         sb.AppendLine("  /** The name of the assigned voice as shown in the dashboard. */");
         sb.AppendLine("  displayName: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** A Twitch account as nnz.api.user.lookup returns it. */");
+        sb.AppendLine("interface NnzApiTwitchUser {");
+        sb.AppendLine("  /** The Twitch user id. */");
+        sb.AppendLine("  id: string;");
+        sb.AppendLine("  /** The lower-case Twitch login. */");
+        sb.AppendLine("  login: string;");
+        sb.AppendLine("  /** The name with its capital letters, as Twitch shows it. */");
+        sb.AppendLine("  displayName: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** One voice of the TTS catalogue as nnz.api.tts.listVoices returns it. */"
+        );
+        sb.AppendLine("interface NnzApiTtsVoiceOption {");
+        sb.AppendLine("  /** The id to give to tts.speak or tts.setVoice. */");
+        sb.AppendLine("  voiceId: string;");
+        sb.AppendLine("  /** The name of the voice as shown in the dashboard. */");
+        sb.AppendLine("  displayName: string;");
+        sb.AppendLine("  /** The locale of the voice, for example en-US. */");
+        sb.AppendLine("  locale: string;");
+        sb.AppendLine("  /** The gender of the voice as the catalogue states it. */");
+        sb.AppendLine("  gender: string;");
         sb.Append('}');
         return sb.ToString();
     }
@@ -573,6 +597,10 @@ internal static class SdkRuntimeSurface
             "  /** A viewer's public profile, found by id, login or internal id. id is optional and defaults to the user who triggered the script. null when no user matches. */"
         );
         sb.AppendLine("  get(id?: string): NnzApiUser | null;");
+        sb.AppendLine(
+            "  /** A Twitch account found by login, also when the user never chatted here. A leading @ and capital letters are fine. null when Twitch has no such login or the login is not valid. A run may ask Twitch 3 times; the 4th call returns null (see last.error). */"
+        );
+        sb.AppendLine("  lookup(login: string): NnzApiTwitchUser | null;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiEconomyNamespace {");
@@ -648,6 +676,10 @@ internal static class SdkRuntimeSurface
             "  /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */"
         );
         sb.AppendLine("  setVoice(userIdOrLogin: string, voiceId?: string): boolean;");
+        sb.AppendLine(
+            "  /** The voices of the catalogue, at most 100. provider is optional, for example Edge. locale is optional: en-US gives that locale, en gives every English locale. An empty array when the catalogue fails. */"
+        );
+        sb.AppendLine("  listVoices(provider?: string, locale?: string): NnzApiTtsVoiceOption[];");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(

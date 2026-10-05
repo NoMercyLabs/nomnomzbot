@@ -185,7 +185,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     reply: function (text) { bot.call('chat.reply', need('chat.reply', 'a message', text)); }
                 },
                 user: {
-                    get: function (id) { var r = id === undefined || id === null ? bot.call('user.get') : bot.call('user.get', String(id)); return r ? JSON.parse(r) : null; }
+                    get: function (id) { var r = id === undefined || id === null ? bot.call('user.get') : bot.call('user.get', String(id)); return r ? JSON.parse(r) : null; },
+                    lookup: function (login) { var r = bot.call('user.lookup', need('user.lookup', 'a twitch login', login)); return r ? JSON.parse(r) : null; }
                 },
                 economy: {
                     balance: function (userId) { var r = userId === undefined || userId === null ? bot.call('economy.read') : bot.call('economy.read', String(userId)); return Number(r); }
@@ -217,7 +218,14 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                         return r ? JSON.parse(r) : null;
                     },
                     getVoice: function (userIdOrLogin) { var r = missing(userIdOrLogin) ? bot.call('tts.voice.get') : bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
-                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', need('tts.setVoice', 'a user id or login', userIdOrLogin), missing(voiceId) ? '' : String(voiceId)) === 'ok'; }
+                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', need('tts.setVoice', 'a user id or login', userIdOrLogin), missing(voiceId) ? '' : String(voiceId)) === 'ok'; },
+                    listVoices: function (provider, locale) {
+                        var args = ['tts.voice.list'];
+                        if (!missing(provider) || !missing(locale)) args.push(missing(provider) ? '' : String(provider));
+                        if (!missing(locale)) args.push(String(locale));
+                        var r = bot.call.apply(bot, args);
+                        return r ? JSON.parse(r) : [];
+                    }
                 },
                 stats: {
                     viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined || userIdOrLogin === null ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
@@ -326,6 +334,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["chat.send"] = "chat.send",
         ["chat.reply"] = "chat.reply",
         ["user.get"] = "user.get",
+        ["user.lookup"] = "user.lookup",
         ["economy.balance"] = "economy.read",
         ["music.queue"] = "music.queue",
         ["music.nowPlaying"] = "music.nowPlaying",
@@ -337,6 +346,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["tts.speak"] = "tts.speak",
         ["tts.getVoice"] = "tts.voice.get",
         ["tts.setVoice"] = "tts.voice.set",
+        ["tts.listVoices"] = "tts.voice.list",
         ["stats.viewer"] = "stats.viewer",
         ["widget.emit"] = "widget.emit",
         ["reward.get"] = "reward.get",

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -21,6 +22,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -55,7 +57,7 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// against the voice catalogue; an empty voice id clears back to the channel default). Every dispatch fails
 /// closed (returns a safe primitive).
 /// </summary>
-public sealed class ScriptHostBridge(
+public sealed partial class ScriptHostBridge(
     Guid broadcasterId,
     string triggeringUserId,
     ScriptReplyTarget? replyTo,
@@ -74,10 +76,17 @@ public sealed class ScriptHostBridge(
     IApplicationDbContext db,
     ISevenTvUserPaintResolver paintResolver,
     IOwnerActionService ownerActions,
+    ITwitchUsersApi twitchUsers,
     long? maxEgressBytes = null
 ) : IScriptHostBridge, IScriptWriteValidator
 {
     private const int MaxResponseBytes = 256 * 1024;
+
+    // user.lookup asks Twitch (a network call), so one run may ask only this many times.
+    private const int MaxUserLookupsPerRun = 3;
+    private const int MaxListedVoices = 100;
+    private const int VoiceCataloguePageSize = 200;
+    private int _userLookups;
 
     // Request plus response bytes of every http.fetch in this run, against the budget's MaxEgressBytes.
     private readonly long _egressCap =
@@ -193,6 +202,7 @@ public sealed class ScriptHostBridge(
             "music.queue" => QueueMusic,
             "music.nowPlaying" => ReadNowPlaying,
             "user.get" => GetUser,
+            "user.lookup" => LookupUser,
             "http.fetch" => Fetch,
             "storage.get" => StorageGet,
             "storage.set" => StorageSet,
@@ -204,6 +214,7 @@ public sealed class ScriptHostBridge(
             "reward.update" => UpdateReward,
             "stats.viewer" => GetViewerStats,
             "tts.voice.get" => GetTtsVoice,
+            "tts.voice.list" => ListTtsVoices,
             "tts.voice.set" => SetTtsVoice,
             "schedule.pipeline" => SchedulePipeline,
             _ => static (_, _, _) => null, // granted-but-unwired caps no-op; the grant already gated access
@@ -287,6 +298,53 @@ public sealed class ScriptHostBridge(
             OmitNullSettings
         );
     }
+
+    private string? LookupUser(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        // Public Twitch profile by login: id, login, displayName. Nothing else leaves the host.
+        string login = (args.Count > 0 ? args[0] : string.Empty)
+            .Trim()
+            .TrimStart('@')
+            .ToLowerInvariant();
+        if (!TwitchLoginPattern().IsMatch(login))
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "user.lookup needs one Twitch login (letters, digits and underscores, up to 25)."
+            );
+
+        if (_userLookups >= MaxUserLookupsPerRun)
+            return Fail(
+                ScriptHostErrorCodes.LimitExceeded,
+                $"user.lookup can ask Twitch {MaxUserLookupsPerRun} times in one run."
+            );
+        _userLookups++;
+
+        Result<IReadOnlyList<TwitchUser>> found = twitchUsers
+            .GetUsersByLoginsAsync([login], ct)
+            .GetAwaiter()
+            .GetResult();
+        if (found.IsFailure)
+            return Fail(found);
+        if (found.Value.Count == 0)
+            return Fail(ScriptHostErrorCodes.NotFound, $"Twitch has no user '{login}'.");
+
+        TwitchUser user = found.Value[0];
+        return JsonConvert.SerializeObject(
+            new
+            {
+                id = user.Id,
+                login = user.Login,
+                displayName = user.DisplayName,
+            }
+        );
+    }
+
+    [GeneratedRegex("^[a-z0-9_]{1,25}$")]
+    private static partial Regex TwitchLoginPattern();
 
     private string? Fetch(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
@@ -834,6 +892,61 @@ public sealed class ScriptHostBridge(
                 voiceId = assigned.Value.VoiceId,
                 displayName = ResolveVoiceDisplayName(assigned.Value.VoiceId, ct),
             }
+        );
+    }
+
+    private string? ListTtsVoices(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        string? provider = args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : null;
+        string? locale = args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1] : null;
+
+        // A full locale (en-US) is an exact filter the catalogue applies; a bare language (en) is not, so the
+        // host walks the pages and keeps the voices whose locale starts with "en-".
+        bool bareLanguage = locale is not null && !locale.Contains('-');
+        string? queryLocale = bareLanguage ? null : locale;
+        string prefix = bareLanguage ? locale + "-" : string.Empty;
+
+        List<TtsVoiceDto> kept = [];
+        for (int page = 1; page <= MaxLookupPages && kept.Count < MaxListedVoices; page++)
+        {
+            Result<PagedList<TtsVoiceDto>> result = ttsConfig
+                .SearchVoicesAsync(
+                    new(
+                        Locale: queryLocale,
+                        Provider: provider,
+                        Page: page,
+                        PageSize: VoiceCataloguePageSize
+                    ),
+                    ct
+                )
+                .GetAwaiter()
+                .GetResult();
+            if (result.IsFailure)
+                return Fail(result, "[]");
+
+            kept.AddRange(
+                result.Value.Items.Where(v =>
+                    prefix.Length == 0
+                    || v.Locale.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                )
+            );
+            if (!result.Value.HasNextPage)
+                break;
+        }
+
+        return JsonConvert.SerializeObject(
+            kept.Take(MaxListedVoices)
+                .Select(v => new
+                {
+                    voiceId = v.Id,
+                    displayName = v.DisplayName,
+                    locale = v.Locale,
+                    gender = v.Gender,
+                })
         );
     }
 

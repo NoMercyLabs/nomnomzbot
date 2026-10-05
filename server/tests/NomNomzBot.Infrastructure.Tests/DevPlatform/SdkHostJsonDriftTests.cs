@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -78,7 +79,8 @@ public sealed partial class SdkHostJsonDriftTests
             Substitute.For<IScheduledPipelineService>(),
             db ?? AuthTestBuilder.NewContext(),
             paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
-            ownerActions ?? Substitute.For<IOwnerActionService>()
+            ownerActions ?? Substitute.For<IOwnerActionService>(),
+            Substitute.For<ITwitchUsersApi>()
         );
 
     private static string? Call(ScriptHostBridge bridge, string key, params string[] args) =>

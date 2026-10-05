@@ -13,6 +13,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.CustomCode;
@@ -90,7 +91,8 @@ public sealed class ScriptRunnerTests
             Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
             db,
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
-            Substitute.For<IOwnerActionService>()
+            Substitute.For<IOwnerActionService>(),
+            Substitute.For<ITwitchUsersApi>()
         );
         return (
             new(
