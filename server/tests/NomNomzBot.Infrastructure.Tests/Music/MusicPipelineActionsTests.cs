@@ -607,7 +607,12 @@ public sealed class MusicPipelineActionsTests
             .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
             .Returns(true);
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo", args: "K7QM"),
@@ -632,7 +637,12 @@ public sealed class MusicPipelineActionsTests
                 new MusicQueue(null, [new("Their Pick", "A", null, 100, "SomeoneElse", 0, "K7QM")])
             );
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo", args: "K7QM"),
@@ -653,7 +663,12 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, [new("Mine", "A", null, 100, "Bamo", 0, "P4XT")]));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo", args: "K7QM"),
@@ -683,7 +698,12 @@ public sealed class MusicPipelineActionsTests
             .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
             .Returns(true);
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo", args: "the last one"),
@@ -722,7 +742,12 @@ public sealed class MusicPipelineActionsTests
             )
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -752,7 +777,12 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(Playing() with { RequestedBy = "SomeoneElse" }, []));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -773,7 +803,12 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(Playing() with { RequestedBy = null }, []));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -802,7 +837,12 @@ public sealed class MusicPipelineActionsTests
             )
             .Returns(Result.Failure("PROVIDER_UNAVAILABLE", "nope"));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -839,7 +879,12 @@ public sealed class MusicPipelineActionsTests
             .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
             .Returns(true);
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -871,7 +916,12 @@ public sealed class MusicPipelineActionsTests
             .RemoveFromQueueAsync(ChannelId.ToString(), 2, Arg.Any<CancellationToken>())
             .Returns(true);
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -901,7 +951,12 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, [new("Other Pick", "B", null, 100, "SomeoneElse")]));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(displayName: "Bamo"),
@@ -928,7 +983,12 @@ public sealed class MusicPipelineActionsTests
             .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
             .Returns(true);
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
 
@@ -965,7 +1025,12 @@ public sealed class MusicPipelineActionsTests
             )
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
 
@@ -985,7 +1050,12 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, []));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
 
@@ -1013,7 +1083,12 @@ public sealed class MusicPipelineActionsTests
             )
             .Returns(Result.Failure("PROVIDER_UNAVAILABLE", "nope"));
         IChatProvider chat = Substitute.For<IChatProvider>();
-        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
 
@@ -1023,6 +1098,150 @@ public sealed class MusicPipelineActionsTests
                 "@Bamo Failed to retract your last song.",
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    private static Domain.Platform.Entities.Record HistoryRow(
+        string userId,
+        string track,
+        string artist
+    ) =>
+        new()
+        {
+            BroadcasterId = ChannelId,
+            UserId = userId,
+            RecordType = Domain.Music.ValueObjects.SongRequestHistory.RecordType,
+            Data = JsonSerializer.Serialize(
+                new Domain.Music.ValueObjects.SongRequestHistory(
+                    "spotify:track:" + track,
+                    track,
+                    artist,
+                    null,
+                    "spotify"
+                ),
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+            ),
+        };
+
+    [Fact]
+    public async Task Song_wrong_says_too_late_as_a_reply_and_clears_the_callers_newest_request_record()
+    {
+        // Legacy: the caller's last request is neither playing nor queued, so it already played. The record
+        // is removed and the answer is a REPLY to the triggering message.
+        MusicTestDbContext db = MusicTestDbContext.New();
+        db.Records.Add(HistoryRow("twitch-42", "Older Song", "Older Artist"));
+        db.Records.Add(HistoryRow("twitch-42", "Played Song", "Artist Z"));
+        db.Records.Add(HistoryRow("twitch-99", "Someone Elses", "Other"));
+        await db.SaveChangesAsync();
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, []));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(ChannelId, "msg-1", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(userId: "twitch-42", displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await chat.Received(1)
+            .SendReplyAsync(
+                ChannelId,
+                "msg-1",
+                "@Bamo Too late — Played Song by Artist Z already played.",
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
+        List<string> left = db.Records.AsEnumerable().Select(r => r.UserId + ":" + r.Data).ToList();
+        left.Should().HaveCount(2);
+        left.Should().NotContain(d => d.Contains("Played Song"));
+        left.Should().Contain(d => d.StartsWith("twitch-42:") && d.Contains("Older Song"));
+        left.Should().Contain(d => d.StartsWith("twitch-99:"));
+    }
+
+    [Fact]
+    public async Task Song_wrong_with_no_request_history_answers_nothing_to_retract_as_a_reply()
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        db.Records.Add(HistoryRow("twitch-99", "Someone Elses", "Other"));
+        await db.SaveChangesAsync();
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, []));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(ChannelId, "msg-1", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(userId: "twitch-42", displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await chat.Received(1)
+            .SendReplyAsync(
+                ChannelId,
+                "msg-1",
+                "@Bamo You haven't requested any songs to retract.",
+                Arg.Any<CancellationToken>()
+            );
+        db.Records.Count().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Song_wrong_falls_back_to_a_plain_message_when_the_reply_is_rejected()
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, []));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(ChannelId, "msg-1", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+
+        await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo You haven't requested any songs to retract.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_retracting_a_queued_request_also_clears_its_history_record()
+    {
+        // Without this, the NEXT !wrongsong would find the retracted request's record and claim it
+        // "already played" although it never did.
+        MusicTestDbContext db = MusicTestDbContext.New();
+        db.Records.Add(HistoryRow("twitch-42", "Mine", "A"));
+        await db.SaveChangesAsync();
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, [new("Mine", "A", null, 100, "Bamo", 0, "P4XT")]));
+        music
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(userId: "twitch-42", displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Output.Should().Be("removed: Mine");
+        db.Records.Count().Should().Be(0);
     }
 
     // ─── song_ban (!bansong) ──────────────────────────────────────────────────

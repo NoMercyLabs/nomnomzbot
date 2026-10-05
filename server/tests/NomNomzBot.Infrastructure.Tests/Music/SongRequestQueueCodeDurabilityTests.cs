@@ -162,7 +162,12 @@ public sealed class SongRequestQueueCodeDurabilityTests
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
-        SongWrongAction action = new(restartedService, chat, NullLogger<SongWrongAction>.Instance);
+        SongWrongAction action = new(
+            restartedService,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
 
         Guid broadcasterGuid = Guid.Parse(ChannelA);
         PipelineExecutionContext ctx = new()

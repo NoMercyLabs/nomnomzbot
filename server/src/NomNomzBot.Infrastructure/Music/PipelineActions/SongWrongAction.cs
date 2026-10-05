@@ -8,8 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -49,7 +52,16 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 /// </summary>
 public sealed class SongWrongAction : ICommandAction
 {
+    /// <summary>How many of the caller's newest history rows to look through for the track just retracted.</summary>
+    private const int HistoryScanLimit = 50;
+
+    private static readonly JsonSerializerOptions HistoryJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private readonly IMusicService _music;
+    private readonly IApplicationDbContext _db;
     private readonly IChatProvider _chat;
     private readonly ILogger<SongWrongAction> _logger;
 
@@ -59,9 +71,15 @@ public sealed class SongWrongAction : ICommandAction
 
     public LocalizedText Description => new("pipeline.song_wrong.description");
 
-    public SongWrongAction(IMusicService music, IChatProvider chat, ILogger<SongWrongAction> logger)
+    public SongWrongAction(
+        IMusicService music,
+        IApplicationDbContext db,
+        IChatProvider chat,
+        ILogger<SongWrongAction> logger
+    )
     {
         _music = music;
+        _db = db;
         _chat = chat;
         _logger = logger;
     }
@@ -106,10 +124,9 @@ public sealed class SongWrongAction : ICommandAction
         // "remove your latest" — that would retract a different song than the one they asked for.
         if (requestedCode is not null && item is null)
         {
-            await _chat.SendMessageAsync(
-                ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} No request of yours with code {requestedCode}.",
-                ctx.CancellationToken
+            await SendAsync(
+                ctx,
+                $"@{ctx.TriggeredByDisplayName} No request of yours with code {requestedCode}."
             );
             return ActionResult.Failure($"no request matching code {requestedCode}");
         }
@@ -132,12 +149,86 @@ public sealed class SongWrongAction : ICommandAction
         if (!removed)
             return ActionResult.Failure("failed to remove the request from the queue");
 
-        await _chat.SendMessageAsync(
-            ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} Will auto-skip {item.TrackName} by {item.Artist} when it plays.",
-            ctx.CancellationToken
+        await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
+        await SendAsync(
+            ctx,
+            $"@{ctx.TriggeredByDisplayName} Will auto-skip {item.TrackName} by {item.Artist} when it plays."
         );
         return ActionResult.Success($"removed: {item.TrackName}");
+    }
+
+    /// <summary>
+    /// Answers as a reply to the triggering chat message, like the legacy bot. A platform that rejects the
+    /// reply form (a deleted parent message, no connection) falls back to a plain message — the mention is
+    /// already in the text, so the viewer is still reached.
+    /// </summary>
+    private async Task SendAsync(PipelineExecutionContext ctx, string text)
+    {
+        bool replied = await _chat.SendReplyAsync(
+            ctx.BroadcasterId,
+            ctx.MessageId,
+            text,
+            ctx.CancellationToken
+        );
+        if (!replied)
+            await _chat.SendMessageAsync(ctx.BroadcasterId, text, ctx.CancellationToken);
+    }
+
+    /// <summary>
+    /// Removes the caller's newest song-request history record (the legacy bot deleted its record on every
+    /// outcome). With a track name and artist it removes the newest record of THAT track — the one just
+    /// retracted — so a retracted request is never later reported as "already played". Without them it
+    /// removes the newest record outright. Returns what it removed, or <c>null</c> when there was none.
+    /// </summary>
+    private async Task<SongRequestHistory?> RemoveNewestHistoryAsync(
+        PipelineExecutionContext ctx,
+        string? trackName = null,
+        string? artist = null
+    )
+    {
+        List<Domain.Platform.Entities.Record> rows = await _db
+            .Records.Where(r =>
+                r.BroadcasterId == ctx.BroadcasterId
+                && r.UserId == ctx.TriggeredByUserId
+                && r.RecordType == SongRequestHistory.RecordType
+            )
+            .OrderByDescending(r => r.Id)
+            .Take(HistoryScanLimit)
+            .ToListAsync(ctx.CancellationToken);
+
+        foreach (Domain.Platform.Entities.Record row in rows)
+        {
+            SongRequestHistory? history = Deserialize(row.Data);
+            if (history is null)
+                continue;
+            if (
+                trackName is not null
+                && (
+                    !string.Equals(history.TrackName, trackName, StringComparison.Ordinal)
+                    || !string.Equals(history.Artist, artist, StringComparison.Ordinal)
+                )
+            )
+                continue;
+
+            _db.Records.Remove(row);
+            await _db.SaveChangesAsync(ctx.CancellationToken);
+            return history;
+        }
+
+        return null;
+    }
+
+    private SongRequestHistory? Deserialize(string data)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<SongRequestHistory>(data, HistoryJson);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "song_wrong: unreadable song-request history row skipped");
+            return null;
+        }
     }
 
     /// <summary>
@@ -161,10 +252,21 @@ public sealed class SongWrongAction : ICommandAction
 
         if (!playingIsTheirs)
         {
-            await _chat.SendMessageAsync(
-                ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} You haven't requested any songs to retract.",
-                ctx.CancellationToken
+            // Neither queued nor playing: if the caller has a request on record it already played (legacy:
+            // "Too late"), and the record is cleared so the next call reaches the one before it.
+            SongRequestHistory? played = await RemoveNewestHistoryAsync(ctx);
+            if (played is not null)
+            {
+                await SendAsync(
+                    ctx,
+                    $"@{ctx.TriggeredByDisplayName} Too late — {played.TrackName} by {played.Artist} already played."
+                );
+                return ActionResult.Failure("the triggering user's last request already played");
+            }
+
+            await SendAsync(
+                ctx,
+                $"@{ctx.TriggeredByDisplayName} You haven't requested any songs to retract."
             );
             return ActionResult.Failure("no queued request for the triggering user");
         }
@@ -179,10 +281,9 @@ public sealed class SongWrongAction : ICommandAction
         {
             // Say so rather than staying silent: the wrong song is still playing, and a quiet failure reads
             // as "the bot ignored me" while the user waits for it to stop.
-            await _chat.SendMessageAsync(
-                ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} Failed to retract your last song.",
-                ctx.CancellationToken
+            await SendAsync(
+                ctx,
+                $"@{ctx.TriggeredByDisplayName} Failed to retract your last song."
             );
             _logger.LogWarning(
                 "song_wrong: skip failed for {BroadcasterId}: {Error}",
@@ -192,10 +293,10 @@ public sealed class SongWrongAction : ICommandAction
             return ActionResult.Failure("failed to skip the playing request");
         }
 
-        await _chat.SendMessageAsync(
-            ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} Skipped {playing!.TrackName} by {playing.Artist}.",
-            ctx.CancellationToken
+        await RemoveNewestHistoryAsync(ctx, playing!.TrackName, playing.Artist);
+        await SendAsync(
+            ctx,
+            $"@{ctx.TriggeredByDisplayName} Skipped {playing.TrackName} by {playing.Artist}."
         );
         return ActionResult.Success($"skipped: {playing.TrackName}");
     }
