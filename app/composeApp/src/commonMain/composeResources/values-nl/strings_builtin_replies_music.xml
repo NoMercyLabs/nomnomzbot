@@ -124,6 +124,12 @@
     <string name="builtin_reply_volume_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om het volume aan te passen.</string>
     <string name="builtin_reply_bansong_banned_label">Nummer geband</string>
     <string name="builtin_reply_bansong_banned_description">Een moderator heeft het spelende nummer geband.</string>
+    <string name="builtin_reply_bansong_strikewarning_label">Waarschuwing bij bans</string>
+    <string name="builtin_reply_bansong_strikewarning_description">Komt na een ban als die persoon 6 tot 10 nummers heeft geband.</string>
+    <string name="builtin_reply_bansong_strikerevoked_label">Verzoeken ingetrokken</string>
+    <string name="builtin_reply_bansong_strikerevoked_description">Komt na een ban als die persoon 11 of meer nummers heeft geband.</string>
+    <string name="builtin_reply_sr_revoked_label">Verzoeken ingetrokken</string>
+    <string name="builtin_reply_sr_revoked_description">Iemand die 10 of meer nummers heeft geband vraagt een nummer aan.</string>
     <string name="builtin_reply_banger_nothing_label">Niets aan het spelen</string>
     <string name="builtin_reply_banger_nothing_description">Er speelt niets, dus er is geen nummer om aan de bangers-afspeellijst toe te voegen.</string>
     <string name="builtin_reply_banger_added_label">Banger toegevoegd</string>

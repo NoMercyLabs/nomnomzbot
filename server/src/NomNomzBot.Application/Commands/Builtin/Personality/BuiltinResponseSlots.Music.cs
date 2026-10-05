@@ -119,6 +119,12 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>No music service is connected and the caller is a moderator — no variables.</summary>
         public const string NoProviderModerator = "noprovidermoderator";
+
+        /// <summary>
+        /// The requester banned 10 or more tracks, so their song requests are refused (the old bot's
+        /// strike rule) — no variables.
+        /// </summary>
+        public const string Revoked = "revoked";
     }
 
     /// <summary><c>!skip</c> — skip the current track (mods+).</summary>
@@ -173,6 +179,18 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The playing track was banned; <c>{user}</c>/<c>{track.name}</c> are set.</summary>
         public const string Banned = "banned";
+
+        /// <summary>
+        /// Appended to <see cref="Banned"/> when the moderator has banned 6 to 10 tracks (the old bot's
+        /// warning) — no variables.
+        /// </summary>
+        public const string StrikeWarning = "strikewarning";
+
+        /// <summary>
+        /// Appended to <see cref="Banned"/> when the moderator has banned 11 or more tracks (the old bot's
+        /// revoke notice) — no variables.
+        /// </summary>
+        public const string StrikeRevoked = "strikerevoked";
     }
 
     /// <summary><c>!banger</c> — add the playing track to the channel's bangers playlist.</summary>

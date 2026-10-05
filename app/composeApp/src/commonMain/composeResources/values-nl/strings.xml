@@ -5173,6 +5173,7 @@
     <string name="template_helper_target_gendered_term">Een term die past bij het geslacht van het @vermelde doel</string>
     <string name="template_helper_target_id">Het platform-ID van het @vermelde doel</string>
     <string name="template_helper_target_lastmessage">Het meest recente chatbericht van het @vermelde doel</string>
+    <string name="template_helper_target_lastmessage_full">Het meest recente chatbericht van het @vermelde doel, nooit ingekort</string>
     <string name="template_helper_target_link">Een profiellink voor het @vermelde doel</string>
     <string name="template_helper_target_messages">Het totale aantal chatberichten van het @vermelde doel</string>
     <string name="template_helper_target_name">De weergavenaam van het @vermelde doel</string>

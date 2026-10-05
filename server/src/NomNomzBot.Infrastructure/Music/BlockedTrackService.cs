@@ -117,6 +117,16 @@ public sealed class BlockedTrackService(IApplicationDbContext db) : IBlockedTrac
             ct
         );
 
+    public Task<int> CountByBlockerAsync(
+        Guid broadcasterId,
+        string blockedByUserId,
+        CancellationToken ct = default
+    ) =>
+        db.BlockedTracks.CountAsync(
+            b => b.BroadcasterId == broadcasterId && b.BlockedByUserId == blockedByUserId,
+            ct
+        );
+
     private static BlockedTrackDto ToDto(BlockedTrack b) =>
         new(b.Id, b.Provider, b.TrackUri, b.Title, b.Reason, b.BlockedByUserId, b.CreatedAt);
 }

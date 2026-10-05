@@ -172,6 +172,13 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 },
                 ct
             ),
+            "SR_REVOKED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.Revoked,
+                "Stop requesting songs, your permission has been revoked",
+                null,
+                ct
+            ),
             "TRACK_BLOCKED" => TrackReplyAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.TrackBlocked,

@@ -54,6 +54,16 @@ public sealed class TextTransformCatalogTests
     }
 
     [Fact]
+    public void Mocking_StartsLowercase_LikeTheOldMockCommand_AndSkipsNonLettersWithoutAToggle()
+    {
+        // The old !mock lowered the first letter: toggle starts lower, advances only on letters.
+        Result<string> result = TextTransformCatalog.Apply("mocking", "Hello, World 42!", null);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("hElLo, WoRlD 42!");
+    }
+
+    [Fact]
     public void Upper_DutchAccentedLetters_CasesCorrectlyWithoutMangling()
     {
         Result<string> result = TextTransformCatalog.Apply("upper", "café ëèê", null);

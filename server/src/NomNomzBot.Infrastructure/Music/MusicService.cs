@@ -597,6 +597,20 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             }
         }
 
+        // The old bot's strike rule: ten banned tracks and the person's own requests are refused.
+        if (
+            requesterUserId is not null
+            && await _blockedTracks.CountByBlockerAsync(
+                tenantId,
+                requesterUserId,
+                cancellationToken
+            ) >= SongBanStrikes.RequestsRefusedFrom
+        )
+            return Result.Failure<MusicTrack>(
+                "Stop requesting songs, your permission has been revoked",
+                "SR_REVOKED"
+            );
+
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return NoProvider<MusicTrack>();

@@ -72,6 +72,76 @@ public sealed class BanSongBuiltinTests
         );
     }
 
+    private const string Confirmation = "Toxic banned from being requested again.";
+
+    private const string StrikeWarning =
+        "You have gotten 5 banned songs now. Don't get your ass banned from this feature.";
+
+    private const string StrikeRevoked =
+        "Your permission to redeem songs have been revoked, points will not be refunded if you request more";
+
+    // The old bot's own thresholds: the warning prints for 6 to 10 bans, the revoke notice from 11 on.
+    [Theory]
+    [InlineData(1, Confirmation)]
+    [InlineData(5, Confirmation)]
+    [InlineData(6, Confirmation + " " + StrikeWarning)]
+    [InlineData(10, Confirmation + " " + StrikeWarning)]
+    [InlineData(11, Confirmation + " " + StrikeRevoked)]
+    [InlineData(40, Confirmation + " " + StrikeRevoked)]
+    public async Task The_strike_notice_follows_the_old_bots_thresholds_for_the_moderators_own_bans(
+        int strikeCount,
+        string expected
+    )
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Toxic",
+                    "Britney Spears",
+                    null,
+                    null,
+                    200_000,
+                    1_000,
+                    true,
+                    50,
+                    null,
+                    "spotify",
+                    "spotify:track:toxic"
+                )
+            );
+        IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
+        blockedTracks
+            .BlockAsync(Broadcaster, Arg.Any<BlockTrackRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new BlockedTrackDto(
+                        Guid.CreateVersion7(),
+                        "spotify",
+                        "spotify:track:toxic",
+                        "Toxic",
+                        null,
+                        "mod-1",
+                        DateTime.UtcNow
+                    )
+                )
+            );
+        blockedTracks
+            .CountByBlockerAsync(Broadcaster, "mod-1", Arg.Any<CancellationToken>())
+            .Returns(strikeCount);
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context());
+
+        result.Value.Should().Be(expected);
+    }
+
     [Fact]
     public async Task Banning_the_playing_track_calls_BlockAsync_with_its_real_provider_uri_and_title()
     {

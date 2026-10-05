@@ -5189,6 +5189,7 @@
     <string name="template_helper_target_gendered_term">A gendered term for the @mention target</string>
     <string name="template_helper_target_id">The @mention target platform ID</string>
     <string name="template_helper_target_lastmessage">The @mention target most recent chat message</string>
+    <string name="template_helper_target_lastmessage_full">The @mention target most recent chat message, never cut short</string>
     <string name="template_helper_target_link">A profile link for the @mention target</string>
     <string name="template_helper_target_messages">The @mention target total chat message count</string>
     <string name="template_helper_target_name">The @mention target display name</string>

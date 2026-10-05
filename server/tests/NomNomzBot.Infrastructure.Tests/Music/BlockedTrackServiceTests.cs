@@ -36,6 +36,34 @@ public sealed class BlockedTrackServiceTests
     private static BlockTrackRequest Rickroll(string? reason = "never again") =>
         new("spotify", "spotify:track:rick1", "Never Gonna Give You Up", reason, "twitch-123");
 
+    private static BlockTrackRequest BlockedBy(string uri, string userId) =>
+        new("spotify", uri, uri, null, userId);
+
+    [Fact]
+    public async Task CountByBlocker_counts_only_that_persons_live_blocks_in_that_channel()
+    {
+        (BlockedTrackService sut, _) = Build();
+        await sut.BlockAsync(ChannelA, BlockedBy("spotify:track:a1", "mod-1"));
+        Result<BlockedTrackDto> second = await sut.BlockAsync(
+            ChannelA,
+            BlockedBy("spotify:track:a2", "mod-1")
+        );
+        await sut.BlockAsync(ChannelA, BlockedBy("spotify:track:a3", "mod-1"));
+        await sut.BlockAsync(ChannelA, BlockedBy("spotify:track:a4", "mod-2"));
+        await sut.BlockAsync(ChannelB, BlockedBy("spotify:track:b1", "mod-1"));
+
+        (await sut.CountByBlockerAsync(ChannelA, "mod-1")).Should().Be(3);
+        (await sut.CountByBlockerAsync(ChannelA, "mod-2")).Should().Be(1);
+        (await sut.CountByBlockerAsync(ChannelB, "mod-1")).Should().Be(1);
+        (await sut.CountByBlockerAsync(ChannelA, "nobody")).Should().Be(0);
+
+        await sut.UnblockAsync(ChannelA, second.Value.Id);
+
+        (await sut.CountByBlockerAsync(ChannelA, "mod-1"))
+            .Should()
+            .Be(2, "an unblocked track no longer counts as a strike");
+    }
+
     [Fact]
     public async Task Block_persists_the_row_shape_and_IsBlocked_flips_true()
     {

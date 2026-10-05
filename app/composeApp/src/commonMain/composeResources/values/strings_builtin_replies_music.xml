@@ -124,6 +124,12 @@
     <string name="builtin_reply_volume_premiumrequired_description">The music service needs a Premium account to change the volume.</string>
     <string name="builtin_reply_bansong_banned_label">Song banned</string>
     <string name="builtin_reply_bansong_banned_description">A moderator banned the playing song.</string>
+    <string name="builtin_reply_bansong_strikewarning_label">Ban strike warning</string>
+    <string name="builtin_reply_bansong_strikewarning_description">Added after a ban when that person has banned 6 to 10 songs.</string>
+    <string name="builtin_reply_bansong_strikerevoked_label">Requests revoked</string>
+    <string name="builtin_reply_bansong_strikerevoked_description">Added after a ban when that person has banned 11 or more songs.</string>
+    <string name="builtin_reply_sr_revoked_label">Requests revoked</string>
+    <string name="builtin_reply_sr_revoked_description">A person who banned 10 or more songs asks for a song.</string>
     <string name="builtin_reply_banger_nothing_label">Nothing playing</string>
     <string name="builtin_reply_banger_nothing_description">Nothing plays, so there is no song to add to the bangers playlist.</string>
     <string name="builtin_reply_banger_added_label">Banger added</string>

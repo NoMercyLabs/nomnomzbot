@@ -628,7 +628,13 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // non-command chat line in this channel; unset renders empty) ──────
         if (
             broadcasterId is not null
-            && NeedsAny(needed, "user.lastmessage", "target.lastmessage", "target.randommessage")
+            && NeedsAny(
+                needed,
+                "user.lastmessage",
+                "target.lastmessage",
+                "target.lastmessage.full",
+                "target.randommessage"
+            )
         )
         {
             await ResolveLastMessagesAsync(vars, needed, broadcasterId.Value, ct);
@@ -1309,6 +1315,39 @@ public sealed partial class TemplateResolver : ITemplateResolver
             }
 
             if (
+                needed.Contains("target.lastmessage.full")
+                && !vars.ContainsKey("target.lastmessage.full")
+            )
+            {
+                // The old !mock read the newest message that is not a command, not deleted, not empty and
+                // not a link, and never cut it (the old !detective cut at 77 and did not skip links).
+                string? targetLogin = vars.GetValueOrDefault("target");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(targetLogin))
+                {
+                    string login = targetLogin.ToLowerInvariant();
+                    message =
+                        await db
+                            .ChatMessages.AsNoTracking()
+                            .Where(m =>
+                                m.BroadcasterId == broadcasterId
+                                && m.Username == login
+                                && !m.IsCommand
+                                && m.DeletedAt == null
+                                && m.Message.Length > 0
+                                && !m.Message.StartsWith("http://")
+                                && !m.Message.StartsWith("https://")
+                                && !m.Message.StartsWith("www.")
+                            )
+                            .OrderByDescending(m => m.CreatedAt)
+                            .Select(m => m.Message)
+                            .FirstOrDefaultAsync(ct)
+                        ?? string.Empty;
+                }
+                vars["target.lastmessage.full"] = message;
+            }
+
+            if (
                 needed.Contains("target.randommessage") && !vars.ContainsKey("target.randommessage")
             )
             {
@@ -1352,6 +1391,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             );
             vars.TryAdd("user.lastmessage", string.Empty);
             vars.TryAdd("target.lastmessage", string.Empty);
+            vars.TryAdd("target.lastmessage.full", string.Empty);
             vars.TryAdd("target.randommessage", string.Empty);
         }
     }

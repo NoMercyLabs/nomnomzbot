@@ -115,6 +115,44 @@ public sealed class BanSongBuiltin(
             },
             ct
         );
-        return Result.Success(banned);
+
+        string strike = await ComposeStrikeNoticeAsync(context, ct);
+        return Result.Success(strike.Length == 0 ? banned : $"{banned} {strike}");
+    }
+
+    // The old bot counted only the banner's own bans and never let the count go down: a warning for
+    // 6 to 10, a revoke notice from 11 on. Here the count is the live rows, so an unblock forgives a strike.
+    private async Task<string> ComposeStrikeNoticeAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    )
+    {
+        int bans = await blockedTracks.CountByBlockerAsync(
+            context.BroadcasterId,
+            context.TriggeringUserId,
+            ct
+        );
+
+        if (bans >= SongBanStrikes.RevokedNoticeFrom)
+            return await composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.BanSong.Key,
+                BuiltinResponseSlots.BanSong.StrikeRevoked,
+                "Your permission to redeem songs have been revoked, points will not be refunded if you request more",
+                new Dictionary<string, string>(),
+                ct
+            );
+
+        if (bans >= SongBanStrikes.WarningFrom)
+            return await composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.BanSong.Key,
+                BuiltinResponseSlots.BanSong.StrikeWarning,
+                "You have gotten 5 banned songs now. Don't get your ass banned from this feature.",
+                new Dictionary<string, string>(),
+                ct
+            );
+
+        return string.Empty;
     }
 }

@@ -43,7 +43,8 @@ public static class TextTransformCatalog
             "lower" => Result<string>.Success(input.ToLowerInvariant()),
             "title" => Result<string>.Success(ToTitleCase(input)),
             "spaced" => Result<string>.Success(ToSpaced(input)),
-            "alternating" => Result<string>.Success(ToAlternating(input)),
+            "alternating" => Result<string>.Success(ToAlternating(input, startUpper: true)),
+            "mocking" => Result<string>.Success(ToAlternating(input, startUpper: false)),
             "reverse" => Result<string>.Success(ToReverse(input)),
             "trim" => Result<string>.Success(input.Trim()),
             "truncate" => ToTruncate(input, argument),
@@ -87,12 +88,13 @@ public static class TextTransformCatalog
     /// <summary>
     /// sPoNgEbOb case: alternates upper/lower across letter text elements only — whitespace and
     /// non-letter elements (punctuation, emoji) pass through untouched and never consume a toggle, so
-    /// "hello world" -> "hElLo WoRlD" rather than losing the alternation at the space.
+    /// "hello world" -> "hElLo WoRlD" rather than losing the alternation at the space. <c>mocking</c> is the
+    /// same walk starting lowercase (the old <c>!mock</c>: "hElLo wOrLd").
     /// </summary>
-    private static string ToAlternating(string input)
+    private static string ToAlternating(string input, bool startUpper)
     {
         StringBuilder builder = new(input.Length);
-        bool upper = true;
+        bool upper = startUpper;
         foreach (string element in TextElements(input))
         {
             if (!char.IsLetter(element, 0))

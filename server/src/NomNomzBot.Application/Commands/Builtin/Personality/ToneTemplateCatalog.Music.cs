@@ -57,6 +57,18 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.Revoked,
+            variables: [],
+            informative: ["Stop requesting songs, your permission has been revoked"],
+            friendly: ["Your song request permission is revoked, so I cannot add that song."],
+            sassy: ["Your song requests are revoked. Stop asking."],
+            hype: ["SONG REQUESTS REVOKED. STOP ASKING."],
+            chill: ["your song requests are revoked."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.TrackBlocked,
             variables: ["track.name"],
             informative: ["\"{track.name}\" is blocked in this channel."],
@@ -550,6 +562,42 @@ public static partial class ToneTemplateCatalog
             sassy: ["@{user} banned \"{track.name}\" from song requests. Good riddance."],
             hype: ["@{user} BANNED \"{track.name}\" FROM SONG REQUESTS. GONE."],
             chill: ["@{user} banned \"{track.name}\" from requests."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.BanSong.StrikeWarning,
+            variables: [],
+            informative:
+            [
+                "You have gotten 5 banned songs now. Don't get your ass banned from this feature.",
+            ],
+            friendly:
+            [
+                "That is a lot of banned songs now. Please be careful, or you will lose this feature.",
+            ],
+            sassy: ["So many banned songs. Keep going and this feature is gone."],
+            hype: ["TOO MANY BANNED SONGS. WATCH OUT OR THIS FEATURE IS GONE."],
+            chill: ["that is a lot of banned songs. careful, or the feature goes."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.BanSong.StrikeRevoked,
+            variables: [],
+            informative:
+            [
+                "Your permission to redeem songs have been revoked, points will not be refunded if you request more",
+            ],
+            friendly:
+            [
+                "Your song request permission is revoked now. Points are not refunded if you request more.",
+            ],
+            sassy: ["Your song requests are revoked. Points will not come back if you try."],
+            hype: ["SONG REQUESTS REVOKED. NO REFUND IF YOU TRY AGAIN."],
+            chill: ["your song request permission is revoked. no refund if you try again."]
         );
 
         Add(

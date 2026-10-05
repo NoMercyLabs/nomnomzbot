@@ -104,6 +104,7 @@ public sealed class SongRequestAction : ICommandAction
                 "SR_DISABLED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "MIN_TRUST_LEVEL" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "TRACK_BLOCKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                "SR_REVOKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "SERVICE_UNAVAILABLE" =>
                     $"@{ctx.TriggeredByDisplayName} Song requests aren't set up for this channel yet.",
                 // A real playlist/album/episode/show/artist link — never a search miss.

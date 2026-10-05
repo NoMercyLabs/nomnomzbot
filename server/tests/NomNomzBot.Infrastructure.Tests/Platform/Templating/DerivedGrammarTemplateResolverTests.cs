@@ -415,6 +415,51 @@ public sealed class DerivedGrammarTemplateResolverTests
     }
 
     [Fact]
+    public async Task TargetLastMessageFull_IsNeverCut_WhileTargetLastMessageStillIs()
+    {
+        string longLine = new string('x', 120);
+        SeedChat("f1", "444", "dave", longLine, false, new(2026, 7, 1));
+
+        string resolved = await _resolver.ResolveAsync(
+            "[{target.lastmessage.full}] [{target.lastmessage}]",
+            Seeds("111", target: "dave"),
+            Channel
+        );
+
+        resolved
+            .Should()
+            .Be(
+                "[" + longLine + "] [" + new string('x', 77) + "...]",
+                "the old !mock never cut the message; the old !detective cut at 77"
+            );
+    }
+
+    [Fact]
+    public async Task TargetLastMessageFull_SkipsCommandsDeletedAndLinkMessages_AndIsEmptyWithNoHistory()
+    {
+        SeedChat("g1", "444", "dave", "the real line", false, new(2026, 7, 1));
+        SeedChat("g2", "444", "dave", "!sr a command", true, new(2026, 7, 2));
+        SeedChat("g3", "444", "dave", "deleted line", false, new(2026, 7, 3));
+        _db.ChatMessages.Single(m => m.Id == "g3").DeletedAt = new DateTime(2026, 7, 4);
+        SeedChat("g4", "444", "dave", "www.example.com/page", false, new(2026, 7, 5));
+        _db.SaveChanges();
+
+        string known = await _resolver.ResolveAsync(
+            "[{target.lastmessage.full}]",
+            Seeds("111", target: "dave"),
+            Channel
+        );
+        string unknown = await _resolver.ResolveAsync(
+            "[{target.lastmessage.full}]",
+            Seeds("111", target: "nobody"),
+            Channel
+        );
+
+        known.Should().Be("[the real line]");
+        unknown.Should().Be("[]");
+    }
+
+    [Fact]
     public async Task TargetRandomMessage_PicksOnlyQualifyingMessages()
     {
         SeedChat("q1", "444", "dave", "short", false, new(2026, 7, 1));

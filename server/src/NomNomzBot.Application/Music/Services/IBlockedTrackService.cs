@@ -47,4 +47,14 @@ public interface IBlockedTrackService
 
     /// <summary>Whether the given track URI is blocked for the channel (any provider).</summary>
     Task<bool> IsBlockedAsync(Guid broadcasterId, string trackUri, CancellationToken ct = default);
+
+    /// <summary>
+    /// How many of the channel's live blocks this person banned (the legacy <c>!bansong</c> strike count).
+    /// Unblocking a track takes its strike away.
+    /// </summary>
+    Task<int> CountByBlockerAsync(
+        Guid broadcasterId,
+        string blockedByUserId,
+        CancellationToken ct = default
+    );
 }

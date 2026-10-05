@@ -278,6 +278,7 @@ public abstract class BaseController : ControllerBase
             or "JAR_CAP_EXCEEDED"
             or "CAPABILITY_UNSUPPORTED"
             or "TRACK_BLOCKED"
+            or "SR_REVOKED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
             or "MARKETPLACE_AUTH_FAILED"
             // A refused act-as: the request is well-formed but the caller has no open support session
