@@ -26,7 +26,10 @@ param(
     # another agent's uncommitted work breaks the build on a file you do not own. Never `git stash`.
     [string]$AtCommit,
     # Force the ReSharper leg inside the devbox, where it is skipped by default.
-    [switch]$Inspect
+    [switch]$Inspect,
+    # Run only the slice's filtered tests and skip the unfiltered blast-radius suites. For builders
+    # whose branch lands through a batch gate on master that runs every suite before the push.
+    [switch]$FilteredOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -104,6 +107,10 @@ try {
         # a test file already names its own project; source maps to the suite that covers it
         if ($p -match 'server/tests/(NomNomzBot\.[A-Za-z0-9.]+Tests)/') { $affected.Add("tests/$($Matches[1])") | Out-Null }
         elseif ($p -match 'server/src/NomNomzBot\.(Domain|Application|Infrastructure|Api)/') { $affected.Add("tests/NomNomzBot.$($Matches[1]).Tests") | Out-Null }
+    }
+    if ($FilteredOnly) {
+        Write-Host '== full suites skipped (-FilteredOnly): the batch gate on master runs them =='
+        $affected.Clear()
     }
     foreach ($project in $affected) {
         if (-not (Test-Path (Join-Path $server $project))) { continue }
