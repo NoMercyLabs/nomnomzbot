@@ -111,6 +111,14 @@ try {
     if ($FilteredOnly) {
         Write-Host '== full suites skipped (-FilteredOnly): the batch gate on master runs them =='
         $affected.Clear()
+        # Repo-wide contract checks that a slice filter never names, yet any new reply slot, helper or schema key
+        # breaks (2026-10-05: a new slot without its manifest key reached master and failed the batch gate).
+        [string]$contractGuards = 'FullyQualifiedName~.Localization.|FullyQualifiedName~TemplateHelperCoverage|' +
+            'FullyQualifiedName~ToneTemplateCatalogIntegrity'
+        Write-Host '== test (repo-wide contract guards) =='
+        Invoke-Native 'a repo-wide contract guard failed - the slice added a key, slot or helper without its entry' {
+            dotnet test tests/NomNomzBot.Infrastructure.Tests -c Debug --no-build --filter $contractGuards
+        }
     }
     foreach ($project in $affected) {
         if (-not (Test-Path (Join-Path $server $project))) { continue }
