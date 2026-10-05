@@ -53,6 +53,7 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries { get; }

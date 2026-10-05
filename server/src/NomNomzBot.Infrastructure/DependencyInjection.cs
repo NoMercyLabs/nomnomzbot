@@ -446,6 +446,11 @@ public static class DependencyInjection
             Application.Moderation.Services.IOperatorMessageDeleter,
             OperatorMessageDeleter
         >();
+        // "Every channel I moderate" for the network ban fan-out and the mass-ban consent sweep (chat-client.md §3.5).
+        services.AddScoped<
+            Application.Moderation.Services.IOperatorModeratedChannelResolver,
+            OperatorModeratedChannelResolver
+        >();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
         // The out-of-process CLI runner behind the widget build service (esbuild). Not an I<X>Service, so it is
@@ -1117,6 +1122,11 @@ public static class DependencyInjection
         // Same reason: consumed by concrete type from the chat-path handler. Kept apart from
         // SpamDefenseService because correlation is stateful across messages while evaluation is not.
         services.AddScoped<SpamCorrelationService>();
+        // Mass ban across a moderator's channels: consumed by concrete type from the consent service
+        // and the execution worker, so convention scanning does not reach them.
+        services.AddScoped<Moderation.MassBan.MassBanLiveChannels>();
+        services.AddScoped<Moderation.MassBan.MassBanChannelPlanner>();
+        services.AddScoped<Moderation.MassBan.MassBanExecutor>();
 
         // Personality tone renderer for built-in responses (override → tone → neutral, then template-resolve).
         // Stateless over the singleton ITemplateResolver, so registered singleton.
@@ -1176,6 +1186,9 @@ public static class DependencyInjection
         // Broadcaster-only manual community-standing override (!whitelist / !unwhitelist).
         services.AddScoped<IBuiltinCommand, Identity.Builtins.WhitelistBuiltin>();
         services.AddScoped<IBuiltinCommand, Identity.Builtins.UnwhitelistBuiltin>();
+        // A live channel's answer to a held mass ban (!allow massban / !disallow massban).
+        services.AddScoped<IBuiltinCommand, Moderation.Builtins.AllowBuiltin>();
+        services.AddScoped<IBuiltinCommand, Moderation.Builtins.DisallowBuiltin>();
         // Viewer stats (!stats + legacy-parity alias !profile) — composes existing read-models.
         services.AddScoped<IBuiltinCommand, Tts.Builtins.VoiceBuiltin>();
         services.AddScoped<IBuiltinCommand, ViewerData.Builtins.StatsBuiltin>();

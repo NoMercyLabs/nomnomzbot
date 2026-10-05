@@ -5017,6 +5017,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AcceptsModeratorMassBans")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("AnnounceOnConnect")
                         .HasColumnType("boolean");
 
@@ -7293,6 +7298,106 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsDescending(false, true);
 
                     b.ToTable("FollowBotBlocks");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ChannelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChannelLogin")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ChannelTwitchId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DecidedByDisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeclinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HoldWhileLive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("NoticeSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OperatorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OperatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId", "CompletedAt");
+
+                    b.HasIndex("CompletedAt", "RequestedAt");
+
+                    b.ToTable("MassBanBatches");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatchTarget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Banned")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("MassBanBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("TwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MassBanBatchId", "ProcessedAt");
+
+                    b.ToTable("MassBanBatchTarget");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy", b =>
@@ -12237,6 +12342,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Requester");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatchTarget", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Moderation.Entities.MassBanBatch", null)
+                        .WithMany("Targets")
+                        .HasForeignKey("MassBanBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanSettings", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
@@ -12587,6 +12701,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", b =>
                 {
                     b.Navigation("Tokens");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatch", b =>
+                {
+                    b.Navigation("Targets");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubConduit", b =>

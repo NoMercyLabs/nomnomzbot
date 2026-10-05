@@ -25,6 +25,7 @@ public static partial class ToneTemplateCatalog
         AddUnpermitSlots(catalog);
         AddWhitelistSlots(catalog);
         AddUnwhitelistSlots(catalog);
+        AddMassBanSlots(catalog);
     }
 
     private static void AddCommunitySamples(Dictionary<string, string> samples)
@@ -56,6 +57,7 @@ public static partial class ToneTemplateCatalog
         samples["permit.role"] = "Moderator";
         samples["permit.capability"] = "quotes:write";
         samples["whitelist.level"] = "vip";
+        AddMassBanSamples(samples);
     }
 
     // ── !forgetme / done — the ONLY customizable data-rights line (gdpr-crypto.md section 9 part 1) ──

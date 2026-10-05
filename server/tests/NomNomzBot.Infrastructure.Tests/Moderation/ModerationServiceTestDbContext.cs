@@ -212,6 +212,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel),
         // The network-nuke batch ledger (J.2a) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch),
+        // Mass-ban batches; their targets map by convention through the navigation.
+        typeof(NomNomzBot.Domain.Moderation.Entities.MassBanBatch),
         // The J.4/J.5 projections — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.UserModerationHistory),
         typeof(NomNomzBot.Domain.Moderation.Entities.UserTrustScore),
@@ -265,6 +267,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
+        Set<NomNomzBot.Domain.Moderation.Entities.MassBanBatch>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>

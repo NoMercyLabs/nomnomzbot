@@ -203,6 +203,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<SharedBanTrustedChannel> SharedBanTrustedChannels =>
         throw new NotSupportedException();
     public DbSet<NetworkNukeBatch> NetworkNukeBatches => throw new NotSupportedException();
+    public DbSet<MassBanBatch> MassBanBatches => throw new NotSupportedException();
     public DbSet<NetworkBlock> NetworkBlocks => throw new NotSupportedException();
     public DbSet<UserModerationHistory> UserModerationHistories =>
         throw new NotSupportedException();

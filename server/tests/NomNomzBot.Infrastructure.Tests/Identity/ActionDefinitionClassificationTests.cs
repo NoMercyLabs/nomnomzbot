@@ -172,6 +172,7 @@ public sealed class ActionDefinitionClassificationTests
         "automation:tokens:write",
         "moderation:moderator:write",
         "moderation:vip",
+        "moderation:massban:optout",
         // Destructive-irreversible / journal integrity
         "eventstore:journal:read",
         "eventstore:projection:rebuild",
@@ -263,6 +264,7 @@ public sealed class ActionDefinitionClassificationTests
         "live-ops:polls:write",
         "live-ops:predictions:read",
         "live-ops:predictions:write",
+        "live-ops:raids:read",
         "live-ops:raids:write",
         "live-ops:ads:read",
         "live-ops:ads:write",

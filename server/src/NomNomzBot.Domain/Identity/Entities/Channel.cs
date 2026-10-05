@@ -182,6 +182,12 @@ public class Channel : SoftDeletableEntity
     /// </summary>
     public bool AutoShoutoutEnabled { get; set; }
 
+    /// <summary>
+    /// When on, a moderator's mass ban across their channels also covers this channel (held while live, chat-client.md
+    /// §3.5). On by default: a Twitch moderator may already ban here. The owner turns it off to keep this channel out.
+    /// </summary>
+    public bool AcceptsModeratorMassBans { get; set; } = true;
+
     [ForeignKey(nameof(OwnerUserId))]
     public virtual User User { get; set; } = null!;
 

@@ -37,10 +37,12 @@ public sealed class OperatorNetworkBanServiceTests
         IApplicationDbContext? db = null
     ) =>
         new(
-            access,
-            moderators,
+            new OperatorModeratedChannelResolver(
+                access,
+                moderators,
+                db ?? ModerationServiceTestDbContext.New()
+            ),
             moderation,
-            db ?? ModerationServiceTestDbContext.New(),
             NullLogger<OperatorNetworkBanService>.Instance
         );
 

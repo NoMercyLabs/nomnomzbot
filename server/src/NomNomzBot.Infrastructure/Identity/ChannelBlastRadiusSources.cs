@@ -90,6 +90,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ModerationQueueItems),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.SpamDetections),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.FollowBotBlocks),
+        Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.MassBanBatches),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.SpamCampaigns),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.UserTtsVoices),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.FoundersBadges),

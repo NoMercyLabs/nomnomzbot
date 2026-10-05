@@ -69,6 +69,7 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
         builder.Property(e => e.ShoutoutInterval).HasDefaultValue(10);
 
         builder.Property(e => e.AutoShoutoutEnabled).HasDefaultValue(false);
+        builder.Property(e => e.AcceptsModeratorMassBans).HasDefaultValue(true);
 
         builder.Property(e => e.UsernamePronunciation).HasMaxLength(100);
 

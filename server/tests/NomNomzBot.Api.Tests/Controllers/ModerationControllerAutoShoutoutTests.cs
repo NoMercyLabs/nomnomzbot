@@ -45,7 +45,8 @@ public sealed class ModerationControllerAutoShoutoutTests
             Substitute.For<ITwitchChatApi>(),
             Substitute.For<ITwitchModerationApi>(),
             Substitute.For<ITemplateHelperValidator>(),
-            Substitute.For<IModerationHistoryService>()
+            Substitute.For<IModerationHistoryService>(),
+            Substitute.For<IMassBanConsentService>()
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name, bool autoShoutout)

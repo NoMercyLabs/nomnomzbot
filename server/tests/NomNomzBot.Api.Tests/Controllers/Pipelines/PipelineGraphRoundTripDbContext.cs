@@ -169,6 +169,8 @@ internal sealed class PipelineGraphRoundTripDbContext : DbContext, IApplicationD
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
         throw new NotSupportedException();
+    public DbSet<Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
+        throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>

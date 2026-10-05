@@ -8,12 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Services;
 
 namespace NomNomzBot.Infrastructure.Moderation;
@@ -26,10 +23,8 @@ namespace NomNomzBot.Infrastructure.Moderation;
 /// </summary>
 public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
 {
-    private readonly IChannelAccessService _channelAccess;
-    private readonly ITwitchModeratorsApi _moderators;
+    private readonly IOperatorModeratedChannelResolver _channels;
     private readonly ITwitchModerationApi _moderation;
-    private readonly IApplicationDbContext _db;
     private readonly ILogger<OperatorNetworkBanService> _logger;
 
     // Twitch's own bounds for a blocked term (Add Blocked Term: "a minimum of 2 characters … a maximum of 500").
@@ -37,17 +32,13 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
     private const int MaxTermLength = 500;
 
     public OperatorNetworkBanService(
-        IChannelAccessService channelAccess,
-        ITwitchModeratorsApi moderators,
+        IOperatorModeratedChannelResolver channels,
         ITwitchModerationApi moderation,
-        IApplicationDbContext db,
         ILogger<OperatorNetworkBanService> logger
     )
     {
-        _channelAccess = channelAccess;
-        _moderators = moderators;
+        _channels = channels;
         _moderation = moderation;
-        _db = db;
         _logger = logger;
     }
 
@@ -215,15 +206,8 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
         CancellationToken ct
     )
     {
-        Guid operatorChannelId = await _channelAccess.ResolveOwnChannelAsync(
-            operatorUserId.ToString(),
-            ct
-        );
-        if (operatorChannelId == Guid.Empty)
-            return Result.Success(new NetworkBanResult(0, 0, []));
-
-        Result<IReadOnlyList<TwitchModeratedChannel>> channels = await ResolveChannelsAsync(
-            operatorChannelId,
+        Result<IReadOnlyList<TwitchModeratedChannel>> channels = await _channels.ResolveAsync(
+            operatorUserId,
             ct
         );
         if (channels.IsFailure)
@@ -254,59 +238,5 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
 
         int succeeded = outcomes.Count(outcome => outcome.Succeeded);
         return Result.Success(new NetworkBanResult(outcomes.Count, succeeded, outcomes));
-    }
-
-    // "Every channel I moderate" includes the one the operator owns: Get Moderated Channels never lists it, so it is
-    // added first from the local channel row (skipped while that row has no Twitch id yet).
-    private async Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveChannelsAsync(
-        Guid operatorChannelId,
-        CancellationToken ct
-    )
-    {
-        Result<IReadOnlyList<TwitchModeratedChannel>> moderated =
-            await ResolveModeratedChannelsAsync(operatorChannelId, ct);
-        if (moderated.IsFailure)
-            return moderated;
-
-        TwitchModeratedChannel? own = await _db
-            .Channels.AsNoTracking()
-            .Where(c => c.Id == operatorChannelId && c.TwitchChannelId != null)
-            .Select(c => new TwitchModeratedChannel(c.TwitchChannelId!, c.Name, c.Name))
-            .FirstOrDefaultAsync(ct);
-        if (own is null || moderated.Value.Any(c => c.BroadcasterId == own.BroadcasterId))
-            return moderated;
-
-        return Result.Success<IReadOnlyList<TwitchModeratedChannel>>([own, .. moderated.Value]);
-    }
-
-    // Pages through every channel Twitch says the operator moderates. A first-page failure surfaces (e.g. the operator
-    // token is missing user:read:moderated_channels); a later-page failure keeps what was already gathered.
-    private async Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveModeratedChannelsAsync(
-        Guid operatorChannelId,
-        CancellationToken ct
-    )
-    {
-        List<TwitchModeratedChannel> channels = [];
-        string? cursor = null;
-        do
-        {
-            Result<TwitchPage<TwitchModeratedChannel>> page =
-                await _moderators.GetModeratedChannelsAsync(
-                    operatorChannelId,
-                    new(After: cursor),
-                    ct
-                );
-            if (page.IsFailure)
-            {
-                if (channels.Count == 0)
-                    return page.WithValue<IReadOnlyList<TwitchModeratedChannel>>(default!);
-                break;
-            }
-
-            channels.AddRange(page.Value.Items);
-            cursor = page.Value.NextCursor;
-        } while (!string.IsNullOrEmpty(cursor));
-
-        return Result.Success<IReadOnlyList<TwitchModeratedChannel>>(channels);
     }
 }

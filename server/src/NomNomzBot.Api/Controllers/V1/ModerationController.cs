@@ -52,6 +52,7 @@ public class ModerationController : BaseController
     private readonly ITwitchModerationApi _twitchModeration;
     private readonly ITemplateHelperValidator _templateHelperValidator;
     private readonly IModerationHistoryService _history;
+    private readonly IMassBanConsentService _massBan;
 
     public ModerationController(
         IModerationService moderationService,
@@ -67,9 +68,11 @@ public class ModerationController : BaseController
         ITwitchChatApi chatApi,
         ITwitchModerationApi twitchModeration,
         ITemplateHelperValidator templateHelperValidator,
-        IModerationHistoryService history
+        IModerationHistoryService history,
+        IMassBanConsentService massBan
     )
     {
+        _massBan = massBan;
         _twitchModeration = twitchModeration;
         _moderationService = moderationService;
         _networkBan = networkBan;
@@ -149,6 +152,92 @@ public class ModerationController : BaseController
         string login = await ResolveChannelLoginAsync(channelId, ct);
         NetworkBanResultDto oneRow = new(1, 1, [new(login, true, null)]);
         return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = oneRow });
+    }
+
+    /// <summary>
+    /// Lists every channel the operator moderates and what a mass ban would do there, so channels can be excluded
+    /// before anything is banned. <c>attacked</c> and <c>excluded</c> are channel logins, as in the request.
+    /// </summary>
+    [RequireAction("moderation:ban")]
+    [HttpGet("actions/mass-ban/channels")]
+    [ProducesResponseType<StatusResponseDto<List<MassBanChannelPreviewDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> PreviewMassBan(
+        string channelId,
+        [FromQuery] List<string>? attacked,
+        [FromQuery] List<string>? excluded,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<IReadOnlyList<MassBanChannelPreview>> preview = await _massBan.PreviewAsync(
+            operatorUserId,
+            new MassBanScope(attacked ?? [], excluded ?? []),
+            ct
+        );
+        if (preview.IsFailure)
+            return ResultResponse(preview);
+
+        List<MassBanChannelPreviewDto> rows =
+        [
+            .. preview.Value.Select(p => new MassBanChannelPreviewDto(
+                p.BroadcasterId,
+                p.BroadcasterLogin,
+                p.Status,
+                p.IsOwnChannel,
+                p.IsAttacked,
+                p.IsLive,
+                p.UsesBot
+            )),
+        ];
+        return Ok(new StatusResponseDto<List<MassBanChannelPreviewDto>> { Data = rows });
+    }
+
+    /// <summary>
+    /// Ban a list of accounts (for example a follow-bot storm) in EVERY channel the operator moderates, one batch
+    /// per channel (chat-client.md §3.5). The operator's own channel, the <c>AttackedChannels</c> and every offline
+    /// channel start banning at once; a live channel is held until its streamer, a lead moderator or an editor types
+    /// <c>!allow massban</c>, or until the stream ends. <c>ExcludedChannels</c> and channels whose owner opted out
+    /// get nothing. Each ban rides the operator's own token.
+    /// </summary>
+    [RequireAction("moderation:ban")]
+    [HttpPost("actions/mass-ban")]
+    [ProducesResponseType<StatusResponseDto<MassBanResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> MassBan(
+        string channelId,
+        [FromBody] MassBanRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<MassBanSweepResult> sweep = await _massBan.RequestAsync(
+            operatorUserId,
+            _currentUser.Username ?? string.Empty,
+            [
+                .. request.Targets.Select(t => new MassBanTarget(
+                    t.TwitchUserId,
+                    t.Reason ?? string.Empty
+                )),
+            ],
+            new MassBanScope(request.AttackedChannels ?? [], request.ExcludedChannels ?? []),
+            ct
+        );
+        if (sweep.IsFailure)
+            return ResultResponse(sweep);
+
+        MassBanResultDto dto = new([
+            .. sweep.Value.Channels.Select(c => new MassBanChannelOutcomeDto(
+                c.BroadcasterLogin,
+                c.Status,
+                c.Accounts
+            )),
+        ]);
+        return Ok(new StatusResponseDto<MassBanResultDto> { Data = dto });
     }
 
     /// <summary>
@@ -1679,6 +1768,53 @@ public class ModerationController : BaseController
             return NotFoundResponse("Channel not found.");
 
         channel.AutoShoutoutEnabled = request.Enabled;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Whether moderators' mass bans across their channels also reach this channel. On by default: a Twitch
+    /// moderator may already ban here.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("mass-ban-opt-in")]
+    [ProducesResponseType<StatusResponseDto<MassBanOptInDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMassBanOptIn(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        bool? accepts = await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => (bool?)c.AcceptsModeratorMassBans)
+            .FirstOrDefaultAsync(ct);
+        if (accepts is null)
+            return NotFoundResponse("Channel not found.");
+        return Ok(new StatusResponseDto<MassBanOptInDto> { Data = new(accepts.Value) });
+    }
+
+    /// <summary>The channel owner turns moderators' mass bans for this channel on or off.</summary>
+    [RequireAction("moderation:massban:optout")]
+    [HttpPut("mass-ban-opt-in")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetMassBanOptIn(
+        string channelId,
+        [FromBody] MassBanOptInDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Domain.Identity.Entities.Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            ct
+        );
+        if (channel is null)
+            return NotFoundResponse("Channel not found.");
+
+        channel.AcceptsModeratorMassBans = request.Accepts;
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

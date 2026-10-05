@@ -5272,6 +5272,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<bool>("AcceptsModeratorMassBans")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("AnnounceOnConnect")
                         .HasColumnType("INTEGER");
 
@@ -7655,6 +7660,111 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsDescending(false, true);
 
                     b.ToTable("FollowBotBlocks");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ChannelId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("ChannelLogin")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChannelTwitchId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DecidedByDisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeclinedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("HoldWhileLive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("NoticeSentAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OperatorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OperatorUserId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId", "CompletedAt");
+
+                    b.HasIndex("CompletedAt", "RequestedAt");
+
+                    b.ToTable("MassBanBatches");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatchTarget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<bool>("Banned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MassBanBatchId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MassBanBatchId", "ProcessedAt");
+
+                    b.ToTable("MassBanBatchTarget");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy", b =>
@@ -12769,6 +12879,15 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Requester");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatchTarget", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Moderation.Entities.MassBanBatch", null)
+                        .WithMany("Targets")
+                        .HasForeignKey("MassBanBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanSettings", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
@@ -13119,6 +13238,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
             modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", b =>
                 {
                     b.Navigation("Tokens");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.MassBanBatch", b =>
+                {
+                    b.Navigation("Targets");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubConduit", b =>
