@@ -851,10 +851,9 @@
     <string name="tts_test_success">Synthesised via %1$s (%2$d ms)</string>
     <string name="tts_test_error">Test failed: %1$s</string>
     <string name="tts_label_min_permission">Minimum permission</string>
-    <string name="tts_label_mode">Dispatch mode</string>
-    <string name="tts_mode_client_edge">Client (Edge)</string>
-    <string name="tts_mode_byok">Bring your own key</string>
-    <string name="tts_mode_self_host">Self-host</string>
+    <string name="tts_label_mode">Where voices come from</string>
+    <string name="tts_mode_byok">My own provider key</string>
+    <string name="tts_mode_self_host">Free voices (recommended)</string>
     <string name="tts_label_default_provider">Default provider</string>
     <string name="tts_label_max_length">Max message length</string>
     <string name="tts_label_skip_bot_messages">Skip bot messages</string>
@@ -880,7 +879,7 @@
     <string name="tts_gender_female">Female</string>
     <string name="tts_gender_neutral">Neutral</string>
     <string name="tts_byok_title">Bring your own key</string>
-    <string name="tts_byok_description">Run Azure or ElevenLabs voices on your own account by storing your provider key. Keys are encrypted and never shown again. Set the dispatch mode to BYOK and pick a default provider to use them.</string>
+    <string name="tts_byok_description">Run Azure or ElevenLabs voices on your own account by storing your provider key. Keys are encrypted and never shown again. Pick 'My own provider key' and a default provider to use them.</string>
     <string name="tts_byok_stored">Key stored</string>
     <string name="tts_byok_not_stored">No key stored</string>
     <string name="tts_byok_key_label">API key</string>

@@ -828,7 +828,7 @@ Change:
 
 ## TTS end to end
 
-With default settings, a new channel's TTS is on, open to everyone, unmoderated and allows 500 characters, yet it makes no sound on stream. The default plane is `client_edge` (`Domain/Tts/Entities/TtsConfig.cs:40`), which speaks through the browser's `speechSynthesis`. The overlay SDK itself says OBS does not capture that audio: "audible to the streamer and silent on stream" (`OverlaySdkController.cs:329-331`). The dashboard still reports "Test sent to the overlay". Around that sit four more gaps:
+With default settings, a new channel's TTS is on, open to everyone, unmoderated and allows 500 characters, yet it makes no sound on stream. The default plane WAS `client_edge` (`Domain/Tts/Entities/TtsConfig.cs:40`), which spoke through the browser's `speechSynthesis`; the overlay SDK itself said OBS does not capture that audio (`OverlaySdkController.cs:329-331`) while the dashboard reported "Test sent to the overlay". Decided 2026-10-05 (owner: "edge tts is available everywhere and must be the standard. that lame outdated browser native tts goes away"): the standard is bot-synthesized Edge audio (`self_host`), the browser voice is gone from the app and the specs, and a stored `client_edge` reads as `self_host`. Around that sit four more gaps:
 
 - No test in the dashboard plays audio. The synthesized `audioBase64` is never read (`core/network/TtsApi.kt:428`).
 - Nothing triggers TTS until the streamer hand-builds a pipeline with a `play_tts` step and the undocumented `{input}` variable.
@@ -844,7 +844,6 @@ Today: see above. Edge and Azure catch their own errors and return empty audio, 
 Change:
 
 - A new channel's first TTS line must play inside the OBS browser source as an audio element. Today only server-synthesized audio does that. So the default plane becomes server-side synthesis with the free Edge voices.
-- `client_edge` stays available only as an explicit choice, labelled "Browser voice (you hear it, your stream doesn't)".
 - This reverses `tts.md` decision 3 (zero server cost), so it needs the owner's call. If cost rules it out, the onboarding (T2) must say plainly that TTS is off-air until a provider is set.
 - An empty result from any provider falls through to the next one: the BYOK provider, then free Edge voices, then failure. Only after all of them fail does T6's failure path run.
 - Rename the "Dispatch mode" options to **Where voices come from**: "Free voices (recommended)", "My own provider key" and "My own TTS server". The control moves to the Provider tab (T11).
@@ -901,7 +900,7 @@ Change:
 - One press does three things: stops the line playing now, holds the queue, and pauses new requests. The control then reads "TTS paused · 9:41 · Resume". The pause lasts 10 minutes by default; a small menu offers "Until I resume".
 - While paused, new requests are kept in order. On resume they play in order. Any held longer than 10 minutes are refunded with T6's message.
 - **Clear queue** refunds every paid item in it, after a confirm that names the count: "Clear 6 messages and refund 3,000 points?"
-- Skip, Pause, Resume and Clear reach every playing TTS widget, and also cancel `speechSynthesis` if the browser voice is in use.
+- Skip, Pause, Resume and Clear reach every playing TTS widget (the audio page; there is no browser voice).
 - Moderators can Skip, Pause and Clear. Today these need Editor.
 
 ### T5. Clean the text before it is spoken (P5, P11)

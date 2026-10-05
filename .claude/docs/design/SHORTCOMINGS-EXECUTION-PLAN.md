@@ -1048,24 +1048,22 @@ than each consumer needing their own clone-and-customize pass.
   `synthesis_failed` and no usage row.
 - **S-UF-T1b** 🔒 [fix] New channels speak through server-synthesized free Edge voices, so the first TTS line
   is heard in OBS.
-  Owner decision: reverse `spec/tts.md` §9 decision 3 (`:644`, "zero server cost", `Mode=client_edge`) and
-  make the existing server plane (today's `self_host` value, Edge through the shared `ITtsService`) the
-  new-channel default. Decide too whether existing channels still on `client_edge` are moved (a data migration
-  in BOTH migration sets) or only told. The owner's 2026-10-02 decision in S-SDK-WIDGET-DELIVERY already
-  settles the playback half: one Audio Source page, with volume set on the bot's side so balance stays the same
-  across streaming PCs. `speechSynthesis` can meet neither part. OBS does not capture it, and voice and volume
-  depend on each PC's OS voices (`OverlaySdkController.cs:331-334`). A browser page also cannot synthesize Edge
-  audio itself, because the Edge endpoint needs a forged `Origin` header and cookie (`EdgeTtsProvider.cs:95-105`,
-  inf.). So the only thing left to decide is cost: server CPU and bandwidth per line on SaaS. Note that tenants
-  can already opt into the server plane free of charge (`TtsConfigDtos.cs:66`). If the owner refuses,
-  S-UF-T2c's setup must say plainly "TTS is off-air until a provider is set", and the Test line must not report
-  success on `client_edge`.
+  Decided by the owner 2026-10-05: "edge tts is available everywhere and must be the standard. that lame outdated browser native tts goes away". So `spec/tts.md` §9 decision 3 now reads `Mode=self_host`, `DefaultProvider=edge`
+  (free Edge voices synthesized by the bot), and the browser voice is removed from the app and the specs.
+  The playback half was settled 2026-10-02 in S-SDK-WIDGET-DELIVERY: one Audio Source page, volume set on the
+  bot's side so balance stays the same across streaming PCs. `speechSynthesis` met neither part: OBS does not
+  capture it, and voice and volume depend on each PC's OS voices (`OverlaySdkController.cs:331-334`). A
+  browser page also cannot synthesize Edge audio itself: the Edge endpoint checks the `Sec-MS-GEC` token and an
+  `Edg/` User-Agent (`EdgeTtsProvider.cs:95-105`, inf.), and a browser WebSocket cannot set a User-Agent, so
+  the bot (or later a native app) must do the synthesis. Tenants could already opt into the server plane free
+  of charge (`TtsConfigDtos.cs:66`).
   Today: `TtsConfig.cs:40` defaults to `client_edge`. `GetConfigAsync` and reset materialize from
   `new TtsConfig()`, so every fresh channel is silent on stream while the dashboard says "Test sent to the
   overlay" (`strings.xml:809`).
-  Build: the entity default and the defaults endpoint (`TtsConfigController.cs:218-232`) become the server
-  plane. `client_edge` stays selectable only as an explicit choice. The tts.md decision text is rewritten to
-  match.
+  Build: the entity default and the defaults endpoint (`TtsConfigController.cs:218-232`) become `self_host`.
+  The server keeps accepting `client_edge` on input as an alias and stores it as `self_host`; existing rows
+  that hold `client_edge` read back as `self_host`, so no data migration is needed. The app no longer offers
+  the browser voice (shipped with S-UF-T1c). The tts.md decision text is rewritten to match.
   Files: `Domain/Tts/Entities/TtsConfig.cs`, `Infrastructure/Tts/TtsConfigService.cs`, `spec/tts.md` §9.3;
   migrations only if existing rows move.
   Depends: S-UF-T1a, S-SDK-WIDGET-DELIVERY.
@@ -1077,14 +1075,15 @@ than each consumer needing their own clone-and-customize pass.
   Today the control is "Dispatch mode" with "Client (Edge)", "Bring your own key" and "Self-host"
   (`strings.xml:838-841`, `TtsScreen.kt:315-317`). Nothing says `client_edge` is inaudible on stream, and
   "Self-host" is the free shared server plane, not a self-hosted server.
-  Build: the label becomes **Where voices come from**. Options: "Free voices (recommended)" (the server plane),
-  "My own provider key" (`byok`) and "Browser voice (you hear it, your stream doesn't)" (`client_edge`). Same
+  Build: the label becomes **Where voices come from**. Two options: "Free voices (recommended)" (`self_host`,
+  the standard Edge plane) and "My own provider key" (`byok`). The browser voice is not offered (owner,
+  2026-10-05; see S-UF-T1b); a loaded `client_edge` config shows as free voices and saves as `self_host`. Same
   strings in en and nl. The BYOK description (`strings.xml:867`) drops "Set the dispatch mode to BYOK". The
   control moves to the Provider tab in S-UF-T11b.
   Files: `feature/tts/ui/TtsScreen.kt`, `strings.xml` (en + nl).
   Depends: none.
-  Done-when: a jvmTest renders the General tab and asserts the three option labels, and that picking the
-  browser voice keeps its "your stream doesn't" wording visible beside the control after save.
+  Done-when: a jvmTest renders the General tab and asserts the two option labels and no browser-voice option,
+  and that a loaded `client_edge` config saves with `mode == "self_host"`.
 - **S-UF-T6a** [fix] Every TTS request carries its source to the end, and a paid request that is not played is
   refunded.
   Build:
@@ -1189,13 +1188,13 @@ than each consumer needing their own clone-and-customize pass.
 - **S-UF-T4a** [fix] **Silence TTS** stops the current line, holds the queue and pauses new requests, and
   moderators can use it.
   Today pause lives only in the overlay page's memory (`OverlaySdkController.cs:222-275`), new requests keep
-  dispatching, `speechSynthesis` is never cancelled, the app hides the buttons from moderators
+  dispatching, the app hides the buttons from moderators
   (`TtsScreen.kt:248,1954`), and turning TTS off leaves the queue playing.
   Build: a server-owned per-channel silence state. One press stops the line playing now, holds what is queued,
   and parks new requests in arrival order instead of dispatching them. The state lasts 10 minutes by default,
   or "Until I resume". The header control reads "TTS paused · 9:41 · Resume". Resume plays the held lines in
-  order. Lines held longer than 10 minutes take S-UF-T6a's refund path. Skip, Pause, Resume and Clear also
-  cancel or pause `speechSynthesis` on the browser voice. Turning TTS off clears what is queued. The TTS page
+  order. Lines held longer than 10 minutes take S-UF-T6a's refund path. Skip, Pause, Resume and Clear reach
+  the audio page only (there is no browser voice). Turning TTS off clears what is queued. The TTS page
   header carries the control and the Skip/Pause/Clear buttons at the Moderator floor (`queueManage`). Held
   lines must survive a restart to be refunded, so they persist in BOTH migration sets.
   Files: `Infrastructure/Tts/TtsDispatchService.cs`, `TtsConfigController.cs` (playback routes),
@@ -1204,7 +1203,6 @@ than each consumer needing their own clone-and-customize pass.
   Done-when:
   - a dispatch during silence produces no `TtsSpeak` and a held row; resume emits the held lines in order;
   - a line held 10 min 1 s is refunded (clock-driven test);
-  - an SDK test shows `pause` calls `speechSynthesis.pause()` and `clear` calls `cancel()`;
   - a jvmTest shows a Moderator with enabled Skip/Pause/Clear.
 - **S-UF-T4b** [fix] **Clear queue** refunds every paid line in it, after a confirm that names the count.
   Today Clear drops the overlay's queue and refunds nothing (`OverlaySdkController.cs:254-258`).
@@ -1587,8 +1585,7 @@ than each consumer needing their own clone-and-customize pass.
   Build: the test line carries a cue id. The result reads "Played on 1 OBS source" only when the audio page
   reports that cue started (the signal from S-UF-T9a). If no page can play audio, it reads "No OBS source
   played it. Add the TTS source in OBS." The button shows progress while waiting (X1); the wait times out after
-  10 s (a number the spec does not set). On `client_edge` it reads "Played in the browser only; your stream
-  didn't hear it."
+  10 s (a number the spec does not set).
   Files: `Api/Controllers/V1/TtsConfigController.cs` (overlay/test), `feature/tts/state/TtsController.kt`,
   `TtsScreen.kt` OverlayCard, strings.
   Depends: S-UF-T9a.
@@ -2936,9 +2933,8 @@ than each consumer needing their own clone-and-customize pass.
 - UF D8: the spec marks some items **new** (S-UF-* tagged `[new]`, Phase 6/7). Ship each in its phase, or
   move it to the tracker as an idea? Also: is S-UF-F3a/F3b (setup ends on a confirmed `!ping`) a minimal
   honesty fix (kept in Phase 4) or a new feature?
-- UF S-UF-T1b: reverse `tts.md` decision 3 ("zero server cost") so new channels default to server-synthesized
-  free Edge voices, which OBS can capture (the browser voice is silent on stream)? Do existing `client_edge`
-  channels move? The 2026-10-02 one-audio-source decision already rules out the browser voice on stream.
+- UF S-UF-T1b: decided 2026-10-05 (owner: "edge tts is available everywhere and must be the standard. that lame outdated browser native tts goes away"). New channels default to bot-synthesized free Edge voices; the browser voice is
+  removed; existing `client_edge` rows read as `self_host` (no migration).
 - UF S-UF-F1a: sign-in alone never creates a channel; "Run the bot on my channel" does (changes the D2 / S025
   wording). Confirm.
 - UF S-UF-F2a: the shared Twitch app becomes the recommended wizard path over BYOC ("encouraged" today). Confirm.

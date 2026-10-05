@@ -30,7 +30,7 @@ All from the LOCKED schema Domain P (TTS) + Q.1 (`CryptoKey`, referenced) + R.1 
 | `Id` | `Guid` | PK (UUIDv7). |
 | `BroadcasterId` | `Guid` | FK→`Channels.Id`, **Unique** (one config row per channel). `ITenantScoped`. |
 | `IsEnabled` | `bool` | Master TTS toggle. |
-| `Mode` | `string(20)` | `client_edge`\|`byok`\|`self_host`. [VC:enum]. Selects the provider-adapter plane. New-channel default (binding): `client_edge`. |
+| `Mode` | `string(20)` | `self_host`\|`byok`. [VC:enum]. Selects the provider-adapter plane: `self_host` is the standard plane (the bot synthesizes free Edge voices), `byok` uses the channel's own provider key. New-channel default (binding): `self_host`. The retired browser voice value `client_edge` is still accepted on input and stored as `self_host`; it is never offered or returned as a choice. |
 | `DefaultProvider` | `string(20)` | `edge`\|`azure`\|`elevenlabs`. [VC:enum]. New-channel default (binding): `edge`. |
 | `DefaultVoiceId` | `string(255)?` | →`TtsVoice.Id`. |
 | `ProfanityCensorEnabled` | `bool` | **Opt-OUT** light swear filter. New-channel default (binding): `true`; the streamer may disable. |
@@ -110,8 +110,8 @@ public sealed class TtsUtteranceDispatchedEvent : DomainEventBase
     public required int CharacterCount { get; init; }
     public required int DurationMs { get; init; }
     public required string RequestedByTwitchUserId { get; init; }
-    public required string DispatchMode { get; init; } // client_edge | self_host
-    public string? ContentHash { get; init; }          // null for client_edge (no server audio)
+    public required string DispatchMode { get; init; } // self_host | byok
+    public string? ContentHash { get; init; }          // null when the provider produced no audio
     public string? AudioUrl { get; init; }
     public string? ChannelEventId { get; init; }       // activity-feed row id, so Replay can correlate the utterance
 }
@@ -196,10 +196,11 @@ public interface IByokTtsProviderFactory
 {
     /// <summary>
     /// Builds the channel's effective TTS provider for <paramref name="mode"/>:
-    /// - client_edge / edge  → the shared EdgeTtsProvider (no key)
+    /// - self_host / edge    → the shared EdgeTtsProvider (no key; the standard plane)
     /// - byok azure          → an AzureTtsProvider bound to the channel's decrypted Azure key+region
     /// - byok elevenlabs     → an ElevenLabsTtsProvider bound to the channel's decrypted key
-    /// - self_host           → the operator-configured provider from app config
+    /// - self_host / other   → the operator-configured provider from app config
+    /// (`client_edge` on input is the retired browser voice: treated as self_host / edge.)
     /// Returns Failure (NOT_FOUND/SERVICE_UNAVAILABLE) when the required BYOK key is absent/undecryptable.
     /// </summary>
     Task<Result<ITtsProvider>> CreateForChannelAsync(Guid broadcasterId, string provider, CancellationToken ct = default);
@@ -368,7 +369,7 @@ public interface ITtsConfigService
 }
 ```
 *Behavior:*
-- `GetConfigAsync` — reads the `TtsConfig` row (or returns the binding new-channel defaults if none: `Mode=client_edge`, `DefaultProvider=edge`, `ProfanityCensorEnabled=true`, `ModApprovalRequired=false`, `MaxCharacters`=the channel tier's resolved cap — `min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))`, where the resolver's `-1` (unlimited / self-host) maps to `AbsoluteMaxCharacters`); BYOK ciphers never returned in DTO (only the `HasAzureByokKey`/`HasElevenLabsByokKey` booleans).
+- `GetConfigAsync` — reads the `TtsConfig` row (or returns the binding new-channel defaults if none: `Mode=self_host`, `DefaultProvider=edge`, `ProfanityCensorEnabled=true`, `ModApprovalRequired=false`, `MaxCharacters`=the channel tier's resolved cap — `min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))`, where the resolver's `-1` (unlimited / self-host) maps to `AbsoluteMaxCharacters`); BYOK ciphers never returned in DTO (only the `HasAzureByokKey`/`HasElevenLabsByokKey` booleans).
 - **As-built note (MaxCharacters, BYOK):** `UpdateConfigAsync` accepts `MaxCharacters` under a static `[Range(1, 500)]` and does **not** clamp it to the tier at write time; the tier limit is applied at dispatch (§3.4 step 3). BYOK keys are written by `SetByokKeyAsync` / `ClearByokKeyAsync`, and `FollowPlatformDefaultVoice = true` clears the channel voice so it follows the platform default. The bullet below is the target write-time clamp and encryption contract.
 - `UpdateConfigAsync` — upserts `TtsConfig`; a streamer-supplied `MaxCharacters` is **clamped to the channel tier's resolved cap** — `effectiveCap = min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))` (the binding tier-scaled rule: a safety baseline on Base, higher tiers a higher ceiling; resolver `-1`→`AbsoluteMaxCharacters`) — so it can never exceed the tier ceiling, and a supplied value over `effectiveCap` is rejected with `VALIDATION_FAILED` (not silently truncated); encrypts any supplied BYOK key via `IIntegrationTokenVault` / `ISubjectKeyService.ProtectAsync(SubjectKeyId, plaintextKey, CipherAad(BroadcasterId, provider, "api_key", keyVersion), resourceTable: "TtsConfig", resourceColumn: "{Azure|ElevenLabs}ApiKeyCipher")` (gdpr-crypto §3.4 — mints/`GetOrCreate`s the `SubjectKeyId` `CryptoKey` if absent), persisting the returned `CipherPayload` into the `*Cipher`/`*Nonce` columns and the bound `*KeyVersion`; `SaveChangesAsync` via `IUnitOfWork`; emits `TtsConfigUpdatedEvent`. Never defines a parallel cipher.
 - `SearchVoicesAsync` — free-text `Q` matches (case-insensitive contains) `Name`/`DisplayName`/`Description`/`TagsJson`; `Locale`/`Gender`/`Provider`/`Accent` are equality filters; ordered `Provider`→`Locale`→`Name`; paged; an empty query returns the first page of the whole catalog.
@@ -417,7 +418,7 @@ public static class TtsCharacterLimits
 // AS BUILT — TtsConfigDtos.cs
 public sealed record TtsConfigDto(
     bool IsEnabled,
-    string Mode,                    // client_edge|byok|self_host
+    string Mode,                    // self_host|byok (never client_edge: a stored alias reads back as self_host)
     string DefaultProvider,         // edge|azure|elevenlabs
     string? DefaultVoiceId,         // the EFFECTIVE voice: the platform default when the channel follows it
     int MaxCharacters,
@@ -436,7 +437,7 @@ public sealed record TtsConfigDto(
 public sealed record UpdateTtsConfigDto
 {
     public bool? IsEnabled { get; init; }
-    [RegularExpression("^(client_edge|byok|self_host)$")] public string? Mode { get; init; }
+    [RegularExpression("^(client_edge|byok|self_host)$")] public string? Mode { get; init; } // client_edge accepted for old clients only; stored as self_host
     [RegularExpression("^(edge|azure|elevenlabs)$")]      public string? DefaultProvider { get; init; }
     [MaxLength(255)] public string? DefaultVoiceId { get; init; }
     public bool? FollowPlatformDefaultVoice { get; init; }   // true → clear the channel voice; it follows the platform default
@@ -550,7 +551,7 @@ One action: **`play_tts`** (the `PlayMusic`/`SendMessage` sibling), `Infrastruct
 
 > **Status.** The system TTS surface and the ordered client-side queue are built. The **ordered segment array per `TtsSpeak` payload and the per-segment three-mode precedence are open — S054**; as built, one `tts_speak` event carries one text in one voice (`{text, voice, user, durationMs, audioUrl}`).
 
-The TTS audio plays on the **system TTS surface** (`widgets-overlays.md` §1.2): a channel-owned page provisioned with the channel (never installed from the gallery; disable-only), owned by the TTS page, added to OBS once. It keeps an **ordered utterance queue** — one `TtsSpeak` payload = one queue item; items play one at a time, each item's `Segments` back-to-back — and renders an optional caption (`showText`). Per segment it plays `AudioUrl` when present (`byok`/`self_host`) or synthesizes via the browser's `speechSynthesis` on `client_edge`; on `client_edge` the SDK **must** set `utter.voice` and `utter.lang` from the segment's `VoiceId` (match on `TtsVoice.Id`, fall back to `Locale`) — never the browser default voice.
+The TTS audio plays on the **system TTS surface** (`widgets-overlays.md` §1.2): a channel-owned page provisioned with the channel (never installed from the gallery; disable-only), owned by the TTS page, added to OBS once. It keeps an **ordered utterance queue** — one `TtsSpeak` payload = one queue item; items play one at a time, each item's `Segments` back-to-back — and renders an optional caption (`showText`). Per segment it plays the segment's `AudioUrl`: on every plane the bot synthesizes the audio (free Edge voices on the standard `self_host` plane, the channel's own key on `byok`), so OBS captures it and the voice and volume are the same on every streaming PC. The surface never uses the browser's `speechSynthesis` (retired 2026-10-05, owner: "edge tts is available everywhere and must be the standard. that lame outdated browser native tts goes away"). A native app may later synthesize Edge audio on the device itself; that is the same audio contract, not a browser voice.
 
 **Voice resolution — as built (per utterance):** `VoiceIdOverride` (the `voice` param) → the speaker's `UserTtsVoice` for this channel → `TtsConfig.DefaultVoiceId` (the platform default voice while the channel follows it) → the first catalogue voice; an override that is not a catalogue voice is rejected (`unknown_voice`), never silently replaced.
 
@@ -612,7 +613,7 @@ services.AddScoped<ITtsVoiceCatalogSync, TtsVoiceCatalogSync>();
 **Voice catalog sync.** `ITtsVoiceCatalogSync` / `TtsVoiceCatalogSync`, on startup/seed (and an operator-triggerable refresh), pulls each provider's live `GetVoicesAsync` (Azure + ElevenLabs when an operator/BYOK key is configured; Edge from the static seed) and UPSERTS them into `TtsVoice` by `(Id)`, capturing the rich metadata (accent/age/styles/tags/description/previewUrl) the provider exposes — replacing today's "10 hardcoded Edge voices, provider lists discarded".
 
 **Deployment-profile adapter variants:**
-- **TTS `Mode` / provider plane** (per-channel, from `TtsConfig.Mode`, resolved at request time by `IByokTtsProviderFactory`): `client_edge` → `EdgeTtsProvider` + `OverlayHub` dispatch via `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (zero server cost; the system TTS surface (§6.2) synthesizes/renders edge-side from the payload, no audio bytes leave the server); `byok` → per-channel `AzureTtsProvider`/`ElevenLabsTtsProvider` from decrypted key; `self_host` → operator-config provider.
+- **TTS `Mode` / provider plane** (per-channel, from `TtsConfig.Mode`, resolved at request time by `IByokTtsProviderFactory`): `self_host` (the standard plane) → the shared `EdgeTtsProvider` synthesizes the audio on the bot and `OverlayHub` pushes it via `IOverlayClient.TtsSpeak(TtsSpeakPayload)` with its `AudioUrl` to the system TTS surface (§6.2); `byok` → per-channel `AzureTtsProvider`/`ElevenLabsTtsProvider` from decrypted key; `self_host` with an operator-config provider → that provider. `client_edge` (the retired browser voice) is accepted on input as an alias of `self_host` and is never dispatched as a browser utterance.
 - **`ITtsAudioStore`** chosen by `DeploymentProfile` (disk vs object-store vs inline), aligned to `TtsCacheEntry.StorageKind`.
 - **BYOK key crypto** goes through gdpr-crypto's vault — `IIntegrationTokenVault` / `ISubjectKeyService.ProtectAsync`/`UnprotectAsync` (envelope `CipherPayload`+`keyVersion`, AAD `tenantId‖provider‖tokenType‖keyVersion`) — whose `IKeyVault` KEK adapter (`local_aes` vs `kms_envelope`) is already selected by `DeploymentProfile.TokenVault`. This subsystem only references the vault service + `CryptoKey`; it neither picks the adapter nor defines a parallel cipher.
 
@@ -629,7 +630,7 @@ services.AddScoped<ITtsVoiceCatalogSync, TtsVoiceCatalogSync>();
 | App JSON (DTO/config serialization) | `Newtonsoft.Json` (per project convention) | App JSON uses `Newtonsoft.Json` (binding project convention); this also fixes the `[VC:JSON]` converter serializer. See §9 decision 1. |
 | Persistence | EF Core 10 (2nd) + provider adapter (Npgsql 10.0.2 / `EFCore.Sqlite`) | `[VC:JSON]`/`[VC:enum]` via hand-rolled `ValueConverter`+`ValueComparer`; no `jsonb`. |
 | Cache L1/L2 | `Microsoft.Extensions.Caching.Hybrid` 10.7.0 (2nd) | Optional hot in-proc cache in front of `TtsCacheEntry` lookups. |
-| Real-time client-edge dispatch | `Microsoft.AspNetCore.SignalR` (2nd) via `OverlayHub` → `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (widgets-overlays §7 wire surface) | `client_edge` audio rendered in the system TTS surface (§6.2); server pushes a `TtsSpeakPayload` (voiceId/text/standing — see widgets-overlays `IOverlayClient`), never audio bytes. |
+| Real-time dispatch to the TTS surface | `Microsoft.AspNetCore.SignalR` (2nd) via `OverlayHub` → `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (widgets-overlays §7 wire surface) | The bot synthesizes the audio (free Edge voices on `self_host`, the channel's key on `byok`) and pushes a `TtsSpeakPayload` whose segments carry an `AudioUrl` (voiceId/text/standing — see widgets-overlays `IOverlayClient`); the system TTS surface (§6.2) plays that URL. No browser voice. |
 | Events | in-box `IEventBus` (1st) | No MediatR. |
 | Tier-scaled character cap | `IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters")` (monetization-billing §3.2) | Resolves the EFFECTIVE per-utterance cap from the channel's billing tier (`-1`=unlimited→`TtsCharacterLimits.AbsoluteMaxCharacters`); injected into `ITtsDispatchService` (gate) + `TtsConfigService` (clamp). No new dep. |
 
@@ -641,7 +642,7 @@ No new third-party dependency is introduced by this subsystem.
 
 1. **App-JSON serializer.** App JSON (DTO/config serialization) uses `Newtonsoft.Json`, per the binding CONVENTIONS line. The stack doc's preference for `System.Text.Json` does not govern this subsystem; the project convention is authoritative. The `[VC:JSON]` `ValueConverter` serializer is therefore `Newtonsoft.Json`.
 2. **`TtsApprovalQueueEntry`.** Lives in the LOCKED schema as Domain P **P.1a** (tenant-scoped, soft-delete). Reference the schema directly as the source of truth for its columns.
-3. **New-channel TTS defaults (binding).** A freshly created channel's `TtsConfig` materializes with `Mode=client_edge`, `DefaultProvider=edge` (zero server cost / no BYOK key required out of the box), `ProfanityCensorEnabled=true` (opt-out — the streamer may disable), and `ModApprovalRequired=false` (direct dispatch, no queue). These are the binding seeded defaults `GetConfigAsync` returns when no row exists.
+3. **New-channel TTS defaults (binding).** A freshly created channel's `TtsConfig` materializes with `Mode=self_host`, `DefaultProvider=edge` (free Edge voices synthesized by the bot and heard in OBS; no BYOK key required out of the box — decided by the owner 2026-10-05: "edge tts is available everywhere and must be the standard. that lame outdated browser native tts goes away"), `ProfanityCensorEnabled=true` (opt-out — the streamer may disable), and `ModApprovalRequired=false` (direct dispatch, no queue). These are the binding seeded defaults `GetConfigAsync` returns when no row exists.
 4. **`MaxCharacters` is tier-scaled (binding).** The per-utterance character cap is not a single hardcoded constant: it resolves from the channel's billing tier — a safety baseline on the Base tier, with higher tiers granted a higher ceiling. The EFFECTIVE cap is `min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))` (monetization-billing §3.2; resolver `-1`=unlimited/self-host → the absolute ceiling). `TtsCharacterLimits.AbsoluteMaxCharacters` (8000) is the hard ceiling no tier can exceed and the only static bound left on the surface (`UpdateTtsConfigDto.MaxCharacters` `[Range(1, AbsoluteMaxCharacters)]` — the old static `[Range(1,500)]` is removed). The dispatch gate (§3.4) rejects over-cap utterances with `VALIDATION_FAILED`; `UpdateConfigAsync` rejects an over-cap configured value with `VALIDATION_FAILED` (never silently truncates). **As-built:** `tts_max_characters` is a seeded tier limit (500 / 2000 / 8000) and the dispatch gate applies `min(config.MaxCharacters, tier limit)`; `UpdateTtsConfigDto.MaxCharacters` keeps a static `[Range(1, 500)]` and `TtsCharacterLimits` is not built. **Dependency:** `"tts_max_characters"` must be a `TierLimit.LimitKey` enum value (LOCKED schema N.2) with seeded per-tier `LimitValue` rows (monetization-billing §8 pattern — additional `LimitKey` values read through the existing entitlement resolver); see report blocker — that enum addition + changelog entry lives in the schema/billing specs, not here.
 5. **Voice catalog is searchable + rich.** The catalog carries the ElevenLabs/Polly label model (locale/gender/accent/age/style/tags/description/preview) and is queried via `SearchVoicesAsync` (free-text + filters + paging), not returned whole — so it scales past a handful of voices and supports preview-before-pick. Provider metadata the adapters used to discard is now captured by the catalog sync.
 6. **Viewers self-select their voice (binding, toggle-default-on).** With TTS enabled, a viewer may set their OWN voice via `PUT /me/voice` (self-scoped, caller identity) and the `!voice` chat command — Firebot's model (each viewer owns their voice; the channel default reads for everyone else). Gated by `TtsConfig.ViewerVoiceSelfServiceEnabled` (default true; the streamer may lock it). Moderators retain the `/user-voice` override for setting others.
@@ -660,7 +661,7 @@ evicted on every write) and applied in ONE non-recursive pass over the original 
 collected against the input (phrases regex-escaped, 250 ms per-rule match timeout), overlaps resolved
 earliest-start → longest → rule order, output assembled once; bounded at 200 rules. Enforcement sits in
 `TtsDispatchService.DispatchAsync`, the shared leg both direct dispatch and post-approval flow through, so
-usernames and message content are rewritten on every plane (client_edge push and server-side synthesis
+usernames and message content are rewritten on every plane (the standard Edge plane and BYOK
 alike) — this one generic mechanism subsumes the legacy bot's username-pronunciation and slang-expansion
 features. REST: `GET/POST /channels/{channelId}/tts/lexicon` + `PUT/DELETE /tts/lexicon/{entryId}` on
 `TtsConfigController`, reusing the config keys (`tts:config:read` / `tts:config:write`). The dashboard TTS

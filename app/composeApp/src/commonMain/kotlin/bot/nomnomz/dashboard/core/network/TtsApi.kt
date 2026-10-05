@@ -362,7 +362,8 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
 @Serializable
 data class TtsConfig(
     val isEnabled: Boolean = false,
-    // Dispatch plane: client_edge | byok | self_host. Display-only until the client-edge handler ships.
+    // Dispatch plane: self_host (free Edge voices, the standard) | byok. A stored client_edge is the retired
+    // browser voice and is shown/saved as self_host.
     val mode: String = "self_host",
     // Preferred synthesis provider: edge | azure | elevenlabs.
     val defaultProvider: String = "edge",
