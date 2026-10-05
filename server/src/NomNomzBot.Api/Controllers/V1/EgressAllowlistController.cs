@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Egress;
 using NomNomzBot.Application.DTOs.Egress;
@@ -82,4 +83,31 @@ public class EgressAllowlistController(
         ResultResponse(
             await allowlist.SetEnabledAsync(channelId, allowlistId, request.IsEnabled, ct)
         );
+
+    /// <summary>
+    /// Real, counted blast radius for deleting this host: the outbound webhook endpoints and custom data sources
+    /// that use it. The dashboard MUST call this and render the result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{allowlistId:guid}/blast-radius")]
+    [RequireAction("egress:allowlist:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteBlastRadius(
+        Guid channelId,
+        Guid allowlistId,
+        CancellationToken ct
+    ) => ResultResponse(await allowlist.GetDeleteBlastRadiusAsync(channelId, allowlistId, ct));
+
+    /// <summary>
+    /// Remove an approved host. Every outbound consumer refuses it afterwards and the outbound webhook endpoints
+    /// that used it are switched off. The confirm step calls <see cref="GetDeleteBlastRadius"/> first.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpDelete("{allowlistId:guid}")]
+    [RequireAction("egress:allowlist:write")]
+    public async Task<IActionResult> Delete(
+        Guid channelId,
+        Guid allowlistId,
+        CancellationToken ct
+    ) => ResultResponse(await allowlist.DeleteAsync(channelId, allowlistId, ct));
 }

@@ -73,6 +73,8 @@ public static class BlastRadiusCategoryKeys
     public const string SoundClips = "blast_radius_category_sound_clips";
     public const string Assets = "blast_radius_category_assets";
     public const string CustomDataSources = "blast_radius_category_custom_data_sources";
+    public const string OutboundWebhookEndpoints =
+        "blast_radius_category_outbound_webhook_endpoints";
     public const string EventResponses = "blast_radius_category_event_responses";
     public const string Rewards = "blast_radius_category_rewards";
     public const string Timers = "blast_radius_category_timers";

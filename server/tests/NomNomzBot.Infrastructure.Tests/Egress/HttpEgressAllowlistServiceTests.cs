@@ -11,13 +11,18 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
+using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Application.DTOs.Egress;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Egress;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -263,5 +268,304 @@ public sealed class HttpEgressAllowlistServiceTests
         refused.IsFailure.Should().BeTrue();
         refused.ErrorCode.Should().Be("EGRESS_NOT_ALLOWED");
         (await db.OutboundWebhookEndpoints.CountAsync()).Should().Be(1);
+    }
+
+    private static async Task<OutboundWebhookEndpoint> SeedOutboundAsync(
+        AuthDbContext db,
+        Guid channel,
+        string name,
+        string fqdn,
+        Guid? allowlistId,
+        bool deleted = false
+    )
+    {
+        OutboundWebhookEndpoint endpoint = new()
+        {
+            BroadcasterId = channel,
+            Name = name,
+            Fqdn = fqdn,
+            HttpEgressAllowlistId = allowlistId,
+            SigningSecretEnvelope = "sealed",
+            IsEnabled = true,
+            DeletedAt = deleted ? Now.UtcDateTime : null,
+        };
+        db.OutboundWebhookEndpoints.Add(endpoint);
+        await db.SaveChangesAsync();
+        return endpoint;
+    }
+
+    private static async Task SeedSourceAsync(
+        AuthDbContext db,
+        Guid channel,
+        string displayName,
+        string? url,
+        bool deleted = false
+    )
+    {
+        db.CustomDataSources.Add(
+            new CustomDataSource
+            {
+                BroadcasterId = channel,
+                Name = displayName.Replace(' ', '_').ToLowerInvariant(),
+                DisplayName = displayName,
+                SourceKind = "poll",
+                EndpointUrl = url,
+                DeletedAt = deleted ? Now.UtcDateTime : null,
+            }
+        );
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetDeleteBlastRadiusAsync_counts_the_outbound_endpoints_and_sources_on_the_host()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        Guid otherHostId = (await sut.CreateAsync(Channel, Actor, Req("other.example.com")))
+            .Value
+            .Id;
+        Guid foreignId = (await sut.CreateAsync(OtherChannel, Actor, Req("hooks.example.com")))
+            .Value
+            .Id;
+        await SeedOutboundAsync(db, Channel, "by-link", "hooks.example.com", id);
+        await SeedOutboundAsync(db, Channel, "by-name", "hooks.example.com", null);
+        await SeedOutboundAsync(db, Channel, "elsewhere", "other.example.com", otherHostId);
+        await SeedOutboundAsync(db, Channel, "removed", "hooks.example.com", id, deleted: true);
+        await SeedOutboundAsync(db, OtherChannel, "foreign", "hooks.example.com", foreignId);
+        await SeedSourceAsync(db, Channel, "Heart Rate", "https://hooks.example.com:8443/hr?x=1");
+        await SeedSourceAsync(db, Channel, "Weather", "https://other.example.com/w");
+        await SeedSourceAsync(db, Channel, "Push Only", null);
+        await SeedSourceAsync(db, Channel, "Gone", "https://hooks.example.com/g", deleted: true);
+        await SeedSourceAsync(db, OtherChannel, "Foreign Feed", "https://hooks.example.com/f");
+
+        Result<BlastRadiusDto> result = await sut.GetDeleteBlastRadiusAsync(Channel, id);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.IsMinimum.Should().BeFalse();
+        result.Value.TotalReferences.Should().Be(3);
+        result.Value.Categories.Should().HaveCount(2);
+        BlastRadiusCategoryDto outbound = result.Value.Categories.Single(c =>
+            c.CategoryKey == BlastRadiusCategoryKeys.OutboundWebhookEndpoints
+        );
+        outbound.Count.Should().Be(2);
+        outbound.Sample.Should().Equal("by-link", "by-name");
+        BlastRadiusCategoryDto sources = result.Value.Categories.Single(c =>
+            c.CategoryKey == BlastRadiusCategoryKeys.CustomDataSources
+        );
+        sources.Count.Should().Be(1);
+        sources.Sample.Should().Equal("Heart Rate");
+        (await db.HttpEgressAllowlists.CountAsync(a => a.DeletedAt != null))
+            .Should()
+            .Be(0, "the preview never changes anything");
+    }
+
+    [Fact]
+    public async Task GetDeleteBlastRadiusAsync_reports_an_explicit_zero_for_an_unused_host()
+    {
+        (HttpEgressAllowlistService sut, _) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+
+        Result<BlastRadiusDto> result = await sut.GetDeleteBlastRadiusAsync(Channel, id);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Categories.Should().BeEmpty();
+        result.Value.TotalReferences.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetDeleteBlastRadiusAsync_fails_for_an_unknown_or_foreign_or_deleted_host()
+    {
+        (HttpEgressAllowlistService sut, _) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        Guid deletedId = (await sut.CreateAsync(Channel, Actor, Req("old.example.com"))).Value.Id;
+        await sut.DeleteAsync(Channel, deletedId);
+
+        (await sut.GetDeleteBlastRadiusAsync(Channel, Guid.NewGuid()))
+            .ErrorCode.Should()
+            .Be("NOT_FOUND");
+        (await sut.GetDeleteBlastRadiusAsync(OtherChannel, id)).ErrorCode.Should().Be("NOT_FOUND");
+        (await sut.GetDeleteBlastRadiusAsync(Channel, deletedId))
+            .ErrorCode.Should()
+            .Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_soft_deletes_only_this_channels_row()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        await sut.CreateAsync(Channel, Actor, Req("keep.example.com"));
+        await sut.CreateAsync(OtherChannel, Actor, Req("hooks.example.com"));
+
+        Result result = await sut.DeleteAsync(Channel, id);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        HttpEgressAllowlist row = await db.HttpEgressAllowlists.SingleAsync(a => a.Id == id);
+        row.DeletedAt.Should().Be(Now.UtcDateTime);
+        (await db.HttpEgressAllowlists.CountAsync(a => a.DeletedAt == null)).Should().Be(2);
+        (await db.HttpEgressAllowlists.SingleAsync(a => a.BroadcasterId == OtherChannel))
+            .DeletedAt.Should()
+            .BeNull();
+        Result<PagedList<HttpEgressAllowlistDto>> list = await sut.ListAsync(
+            Channel,
+            new PaginationParams()
+        );
+        list.Value.Items.Select(i => i.Host).Should().Equal("keep.example.com");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_refuses_another_channels_row_an_unknown_id_and_a_second_delete()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+
+        (await sut.DeleteAsync(OtherChannel, id)).ErrorCode.Should().Be("NOT_FOUND");
+        (await sut.DeleteAsync(Channel, Guid.NewGuid())).ErrorCode.Should().Be("NOT_FOUND");
+        (await db.HttpEgressAllowlists.SingleAsync()).DeletedAt.Should().BeNull();
+
+        (await sut.DeleteAsync(Channel, id)).IsSuccess.Should().BeTrue();
+        (await sut.DeleteAsync(Channel, id)).ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Deleting_a_host_makes_the_same_outbound_webhook_save_fail()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        OutboundWebhookEndpointService outbound = BuildOutbound(db);
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "hooks.example.com",
+            SubscribedEventTypes = ["*"],
+        };
+        (await outbound.CreateAsync(Channel, Actor, request)).IsSuccess.Should().BeTrue();
+
+        await sut.DeleteAsync(Channel, id);
+        Result<OutboundWebhookEndpointCreatedDto> refused = await outbound.CreateAsync(
+            Channel,
+            Actor,
+            request
+        );
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("EGRESS_NOT_ALLOWED");
+        (await db.OutboundWebhookEndpoints.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Deleting_a_host_makes_the_same_custom_data_source_save_fail()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        CustomDataSourceService sources = new(
+            db,
+            Substitute.For<ITokenProtector>(),
+            Substitute.For<ICustomDataIngestService>(),
+            Substitute.For<ICustomDataEgressFetcher>(),
+            [],
+            Substitute.For<IInboundWebhookEndpointService>()
+        );
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        UpsertCustomDataSourceRequest request = new(
+            Name: "sensor",
+            DisplayName: "Sensor Feed",
+            SourceKind: "poll",
+            PresetKey: null,
+            EndpointUrl: "https://hooks.example.com/data",
+            AuthSecret: null,
+            FieldMap: new Dictionary<string, string>(),
+            PollIntervalSeconds: 30,
+            IsEnabled: true
+        );
+        (await sources.CreateAsync(Channel, Actor, request)).IsSuccess.Should().BeTrue();
+
+        await sut.DeleteAsync(Channel, id);
+        Result<CustomDataSourceDto> refused = await sources.CreateAsync(
+            Channel,
+            Actor,
+            request with
+            {
+                Name = "sensor2",
+            }
+        );
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("EGRESS_NOT_ALLOWED");
+        (await db.CustomDataSources.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_switches_off_the_outbound_endpoints_that_used_the_host()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        Guid otherId = (await sut.CreateAsync(Channel, Actor, Req("other.example.com"))).Value.Id;
+        Guid foreignId = (await sut.CreateAsync(OtherChannel, Actor, Req("hooks.example.com")))
+            .Value
+            .Id;
+        OutboundWebhookEndpoint byLink = await SeedOutboundAsync(
+            db,
+            Channel,
+            "by-link",
+            "hooks.example.com",
+            id
+        );
+        OutboundWebhookEndpoint byName = await SeedOutboundAsync(
+            db,
+            Channel,
+            "by-name",
+            "hooks.example.com",
+            null
+        );
+        OutboundWebhookEndpoint elsewhere = await SeedOutboundAsync(
+            db,
+            Channel,
+            "elsewhere",
+            "other.example.com",
+            otherId
+        );
+        OutboundWebhookEndpoint foreign = await SeedOutboundAsync(
+            db,
+            OtherChannel,
+            "foreign",
+            "hooks.example.com",
+            foreignId
+        );
+
+        await sut.DeleteAsync(Channel, id);
+
+        foreach (Guid endpointId in new[] { byLink.Id, byName.Id })
+        {
+            OutboundWebhookEndpoint stored = await db.OutboundWebhookEndpoints.SingleAsync(e =>
+                e.Id == endpointId
+            );
+            stored.IsEnabled.Should().BeFalse();
+            stored.DisabledAt.Should().Be(Now.UtcDateTime);
+            stored.DeletedAt.Should().BeNull("the endpoint stays so the owner can re-point it");
+        }
+        (await db.OutboundWebhookEndpoints.SingleAsync(e => e.Id == elsewhere.Id))
+            .IsEnabled.Should()
+            .BeTrue();
+        (await db.OutboundWebhookEndpoints.SingleAsync(e => e.Id == foreign.Id))
+            .IsEnabled.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task A_deleted_host_can_be_approved_again_as_a_new_row()
+    {
+        (HttpEgressAllowlistService sut, AuthDbContext db) = Build();
+        Guid id = (await sut.CreateAsync(Channel, Actor, Req("hooks.example.com"))).Value.Id;
+        await sut.DeleteAsync(Channel, id);
+
+        Result<HttpEgressAllowlistDto> again = await sut.CreateAsync(
+            Channel,
+            Actor,
+            Req("hooks.example.com")
+        );
+
+        again.IsSuccess.Should().BeTrue(again.ErrorMessage);
+        again.Value.Id.Should().NotBe(id);
+        (await db.HttpEgressAllowlists.CountAsync(a => a.DeletedAt == null)).Should().Be(1);
     }
 }

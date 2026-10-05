@@ -7,6 +7,7 @@
 //
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Egress;
 
@@ -39,4 +40,21 @@ public interface IHttpEgressAllowlistService
         bool isEnabled,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Counts what loses this host when it is deleted: outbound webhook endpoints that use it (by link or by host
+    /// name) and custom data sources whose URL points at it. Shown BEFORE the delete is confirmed. Fails with
+    /// NOT_FOUND for an unknown host, never a zero for a check that did not run.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid allowlistId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Soft-delete a host. Every consumer refuses it afterwards (EGRESS_NOT_ALLOWED) and the outbound webhook
+    /// endpoints that used it are switched off in the same save, so nothing keeps sending to a removed host.
+    /// </summary>
+    Task<Result> DeleteAsync(Guid broadcasterId, Guid allowlistId, CancellationToken ct = default);
 }

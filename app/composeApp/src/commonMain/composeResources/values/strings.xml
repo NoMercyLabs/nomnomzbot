@@ -5650,6 +5650,8 @@
     <string name="blast_radius_category_assets_other">%1$d media assets</string>
     <string name="blast_radius_category_custom_data_sources_one">%1$d custom data source</string>
     <string name="blast_radius_category_custom_data_sources_other">%1$d custom data sources</string>
+    <string name="blast_radius_category_outbound_webhook_endpoints_one">%1$d outbound webhook endpoint (it will be switched off)</string>
+    <string name="blast_radius_category_outbound_webhook_endpoints_other">%1$d outbound webhook endpoints (they will be switched off)</string>
     <string name="blast_radius_category_event_responses_one">%1$d event response</string>
     <string name="blast_radius_category_event_responses_other">%1$d event responses</string>
     <string name="blast_radius_category_rewards_one">%1$d channel-point reward</string>

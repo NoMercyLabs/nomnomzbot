@@ -5634,6 +5634,8 @@
     <string name="blast_radius_category_assets_other">%1$d mediabestanden</string>
     <string name="blast_radius_category_custom_data_sources_one">%1$d eigen gegevensbron</string>
     <string name="blast_radius_category_custom_data_sources_other">%1$d eigen gegevensbronnen</string>
+    <string name="blast_radius_category_outbound_webhook_endpoints_one">%1$d uitgaand webhook-eindpunt (wordt uitgeschakeld)</string>
+    <string name="blast_radius_category_outbound_webhook_endpoints_other">%1$d uitgaande webhook-eindpunten (worden uitgeschakeld)</string>
     <string name="blast_radius_category_event_responses_one">%1$d gebeurtenisreactie</string>
     <string name="blast_radius_category_event_responses_other">%1$d gebeurtenisreacties</string>
     <string name="blast_radius_category_rewards_one">%1$d kanaalpuntenbeloning</string>
