@@ -55,6 +55,7 @@ public sealed partial class TemplateHelperCoverageTests
         "someone", // fallback display VALUES
         "twitch_bot", // bot-name fallback source tag, not a placeholder
         "s", // grapheme/pluralization filler, not a placeholder
+        "www.", // link prefix {target.lastmessage.full} skips, like the old !mock
         "pasttense",
         "user.pasttense",
         "target.pasttense", // internal tense-fallback lookup key,
