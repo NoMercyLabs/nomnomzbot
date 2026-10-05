@@ -18,6 +18,12 @@ namespace NomNomzBot.Infrastructure.Platform.Scheduling;
 
 public class TokenRefreshService : BackgroundService
 {
+    /// <summary>
+    /// How often the proactive sweep runs. <c>TwitchAuthService.RefreshExpiringTokensAsync</c> derives its
+    /// refresh window from this value (two intervals), so the window can never shrink below one missed tick.
+    /// </summary>
+    public static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(30);
+
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<TokenRefreshService> _logger;
 
@@ -33,7 +39,7 @@ public class TokenRefreshService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Token refresh service started.");
-        using PeriodicTimer timer = new(TimeSpan.FromMinutes(30));
+        using PeriodicTimer timer = new(SweepInterval);
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {

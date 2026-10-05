@@ -394,7 +394,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<RefreshToken>().Ignore(e => e.Session).Ignore(e => e.User);
 
         b.Entity<IntegrationConnection>().HasKey(e => e.Id);
-        b.Entity<IntegrationConnection>().Ignore(e => e.Channel).Ignore(e => e.Tokens);
+        b.Entity<IntegrationConnection>().Ignore(e => e.Channel);
         // Mirrors IntegrationConnectionConfiguration's DB-enforced half of the vault's upsert: one LIVE
         // connection per (BroadcasterId, Provider). The InMemory provider never enforced this — this harness
         // moved to real SQLite (S004d) exactly so a duplicate-insert race is a real UNIQUE violation here too.
@@ -404,7 +404,13 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .HasFilter("\"DeletedAt\" IS NULL");
 
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
-        b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);
+        b.Entity<IntegrationToken>().Ignore(e => e.Channel);
+        // The token -> connection link is mapped so a query can filter tokens by their connection's provider,
+        // as the proactive refresh sweep does.
+        b.Entity<IntegrationToken>()
+            .HasOne(e => e.Connection)
+            .WithMany(e => e.Tokens)
+            .HasForeignKey(e => e.ConnectionId);
 
         // The persisted DEK registry (scalar-only) — mapped so the vault/protector tests seal and re-open tokens
         // through the same store the production wiring uses, and so the restart-survival test can prove it.

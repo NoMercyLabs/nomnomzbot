@@ -311,10 +311,16 @@ public sealed class TwitchAuthService : ITwitchAuthService
         return result;
     }
 
-    /// <summary>Proactively refresh tokens expiring within the next 30 minutes.</summary>
+    /// <summary>
+    /// Proactively refresh tokens expiring within two sweep intervals. One interval would refresh a token
+    /// with close to no time left (it is skipped at 30.1 minutes, then caught at the next tick with about 0);
+    /// two intervals leave a whole spare tick if one is late or fails.
+    /// </summary>
     public async Task RefreshExpiringTokensAsync(CancellationToken ct = default)
     {
-        DateTime threshold = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(30);
+        DateTime threshold = _timeProvider
+            .GetUtcNow()
+            .UtcDateTime.Add(Scheduling.TokenRefreshService.SweepInterval * 2);
 
         // ONLY Twitch-family tokens: this service refreshes against Twitch's endpoint. Without this filter
         // the loop dragged every provider's expiring token (spotify/discord/youtube) through the Twitch
