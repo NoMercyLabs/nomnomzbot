@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
@@ -39,6 +40,7 @@ public sealed class MassBanExecutor
     private readonly MassBanLiveChannels _liveChannels;
     private readonly IBuiltinResponseComposer _composer;
     private readonly IChatProvider _chat;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly TimeProvider _clock;
     private readonly ILogger<MassBanExecutor> _logger;
 
@@ -48,6 +50,7 @@ public sealed class MassBanExecutor
         MassBanLiveChannels liveChannels,
         IBuiltinResponseComposer composer,
         IChatProvider chat,
+        IOutboundSanctionAccessor sanctions,
         TimeProvider clock,
         ILogger<MassBanExecutor> logger
     )
@@ -57,6 +60,7 @@ public sealed class MassBanExecutor
         _liveChannels = liveChannels;
         _composer = composer;
         _chat = chat;
+        _sanctions = sanctions;
         _clock = clock;
         _logger = logger;
     }
@@ -76,10 +80,17 @@ public sealed class MassBanExecutor
         [
             .. batch.Targets.Where(t => t.ProcessedAt == null).Take(maxBans),
         ];
-        foreach (MassBanBatchTarget target in slice)
+        // The worker has no HTTP request to inherit a sanction from; the moderator who asked for the batch
+        // through moderation:ban is the basis, so every ban carries their id to the outbound guard.
+        using (
+            _sanctions.Begin(OutboundSanction.UserAction("moderation:ban", batch.OperatorUserId))
+        )
         {
-            await BanAsync(batch, target, ct);
-            await _db.SaveChangesAsync(ct);
+            foreach (MassBanBatchTarget target in slice)
+            {
+                await BanAsync(batch, target, ct);
+                await _db.SaveChangesAsync(ct);
+            }
         }
 
         if (batch.Targets.All(t => t.ProcessedAt != null))

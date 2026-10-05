@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
@@ -200,5 +201,41 @@ public sealed class MassBanExecutorTests
             world.Composer.ReceivedCalls().Single().GetArguments()[0]!;
         closing.Variables.Should().Contain("massban.banned", "3");
         closing.Variables.Should().Contain("massban.count", "3");
+    }
+
+    [Fact]
+    public async Task Every_ban_runs_under_the_requesting_moderators_sanction()
+    {
+        // Live 2026-10-06: the worker has no HTTP request, so Helix refused all 497 bans of the first
+        // batch as "not sanctioned". The moderator asked for them through moderation:ban; that is the basis.
+        MassBanTestWorld world = new();
+        world.OwnChannel("o1", "own");
+        await QueueAsync(world);
+        List<OutboundSanction?> observed = [];
+        world
+            .Moderation.When(m =>
+                m.BanAsOperatorAsync(
+                    Arg.Any<Guid>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string?>(),
+                    Arg.Any<CancellationToken>()
+                )
+            )
+            .Do(_ => observed.Add(world.Sanctions.Current));
+
+        await world.Executor().RunAsync(maxBans: 50);
+
+        observed.Should().HaveCount(3);
+        observed
+            .Should()
+            .AllSatisfy(s =>
+            {
+                s.Should().NotBeNull();
+                s!.Basis.Should().Be(OutboundSanctionBasis.UserAction);
+                s.Detail.Should().Be("moderation:ban");
+                s.ActorUserId.Should().Be(MassBanTestWorld.Operator);
+            });
+        world.Sanctions.Current.Should().BeNull("the scope ends with the run");
     }
 }

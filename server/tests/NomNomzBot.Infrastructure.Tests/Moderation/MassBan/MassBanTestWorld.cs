@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.MassBan;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation.MassBan;
@@ -99,6 +100,7 @@ internal sealed class MassBanTestWorld
     public ITwitchModerationApi Moderation { get; } = Substitute.For<ITwitchModerationApi>();
     public IBuiltinResponseComposer Composer { get; } = Substitute.For<IBuiltinResponseComposer>();
     public IChatProvider Chat { get; } = Substitute.For<IChatProvider>();
+    public OutboundSanctionAccessor Sanctions { get; } = new();
     public FakeTimeProvider Clock { get; } =
         new(new DateTimeOffset(2026, 10, 5, 22, 0, 0, TimeSpan.Zero));
 
@@ -134,6 +136,7 @@ internal sealed class MassBanTestWorld
             new MassBanLiveChannels(Streams),
             Composer,
             Chat,
+            Sanctions,
             Clock,
             NullLogger<MassBanExecutor>.Instance
         );
