@@ -88,7 +88,6 @@ a test that failed first.
 - **S-PAR-RWD-DJVOICE** (1 ledger rows, stream-facing) reward DjVoice: match the legacy behaviour. First gap: Empty-input text and refund matched; intro/outro pools via `pick_from_list` dj-intros/dj-outros (list contents not compared; legacy has 8 intros, 6 outros); voice en-US-GuyNeural matched; 3 TTS segments matched; chat line matched. Differs: 
 - **S-PAR-RWD-TTS** (1 ledger rows, stream-facing) reward Tts: match the legacy behaviour. First gap: Empty input: snark pool `tts-empty-snark` + refund (matched in shape; list texts not compared, legacy has 5). TTS failure: refund matched but legacy also replies "TTS request failed. Points refunded."; new is silent. Missing: "no TTS widget
 - **S-PAR-RWD-VOICESWAP** (1 ledger rows, stream-facing) reward VoiceSwap: match the legacy behaviour. First gap: PASS 2 (Voice-Swap.ts:9-98 read): near-complete port. Matched: strips leading @ (:64), refuses self swap with chat text (:65-68) and throws so the pipeline refunds (:7-8 comment; refund step gated on {last.success} per the "Voice Swap redem
-- **S-PAR-CMD-SONG** (1 ledger rows, not stream-facing) Song (!song): match the legacy behaviour. First gap: Legacy text: "The current song is: {name} by {artist} {spotify href}". New default: "{▶/⏸} {name} by {artist} (requested by X
 - **S-PAR-CMD-UNWHITELIST** (1 ledger rows, not stream-facing) Unwhitelist: match the legacy behaviour. First gap: No chat command to revoke a per-user permission override. Dashboard/other equivalent: not checked
 <!-- parity:end -->
 ---
