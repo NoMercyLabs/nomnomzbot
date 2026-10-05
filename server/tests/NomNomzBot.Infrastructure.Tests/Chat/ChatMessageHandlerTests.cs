@@ -955,18 +955,89 @@ public sealed class ChatMessageHandlerTests
             );
     }
 
+    // ── automatic shoutout hook ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task A_live_plain_chat_line_is_handed_to_the_auto_shoutout_scheduler()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.IsLive = true;
+        IAutoShoutoutScheduler scheduler = Substitute.For<IAutoShoutoutScheduler>();
+        (ChatMessageHandler sut, _) = BuildWithExecutor(ctx, scheduler);
+
+        await sut.HandleAsync(MessageEvent("hello everyone"), CancellationToken.None);
+
+        await scheduler
+            .Received(1)
+            .TryEnqueueAsync(Broadcaster, "tw-viewer-1", "Viewer", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_command_line_is_never_the_first_chat_but_the_next_plain_line_still_counts()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.IsLive = true;
+        IAutoShoutoutScheduler scheduler = Substitute.For<IAutoShoutoutScheduler>();
+        (ChatMessageHandler sut, _) = BuildWithExecutor(ctx, scheduler);
+
+        await sut.HandleAsync(MessageEvent("!nosuchcommand"), CancellationToken.None);
+        await scheduler
+            .DidNotReceiveWithAnyArgs()
+            .TryEnqueueAsync(default, default!, default!, default);
+
+        await sut.HandleAsync(MessageEvent("hello everyone"), CancellationToken.None);
+        await scheduler
+            .Received(1)
+            .TryEnqueueAsync(Broadcaster, "tw-viewer-1", "Viewer", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Offline_chat_ignored_users_and_other_platforms_never_queue_an_auto_shoutout()
+    {
+        ChannelContext offline = NewChannelContext();
+        IAutoShoutoutScheduler offlineScheduler = Substitute.For<IAutoShoutoutScheduler>();
+        (ChatMessageHandler offlineSut, _) = BuildWithExecutor(offline, offlineScheduler);
+        await offlineSut.HandleAsync(MessageEvent("hello?"), CancellationToken.None);
+
+        ChannelContext ignored = NewChannelContext();
+        ignored.IsLive = true;
+        ignored.ModerationStandings["twitch:tw-viewer-1"] = "muted";
+        IAutoShoutoutScheduler ignoredScheduler = Substitute.For<IAutoShoutoutScheduler>();
+        (ChatMessageHandler ignoredSut, _) = BuildWithExecutor(ignored, ignoredScheduler);
+        await ignoredSut.HandleAsync(MessageEvent("hello"), CancellationToken.None);
+
+        ChannelContext other = NewChannelContext();
+        other.IsLive = true;
+        IAutoShoutoutScheduler otherScheduler = Substitute.For<IAutoShoutoutScheduler>();
+        (ChatMessageHandler otherSut, _) = BuildWithExecutor(other, otherScheduler);
+        await otherSut.HandleAsync(MessageEvent("hello", provider: "kick"), CancellationToken.None);
+
+        await offlineScheduler
+            .DidNotReceiveWithAnyArgs()
+            .TryEnqueueAsync(default, default!, default!, default);
+        await ignoredScheduler
+            .DidNotReceiveWithAnyArgs()
+            .TryEnqueueAsync(default, default!, default!, default);
+        await otherScheduler
+            .DidNotReceiveWithAnyArgs()
+            .TryEnqueueAsync(default, default!, default!, default);
+    }
+
     private static (
         ChatMessageHandler Sut,
         NomNomzBot.Application.Commands.Services.IEventResponseExecutor Executor
-    ) BuildWithExecutor(ChannelContext ctx)
+    ) BuildWithExecutor(ChannelContext ctx, IAutoShoutoutScheduler? autoShoutout = null)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
 
         NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor =
             Substitute.For<NomNomzBot.Application.Commands.Services.IEventResponseExecutor>();
+        IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
+        catalog.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(executor)
+            .AddSingleton(autoShoutout ?? Substitute.For<IAutoShoutoutScheduler>())
             .BuildServiceProvider();
 
         ChatMessageHandler sut = new(
@@ -975,7 +1046,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<ICooldownManager>(),
             NoopChatSender(),
             Substitute.For<IPipelineEngine>(),
-            Substitute.For<IBuiltinCommandCatalog>(),
+            catalog,
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
             new(),

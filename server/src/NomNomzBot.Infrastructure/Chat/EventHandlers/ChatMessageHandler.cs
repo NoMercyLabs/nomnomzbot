@@ -178,6 +178,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         if (resolvedCommand is null && !defaultPrefixed)
         {
+            // Old-bot parity: only a non-command line counts as the streamer's first chat. The scheduler
+            // dedupes per stream, so a streamer whose first line was a command still qualifies later.
+            if (channelCtx is { IsLive: true })
+                await QueueAutoShoutoutAsync(@event, cancellationToken);
+
             // Open chat poll: a bare option number is a VOTE and is consumed — it never doubles as a
             // trigger match while the poll runs.
             if (
@@ -1571,6 +1576,33 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 "session_first_message trigger failed for {Channel}",
                 @event.BroadcasterId
             );
+        }
+    }
+
+    /// <summary>
+    /// Hands a Twitch chatter's non-command line to the auto-shoutout scheduler, which checks the
+    /// channel setting and whether the chatter is a known streamer. Failures never reach the chat hot path.
+    /// </summary>
+    private async Task QueueAutoShoutoutAsync(ChatMessageReceivedEvent @event, CancellationToken ct)
+    {
+        if (@event.Provider != AuthEnums.Platform.Twitch)
+            return;
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IAutoShoutoutScheduler scheduler =
+                scope.ServiceProvider.GetRequiredService<IAutoShoutoutScheduler>();
+            await scheduler.TryEnqueueAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                @event.UserDisplayName,
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "auto shoutout check failed for {Channel}", @event.BroadcasterId);
         }
     }
 

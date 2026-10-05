@@ -411,6 +411,9 @@ public static class DependencyInjection
         services.AddSingleton<IShoutoutQueue, Stream.ShoutoutQueue>();
         services.AddScoped<IShoutoutSender, Stream.ShoutoutSender>();
         services.AddHostedService<Stream.ShoutoutQueueWorker>();
+        // A known streamer's first chat of a stream waits here for the old bot's auto-shoutout gates.
+        services.AddSingleton<IAutoShoutoutScheduler, Stream.AutoShoutout.AutoShoutoutScheduler>();
+        services.AddHostedService<Stream.AutoShoutout.AutoShoutoutWorker>();
         // Polls every connected music integration at a flat 1s cadence and publishes PlaybackStateChangedEvent
         // on any state the bot didn't cause itself (streamer's own phone/desktop app, a track ending, a manual
         // seek) — without this registration the class compiles and is fully tested but nothing ever runs it, so
