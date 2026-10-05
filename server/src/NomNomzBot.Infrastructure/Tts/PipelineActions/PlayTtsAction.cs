@@ -24,6 +24,9 @@ namespace NomNomzBot.Infrastructure.Tts.PipelineActions;
 /// </summary>
 public sealed class PlayTtsAction : ICommandAction
 {
+    private const double MinRatePercent = -50;
+    private const double MaxRatePercent = 50;
+
     private readonly ITemplateResolver _resolver;
     private readonly ITtsDispatchService _dispatch;
 
@@ -60,6 +63,12 @@ public sealed class PlayTtsAction : ICommandAction
                 PipelineActionFieldKind.Text,
                 Templated: true,
                 Description: new("pipeline.play_tts.as.help")
+            ),
+            new(
+                "rate",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.play_tts.rate.help")
             ),
         ];
 
@@ -113,6 +122,22 @@ public sealed class PlayTtsAction : ICommandAction
             ).Trim();
         string speaker = await ResolveSpeakerAsync(asField, ctx);
 
+        string rateTemplate = action.GetString("rate") ?? string.Empty;
+        double? ratePercent = null;
+        if (!string.IsNullOrWhiteSpace(rateTemplate))
+        {
+            string resolvedRate = await _resolver.ResolveAsync(
+                rateTemplate,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            );
+            if (!TryParseRate(resolvedRate, out ratePercent))
+                return ActionResult.Failure(
+                    $"play_tts 'rate' must be a percent like +30% or -20%, got '{resolvedRate}'."
+                );
+        }
+
         TtsSpeakRequest request = new(
             BroadcasterId: ctx.BroadcasterId,
             RequestedByUserId: Guid.Empty,
@@ -133,7 +158,8 @@ public sealed class PlayTtsAction : ICommandAction
                 : "everyone",
             SourceMessageId: ctx.MessageId,
             StreamId: null,
-            ChannelEventId: ctx.ChannelEventId
+            ChannelEventId: ctx.ChannelEventId,
+            RatePercent: ratePercent
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(
@@ -146,6 +172,31 @@ public sealed class PlayTtsAction : ICommandAction
         return ActionResult.Success(
             $"play_tts:{result.Value.VoiceId} chars={result.Value.CharacterCount}"
         );
+    }
+
+    /// <summary>
+    /// Reads a rate in the legacy form (<c>+30%</c>, <c>-20</c>, <c>15%</c>): a percent of the normal speed.
+    /// Blank means no override. Anything that is not a finite number fails. A value outside
+    /// <see cref="MinRatePercent"/>..<see cref="MaxRatePercent"/> is clamped to that range, the same range the
+    /// TTS providers enforce before SSML.
+    /// </summary>
+    private static bool TryParseRate(string raw, out double? percent)
+    {
+        percent = null;
+        string trimmed = raw.Trim().TrimEnd('%').Trim();
+        if (trimmed.Length == 0)
+            return true;
+        if (
+            !double.TryParse(
+                trimmed,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double parsed
+            ) || !double.IsFinite(parsed)
+        )
+            return false;
+        percent = Math.Clamp(parsed, MinRatePercent, MaxRatePercent);
+        return true;
     }
 
     /// <summary>

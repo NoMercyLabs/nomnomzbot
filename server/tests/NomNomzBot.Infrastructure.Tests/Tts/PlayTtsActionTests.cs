@@ -392,4 +392,129 @@ public sealed class PlayTtsActionTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    private static Task<ActionResult> RunWithRateAsync(
+        object? rate,
+        out ITtsDispatchService dispatch
+    )
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Task.FromResult(ci.ArgAt<string>(0)));
+        ITtsDispatchService d = Substitute.For<ITtsDispatchService>();
+        d.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        5,
+                        400,
+                        null
+                    )
+                )
+            );
+        dispatch = d;
+        PlayTtsAction action = new(resolver, d);
+        ActionDefinition definition = rate is null
+            ? Action(("text", "hello"))
+            : Action(("text", "hello"), ("rate", rate));
+        return action.ExecuteAsync(Context(), definition);
+    }
+
+    [Theory]
+    [InlineData("+30%", 30d)]
+    [InlineData("30", 30d)]
+    [InlineData("-25%", -25d)]
+    [InlineData("-25.5", -25.5d)]
+    [InlineData("0%", 0d)]
+    public async Task ExecuteAsync_Rate_IsCarriedOntoTheDispatchRequest(
+        string rate,
+        double expected
+    )
+    {
+        ActionResult result = await RunWithRateAsync(rate, out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RatePercent == expected),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RateGivenAsJsonNumber_IsCarriedOntoTheDispatchRequest()
+    {
+        ActionResult result = await RunWithRateAsync(30, out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RatePercent == 30d),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("+300%", 50d)]
+    [InlineData("-90", -50d)]
+    public async Task ExecuteAsync_RateOutOfRange_IsClampedToPlusMinusFifty(
+        string rate,
+        double expected
+    )
+    {
+        ActionResult result = await RunWithRateAsync(rate, out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RatePercent == expected),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("fast")]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    public async Task ExecuteAsync_RateNotANumber_FailsWithoutDispatch(string rate)
+    {
+        ActionResult result = await RunWithRateAsync(rate, out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeFalse();
+        await d.DidNotReceive()
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_NoRate_LeavesTheProviderDefaultRate()
+    {
+        ActionResult result = await RunWithRateAsync(null, out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.RatePercent == null),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void Fields_ListTheRateField()
+    {
+        PlayTtsAction action = new(
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<ITtsDispatchService>()
+        );
+
+        action.Fields.Should().Contain(f => f.Name == "rate" && f.Templated && !f.Required);
+    }
 }

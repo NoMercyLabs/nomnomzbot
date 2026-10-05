@@ -681,6 +681,7 @@
     "pipeline.play_track_once.track_uri.help",
     "pipeline.play_tts.as.help",
     "pipeline.play_tts.description",
+    "pipeline.play_tts.rate.help",
     "pipeline.play_tts.text.help",
     "pipeline.play_tts.voice.help",
     "pipeline.playlist_add.already_message.help",
