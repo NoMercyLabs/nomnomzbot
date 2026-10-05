@@ -563,6 +563,7 @@ class AppGraph {
             commandsApi = commandsApi,
             communityApi = communityApi,
             notificationsApi = notificationsApi,
+            attention = attentionController,
             pipelinesApi = pipelinesApi,
             integrationsApi = integrationsApi,
             moderationApi = moderationApi,

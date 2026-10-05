@@ -250,6 +250,8 @@ fun HomeScreen(
     if (hubEvents != null) {
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
+    // H4: the Home inbox renders the shell's attention store, so a dismiss anywhere updates it here too.
+    LaunchedEffect(Unit) { controller.mirrorAttention() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (val current: HomeState = state) {

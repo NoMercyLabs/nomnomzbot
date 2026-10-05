@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.attention.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -75,7 +76,7 @@ class AttentionSurfaceTest {
         val navigated: MutableList<ShellRoute> = mutableListOf()
         setContent {
             Pinned("en") {
-                AttentionSurface(items = listOf(songLost, webhookDown), onNavigate = { navigated += it })
+                AttentionSurface(items = listOf(songLost, webhookDown), onNavigate = { navigated += it }, onDismiss = {})
             }
         }
 
@@ -95,7 +96,7 @@ class AttentionSurfaceTest {
     @Test
     fun theSurfaceRendersInDutch() = runComposeUiTest {
         setContent {
-            Pinned("nl") { AttentionSurface(items = listOf(webhookDown), onNavigate = {}) }
+            Pinned("nl") { AttentionSurface(items = listOf(webhookDown), onNavigate = {}, onDismiss = {}) }
         }
 
         onNodeWithText("1 punt vraagt je aandacht").assertExists()
@@ -119,7 +120,9 @@ class AttentionSurfaceTest {
     fun anOperatorSecurityNoticeNamesWhoActedAsWhomAndWhy_andOpensRoles() = runComposeUiTest {
         val navigated: MutableList<ShellRoute> = mutableListOf()
         setContent {
-            Pinned("en") { AttentionSurface(items = listOf(operatorActing), onNavigate = { navigated += it }) }
+            Pinned("en") {
+                AttentionSurface(items = listOf(operatorActing), onNavigate = { navigated += it }, onDismiss = {})
+            }
         }
 
         onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
@@ -132,7 +135,9 @@ class AttentionSurfaceTest {
 
     @Test
     fun anOperatorSecurityNoticeRendersInDutch() = runComposeUiTest {
-        setContent { Pinned("nl") { AttentionSurface(items = listOf(operatorActing), onNavigate = {}) } }
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(operatorActing), onNavigate = {}, onDismiss = {}) }
+        }
 
         onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
         onNodeWithText("Een NomNomzBot-beheerder handelt als Mod Mia").assertExists()
@@ -140,9 +145,31 @@ class AttentionSurfaceTest {
 
     @Test
     fun nothingRendersWhenNothingNeedsAttention() = runComposeUiTest {
-        setContent { Pinned("en") { AttentionSurface(items = emptyList(), onNavigate = {}) } }
+        setContent { Pinned("en") { AttentionSurface(items = emptyList(), onNavigate = {}, onDismiss = {}) } }
 
         onAllNodesWithTag(ATTENTION_SURFACE_TAG).assertCountEquals(0)
+    }
+
+    @Test
+    fun theDismissGlyphHandsItsOwnItemToOnDismiss_withoutNavigating() = runComposeUiTest {
+        val navigated: MutableList<ShellRoute> = mutableListOf()
+        val dismissed: MutableList<String> = mutableListOf()
+        setContent {
+            Pinned("en") {
+                AttentionSurface(
+                    items = listOf(songLost, webhookDown),
+                    onNavigate = { navigated += it },
+                    onDismiss = { dismissed += it.id },
+                )
+            }
+        }
+
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onAllNodesWithContentDescription("Dismiss").assertCountEquals(2)
+        onAllNodesWithContentDescription("Dismiss")[0].performClick()
+
+        assertEquals(listOf("webhook-disabled:e1:1"), dismissed)
+        assertEquals(emptyList(), navigated)
     }
 
     @Test

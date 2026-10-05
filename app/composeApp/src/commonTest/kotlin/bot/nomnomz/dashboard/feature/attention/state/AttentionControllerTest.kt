@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 
 class AttentionControllerTest {
@@ -71,6 +72,34 @@ class AttentionControllerTest {
     }
 
     @Test
+    fun a_dismiss_posts_the_item_id_drops_it_from_the_shared_store_and_it_stays_gone_after_a_refetch() = runTest {
+        val api = FakeNotificationsApi(ApiResult.Ok(listOf(item("twitch-scope:channel:read:ads:0", "warning"), item("b", "info"))))
+        val controller = AttentionController(api)
+        controller.load("chan")
+
+        val dismiss: ApiResult<Unit> = controller.dismiss(controller.items.value[0])
+
+        assertTrue(dismiss is ApiResult.Ok)
+        assertEquals(listOf("twitch-scope:channel:read:ads:0"), api.dismissed)
+        assertEquals(listOf("b"), controller.items.value.map { it.id })
+        controller.refresh()
+        assertEquals(listOf("b"), controller.items.value.map { it.id })
+    }
+
+    @Test
+    fun a_failed_dismiss_keeps_the_item_and_returns_the_backend_error() = runTest {
+        val api = FakeNotificationsApi(ApiResult.Ok(listOf(item("a", "critical"))))
+        api.dismissResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "No permission"))
+        val controller = AttentionController(api)
+        controller.load("chan")
+
+        val dismiss: ApiResult<Unit> = controller.dismiss(controller.items.value[0])
+
+        assertTrue(dismiss is ApiResult.Failure)
+        assertEquals(listOf("a"), controller.items.value.map { it.id })
+    }
+
+    @Test
     fun items_group_by_severity_most_urgent_first_and_route_by_their_deep_link() {
         val items: List<ActionRequiredItem> =
             listOf(item("i", "info"), item("c1", "critical"), item("w", "warning"), item("c2", "critical"))
@@ -100,6 +129,15 @@ private class FakeNotificationsApi(var result: ApiResult<List<ActionRequiredItem
         return result
     }
 
-    override suspend fun dismissActionRequired(channelId: String, ids: List<String>): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    var dismissResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    val dismissed: MutableList<String> = mutableListOf()
+
+    override suspend fun dismissActionRequired(channelId: String, ids: List<String>): ApiResult<Unit> {
+        if (dismissResult is ApiResult.Ok) {
+            dismissed += ids
+            // The backend excludes a persisted dismissal from every later read, so the fake does too.
+            (result as? ApiResult.Ok)?.let { ok -> result = ApiResult.Ok(ok.value.filterNot { it.id in ids }) }
+        }
+        return dismissResult
+    }
 }
