@@ -128,6 +128,7 @@ public static partial class ToneTemplateCatalog
         AddMusicSlots(catalog);
         AddCoreSlots(catalog);
         AddCommunitySlots(catalog);
+        AddHelpLineSlots(catalog);
 
         // ── !uptime / live ({uptime} = real elapsed time) ──────────────────────
         Add(

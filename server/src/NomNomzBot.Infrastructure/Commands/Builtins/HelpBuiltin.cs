@@ -19,7 +19,8 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// <summary>
 /// <c>!help</c> (legacy parity) — with no argument, replies with the usage line. With a command name
 /// (<c>!help sr</c>) it answers with that command's real <see cref="CommandDto.Description"/>; a command that
-/// exists (authored, or an enabled built-in) but has no description says so; an unknown name gets the
+/// exists (authored, or an enabled built-in) but has no description says so; an enabled built-in that has
+/// a shipped help line (<see cref="ToneTemplateCatalog"/>, the old bot's wording) answers that line; an unknown name gets the
 /// legacy "Unknown command" line. It never answers a name with the command list. Every branch renders in the
 /// channel's personality tone via <see cref="IBuiltinResponseComposer"/>.
 /// </summary>
@@ -78,10 +79,16 @@ public sealed class HelpBuiltin : IBuiltinCommand
                 )
             );
 
-        bool exists = lookup.IsSuccess || await IsEnabledBuiltinAsync(context, requestedName, ct);
-        string slot = exists
-            ? BuiltinResponseSlots.Help.NoDescription
-            : BuiltinResponseSlots.Help.Unknown;
+        bool isBuiltin =
+            !lookup.IsSuccess && await IsEnabledBuiltinAsync(context, requestedName, ct);
+        string lineSlot = BuiltinResponseSlots.Help.LineFor(requestedName);
+        if (isBuiltin && ToneTemplateCatalog.Contains(BuiltinResponseSlots.Help.Key, lineSlot))
+            return Result.Success(await ComposeAsync(context, lineSlot, requestedName, null, ct));
+
+        string slot =
+            lookup.IsSuccess || isBuiltin
+                ? BuiltinResponseSlots.Help.NoDescription
+                : BuiltinResponseSlots.Help.Unknown;
         return Result.Success(await ComposeAsync(context, slot, requestedName, null, ct));
     }
 
@@ -147,6 +154,8 @@ public sealed class HelpBuiltin : IBuiltinCommand
             BuiltinResponseSlots.Help.Described => $"!{command} — {description}",
             BuiltinResponseSlots.Help.NoDescription =>
                 $"{prefix}{command} — no help text yet. Use {prefix}commands to see what's available.",
+            _ when ToneTemplateCatalog.ShippedTemplate(BuiltinResponseSlots.Help.Key, slot)
+                    is { } shipped => shipped.Replace("{prefix}", prefix),
             _ => $"Unknown command \"{command}\". Use {prefix}commands to see what's available.",
         };
 }

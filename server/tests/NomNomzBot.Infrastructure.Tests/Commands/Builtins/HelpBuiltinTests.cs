@@ -31,7 +31,8 @@ public sealed class HelpBuiltinTests
 {
     private static BuiltinCommandContext Context(
         string args = "",
-        string personality = PersonalityTone.Informative
+        string personality = PersonalityTone.Informative,
+        string prefix = "!"
     ) =>
         new()
         {
@@ -41,6 +42,7 @@ public sealed class HelpBuiltinTests
             TriggeringUserLogin = "stoney_eagle",
             Args = args,
             Personality = personality,
+            CommandPrefix = prefix,
         };
 
     private static IBuiltinResponseComposer FakeComposer()
@@ -284,5 +286,165 @@ public sealed class HelpBuiltinTests
             noDescription.Value.Should().Contain("!uptime", tone);
             noDescription.Value.Should().Contain("!commands", tone);
         }
+    }
+
+    public static TheoryData<string, string> LegacyHelpLines =>
+        new()
+        {
+            { "accountage", "!accountage — Shows how old your Twitch account is." },
+            { "banger", "!banger — Adds the currently playing song to the bangers playlist." },
+            { "bansong", "!bansong [reason] — (Mod) Bans the current song and skips it." },
+            { "commands", "!commands — Lists all available commands for your permission level." },
+            { "discord", "!discord — Shows the Discord invite link." },
+            { "followage", "!followage — Shows how long you have been following the channel." },
+            { "help", "!help <command> — Shows help info for a specific command." },
+            { "leaderboard", "!leaderboard — Displays the top 3 users across various categories." },
+            { "lurk", "!lurk — Marks you as lurking in chat." },
+            { "unlurk", "!unlurk — Marks you as no longer lurking." },
+            { "playlist", "!playlist — Gives you the Spotify link to the bangers playlist." },
+            { "quote", "!quote [add <text> | #number] — View or add stream quotes." },
+            { "skip", "!skip — (Mod) Skips the currently playing song." },
+            { "song", "!song — Shows the current song playing on stream." },
+            { "sr", "!sr <spotify url or song name> — Request a song to be added to the queue." },
+            { "stats", "!stats [@user] — Shows chat stats for yourself or another user." },
+            { "update", "!update [@user] — Updates user info from Twitch." },
+            {
+                "voice",
+                "!voice languages | get <lang> | set <voice> | current — Manage your TTS voice."
+            },
+            { "volume", "!volume [0-100] — (Mod) Gets or sets the music volume." },
+            { "whisper", "!whisper <text> — Whispers your message dramatically." },
+        };
+
+    private static ICommandService NoAuthoredCommands()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .GetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<CommandDto>("Command not found.", "NOT_FOUND"));
+        return commands;
+    }
+
+    [Theory]
+    [MemberData(nameof(LegacyHelpLines))]
+    public async Task Help_for_an_enabled_builtin_answers_the_old_bots_line(
+        string builtinKey,
+        string legacyLine
+    )
+    {
+        HelpBuiltin help = HelpOver(NoAuthoredCommands(), builtinKey);
+
+        Result<string> result = await help.ExecuteAsync(Context(builtinKey));
+
+        result.Value.Should().Be(legacyLine);
+    }
+
+    [Fact]
+    public async Task Help_line_uses_the_channel_prefix_not_a_fixed_bang()
+    {
+        HelpBuiltin help = HelpOver(NoAuthoredCommands(), "bansong");
+
+        Result<string> result = await help.ExecuteAsync(Context("bansong", prefix: "?"));
+
+        result.Value.Should().Be("?bansong [reason] — (Mod) Bans the current song and skips it.");
+    }
+
+    [Fact]
+    public async Task Help_for_a_builtin_that_is_not_enabled_says_unknown_even_with_a_line()
+    {
+        HelpBuiltin help = HelpOver(NoAuthoredCommands(), "uptime");
+
+        Result<string> result = await help.ExecuteAsync(Context("sr"));
+
+        result.Value.Should().StartWith("Unknown command \"sr\"");
+    }
+
+    [Fact]
+    public async Task Help_for_an_enabled_builtin_without_a_line_still_says_no_help_text()
+    {
+        HelpBuiltin help = HelpOver(NoAuthoredCommands(), "uptime");
+
+        Result<string> result = await help.ExecuteAsync(Context("uptime"));
+
+        result
+            .Value.Should()
+            .Be("!uptime — no help text yet. Use !commands to see what's available.");
+    }
+
+    [Fact]
+    public async Task An_authored_command_with_a_builtins_name_keeps_answering_its_own_description()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .GetAsync(Arg.Any<string>(), "sr", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(FakeCommand("sr", "Channel specific request help.")));
+        HelpBuiltin help = HelpOver(commands, "sr");
+
+        Result<string> result = await help.ExecuteAsync(Context("sr"));
+
+        result.Value.Should().Be("!sr — Channel specific request help.");
+    }
+
+    [Fact]
+    public async Task Every_tone_of_a_builtin_help_line_keeps_the_legacy_line()
+    {
+        HelpBuiltin help = HelpOver(NoAuthoredCommands(), "sr");
+
+        foreach (
+            string tone in new[]
+            {
+                PersonalityTone.Friendly,
+                PersonalityTone.Sassy,
+                PersonalityTone.Hype,
+                PersonalityTone.Chill,
+            }
+        )
+        {
+            Result<string> result = await help.ExecuteAsync(Context("sr", tone));
+            result
+                .Value.Should()
+                .Contain(
+                    "!sr <spotify url or song name> — Request a song to be added to the queue.",
+                    tone
+                );
+        }
+    }
+
+    [Fact]
+    public void Every_builtin_help_line_slot_has_its_label_and_description_keys_in_the_manifest()
+    {
+        string manifest = File.ReadAllText(FindManifest());
+        List<string> missing = [];
+
+        foreach (string builtinKey in LegacyHelpLines.Select(row => (string)row[0]))
+        {
+            string slot = BuiltinResponseSlots.Help.LineFor(builtinKey);
+            string[] keys =
+            [
+                BuiltinReplyLabels.Label(BuiltinResponseSlots.Help.Key, slot).Key,
+                BuiltinReplyLabels.Description(BuiltinResponseSlots.Help.Key, slot).Key,
+            ];
+            foreach (string key in keys.Select(k => k.ToLowerInvariant()))
+                if (!manifest.Contains($"\"{key}\""))
+                    missing.Add(key);
+        }
+
+        missing.Should().BeEmpty();
+    }
+
+    private static string FindManifest()
+    {
+        DirectoryInfo? dir = new(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            string candidate = Path.Combine(
+                dir.FullName,
+                "server/i18n/schema-i18n-keys.manifest.json"
+            );
+            if (File.Exists(candidate))
+                return candidate;
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException("schema-i18n-keys.manifest.json not found");
     }
 }

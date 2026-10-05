@@ -56,6 +56,13 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The command exists but carries no description; <c>{user}</c>/<c>{command}</c>/<c>{prefix}</c> are set.</summary>
         public const string NoDescription = "nodescription";
+
+        /// <summary>
+        /// The slot that carries the old bot's help line for the built-in <paramref name="builtinKey"/>
+        /// (<c>!help &lt;builtin&gt;</c>); <c>{user}</c>/<c>{prefix}</c> are set. Only built-ins with a shipped
+        /// line have this slot in <see cref="ToneTemplateCatalog"/>.
+        /// </summary>
+        public static string LineFor(string builtinKey) => "line" + builtinKey;
     }
 
     /// <summary><c>!lurk</c>/<c>!unlurk</c> — the caller's lurking-flag flip.</summary>
