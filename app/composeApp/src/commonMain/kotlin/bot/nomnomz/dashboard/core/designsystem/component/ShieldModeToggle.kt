@@ -11,11 +11,16 @@
 package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -24,39 +29,61 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.moderation_shield_confirm_action
+import nomnomzbot.composeapp.generated.resources.moderation_shield_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.moderation_shield_confirm_message
+import nomnomzbot.composeapp.generated.resources.moderation_shield_confirm_message_for_channel
+import nomnomzbot.composeapp.generated.resources.moderation_shield_confirm_title
+import nomnomzbot.composeapp.generated.resources.moderation_shield_confirm_title_for_channel
+import nomnomzbot.composeapp.generated.resources.moderation_shield_description
+import nomnomzbot.composeapp.generated.resources.moderation_shield_description_for_channel
 import nomnomzbot.composeapp.generated.resources.moderation_shield_disable
 import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_action
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable_action
+import nomnomzbot.composeapp.generated.resources.moderation_shield_state_off
+import nomnomzbot.composeapp.generated.resources.moderation_shield_state_on
 import nomnomzbot.composeapp.generated.resources.moderation_shield_title
+import nomnomzbot.composeapp.generated.resources.moderation_shield_title_for_channel
 import org.jetbrains.compose.resources.stringResource
 
-// The emergency Shield Mode toggle: a prominent row that turns Twitch's automated lockdown on/off for one
-// channel. The title reads destructive (red) when active — the single visual cue this row needs, so it never
-// competes for accent with anything else on the page (Sleak: scarce accent). Every surface that can toggle
-// Shield Mode (Moderation -> Desk, the single-channel Chat page, the multi-channel Chat lane) renders THIS ONE
-// composable, wired to the same backend route (PATCH .../moderation/shield) via [ModerationApi.setShieldMode] —
-// there is exactly one way to flip Shield Mode in the dashboard, never a second bespoke control per page.
+// The emergency Shield Mode control: one row that turns Twitch's chat lockdown on or off for ONE channel. Every
+// surface that can flip Shield Mode (Moderation -> Desk, the single-channel Chat page, the multi-channel Chat
+// lane) renders THIS composable, wired to the same PATCH .../moderation/shield route via
+// [ModerationApi.setShieldMode] — there is exactly one way to flip Shield Mode in the dashboard.
 //
-// [title] defaults to the generic "Shield Mode" label (Moderation -> Desk, and the single-channel Chat page,
-// where the page itself already names the channel); the multi-channel Chat lane passes the WATCHED channel's own
-// display name instead, since one row exists per watched channel there and the title is what tells them apart.
+// Safety contract (incident 2026-10-05: a row that showed only a channel name and "Enable" locked down another
+// streamer's live chat with one click, because nothing on it said Shield Mode):
+//  * the row always says "Shield Mode", names the channel when the page does not ([channelName]), and carries one
+//    plain line on the effect;
+//  * the current state is spelled out (On / Off), never left to the button label alone;
+//  * turning it ON opens a destructive confirm that names the channel and the effect — [onToggle] fires only on
+//    confirm, never on the first click; cancel fires nothing;
+//  * turning it OFF is immediate — ending a lockdown must never wait on a second click.
+// Visual weight: a quiet destructive-ghost action, not a primary button — Shield Mode is rare, so it must not be
+// the most eye-catching thing on a page whose job is reading chat (Sleak: scarce accent, one primary per group).
 @Composable
 fun ShieldModeToggle(
     enabled: Boolean,
     manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
-    title: String = stringResource(Res.string.moderation_shield_title),
+    channelName: String? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    var confirmOpen: Boolean by remember { mutableStateOf(false) }
 
-    // Composed from two already-localized pieces (never a new hardcoded phrase): on the single-toggle pages
-    // (Moderation -> Desk, single-channel Chat) this just reads "Shield Mode: Enable Shield Mode" — a little
-    // redundant, but correct. It matters on the multi-channel Chat lane, where several of these rows render at
-    // once (one per watched channel) with the SAME base action label ("Enable Shield Mode") — without [title]
-    // folded in, two off channels would expose two identically-labelled buttons to assistive tech.
+    val title: String =
+        if (channelName == null) stringResource(Res.string.moderation_shield_title)
+        else stringResource(Res.string.moderation_shield_title_for_channel, channelName)
+    val description: String =
+        if (channelName == null) stringResource(Res.string.moderation_shield_description)
+        else stringResource(Res.string.moderation_shield_description_for_channel, channelName)
+    val stateLabel: String =
+        stringResource(if (enabled) Res.string.moderation_shield_state_on else Res.string.moderation_shield_state_off)
+    // Folds the title into the accessible name: the multi-channel Chat lane renders one row per watched channel
+    // with the SAME action label, so without the title two off channels would expose identical buttons.
     val actionLabel: String =
         title + ": " + stringResource(
             if (enabled) Res.string.moderation_shield_disable_action
@@ -70,30 +97,58 @@ fun ShieldModeToggle(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(
-            text = title,
-            style = typography.base,
-            color = if (enabled) tokens.destructive else tokens.cardForeground,
-            maxLines = 1,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(
+                text = title,
+                style = typography.base,
+                color = if (enabled) tokens.destructive else tokens.cardForeground,
+                maxLines = 1,
+            )
+            Text(text = description, style = typography.sm, color = tokens.mutedForeground)
+        }
+        Badge(variant = if (enabled) BadgeVariant.Destructive else BadgeVariant.Outline) {
+            Text(text = stateLabel, maxLines = 1)
+        }
         ManageGate(decision = manage) { canManage ->
-            TextButton(
-                onClick = { onToggle(!enabled) },
-                enabled = canManage,
-                modifier = Modifier.semantics { contentDescription = actionLabel },
-            ) {
-                Text(
-                    text =
-                        stringResource(
-                            if (enabled) Res.string.moderation_shield_disable
-                            else Res.string.moderation_shield_enable
-                        ),
-                    color = if (canManage) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
+            if (enabled) {
+                OutlinedButton(
+                    onClick = { onToggle(false) },
+                    enabled = canManage,
+                    modifier = Modifier.semantics { contentDescription = actionLabel },
+                ) {
+                    Text(text = stringResource(Res.string.moderation_shield_disable), maxLines = 1)
+                }
+            } else {
+                Button(
+                    onClick = { confirmOpen = true },
+                    enabled = canManage,
+                    variant = ButtonVariant.DestructiveGhost,
+                    size = ButtonSize.Sm,
+                    modifier = Modifier.semantics { contentDescription = actionLabel },
+                ) {
+                    Text(text = stringResource(Res.string.moderation_shield_enable), maxLines = 1)
+                }
             }
         }
+    }
+
+    if (confirmOpen) {
+        ConfirmDialog(
+            title =
+                if (channelName == null) stringResource(Res.string.moderation_shield_confirm_title)
+                else stringResource(Res.string.moderation_shield_confirm_title_for_channel, channelName),
+            message =
+                if (channelName == null) stringResource(Res.string.moderation_shield_confirm_message)
+                else stringResource(Res.string.moderation_shield_confirm_message_for_channel, channelName),
+            confirmLabel = stringResource(Res.string.moderation_shield_confirm_action),
+            dismissLabel = stringResource(Res.string.moderation_shield_confirm_cancel),
+            destructive = true,
+            onConfirm = {
+                confirmOpen = false
+                onToggle(true)
+            },
+            onDismiss = { confirmOpen = false },
+        )
     }
 }
 

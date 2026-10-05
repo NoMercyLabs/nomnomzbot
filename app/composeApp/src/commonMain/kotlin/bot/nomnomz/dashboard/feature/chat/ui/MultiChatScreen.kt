@@ -52,8 +52,10 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeToggle
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.accessibleAccentPair
@@ -73,6 +75,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.multichat_ban_action
+import nomnomzbot.composeapp.generated.resources.multichat_emergency_hide
+import nomnomzbot.composeapp.generated.resources.multichat_emergency_show
+import nomnomzbot.composeapp.generated.resources.multichat_emergency_summary_off
+import nomnomzbot.composeapp.generated.resources.multichat_emergency_summary_on
+import nomnomzbot.composeapp.generated.resources.multichat_emergency_title
 import nomnomzbot.composeapp.generated.resources.multichat_ban_confirm
 import nomnomzbot.composeapp.generated.resources.multichat_ban_dismiss
 import nomnomzbot.composeapp.generated.resources.multichat_ban_message
@@ -289,11 +296,14 @@ private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSe
     }
 }
 
-// One collapsible-free list, one row per WATCHED channel (never a single global banner — Shield Mode is a
-// per-channel Twitch state, so one watched channel's lockdown must never be read as another's). Each row is the
-// shared [ShieldModeToggle], titled with that channel's own name so the rows read as a per-channel list rather
-// than one ambiguous "Shield Mode" control; [activeChannelIds] (from the live hub push, seeded on add by
-// [MultiChatController.addChannel]'s own read) decides whether that row shows on or off.
+// The Emergency area: one [ShieldModeToggle] row per WATCHED channel (never a single global banner — Shield Mode
+// is a per-channel Twitch state, so one watched channel's lockdown must never be read as another's), each named
+// with that channel so the rows read as a per-channel list. Collapsed by default: Multi-chat's job is reading
+// chats, and Shield Mode is a rare emergency action that must not be the most eye-catching thing on the page
+// (incident 2026-10-05: an always-open row of "Enable" buttons under the channel chips read as "enable features"
+// and locked down another streamer's live chat). The collapsed header still states the live state in plain words,
+// so an active lockdown is never hidden. [activeChannelIds] (from the live hub push, seeded on add by
+// [MultiChatController.addChannel]'s own read) decides whether each row shows on or off.
 @Composable
 private fun ShieldModeSection(
     watched: List<ChannelSummary>,
@@ -301,21 +311,66 @@ private fun ShieldModeSection(
     manage: ManageDecision,
     onToggle: (channelId: String, enabled: Boolean) -> Unit,
 ) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    var expanded: Boolean by remember { mutableStateOf(false) }
+
+    val channelLabel: (ChannelSummary) -> String = { channel ->
+        resolveRowLabel(
+            primary = channel.displayName,
+            secondary = channel.login,
+            typeLabel = "Channel",
+            discriminatorSource = channel.id,
+        )
+    }
+    val activeNames: List<String> = watched.filter { it.id in activeChannelIds }.map(channelLabel)
+    val summary: String =
+        if (activeNames.isEmpty()) stringResource(Res.string.multichat_emergency_summary_off)
+        else stringResource(Res.string.multichat_emergency_summary_on, activeNames.joinToString(", "))
+
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            watched.forEach { channel ->
-                ShieldModeToggle(
-                    enabled = channel.id in activeChannelIds,
-                    manage = manage,
-                    onToggle = { enabled -> onToggle(channel.id, enabled) },
-                    title =
-                        resolveRowLabel(
-                            primary = channel.displayName,
-                            secondary = channel.login,
-                            typeLabel = "Channel",
-                            discriminatorSource = channel.id,
-                        ),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(
+                    text = stringResource(Res.string.multichat_emergency_title),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
                 )
+                Text(
+                    text = summary,
+                    style = typography.sm,
+                    color = if (activeNames.isEmpty()) tokens.mutedForeground else tokens.destructive,
+                )
+            }
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(
+                    text =
+                        stringResource(
+                            if (expanded) Res.string.multichat_emergency_hide
+                            else Res.string.multichat_emergency_show
+                        ),
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        if (expanded) {
+            Separator()
+            Column(modifier = Modifier.fillMaxWidth()) {
+                watched.forEach { channel ->
+                    ShieldModeToggle(
+                        enabled = channel.id in activeChannelIds,
+                        manage = manage,
+                        onToggle = { enabled -> onToggle(channel.id, enabled) },
+                        channelName = channelLabel(channel),
+                    )
+                }
             }
         }
     }
