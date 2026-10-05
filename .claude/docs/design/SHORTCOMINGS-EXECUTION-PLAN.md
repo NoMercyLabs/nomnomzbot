@@ -83,6 +83,7 @@ a test that failed first.
 - **S-PAR-RWD-DJVOICE** (1 ledger rows, stream-facing) reward DjVoice: match the legacy behaviour. First gap: Empty-input text and refund matched; intro/outro pools via `pick_from_list` dj-intros/dj-outros (list contents not compared; legacy has 8 intros, 6 outros); voice en-US-GuyNeural matched; 3 TTS segments matched; chat line matched. Differs: 
 - **S-PAR-RWD-TTS** (1 ledger rows, stream-facing) reward Tts: match the legacy behaviour. First gap: Empty input: snark pool `tts-empty-snark` + refund (matched in shape; list texts not compared, legacy has 5). TTS failure: refund matched but legacy also replies "TTS request failed. Points refunded."; new is silent. Missing: "no TTS widget
 - **S-PAR-RWD-VOICESWAP** (1 ledger rows, stream-facing) reward VoiceSwap: match the legacy behaviour. First gap: PASS 2 (Voice-Swap.ts:9-98 read): near-complete port. Matched: strips leading @ (:64), refuses self swap with chat text (:65-68) and throws so the pipeline refunds (:7-8 comment; refund step gated on {last.success} per the "Voice Swap redem
+<!-- parity:end -->
 ---
 
 ## OWNER REQUEST 2026-10-02 — code editor 100% type safe, SDK reliable and easy (in progress, top of queue)

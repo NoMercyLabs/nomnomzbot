@@ -47,10 +47,12 @@ while ($i -lt $lines.Length) {
     if (-not $found -and $line.StartsWith("- **$Slice**", [StringComparison]::Ordinal)) {
         $found = $true
         $i++
-        # a bullet runs until the next bullet, the next heading, or a rule
+        # a bullet runs until the next bullet, the next heading, a marker comment, or a rule
+        # (the last slice before <!-- parity:end --> once took the marker with it)
         while ($i -lt $lines.Length -and
                -not $lines[$i].StartsWith('- **') -and
                -not $lines[$i].StartsWith('## ') -and
+               -not $lines[$i].StartsWith('<!--') -and
                $lines[$i].Trim() -ne '---') { $i++ }
         foreach ($f in $Follow) { $kept.Add($f) }
         # a bullet block absorbs the blank line that separated it from a following heading;
@@ -66,6 +68,9 @@ while ($i -lt $lines.Length) {
 }
 
 if (-not $found) { throw "slice $Slice not found in the plan - already closed, or a typo" }
+[int]$markersBefore = @($lines | Where-Object { $_.StartsWith('<!--') }).Count
+[int]$markersAfter = @($kept | Where-Object { $_.StartsWith('<!--') }).Count
+if ($markersAfter -ne $markersBefore) { throw "closing $Slice would drop a marker comment from the plan" }
 
 Set-Content -LiteralPath $plan -Value $kept
 git -C $repo commit --only -m "docs(plan): close $Slice - $Message" -- $plan
