@@ -68,7 +68,7 @@ class RunPipelineArgumentsFieldTest {
 
         // No declared names for the picked target -> the generic positional "args" list header renders, never
         // a per-name field (there are no names to label one with).
-        onNodeWithText("Arguments (in order, {{args.1}}, {{args.2}}, …)").assertExists()
+        onNodeWithText("Arguments (in order, {args.1}, {args.2}, …)").assertExists()
     }
 
     @Test
