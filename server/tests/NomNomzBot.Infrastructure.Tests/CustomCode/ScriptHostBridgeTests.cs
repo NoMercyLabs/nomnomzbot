@@ -1771,4 +1771,128 @@ public sealed class ScriptHostBridgeTests
         JArray.Parse(json!).Should().BeEmpty();
         LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.UpstreamFailed);
     }
+
+    // ── tts.speakSequence ──
+
+    private static ITtsDispatchService SpeakingDispatch(Action<TtsSpeakRequest> capture)
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(
+                Arg.Do<TtsSpeakRequest>(r => capture(r)),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        VoiceId: "en-US-Aria",
+                        Provider: "azure",
+                        CharacterCount: 20,
+                        DurationMs: 2400,
+                        PlaybackUrl: null
+                    )
+                )
+            );
+        return tts;
+    }
+
+    [Fact]
+    public void Tts_speakSequence_makes_one_dispatch_carrying_every_segment_in_order()
+    {
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+        const string segments =
+            """[{"text":"Behold","voice":"en-US-Guy","rate":-20,"pitch":5,"breakAfterMs":600},{"text":"the stream"}]""";
+
+        string? json = Build(tts: tts)
+            .Resolve("tts.speakSequence")("tts.speakSequence", [segments], CancellationToken.None);
+
+        JObject outcome = JObject.Parse(json!);
+        outcome["durationMs"]!.Value<int>().Should().Be(2400);
+        outcome["voiceId"]!.Value<string>().Should().Be("en-US-Aria");
+        _ = tts.Received(1)
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+        seen.Should().NotBeNull();
+        seen!.BroadcasterId.Should().Be(Channel);
+        seen.RequestedByTwitchUserId.Should().Be(Viewer.ToString());
+        seen.Segments.Should().NotBeNull();
+        seen.Segments!.Should().HaveCount(2);
+        seen.Segments[0].Should().Be(new TtsSpeakSegment("Behold", "en-US-Guy", -20, 5, 600));
+        seen.Segments[1].Should().Be(new TtsSpeakSegment("the stream"));
+    }
+
+    [Fact]
+    public void Tts_speakSequence_returns_null_and_sets_last_error_when_the_gate_refuses()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<TtsDispatchOutcome>("TTS is disabled.", "FORBIDDEN"));
+        ScriptHostBridge bridge = Build(tts: tts);
+
+        bridge
+            .Resolve("tts.speakSequence")(
+                "tts.speakSequence",
+                ["""[{"text":"hi"}]"""],
+                CancellationToken.None
+            )
+            .Should()
+            .BeNull();
+
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.Refused);
+    }
+
+    [Theory]
+    [InlineData("""[{"voice":"en-US-Guy"}]""")]
+    [InlineData("""[{"text":"   "}]""")]
+    [InlineData("""[{"text":"fine"},{"text":""}]""")]
+    [InlineData("[]")]
+    [InlineData("""{"text":"not an array"}""")]
+    [InlineData("not json")]
+    [InlineData("")]
+    public void Tts_speakSequence_rejects_invalid_input_without_dispatching(string segments)
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        ScriptHostBridge bridge = Build(tts: tts);
+
+        bridge
+            .Resolve("tts.speakSequence")("tts.speakSequence", [segments], CancellationToken.None)
+            .Should()
+            .BeNull();
+
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.InvalidArgument);
+        _ = tts.DidNotReceive()
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Tts_speakSequence_rejects_more_than_twenty_segments_without_dispatching()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        ScriptHostBridge bridge = Build(tts: tts);
+        string segments = "[" + string.Join(",", Enumerable.Repeat("""{"text":"x"}""", 21)) + "]";
+
+        bridge
+            .Resolve("tts.speakSequence")("tts.speakSequence", [segments], CancellationToken.None)
+            .Should()
+            .BeNull();
+
+        LastErrorCode(bridge).Should().Be(ScriptHostErrorCodes.InvalidArgument);
+        _ = tts.DidNotReceive()
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Tts_speakSequence_accepts_exactly_twenty_segments()
+    {
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+        string segments = "[" + string.Join(",", Enumerable.Repeat("""{"text":"x"}""", 20)) + "]";
+
+        Build(tts: tts)
+            .Resolve("tts.speakSequence")("tts.speakSequence", [segments], CancellationToken.None)
+            .Should()
+            .NotBeNull();
+
+        seen!.Segments.Should().HaveCount(20);
+    }
 }

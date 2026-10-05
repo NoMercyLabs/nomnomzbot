@@ -213,6 +213,7 @@ internal static class BundleConventions
         ["storage.delete"] = "stores script data",
         ["storage.list"] = "stores script data",
         ["tts.speak"] = "plays audio on the overlay",
+        ["tts.speakSequence"] = "plays audio on the overlay",
         ["tts.voice.get"] = "manages viewer TTS voices",
         ["tts.voice.set"] = "manages viewer TTS voices",
         ["tts.voice.list"] = "manages viewer TTS voices",

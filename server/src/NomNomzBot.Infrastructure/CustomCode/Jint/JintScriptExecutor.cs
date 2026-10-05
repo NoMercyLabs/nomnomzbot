@@ -217,6 +217,12 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                         var r = bot.call.apply(bot, args);
                         return r ? JSON.parse(r) : null;
                     },
+                    // One call, up to 20 { text, voice?, rate?, pitch?, breakAfterMs? } parts, played as ONE audio
+                    // clip. The host validates the shape; a non-array is sent as-is so it fails there, not here.
+                    speakSequence: function (segments) {
+                        var r = bot.call('tts.speakSequence', JSON.stringify(segments === undefined ? null : segments));
+                        return r ? JSON.parse(r) : null;
+                    },
                     getVoice: function (userIdOrLogin) { var r = missing(userIdOrLogin) ? bot.call('tts.voice.get') : bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
                     setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', need('tts.setVoice', 'a user id or login', userIdOrLogin), missing(voiceId) ? '' : String(voiceId)) === 'ok'; },
                     listVoices: function (provider, locale) {
@@ -344,6 +350,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["storage.delete"] = "storage.delete",
         ["storage.list"] = "storage.list",
         ["tts.speak"] = "tts.speak",
+        ["tts.speakSequence"] = "tts.speakSequence",
         ["tts.getVoice"] = "tts.voice.get",
         ["tts.setVoice"] = "tts.voice.set",
         ["tts.listVoices"] = "tts.voice.list",

@@ -103,6 +103,22 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  durationMs: number;");
         sb.AppendLine("}");
         sb.AppendLine();
+        sb.AppendLine("/** One part of nnz.api.tts.speakSequence. */");
+        sb.AppendLine("interface NnzApiTtsSegment {");
+        sb.AppendLine("  /** The words to speak. Required. */");
+        sb.AppendLine("  text: string;");
+        sb.AppendLine("  /** The voice id for this part. Leave out to use the normal voice. */");
+        sb.AppendLine("  voice?: string;");
+        sb.AppendLine("  /** Speaking-rate change in percent, for example -20. */");
+        sb.AppendLine("  rate?: number;");
+        sb.AppendLine("  /** Pitch change in percent, for example 10. */");
+        sb.AppendLine("  pitch?: number;");
+        sb.AppendLine(
+            "  /** Silence after this part, 0 to 10000 ms. Ignored after the last part. */"
+        );
+        sb.AppendLine("  breakAfterMs?: number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("/** A channel-point reward as nnz.api.reward.get returns it. */");
         sb.AppendLine("interface NnzApiReward {");
         sb.AppendLine("  /** The reward's id. */");
@@ -668,6 +684,10 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;"
         );
+        sb.AppendLine(
+            "  /** Speaks 1 to 20 parts, each in its own voice, as ONE audio clip. Null when a part is invalid or TTS refused the line. */"
+        );
+        sb.AppendLine("  speakSequence(segments: NnzApiTtsSegment[]): NnzApiTtsResult | null;");
         sb.AppendLine(
             "  /** The voice assigned to a viewer. userIdOrLogin is optional and defaults to the user who triggered the script. null when the viewer uses the channel default or no viewer matches. */"
         );

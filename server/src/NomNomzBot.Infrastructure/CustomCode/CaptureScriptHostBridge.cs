@@ -10,6 +10,7 @@
 
 using Newtonsoft.Json;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Infrastructure.TestRun;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
@@ -43,6 +44,7 @@ public sealed class CaptureScriptHostBridge(
         ["storage.set"] = "ok",
         ["storage.delete"] = "ok",
         ["tts.speak"] = null,
+        ["tts.speakSequence"] = null,
         ["tts.voice.set"] = "ok",
         ["widget.emit"] = "ok",
         ["reward.update"] = "ok",
@@ -101,8 +103,34 @@ public sealed class CaptureScriptHostBridge(
             // when a live run would refuse it), the length, and durationMs 0 because nothing was synthesized.
             if (key == "tts.speak")
                 return CapturedSpeak(args, ct);
+            if (key == "tts.speakSequence")
+                return CapturedSpeakSequence(args, ct);
             return cannedReturn;
         };
+    }
+
+    // The same shape as a live sequence dispatch: the first part's voice, every part's characters, durationMs 0.
+    private string? CapturedSpeakSequence(IReadOnlyList<string> args, CancellationToken ct)
+    {
+        List<TtsSpeakSegment>? segments = ScriptTtsSegmentParser.TryParse(
+            args.Count > 0 ? args[0] : null,
+            out _
+        );
+        if (segments is null)
+            return null;
+
+        string? voiceId = resolveVoice(segments[0].VoiceId, ct);
+        if (voiceId is null)
+            return null;
+
+        return JsonConvert.SerializeObject(
+            new
+            {
+                voiceId,
+                characterCount = segments.Sum(s => s.Text.Length),
+                durationMs = 0,
+            }
+        );
     }
 
     private string? CapturedSpeak(IReadOnlyList<string> args, CancellationToken ct)

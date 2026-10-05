@@ -147,6 +147,7 @@ public sealed partial class ScriptHostBridge(
             "storage.set" => ValidateStorageSet(args),
             "storage.delete" => ValidateStorageDelete(args),
             "tts.speak" => ValidateSpeak(args),
+            "tts.speakSequence" => PlanSpeakSequence(args) is not null,
             "tts.voice.set" => PlanVoiceSet(args, ct) is not null,
             "widget.emit" => PlanWidgetEmit(args, ct) is not null,
             "reward.update" => PlanRewardUpdate(args, ct) is not null,
@@ -209,6 +210,7 @@ public sealed partial class ScriptHostBridge(
             "storage.delete" => StorageDelete,
             "storage.list" => StorageList,
             "tts.speak" => Speak,
+            "tts.speakSequence" => SpeakSequence,
             "widget.emit" => EmitWidgetEvent,
             "reward.get" => GetReward,
             "reward.update" => UpdateReward,
@@ -645,6 +647,50 @@ public sealed partial class ScriptHostBridge(
             RatePercent: ratePercent,
             PitchPercent: pitchPercent
         );
+        return DispatchSpeak(request, ct);
+    }
+
+    // tts.speakSequence: ONE dispatch carrying every part in order, so the parts play as one audio clip. Same
+    // gate, same failure contract (typed failure -> null + last error) and same outcome JSON as tts.speak.
+    private List<TtsSpeakSegment>? PlanSpeakSequence(IReadOnlyList<string> args)
+    {
+        List<TtsSpeakSegment>? segments = ScriptTtsSegmentParser.TryParse(
+            args.Count > 0 ? args[0] : null,
+            out string error
+        );
+        if (segments is null)
+            Fail(ScriptHostErrorCodes.InvalidArgument, error);
+        return segments;
+    }
+
+    private string? SpeakSequence(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        List<TtsSpeakSegment>? segments = PlanSpeakSequence(args);
+        if (segments is null)
+            return _failureReturn;
+
+        TtsSpeakRequest request = new(
+            BroadcasterId: broadcasterId,
+            RequestedByUserId: Guid.Empty,
+            RequestedByTwitchUserId: triggeringUserId,
+            RequestedByDisplayName: string.Empty,
+            Text: string.Empty,
+            VoiceIdOverride: null,
+            BitsAmount: 0,
+            CommunityStanding: "everyone",
+            SourceMessageId: null,
+            StreamId: null,
+            Segments: segments
+        );
+        return DispatchSpeak(request, ct);
+    }
+
+    private string? DispatchSpeak(TtsSpeakRequest request, CancellationToken ct)
+    {
         Result<TtsDispatchOutcome> outcome = ttsDispatch
             .RequestSpeakAsync(request, ct)
             .GetAwaiter()

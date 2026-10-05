@@ -55,6 +55,8 @@ public sealed class ScriptCapabilityBroker(
         new("storage.list", "low", FeatureGate, SideEffecting: false),
         // Routed through the gated TTS dispatcher (channel enable + caps + censor run host-side).
         new("tts.speak", "low", FeatureGate, SideEffecting: true),
+        // Several voice segments as ONE audio clip through the same gated dispatcher (one call, up to 20 parts).
+        new("tts.speakSequence", "low", FeatureGate, SideEffecting: true),
         // Pushes an event to one of THIS channel's enabled widgets (overlay-only; no Twitch surface).
         new("widget.emit", "low", FeatureGate, SideEffecting: true),
         // Channel-point reward read + patch; update mutates the reward on Twitch via Helix → tos tier.
