@@ -77,7 +77,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
     /// number — shared by every handler that seeds a duration-typed template variable (ad breaks, timeouts,
     /// polls). Twitch-sourced durations run in whole minutes far more often than not, so a clean minute count
     /// only falls back to seconds when the value doesn't divide evenly.</summary>
-    protected static string HumanDuration(int seconds)
+    internal static string HumanDuration(int seconds)
     {
         if (seconds >= 60 && seconds % 60 == 0)
         {

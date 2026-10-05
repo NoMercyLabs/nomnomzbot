@@ -3523,6 +3523,7 @@
     <string name="event_type_reward_enabled">Reward Enabled</string>
     <string name="event_type_reward_disabled">Reward Disabled</string>
     <string name="event_type_channel_ad_break_begin">Ad Break Started</string>
+    <string name="event_type_channel_ad_break_end">Ad Break Ended</string>
     <string name="event_type_channel_ban">Ban or Timeout</string>
     <string name="event_type_channel_unban">Unban</string>
     <string name="event_type_channel_moderator_add">Moderator added</string>
@@ -5533,7 +5534,8 @@
     <string name="eventresponse_preset_reward_resumed_template">{reward} is back — redeem away!</string>
     <string name="eventresponse_preset_reward_enabled_template">{reward} is now available for {cost} points!</string>
     <string name="eventresponse_preset_reward_disabled_template">{reward} has been retired.</string>
-    <string name="eventresponse_preset_channel_ad_break_begin_template">Ads incoming for {ad.duration} — perfect stretch break!</string>
+    <string name="eventresponse_preset_channel_ad_break_begin_template">An ad break has started for {ad.duration}. Please stay tuned!</string>
+    <string name="eventresponse_preset_channel_ad_break_end_template">The ad break has ended. Thanks for your patience!</string>
     <string name="eventresponse_preset_channel_ban_template">{user} was shown the door by {moderator} ({duration}).</string>
     <string name="eventresponse_preset_channel_unban_template">{user} has been unbanned — welcome back.</string>
     <string name="eventresponse_preset_channel_moderator_add_template">{user} has been added as a moderator in the channel.</string>

@@ -541,12 +541,7 @@ public static class EventResponseToneCatalog
         Add(
             catalog,
             "channel.ad_break.begin",
-            informative:
-            [
-                "Ads incoming for {ad.duration} — perfect stretch break!",
-                "An ad break has started for {ad.duration}. We will be right back.",
-                "Ad break: {ad.duration}. Stay tuned!",
-            ],
+            informative: ["An ad break has started for {ad.duration}. Please stay tuned!"],
             friendly:
             [
                 "Quick ad break for {ad.duration}! Grab a drink and stretch, we will see you soon!",
@@ -572,6 +567,29 @@ public static class EventResponseToneCatalog
                 "short ad break, {ad.duration}. we'll be here.",
                 "ads rolling for {ad.duration}. grab some water.",
             ]
+        );
+
+        // The end of the break, said once its duration passed and the stream is still live. Only {ad.duration} is set.
+        Add(
+            catalog,
+            "channel.ad_break.end",
+            informative: ["The ad break has ended. Thanks for your patience!"],
+            friendly:
+            [
+                "The ads are done, friends. Thank you for waiting with us!",
+                "We are back! Thanks for sticking around through the ads.",
+            ],
+            sassy:
+            [
+                "The ads are over. You survived. I am proud of you.",
+                "Ads done. Welcome back, I knew you would not leave.",
+            ],
+            hype:
+            [
+                "ADS ARE OVER! WE ARE BACK! THANK YOU FOR STAYING!",
+                "THE ADS ARE GONE! LET'S GO!",
+            ],
+            chill: ["ads are done. thanks for waiting.", "we're back. thanks for hanging on."]
         );
 
         return catalog;

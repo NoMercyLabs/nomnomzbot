@@ -44,6 +44,7 @@ public sealed class EventResponseToneTests
     private const string Follow = "channel.follow";
     private const string Cheer = "channel.cheer";
     private const string AdBreak = "channel.ad_break.begin";
+    private const string AdBreakEnd = "channel.ad_break.end";
     private static readonly Guid SassyChannel = Guid.Parse("0199f300-0000-7000-8000-00000000c001");
     private static readonly Guid OwnTextChannel = Guid.Parse(
         "0199f300-0000-7000-8000-00000000c002"
@@ -237,6 +238,36 @@ public sealed class EventResponseToneTests
             .ContainSingle()
             .Which.Should()
             .BeOneOf(EventResponseToneCatalog.Get(PersonalityTone.Sassy, AdBreak));
+    }
+
+    [Theory]
+    [InlineData(AdBreak, "An ad break has started for {ad.duration}. Please stay tuned!")]
+    [InlineData(AdBreakEnd, "The ad break has ended. Thanks for your patience!")]
+    public async Task The_informative_ad_break_lines_are_the_old_bots_texts(
+        string eventType,
+        string expected
+    )
+    {
+        Harness h = await BuildAsync();
+        await SetChannelToneAsync(h, SassyChannel, PersonalityTone.Informative);
+        EventResponse row = await h.Db.EventResponses.SingleAsync(r =>
+            r.BroadcasterId == SassyChannel && r.EventType == eventType
+        );
+        row.FollowsPlatformDefault = false;
+        row.IsEnabled = true;
+        row.ResponseType = "chat_message";
+        row.Message = null;
+        await h.Db.SaveChangesAsync();
+
+        await h.Executor.ExecuteAsync(
+            SassyChannel,
+            eventType,
+            null,
+            null,
+            new() { ["ad.duration"] = "3 minutes" }
+        );
+
+        SentTo(h, SassyChannel).Should().Equal(expected);
     }
 
     // ── what the dashboard is told ──────────────────────────────────────────

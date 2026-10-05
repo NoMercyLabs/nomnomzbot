@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.eventresponses.ui
 import androidx.compose.runtime.Composable
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.event_type_channel_ad_break_begin
+import nomnomzbot.composeapp.generated.resources.event_type_channel_ad_break_end
 import nomnomzbot.composeapp.generated.resources.event_type_channel_ban
 import nomnomzbot.composeapp.generated.resources.event_type_channel_cheer
 import nomnomzbot.composeapp.generated.resources.event_type_channel_follow
@@ -90,6 +91,7 @@ internal val EventTypeLabels: Map<String, StringResource> =
         "reward.enabled" to Res.string.event_type_reward_enabled,
         "reward.disabled" to Res.string.event_type_reward_disabled,
         "channel.ad_break.begin" to Res.string.event_type_channel_ad_break_begin,
+        "channel.ad_break.end" to Res.string.event_type_channel_ad_break_end,
         "channel.ban" to Res.string.event_type_channel_ban,
         "channel.unban" to Res.string.event_type_channel_unban,
         "channel.moderator.add" to Res.string.event_type_channel_moderator_add,

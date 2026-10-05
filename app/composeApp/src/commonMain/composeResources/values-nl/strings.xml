@@ -3507,6 +3507,7 @@
     <string name="event_type_reward_enabled">Beloning ingeschakeld</string>
     <string name="event_type_reward_disabled">Beloning uitgeschakeld</string>
     <string name="event_type_channel_ad_break_begin">Advertentiepauze gestart</string>
+    <string name="event_type_channel_ad_break_end">Advertentiepauze afgelopen</string>
     <string name="event_type_channel_ban">Ban of timeout</string>
     <string name="event_type_channel_unban">Ban opgeheven</string>
     <string name="event_type_channel_moderator_add">Moderator toegevoegd</string>
@@ -5517,7 +5518,8 @@
     <string name="eventresponse_preset_reward_resumed_template">{reward} is terug — inwisselen maar!</string>
     <string name="eventresponse_preset_reward_enabled_template">{reward} is nu beschikbaar voor {cost} punten!</string>
     <string name="eventresponse_preset_reward_disabled_template">{reward} is uit de roulatie gehaald.</string>
-    <string name="eventresponse_preset_channel_ad_break_begin_template">Reclame voor {ad.duration} — perfect moment om even te strekken!</string>
+    <string name="eventresponse_preset_channel_ad_break_begin_template">Er is een advertentiepauze begonnen van {ad.duration}. Blijf kijken!</string>
+    <string name="eventresponse_preset_channel_ad_break_end_template">De advertentiepauze is voorbij. Bedankt voor je geduld!</string>
     <string name="eventresponse_preset_channel_ban_template">{user} is door {moderator} de deur gewezen ({duration}).</string>
     <string name="eventresponse_preset_channel_unban_template">{user} is weer toegelaten — welkom terug.</string>
     <string name="eventresponse_preset_channel_moderator_add_template">{user} is toegevoegd als moderator in het kanaal.</string>

@@ -86,6 +86,8 @@ public static class EventResponsePresetCatalog
         Preset("reward.disabled", ["reward", "reward.id", "cost"]),
         // Ad breaks — {user} is the requester (empty on an automatic break).
         Preset("channel.ad_break.begin", ["user", "user.id", "ad.duration", "ad.automatic"]),
+        // The break is over — the end line goes out once the break's duration passed.
+        Preset("channel.ad_break.end", ["ad.duration"]),
         // Moderation notices — channel.ban covers bans AND timeouts ({duration} = "permanent" or seconds).
         Preset("channel.ban", ["user", "user.id", "moderator", "reason", "duration"]),
         Preset("channel.unban", ["user", "user.id", "moderator"]),
