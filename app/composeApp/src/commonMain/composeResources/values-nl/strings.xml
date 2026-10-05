@@ -1376,6 +1376,8 @@
     <string name="community_unban_dismiss">Annuleren</string>
     <string name="integrations_title">Integraties</string>
     <string name="integrations_subtitle">Verbind je botaccount en de diensten waarmee je streamt.</string>
+    <string name="integrations_twitch_title">Twitch</string>
+    <string name="integrations_twitch_subtitle">De Twitch-app waarmee je bot inlogt, en het account waarmee die inlogt.</string>
     <string name="integrations_bot_title">Botaccount</string>
     <string name="integrations_bot_subtitle">Het account waarmee je bot chat.</string>
     <string name="integrations_spotify_title">Spotify</string>
@@ -2034,6 +2036,7 @@
     <string name="twitch_app_clientSecret_help">Gegenereerd op de Twitch-app-pagina — slechts één keer zichtbaar.</string>
     <string name="twitch_app_clientSecret_optional">Laat leeg om de huidige secret te behouden.</string>
     <string name="twitch_app_missing_client_id">Voer een Client ID in.</string>
+    <string name="twitch_app_edit">Bewerken</string>
     <string name="twitch_app_save">Gegevens opslaan</string>
     <string name="twitch_app_saving">Opslaan…</string>
     <string name="twitch_app_saved">Twitch-app-gegevens opgeslagen</string>

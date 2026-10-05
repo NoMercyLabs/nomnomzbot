@@ -1379,6 +1379,8 @@
     <string name="community_unban_dismiss">Cancel</string>
     <string name="integrations_title">Integrations</string>
     <string name="integrations_subtitle">Connect your bot account and the services you stream with.</string>
+    <string name="integrations_twitch_title">Twitch</string>
+    <string name="integrations_twitch_subtitle">The Twitch app your bot signs in through, and the account it signs in.</string>
     <string name="integrations_bot_title">Bot account</string>
     <string name="integrations_bot_subtitle">The account your bot chats from.</string>
     <string name="integrations_spotify_title">Spotify</string>
@@ -2039,6 +2041,7 @@
     <string name="twitch_app_clientSecret_help">Generated on the Twitch app page — shown only once.</string>
     <string name="twitch_app_clientSecret_optional">Leave blank to keep the current secret.</string>
     <string name="twitch_app_missing_client_id">Enter a Client ID.</string>
+    <string name="twitch_app_edit">Edit</string>
     <string name="twitch_app_save">Save credentials</string>
     <string name="twitch_app_saving">Saving…</string>
     <string name="twitch_app_saved">Twitch app credentials saved</string>

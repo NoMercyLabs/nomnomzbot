@@ -127,7 +127,7 @@ Owed (sweeps not yet done; the named section holds the detail):
 - [ ] `DEAD` ImportController.cs:45 — StreamElements import has no client/screen.
 - [ ] FeaturesScreen.kt:205-215,221-226,236 — Re-grant shown when nothing missing, runs global reconnect; raw scope strings; toggle not locked; no Configure link.
 - [ ] `I18N` SetupWizardScreen.kt:463 — review rows use raw backend `step.title`.
-- [ ] `I18N` TwitchAppCredentialsCard.kt:179 "Edit"; FeaturesScreen.kt:176; ShellScreen.kt:891/966/1167; RolesScreen.kt:676/1098/1102; "No active channel" duplicated in AlertsController.kt:195, AnalyticsController.kt:327, AutomationController.kt:183.
+- [ ] `I18N` FeaturesScreen.kt:176; ShellScreen.kt:891/966/1167; RolesScreen.kt:676/1098/1102; "No active channel" duplicated in AlertsController.kt:195, AnalyticsController.kt:327, AutomationController.kt:183.
 - [ ] SetupController.kt:67-71,339 — wizard step/fields in memory only; reload drops them.
 - [ ] Spec drift: ShellNav.kt:253 (EventResponses under Chat vs Stream), :291 (Alerts separate vs merged), :246 (Commands floor Moderator vs Editor) vs frontend-ia.md; S072 "no drift" wrong.
 - [ ] Spec pages with no screen: participant "My Standing"/"My Data", icon-rail collapse (§2), global search.

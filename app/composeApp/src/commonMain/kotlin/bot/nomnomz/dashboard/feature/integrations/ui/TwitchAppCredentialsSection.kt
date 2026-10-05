@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-package bot.nomnomz.dashboard.feature.settings.ui
+package bot.nomnomz.dashboard.feature.integrations.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -68,6 +68,7 @@ import nomnomzbot.composeapp.generated.resources.twitch_app_clientId_label
 import nomnomzbot.composeapp.generated.resources.twitch_app_clientSecret_help
 import nomnomzbot.composeapp.generated.resources.twitch_app_clientSecret_label
 import nomnomzbot.composeapp.generated.resources.twitch_app_clientSecret_optional
+import nomnomzbot.composeapp.generated.resources.twitch_app_edit
 import nomnomzbot.composeapp.generated.resources.twitch_app_error
 import nomnomzbot.composeapp.generated.resources.twitch_app_missing_client_id
 import nomnomzbot.composeapp.generated.resources.twitch_app_overwrite_cancel
@@ -86,7 +87,8 @@ import nomnomzbot.composeapp.generated.resources.twitch_app_state_shared
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-// The dashboard "Twitch application" credential card (Settings page). It REUSES the first-run wizard's copy +
+// The "Twitch application" part of the Integrations screen's one Twitch card ([TwitchCard]): the app the bot
+// signs in through, shown together with the bot account it signs in. It REUSES the first-run wizard's copy +
 // guide for the `twitch_app` step — the same explanations, the same "how to create a Twitch app" instructions
 // (via [SetupCopy]), and the same EXACT OAuth redirect URL to register (as a copy chip) — so a signed-in admin
 // can configure or repoint their PERSONAL Twitch client (BYOC) from inside the dashboard rather than by
@@ -96,8 +98,12 @@ import org.jetbrains.compose.resources.stringResource
 // The client id is the only required field; the secret is OPTIONAL — the bot signs in with a device code on the
 // id alone, and a secret only unlocks the smoother one-tap redirect flow. Editing live OAuth credentials is
 // consequential, so overwriting an already-configured app confirms first.
+//
+// This is a SECTION, not a card: the card chrome (surface, border, radius, title) belongs to [TwitchCard], which
+// also holds the bot-account part and the card's one primary action (connecting the bot). Save here is an
+// outline button for that reason.
 @Composable
-fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController, manage: ManageDecision) {
+internal fun TwitchAppCredentialsSection(controller: TwitchAppCredentialsController, manage: ManageDecision) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -108,16 +114,12 @@ fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController, manage:
     LaunchedEffect(Unit) { controller.load() }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
             text = stringResource(Res.string.twitch_app_section_title),
-            style = typography.xl,
+            style = typography.base,
             color = tokens.cardForeground,
         )
         Text(
@@ -176,7 +178,7 @@ private fun ReadyBody(
             if (state.configured && !expanded) {
                 TextButton(onClick = { expanded = true }) {
                     Text(
-                        text = "Edit",
+                        text = stringResource(Res.string.twitch_app_edit),
                         style = typography.sm,
                         color = tokens.mutedForeground,
                     )
@@ -398,8 +400,9 @@ private fun SaveBar(
                     .clearAndSetSemantics { contentDescription = savingLabel },
             )
         } else {
+            // Outline, not filled: the card's one primary action is connecting the bot (see [TwitchCard]).
             ManageGate(decision = manage) { enabled ->
-                Button(
+                OutlinedButton(
                     onClick = onSave,
                     enabled = enabled,
                     modifier = Modifier.wrapContentWidth(),

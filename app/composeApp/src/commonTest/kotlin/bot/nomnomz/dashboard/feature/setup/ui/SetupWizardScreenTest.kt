@@ -38,7 +38,7 @@ import kotlin.test.Test
 // `controller.valueOf(...)` fresh from a plain, non-observable MutableMap on every recomposition instead of
 // holding real Compose state, so its own recomposition scope never re-ran. A state-machine-only test cannot
 // catch this class of bug — it has to mount the composable and assert what's actually ON SCREEN, the same
-// way [bot.nomnomz.dashboard.feature.settings.ui.TwitchAppCredentialsCard]'s proven
+// way [bot.nomnomz.dashboard.feature.integrations.ui.TwitchAppCredentialsSection]'s proven
 // `remember { mutableStateOf(...) }` pattern (now mirrored in [CredentialField]) makes this pass.
 @OptIn(ExperimentalTestApi::class)
 class SetupWizardScreenTest {

@@ -619,7 +619,7 @@ private fun CredentialField(
     // show none — so a field with no help anywhere simply renders without a supporting line.
     val help: String? = SetupCopy.fieldHelp(stepKey, field.key)?.let { stringResource(it) } ?: field.help
 
-    // The field's OWN observable Compose state (same pattern as TwitchAppCredentialsCard/ProviderCredentialsCard) —
+    // The field's OWN observable Compose state (same pattern as TwitchAppCredentialsSection/ProviderCredentialsCard) —
     // seeded once from the controller's held value, then updated locally on every keystroke so THIS composable's
     // recomposition scope is invalidated and redrawn. The prior version read `controller.valueOf(...)` fresh on
     // every recomposition instead of holding real Compose state: the controller's plain MutableMap write was
