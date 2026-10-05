@@ -11,12 +11,16 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.Platform;
+using NomNomzBot.Infrastructure.Platform.Eventing;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.EventHandlers;
 
@@ -75,6 +79,10 @@ public sealed class EventSubWelcomeTokenHealthTests
         services.AddLogging();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IApplicationDbContext>(db);
+        // The outage handler also hears the welcome; with no drop on record it sends nothing.
+        services.AddSingleton<EventSubOutageLedger>();
+        services.AddSingleton(Substitute.For<IBuiltinResponseComposer>());
+        services.AddSingleton(Substitute.For<IChatProvider>());
         services.AddOpenGenericHandlers(
             typeof(DependencyInjection).Assembly,
             typeof(IEventHandler<>),
