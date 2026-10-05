@@ -90,6 +90,15 @@ import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_spoti
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_youtube
 import nomnomzbot.composeapp.generated.resources.songrequests_config_enabled
 import nomnomzbot.composeapp.generated.resources.songrequests_config_max_per_user
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_broadcaster
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_caps_hint
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_caps_title
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_clear
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_moderator
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_subscriber
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_viewer
+import nomnomzbot.composeapp.generated.resources.songrequests_config_role_vip
+import bot.nomnomz.dashboard.feature.songrequests.state.withRoleCap
 import nomnomzbot.composeapp.generated.resources.songrequests_config_max_queue
 import nomnomzbot.composeapp.generated.resources.songrequests_config_provider
 import nomnomzbot.composeapp.generated.resources.songrequests_config_provider_auto
@@ -464,6 +473,14 @@ private fun ConfigSection(
     var maxQueueSize: Int by remember(config) { mutableStateOf(clampMaxQueueSize(config.maxQueueSize)) }
     var maxPerUser: Int by remember(config) { mutableStateOf(clampMaxRequestsPerUser(config.maxRequestsPerUser)) }
     var minTrustLevel: String by remember(config) { mutableStateOf(config.minTrustLevel) }
+    var roleCaps: Map<String, Int> by remember(config) { mutableStateOf(config.maxRequestsPerRole) }
+    val roleCapLabels: List<Pair<String, String>> = listOf(
+        "viewer" to stringResource(Res.string.songrequests_config_role_viewer),
+        "subscriber" to stringResource(Res.string.songrequests_config_role_subscriber),
+        "vip" to stringResource(Res.string.songrequests_config_role_vip),
+        "moderator" to stringResource(Res.string.songrequests_config_role_moderator),
+        "broadcaster" to stringResource(Res.string.songrequests_config_role_broadcaster),
+    )
 
     val trustLevels: List<String> = listOf("everyone", "subscribers", "vip", "moderators", "broadcaster")
     val providerOptions: List<Pair<String, String>> = listOf(
@@ -540,6 +557,39 @@ private fun ConfigSection(
                 range = MIN_MAX_REQUESTS_PER_USER..MAX_MAX_REQUESTS_PER_USER,
             )
 
+            // Per-role caps: a role with no entry uses the channel cap above, so each row can be cleared back to it.
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                Text(
+                    text = stringResource(Res.string.songrequests_config_role_caps_title),
+                    style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.songrequests_config_role_caps_hint),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                roleCapLabels.forEach { (role, label) ->
+                    val cap: Int? = roleCaps[role]
+                    BoundedIntStepper(
+                        label = label,
+                        value = cap ?: maxPerUser,
+                        onValueChange = { roleCaps = withRoleCap(roleCaps, role, clampMaxRequestsPerUser(it)) },
+                        range = MIN_MAX_REQUESTS_PER_USER..MAX_MAX_REQUESTS_PER_USER,
+                    )
+                    if (cap != null) {
+                        ManageGate(decision = configure) { enabled ->
+                            TextButton(onClick = { roleCaps = withRoleCap(roleCaps, role, null) }, enabled = enabled) {
+                                Text(
+                                    text = stringResource(Res.string.songrequests_config_role_clear),
+                                    color = tokens.mutedForeground,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Minimum trust level
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                 Text(
@@ -571,6 +621,7 @@ private fun ConfigSection(
                                 maxQueueSize = maxQueueSize,
                                 maxRequestsPerUser = maxPerUser,
                                 minTrustLevel = minTrustLevel,
+                                maxRequestsPerRole = roleCaps,
                             )
                         )
                     },

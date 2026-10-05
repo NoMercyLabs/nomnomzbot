@@ -1303,6 +1303,14 @@
     <string name="songrequests_config_provider_youtube">YouTube</string>
     <string name="songrequests_config_max_queue">Max queue size</string>
     <string name="songrequests_config_max_per_user">Max per user</string>
+    <string name="songrequests_config_role_caps_title">Max per user, by role</string>
+    <string name="songrequests_config_role_caps_hint">A person gets the highest cap among the roles they hold. A role you leave unset uses the max per user above.</string>
+    <string name="songrequests_config_role_viewer">Viewer</string>
+    <string name="songrequests_config_role_subscriber">Subscriber</string>
+    <string name="songrequests_config_role_vip">VIP</string>
+    <string name="songrequests_config_role_moderator">Moderator</string>
+    <string name="songrequests_config_role_broadcaster">Broadcaster</string>
+    <string name="songrequests_config_role_clear">Use the max per user</string>
     <string name="songrequests_config_trust">Minimum trust level</string>
     <string name="songrequests_config_save">Save</string>
     <string name="songrequests_banger_title">Banger playlist</string>

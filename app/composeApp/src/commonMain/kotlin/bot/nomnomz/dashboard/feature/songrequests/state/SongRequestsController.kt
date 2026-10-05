@@ -259,6 +259,15 @@ class SongRequestsController(
     suspend fun setBangerAutoCreate(enabled: Boolean) =
         updateConfig(UpdateMusicConfigBody(bangerAutoCreate = enabled))
 
+    /**
+     * Set the song request cap of one [role] (null clears it, so the role uses the channel cap). The backend
+     * replaces the whole map, so this sends the stored map with [role] changed and nothing else. Reloads on success.
+     */
+    suspend fun setRoleRequestCap(role: String, cap: Int?) {
+        val stored: Map<String, Int> = (state.value as? SongRequestsState.Ready)?.config?.maxRequestsPerRole.orEmpty()
+        updateConfig(UpdateMusicConfigBody(maxRequestsPerRole = withRoleCap(stored, role, cap)))
+    }
+
     /** Rotate the SR-page token so the old share link stops working. */
     suspend fun rotateSrPageToken() {
         val channel: String = channelId ?: return
@@ -306,6 +315,10 @@ class SongRequestsController(
         if (_state.value is SongRequestsState.Ready) feedback.error(Res.string.songrequests_action_error, message)
     }
 }
+
+/** [caps] with [role] set to [cap], or removed when [cap] is null. The other roles keep their caps. */
+internal fun withRoleCap(caps: Map<String, Int>, role: String, cap: Int?): Map<String, Int> =
+    if (cap == null) caps - role else caps + (role to cap)
 
 // The literal token-backed SR link (`{origin}/sr/{token}`) — the URL the raw token itself resolves to on the
 // public route. Built purely from the resolved backend origin and the real token; null when either is missing

@@ -239,6 +239,8 @@ data class MusicConfig(
     val bangerPlaylistId: String? = null,
     val bangerPlaylistProvider: String? = null,
     val bangerAutoCreate: Boolean = false,
+    // A song request cap per role (viewer, subscriber, vip, moderator, broadcaster); no entry uses maxRequestsPerUser.
+    val maxRequestsPerRole: Map<String, Int> = emptyMap(),
 )
 
 /** Partial update body (backend `UpdateMusicConfigDto`). All fields optional — null = don't change. */
@@ -254,6 +256,8 @@ data class UpdateMusicConfigBody(
     val bangerPlaylistId: String? = null,
     val bangerPlaylistProvider: String? = null,
     val bangerAutoCreate: Boolean? = null,
+    // The whole map replaces the stored one; null keeps it.
+    val maxRequestsPerRole: Map<String, Int>? = null,
 )
 
 // ── Remote control request bodies ────────────────────────────────────────────

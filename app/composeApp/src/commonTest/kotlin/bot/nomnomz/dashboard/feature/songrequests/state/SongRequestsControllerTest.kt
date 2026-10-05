@@ -617,6 +617,43 @@ class SongRequestsControllerTest {
         assertTrue(config.bangerAutoCreate)
         assertEquals("PL1", config.bangerPlaylistId)
     }
+
+    @Test
+    fun saving_a_moderator_cap_sends_the_whole_map_and_only_that_field_and_the_reload_shows_it() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())))
+        songRequestsApi.storedConfig =
+            MusicConfig(maxRequestsPerUser = 2, maxRequestsPerRole = mapOf("subscriber" to 4))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.setRoleRequestCap("moderator", 3)
+
+        assertEquals(
+            listOf(UpdateMusicConfigBody(maxRequestsPerRole = mapOf("subscriber" to 4, "moderator" to 3))),
+            songRequestsApi.updateConfigCalls,
+        )
+        val config: MusicConfig = (controller.state.value as SongRequestsState.Ready).config!!
+        assertEquals(mapOf("subscriber" to 4, "moderator" to 3), config.maxRequestsPerRole)
+        assertEquals(2, config.maxRequestsPerUser)
+    }
+
+    @Test
+    fun clearing_a_role_cap_drops_only_that_role_from_the_map() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())))
+        songRequestsApi.storedConfig =
+            MusicConfig(maxRequestsPerRole = mapOf("subscriber" to 4, "moderator" to 3))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.setRoleRequestCap("moderator", null)
+
+        assertEquals(
+            listOf(UpdateMusicConfigBody(maxRequestsPerRole = mapOf("subscriber" to 4))),
+            songRequestsApi.updateConfigCalls,
+        )
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -727,6 +764,7 @@ private class FakeSongRequestsApi(
                 bangerPlaylistProvider =
                     if (provider == null) storedConfig.bangerPlaylistProvider else provider.ifEmpty { null },
                 bangerAutoCreate = body.bangerAutoCreate ?: storedConfig.bangerAutoCreate,
+                maxRequestsPerRole = body.maxRequestsPerRole ?: storedConfig.maxRequestsPerRole,
             )
         return ApiResult.Ok(storedConfig)
     }

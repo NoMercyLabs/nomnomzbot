@@ -1300,6 +1300,14 @@
     <string name="songrequests_config_provider_youtube">YouTube</string>
     <string name="songrequests_config_max_queue">Max. wachtrijgrootte</string>
     <string name="songrequests_config_max_per_user">Max. per gebruiker</string>
+    <string name="songrequests_config_role_caps_title">Max. per gebruiker, per rol</string>
+    <string name="songrequests_config_role_caps_hint">Iemand krijgt de hoogste limiet van de rollen die diegene heeft. Een rol zonder waarde gebruikt de max. per gebruiker hierboven.</string>
+    <string name="songrequests_config_role_viewer">Kijker</string>
+    <string name="songrequests_config_role_subscriber">Abonnee</string>
+    <string name="songrequests_config_role_vip">VIP</string>
+    <string name="songrequests_config_role_moderator">Moderator</string>
+    <string name="songrequests_config_role_broadcaster">Streamer</string>
+    <string name="songrequests_config_role_clear">Gebruik de max. per gebruiker</string>
     <string name="songrequests_config_trust">Minimaal vertrouwensniveau</string>
     <string name="songrequests_config_save">Opslaan</string>
     <string name="songrequests_banger_title">Banger-afspeellijst</string>
