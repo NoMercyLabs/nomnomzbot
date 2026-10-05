@@ -38,6 +38,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelNamePronunciation
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
@@ -323,6 +324,9 @@ class TtsScreenTest {
                         ),
                     busy = false,
                     manage = ManageDecision.Allowed,
+                    namePronunciation = null,
+                    nameBusy = false,
+                    onSaveName = {},
                     onAdd = { _, _, _ -> },
                     onUpdate = { _, _, _, _ -> },
                     onDelete = {},
@@ -822,6 +826,14 @@ private class FakeTtsApi(
     ): ApiResult<TtsLexiconEntry> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 
     override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun channelNamePronunciation(channelId: String): ApiResult<ChannelNamePronunciation> =
+        ApiResult.Ok(ChannelNamePronunciation())
+
+    override suspend fun setChannelNamePronunciation(
+        channelId: String,
+        pronunciation: String?,
+    ): ApiResult<ChannelNamePronunciation> = ApiResult.Ok(ChannelNamePronunciation(pronunciation = pronunciation))
 
     override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> = ApiResult.Ok(null)
 

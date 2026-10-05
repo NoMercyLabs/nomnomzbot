@@ -121,6 +121,15 @@ interface TtsApi {
     /** Remove the rule [entryId]. */
     suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit>
 
+    /** The channel's own name and how TTS says it (pronunciation is null when unset). */
+    suspend fun channelNamePronunciation(channelId: String): ApiResult<ChannelNamePronunciation>
+
+    /** Set how TTS says the channel's name; a blank [pronunciation] clears it. Returns the stored value. */
+    suspend fun setChannelNamePronunciation(
+        channelId: String,
+        pronunciation: String?,
+    ): ApiResult<ChannelNamePronunciation>
+
     /** The signed-in viewer's OWN voice for this channel, or null when they use the channel default (404→null). */
     suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?>
 
@@ -290,6 +299,18 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
 
     override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/tts/lexicon/$entryId")
+
+    override suspend fun channelNamePronunciation(channelId: String): ApiResult<ChannelNamePronunciation> =
+        client.getEnvelope("api/v1/channels/$channelId/tts/name-pronunciation")
+
+    override suspend fun setChannelNamePronunciation(
+        channelId: String,
+        pronunciation: String?,
+    ): ApiResult<ChannelNamePronunciation> =
+        client.putEnvelope(
+            "api/v1/channels/$channelId/tts/name-pronunciation",
+            SetChannelNamePronunciationBody(pronunciation),
+        )
 
     override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> =
         when (
@@ -492,6 +513,17 @@ data class UpsertTtsLexiconEntryBody(
     val replacement: String,
     val matchKind: String = "word",
 )
+
+/** The channel's own name and how TTS says it (backend `ChannelNamePronunciationDto`); [pronunciation] null = as written. */
+@Serializable
+data class ChannelNamePronunciation(
+    val channelName: String = "",
+    val pronunciation: String? = null,
+)
+
+/** Request body to set how TTS says the channel's name (backend `SetChannelNamePronunciationDto`). */
+@Serializable
+data class SetChannelNamePronunciationBody(val pronunciation: String? = null)
 
 /**
  * The channel's auto-provisioned TTS overlay (backend `TtsOverlayDto`): [overlayUrl] is the OBS

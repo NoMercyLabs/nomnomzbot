@@ -419,6 +419,8 @@ internal class VPCFakeTtsApi : TtsApi {
     override suspend fun createLexiconEntry(channelId: String, body: bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody) = error("stub")
     override suspend fun updateLexiconEntry(channelId: String, entryId: String, body: bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody) = error("stub")
     override suspend fun deleteLexiconEntry(channelId: String, entryId: String) = error("stub")
+    override suspend fun channelNamePronunciation(channelId: String) = error("stub")
+    override suspend fun setChannelNamePronunciation(channelId: String, pronunciation: String?) = error("stub")
     override suspend fun myVoice(channelId: String) = error("stub")
     override suspend fun setMyVoice(channelId: String, voiceId: String) = error("stub")
     override suspend fun clearMyVoice(channelId: String) = error("stub")

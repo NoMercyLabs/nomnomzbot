@@ -890,6 +890,12 @@
     <string name="tts_lexicon_kind_word">Whole word</string>
     <string name="tts_lexicon_kind_exact">Exact match</string>
     <string name="tts_lexicon_error">Could not save that pronunciation rule: %1$s</string>
+    <string name="tts_name_pronunciation_title">Your channel name</string>
+    <string name="tts_name_pronunciation_description">Set how TTS says %1$s, in your channel and in every other channel where your name is spoken. Leave it empty to read the name as written.</string>
+    <string name="tts_name_pronunciation_label">How TTS says your name</string>
+    <string name="tts_name_pronunciation_save">Save</string>
+    <string name="tts_name_pronunciation_clear">Clear</string>
+    <string name="tts_name_pronunciation_error">Could not save how TTS says your name: %1$s</string>
     <string name="tts_lexicon_edit_action">Edit rule %1$s</string>
     <string name="tts_lexicon_delete_action">Delete rule %1$s</string>
     <string name="tts_lexicon_dialog_add_title">Add pronunciation rule</string>

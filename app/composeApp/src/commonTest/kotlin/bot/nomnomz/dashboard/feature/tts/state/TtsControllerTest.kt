@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelNamePronunciation
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
@@ -552,6 +553,69 @@ class TtsControllerTest {
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(listOf<Any>("duplicate rule"), feedback.only.formatArgs)
     }
+
+    @Test
+    fun load_shows_the_stored_name_pronunciation_with_the_channel_name() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        ttsApi.storedNamePronunciation = "Stoney Eagle"
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+
+        controller.load()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("Stoney_Eagle", ready.namePronunciation?.channelName)
+        assertEquals("Stoney Eagle", ready.namePronunciation?.pronunciation)
+    }
+
+    @Test
+    fun save_name_pronunciation_sends_it_and_the_state_holds_the_stored_value_after_reload() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.saveNamePronunciation("  Stoney Eagle  ")
+
+        assertEquals(listOf<String?>("  Stoney Eagle  "), ttsApi.namePronunciationWrites)
+        val saved: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("Stoney Eagle", saved.namePronunciation?.pronunciation)
+        assertEquals(false, saved.namePronunciationBusy)
+
+        controller.load()
+        val reloaded: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("Stoney Eagle", reloaded.namePronunciation?.pronunciation)
+    }
+
+    @Test
+    fun save_blank_name_pronunciation_clears_the_stored_value() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        ttsApi.storedNamePronunciation = "Stoney Eagle"
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.saveNamePronunciation("   ")
+
+        assertNull((controller.state.value as TtsState.Ready).namePronunciation?.pronunciation)
+        assertNull(ttsApi.storedNamePronunciation)
+    }
+
+    @Test
+    fun failed_name_pronunciation_save_keeps_the_old_value_and_shows_an_error() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        ttsApi.storedNamePronunciation = "Stoney Eagle"
+        val feedback = RecordingFeedback()
+        val controller =
+            TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi, feedback = feedback)
+        controller.load()
+        ttsApi.namePronunciationWriteFailure = ApiError(400, "VALIDATION_FAILED", "too long")
+
+        controller.saveNamePronunciation("x")
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("Stoney Eagle", ready.namePronunciation?.pronunciation)
+        assertEquals(false, ready.namePronunciationBusy)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("too long"), feedback.only.formatArgs)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -769,5 +833,23 @@ private class FakeTtsApi(
         lexiconWriteFailure?.let { return ApiResult.Failure(it) }
         return if (lexiconEntries.removeAll { it.id == entryId }) ApiResult.Ok(Unit)
         else ApiResult.Failure(ApiError(404, "NOT_FOUND", "no such rule"))
+    }
+
+    // In-memory channel-name pronunciation; [namePronunciationWriteFailure] makes the write fail.
+    var storedNamePronunciation: String? = null
+    var namePronunciationWriteFailure: ApiError? = null
+    val namePronunciationWrites: MutableList<String?> = mutableListOf()
+
+    override suspend fun channelNamePronunciation(channelId: String): ApiResult<ChannelNamePronunciation> =
+        ApiResult.Ok(ChannelNamePronunciation(channelName = "Stoney_Eagle", pronunciation = storedNamePronunciation))
+
+    override suspend fun setChannelNamePronunciation(
+        channelId: String,
+        pronunciation: String?,
+    ): ApiResult<ChannelNamePronunciation> {
+        namePronunciationWrites.add(pronunciation)
+        namePronunciationWriteFailure?.let { return ApiResult.Failure(it) }
+        storedNamePronunciation = pronunciation?.trim()?.takeIf { it.isNotEmpty() }
+        return ApiResult.Ok(ChannelNamePronunciation(channelName = "Stoney_Eagle", pronunciation = storedNamePronunciation))
     }
 }

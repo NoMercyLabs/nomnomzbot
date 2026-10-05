@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelNamePronunciation
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
@@ -217,6 +218,14 @@ private class FakeQueueTtsApi(
 
     override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> =
         error("stub")
+
+    override suspend fun channelNamePronunciation(channelId: String): ApiResult<ChannelNamePronunciation> =
+        error("stub")
+
+    override suspend fun setChannelNamePronunciation(
+        channelId: String,
+        pronunciation: String?,
+    ): ApiResult<ChannelNamePronunciation> = error("stub")
 
     override suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig> =
         error("stub")

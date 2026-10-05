@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.ChannelNamePronunciation
 import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
 import bot.nomnomz.dashboard.core.network.TtsOverlay
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_error
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_error
 
 // The TTS page's state-holder: resolves the active channel, loads its real TTS configuration, and
 // persists edits back (no fabricated values). The screen renders [state]; it edits a local form seeded
@@ -125,6 +127,13 @@ class TtsController(
                 is ApiResult.Ok -> result.value
             }
 
+        // How TTS says the channel's own name (same resilience: a failure hides the field, never the page).
+        val namePronunciation: ChannelNamePronunciation? =
+            when (val result: ApiResult<ChannelNamePronunciation> = ttsApi.channelNamePronunciation(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
         // The auto-provisioned overlay (get-or-create — always succeeds once the channel exists), same
         // resilience as voices/lexicon: a failure degrades to null, the rest of the config still shows.
         val overlay: TtsOverlay? =
@@ -146,6 +155,7 @@ class TtsController(
                 config = config,
                 voices = voices,
                 lexicon = lexicon,
+                namePronunciation = namePronunciation,
                 overlay = overlay,
                 resetDefaults = resetDefaults,
             )
@@ -176,6 +186,29 @@ class TtsController(
     suspend fun updateLexiconEntry(entryId: String, phrase: String, replacement: String, matchKind: String) {
         mutateLexicon { channel ->
             ttsApi.updateLexiconEntry(channel, entryId, UpsertTtsLexiconEntryBody(phrase, replacement, matchKind))
+        }
+    }
+
+    /**
+     * Save how TTS says the channel's own name. A blank [pronunciation] clears it. On success the state holds
+     * the value the backend stored (trimmed, or null when cleared); on failure the old value stays and the
+     * error is surfaced.
+     */
+    suspend fun saveNamePronunciation(pronunciation: String) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        _state.value = current.copy(namePronunciationBusy = true)
+        when (val result: ApiResult<ChannelNamePronunciation> = ttsApi.setChannelNamePronunciation(channel, pronunciation)) {
+            is ApiResult.Failure -> {
+                (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(namePronunciationBusy = false) }
+                feedback.error(Res.string.tts_name_pronunciation_error, result.error.message)
+            }
+            is ApiResult.Ok ->
+                (_state.value as? TtsState.Ready)?.let {
+                    _state.value = it.copy(namePronunciation = result.value, namePronunciationBusy = false)
+                }
         }
     }
 
@@ -499,6 +532,9 @@ sealed interface TtsState {
         // add/update/delete announces on the shell-level feedback toast rather than a field here.
         val lexicon: List<TtsLexiconEntry> = emptyList(),
         val lexiconBusy: Boolean = false,
+        // How TTS says the channel's own name; null when the backend could not be asked (the field is hidden).
+        val namePronunciation: ChannelNamePronunciation? = null,
+        val namePronunciationBusy: Boolean = false,
         // The auto-provisioned OBS overlay (URL + last-ran signal), or null while it hasn't loaded / failed
         // to load — the rest of the page still renders in that case (see [TtsController.load]).
         val overlay: TtsOverlay? = null,

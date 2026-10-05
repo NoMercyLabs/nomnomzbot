@@ -79,6 +79,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ChannelNamePronunciation
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
 import bot.nomnomz.dashboard.core.network.TtsOverlay
@@ -125,6 +126,11 @@ import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_kind_label
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_phrase_label
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_replacement_label
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_clear
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_description
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_label
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_save
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_title
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_save
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_edit
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_edit_action
@@ -293,6 +299,7 @@ fun TtsScreen(
                         scope.launch { controller.updateLexiconEntry(id, phrase, replacement, kind) }
                     },
                     onDeleteLexicon = { id -> scope.launch { controller.deleteLexiconEntry(id) } },
+                    onSaveNamePronunciation = { value -> scope.launch { controller.saveNamePronunciation(value) } },
                 )
         }
     }
@@ -374,6 +381,7 @@ private fun ReadyContent(
     onAddLexicon: (phrase: String, replacement: String, matchKind: String) -> Unit,
     onUpdateLexicon: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
     onDeleteLexicon: (id: String) -> Unit,
+    onSaveNamePronunciation: (pronunciation: String) -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     val loaded: TtsConfig = state.config
@@ -517,6 +525,9 @@ private fun ReadyContent(
                 PronunciationTab(
                     lexicon = state.lexicon,
                     busy = state.lexiconBusy,
+                    namePronunciation = state.namePronunciation,
+                    nameBusy = state.namePronunciationBusy,
+                    onSaveName = onSaveNamePronunciation,
                     manage = manage,
                     onAdd = onAddLexicon,
                     onUpdate = onUpdateLexicon,
@@ -738,6 +749,9 @@ internal fun PerViewerTab(
 internal fun PronunciationTab(
     lexicon: List<TtsLexiconEntry>,
     busy: Boolean,
+    namePronunciation: ChannelNamePronunciation?,
+    nameBusy: Boolean,
+    onSaveName: (pronunciation: String) -> Unit,
     manage: ManageDecision,
     onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
     onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
@@ -749,6 +763,14 @@ internal fun PronunciationTab(
             modifier = Modifier.fillMaxWidth().padding(spacing.s6),
             verticalArrangement = Arrangement.spacedBy(spacing.s4),
         ) {
+            if (namePronunciation != null) {
+                NamePronunciationSection(
+                    saved = namePronunciation,
+                    busy = nameBusy,
+                    manage = manage,
+                    onSave = onSaveName,
+                )
+            }
             PronunciationSection(
                 lexicon = lexicon,
                 busy = busy,
@@ -1563,6 +1585,65 @@ private val LEXICON_KINDS: List<Pair<String, StringResource>> =
         "word" to Res.string.tts_lexicon_kind_word,
         "exact" to Res.string.tts_lexicon_kind_exact,
     )
+
+// How TTS says the channel's own name: one field, Save is the card's one primary action (Clear stays outline).
+// Both sit at the page's Editor manage floor. The field re-seeds from the stored value after every save/reload.
+@Composable
+private fun NamePronunciationSection(
+    saved: ChannelNamePronunciation,
+    busy: Boolean,
+    manage: ManageDecision,
+    onSave: (pronunciation: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val storedValue: String = saved.pronunciation.orEmpty()
+    var draft: String by remember(storedValue) { mutableStateOf(storedValue) }
+    val changed: Boolean = draft.trim() != storedValue
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.tts_name_pronunciation_title),
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+            Text(
+                text = stringResource(Res.string.tts_name_pronunciation_description, saved.channelName),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            AppTextField(
+                value = draft,
+                onValueChange = { draft = it.take(100) },
+                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(Res.string.tts_name_pronunciation_label),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                ManageGate(decision = manage) { enabled ->
+                    Button(onClick = { onSave(draft.trim()) }, enabled = enabled && !busy && changed) {
+                        Text(stringResource(Res.string.tts_name_pronunciation_save))
+                    }
+                }
+                ManageGate(decision = manage) { enabled ->
+                    Button(
+                        onClick = { onSave("") },
+                        enabled = enabled && !busy && storedValue.isNotEmpty(),
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(stringResource(Res.string.tts_name_pronunciation_clear))
+                    }
+                }
+            }
+        }
+    }
+}
 
 // The pronunciation lexicon (tts.md): the channel's phrase → spoken-replacement rules. Lists every rule
 // with its match-kind chip; add/edit run through one dialog, delete confirms first. All writes sit at the

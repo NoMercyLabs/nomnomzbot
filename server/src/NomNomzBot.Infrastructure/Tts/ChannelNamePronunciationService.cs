@@ -10,8 +10,10 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Tts;
 
@@ -33,4 +35,54 @@ public sealed class ChannelNamePronunciationService : IChannelNamePronunciationS
             .OrderBy(c => c.NameNormalized)
             .Select(c => new ChannelNamePronunciation(c.Name, c.UsernamePronunciation!))
             .ToListAsync(cancellationToken);
+
+    public async Task<Result<ChannelNamePronunciationDto>> GetAsync(
+        Guid channelId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == channelId,
+            cancellationToken
+        );
+        return channel is null
+            ? Errors.ChannelNotFound<ChannelNamePronunciationDto>(channelId.ToString())
+            : Result.Success(ToDto(channel));
+    }
+
+    public async Task<Result<ChannelNamePronunciationDto>> SetAsync(
+        Guid channelId,
+        string? pronunciation,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? value = string.IsNullOrWhiteSpace(pronunciation) ? null : pronunciation.Trim();
+        if (
+            value is not null
+            && (
+                value.Length > IChannelNamePronunciationService.MaxLength
+                || value.Any(char.IsControl)
+            )
+        )
+        {
+            return Result.Failure<ChannelNamePronunciationDto>(
+                $"The pronunciation must be at most {IChannelNamePronunciationService.MaxLength} characters with no control characters.",
+                "VALIDATION_FAILED"
+            );
+        }
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == channelId,
+            cancellationToken
+        );
+        if (channel is null)
+            return Errors.ChannelNotFound<ChannelNamePronunciationDto>(channelId.ToString());
+
+        channel.UsernamePronunciation = value;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(channel));
+    }
+
+    private static ChannelNamePronunciationDto ToDto(Channel channel) =>
+        new(channel.Name, channel.UsernamePronunciation);
 }

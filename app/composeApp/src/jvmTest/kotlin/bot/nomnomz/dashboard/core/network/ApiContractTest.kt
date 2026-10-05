@@ -180,6 +180,8 @@ class ApiContractTest {
             TtsQueueEntry.serializer() to "TtsQueueEntryDto",
             TtsLexiconEntry.serializer() to "TtsLexiconEntryDto",
             UpsertTtsLexiconEntryBody.serializer() to "UpsertTtsLexiconEntryDto",
+            ChannelNamePronunciation.serializer() to "ChannelNamePronunciationDto",
+            SetChannelNamePronunciationBody.serializer() to "SetChannelNamePronunciationDto",
             BlockedTrack.serializer() to "BlockedTrackDto",
             BlockedTrackPage.serializer() to "PaginatedResponseOfBlockedTrackDto",
             BlockTrackBody.serializer() to "BlockTrackRequest",

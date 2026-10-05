@@ -887,6 +887,12 @@
     <string name="tts_lexicon_kind_word">Heel woord</string>
     <string name="tts_lexicon_kind_exact">Exacte match</string>
     <string name="tts_lexicon_error">Kon die uitspraakregel niet opslaan: %1$s</string>
+    <string name="tts_name_pronunciation_title">Jouw kanaalnaam</string>
+    <string name="tts_name_pronunciation_description">Stel in hoe TTS %1$s uitspreekt, in je eigen kanaal en in elk ander kanaal waar je naam wordt uitgesproken. Laat het leeg om de naam te lezen zoals hij geschreven is.</string>
+    <string name="tts_name_pronunciation_label">Hoe TTS jouw naam zegt</string>
+    <string name="tts_name_pronunciation_save">Opslaan</string>
+    <string name="tts_name_pronunciation_clear">Wissen</string>
+    <string name="tts_name_pronunciation_error">Kon niet opslaan hoe TTS jouw naam zegt: %1$s</string>
     <string name="tts_lexicon_edit_action">Regel %1$s bewerken</string>
     <string name="tts_lexicon_delete_action">Regel %1$s verwijderen</string>
     <string name="tts_lexicon_dialog_add_title">Uitspraakregel toevoegen</string>
