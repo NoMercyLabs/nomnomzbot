@@ -334,6 +334,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("webhooks:inbound:write", Editor);
         M("webhooks:outbound:read", Mod);
         M("webhooks:outbound:write", Editor);
+        M("egress:allowlist:read", Mod);
+        M("egress:allowlist:write", Editor);
         MFloor("widget:read", Mod, Vip);
         M("widget:write", Mod);
         M("widget:compile", Mod);
