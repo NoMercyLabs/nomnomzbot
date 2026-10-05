@@ -54,11 +54,13 @@ public sealed class SendReplyAction : ICommandAction
         if (string.IsNullOrEmpty(template))
             return ActionResult.Failure("send_reply requires a 'message' parameter");
 
-        string resolved = await _resolver.ResolveAsync(
-            template,
-            ctx.Variables,
-            ctx.BroadcasterId,
-            ctx.CancellationToken
+        string resolved = PipelineChatLine.Cut(
+            await _resolver.ResolveAsync(
+                template,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            )
         );
         bool sent = await _chat.SendReplyAsync(
             ctx.BroadcasterId,

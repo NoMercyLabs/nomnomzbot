@@ -71,8 +71,7 @@ public sealed class SendMessageActionTests
 
         result.Succeeded.Should().BeTrue();
         await chat.Received(1).SendMessageAsync(Broadcaster, "hello", Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsBroadcasterAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsBroadcasterAsync(default, default!);
     }
 
     [Fact]
@@ -96,8 +95,7 @@ public sealed class SendMessageActionTests
 
         result.Succeeded.Should().BeTrue();
         await chat.Received(1).SendMessageAsync(Broadcaster, "hello", Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsBroadcasterAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsBroadcasterAsync(default, default!);
     }
 
     [Fact]
@@ -123,7 +121,7 @@ public sealed class SendMessageActionTests
         result.Succeeded.Should().BeTrue();
         await chat.Received(1)
             .SendMessageAsBroadcasterAsync(Broadcaster, "hello", Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -148,6 +146,48 @@ public sealed class SendMessageActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task A_600_char_line_is_sent_cut_to_447_chars_plus_an_ellipsis_like_the_old_bot()
+    {
+        (SendMessageAction action, IChatProvider chat) = Build();
+        string line = new('a', 600);
+        string expected = new string('a', 447) + "...";
+        chat.SendMessageAsync(Broadcaster, expected, Arg.Any<CancellationToken>()).Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            new()
+            {
+                Type = "send_message",
+                Parameters = new() { ["message"] = ParamValue(line) },
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendMessageAsync(Broadcaster, expected, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_450_char_line_is_sent_unchanged()
+    {
+        (SendMessageAction action, IChatProvider chat) = Build();
+        string line = new('b', 450);
+        chat.SendMessageAsync(Broadcaster, line, Arg.Any<CancellationToken>()).Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            new()
+            {
+                Type = "send_message",
+                Parameters = new() { ["message"] = ParamValue(line) },
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1).SendMessageAsync(Broadcaster, line, Arg.Any<CancellationToken>());
     }
 
     private static System.Text.Json.JsonElement ParamValue(string value) =>

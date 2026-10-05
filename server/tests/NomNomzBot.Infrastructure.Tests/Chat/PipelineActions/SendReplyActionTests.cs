@@ -69,7 +69,7 @@ public sealed class SendReplyActionTests
         );
 
         result.Succeeded.Should().BeTrue();
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -117,6 +117,50 @@ public sealed class SendReplyActionTests
 
         result.Succeeded.Should().BeFalse("neither the reply nor the fallback ever reached chat");
         result.ErrorMessage.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task A_600_char_reply_is_sent_cut_to_447_chars_plus_an_ellipsis_like_the_old_bot()
+    {
+        (SendReplyAction action, IChatProvider chat) = Build();
+        string line = new('a', 600);
+        string expected = new string('a', 447) + "...";
+        chat.SendReplyAsync(Broadcaster, "msg-1", expected, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            new()
+            {
+                Type = "send_reply",
+                Parameters = new() { ["message"] = ParamValue(line) },
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendReplyAsync(Broadcaster, "msg-1", expected, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_450_char_reply_is_sent_unchanged()
+    {
+        (SendReplyAction action, IChatProvider chat) = Build();
+        string line = new('b', 450);
+        chat.SendReplyAsync(Broadcaster, "msg-1", line, Arg.Any<CancellationToken>()).Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            new()
+            {
+                Type = "send_reply",
+                Parameters = new() { ["message"] = ParamValue(line) },
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendReplyAsync(Broadcaster, "msg-1", line, Arg.Any<CancellationToken>());
     }
 
     private static System.Text.Json.JsonElement ParamValue(string value) =>

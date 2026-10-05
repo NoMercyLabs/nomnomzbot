@@ -62,11 +62,13 @@ public sealed class SendMessageAction : ICommandAction
         if (string.IsNullOrEmpty(template))
             return ActionResult.Failure("send_message requires a 'message' parameter");
 
-        string resolved = await _resolver.ResolveAsync(
-            template,
-            ctx.Variables,
-            ctx.BroadcasterId,
-            ctx.CancellationToken
+        string resolved = PipelineChatLine.Cut(
+            await _resolver.ResolveAsync(
+                template,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            )
         );
         // Defaults to the bot voice (existing behavior, unchanged for every step that never set this).
         // "broadcaster" is for content only the streamer's own account can post as themselves — e.g. a
