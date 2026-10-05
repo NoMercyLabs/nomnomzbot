@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,10 @@ namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 /// <c>engagement.watch_streak</c> handler in Engagement/EventHandlers listens for a bot-computed
 /// milestone event that nothing in this codebase ever publishes — dead on its own).
 /// Variables exposed: user, user.id, user.login, user.name, viewer.name, engagement.streak (the preset's
-/// names) and streak.months, streak.points, streak.message
+/// names) and streak.months, streak.points, streak.message, plus the old bot's record split:
+/// streak.record (the highest PREVIOUS streak, 0 when none; also exposed as record) and streak.state
+/// (new_record when the streak beats a previous record above 0, rebuilt when it is below the record,
+/// otherwise standard). A replayed event has no stored previous record, so it reads as standard.
 /// </summary>
 public sealed class WatchStreakHandler
     : TwitchAlertHandlerBase<WatchStreakReceivedEvent>,
@@ -37,6 +41,11 @@ public sealed class WatchStreakHandler
     protected override string EventTypeKey => "engagement.watch_streak";
 
     private readonly TimeProvider _timeProvider;
+
+    // BuildVariables(event) is fixed by the base class and the event is init-only, so the previous max read
+    // during the upsert travels beside the event instance instead of on it.
+    private readonly ConditionalWeakTable<WatchStreakReceivedEvent, StrongBox<int>> _previousMax =
+        new();
 
     public WatchStreakHandler(
         IServiceScopeFactory s,
@@ -53,8 +62,10 @@ public sealed class WatchStreakHandler
 
     protected override string? GetUserDisplayName(WatchStreakReceivedEvent e) => e.UserDisplayName;
 
-    protected override Dictionary<string, string> BuildVariables(WatchStreakReceivedEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
+    protected override Dictionary<string, string> BuildVariables(WatchStreakReceivedEvent e)
+    {
+        int record = _previousMax.TryGetValue(e, out StrongBox<int>? box) ? box.Value : 0;
+        return new(StringComparer.OrdinalIgnoreCase)
         {
             ["user"] = e.UserDisplayName,
             ["user.id"] = e.UserId,
@@ -65,7 +76,17 @@ public sealed class WatchStreakHandler
             ["streak.months"] = e.StreakMonths.ToString(),
             ["streak.points"] = e.ChannelPointsEarned.ToString(),
             ["streak.message"] = e.CustomMessage ?? string.Empty,
+            ["streak.record"] = record.ToString(),
+            ["record"] = record.ToString(),
+            ["streak.state"] = StateFor(e.StreakMonths, record),
         };
+    }
+
+    /// <summary>The old bot's pick: beat a real record = new_record, below it = rebuilt, else standard.</summary>
+    private static string StateFor(int streak, int record) =>
+        streak > record && record > 0 ? "new_record"
+        : record > streak ? "rebuilt"
+        : "standard";
 
     protected override WatchStreakReceivedEvent SampleEvent(DateTimeOffset now) =>
         new()
@@ -101,6 +122,8 @@ public sealed class WatchStreakHandler
                 w => w.BroadcasterId == broadcasterId && w.UserId == e.UserId,
                 ct
             );
+
+            _previousMax.AddOrUpdate(e, new(existing?.MaxStreak ?? 0));
 
             if (existing is null)
             {

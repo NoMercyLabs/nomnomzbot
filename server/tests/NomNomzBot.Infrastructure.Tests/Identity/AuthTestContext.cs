@@ -570,7 +570,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.Timer>()
             .Ignore(e => e.Channel)
             .Ignore(e => e.Pipeline);
-        b.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
+        // WatchStreak: mapped scalar-only (Channel nav ignored) so the watch-streak handler tests can seed and read the stored max.
+        b.Entity<NomNomzBot.Domain.Rewards.Entities.WatchStreak>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Rewards.Entities.WatchStreak>().Ignore(e => e.Channel);
 
         // EventResponse: mapped scalar-only (MetadataJson's jsonb column and both navs ignored) so the
         // event-response seeding and platform-default tests can seed/query responses through this harness.
@@ -765,7 +767,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Commands.Entities.PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
         Set<Domain.Commands.Entities.PlatformBuiltinReplyDefault>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
 
