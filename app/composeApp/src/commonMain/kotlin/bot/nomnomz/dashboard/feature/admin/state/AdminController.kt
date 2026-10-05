@@ -1039,16 +1039,18 @@ class AdminController(
         }
     }
 
-    /** Stores a client id and/or secret. Blank fields are dropped, so the server is never asked to
+    /** Stores a client id, secret and/or (YouTube only) Data API key. Blank fields are dropped, so the server is never asked to
      * overwrite a value the operator left alone. A failure announces on the shell-level feedback toast. */
     suspend fun saveProviderCredential(
         provider: String,
         clientId: String,
         clientSecret: String,
+        apiKey: String,
     ) {
         val body = SaveProviderCredentialBody(
             clientId = clientId.takeIf { it.isNotBlank() },
             clientSecret = clientSecret.takeIf { it.isNotBlank() },
+            apiKey = apiKey.takeIf { it.isNotBlank() },
         )
         when (val result = api.saveProviderCredential(provider, body)) {
             is ApiResult.Ok -> loadProviders()

@@ -3807,6 +3807,7 @@
     <string name="admin_providers_no_client_id">Geen client-id ingesteld</string>
     <string name="admin_providers_id_label">Client-ID</string>
     <string name="admin_providers_secret_label">Client secret</string>
+    <string name="admin_providers_api_key_label">API-sleutel</string>
     <string name="admin_providers_source_stored">opgeslagen</string>
     <string name="admin_providers_source_environment">omgeving</string>
     <string name="admin_providers_source_unset">niet ingesteld</string>

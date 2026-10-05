@@ -3823,6 +3823,7 @@
     <string name="admin_providers_no_client_id">No client id configured</string>
     <string name="admin_providers_id_label">Client ID</string>
     <string name="admin_providers_secret_label">Client secret</string>
+    <string name="admin_providers_api_key_label">API key</string>
     <string name="admin_providers_source_stored">stored</string>
     <string name="admin_providers_source_environment">environment</string>
     <string name="admin_providers_source_unset">not set</string>

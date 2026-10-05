@@ -201,6 +201,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tab_event_replay
 import nomnomzbot.composeapp.generated.resources.admin_tab_support
 import nomnomzbot.composeapp.generated.resources.admin_tab_data_requests
 import nomnomzbot.composeapp.generated.resources.admin_tab_trust_safety
+import nomnomzbot.composeapp.generated.resources.admin_providers_api_key_label
 import nomnomzbot.composeapp.generated.resources.admin_providers_explain
 import nomnomzbot.composeapp.generated.resources.admin_providers_empty
 import nomnomzbot.composeapp.generated.resources.admin_providers_no_client_id
@@ -1162,9 +1163,9 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
         ProviderCredentialDialog(
             provider = provider,
             onDismiss = { editing = null },
-            onSave = { clientId, clientSecret ->
+            onSave = { clientId, clientSecret, apiKey ->
                 editing = null
-                scope.launch { controller.saveProviderCredential(provider.provider, clientId, clientSecret) }
+                scope.launch { controller.saveProviderCredential(provider.provider, clientId, clientSecret, apiKey) }
             },
         )
     }
@@ -1178,7 +1179,7 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
                 stringResource(
                     Res.string.admin_providers_clear_confirm,
                     provider.provider,
-                    listOf(provider.clientIdSource, provider.secretSource).count { it == "stored" },
+                    listOf(provider.clientIdSource, provider.secretSource, provider.apiKeySource).count { it == "stored" },
                 ),
             confirmLabel = stringResource(Res.string.admin_providers_clear),
             dismissLabel = stringResource(Res.string.admin_cancel),
@@ -1230,11 +1231,18 @@ private fun ProviderRow(
             label = stringResource(Res.string.admin_providers_secret_label),
             source = provider.secretSource,
         )
+        // Only a provider that has a Data API key reports a source for it (YouTube); the rest keep two badges.
+        provider.apiKeySource?.let { apiKeySource ->
+            SourceBadge(
+                label = stringResource(Res.string.admin_providers_api_key_label),
+                source = apiKeySource,
+            )
+        }
 
         Button(onClick = onConfigure, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
             Text(text = stringResource(Res.string.admin_providers_configure), style = typography.xs)
         }
-        if (provider.clientIdSource == "stored" || provider.secretSource == "stored") {
+        if (provider.clientIdSource == "stored" || provider.secretSource == "stored" || provider.apiKeySource == "stored") {
             Button(onClick = onClear, variant = ButtonVariant.DestructiveGhost, size = ButtonSize.Sm) {
                 Text(text = stringResource(Res.string.admin_providers_clear), style = typography.xs)
             }
@@ -1264,17 +1272,18 @@ private fun SourceBadge(label: String, source: String) {
 }
 
 /**
- * Sets a client id and/or secret. Both fields start EMPTY, including the id: a pre-filled id invites a save
+ * Sets a client id, secret and (YouTube) API key. Every field starts EMPTY, including the id: a pre-filled id invites a save
  * that rewrites a value the operator never meant to touch, and blank here means "leave it".
  */
 @Composable
 private fun ProviderCredentialDialog(
     provider: ProviderCredential,
     onDismiss: () -> Unit,
-    onSave: (clientId: String, clientSecret: String) -> Unit,
+    onSave: (clientId: String, clientSecret: String, apiKey: String) -> Unit,
 ) {
     var clientId: String by remember { mutableStateOf("") }
     var clientSecret: String by remember { mutableStateOf("") }
+    var apiKey: String by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
         DialogTitle(text = stringResource(Res.string.admin_providers_configure_title, provider.provider))
@@ -1292,14 +1301,24 @@ private fun ProviderCredentialDialog(
             label = stringResource(Res.string.admin_providers_secret_label),
             modifier = Modifier.fillMaxWidth(),
         )
+        // The Data API key exists for YouTube only. Like the secret it starts empty and is never read back:
+        // the row's source badge says whether one is stored, and saving here replaces it.
+        if (provider.apiKeySource != null) {
+            RevealableSecretField(
+                value = apiKey,
+                onValueChange = { apiKey = it },
+                label = stringResource(Res.string.admin_providers_api_key_label),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         DialogFooter {
             Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
                 Text(text = stringResource(Res.string.admin_cancel))
             }
             Button(
-                onClick = { onSave(clientId, clientSecret) },
-                enabled = clientId.isNotBlank() || clientSecret.isNotBlank(),
+                onClick = { onSave(clientId, clientSecret, apiKey) },
+                enabled = clientId.isNotBlank() || clientSecret.isNotBlank() || apiKey.isNotBlank(),
             ) {
                 Text(text = stringResource(Res.string.admin_providers_save))
             }
