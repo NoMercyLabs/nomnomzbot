@@ -112,12 +112,16 @@ try {
         Write-Host '== full suites skipped (-FilteredOnly): the batch gate on master runs them =='
         $affected.Clear()
         # Repo-wide contract checks that a slice filter never names, yet any new reply slot, helper or schema key
-        # breaks (2026-10-05: a new slot without its manifest key reached master and failed the batch gate).
-        [string]$contractGuards = 'FullyQualifiedName~.Localization.|FullyQualifiedName~TemplateHelperCoverage|' +
-            'FullyQualifiedName~ToneTemplateCatalogIntegrity'
-        Write-Host '== test (repo-wide contract guards) =='
-        Invoke-Native 'a repo-wide contract guard failed - the slice added a key, slot or helper without its entry' {
-            dotnet test tests/NomNomzBot.Infrastructure.Tests -c Debug --no-build --filter $contractGuards
+        # breaks (2026-10-05: a new slot without its manifest key reached master and failed the batch gate; the same
+        # day a new play_tts accessor failed PipelineActionFieldSchemaGuard, so every *Guard/*Drift/*Coverage/
+        # *Integrity test class runs here, in every project that has one).
+        [string]$contractGuards = 'FullyQualifiedName~.Localization.|FullyQualifiedName~GuardTests|' +
+            'FullyQualifiedName~DriftTests|FullyQualifiedName~CoverageTests|FullyQualifiedName~IntegrityTests'
+        foreach ($guardProject in @('tests/NomNomzBot.Infrastructure.Tests', 'tests/NomNomzBot.Api.Tests', 'tests/NomNomzBot.Application.Tests')) {
+            Write-Host "== test (repo-wide contract guards: $guardProject) =="
+            Invoke-Native 'a repo-wide contract guard failed - the slice broke a guard, drift, coverage or integrity check' {
+                dotnet test $guardProject -c Debug --no-build --filter $contractGuards
+            }
         }
     }
     foreach ($project in $affected) {
