@@ -211,9 +211,38 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         }
 
         _db.CustomDataSources.Add(source);
-        await _db.SaveChangesAsync(ct);
+        await SaveNewSourceOrDiscardEndpointAsync(source, ct);
 
         return Result<CustomDataSourceDto>.Success(await ToDtoAsync(source, ct));
+    }
+
+    /// <summary>
+    /// Saves a NEW source. The inbound endpoint is committed by its own service before this save, so when
+    /// this save throws, the endpoint would be left behind with no source to own it: the unsaved source is
+    /// detached (or the next save would retry its insert) and the endpoint is deleted before the exception
+    /// moves on.
+    /// </summary>
+    private async Task SaveNewSourceOrDiscardEndpointAsync(
+        CustomDataSource source,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            _db.CustomDataSources.Remove(source);
+            if (source.InboundWebhookEndpointId is { } endpointId)
+                await _endpoints.DeleteAsync(
+                    source.BroadcasterId,
+                    endpointId,
+                    CancellationToken.None
+                );
+
+            throw;
+        }
     }
 
     public async Task<Result<CustomDataSourceDto>> UpdateAsync(

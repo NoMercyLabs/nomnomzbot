@@ -285,6 +285,26 @@ public sealed class CustomDataSourcePushTests
     }
 
     [Fact]
+    public async Task CreateAsync_push_source_whose_final_save_fails_leaves_no_live_inbound_endpoint()
+    {
+        Rig rig = await BuildAsync();
+        // A real database refusal at the source insert, after the endpoint is already committed.
+        await rig.Db.Database.ExecuteSqlRawAsync(
+            "CREATE TRIGGER refuse_source BEFORE INSERT ON CustomDataSources "
+                + "BEGIN SELECT RAISE(ABORT, 'source insert refused'); END;"
+        );
+
+        Func<Task> create = () => rig.Service.CreateAsync(Tenant, Actor, Request("push", Secret));
+
+        await create.Should().ThrowAsync<DbUpdateException>();
+        (await rig.Db.CustomDataSources.CountAsync()).Should().Be(0);
+        List<InboundWebhookEndpoint> liveEndpoints = await rig
+            .Db.InboundWebhookEndpoints.Where(e => e.DeletedAt == null)
+            .ToListAsync();
+        liveEndpoints.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task DeleteAsync_removes_the_push_sources_endpoint()
     {
         Rig rig = await BuildAsync();
