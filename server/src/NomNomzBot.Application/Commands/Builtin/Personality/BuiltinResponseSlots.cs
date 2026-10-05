@@ -49,6 +49,7 @@ public static partial class BuiltinResponseSlots
             [Commands.Key] = [Commands.List],
             [Lurk.Key] = [Lurk.Lurking, Lurk.NotLurking],
             [AccountAge.Key] = [AccountAge.Age],
+            [FollowAge.Key] = [FollowAge.Age],
             [Discord.Key] = [Discord.Invite],
             [Leaderboard.Key] = [Leaderboard.Top],
             [Playlist.Key] = [Playlist.Summary],

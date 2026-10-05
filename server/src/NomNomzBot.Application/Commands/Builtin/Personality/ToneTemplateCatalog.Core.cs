@@ -19,6 +19,7 @@ public static partial class ToneTemplateCatalog
     private static void AddCoreSlots(Dictionary<(string, string), SlotEntry> catalog)
     {
         AddLurkAndAccountAgeSlots(catalog);
+        AddFollowAgeSlots(catalog);
         AddWhisperAndUpdateSlots(catalog);
         AddDiscordSlots(catalog);
         AddLeaderboardSlots(catalog);
@@ -87,6 +88,45 @@ public static partial class ToneTemplateCatalog
             sassy: ["@{user} your account age is a mystery. Even to me."],
             hype: ["@{user} ACCOUNT AGE UNKNOWN. THE MYSTERY DEEPENS."],
             chill: ["@{user} couldn't work out your account age."]
+        );
+    }
+
+    private static void AddFollowAgeSlots(Dictionary<(string, string), SlotEntry> catalog)
+    {
+        Add(
+            catalog,
+            BuiltinResponseSlots.FollowAge.Key,
+            BuiltinResponseSlots.FollowAge.Age,
+            variables: ["age", "user"],
+            informative: ["You have been following for {age}!"],
+            friendly: ["You've been following for {age} — thank you for sticking around!"],
+            sassy: ["You have been following for {age}. That's a long time to keep showing up."],
+            hype: ["YOU HAVE BEEN FOLLOWING FOR {age}! LEGEND STATUS!"],
+            chill: ["you've been following for {age}."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.FollowAge.Key,
+            BuiltinResponseSlots.FollowAge.NotFollowing,
+            variables: ["user"],
+            informative: ["You are not following!"],
+            friendly: ["You're not following yet — hit that follow button whenever you like!"],
+            sassy: ["You are not following. Bold of you to ask. The button is right there."],
+            hype: ["YOU ARE NOT FOLLOWING! FIX THAT RIGHT NOW!"],
+            chill: ["you're not following yet."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.FollowAge.Key,
+            BuiltinResponseSlots.FollowAge.TwitchUnavailable,
+            variables: ["user"],
+            informative: ["Twitch did not answer just now — try again in a moment."],
+            friendly: ["Twitch didn't answer just now — mind trying again in a moment?"],
+            sassy: ["Twitch didn't answer. Not my fault. Try again in a moment."],
+            hype: ["TWITCH WENT QUIET. TRY AGAIN IN A MOMENT."],
+            chill: ["twitch didn't answer — try again in a bit."]
         );
     }
 
@@ -465,6 +505,7 @@ public static partial class ToneTemplateCatalog
         samples["command"] = "!socials";
         samples["description"] = "Links to all my socials.";
         samples["age"] = "3 years 2 months";
+        samples["date"] = "March 4, 2021";
         samples["discord.invite"] = "discord.gg/abc123";
         samples["leaderboard.metric"] = "points";
         samples["leaderboard.list"] =

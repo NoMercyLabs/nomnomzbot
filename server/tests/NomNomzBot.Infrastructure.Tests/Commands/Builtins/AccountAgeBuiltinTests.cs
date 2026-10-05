@@ -187,7 +187,7 @@ public sealed class AccountAgeBuiltinTests
         Result<string> result = await builtin.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("2 years");
+        result.Value.Should().Be("Your account was created on August 31, 2024 (2 years ago).");
     }
 
     [Fact]
@@ -218,8 +218,9 @@ public sealed class AccountAgeBuiltinTests
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
         Result<string> informative = await builtin.ExecuteAsync(Context());
 
-        string oldHardcodedString = "@Stoney_Eagle your Twitch account is 2 years old.";
-        sassy.Value.Should().NotBe(oldHardcodedString);
+        string legacySentence = "Your account was created on August 31, 2024 (2 years ago).";
+        sassy.Value.Should().NotBe(legacySentence);
+        sassy.Value.Should().Contain("August 31, 2024").And.Contain("2 years");
         HashSet<string> sassyVariants =
         [
             .. ToneTemplateCatalog
@@ -228,12 +229,16 @@ public sealed class AccountAgeBuiltinTests
                     BuiltinResponseSlots.AccountAge.Key,
                     BuiltinResponseSlots.AccountAge.Age
                 )
-                .Select(t => t.Replace("{user}", "Stoney_Eagle").Replace("{age}", "2 years")),
+                .Select(t =>
+                    t.Replace("{user}", "Stoney_Eagle")
+                        .Replace("{date}", "August 31, 2024")
+                        .Replace("{age}", "2 years")
+                ),
         ];
         sassyVariants.Should().Contain(sassy.Value);
 
-        // Default tone still reads exactly as it did before this slice (regression).
-        informative.Value.Should().Be(oldHardcodedString);
+        // The informative tone is the legacy sentence verbatim.
+        informative.Value.Should().Be(legacySentence);
     }
 
     [Fact]
@@ -285,8 +290,9 @@ public sealed class AccountAgeBuiltinTests
         Result<string> result = await builtin.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("1 year");
-        result.Value.Should().Contain("3 months");
+        result
+            .Value.Should()
+            .Be("Your account was created on May 31, 2025 (1 year, 3 months, 2 days ago).");
         // The point of the fallback: the row now carries the resolved date so next time is free.
         db.Users.Single(u => u.TwitchUserId == TwitchId)
             .AccountCreatedAt.Should()

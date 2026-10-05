@@ -75,6 +75,13 @@
     <string name="builtin_reply_accountage_notfound_description">Twitch heeft geen account voor de kijker.</string>
     <string name="builtin_reply_accountage_undetermined_label">Leeftijd onbekend</string>
     <string name="builtin_reply_accountage_undetermined_description">Het account heeft geen bekende aanmaakdatum.</string>
+    <string name="builtin_reply_var_date">De datum waarop het account is gemaakt</string>
+    <string name="builtin_reply_followage_age_label">Volgduur</string>
+    <string name="builtin_reply_followage_age_description">Een kijker vraagt hoe lang ze al volgen.</string>
+    <string name="builtin_reply_followage_notfollowing_label">Volgt niet</string>
+    <string name="builtin_reply_followage_notfollowing_description">Een kijker vraagt hoe lang ze volgen, maar volgt het kanaal niet.</string>
+    <string name="builtin_reply_followage_twitchunavailable_label">Twitch gaf geen antwoord</string>
+    <string name="builtin_reply_followage_twitchunavailable_description">Twitch gaf geen antwoord op de volger-opzoeking.</string>
     <string name="builtin_reply_whisper_sent_label">Fluistering verstuurd</string>
     <string name="builtin_reply_whisper_sent_description">De fluistering is verstuurd.</string>
     <string name="builtin_reply_whisper_sendfailed_label">Fluistering mislukt</string>

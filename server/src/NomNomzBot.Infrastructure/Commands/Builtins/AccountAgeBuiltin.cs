@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
@@ -135,12 +136,16 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                 )
             );
 
-        string age = FormatAge(_clock.GetUtcNow().UtcDateTime - row.AccountCreatedAt.Value);
+        DateTime createdAt = row.AccountCreatedAt.Value;
+        string age = LegacyAgeText.AccountAge(
+            TimeSpan.FromTicks(Math.Max(0, (_clock.GetUtcNow().UtcDateTime - createdAt).Ticks))
+        );
         string reply = await ReplyAsync(
             context,
             BuiltinResponseSlots.AccountAge.Age,
-            $"@{context.TriggeringUserDisplayName} your Twitch account is {age} old.",
+            "Your account was created on {date} ({age} ago).",
             ct,
+            ("date", createdAt.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)),
             ("age", age)
         );
         return Result.Success(reply);
@@ -174,27 +179,5 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
             },
             ct
         );
-    }
-
-    private static string FormatAge(TimeSpan span)
-    {
-        if (span < TimeSpan.Zero)
-            span = TimeSpan.Zero;
-
-        int totalDays = (int)span.TotalDays;
-        int years = totalDays / 365;
-        int days = totalDays % 365;
-        int months = days / 30;
-        days %= 30;
-
-        List<string> parts = [];
-        if (years > 0)
-            parts.Add($"{years} year{(years == 1 ? "" : "s")}");
-        if (months > 0)
-            parts.Add($"{months} month{(months == 1 ? "" : "s")}");
-        if (years == 0 && months == 0)
-            parts.Add($"{days} day{(days == 1 ? "" : "s")}");
-
-        return string.Join(", ", parts);
     }
 }

@@ -78,7 +78,7 @@ public static partial class BuiltinResponseSlots
     {
         public const string Key = "accountage";
 
-        /// <summary>The age was resolved; <c>{user}</c>/<c>{age}</c> are set.</summary>
+        /// <summary>The age was resolved; <c>{user}</c>, <c>{date}</c> (creation date) and <c>{age}</c> are set.</summary>
         public const string Age = "age";
 
         /// <summary>The caller's account could not be resolved; <c>{user}</c> is set.</summary>
@@ -92,6 +92,21 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The account was found but carries no creation date; <c>{user}</c> is set.</summary>
         public const string Undetermined = "undetermined";
+    }
+
+    /// <summary><c>!followage</c> — how long the caller has followed the channel.</summary>
+    public static class FollowAge
+    {
+        public const string Key = "followage";
+
+        /// <summary>The caller follows; <c>{user}</c>/<c>{age}</c> are set.</summary>
+        public const string Age = "age";
+
+        /// <summary>The caller does not follow the channel; <c>{user}</c> is set.</summary>
+        public const string NotFollowing = "notfollowing";
+
+        /// <summary>The live Twitch follower lookup failed; <c>{user}</c> is set.</summary>
+        public const string TwitchUnavailable = "twitchunavailable";
     }
 
     /// <summary><c>!whisper &lt;user&gt; &lt;message&gt;</c> — usage/error tone slots (S069h).</summary>

@@ -779,17 +779,20 @@ public static partial class ToneTemplateCatalog
             chill: ["@{user} is back."]
         );
 
-        // ── !accountage / age ({user} {age}) ─────────────────────────────────────
+        // ── !accountage / age ({user} {date} {age}) — informative is the legacy sentence verbatim ──
         Add(
             catalog,
             BuiltinResponseSlots.AccountAge.Key,
             BuiltinResponseSlots.AccountAge.Age,
-            variables: ["age", "user"],
-            informative: ["@{user} your Twitch account is {age} old."],
-            friendly: ["@{user} your account has been around for {age} — nice!"],
-            sassy: ["@{user} {age} old and still typing this into chat. Respect the commitment."],
-            hype: ["@{user} {age} STRONG ON THIS PLATFORM. VETERAN STATUS EARNED."],
-            chill: ["@{user} account's {age} old."]
+            variables: ["age", "date", "user"],
+            informative: ["Your account was created on {date} ({age} ago)."],
+            friendly: ["Your account was created on {date} — {age} ago. Nice!"],
+            sassy:
+            [
+                "Your account was born on {date}. {age} ago, and you're still typing this into chat. Respect the commitment.",
+            ],
+            hype: ["ACCOUNT CREATED ON {date}. {age} AGO. VETERAN STATUS EARNED."],
+            chill: ["account's from {date}, {age} ago."]
         );
 
         // ── !whisper / usage (no args) ───────────────────────────────────────────
