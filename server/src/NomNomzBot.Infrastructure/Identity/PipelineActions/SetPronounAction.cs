@@ -94,7 +94,7 @@ public sealed class SetPronounAction : ICommandAction
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(pronounArg))
             return ActionResult.Failure(
-                "set_pronoun: usage — !setpronoun <username> <pronoun|clear>"
+                "Usage: !setpronoun <username> <pronoun> — e.g. !setpronoun someone he/him, she/her, they/them, or clear"
             );
 
         Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByLoginsAsync(
@@ -103,7 +103,7 @@ public sealed class SetPronounAction : ICommandAction
         );
         TwitchUser? target = lookup.IsSuccess ? lookup.Value.FirstOrDefault() : null;
         if (target is null)
-            return ActionResult.Failure($"set_pronoun: could not find user '{username}' on Twitch");
+            return ActionResult.Failure($"Could not find user '{username}'.");
 
         Result<UserDto> user = await _users.GetOrCreateAsync(
             target.Id,
@@ -131,7 +131,9 @@ public sealed class SetPronounAction : ICommandAction
                 },
                 ctx.CancellationToken
             );
-            return ActionResult.Success($"cleared pronoun override for {target.DisplayName}");
+            return ActionResult.Success(
+                $"Cleared pronoun override for {target.DisplayName}. Will use their alejo.io setting next time."
+            );
         }
 
         Pronoun? pronoun = await _db.Pronouns.FirstOrDefaultAsync(
@@ -141,9 +143,7 @@ public sealed class SetPronounAction : ICommandAction
         if (pronoun is null)
         {
             string available = string.Join(", ", _db.Pronouns.Select(p => p.Name));
-            return ActionResult.Failure(
-                $"set_pronoun: unknown pronoun '{pronounArg}'. Available: {available}"
-            );
+            return ActionResult.Failure($"Unknown pronoun '{pronounArg}'. Available: {available}");
         }
 
         UserPronounDto? result = await _pronouns.SetAsync(
@@ -154,7 +154,9 @@ public sealed class SetPronounAction : ICommandAction
         if (result is null)
             return ActionResult.Failure("set_pronoun: failed to set pronoun");
 
-        return ActionResult.Success($"set {target.DisplayName}'s pronoun to {pronoun.Name}");
+        return ActionResult.Success(
+            $"Set pronouns for {target.DisplayName} to {pronoun.Name} ({pronoun.Subject}/{pronoun.Object})."
+        );
     }
 
     private static string ResolveVariable(string value, IDictionary<string, string> variables)
