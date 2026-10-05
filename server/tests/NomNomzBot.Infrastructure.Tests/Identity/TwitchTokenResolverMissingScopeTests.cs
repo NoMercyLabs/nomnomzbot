@@ -11,11 +11,13 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.Identity;
@@ -61,7 +63,8 @@ public sealed class TwitchTokenResolverMissingScopeTests
             vault,
             Substitute.For<ITwitchAuthService>(),
             Substitute.For<ITwitchAppTokenProvider>(),
-            bus
+            bus,
+            SelfHostProfile()
         );
         return (resolver, vault, bus);
     }
@@ -98,6 +101,27 @@ public sealed class TwitchTokenResolverMissingScopeTests
 
     private static List<TwitchHelixReauthRequiredEvent> Reauths(RecordingEventBus bus) =>
         [.. bus.Published.OfType<TwitchHelixReauthRequiredEvent>()];
+
+    private static IDeploymentProfileService SelfHostProfile()
+    {
+        IDeploymentProfileService profile = Substitute.For<IDeploymentProfileService>();
+        profile.Current.Returns(
+            new DeploymentProfileSnapshot(
+                Guid.NewGuid(),
+                DeploymentMode.SelfHostLite,
+                false,
+                default,
+                default,
+                default,
+                default,
+                default,
+                default,
+                false,
+                default
+            )
+        );
+        return profile;
+    }
 
     [Fact]
     public async Task The_same_missing_scope_checked_twice_publishes_one_event()

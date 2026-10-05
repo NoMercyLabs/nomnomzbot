@@ -100,6 +100,8 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         //      numeric account id: the streamer-plane integration connect (tenant-scoped, carries the
         //      chat/moderation/events scopes) and the identity-plane login connection (BroadcasterId
         //      null, user:read only) — prefer the scoped one, it is the grant the chat surface needs.
+        //      Tenant isolation: only THIS channel's row or the login row qualifies — the same account
+        //      vaulted under another channel is that channel's grant, never this one's.
         var botConnectionRow = await _db
             .IntegrationConnections.Where(c =>
                 c.Provider == AuthEnums.IntegrationProvider.KickBot
@@ -121,6 +123,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
                 .IntegrationConnections.Where(c =>
                     c.Provider == AuthEnums.IntegrationProvider.Kick
                     && c.ProviderAccountId == externalId
+                    && (c.BroadcasterId == broadcasterId || c.BroadcasterId == null)
                     && c.Status != "revoked"
                 )
                 .OrderByDescending(c => c.BroadcasterId != null)

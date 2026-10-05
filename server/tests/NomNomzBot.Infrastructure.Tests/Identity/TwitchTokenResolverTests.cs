@@ -11,11 +11,13 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
@@ -39,7 +41,7 @@ public sealed class TwitchTokenResolverTests
         TwitchTokenResolver Resolver,
         IntegrationTokenVault Vault,
         AuthDbContext Db
-    ) Build()
+    ) Build(DeploymentMode mode = DeploymentMode.SelfHostLite)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
@@ -60,9 +62,31 @@ public sealed class TwitchTokenResolverTests
             vault,
             Substitute.For<ITwitchAuthService>(),
             Substitute.For<ITwitchAppTokenProvider>(),
-            new RecordingEventBus()
+            new RecordingEventBus(),
+            ProfileFor(mode)
         );
         return (resolver, vault, db);
+    }
+
+    private static IDeploymentProfileService ProfileFor(DeploymentMode mode)
+    {
+        IDeploymentProfileService profile = Substitute.For<IDeploymentProfileService>();
+        profile.Current.Returns(
+            new DeploymentProfileSnapshot(
+                Guid.NewGuid(),
+                mode,
+                false,
+                default,
+                default,
+                default,
+                default,
+                default,
+                default,
+                false,
+                default
+            )
+        );
+        return profile;
     }
 
     private static async Task StoreConnectionAsync(
@@ -263,6 +287,91 @@ public sealed class TwitchTokenResolverTests
         result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
     }
 
+    /// <summary>
+    /// Multi-tenant isolation: on a SaaS profile with no <c>twitch_bot</c> row, channel B must NEVER be
+    /// handed channel A's user token — not as the bot identity, not as the broadcaster fallback. The owner
+    /// fallback is a single-tenant self-host convenience only.
+    /// </summary>
+    [Fact]
+    public async Task GetBroadcasterToken_OnSaas_WithNoBotAccount_NeverBorrowsAnotherStreamersToken()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build(DeploymentMode.Saas);
+        Guid channelA = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        Guid channelB = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+        await StoreConnectionAsync(
+            vault,
+            channelA,
+            AuthEnums.IntegrationProvider.Twitch,
+            "channel-a-access-PLAINTEXT",
+            "twitch-user-a"
+        );
+
+        Result<TwitchAccessContext> forB = await resolver.GetBroadcasterTokenAsync(channelB);
+        Result<TwitchAccessContext> bot = await resolver.GetBotTokenAsync();
+
+        forB.IsFailure.Should().BeTrue();
+        forB.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+        bot.IsFailure.Should().BeTrue();
+        bot.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+    }
+
+    /// <summary>
+    /// The live box runs a platform <c>twitch_bot</c> row: that shared bot stays the fallback on every
+    /// profile — the isolation gate touches only the owner-token path.
+    /// </summary>
+    [Fact]
+    public async Task GetBroadcasterToken_OnSaas_WithPlatformBotRow_StillBorrowsThePlatformBot()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build(DeploymentMode.Saas);
+        Guid channelA = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        await StoreConnectionAsync(
+            vault,
+            channelA,
+            AuthEnums.IntegrationProvider.Twitch,
+            "channel-a-access-PLAINTEXT",
+            "twitch-user-a"
+        );
+        await StoreConnectionAsync(vault, null, BotProvider, "bot-access-PLAINTEXT", "bot-user-1");
+
+        Result<TwitchAccessContext> result = await resolver.GetBroadcasterTokenAsync(Tenant);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AccessToken.Should().Be("bot-access-PLAINTEXT");
+        result.Value.BroadcasterId.Should().BeNull();
+        result.Value.ServiceName.Should().Be(BotProvider);
+    }
+
+    /// <summary>
+    /// Even on self-host, "the owner" is only well-defined while exactly one streamer connection exists.
+    /// With two, picking the oldest row would hand one streamer's identity to the other: fail instead.
+    /// </summary>
+    [Fact]
+    public async Task GetBotToken_OnSelfHost_WithTwoStreamerConnections_NeverPicksTheOldest()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build();
+        Guid channelA = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        Guid channelB = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+        await StoreConnectionAsync(
+            vault,
+            channelA,
+            AuthEnums.IntegrationProvider.Twitch,
+            "channel-a-access-PLAINTEXT",
+            "twitch-user-a"
+        );
+        await StoreConnectionAsync(
+            vault,
+            channelB,
+            AuthEnums.IntegrationProvider.Twitch,
+            "channel-b-access-PLAINTEXT",
+            "twitch-user-b"
+        );
+
+        Result<TwitchAccessContext> result = await resolver.GetBotTokenAsync();
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+    }
+
     [Fact]
     public async Task GetBroadcasterToken_WhenNoConnectionAtAll_FailsWithNoToken()
     {
@@ -307,6 +416,6 @@ public sealed class TwitchTokenResolverTests
             Guid connectionId,
             IReadOnlyList<string> actualScopes,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Result.Success<IReadOnlyList<string>>(actualScopes));
+        ) => Task.FromResult(Result.Success(actualScopes));
     }
 }
