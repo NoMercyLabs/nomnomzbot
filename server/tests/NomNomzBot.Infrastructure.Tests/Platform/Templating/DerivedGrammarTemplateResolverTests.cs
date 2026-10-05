@@ -375,4 +375,85 @@ public sealed class DerivedGrammarTemplateResolverTests
 
         resolved.Should().Be("[]", "a viewer with no history renders empty, never the raw token");
     }
+
+    [Fact]
+    public async Task TargetLastMessage_SkipsDeletedMessages()
+    {
+        SeedChat("d1", "444", "dave", "still here", false, new(2026, 7, 1));
+        SeedChat("d2", "444", "dave", "removed by a mod", false, new(2026, 7, 2));
+        _db.ChatMessages.Single(m => m.Id == "d2").DeletedAt = new DateTime(2026, 7, 3);
+        _db.SaveChanges();
+
+        string resolved = await _resolver.ResolveAsync(
+            "[{target.lastmessage}]",
+            Seeds("111", target: "dave"),
+            Channel
+        );
+
+        resolved.Should().Be("[still here]", "a deleted message is never the last message");
+    }
+
+    [Fact]
+    public async Task TargetLastMessage_IsCutTo80Chars_With77PlusEllipsis()
+    {
+        SeedChat("l1", "444", "dave", new string('x', 120), false, new(2026, 7, 1));
+        SeedChat("e1", "555", "erin", new string('y', 80), false, new(2026, 7, 1));
+
+        string cut = await _resolver.ResolveAsync(
+            "[{target.lastmessage}]",
+            Seeds("111", target: "dave"),
+            Channel
+        );
+        string exact = await _resolver.ResolveAsync(
+            "[{target.lastmessage}]",
+            Seeds("111", target: "erin"),
+            Channel
+        );
+
+        cut.Should().Be("[" + new string('x', 77) + "...]");
+        exact.Should().Be("[" + new string('y', 80) + "]", "exactly 80 chars is not cut");
+    }
+
+    [Fact]
+    public async Task TargetRandomMessage_PicksOnlyQualifyingMessages()
+    {
+        SeedChat("q1", "444", "dave", "short", false, new(2026, 7, 1));
+        SeedChat("q2", "444", "dave", "!sr some song name", true, new(2026, 7, 2));
+        SeedChat("q3", "444", "dave", "https://example.com/page", false, new(2026, 7, 3));
+        SeedChat("q4", "444", "dave", "deleted but long enough", false, new(2026, 7, 4));
+        _db.ChatMessages.Single(m => m.Id == "q4").DeletedAt = new DateTime(2026, 7, 5);
+        SeedChat("q5", "444", "dave", "the only quotable line", false, new(2026, 7, 6));
+        SeedChat("q6", "666", "frank", "someone else said this", false, new(2026, 7, 6));
+        _db.SaveChanges();
+
+        for (int i = 0; i < 10; i++)
+        {
+            string resolved = await _resolver.ResolveAsync(
+                "[{target.randommessage}]",
+                Seeds("111", target: "dave"),
+                Channel
+            );
+            resolved.Should().Be("[the only quotable line]");
+        }
+    }
+
+    [Fact]
+    public async Task TargetRandomMessage_IsCutTo200Chars_AndRendersEmptyWithNoMatch()
+    {
+        SeedChat("r1", "444", "dave", new string('z', 250), false, new(2026, 7, 1));
+
+        string cut = await _resolver.ResolveAsync(
+            "[{target.randommessage}]",
+            Seeds("111", target: "dave"),
+            Channel
+        );
+        string none = await _resolver.ResolveAsync(
+            "[{target.randommessage}]",
+            Seeds("111", target: "nobody"),
+            Channel
+        );
+
+        cut.Should().Be("[" + new string('z', 197) + "...]");
+        none.Should().Be("[]");
+    }
 }

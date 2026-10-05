@@ -470,6 +470,11 @@ public static class TemplateHelperRegistry
             Literal("target.id", TriggerContexts, "template.helper.target_id"),
             Literal("target.followAge", TriggerContexts, "template.helper.target_follow_age"),
             Literal("target.lastmessage", TriggerContexts, "template.helper.target_lastmessage"),
+            Literal(
+                "target.randommessage",
+                TriggerContexts,
+                "template.helper.target_randommessage"
+            ),
             Literal("target.link", TriggerContexts, "template.helper.target_link"),
             Literal("target.messages", TriggerContexts, "template.helper.target_messages"),
             Literal("target.watchtime", TriggerContexts, "template.helper.target_watchtime"),

@@ -5192,6 +5192,7 @@
     <string name="template_helper_target_object">The object-case pronoun for the @mention target</string>
     <string name="template_helper_target_possessive">The possessive pronoun for the @mention target</string>
     <string name="template_helper_target_present_tense">The present-tense to-be form for the @mention target</string>
+    <string name="template_helper_target_randommessage">A random older chat message of the @mention target, fit to quote</string>
     <string name="template_helper_target_redemptions">The @mention target total channel point redemption count</string>
     <string name="template_helper_target_songrequests">The @mention target total song request count</string>
     <string name="template_helper_target_subject">The subject-case pronoun for the @mention target</string>

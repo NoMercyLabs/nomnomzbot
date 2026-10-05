@@ -5176,6 +5176,7 @@
     <string name="template_helper_target_object">Het voornaamwoord in objectvorm voor het @vermelde doel</string>
     <string name="template_helper_target_possessive">Het bezittelijk voornaamwoord voor het @vermelde doel</string>
     <string name="template_helper_target_present_tense">De tegenwoordige tijd van zijn voor het @vermelde doel</string>
+    <string name="template_helper_target_randommessage">Een willekeurig ouder chatbericht van het @vermelde doel, geschikt om te citeren</string>
     <string name="template_helper_target_redemptions">Het totale aantal kanaalpunt-inwisselingen van het @vermelde doel</string>
     <string name="template_helper_target_songrequests">Het totale aantal nummeraanvragen van het @vermelde doel</string>
     <string name="template_helper_target_subject">Het voornaamwoord in onderwerpvorm voor het @vermelde doel</string>

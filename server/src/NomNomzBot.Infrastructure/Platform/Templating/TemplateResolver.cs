@@ -25,6 +25,7 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Application.ViewerData.Services;
+using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -625,7 +626,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
         // ── Last chat message: {user.lastmessage}/{target.lastmessage} (the viewer's most recent
         // non-command chat line in this channel; unset renders empty) ──────
-        if (broadcasterId is not null && NeedsAny(needed, "user.lastmessage", "target.lastmessage"))
+        if (
+            broadcasterId is not null
+            && NeedsAny(needed, "user.lastmessage", "target.lastmessage", "target.randommessage")
+        )
         {
             await ResolveLastMessagesAsync(vars, needed, broadcasterId.Value, ct);
         }
@@ -1294,13 +1298,49 @@ public sealed partial class TemplateResolver : ITemplateResolver
                                 m.BroadcasterId == broadcasterId
                                 && m.Username == login
                                 && !m.IsCommand
+                                && m.DeletedAt == null
                             )
                             .OrderByDescending(m => m.CreatedAt)
                             .Select(m => m.Message)
                             .FirstOrDefaultAsync(ct)
                         ?? string.Empty;
                 }
-                vars["target.lastmessage"] = message;
+                vars["target.lastmessage"] = CutWithEllipsis(message, LastMessageMaxLength);
+            }
+
+            if (
+                needed.Contains("target.randommessage") && !vars.ContainsKey("target.randommessage")
+            )
+            {
+                string? targetLogin = vars.GetValueOrDefault("target");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(targetLogin))
+                {
+                    string login = targetLogin.ToLowerInvariant();
+                    IQueryable<ChatMessage> quotable = db
+                        .ChatMessages.AsNoTracking()
+                        .Where(m =>
+                            m.BroadcasterId == broadcasterId
+                            && m.Username == login
+                            && !m.IsCommand
+                            && m.DeletedAt == null
+                            && m.Message.Length > QuotableMinLength
+                            && !m.Message.StartsWith("http://")
+                            && !m.Message.StartsWith("https://")
+                        );
+                    int count = await quotable.CountAsync(ct);
+                    if (count > 0)
+                    {
+                        message =
+                            await quotable
+                                .OrderBy(m => m.CreatedAt)
+                                .Skip(Random.Shared.Next(count))
+                                .Select(m => m.Message)
+                                .FirstOrDefaultAsync(ct)
+                            ?? string.Empty;
+                    }
+                }
+                vars["target.randommessage"] = CutWithEllipsis(message, QuotedMessageMaxLength);
             }
         }
         catch (Exception ex)
@@ -1312,8 +1352,21 @@ public sealed partial class TemplateResolver : ITemplateResolver
             );
             vars.TryAdd("user.lastmessage", string.Empty);
             vars.TryAdd("target.lastmessage", string.Empty);
+            vars.TryAdd("target.randommessage", string.Empty);
         }
     }
+
+    /// <summary>Longest {target.lastmessage} the old !detective printed (77 chars + "...").</summary>
+    private const int LastMessageMaxLength = 80;
+
+    /// <summary>Longest {target.randommessage} the old !quote printed (197 chars + "...").</summary>
+    private const int QuotedMessageMaxLength = 200;
+
+    /// <summary>The old !quote only picked messages longer than this.</summary>
+    private const int QuotableMinLength = 5;
+
+    private static string CutWithEllipsis(string value, int maxLength) =>
+        value.Length > maxLength ? value[..(maxLength - 3)] + "..." : value;
 
     private static string CapitalizeFirst(string value) =>
         string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];

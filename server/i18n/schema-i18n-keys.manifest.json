@@ -925,6 +925,7 @@
     "template.helper.target_object",
     "template.helper.target_possessive",
     "template.helper.target_present_tense",
+    "template.helper.target_randommessage",
     "template.helper.target_redemptions",
     "template.helper.target_songrequests",
     "template.helper.target_subject",
