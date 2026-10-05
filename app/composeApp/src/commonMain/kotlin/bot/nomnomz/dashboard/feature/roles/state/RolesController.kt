@@ -26,6 +26,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.roles_action_error
+import nomnomzbot.composeapp.generated.resources.roles_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Roles & Permits page's state-holder (the bot's IAM management, roles-permissions §5). Resolves the active
 // channel, then loads its real management membership, its active per-user permit grants, and the per-action
@@ -117,7 +120,7 @@ class RolesController(
 
     /** Assign [userId] the management [role] (permanent membership), then reload so the member list reflects it. */
     suspend fun assignRole(userId: String, role: ManagementRole) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.assignRole(channel, userId, role))
     }
 
@@ -126,13 +129,13 @@ class RolesController(
      * reload so the permit list shows it. Distinct from [assignRole] — this is a delegated, optionally expiring lift.
      */
     suspend fun grantRole(userId: String, role: ManagementRole, expiresAt: String?, reason: String?) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.grantRole(channel, userId, role, expiresAt, reason))
     }
 
     /** Remove [userId]'s management role, then reload so they drop off the membership list. The screen confirms. */
     suspend fun removeRole(userId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.removeRole(channel, userId))
     }
 
@@ -141,7 +144,7 @@ class RolesController(
      * the permit list shows it.
      */
     suspend fun grantCapability(userId: String, actionKey: String, expiresAt: String?, reason: String?) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.grantCapability(channel, userId, actionKey, expiresAt, reason))
     }
 
@@ -151,19 +154,19 @@ class RolesController(
      * elevated access is consequential.
      */
     suspend fun revokePermit(userId: String, actionKeyOrRole: String?) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.revokePermit(channel, userId, actionKeyOrRole))
     }
 
     /** Override the effective minimum level for [actionKey] to [level], clamped to the action's floor. */
     suspend fun setOverride(actionKey: String, level: Int) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.setOverride(channel, actionKey, level))
     }
 
     /** Reset [actionKey]'s override, restoring its built-in default floor. */
     suspend fun resetOverride(actionKey: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.resetOverride(channel, actionKey))
     }
 
@@ -181,7 +184,8 @@ class RolesController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.roles_no_channel_error)
     }
 }
 

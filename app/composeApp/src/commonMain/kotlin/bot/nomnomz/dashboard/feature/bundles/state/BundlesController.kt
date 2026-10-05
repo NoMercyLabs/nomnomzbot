@@ -16,7 +16,9 @@ import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.io.PickedFile
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.BundleInspection
+import bot.nomnomz.dashboard.core.network.BundleMetadataBody
 import bot.nomnomz.dashboard.core.network.BundlesApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -24,7 +26,6 @@ import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.ExportBody
 import bot.nomnomz.dashboard.core.network.ExportItemRef
-import bot.nomnomz.dashboard.core.network.BundleMetadataBody
 import bot.nomnomz.dashboard.core.network.InstalledBundle
 import bot.nomnomz.dashboard.core.network.MarketplaceApi
 import bot.nomnomz.dashboard.core.network.MarketplaceItem
@@ -39,9 +40,11 @@ import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.bundles_action_error
+import nomnomzbot.composeapp.generated.resources.bundles_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Bundles page state-holder (bundles.md §5–§6): the channel's portable content packs. It resolves the active
 // channel, then drives three surfaces off the same holder:
@@ -129,7 +132,7 @@ class BundlesController(
         version: String,
         description: String?,
     ) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         val body: ExportBody =
             ExportBody(
                 items = items,
@@ -150,7 +153,7 @@ class BundlesController(
      * A cancelled pick is a no-op; a failed inspect clears the staged file and surfaces the error.
      */
     suspend fun pickAndInspect() {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         val picked: PickedFile = fileBridge.pickFile() ?: return
         pendingImport = picked
         when (val result: ApiResult<BundleInspection> = bundlesApi.inspect(id, picked.name, picked.bytes)) {
@@ -168,7 +171,7 @@ class BundlesController(
      * list, and sets a notice.
      */
     suspend fun importInspected(policy: String) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         val picked: PickedFile = pendingImport ?: return failWrite(NoStagedImport)
         val inspection: BundleInspection? = (_state.value as? BundlesUiState.Ready)?.inspection
         if (inspection == null || inspection.issues.isNotEmpty()) return failWrite(ImportHasIssues)
@@ -199,13 +202,13 @@ class BundlesController(
         val channel: String =
             channelId
                 ?: return ApiResult.Failure(
-                    ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError)
+                    ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError())
                 )
         return bundlesApi.uninstallBlastRadius(channel, id)
     }
 
     suspend fun uninstall(id: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<Unit> = bundlesApi.uninstall(channel, id)) {
             is ApiResult.Ok -> reloadInstalled()
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -218,7 +221,7 @@ class BundlesController(
      * off so the screen shows the honest "not available" state; any other failure surfaces as an action error.
      */
     suspend fun browseMarketplace(q: String?, type: String?) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<List<MarketplaceItem>> = marketplaceApi.items(id, q, type, null, 1, 50)) {
             is ApiResult.Ok ->
                 setReady {
@@ -240,7 +243,7 @@ class BundlesController(
      * and sets a notice. An unavailable marketplace flips the availability flag; any other failure is an error.
      */
     suspend fun installFromMarketplace(itemId: String, policy: String) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<InstalledBundle> = marketplaceApi.install(id, itemId, policy)) {
             is ApiResult.Ok -> {
                 reloadInstalled()
@@ -257,7 +260,7 @@ class BundlesController(
      * notice carrying the returned submission id. An unavailable marketplace flips the flag; else an error.
      */
     suspend fun publish(name: String, version: String, summary: String, tagsCsv: String) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         val picked: PickedFile = fileBridge.pickFile() ?: return
         when (
             val result: ApiResult<PublishSubmission> =
@@ -272,7 +275,7 @@ class BundlesController(
 
     /** Store (or replace) the publisher token (write-only), then refresh the stored-token status. */
     suspend fun setPublisherToken(token: String) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<Unit> = marketplaceApi.setPublisherToken(id, token)) {
             is ApiResult.Ok -> refreshPublisherToken(id)
             is ApiResult.Failure ->
@@ -283,7 +286,7 @@ class BundlesController(
 
     /** Remove the stored publisher token, then refresh the status. */
     suspend fun clearPublisherToken() {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<Unit> = marketplaceApi.clearPublisherToken(id)) {
             is ApiResult.Ok -> refreshPublisherToken(id)
             is ApiResult.Failure ->
@@ -360,7 +363,8 @@ class BundlesController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.bundles_no_channel_error)
         const val NoStagedImport: String = "Choose a bundle file to inspect first."
         const val ImportHasIssues: String = "This bundle has blocking issues and can't be imported."
         const val MarketplaceUnavailableCode: String = "MARKETPLACE_UNAVAILABLE"

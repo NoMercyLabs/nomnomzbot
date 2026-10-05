@@ -29,10 +29,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.chattriggers_no_channel_error
 import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_saved
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 
 // The Chat Triggers page's state-holder (frontend-ia.md §3 — the Chat group, beside Commands). Resolves the
 // active channel, then lists its real keyword triggers and the channel's pipelines (for the bind-pipeline
@@ -102,7 +105,7 @@ class ChatTriggersController(
         cooldownSeconds: Int,
         minPermissionLevel: String,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             chatTriggersApi.create(
                 channel,
@@ -137,7 +140,7 @@ class ChatTriggersController(
         cooldownSeconds: Int,
         minPermissionLevel: String,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             chatTriggersApi.update(
                 channel,
@@ -161,7 +164,7 @@ class ChatTriggersController(
 
     /** Flip a trigger's enabled flag via the update endpoint (a partial patch carrying only the flag). Reloads. */
     suspend fun toggleTrigger(triggerId: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(chatTriggersApi.update(channel, triggerId, UpdateChatTriggerBody(isEnabled = enabled)))
     }
 
@@ -173,7 +176,7 @@ class ChatTriggersController(
      * or null on failure (the failure is also surfaced on the frame here, matching every other write).
      */
     suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
-        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return null }
         return when (
             val result: ApiResult<PipelineDetail> =
                 pipelinesApi.createReturning(
@@ -191,7 +194,7 @@ class ChatTriggersController(
 
     /** Delete a trigger, addressed by its [triggerId]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteTrigger(triggerId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(chatTriggersApi.delete(channel, triggerId), success = Res.string.feedback_chat_trigger_deleted)
     }
 
@@ -224,7 +227,8 @@ class ChatTriggersController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.chattriggers_no_channel_error)
     }
 }
 

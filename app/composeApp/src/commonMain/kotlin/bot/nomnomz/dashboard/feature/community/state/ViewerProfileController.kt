@@ -34,6 +34,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.community_action_error
+import nomnomzbot.composeapp.generated.resources.viewer_profile_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Community PROFILE page's state-holder (owner punch list 2026-09-08 §3) — the single-person view opened
 // from the Directory. Loads the full [ViewerProfileSummary] in one call and drives every genuinely-editable
@@ -195,7 +198,7 @@ class ViewerProfileController(
     // (Profile's quick TTS/role pickers) still surfaces it through the page's top banner rather than swallowing
     // it silently.
     suspend fun saveOverrideMessage(kind: String, messageTemplate: String): String? {
-        val channel: String = channelId ?: return NoChannelError
+        val channel: String = channelId ?: return noChannelError()
         val target: String = requireTwitchId() ?: return NoTwitchIdError
         val name: String = (_state.value as? ViewerProfileState.Ready)?.profile?.identity?.displayName ?: target
         return when (
@@ -215,7 +218,7 @@ class ViewerProfileController(
 
     /** Clear this channel's [kind] line for this person. Returns null on success, else the backend's message. */
     suspend fun clearOverrideMessage(kind: String): String? {
-        val channel: String = channelId ?: return NoChannelError
+        val channel: String = channelId ?: return noChannelError()
         val target: String = requireTwitchId() ?: return NoTwitchIdError
         return when (val result = moderationApi.deleteShoutoutOverride(channel, target, kind)) {
             is ApiResult.Ok -> {
@@ -231,7 +234,7 @@ class ViewerProfileController(
 
     /** Assign this person's TTS voice. Returns null on success, else the backend's message. */
     suspend fun saveTtsVoice(voiceId: String): String? {
-        val channel: String = channelId ?: return NoChannelError
+        val channel: String = channelId ?: return noChannelError()
         val target: String = requireTwitchId() ?: return NoTwitchIdError
         return when (val result = ttsApi.setUserVoice(channel, target, voiceId)) {
             is ApiResult.Ok -> {
@@ -247,7 +250,7 @@ class ViewerProfileController(
 
     /** Clear this person's TTS voice override (they fall back to the channel default). */
     suspend fun clearTtsVoice(): String? {
-        val channel: String = channelId ?: return NoChannelError
+        val channel: String = channelId ?: return noChannelError()
         val target: String = requireTwitchId() ?: return NoTwitchIdError
         return when (val result = ttsApi.clearUserVoice(channel, target)) {
             is ApiResult.Ok -> {
@@ -263,36 +266,36 @@ class ViewerProfileController(
 
     /** Assign this person's management role (Moderator/SuperMod/Editor/Broadcaster). Roles:manage floor. */
     suspend fun setManagementRole(role: ManagementRole) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        val person: String = userId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        val person: String = userId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.assignRole(channel, person, role))
     }
 
     /** Remove this person's management role. */
     suspend fun removeManagementRole() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        val person: String = userId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        val person: String = userId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.removeRole(channel, person))
     }
 
     /** Grant this person a whole management role via a delegated permit (optionally expiring). */
     suspend fun grantPermitRole(role: ManagementRole, expiresAt: String?, reason: String?) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        val person: String = userId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        val person: String = userId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.grantRole(channel, person, role, expiresAt, reason))
     }
 
     /** Grant this person a single capability permit (optionally expiring). */
     suspend fun grantPermitCapability(actionKey: String, expiresAt: String?, reason: String?) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        val person: String = userId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        val person: String = userId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.grantCapability(channel, person, actionKey, expiresAt, reason))
     }
 
     /** Revoke one of this person's active permit grants. */
     suspend fun revokePermit(actionKeyOrRole: String?) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        val person: String = userId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        val person: String = userId ?: return failWrite(noChannelError())
         afterWrite(rolesApi.revokePermit(channel, person, actionKeyOrRole))
     }
 
@@ -307,7 +310,7 @@ class ViewerProfileController(
 
     /** Upsert one custom-data [key]=[value]. Returns null on success, or the backend's error message. */
     suspend fun setViewerDatum(key: String, value: String): String? {
-        val person: String = userId ?: return NoChannelError
+        val person: String = userId ?: return noChannelError()
         return when (val result = viewerDataApi.setDatum(person, key, value)) {
             is ApiResult.Ok -> null
             is ApiResult.Failure -> result.error.message
@@ -316,7 +319,7 @@ class ViewerProfileController(
 
     /** Delete one custom-data [key]. Returns null on success, or the backend's error message. */
     suspend fun deleteViewerDatum(key: String): String? {
-        val person: String = userId ?: return NoChannelError
+        val person: String = userId ?: return noChannelError()
         return when (val result = viewerDataApi.deleteDatum(person, key)) {
             is ApiResult.Ok -> null
             is ApiResult.Failure -> result.error.message
@@ -325,42 +328,42 @@ class ViewerProfileController(
 
     /** Set this person's community trust level (the legacy per-channel trust config), then reload. */
     suspend fun setTrust(level: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
         afterWrite(communityApi.setTrust(channel, target, level))
     }
 
     /** Ban this person from the channel via Twitch, then reload. */
     suspend fun ban(reason: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
         afterWrite(communityApi.ban(channel, target, reason))
     }
 
     /** Lift this person's ban, then reload. */
     suspend fun unban() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
         afterWrite(communityApi.unban(channel, target))
     }
 
     /** Grant this person VIP status on Twitch, then reload. */
     suspend fun addVip() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
         afterWrite(communityApi.addVip(channel, target))
     }
 
     /** Revoke this person's VIP status on Twitch, then reload. */
     suspend fun removeVip() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
         afterWrite(communityApi.removeVip(channel, target))
     }
 
     /** Send a `/shoutout` to this person right now (fire-and-forget; no reload needed). */
     suspend fun shoutoutNow() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
         when (val result: ApiResult<Unit> = communityApi.shoutout(channel, target)) {
             is ApiResult.Ok -> Unit
@@ -373,7 +376,7 @@ class ViewerProfileController(
      * mirrors the export the old Community stats dialog offered). Returns null on success, an error on failure.
      */
     suspend fun exportUserData(): String? {
-        val person: String = userId ?: return NoChannelError
+        val person: String = userId ?: return noChannelError()
         return when (val result: ApiResult<DataExport> = gdprApi.exportSubject(person, channelId)) {
             is ApiResult.Failure -> {
                 failWrite(result.error.message)
@@ -396,7 +399,7 @@ class ViewerProfileController(
 
     /** Permanently erase this person's data (GDPR erasure, broadcaster-only, irreversible). */
     suspend fun eraseUserData(): String? {
-        val person: String = userId ?: return NoChannelError
+        val person: String = userId ?: return noChannelError()
         return when (val result: ApiResult<Unit> = usersApi.erase(person)) {
             is ApiResult.Ok -> null
             is ApiResult.Failure -> {
@@ -423,7 +426,8 @@ class ViewerProfileController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.viewer_profile_no_channel_error)
         const val NoTwitchIdError: String =
             "This person has no linked Twitch identity yet — this action needs one."
         const val HistoryPageSize: Int = 20

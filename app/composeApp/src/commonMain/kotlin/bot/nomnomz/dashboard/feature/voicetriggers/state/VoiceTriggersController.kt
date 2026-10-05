@@ -13,10 +13,10 @@ package bot.nomnomz.dashboard.feature.voicetriggers.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AssetsApi
 import bot.nomnomz.dashboard.core.network.ChannelAsset
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.AssetsApi
 import bot.nomnomz.dashboard.core.network.CreateVoiceTriggerBody
 import bot.nomnomz.dashboard.core.network.UpdateVoiceTriggerBody
 import bot.nomnomz.dashboard.core.network.VoiceTrigger
@@ -28,6 +28,9 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_voice_trigger_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_voice_trigger_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_voice_trigger_saved
+import nomnomzbot.composeapp.generated.resources.voicetriggers_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Voice Triggers page's state-holder (Chat group, beside Chat Triggers). Resolves the active channel, then
 // lists its real voice triggers and the channel's uploaded assets (for the sticker picker) from the backend —
@@ -84,7 +87,7 @@ class VoiceTriggersController(
         isEnabled: Boolean,
         stickerAssetId: String?,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             voiceTriggersApi.create(
                 channel,
@@ -107,7 +110,7 @@ class VoiceTriggersController(
         isEnabled: Boolean,
         stickerAssetId: String?,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             voiceTriggersApi.update(
                 channel,
@@ -124,13 +127,13 @@ class VoiceTriggersController(
 
     /** Flip a trigger's enabled flag via the update endpoint. Reloads. */
     suspend fun toggleTrigger(triggerId: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(voiceTriggersApi.update(channel, triggerId, UpdateVoiceTriggerBody(isEnabled = enabled)))
     }
 
     /** Delete a trigger, addressed by its [triggerId]. Reloads on success. */
     suspend fun deleteTrigger(triggerId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(voiceTriggersApi.delete(channel, triggerId), success = Res.string.feedback_voice_trigger_deleted)
     }
 
@@ -157,7 +160,8 @@ class VoiceTriggersController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.voicetriggers_no_channel_error)
     }
 }
 

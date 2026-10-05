@@ -39,6 +39,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_action_error
+import nomnomzbot.composeapp.generated.resources.chat_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Chat page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then loads
 // its real recent chat from the backend (persisted from EventSub `channel.chat.message`; no fabricated lines).
@@ -282,7 +285,7 @@ class ChatController(
     suspend fun send(message: String, senderIdentity: String = "you") {
         val trimmed: String = message.trim()
         if (trimmed.isEmpty()) return
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         // In reply mode, thread the parent message id so the backend posts a Twitch reply; a normal send is null.
         val replyToMessageId: String? = _replyTarget.value?.id
         when (
@@ -307,13 +310,13 @@ class ChatController(
 
     /** Delete the single message [messageId], then reload so it drops from the feed. The screen confirms first. */
     suspend fun deleteMessage(messageId: String) {
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         afterAction(chatApi.deleteMessage(channel, messageId))
     }
 
     /** Timeout [userId] for [durationSeconds], then reload. The screen confirms this first (destructive). */
     suspend fun timeout(userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         afterAction(chatApi.timeout(channel, userId, durationSeconds))
     }
 
@@ -323,7 +326,7 @@ class ChatController(
      * feed reload — a banned chatter simply stops appearing); a network failure surfaces over the intact feed.
      */
     suspend fun ban(userId: String, scope: String, reason: String? = null) {
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         when (val result: ApiResult<NetworkBanResult> = chatApi.banUser(channel, userId, scope, reason)) {
             is ApiResult.Ok -> Unit
             is ApiResult.Failure -> failAction(result.error.message)
@@ -336,7 +339,7 @@ class ChatController(
      * over the intact feed. The screen collects the reason and won't submit it blank.
      */
     suspend fun report(userId: String, userName: String, displayName: String?, reason: String) {
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         when (val result: ApiResult<Unit> = chatApi.fileReport(channel, userId, userName, displayName, reason)) {
             is ApiResult.Ok -> Unit
             is ApiResult.Failure -> failAction(result.error.message)
@@ -359,7 +362,7 @@ class ChatController(
 
     /** Persist [settings] to the backend, then update the in-memory state. */
     suspend fun updateSettings(settings: ChatSettings) {
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         when (val result: ApiResult<ChatSettings> = chatApi.updateSettings(channel, settings)) {
             is ApiResult.Failure -> failAction(result.error.message)
             is ApiResult.Ok -> {
@@ -373,7 +376,7 @@ class ChatController(
 
     /** Post a Twitch announcement. [color]: "primary" | "blue" | "green" | "orange". */
     suspend fun announce(message: String, color: String = "primary") {
-        val channel: String = channelId ?: return failAction(NoChannelError)
+        val channel: String = channelId ?: return failAction(noChannelError())
         afterAction(chatApi.announce(channel, message, color))
     }
 
@@ -396,7 +399,8 @@ class ChatController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.chat_no_channel_error)
     }
 }
 

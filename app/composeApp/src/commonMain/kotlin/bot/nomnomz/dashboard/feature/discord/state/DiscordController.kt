@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.discord.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -19,12 +20,11 @@ import bot.nomnomz.dashboard.core.network.CreateDiscordConfigBody
 import bot.nomnomz.dashboard.core.network.CreateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
-import bot.nomnomz.dashboard.core.network.DiscordEmbed
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
+import bot.nomnomz.dashboard.core.network.DiscordEmbed
 import bot.nomnomz.dashboard.core.network.DiscordGuildChannel
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
 import bot.nomnomz.dashboard.core.network.DiscordGuildRole
-import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
 import bot.nomnomz.dashboard.core.network.UpdateDiscordConfigBody
@@ -34,6 +34,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.discord_action_error
+import nomnomzbot.composeapp.generated.resources.discord_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Discord page's state-holder (frontend-ia.md — the Stream group): the channel's linked Discord guild(s)
 // and, per guild, the notification rules — which channel-event trigger posts to which Discord channel, with
@@ -107,7 +110,7 @@ class DiscordController(
         pingRoleId: String? = null,
         embedConfig: DiscordEmbed? = null,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             discordApi.createConfig(
                 channel,
@@ -136,7 +139,7 @@ class DiscordController(
         pingRoleId: FieldUpdate<String?> = FieldUpdate.Unspecified,
         embedConfig: FieldUpdate<DiscordEmbed?> = FieldUpdate.Unspecified,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val current: DiscordNotificationConfig =
             findConfig(configId) ?: return failWrite(NoConfigError)
         afterWrite(
@@ -159,7 +162,7 @@ class DiscordController(
      * field from the current row (channel / message / embed preserved). Reloads on success; surfaces the error.
      */
     suspend fun toggleConfig(configId: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val current: DiscordNotificationConfig =
             findConfig(configId) ?: return failWrite(NoConfigError)
         afterWrite(discordApi.updateConfig(channel, configId, current.toUpdateBody(enabled = enabled)))
@@ -167,7 +170,7 @@ class DiscordController(
 
     /** Delete the rule [configId]. Reloads on success; surfaces the error on failure. */
     suspend fun deleteConfig(configId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(discordApi.deleteConfig(channel, configId))
     }
 
@@ -189,7 +192,7 @@ class DiscordController(
 
     /** Load the notification roles for [connectionId]. Returns them directly (caller stores in UI state). */
     suspend fun roles(connectionId: String): ApiResult<List<DiscordNotificationRole>> {
-        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, noChannelError()))
         return discordApi.roles(channel, connectionId)
     }
 
@@ -201,7 +204,7 @@ class DiscordController(
         selfAssign: Boolean,
         dmEnabled: Boolean,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             discordApi.createRole(
                 channel,
@@ -221,7 +224,7 @@ class DiscordController(
      * Reloads on success; surfaces the error on failure.
      */
     suspend fun updateRole(roleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             discordApi.updateRole(
                 channel,
@@ -240,7 +243,7 @@ class DiscordController(
      * Nothing dispatches to Discord until this is on. Reloads on success; surfaces the error on failure.
      */
     suspend fun setStreamerEnabled(connectionId: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(discordApi.setStreamerEnabled(channel, connectionId, enabled))
     }
 
@@ -249,7 +252,7 @@ class DiscordController(
      * instead of pasting a snowflake. Returned directly (the dialog stores them in UI state, like [roles]).
      */
     suspend fun guildRoles(connectionId: String): ApiResult<List<DiscordGuildRole>> {
-        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, noChannelError()))
         return discordApi.guildRoles(channel, connectionId)
     }
 
@@ -258,37 +261,37 @@ class DiscordController(
      * Returned directly (the dialog stores them in UI state, like [roles]).
      */
     suspend fun guildChannels(connectionId: String): ApiResult<List<DiscordGuildChannel>> {
-        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, noChannelError()))
         return discordApi.guildChannels(channel, connectionId)
     }
 
     /** Delete the notification role [roleId]. Reloads on success; surfaces the error on failure. */
     suspend fun deleteRole(roleId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(discordApi.deleteRole(channel, roleId))
     }
 
     /** Post the opt-in button for [roleId] to [buttonChannelId]. Reloads on success; surfaces the error. */
     suspend fun postRoleButton(roleId: String, buttonChannelId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(discordApi.postRoleButton(channel, roleId, buttonChannelId))
     }
 
     /** Approve server consent for [connectionId]. Reloads on success; surfaces the error on failure. */
     suspend fun approveServerConsent(connectionId: String, approvedByDiscordUserId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(discordApi.approveServerConsent(channel, connectionId, approvedByDiscordUserId))
     }
 
     /** Revoke server consent for [connectionId]. Reloads on success; surfaces the error on failure. */
     suspend fun revokeServerConsent(connectionId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(discordApi.revokeServerConsent(channel, connectionId))
     }
 
     /** Fetch the dispatch log for [connectionId]. Returns it directly (caller stores in UI state). */
     suspend fun dispatchLog(connectionId: String): ApiResult<List<DiscordDispatchLogEntry>> {
-        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, noChannelError()))
         return discordApi.dispatchLog(channel, connectionId)
     }
 
@@ -327,7 +330,8 @@ class DiscordController(
             ?.firstNotNullOfOrNull { guild -> guild.configs.firstOrNull { it.id == configId } }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.discord_no_channel_error)
         const val NoConfigError: String = "That notification rule is no longer available — reload the page."
     }
 }

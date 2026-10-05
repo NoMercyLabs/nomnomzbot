@@ -32,6 +32,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.analytics_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Analytics page's state-holder (analytics.md §4 — the channel headline totals). Resolves the active
 // channel, then loads its real summary over the trailing window from the backend (no fabricated counts). The
@@ -197,7 +201,7 @@ class AnalyticsController(
         val channel: String =
             ensureChannel()
                 ?: run {
-                    _viewers.value = ViewerListState.Error(NoChannelError)
+                    _viewers.value = ViewerListState.Error(noChannelError())
                     return
                 }
         if (isInitial || _viewers.value !is ViewerListState.Ready) _viewers.value = ViewerListState.Loading
@@ -285,7 +289,7 @@ class AnalyticsController(
      */
     suspend fun setViewerOptOut(optedOut: Boolean): String? {
         val detail: ViewerDetailState = _viewerDetail.value ?: return null
-        val channel: String = ensureChannel() ?: return NoChannelError
+        val channel: String = ensureChannel() ?: return noChannelError()
         _viewerDetail.value = detail.copy(optOutBusy = true)
         val error: String? =
             when (
@@ -324,7 +328,8 @@ class AnalyticsController(
         // The trailing window the page summarizes — well within the backend's 366-day cap.
         const val WINDOW_DAYS: Int = 30
         const val VIEWER_PAGE_SIZE: Int = 25
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.analytics_no_channel_error)
     }
 }
 

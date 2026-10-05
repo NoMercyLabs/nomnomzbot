@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.community_action_error
+import nomnomzbot.composeapp.generated.resources.community_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Community DIRECTORY page's state-holder (owner punch list 2026-09-08 §3A) — a search-first list for
 // finding someone fast. Resolves the active channel, then loads its real member list from the backend (Twitch
@@ -155,7 +158,7 @@ class CommunityController(
         val channel: String =
             channelId
                 ?: run {
-                    if (isInitial) _state.value = CommunityState.Error(NoChannelError) else failWrite(NoChannelError)
+                    if (isInitial) _state.value = CommunityState.Error(noChannelError()) else failWrite(noChannelError())
                     return
                 }
         val cursor: String? =
@@ -202,7 +205,8 @@ class CommunityController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.community_no_channel_error)
         const val PageSize: Int = 25
     }
 }

@@ -10,8 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.widgets.state
 
-import bot.nomnomz.dashboard.core.realtime.HubEvent
-import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
@@ -19,21 +17,21 @@ import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
+import bot.nomnomz.dashboard.core.network.EditorSdkTypes
 import bot.nomnomz.dashboard.core.network.GalleryItemDetail
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
-import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
-import bot.nomnomz.dashboard.core.network.EditorSdkTypes
-import bot.nomnomz.dashboard.core.network.SdkTypesApi
-import bot.nomnomz.dashboard.core.network.typesForEditor
-import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
+import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
+import bot.nomnomz.dashboard.core.network.SdkTypesApi
+import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto
 import bot.nomnomz.dashboard.core.network.WidgetSummary
@@ -42,16 +40,21 @@ import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
-import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.network.typesForEditor
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
-import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
+import nomnomzbot.composeapp.generated.resources.widgets_no_channel_error
 import nomnomzbot.composeapp.generated.resources.widgets_review_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Overlays page's state-holder (frontend-ia.md §3 — the Stream group; a plain holder, not a ViewModel).
 // Resolves the active channel, then lists its real OBS overlay widgets from the backend (no fabricated rows) —
@@ -113,7 +116,7 @@ class WidgetsController(
 
     /** Flip a widget's enabled flag (partial PUT carrying only the flag), then reload on success. */
     suspend fun toggleWidget(widgetId: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(widgetsApi.setEnabled(channel, widgetId, enabled))
     }
 
@@ -123,7 +126,7 @@ class WidgetsController(
      * overlay invalidates its browser-source URL).
      */
     suspend fun deleteWidget(widgetId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(widgetsApi.delete(channel, widgetId))
     }
 
@@ -135,7 +138,7 @@ class WidgetsController(
      */
     suspend fun fetchBlastRadius(widgetId: String): ApiResult<BlastRadiusSummary> {
         val channel: String =
-            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
         return widgetsApi.blastRadius(channel, widgetId)
     }
 
@@ -145,7 +148,7 @@ class WidgetsController(
      * reflect the new token.
      */
     suspend fun rotateOverlayToken() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<String> = widgetsApi.rotateOverlayToken(channel)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -160,7 +163,7 @@ class WidgetsController(
      */
     suspend fun rotateWidgetToken(widgetId: String): ApiResult<WidgetTokenRotation> {
         val channel: String =
-            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
         val result: ApiResult<WidgetTokenRotation> = widgetsApi.rotateWidgetOverlayToken(channel, widgetId)
         when (result) {
             is ApiResult.Ok -> load()
@@ -180,7 +183,7 @@ class WidgetsController(
         seedSource: String,
         messages: WidgetEditorMessages,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, framework))) {
             is ApiResult.Ok -> {
                 val seeded: ProjectDto = seedProject(framework, seedSource)
@@ -202,7 +205,7 @@ class WidgetsController(
 
     /** Rename a widget ([widgetId]) to [newName] via a partial PUT. Reloads on success. */
     suspend fun renameWidget(widgetId: String, newName: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(widgetsApi.rename(channel, widgetId, newName))
     }
 
@@ -211,7 +214,7 @@ class WidgetsController(
      * Reloads on success so the row reflects the saved config; surfaces the error on failure.
      */
     suspend fun saveSettings(widgetId: String, settings: JsonObject) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(widgetsApi.updateSettings(channel, widgetId, settings))
     }
 
@@ -222,7 +225,7 @@ class WidgetsController(
      * saved project yet (freshly created, never compiled) opens on a seeded one-file project.
      */
     suspend fun editWidgetCode(widget: WidgetSummary, messages: WidgetEditorMessages) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         // A brand-new widget has no version yet, so getProject fails — fall back to a seeded one-file project
         // rather than blocking the operator from authoring their first version.
         val project: ProjectDto =
@@ -235,7 +238,7 @@ class WidgetsController(
 
     /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
     suspend fun rollbackVersion(widgetId: String, versionId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<WidgetSummary> = widgetsApi.rollback(channel, widgetId, versionId)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -247,7 +250,7 @@ class WidgetsController(
      * can render its own loading / error / list — a read that does not disturb the page's [state].
      */
     suspend fun listVersions(widgetId: String): ApiResult<List<WidgetVersionSummary>> {
-        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
         return widgetsApi.listVersions(channel, widgetId)
     }
 
@@ -256,13 +259,13 @@ class WidgetsController(
      * own loading / error / form — a read that does not disturb the page's [state].
      */
     suspend fun loadSettingsSchema(widgetId: String): ApiResult<WidgetSettingsSchemaDto> {
-        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
         return widgetsApi.getSettingsSchema(channel, widgetId)
     }
 
     /** The starter templates the create dialog offers. Returns the raw result for the dialog to render. */
     suspend fun listTemplates(): ApiResult<List<WidgetTemplate>> {
-        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
         return widgetsApi.listTemplates(channel)
     }
 
@@ -271,7 +274,7 @@ class WidgetsController(
      * action behind [WidgetSummary.galleryUpdateAvailable]. Reloads on success so the row's badge clears.
      */
     suspend fun updateFromGallery(widgetId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<WidgetSummary> = widgetsApi.updateFromGallery(channel, widgetId)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -284,13 +287,13 @@ class WidgetsController(
      * banner without disturbing the rendered list — a read-like action, not a mutation, so it never reloads.
      */
     suspend fun testWidget(widget: WidgetSummary, eventType: String): ApiResult<String> {
-        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
         return widgetsApi.testEvent(channel, eventType)
     }
 
     /** Clone an installed widget into a fresh, independently-editable custom copy. Reloads on success. */
     suspend fun cloneWidget(widgetId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, widgetId)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -366,7 +369,7 @@ class WidgetsController(
      * the list. Surfaces the error on failure.
      */
     suspend fun installFromGallery(galleryItemId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<WidgetSummary> = widgetsApi.install(channel, galleryItemId)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -379,7 +382,7 @@ class WidgetsController(
      * reloads the list (via [editWidgetCode]); surfaces the error if the clone call itself fails.
      */
     suspend fun cloneFromGallery(galleryItemId: String, messages: WidgetEditorMessages) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<WidgetSummary> = widgetsApi.cloneFromGallery(channel, galleryItemId)) {
             is ApiResult.Ok -> editWidgetCode(result.value, messages)
             is ApiResult.Failure -> failWrite(result.error.message)
@@ -494,8 +497,9 @@ class WidgetsController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
-        val NoChannelApiError: ApiError = ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError)
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.widgets_no_channel_error)
+        private suspend fun noChannelApiError(): ApiError = ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError())
     }
 }
 

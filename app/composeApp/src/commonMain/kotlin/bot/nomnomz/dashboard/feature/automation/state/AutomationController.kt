@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.automation_action_error
+import nomnomzbot.composeapp.generated.resources.automation_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Automation API-tokens page state-holder (automation-api.md §5 + stream-deck.md): the channel's external
 // API tokens (issue / rotate / revoke) and one-time device pairing codes. It resolves the active channel, reads
@@ -99,7 +102,7 @@ class AutomationController(
         allowedPipelineIds: List<String>,
         expiresAt: String?,
     ): IssuedAutomationToken? {
-        val id: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val id: String = channelId ?: run { failWrite(noChannelError()); return null }
         return when (
             val result: ApiResult<IssuedAutomationToken> =
                 automationApi.createToken(
@@ -125,7 +128,7 @@ class AutomationController(
 
     /** Rotate token [tokenId]: invalidates the old secret and returns the fresh one (shown once). */
     suspend fun rotateToken(tokenId: String): IssuedAutomationToken? {
-        val id: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val id: String = channelId ?: run { failWrite(noChannelError()); return null }
         return when (val result: ApiResult<IssuedAutomationToken> = automationApi.rotateToken(id, tokenId)) {
             is ApiResult.Ok -> {
                 refresh()
@@ -140,7 +143,7 @@ class AutomationController(
 
     /** Revoke token [tokenId] (a tombstone — the row stays listed). Reloads on success. */
     suspend fun revokeToken(tokenId: String) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(noChannelError())
         afterWrite(automationApi.revokeToken(id, tokenId))
     }
 
@@ -149,7 +152,7 @@ class AutomationController(
      * show-and-copy dialog; null on failure. The device redeems it itself and then appears in the token list.
      */
     suspend fun mintPairCode(deviceLabel: String, scopes: List<String>): PairingCode? {
-        channelId ?: run { failWrite(NoChannelError); return null }
+        channelId ?: run { failWrite(noChannelError()); return null }
         return when (
             val result: ApiResult<PairingCode> =
                 automationApi.mintPairCode(MintPairingCodeBody(deviceLabel = deviceLabel, scopes = scopes))
@@ -180,7 +183,8 @@ class AutomationController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.automation_no_channel_error)
     }
 }
 

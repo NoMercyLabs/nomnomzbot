@@ -30,6 +30,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.games_action_error
+import nomnomzbot.composeapp.generated.resources.games_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Games page's state-holder (economy.md §3.5 — the channel's configured mini-games). Resolves the active
 // channel, then loads its real game config from the backend (no fabricated games). It also drives the page's
@@ -128,19 +131,19 @@ class GamesController(
 
     /** Start a round of [gameType]. Reloads on success (the active card appears); surfaces the error on failure. */
     suspend fun startLiveGame(gameType: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(gamesApi.startSession(channel, gameType))
     }
 
     /** Cancel the running session [sessionId] (refunds every entry fee). Reloads on success. */
     suspend fun cancelLiveGame(sessionId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(gamesApi.cancelSession(channel, sessionId))
     }
 
     /** Revoke a viewer's 18+ age-consent grant (Broadcaster/Editor manages consent on behalf of the viewer). */
     suspend fun revokeConsent(viewerUserId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(gamesApi.revokeConsent(channel, viewerUserId))
     }
 
@@ -149,7 +152,7 @@ class GamesController(
      * sends only [enabled] flipped. Reloads on success; surfaces the error on failure.
      */
     suspend fun toggleGame(game: GameSummary, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(gamesApi.upsert(channel, game.toBody(isEnabled = enabled)))
     }
 
@@ -173,7 +176,7 @@ class GamesController(
         permission: String,
         config: JsonObject?,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             gamesApi.upsert(
                 channel,
@@ -198,7 +201,7 @@ class GamesController(
      * computed here. Whether the game is on or off is kept. Reloads on success; surfaces the error on failure.
      */
     suspend fun resetGame(game: GameSummary) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(gamesApi.reset(channel, game.gameType))
     }
 
@@ -216,7 +219,8 @@ class GamesController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.games_no_channel_error)
     }
 }
 

@@ -21,7 +21,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.tts_no_channel_error
 import nomnomzbot.composeapp.generated.resources.tts_queue_action_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The state-holder for the TTS moderator approval queue (item 16 P.1a). When "Require moderator approval" is on,
 // every TTS utterance is held here until a mod approves it (played) or rejects it (discarded). Resolves the
@@ -66,13 +69,13 @@ class TtsQueueController(
 
     /** Approve [entryId] — the backend synthesises and plays it — then reload so it drops out of the queue. */
     suspend fun approve(entryId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(ttsApi.approveQueueEntry(channel, entryId))
     }
 
     /** Reject [entryId] — it is discarded, nothing plays — then reload so it drops out of the queue. */
     suspend fun reject(entryId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(ttsApi.rejectQueueEntry(channel, entryId))
     }
 
@@ -90,7 +93,8 @@ class TtsQueueController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.tts_no_channel_error)
     }
 }
 

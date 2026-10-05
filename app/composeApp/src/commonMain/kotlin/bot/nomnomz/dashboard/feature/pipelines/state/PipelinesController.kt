@@ -10,55 +10,55 @@
 
 package bot.nomnomz.dashboard.feature.pipelines.state
 
-import bot.nomnomz.dashboard.core.realtime.HubEvent
-import bot.nomnomz.dashboard.core.realtime.onConfigChange
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawaysApi
-import bot.nomnomz.dashboard.core.network.Quote
-import bot.nomnomz.dashboard.core.network.QuotesApi
-import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
-import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
-import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
-import bot.nomnomz.dashboard.core.network.SavingsJar
-import bot.nomnomz.dashboard.core.network.SoundApi
-import bot.nomnomz.dashboard.core.network.SoundClip
-import bot.nomnomz.dashboard.core.network.TtsApi
-import bot.nomnomz.dashboard.core.network.TtsVoice
-import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
-import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.PipelineCatalogue
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineDetail
-import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
-import bot.nomnomz.dashboard.core.network.PipelineOptionsApi
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineNode
+import bot.nomnomz.dashboard.core.network.PipelineOptionsApi
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.Quote
+import bot.nomnomz.dashboard.core.network.QuotesApi
+import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
+import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
+import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.SoundApi
+import bot.nomnomz.dashboard.core.network.SoundClip
 import bot.nomnomz.dashboard.core.network.TestRunResult
+import bot.nomnomz.dashboard.core.network.TtsApi
+import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
-import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.onConfigChange
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonElement
@@ -71,6 +71,9 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_saved
+import nomnomzbot.composeapp.generated.resources.pipelines_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Pipelines page state-holder (the visual automation engine). Two surfaces in one flow:
 //   1. the LIST of the channel's real pipelines (no fabricated rows), with create / rename / toggle / delete;
@@ -178,7 +181,7 @@ class PipelinesController(
 
     /** Create a pipeline (empty starter chain), then reload the list so the new row appears. */
     suspend fun createPipeline(name: String, description: String?) {
-        val channel: String = channelId ?: return failList(NoChannelError)
+        val channel: String = channelId ?: return failList(noChannelError())
         val body =
             CreatePipelineBody(
                 name = name,
@@ -190,7 +193,7 @@ class PipelinesController(
 
     /** Rename / re-describe a pipeline, then reload the list. */
     suspend fun renamePipeline(id: String, name: String, description: String?) {
-        val channel: String = channelId ?: return failList(NoChannelError)
+        val channel: String = channelId ?: return failList(noChannelError())
         afterListWrite(
             pipelinesApi.update(
                 channel,
@@ -202,13 +205,13 @@ class PipelinesController(
 
     /** Flip a pipeline's enabled flag via the update endpoint (no dedicated toggle route). Reloads the list. */
     suspend fun togglePipeline(id: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failList(NoChannelError)
+        val channel: String = channelId ?: return failList(noChannelError())
         afterListWrite(pipelinesApi.update(channel, id, UpdatePipelineBody(isEnabled = enabled)))
     }
 
     /** Delete a pipeline, then reload the list. */
     suspend fun deletePipeline(id: String) {
-        val channel: String = channelId ?: return failList(NoChannelError)
+        val channel: String = channelId ?: return failList(noChannelError())
         afterListWrite(pipelinesApi.delete(channel, id), success = Res.string.feedback_pipeline_deleted)
     }
 
@@ -236,7 +239,7 @@ class PipelinesController(
      */
     suspend fun fetchBlastRadius(id: String): ApiResult<PipelineBlastRadiusSummary> {
         val channel: String =
-            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
         return pipelinesApi.blastRadius(channel, id)
     }
 
@@ -244,7 +247,7 @@ class PipelinesController(
 
     /** Open the action-chain editor for [pipeline]: fetch its detail, decode its chain, load picker options. */
     suspend fun openEditor(pipeline: PipelineSummary) {
-        val channel: String = channelId ?: return failList(NoChannelError)
+        val channel: String = channelId ?: return failList(noChannelError())
         _state.value = PipelinesState.Loading
         val options: EditorOptions = loadEditorOptions(channel)
         when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, pipeline.id)) {
@@ -668,7 +671,7 @@ class PipelinesController(
 
     /** Persist the edited chain to the backend, then re-fetch the pipeline so the editor shows the saved truth. */
     suspend fun saveChain() {
-        val channel: String = channelId ?: return failEdit(NoChannelError)
+        val channel: String = channelId ?: return failEdit(noChannelError())
         val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
         val graph: JsonObject = PipelineGraph(editing.steps).toJson()
 
@@ -691,7 +694,7 @@ class PipelinesController(
      * failure reason. Only applies while the editor is open.
      */
     suspend fun testRun(variables: Map<String, String>) {
-        val channel: String = channelId ?: return failEdit(NoChannelError)
+        val channel: String = channelId ?: return failEdit(noChannelError())
         val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
         val pipelineId: String = editing.pipelineId
         _state.value = editing.copy(testRunning = true, testError = null)
@@ -772,7 +775,8 @@ class PipelinesController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.pipelines_no_channel_error)
     }
 }
 

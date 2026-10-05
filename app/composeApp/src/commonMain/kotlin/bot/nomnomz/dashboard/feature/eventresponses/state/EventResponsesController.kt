@@ -44,11 +44,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.eventresponses_no_channel_error
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
 import nomnomzbot.composeapp.generated.resources.platform_templates_installed
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 
 // The Event Responses page state-holder: maps Twitch channel events (follow, sub, cheer, raid, stream.online …)
 // to a configured reaction (chat message, overlay, pipeline, or none). The list is seeded by the backend on
@@ -154,7 +157,7 @@ class EventResponsesController(
      * the binding; the streamer then builds the chain on the Pipelines page.
      */
     suspend fun createPipelineAndBind(eventType: String, pipelineName: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         val created: PipelineSummary = createPipelineReturning(pipelineName) ?: return
         afterWrite(
             eventResponsesApi.upsert(
@@ -174,7 +177,7 @@ class EventResponsesController(
      * call from the event row's own create-and-bind affordance.
      */
     suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
-        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return null }
         return when (
             val result: ApiResult<PipelineDetail> =
                 pipelinesApi.createReturning(
@@ -198,7 +201,7 @@ class EventResponsesController(
      */
     suspend fun testRunPipeline(pipelineId: String, variables: Map<String, String>): ApiResult<TestRunResult> {
         val channel: String =
-            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = NoChannelError))
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = noChannelError()))
         return pipelinesApi.testRun(channel, pipelineId, PipelineTestRunBody(variables))
     }
 
@@ -220,12 +223,12 @@ class EventResponsesController(
         return result
     }
 
-    private fun noChannelFailure(): ApiResult.Failure =
-        ApiResult.Failure(ApiError(status = 0, code = null, message = NoChannelError))
+    private suspend fun noChannelFailure(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(status = 0, code = null, message = noChannelError()))
 
     /** Toggle [isEnabled] on an event response (partial PUT — only the flag changes). */
     suspend fun toggle(eventType: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             eventResponsesApi.upsert(
                 channel,
@@ -249,7 +252,7 @@ class EventResponsesController(
         widgetId: String?,
         speakWithTts: Boolean = false,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         // Only overlay responses carry a widget target; for every other type send an empty metadata map so a
         // stale target from a previous overlay config never lingers.
         val metadata: Map<String, String> =
@@ -279,7 +282,7 @@ class EventResponsesController(
      * place and never removes it, matching the "Reset to default" label the confirm dialog already shows.
      */
     suspend fun resetToDefault(eventType: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             eventResponsesApi.resetToDefault(channel, eventType),
             success = Res.string.feedback_event_response_reset,
@@ -318,7 +321,9 @@ class EventResponsesController(
         /** The MetadataJson key under which an `overlay` response stores its target widget id. */
         const val WidgetIdMetadataKey: String = "widgetId"
 
-        private const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+
+        private suspend fun noChannelError(): String = getString(Res.string.eventresponses_no_channel_error)
     }
 }
 

@@ -10,7 +10,11 @@
 
 package bot.nomnomz.dashboard.feature.rewards.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
@@ -33,17 +37,16 @@ import bot.nomnomz.dashboard.core.network.UpdateRewardBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubRedemptionStatusChanged
 import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
-import bot.nomnomz.dashboard.core.feedback.Feedback
-import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import bot.nomnomz.dashboard.core.network.ApiError
-import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import nomnomzbot.composeapp.generated.resources.rewards_action_error
+import nomnomzbot.composeapp.generated.resources.rewards_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Rewards page's state-holder (frontend-ia.md §3 — the channel's channel-point rewards). Resolves the active
 // channel, then loads its real reward list from the backend (Twitch Helix Custom Rewards; no fabricated rewards).
@@ -159,7 +162,7 @@ class RewardsController(
         timerDurationSeconds: Int?,
         pipelineId: String?,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             rewardsApi.create(
                 channel,
@@ -201,7 +204,7 @@ class RewardsController(
         timerDurationSeconds: Int?,
         pipelineId: String?,
     ) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             rewardsApi.update(
                 channel,
@@ -233,7 +236,7 @@ class RewardsController(
      * select it immediately, or null on failure (surfaced as the usual action error).
      */
     suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
-        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return null }
         return when (
             val result: ApiResult<PipelineDetail> =
                 pipelinesApi.createReturning(
@@ -251,25 +254,25 @@ class RewardsController(
 
     /** Pause a running redemption timer, then refresh the timer list. Surfaces the error on failure. */
     suspend fun pauseTimer(timerId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterTimerAction(rewardsApi.pauseTimer(channel, timerId))
     }
 
     /** Resume a paused redemption timer, then refresh the timer list. Surfaces the error on failure. */
     suspend fun resumeTimer(timerId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterTimerAction(rewardsApi.resumeTimer(channel, timerId))
     }
 
     /** Complete a redemption timer now (fulfils on Twitch), then refresh. Surfaces the error on failure. */
     suspend fun completeTimer(timerId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterTimerAction(rewardsApi.completeTimer(channel, timerId))
     }
 
     /** Cancel a redemption timer (stops counting), then refresh. Surfaces the error on failure. */
     suspend fun cancelTimer(timerId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterTimerAction(rewardsApi.cancelTimer(channel, timerId))
     }
 
@@ -284,13 +287,13 @@ class RewardsController(
 
     /** Flip a reward's enabled flag via the update endpoint (a partial PUT carrying only the flag). Reloads. */
     suspend fun toggleReward(rewardId: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rewardsApi.update(channel, rewardId, UpdateRewardBody(isEnabled = enabled)))
     }
 
     /** Delete a reward, addressed by its [rewardId]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteReward(rewardId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rewardsApi.delete(channel, rewardId))
     }
 
@@ -302,19 +305,19 @@ class RewardsController(
      */
     suspend fun fetchBlastRadius(rewardId: String): ApiResult<BlastRadiusSummary> {
         val channel: String =
-            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
         return rewardsApi.blastRadius(channel, rewardId)
     }
 
     /** Fulfil a queued redemption, then reload so it leaves the pending queue. Surfaces the error on failure. */
     suspend fun fulfillRedemption(redemptionId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rewardsApi.fulfillRedemption(channel, redemptionId))
     }
 
     /** Refund a queued redemption (returns the viewer's points), then reload. Surfaces the error on failure. */
     suspend fun refundRedemption(redemptionId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rewardsApi.refundRedemption(channel, redemptionId))
     }
 
@@ -323,7 +326,7 @@ class RewardsController(
      * directly on the Twitch dashboard. Reloads on success; surfaces the error on failure.
      */
     suspend fun sync() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rewardsApi.sync(channel))
     }
 
@@ -333,7 +336,7 @@ class RewardsController(
      * error on failure. Distinct from [sync], which only refreshes the bot's own rewards.
      */
     suspend fun import() {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(rewardsApi.import(channel))
     }
 
@@ -347,7 +350,7 @@ class RewardsController(
      * come back to it.
      */
     suspend fun recreate(rewardId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         when (val result: ApiResult<Unit> = rewardsApi.recreate(channel, rewardId)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> {
@@ -423,8 +426,8 @@ class RewardsController(
         return installed
     }
 
-    private fun noChannel(): ApiResult.Failure =
-        ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+    private suspend fun noChannel(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
@@ -443,7 +446,8 @@ class RewardsController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.rewards_no_channel_error)
     }
 }
 

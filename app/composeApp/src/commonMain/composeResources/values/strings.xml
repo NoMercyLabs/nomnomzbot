@@ -6160,4 +6160,22 @@
     <string name="editor_preview_vue_compile">Vue compile ({path}): {message}</string>
     <string name="editor_preview_sdk_http">The preview SDK could not be fetched (HTTP {status}).</string>
     <string name="editor_preview_widget_name">Preview</string>
+    <string name="alerts_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="analytics_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="automation_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="bundles_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="chat_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="chattriggers_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="commands_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="community_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="viewer_profile_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="discord_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="eventresponses_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="games_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="pipelines_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="rewards_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="roles_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="tts_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="voicetriggers_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="widgets_no_channel_error">No active channel — reconnect and try again.</string>
 </resources>

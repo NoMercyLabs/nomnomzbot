@@ -6133,4 +6133,22 @@
     <string name="editor_preview_vue_compile">Vue-compilatie ({path}): {message}</string>
     <string name="editor_preview_sdk_http">De voorbeeld-SDK kon niet worden opgehaald (HTTP {status}).</string>
     <string name="editor_preview_widget_name">Voorbeeld</string>
+    <string name="alerts_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="analytics_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="automation_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="bundles_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="chat_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="chattriggers_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="commands_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="community_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="viewer_profile_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="discord_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="eventresponses_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="games_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="pipelines_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="rewards_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="roles_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="tts_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="voicetriggers_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="widgets_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
 </resources>

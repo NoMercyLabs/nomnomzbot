@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.alerts_action_error
+import nomnomzbot.composeapp.generated.resources.alerts_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Alerts page's state-holder (frontend-ia.md — the Community group): what the bot says/does when a channel
 // event fires (a follow, sub, raid, cheer, …). Resolves the active channel, then lists its real configured
@@ -120,7 +123,7 @@ class AlertsController(
      */
     suspend fun detail(eventType: String): AlertDetail? {
         val channel: String = channelId ?: run {
-            failWrite(NoChannelError)
+            failWrite(noChannelError())
             return null
         }
         return when (val result: ApiResult<AlertDetail> = alertsApi.detail(channel, eventType)) {
@@ -137,7 +140,7 @@ class AlertsController(
      * appears. Surfaces the error on failure.
      */
     suspend fun createAlert(eventType: String, message: String, isEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             alertsApi.upsert(
                 channel,
@@ -156,7 +159,7 @@ class AlertsController(
      * success. Surfaces the error on failure.
      */
     suspend fun updateAlert(eventType: String, message: String, isEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(
             alertsApi.upsert(
                 channel,
@@ -168,13 +171,13 @@ class AlertsController(
 
     /** Flip a response's enabled flag via the upsert endpoint (partial PUT carrying only isEnabled). Reloads. */
     suspend fun toggleAlert(eventType: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(alertsApi.upsert(channel, eventType, UpdateAlertBody(isEnabled = enabled)))
     }
 
     /** Delete the response for [eventType]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteAlert(eventType: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(alertsApi.delete(channel, eventType))
     }
 
@@ -192,8 +195,8 @@ class AlertsController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
-
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.alerts_no_channel_error)
         // The dialog only configures chat-message responses (overlay/pipeline are off-page builders); a create
         // always sets this so the backend stores a chat_message rather than its own default.
         const val ChatMessageResponseType: String = "chat_message"

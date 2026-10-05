@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.commands.state
 
-import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -41,15 +40,19 @@ import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
-import kotlinx.serialization.json.JsonObject
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonObject
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.commands_no_channel_error
 import nomnomzbot.composeapp.generated.resources.feedback_command_deleted
-import nomnomzbot.composeapp.generated.resources.feedback_command_saved
 import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_command_saved
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The Commands page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then
 // lists its real custom commands and the available pipelines (for the pipeline-attach selector) from the
@@ -177,7 +180,7 @@ class CommandsController(
      * random-response list, or a pipeline), the permission floor, the cooldown pair, aliases, and the live flag.
      */
     suspend fun createCommand(input: CommandInput) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(commandsApi.create(channel, input.toCreateBody()))
     }
 
@@ -189,7 +192,7 @@ class CommandsController(
      * write here).
      */
     suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
-        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return null }
         return when (
             val result: ApiResult<PipelineDetail> =
                 pipelinesApi.createReturning(
@@ -262,7 +265,7 @@ class CommandsController(
         codeScriptId: String,
         commandName: String,
     ): String? {
-        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return null }
         val graph: JsonObject =
             PipelineGraph(
                 steps = listOf(PipelineStep(action = PipelineNode(type = "run_code", params = mapOf("code_script_id" to codeScriptId)))),
@@ -301,7 +304,7 @@ class CommandsController(
      */
     suspend fun testRunPipeline(pipelineId: String, variables: Map<String, String>): ApiResult<TestRunResult> {
         val channel: String =
-            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = NoChannelError))
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = noChannelError()))
         return pipelinesApi.testRun(channel, pipelineId, PipelineTestRunBody(variables))
     }
 
@@ -310,31 +313,31 @@ class CommandsController(
      * editable field is sent so the backend applies exactly what the dialog shows. Reloads on success.
      */
     suspend fun updateCommand(name: String, input: CommandInput) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(commandsApi.update(channel, name, input.toUpdateBody()))
     }
 
     /** Flip a command's enabled flag via the update endpoint (no dedicated toggle route). Reloads on success. */
     suspend fun toggleCommand(name: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(commandsApi.update(channel, name, UpdateCommandBody(isEnabled = enabled)))
     }
 
     /** Delete a command, addressed by its [name]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteCommand(name: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
     }
 
     /** Put a seeded fun command, addressed by its current [name], back on its preset. Reloads on success. */
     suspend fun resetToPreset(name: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(commandsApi.resetToPreset(channel, name))
     }
 
     /** Enable or disable a built-in command by its [builtinKey]. Reloads on success. */
     suspend fun toggleBuiltin(builtinKey: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val channel: String = channelId ?: return failWrite(noChannelError())
         afterWrite(builtinsApi.setEnabled(channel, builtinKey, enabled))
     }
 
@@ -392,7 +395,8 @@ class CommandsController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+        @OptIn(ExperimentalResourceApi::class)
+        private suspend fun noChannelError(): String = getString(Res.string.commands_no_channel_error)
     }
 }
 
