@@ -21,9 +21,10 @@ public interface IShoutoutSender
 {
     /// <summary>
     /// Picks the announcement template for a target: the step's own override, else the broadcaster's note for
-    /// this person, else the target's own template, else the broadcaster's template, else the default.
+    /// this person, else the target's own template, else the broadcaster's template. When none is set the
+    /// selection carries no template and the shouting channel's tone, so the caller composes the default line.
     /// </summary>
-    Task<string> SelectTemplateAsync(
+    Task<ShoutoutTemplateSelection> SelectTemplateAsync(
         Guid broadcasterId,
         TwitchUser target,
         string templateOverride,
@@ -32,3 +33,9 @@ public interface IShoutoutSender
 
     Task<ActionResult> SendAsync(ShoutoutRequest request, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// The announcement template a shoutout picked, or <see langword="null"/> when no custom template is set, plus
+/// the shouting channel's personality tone for composing the default line.
+/// </summary>
+public sealed record ShoutoutTemplateSelection(string? Template, string Personality);

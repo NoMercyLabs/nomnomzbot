@@ -12,6 +12,8 @@
 <resources>
     <string name="builtin_reply_forgetme_done_label">Data erased</string>
     <string name="builtin_reply_forgetme_done_description">Someone erased their data with the forgetme command.</string>
+    <string name="builtin_reply_shoutout_announcement_label">Shoutout announcement</string>
+    <string name="builtin_reply_shoutout_announcement_description">The chat line posted for a shoutout when no custom shoutout text is set.</string>
     <string name="builtin_reply_stats_profile_label">Viewer stats</string>
     <string name="builtin_reply_stats_profile_description">A viewer asks for their stats.</string>
     <string name="builtin_reply_stats_notseen_label">Viewer not seen</string>
@@ -150,6 +152,9 @@
     <string name="builtin_reply_unpermit_revoked_description">One permit of a user is removed.</string>
     <string name="builtin_reply_unpermit_revokefailed_label">Revoke failed</string>
     <string name="builtin_reply_unpermit_revokefailed_description">The permit could not be removed.</string>
+    <string name="builtin_reply_var_target_name">The shouted-out channel name</string>
+    <string name="builtin_reply_var_target_link">Link to the shouted-out channel</string>
+    <string name="builtin_reply_var_target_game">The game they last played</string>
     <string name="builtin_reply_var_stats_user">The viewer's name</string>
     <string name="builtin_reply_var_stats_messages">Messages sent</string>
     <string name="builtin_reply_var_stats_watchtime">Time watched</string>

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Entities;
 using Channel = NomNomzBot.Domain.Identity.Entities.Channel;
@@ -29,8 +30,6 @@ namespace NomNomzBot.Infrastructure.Stream;
 /// </summary>
 public sealed class ShoutoutSender : IShoutoutSender
 {
-    private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
-
     private readonly ITwitchChatApi _chat;
     private readonly IChannelRegistry _registry;
     private readonly IApplicationDbContext _db;
@@ -55,7 +54,7 @@ public sealed class ShoutoutSender : IShoutoutSender
         _logger = logger;
     }
 
-    public async Task<string> SelectTemplateAsync(
+    public async Task<ShoutoutTemplateSelection> SelectTemplateAsync(
         Guid broadcasterId,
         TwitchUser target,
         string templateOverride,
@@ -92,13 +91,15 @@ public sealed class ShoutoutSender : IShoutoutSender
                 cancellationToken
             );
 
-        return !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
+        string? template =
+            !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
             : !string.IsNullOrWhiteSpace(perTargetOverride?.MessageTemplate)
                 ? perTargetOverride.MessageTemplate
             : !string.IsNullOrWhiteSpace(targetChannel?.ShoutoutTemplate)
                 ? targetChannel.ShoutoutTemplate
             : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel.ShoutoutTemplate
-            : DefaultTemplate;
+            : null;
+        return new(template, PersonalityTone.Normalize(channel?.Personality));
     }
 
     public async Task<ActionResult> SendAsync(

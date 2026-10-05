@@ -12,9 +12,11 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Entities;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -128,6 +130,106 @@ public sealed class ShoutoutActionTests
             TimeProvider.System
         );
         return (sut, chat, users);
+    }
+
+    private static async Task<string> AnnounceAsync(string? personality, string? ownTemplate)
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+                Personality = personality ?? PersonalityTone.Informative,
+                ShoutoutTemplate = ownTemplate,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
+            chat,
+            users,
+            Substitute.For<IChannelRegistry>(),
+            db,
+            resolver,
+            Substitute.For<ITtsDispatchService>(),
+            TimeProvider.System
+        );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        IEnumerable<NSubstitute.Core.ICall> sent = chat.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(ITwitchChatApi.SendAnnouncementAsync));
+        return (string)sent.Single().GetArguments()[1]!;
+    }
+
+    [Fact]
+    public async Task A_sassy_channel_with_no_template_announces_a_line_from_the_snarky_pool()
+    {
+        string announced = await AnnounceAsync(PersonalityTone.Sassy, null);
+
+        IReadOnlyList<string> pool = ToneTemplateCatalog.Get(
+            PersonalityTone.Sassy,
+            BuiltinResponseSlots.Shoutout.Key,
+            BuiltinResponseSlots.Shoutout.Announcement
+        );
+        pool.Should().HaveCount(9);
+        List<string> filled =
+        [
+            .. pool.Select(l =>
+                l.Replace("{target.name}", "numerictarget")
+                    .Replace("{target.link}", "twitch.tv/numerictarget")
+            ),
+        ];
+        filled.Should().Contain(announced);
+        announced.Should().NotBe("Go check out numerictarget — twitch.tv/numerictarget");
+        announced.Should().Contain("numerictarget");
+    }
+
+    [Fact]
+    public async Task An_informative_channel_with_no_template_keeps_the_plain_default_line()
+    {
+        string announced = await AnnounceAsync(PersonalityTone.Informative, null);
+
+        announced.Should().Be("Go check out numerictarget — twitch.tv/numerictarget");
+    }
+
+    [Fact]
+    public async Task A_sassy_channel_with_its_own_template_still_announces_that_template()
+    {
+        string announced = await AnnounceAsync(
+            PersonalityTone.Sassy,
+            "Go follow {target.name} at {target.link}!"
+        );
+
+        announced.Should().Be("Go follow numerictarget at twitch.tv/numerictarget!");
     }
 
     [Fact]

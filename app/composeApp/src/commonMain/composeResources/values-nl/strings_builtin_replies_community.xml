@@ -12,6 +12,8 @@
 <resources>
     <string name="builtin_reply_forgetme_done_label">Gegevens gewist</string>
     <string name="builtin_reply_forgetme_done_description">Iemand wist de eigen gegevens met het forgetme-commando.</string>
+    <string name="builtin_reply_shoutout_announcement_label">Shoutout-aankondiging</string>
+    <string name="builtin_reply_shoutout_announcement_description">De chatregel voor een shoutout als er geen eigen shoutout-tekst is ingesteld.</string>
     <string name="builtin_reply_stats_profile_label">Kijkerstatistieken</string>
     <string name="builtin_reply_stats_profile_description">Een kijker vraagt hun statistieken.</string>
     <string name="builtin_reply_stats_notseen_label">Kijker niet gezien</string>
@@ -150,6 +152,9 @@
     <string name="builtin_reply_unpermit_revoked_description">Een permit van een gebruiker is verwijderd.</string>
     <string name="builtin_reply_unpermit_revokefailed_label">Intrekken mislukt</string>
     <string name="builtin_reply_unpermit_revokefailed_description">De permit kon niet worden verwijderd.</string>
+    <string name="builtin_reply_var_target_name">De naam van het kanaal in de shoutout</string>
+    <string name="builtin_reply_var_target_link">Link naar het kanaal in de shoutout</string>
+    <string name="builtin_reply_var_target_game">De game die ze het laatst speelden</string>
     <string name="builtin_reply_var_stats_user">De naam van de kijker</string>
     <string name="builtin_reply_var_stats_messages">Verstuurde berichten</string>
     <string name="builtin_reply_var_stats_watchtime">Kijktijd</string>

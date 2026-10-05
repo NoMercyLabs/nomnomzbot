@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -44,8 +45,10 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 ///
 /// The announcement template supports the full 90+ variable set (commands-pipelines.md §6.3), seeded with
 /// {target}/{target.name}/{target.link} resolved from the shoutout's own target (not the DB {target.*}
-/// lookup, since a shouted-out channel is rarely a known viewer). No template configured on the channel
-/// falls back to "Go check out {target.name} — {target.link}".
+/// lookup, since a shouted-out channel is rarely a known viewer). With no custom template at any level, the
+/// line is composed from the shouting channel's tone (<c>shoutout</c>/<c>announcement</c> in the tone
+/// catalogue: the old bot's snarky pool for a sassy channel, "Go check out {target.name} — {target.link}"
+/// for an informative one) and any channel or platform override of that slot.
 ///
 /// Usage example (static template):
 ///   { "type": "shoutout", "user_id": "{user.id}", "cooldown_minutes": 60, "tts": true }
@@ -55,6 +58,7 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 public sealed class ShoutoutAction : ICommandAction
 {
     private const string RaidEventName = "channel.raid";
+    private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
 
     private static readonly TimeSpan DefaultPerUserCooldown = TimeSpan.FromMinutes(60);
     private static readonly TimeSpan DefaultGlobalCooldown = TimeSpan.FromMinutes(2);
@@ -64,6 +68,7 @@ public sealed class ShoutoutAction : ICommandAction
     private readonly IShoutoutQueue _queue;
     private readonly IShoutoutSender _sender;
     private readonly ITemplateResolver _templateResolver;
+    private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
 
@@ -111,6 +116,7 @@ public sealed class ShoutoutAction : ICommandAction
         IShoutoutQueue queue,
         IShoutoutSender sender,
         ITemplateResolver templateResolver,
+        IBuiltinResponseComposer composer,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
@@ -120,6 +126,7 @@ public sealed class ShoutoutAction : ICommandAction
         _queue = queue;
         _sender = sender;
         _templateResolver = templateResolver;
+        _composer = composer;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -244,7 +251,7 @@ public sealed class ShoutoutAction : ICommandAction
             action.GetString("template") ?? string.Empty,
             ctx.Variables
         );
-        string template = await _sender.SelectTemplateAsync(
+        ShoutoutTemplateSelection selection = await _sender.SelectTemplateAsync(
             ctx.BroadcasterId,
             target,
             templateOverride,
@@ -257,8 +264,21 @@ public sealed class ShoutoutAction : ICommandAction
             ["target.name"] = target.DisplayName,
             ["target.link"] = $"twitch.tv/{target.Login}",
         };
+        if (selection.Template is null)
+            return await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = ctx.BroadcasterId,
+                    Personality = selection.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
+                    Slot = BuiltinResponseSlots.Shoutout.Announcement,
+                    NeutralFallback = DefaultTemplate,
+                    Variables = seed,
+                },
+                ctx.CancellationToken
+            );
         return await _templateResolver.ResolveAsync(
-            template,
+            selection.Template,
             seed,
             ctx.BroadcasterId,
             ctx.CancellationToken

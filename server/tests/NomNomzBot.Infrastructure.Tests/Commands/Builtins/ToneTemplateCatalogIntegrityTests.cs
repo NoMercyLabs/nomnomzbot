@@ -56,6 +56,21 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void The_sassy_shoutout_announcement_carries_the_old_bots_nine_lines_with_the_target_name()
+    {
+        IReadOnlyList<string> lines = ToneTemplateCatalog.Get(
+            PersonalityTone.Sassy,
+            BuiltinResponseSlots.Shoutout.Key,
+            BuiltinResponseSlots.Shoutout.Announcement
+        );
+
+        lines.Should().HaveCount(9);
+        lines.Should().OnlyContain(l => l.Contains("{target.name}"));
+        foreach (string legacy in new[] { "{game}", "{displayname}", "{tense}", "{presentTense}" })
+            lines.Should().NotContain(l => l.Contains(legacy));
+    }
+
+    [Fact]
     public void Every_slot_ships_a_default_line_the_editor_can_show_and_reset_to()
     {
         List<string> missing =

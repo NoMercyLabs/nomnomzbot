@@ -44,6 +44,18 @@ public static partial class BuiltinResponseSlots
         public const string AccountUnresolved = "accountunresolved";
     }
 
+    /// <summary>
+    /// The shoutout announcement a channel posts when no custom shoutout line is set (not a command — the
+    /// shoutout pipeline step and the raid response compose it).
+    /// </summary>
+    public static class Shoutout
+    {
+        public const string Key = "shoutout";
+
+        /// <summary>The chat announcement; <c>{target.name}</c>, <c>{target.link}</c> and <c>{target.game}</c> are set.</summary>
+        public const string Announcement = "announcement";
+    }
+
     /// <summary><c>!quote</c> — the quote library in chat (quotes.md section 4).</summary>
     public static class Quote
     {

@@ -16,6 +16,7 @@ public static partial class ToneTemplateCatalog
     private static void AddCommunitySlots(Dictionary<(string, string), SlotEntry> catalog)
     {
         AddForgetmeSlots(catalog);
+        AddShoutoutSlots(catalog);
         AddStatsSlots(catalog);
         AddQuoteSlots(catalog);
         AddVoiceSlots(catalog);
@@ -26,6 +27,9 @@ public static partial class ToneTemplateCatalog
 
     private static void AddCommunitySamples(Dictionary<string, string> samples)
     {
+        samples["target.name"] = "StreamFan42";
+        samples["target.link"] = "twitch.tv/streamfan42";
+        samples["target.game"] = "Just Chatting";
         samples["stats.user"] = "StreamFan42";
         samples["stats.messages"] = "1284";
         samples["stats.watchtime"] = "36h 12m";
@@ -63,6 +67,40 @@ public static partial class ToneTemplateCatalog
             sassy: ["Poof. Gone. You're now a mystery, even to me."],
             hype: ["WIPED CLEAN. FRESH START UNLOCKED."],
             chill: ["all done, you're a clean slate."]
+        );
+
+    // ── shoutout / announcement — the line posted when no custom shoutout template is set anywhere ──
+    // The sassy pool is the old bot's SnarkyShoutoutReplies, mapped onto this catalogue's variables.
+    private static void AddShoutoutSlots(Dictionary<(string, string), SlotEntry> catalog) =>
+        Add(
+            catalog,
+            BuiltinResponseSlots.Shoutout.Key,
+            BuiltinResponseSlots.Shoutout.Announcement,
+            variables: ["target.name", "target.link", "target.game"],
+            informative: ["Go check out {target.name} — {target.link}"],
+            friendly:
+            [
+                "Go show {target.name} some love — {target.link}",
+                "{target.name} is wonderful to watch, go say hi at {target.link}!",
+            ],
+            sassy:
+            [
+                "Check out {target.name}! {Subject} {verb:has|have} some great {target.game} content. Go give {object} a follow! {Subject} {presenttense} practically a pro, or at least {subject} {verb:plays|play} one on Twitch.",
+                "Yo, peep this! {target.name} {presenttense} rocking some {target.game} stuff. Go give {object} a follow! {Subject} {presenttense} so good, it's almost annoying.",
+                "Attention, earthlings! {target.name} has {target.game} videos you need to see. Go give {object} a follow! {Subject} {presenttense} probably putting on a masterclass, or a clown show – either way, it's entertaining.",
+                "Incoming awesome! {target.name} has some {target.game} action for you. Go give {object} a follow! {Subject} {presenttense} crushing it, or at least {subject} {verb:looks|look} like {subject} {presenttense}.",
+                "Don't walk, run! {target.name} has more {target.game} than you can handle. Go give {object} a follow! {Subject} {presenttense} definitely worth interrupting your snack for.",
+                "Our resident legend, {target.name}, has awesome {target.game}! Go give {object} a follow! {Subject} {presenttense} probably about to pull off something epic, or face-plant gloriously.",
+                "Heads up, buttercups! {target.name} has some {target.game} for you. Go give {object} a follow! {Subject} {presenttense} proving once again that {Subject} {presenttense} awesome (don't tell {object} I said that).",
+                "Guess who's got content? {target.name}! {Subject} {presenttense} rocking {target.game}. Go give {object} a follow! {Subject} {presenttense} bringing the vibes, whether {subject} {verb:likes|like} it or not.",
+                "Behold! {target.name} has some solid {target.game} for you. Go give {object} a follow! {Subject} {presenttense} gracing us with {possessive} presence and questionable decision-making in {target.game}.",
+            ],
+            hype:
+            [
+                "SHOUTOUT TO {target.name}! GO FOLLOW AT {target.link}!",
+                "GO WATCH {target.name} RIGHT NOW — {target.link}",
+            ],
+            chill: ["check out {target.name} when you get a sec — {target.link}"]
         );
 
     // ── !stats / !profile ────────────────────────────────────────────────────

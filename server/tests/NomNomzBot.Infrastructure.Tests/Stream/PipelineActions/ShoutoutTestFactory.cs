@@ -13,11 +13,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stream.PipelineActions;
 
@@ -40,9 +44,20 @@ internal static class ShoutoutTestFactory
             queue ?? new ShoutoutQueue(),
             Sender(chat, registry, db, tts, time),
             resolver,
+            Composer(resolver),
             time,
             NullLogger<ShoutoutAction>.Instance
         );
+
+    /// <summary>The real composer over the given resolver, with no platform text and no channel override set.</summary>
+    public static BuiltinResponseComposer Composer(ITemplateResolver resolver)
+    {
+        IPlatformBuiltinReplyDefaults platform = Substitute.For<IPlatformBuiltinReplyDefaults>();
+        platform
+            .GetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<string?>(null));
+        return new(resolver, platform, FakeChannelBuiltinReplies.None);
+    }
 
     public static ShoutoutSender Sender(
         ITwitchChatApi chat,
