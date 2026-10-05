@@ -418,6 +418,11 @@ public static class DependencyInjection
             Application.Raids.IRaidHistoryReader,
             Stream.RaidSuggestions.RaidHistoryReader
         >();
+        services.AddScoped<
+            Application.Raids.IRaidScoringRulesStore,
+            Stream.RaidSuggestions.RaidScoringRulesStore
+        >();
+        services.AddScoped<Stream.RaidSuggestions.RaidSuggestionService>();
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
         services.AddHostedService<Stream.AdBreak.AdBreakEndWorker>();

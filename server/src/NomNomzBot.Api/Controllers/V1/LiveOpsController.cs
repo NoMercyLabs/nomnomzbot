@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Raids;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -35,6 +36,7 @@ public class LiveOpsController : BaseController
     private readonly ITwitchScheduleApi _schedule;
     private readonly ITwitchStreamsApi _streams;
     private readonly IChannelService _channels;
+    private readonly IRaidScoringRulesStore _raidRules;
 
     public LiveOpsController(
         ITwitchPollsApi polls,
@@ -44,7 +46,8 @@ public class LiveOpsController : BaseController
         ITwitchClipsApi clips,
         ITwitchScheduleApi schedule,
         ITwitchStreamsApi streams,
-        IChannelService channels
+        IChannelService channels,
+        IRaidScoringRulesStore raidRules
     )
     {
         _polls = polls;
@@ -55,6 +58,7 @@ public class LiveOpsController : BaseController
         _schedule = schedule;
         _streams = streams;
         _channels = channels;
+        _raidRules = raidRules;
     }
 
     // ─── Polls ────────────────────────────────────────────────────────────────
@@ -288,6 +292,39 @@ public class LiveOpsController : BaseController
 
         Result result = await _raids.CancelRaidAsync(broadcasterId, ct);
         return result.IsFailure ? TwitchResultResponse(result) : NoContent();
+    }
+
+    /// <summary>Get this channel's own raid target scoring rules. A channel that never saved rules gets the neutral set.</summary>
+    [RequireAction("live-ops:raids:read")]
+    [HttpGet("raids/scoring-rules")]
+    [ProducesResponseType<StatusResponseDto<RaidScoringRules>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRaidScoringRules(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        RaidScoringRules rules = await _raidRules.GetAsync(broadcasterId, ct);
+        return Ok(new StatusResponseDto<RaidScoringRules> { Data = rules });
+    }
+
+    /// <summary>Replace this channel's own raid target scoring rules. Rules that break a limit are refused and nothing is stored.</summary>
+    [RequireAction("live-ops:raids:write")]
+    [HttpPut("raids/scoring-rules")]
+    [ProducesResponseType<StatusResponseDto<RaidScoringRules>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateRaidScoringRules(
+        string channelId,
+        [FromBody] RaidScoringRules rules,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<RaidScoringRules> result = await _raidRules.SaveAsync(broadcasterId, rules, ct);
+        return result.IsFailure
+            ? ResultResponse(result)
+            : Ok(new StatusResponseDto<RaidScoringRules> { Data = result.Value });
     }
 
     // ─── Ads ──────────────────────────────────────────────────────────────────

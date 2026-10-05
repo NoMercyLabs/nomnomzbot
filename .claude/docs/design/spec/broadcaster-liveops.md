@@ -369,6 +369,8 @@ Routes are relative to `/api/v1/channels/{channelId}/live-ops`. Request bodies a
 | PATCH | `/predictions/{predictionId}/end` | `EndPredictionDto(Status, WinningOutcomeId?)` — `LOCKED` \| `RESOLVED` (needs `WinningOutcomeId`) \| `CANCELED` | `StatusResponseDto<TwitchPrediction>` | Editor · `live-ops:predictions:write` |
 | POST | `/raids` | `StartRaidDto(TargetTwitchBroadcasterId)` (numeric id; a login is resolved only by the `start_raid` pipeline action, §6) | `StatusResponseDto<TwitchRaid>` (201) | Editor · `live-ops:raids:write` |
 | DELETE | `/raids` | — | 204 | Editor · `live-ops:raids:write` |
+| GET | `/raids/scoring-rules` | — | `StatusResponseDto<RaidScoringRules>` (this channel's own rules; `Neutral` when none were saved) | Moderator · `live-ops:raids:read` |
+| PUT | `/raids/scoring-rules` | `RaidScoringRules` (the full set; a rule that breaks a limit is refused with `VALIDATION_FAILED` and nothing is stored) | `StatusResponseDto<RaidScoringRules>` | Editor · `live-ops:raids:write` |
 | GET | `/ads/schedule` | — | `StatusResponseDto<TwitchAdSchedule>` | Moderator · `live-ops:ads:read` |
 | POST | `/ads/commercial` | `StartCommercialDto(LengthSeconds)` (30/60/90/120/150/180) | `StatusResponseDto<TwitchCommercial>` | Editor · `live-ops:ads:write` |
 | POST | `/ads/snooze` | — | `StatusResponseDto<TwitchAdSnooze>` | Editor · `live-ops:ads:write` |
@@ -401,7 +403,8 @@ Differences from the earlier per-resource draft: there is no `GET /polls/active`
 | `live-ops:polls:write` | Moderator (owner policy: moderators may run polls by default) | `POST /polls`, `PATCH /polls/{pollId}/end` |
 | `live-ops:predictions:read` | Moderator | `GET /predictions` |
 | `live-ops:predictions:write` | Editor | `POST /predictions`, `PATCH /predictions/{predictionId}/end` |
-| `live-ops:raids:write` | Editor | `POST /raids`, `DELETE /raids` |
+| `live-ops:raids:read` | Moderator | `GET /raids/scoring-rules` |
+| `live-ops:raids:write` | Editor | `POST /raids`, `DELETE /raids`, `PUT /raids/scoring-rules` |
 | `live-ops:ads:read` | Moderator | `GET /ads/schedule` |
 | `live-ops:ads:write` | Editor | `POST /ads/commercial`, `POST /ads/snooze` |
 | `live-ops:schedule:read` | Moderator | `GET /schedule`, `GET /schedule/icalendar` |

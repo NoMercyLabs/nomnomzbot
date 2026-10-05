@@ -304,6 +304,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("live-ops:polls:write", Mod);
         M("live-ops:predictions:read", Mod);
         M("live-ops:predictions:write", Editor);
+        M("live-ops:raids:read", Mod);
         M("live-ops:raids:write", Editor);
         M("live-ops:ads:read", Mod);
         M("live-ops:ads:write", Editor);

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Raids;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -45,7 +46,8 @@ public sealed class LiveOpsScheduleTimezoneTests
             Substitute.For<ITwitchClipsApi>(),
             schedule,
             Substitute.For<ITwitchStreamsApi>(),
-            channels
+            channels,
+            Substitute.For<IRaidScoringRulesStore>()
         );
         return (controller, schedule, channels);
     }
