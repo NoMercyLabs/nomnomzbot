@@ -17,9 +17,10 @@ using NomNomzBot.Domain.Chat.ValueObjects;
 namespace NomNomzBot.Infrastructure.Chat.Adapters;
 
 /// <summary>
-/// Pipeline step 90: renders a subscriber-and-above sender's inline HTML as a sanitised <c>html</c> fragment (the legacy
+/// Pipeline step 90: renders the inline HTML of a sender with standing (a subscriber-and-above badge, or the permittable
+/// <c>chat:html:render</c> capability) as a sanitised <c>html</c> fragment (the legacy
 /// bot's chat-HTML behaviour). It is opt-in per channel (<c>use_chat_html</c>, default off) and gated on sender standing
-/// (<see cref="ChatDecorationContext.SenderHasPreviewStanding"/>). Running after <c>ImplodeTextAdapter</c> (step 80) — so
+/// (<see cref="ChatDecorationContext.SenderMayRenderHtml"/>). Running after <c>ImplodeTextAdapter</c> (step 80) — so
 /// text runs are coalesced and emotes already resolved — it first looks for an HTML tag that <b>spans</b> several
 /// fragments (e.g. <c>&lt;marquee&gt;</c> wrapping emotes): it collects the span, and when it contains at least one emote
 /// it stitches the run into one HTML string (text kept raw, each emote emitted as an <c>&lt;img&gt;</c>). Otherwise it
@@ -32,10 +33,12 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
 
     public bool AppliesTo(ChatDecorationContext context) =>
         context.EnabledFeatures.Contains("use_chat_html")
-        && context.SenderHasPreviewStanding
-        && context.Fragments.Any(fragment =>
-            fragment.Type == "text" && fragment.Text.Contains('<') && fragment.Text.Contains('>')
-        );
+        && context.SenderMayRenderHtml
+        && context.Fragments.Any(LooksLikeHtml);
+
+    /// <summary>A text fragment that carries at least one tag-shaped run — the trigger the orchestrator also uses before it resolves standing.</summary>
+    internal static bool LooksLikeHtml(ChatMessageFragment fragment) =>
+        fragment.Type == "text" && fragment.Text.Contains('<') && fragment.Text.Contains('>');
 
     public Task DecorateAsync(ChatDecorationContext context, CancellationToken ct = default)
     {

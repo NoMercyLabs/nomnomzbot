@@ -53,7 +53,7 @@ public sealed class HtmlFragmentAdapterTests
     ) =>
         new()
         {
-            SenderHasPreviewStanding = standing,
+            SenderMayRenderHtml = standing,
             EnabledFeatures = enabled
                 ? new HashSet<string> { "use_chat_html" }
                 : new HashSet<string>(),

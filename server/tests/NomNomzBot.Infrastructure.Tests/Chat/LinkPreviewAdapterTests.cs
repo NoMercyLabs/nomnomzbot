@@ -30,7 +30,7 @@ public sealed class LinkPreviewAdapterTests
     private static ChatDecorationContext Context(bool standing, bool enabled, string text) =>
         new()
         {
-            SenderHasPreviewStanding = standing,
+            SenderMayPreviewLinks = standing,
             EnabledFeatures = enabled
                 ? new HashSet<string> { "use_link_preview" }
                 : new HashSet<string>(),
@@ -141,7 +141,7 @@ public sealed class LinkPreviewAdapterTests
         ILinkPreviewService previews = PreviewReturning(null);
         ChatDecorationContext context = new()
         {
-            SenderHasPreviewStanding = true,
+            SenderMayPreviewLinks = true,
             EnabledFeatures = new HashSet<string> { "use_link_preview" },
             Fragments =
             [

@@ -39,8 +39,17 @@ public sealed class ChatDecorationContext
     /// <summary>The badges resolved to image urls — filled by <c>BadgeAdapter</c>, surfaced on the decorated message.</summary>
     public IReadOnlyList<ResolvedChatBadge> ResolvedBadges { get; set; } = [];
 
-    /// <summary>Whether the message's sender meets the standing (subscriber and above) required to trigger a link preview fetch.</summary>
-    public bool SenderHasPreviewStanding { get; init; }
+    /// <summary>
+    /// Whether the sender may have inline HTML rendered: a live badge (subscriber and above), or the
+    /// <see cref="ChatDecorationCapabilities.RenderHtml"/> capability (a <c>!permit</c> grant or a resolved level).
+    /// </summary>
+    public bool SenderMayRenderHtml { get; init; }
+
+    /// <summary>
+    /// Whether the sender may trigger a link preview fetch: a live badge (subscriber and above), or the
+    /// <see cref="ChatDecorationCapabilities.PreviewLinks"/> capability (a <c>!permit</c> grant or a resolved level).
+    /// </summary>
+    public bool SenderMayPreviewLinks { get; init; }
 
     /// <summary>
     /// The channel's enabled decoration feature keys (<c>use_bttv</c> / <c>use_ffz</c> / <c>use_7tv</c> /

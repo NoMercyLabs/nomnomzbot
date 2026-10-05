@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Content.Identity;
@@ -42,6 +43,24 @@ public sealed class ActionDefinitionSeederTests
         all.Select(a => a.ActionKey).Should().OnlyHaveUniqueItems();
         all.Should().Contain(a => a.Plane == AuthPlane.Management);
         all.Should().Contain(a => a.Plane == AuthPlane.Community);
+    }
+
+    [Theory]
+    [InlineData(ChatDecorationCapabilities.RenderHtml)]
+    [InlineData(ChatDecorationCapabilities.PreviewLinks)]
+    public async Task Seeds_chat_decoration_standing_as_a_permittable_subscriber_rung_lowerable_to_everyone(
+        string key
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a => a.ActionKey == key);
+        row.Plane.Should().Be(AuthPlane.Community);
+        row.DefaultLevel.Should().Be(2);
+        row.FloorLevel.Should().Be(0);
+        row.FloorTier.Should().Be(DangerTier.Low);
+        row.IsGrantableViaPermit.Should().BeTrue();
     }
 
     [Fact]

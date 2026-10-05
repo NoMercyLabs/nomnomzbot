@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 
@@ -42,6 +43,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
     // Twitch base role, but the broadcaster MAY lower the requirement as far as Vip so a trusted VIP can be
     // let in — abusing these actions cannot cause irreversible harm. Kept in sync with
     // PermissionLevel.Vip.ToLevelValue().
+    private const int Subscriber = 2;
     private const int Vip = 4;
     private const int Mod = 10;
     private const int LeadModerator = 20;
@@ -521,6 +523,31 @@ public sealed class ActionDefinitionSeeder : ISeeder
         C("economy:consent:revoke");
         C("economy:transfer:write");
         C("economy:earning");
+
+        // Chat decoration standing (chat-decoration spec §3.5 / step 90): rendering a viewer's inline HTML and
+        // fetching a link preview DEFAULT to the Subscriber rung — the live badge the legacy bot keyed on — but
+        // are permittable (a !permit grant unlocks them) and the broadcaster may lower the floor to Everyone.
+        // Not Twitch-gated: a resolved Subscriber level counts as much as the badge.
+        s.Add(
+            new(
+                ChatDecorationCapabilities.RenderHtml,
+                Subscriber,
+                Everyone,
+                DangerTier.Low,
+                true,
+                AuthPlane.Community
+            )
+        );
+        s.Add(
+            new(
+                ChatDecorationCapabilities.PreviewLinks,
+                Subscriber,
+                Everyone,
+                DangerTier.Low,
+                true,
+                AuthPlane.Community
+            )
+        );
 
         // Pronouns (pronouns.md §5) — a viewer setting their OWN pronoun/override. The special-category
         // consent gate is enforced in the service layer, not the role floor.

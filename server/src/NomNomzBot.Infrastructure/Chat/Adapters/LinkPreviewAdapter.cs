@@ -18,7 +18,8 @@ namespace NomNomzBot.Infrastructure.Chat.Adapters;
 /// <summary>
 /// Pipeline step 70 (chat-decoration spec §0/§3.5): turns a url into a <c>link</c> fragment and attaches its OpenGraph
 /// preview. Gated — it runs only when the channel has opted in (<c>use_link_preview</c>) AND the sender has the required
-/// standing (subscriber and above) — so an arbitrary viewer's link never triggers an outbound fetch. The fetch itself is
+/// standing (a subscriber-and-above badge, or the permittable <c>chat:link:preview</c> capability) — so an arbitrary
+/// viewer's link never triggers an outbound fetch. The fetch itself is
 /// SSRF-hardened and cached in <see cref="ILinkPreviewService"/>; a miss leaves the link without a preview.
 ///
 /// <para>
@@ -41,7 +42,7 @@ public sealed class LinkPreviewAdapter : IChatDecorationAdapter
     public int Order => 70;
 
     public bool AppliesTo(ChatDecorationContext context) =>
-        context.SenderHasPreviewStanding
+        context.SenderMayPreviewLinks
         && context.EnabledFeatures.Contains("use_link_preview")
         && context.Fragments.Any(ContainsHttpUrl);
 
@@ -123,7 +124,8 @@ public sealed class LinkPreviewAdapter : IChatDecorationAdapter
             yield return text[emitted..];
     }
 
-    private static bool ContainsHttpUrl(ChatMessageFragment fragment) =>
+    /// <summary>A text fragment with an absolute http(s) url word — the trigger the orchestrator also uses before it resolves standing.</summary>
+    internal static bool ContainsHttpUrl(ChatMessageFragment fragment) =>
         fragment.Type == "text"
         && !string.IsNullOrWhiteSpace(fragment.Text)
         && fragment.Text.Split(' ').Any(IsHttpUrl);

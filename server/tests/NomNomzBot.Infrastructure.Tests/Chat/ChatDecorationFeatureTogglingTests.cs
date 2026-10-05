@@ -16,6 +16,8 @@ using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
@@ -71,6 +73,8 @@ public sealed class ChatDecorationFeatureTogglingTests
             EmoteChain(cache),
             features,
             cache,
+            Substitute.For<IUserService>(),
+            Substitute.For<IRoleResolver>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
 
@@ -123,6 +127,8 @@ public sealed class ChatDecorationFeatureTogglingTests
             [new ExplodeTextAdapter(), new LinkPreviewAdapter(previews), new ImplodeTextAdapter()],
             features,
             cache,
+            Substitute.For<IUserService>(),
+            Substitute.For<IRoleResolver>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
 
@@ -170,6 +176,8 @@ public sealed class ChatDecorationFeatureTogglingTests
             [new ExplodeTextAdapter(), new LinkPreviewAdapter(previews), new ImplodeTextAdapter()],
             features,
             cache,
+            Substitute.For<IUserService>(),
+            Substitute.For<IRoleResolver>(),
             NullLogger<ChatMessageDecorator>.Instance
         );
 

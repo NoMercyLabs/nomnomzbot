@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Enums;
@@ -203,7 +205,14 @@ public sealed class ChatMessageDecoratorTests
             .GetFeaturesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(Result.Success(dtos)));
 
-        return new(adapters, features, cache, NullLogger<ChatMessageDecorator>.Instance);
+        return new(
+            adapters,
+            features,
+            cache,
+            Substitute.For<IUserService>(),
+            Substitute.For<IRoleResolver>(),
+            NullLogger<ChatMessageDecorator>.Instance
+        );
     }
 
     private static ChatMessageReceivedEvent Event(string text) =>
