@@ -46583,6 +46583,220 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/live-ops/raids/scoring-rules": {
+      "get": {
+        "tags": [
+          "LiveOps"
+        ],
+        "summary": "Get this channel's own raid target scoring rules. A channel that never saved rules gets the neutral set.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfRaidScoringRules"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "LiveOps"
+        ],
+        "summary": "Replace this channel's own raid target scoring rules. Rules that break a limit are refused and nothing is stored.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaidScoringRules"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaidScoringRules"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaidScoringRules"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfRaidScoringRules"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/live-ops/ads/schedule": {
       "get": {
         "tags": [
@@ -114475,6 +114689,275 @@
         },
         "description": "The transport/read shape of a quote (quotes.md §3)."
       },
+      "RaidBalanceWeights": {
+        "required": [
+          "owedBaseWeight",
+          "owedExtraWeight",
+          "reciprocalWeight"
+        ],
+        "type": "object",
+        "properties": {
+          "owedBaseWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "owedExtraWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reciprocalWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "Points when they raided us more than we raided them: the base for one owed raid, the extra for\neach further one, and the points when raids are level."
+      },
+      "RaidCategoryRule": {
+        "required": [
+          "name",
+          "weight",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "weight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "description": "A liked category: its name, its points and the reason text."
+      },
+      "RaidKeywordRule": {
+        "required": [
+          "label",
+          "weight",
+          "words",
+          "matchTags",
+          "matchTitle"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "weight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "matchTags": {
+            "type": "boolean"
+          },
+          "matchTitle": {
+            "type": "boolean"
+          }
+        },
+        "description": "A signal made of plain words or phrases. A word matches a whole tag, or whole words in the\ntitle, ignoring case and punctuation. No regular expression is involved."
+      },
+      "RaidRecencyRules": {
+        "required": [
+          "neverRaidedWeight",
+          "steps",
+          "olderWeight",
+          "olderNote"
+        ],
+        "type": "object",
+        "properties": {
+          "neverRaidedWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaidRecencyStep"
+            }
+          },
+          "olderWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "olderNote": {
+            "type": "string"
+          }
+        },
+        "description": "Points by time since the last outgoing raid: never, within each step, or older than all steps."
+      },
+      "RaidRecencyStep": {
+        "required": [
+          "withinDays",
+          "weight",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "withinDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "weight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "description": "A raid that happened less than WithinDays days ago."
+      },
+      "RaidScoringRules": {
+        "required": [
+          "preferredCategories",
+          "otherCategoryWeight",
+          "otherCategoryLabel",
+          "keywords",
+          "viewerBands",
+          "recency",
+          "balance",
+          "followedWeight"
+        ],
+        "type": "object",
+        "properties": {
+          "preferredCategories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaidCategoryRule"
+            },
+            "description": "Categories this channel likes, matched by name ignoring case, first match wins."
+          },
+          "otherCategoryWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Points for a category that is not in PreferredCategories.",
+            "format": "int32"
+          },
+          "otherCategoryLabel": {
+            "type": "string",
+            "description": "Reason text for that case; the category name is appended in brackets."
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaidKeywordRule"
+            },
+            "description": "Tag and title signals, checked in order, first matching rule wins."
+          },
+          "viewerBands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaidViewerBand"
+            },
+            "description": "Viewer-count bands, checked in order, first band that holds the count wins."
+          },
+          "recency": {
+            "description": "How long ago this channel last raided the candidate.",
+            "$ref": "#/components/schemas/RaidRecencyRules"
+          },
+          "balance": {
+            "description": "Who owes whom a raid.",
+            "$ref": "#/components/schemas/RaidBalanceWeights"
+          },
+          "followedWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Points when the broadcaster follows the candidate.",
+            "format": "int32"
+          }
+        },
+        "description": "One channel's raid-target preferences. The scorer owns no rule of its own: every point it hands\nout comes from this object. A rule with weight 0 adds nothing and shows no reason."
+      },
+      "RaidViewerBand": {
+        "required": [
+          "min",
+          "max",
+          "weight",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "min": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "max": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "weight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "description": "A viewer-count band, both ends included."
+      },
       "RecordAction": {
         "type": "integer",
         "description": "Recording control verbs (obs-control.md §3.1)."
@@ -126371,6 +126854,43 @@
               },
               {
                 "$ref": "#/components/schemas/QuoteDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfRaidScoringRules": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RaidScoringRules"
               }
             ]
           },
