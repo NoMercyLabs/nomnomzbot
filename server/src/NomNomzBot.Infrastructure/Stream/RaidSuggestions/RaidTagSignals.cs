@@ -10,82 +10,44 @@
 
 using System.Text.RegularExpressions;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Raids;
 
 namespace NomNomzBot.Infrastructure.Stream.RaidSuggestions;
 
 /// <summary>
-/// Tag and title-token patterns that tell real software work from game development. A tag or any
-/// title token that matches counts. Copied from the legacy bot's RaidSuggestionService.
+/// Matches a stream's tags and title against a channel's keyword rules. Words are compared as
+/// lower-case word lists, so "Cozy  Crafts!" matches the phrase "cozy crafts" but not "uncozy crafts".
 /// </summary>
 internal static class RaidTagSignals
 {
-    /// <summary>
-    /// Software-dev signals. Languages common in game dev (csharp, cpp, java, lua, javascript, rust)
-    /// are left out on purpose because they are ambiguous.
-    /// </summary>
-    private static readonly Regex SoftwarePattern = new(
-        @"^(programming|softwaredev(elopment)?|softwareengineer(ing)?|webdev(elopment)?|"
-            + @"coding|code|developer|backend|frontend|fullstack(dev)?|devops|sre|"
-            + @"systemsprogramming|datascience|machinelearning|"
-            // Languages with low game-dev overlap
-            + @"python|typescript|ruby|php|golang|elixir|erlang|haskell|scala|clojure|"
-            + @"kotlin|swift|dart|flutter|elm|fsharp|ocaml|julia|perl|crystal|nim|zig|"
-            + @"r(language)?|"
-            // Web frameworks
-            + @"react(js)?|vue(js)?|angular|svelte(kit)?|next(js)?|nuxt(js)?|astro|remix|"
-            + @"django|flask|fastapi|rails|laravel|symfony|spring(boot)?|aspnetcore|"
-            + @"nodejs|node|deno|bun|express(js)?|"
-            // Markup, styling, frontend tooling
-            + @"html5?|css3?|scss|sass|less|tailwind(css)?|bootstrap|jquery|webpack|vite|"
-            // Databases
-            + @"postgres(ql)?|mysql|mariadb|mongodb|redis|elasticsearch|sqlite|cassandra|dynamodb|"
-            // Infra / cloud
-            + @"kubernetes|k8s|docker|terraform|ansible|helm|nginx|apache|"
-            + @"aws|azure|gcp|cloudflare|digitalocean|heroku|vercel|netlify|"
-            + @"prometheus|grafana|kafka|rabbitmq|"
-            // Shells / editors / tools
-            + @"bash|zsh|fish|powershell|emacs|neovim|vim|git|"
-            // Architecture / API
-            + @"microservices|graphql|restapi|api|grpc|websockets)$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
+    private static readonly Regex WordSplit = new(@"[^a-zA-Z0-9+#]+", RegexOptions.Compiled);
 
-    /// <summary>Game-dev signals: explicit tags, game engines and genre tags.</summary>
-    private static readonly Regex GameDevPattern = new(
-        @"^(gamedev(elopment)?|indie(game)?dev|gamejam|"
-            // Engines / game-specific tooling
-            + @"godot|unity|unrealengine|unreal|gamemaker(studio)?|construct(2|3)?|defold|lovd2|pygame|phaser|raylib|monogame|pixijs|playcanvas|"
-            // Genres
-            + @"roguelike|roguelite|deckbuilder|cardgame|metroidvania|platformer|shmup|bullethell|fightinggame|"
-            + @"jrpg|arpg|crpg|wrpg|rpgmaker|"
-            + @"survivalgame|horrorgame|puzzlegame|racinggame|simulationgame|tycoon|sandboxgame|"
-            + @"fps|rts|tps|moba|mmo(rpg)?|battleroyale)$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
-
-    private static readonly Regex TitleTokenSplit = new(@"[^a-zA-Z0-9+#]+", RegexOptions.Compiled);
-
-    public static bool IsGameDev(TwitchStream stream) => HasMatch(stream, GameDevPattern);
-
-    public static bool IsSoftware(TwitchStream stream) => HasMatch(stream, SoftwarePattern);
-
-    private static bool HasMatch(TwitchStream stream, Regex pattern)
+    /// <summary>The first rule (in list order) that matches the stream, or null.</summary>
+    public static RaidKeywordRule? FindMatch(
+        TwitchStream stream,
+        IReadOnlyList<RaidKeywordRule> rules
+    )
     {
-        foreach (string tag in stream.Tags)
+        string paddedTitle = " " + Normalize(stream.Title) + " ";
+        List<string> tags = stream.Tags.Select(Normalize).ToList();
+
+        foreach (RaidKeywordRule rule in rules)
         {
-            if (pattern.IsMatch(tag))
-                return true;
+            foreach (string word in rule.Words.Select(Normalize).Where(w => w.Length > 0))
+            {
+                if (rule.MatchTags && tags.Contains(word))
+                    return rule;
+                if (rule.MatchTitle && paddedTitle.Contains(" " + word + " "))
+                    return rule;
+            }
         }
 
-        if (string.IsNullOrWhiteSpace(stream.Title))
-            return false;
-
-        foreach (string token in TitleTokenSplit.Split(stream.Title))
-        {
-            if (token.Length > 0 && pattern.IsMatch(token))
-                return true;
-        }
-
-        return false;
+        return null;
     }
+
+    private static string Normalize(string? text) =>
+        string.Join(
+            ' ',
+            WordSplit.Split(text ?? "").Where(t => t.Length > 0).Select(t => t.ToLowerInvariant())
+        );
 }

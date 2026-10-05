@@ -13,6 +13,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Raids;
 using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Infrastructure.Tests.Localization;
@@ -74,6 +75,12 @@ public sealed class SchemaDtoStringShapeTests
         [typeof(EventResponsePresetDto)] = new HashSet<string>
         {
             nameof(EventResponsePresetDto.EventType),
+        },
+        // Per-channel raid rules: the label is text the channel owner types into their own rules (empty in
+        // RaidScoringRules.Neutral, the only code-authored instance), so nothing developer-written is rendered.
+        [typeof(RaidScoringRules)] = new HashSet<string>
+        {
+            nameof(RaidScoringRules.OtherCategoryLabel),
         },
         // Template helper registry: `Key`/`Prefix` are the placeholder text the resolver matches on, not prose.
         [typeof(TemplateHelperEntry)] = new HashSet<string>

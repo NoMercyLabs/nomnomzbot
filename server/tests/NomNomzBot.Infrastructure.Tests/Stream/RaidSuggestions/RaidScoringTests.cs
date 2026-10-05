@@ -21,9 +21,11 @@ namespace NomNomzBot.Infrastructure.Tests.Stream.RaidSuggestions;
 /// </summary>
 public sealed class RaidScoringTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
+    internal static readonly DateTimeOffset Now = new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
 
-    private static RaidCandidate Candidate(
+    private static readonly RaidScoringRules Rules = StoneyRaidRules.Rules;
+
+    internal static RaidCandidate Candidate(
         string userId = "100",
         string game = "Software and Game Development",
         int viewers = 30,
@@ -64,6 +66,7 @@ public sealed class RaidScoringTests
             [plain, owed],
             new Dictionary<string, RaidStats>(),
             incoming,
+            Rules,
             Now
         );
 
@@ -85,7 +88,7 @@ public sealed class RaidScoringTests
     [InlineData("Fortnite", -20, "-20 non-dev cat (Fortnite)")]
     public void Category_points_and_label(string game, int delta, string label)
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(game: game), null, null, Now);
+        RaidScoreResult result = RaidScoring.Score(Candidate(game: game), null, null, Rules, Now);
 
         result.Score.Should().Be(delta + 25 + 30);
         result
@@ -109,7 +112,13 @@ public sealed class RaidScoringTests
     [InlineData(5001, -50, "giant (5001v)")]
     public void Viewer_bucket_points_and_label(int viewers, int delta, string label)
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(viewers: viewers), null, null, Now);
+        RaidScoreResult result = RaidScoring.Score(
+            Candidate(viewers: viewers),
+            null,
+            null,
+            Rules,
+            Now
+        );
 
         result.Reasons.Should().Contain(new RaidScoreReason(delta, label));
         result.Score.Should().Be(60 + delta + 30);
@@ -122,7 +131,13 @@ public sealed class RaidScoringTests
     [InlineData(40, 25, "raided 1mo ago (stale)")]
     public void Outgoing_raid_cooldown_points_and_label(int daysAgo, int delta, string label)
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(), Raids(1, daysAgo), null, Now);
+        RaidScoreResult result = RaidScoring.Score(
+            Candidate(),
+            Raids(1, daysAgo),
+            null,
+            Rules,
+            Now
+        );
 
         result.Reasons.Should().Contain(new RaidScoreReason(delta, label));
         result.Score.Should().Be(60 + 25 + delta);
@@ -131,7 +146,7 @@ public sealed class RaidScoringTests
     [Fact]
     public void Never_raided_scores_thirty()
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(), null, null, Now);
+        RaidScoreResult result = RaidScoring.Score(Candidate(), null, null, Rules, Now);
 
         result.Reasons.Should().Contain(new RaidScoreReason(30, "never raided"));
     }
@@ -139,7 +154,13 @@ public sealed class RaidScoringTests
     [Fact]
     public void Followed_channel_gets_fifty()
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(followed: true), null, null, Now);
+        RaidScoreResult result = RaidScoring.Score(
+            Candidate(followed: true),
+            null,
+            null,
+            Rules,
+            Now
+        );
 
         result.Reasons.Should().Contain(new RaidScoreReason(50, "followed"));
         result.Score.Should().Be(60 + 25 + 30 + 50);
@@ -156,6 +177,7 @@ public sealed class RaidScoringTests
             Candidate(),
             Raids(outCount, 40),
             Raids(inCount, 40),
+            Rules,
             Now
         );
 
@@ -166,7 +188,13 @@ public sealed class RaidScoringTests
     [Fact]
     public void Reciprocity_adds_nothing_when_we_raided_them_more()
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(), Raids(3, 40), Raids(1, 40), Now);
+        RaidScoreResult result = RaidScoring.Score(
+            Candidate(),
+            Raids(3, 40),
+            Raids(1, 40),
+            Rules,
+            Now
+        );
 
         result.Score.Should().Be(60 + 25 + 25);
         result.Reasons.Should().NotContain(r => r.Label.Contains("in:"));
@@ -175,7 +203,7 @@ public sealed class RaidScoringTests
     [Fact]
     public void Reciprocity_adds_nothing_when_they_never_raided_us()
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(), Raids(2, 40), null, Now);
+        RaidScoreResult result = RaidScoring.Score(Candidate(), Raids(2, 40), null, Rules, Now);
 
         result.Score.Should().Be(60 + 25 + 25);
     }
@@ -183,7 +211,13 @@ public sealed class RaidScoringTests
     [Fact]
     public void A_software_tag_adds_thirtyfive()
     {
-        RaidScoreResult result = RaidScoring.Score(Candidate(tags: ["Docker"]), null, null, Now);
+        RaidScoreResult result = RaidScoring.Score(
+            Candidate(tags: ["Docker"]),
+            null,
+            null,
+            Rules,
+            Now
+        );
 
         result.Reasons.Should().Contain(new RaidScoreReason(35, "software signal"));
         result.Score.Should().Be(60 + 35 + 25 + 30);
@@ -196,6 +230,7 @@ public sealed class RaidScoringTests
             Candidate(title: "Building a Python REST API!"),
             null,
             null,
+            Rules,
             Now
         );
 
@@ -209,6 +244,7 @@ public sealed class RaidScoringTests
             Candidate(tags: ["programming", "deckbuilder"]),
             null,
             null,
+            Rules,
             Now
         );
 
@@ -224,6 +260,7 @@ public sealed class RaidScoringTests
             Candidate(tags: ["csharp", "rust"], title: "csharp and rust"),
             null,
             null,
+            Rules,
             Now
         );
 
@@ -242,6 +279,7 @@ public sealed class RaidScoringTests
             [low, tieA, high, tieB],
             new Dictionary<string, RaidStats>(),
             new Dictionary<string, RaidStats>(),
+            Rules,
             Now
         );
 
@@ -264,6 +302,7 @@ public sealed class RaidScoringTests
             [recentlyRaided, staleRaid],
             outgoing,
             new Dictionary<string, RaidStats>(),
+            Rules,
             Now
         );
 

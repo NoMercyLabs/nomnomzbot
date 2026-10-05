@@ -14,20 +14,18 @@ using NomNomzBot.Application.Raids;
 namespace NomNomzBot.Infrastructure.Stream.RaidSuggestions;
 
 /// <summary>
-/// Pure raid-target ranking, no I/O. Rules match the legacy bot: favour real software streams over
-/// games, small channels over big ones, channels not raided lately, followed channels, and channels
-/// that raided us more often than we raided them.
+/// Pure raid-target ranking, no I/O. The scorer holds no preference of its own: the channel's
+/// <see cref="RaidScoringRules"/> say which categories, signals, sizes, raid gaps and raid balances
+/// earn points. A rule worth 0 adds no reason.
 /// </summary>
 internal static class RaidScoring
 {
-    private const string SoftwareCategoryName = "Software and Game Development";
-    private const string ScienceCategoryName = "Science & Technology";
-
     /// <summary>Scores every candidate and sorts best first. Equal scores keep their input order.</summary>
     public static List<RaidScoreResult> Rank(
         IReadOnlyList<RaidCandidate> candidates,
         IReadOnlyDictionary<string, RaidStats> outgoing,
         IReadOnlyDictionary<string, RaidStats> incoming,
+        RaidScoringRules rules,
         DateTimeOffset now
     ) =>
         candidates
@@ -36,6 +34,7 @@ internal static class RaidScoring
                     c,
                     outgoing.GetValueOrDefault(c.Stream.UserId),
                     incoming.GetValueOrDefault(c.Stream.UserId),
+                    rules,
                     now
                 )
             )
@@ -46,24 +45,23 @@ internal static class RaidScoring
         RaidCandidate candidate,
         RaidStats? outgoing,
         RaidStats? incoming,
+        RaidScoringRules rules,
         DateTimeOffset now
     )
     {
-        List<RaidScoreReason> reasons = [ScoreCategory(candidate.Stream)];
-
-        RaidScoreReason? signal = ScoreContentSignal(candidate.Stream);
-        if (signal is not null)
-            reasons.Add(signal);
-
-        reasons.Add(ScoreViewerCount(candidate.Stream.ViewerCount));
-        reasons.Add(ScoreRaidCooldown(outgoing?.LastAt, now));
+        List<RaidScoreReason> reasons = [];
+        AddIfWeighted(reasons, ScoreCategory(candidate.Stream, rules));
+        AddIfWeighted(reasons, ScoreContentSignal(candidate.Stream, rules));
+        AddIfWeighted(reasons, ScoreViewerCount(candidate.Stream.ViewerCount, rules));
+        AddIfWeighted(reasons, ScoreRaidCooldown(outgoing?.LastAt, rules.Recency, now));
 
         if (candidate.IsFollowed)
-            reasons.Add(new RaidScoreReason(50, "followed"));
+            AddIfWeighted(reasons, new RaidScoreReason(rules.FollowedWeight, "followed"));
 
-        RaidScoreReason? reciprocity = ScoreReciprocity(incoming?.Count ?? 0, outgoing?.Count ?? 0);
-        if (reciprocity is not null)
-            reasons.Add(reciprocity);
+        AddIfWeighted(
+            reasons,
+            ScoreReciprocity(incoming?.Count ?? 0, outgoing?.Count ?? 0, rules.Balance)
+        );
 
         return new RaidScoreResult(
             candidate.Stream,
@@ -77,58 +75,68 @@ internal static class RaidScoring
         );
     }
 
-    private static RaidScoreReason ScoreCategory(TwitchStream stream)
+    private static void AddIfWeighted(List<RaidScoreReason> reasons, RaidScoreReason? reason)
     {
-        if (stream.GameName.Equals(SoftwareCategoryName, StringComparison.OrdinalIgnoreCase))
-            return new RaidScoreReason(60, "Software cat");
-        if (stream.GameName.Equals(ScienceCategoryName, StringComparison.OrdinalIgnoreCase))
-            return new RaidScoreReason(40, "Sci&Tech cat");
-        return new RaidScoreReason(-20, $"non-dev cat ({stream.GameName})");
+        if (reason is { Delta: not 0 })
+            reasons.Add(reason);
     }
 
-    /// <summary>Game dev wins over software: a streamer with "programming" and "deckbuilder" makes a game.</summary>
-    private static RaidScoreReason? ScoreContentSignal(TwitchStream stream)
+    private static RaidScoreReason ScoreCategory(TwitchStream stream, RaidScoringRules rules)
     {
-        if (RaidTagSignals.IsGameDev(stream))
-            return new RaidScoreReason(-40, "gamedev signal");
-        if (RaidTagSignals.IsSoftware(stream))
-            return new RaidScoreReason(35, "software signal");
-        return null;
+        RaidCategoryRule? preferred = rules.PreferredCategories.FirstOrDefault(c =>
+            c.Name.Equals(stream.GameName, StringComparison.OrdinalIgnoreCase)
+        );
+        return preferred is not null
+            ? new RaidScoreReason(preferred.Weight, preferred.Label)
+            : new RaidScoreReason(
+                rules.OtherCategoryWeight,
+                $"{rules.OtherCategoryLabel} ({stream.GameName})"
+            );
     }
 
-    private static RaidScoreReason ScoreViewerCount(int v) =>
-        v switch
-        {
-            >= 1 and <= 50 => new RaidScoreReason(25, $"small ({v}v)"),
-            <= 200 => new RaidScoreReason(10, $"mid ({v}v)"),
-            <= 500 => new RaidScoreReason(-5, $"medium ({v}v)"),
-            <= 1000 => new RaidScoreReason(-15, $"big ({v}v)"),
-            <= 5000 => new RaidScoreReason(-30, $"large ({v}v)"),
-            _ => new RaidScoreReason(-50, $"giant ({v}v)"),
-        };
+    /// <summary>The first keyword rule the stream's tags or title match, in the channel's own order.</summary>
+    private static RaidScoreReason? ScoreContentSignal(TwitchStream stream, RaidScoringRules rules)
+    {
+        RaidKeywordRule? match = RaidTagSignals.FindMatch(stream, rules.Keywords);
+        return match is null ? null : new RaidScoreReason(match.Weight, match.Label);
+    }
 
-    /// <summary>Under 7 days is a hard cooldown, 7-14 still recent, 14-30 neutral, over 30 is due.</summary>
-    private static RaidScoreReason ScoreRaidCooldown(DateTimeOffset? lastRaid, DateTimeOffset now)
+    private static RaidScoreReason? ScoreViewerCount(int viewers, RaidScoringRules rules)
+    {
+        RaidViewerBand? band = rules.ViewerBands.FirstOrDefault(b =>
+            viewers >= b.Min && viewers <= b.Max
+        );
+        return band is null ? null : new RaidScoreReason(band.Weight, $"{band.Label} ({viewers}v)");
+    }
+
+    private static RaidScoreReason ScoreRaidCooldown(
+        DateTimeOffset? lastRaid,
+        RaidRecencyRules recency,
+        DateTimeOffset now
+    )
     {
         if (lastRaid is null)
-            return new RaidScoreReason(30, "never raided");
+            return new RaidScoreReason(recency.NeverRaidedWeight, "never raided");
 
         TimeSpan ago = now - lastRaid.Value;
         string when = ShortAgo(ago);
-        if (ago < TimeSpan.FromDays(7))
-            return new RaidScoreReason(-40, $"raided {when} ago (cooldown)");
-        if (ago < TimeSpan.FromDays(14))
-            return new RaidScoreReason(-15, $"raided {when} ago (recent)");
-        if (ago < TimeSpan.FromDays(30))
-            return new RaidScoreReason(5, $"raided {when} ago");
-        return new RaidScoreReason(25, $"raided {when} ago (stale)");
+        RaidRecencyStep? step = recency
+            .Steps.OrderBy(s => s.WithinDays)
+            .FirstOrDefault(s => ago < TimeSpan.FromDays(s.WithinDays));
+        return step is not null
+            ? new RaidScoreReason(step.Weight, RaidedLabel(when, step.Note))
+            : new RaidScoreReason(recency.OlderWeight, RaidedLabel(when, recency.OlderNote));
     }
 
-    /// <summary>
-    /// If they raided us more than we raided them, we owe them. The base bump (55) clears the gamedev
-    /// penalty (-40) and each extra owed raid adds 12.
-    /// </summary>
-    private static RaidScoreReason? ScoreReciprocity(int inCount, int outCount)
+    private static string RaidedLabel(string when, string note) =>
+        note.Length == 0 ? $"raided {when} ago" : $"raided {when} ago ({note})";
+
+    /// <summary>If they raided us more than we raided them, we owe them; level raids earn the reciprocal weight.</summary>
+    private static RaidScoreReason? ScoreReciprocity(
+        int inCount,
+        int outCount,
+        RaidBalanceWeights balance
+    )
     {
         if (inCount == 0)
             return null;
@@ -138,13 +146,16 @@ internal static class RaidScoring
         {
             string raidWord = imbalance == 1 ? "raid" : "raids";
             return new RaidScoreReason(
-                55 + (imbalance - 1) * 12,
+                balance.OwedBaseWeight + (imbalance - 1) * balance.OwedExtraWeight,
                 $"owed {imbalance} {raidWord} (in:{inCount}/out:{outCount})"
             );
         }
 
         return imbalance == 0
-            ? new RaidScoreReason(10, $"reciprocal (in:{inCount}/out:{outCount})")
+            ? new RaidScoreReason(
+                balance.ReciprocalWeight,
+                $"reciprocal (in:{inCount}/out:{outCount})"
+            )
             : null;
     }
 
