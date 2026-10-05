@@ -68,7 +68,9 @@ else {
 
 Write-Host '== migrating to the PREVIOUS migration (the state an existing install is in) =='
 Push-Location $server
-[string[]]$migrations = (dotnet ef migrations list --project $infra --startup-project $api --no-build 2>$null) |
+# Never --no-build here: a stale build lists last week's newest migration, and the check then "passes"
+# without ever applying the one under test (2026-10-06).
+[string[]]$migrations = (dotnet ef migrations list --project $infra --startup-project $api 2>$null) |
     Where-Object { $_ -match '^\d{14}_' }
 Pop-Location
 if ($migrations.Count -lt 2) { throw 'need at least two migrations to test an upgrade' }
