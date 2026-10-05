@@ -38,6 +38,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
 {
     private const int QueueTtlMinutes = 10;
 
+    /// <summary>The most parts one segmented request may carry — a guard against a runaway script or flow.</summary>
+    private const int MaxSegments = 20;
+
     private readonly ITtsService _tts;
     private readonly IByokTtsProviderFactory _byokProviders;
     private readonly ITtsConfigService _config;
@@ -127,6 +130,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        if (request.Segments is { Count: > 0 })
+            return await RequestSegmentsAsync(request, config, ct);
+
         string text = request.Text.Trim();
         if (text.Length == 0)
             return await RejectRequestAsync(
@@ -137,16 +143,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
-        // The effective cap is the STRICTER of the streamer's own setting and the plan's
-        // tts_max_characters tier limit (monetization-billing §3.3; -1 / self-host = no tier clamp).
-        int cap = config.MaxCharacters > 0 ? config.MaxCharacters : 500;
-        Result<long> tierCap = await _tiers.GetLimitAsync(
-            request.BroadcasterId,
-            "tts_max_characters",
-            ct
-        );
-        if (tierCap is { IsSuccess: true, Value: >= 0 })
-            cap = (int)Math.Min(cap, tierCap.Value);
+        int cap = await ResolveCapAsync(request.BroadcasterId, config, ct);
         if (text.Length > cap)
             return await RejectRequestAsync(
                 request,
@@ -238,6 +235,158 @@ public sealed class TtsDispatchService : ITtsDispatchService
             request.ChannelEventId,
             request.RatePercent,
             request.PitchPercent,
+            segments: null,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// The effective character cap: the STRICTER of the streamer's own setting and the plan's
+    /// tts_max_characters tier limit (monetization-billing §3.3; -1 / self-host = no tier clamp).
+    /// </summary>
+    private async Task<int> ResolveCapAsync(
+        Guid broadcasterId,
+        TtsConfigDto config,
+        CancellationToken ct
+    )
+    {
+        int cap = config.MaxCharacters > 0 ? config.MaxCharacters : 500;
+        Result<long> tierCap = await _tiers.GetLimitAsync(broadcasterId, "tts_max_characters", ct);
+        if (tierCap is { IsSuccess: true, Value: >= 0 })
+            cap = (int)Math.Min(cap, tierCap.Value);
+        return cap;
+    }
+
+    /// <summary>
+    /// The segmented path of <see cref="RequestSpeakAsync"/>: every part passes the same cap, censor and voice
+    /// checks as a single text, and one failing part rejects the whole request (never a half-spoken line). A part
+    /// that is empty (before or after the censor) is dropped; if none is left the request is rejected. The
+    /// approval queue and the client-edge widget hold ONE text and ONE voice, so on those two paths the parts
+    /// play as their joined text in the first part's voice.
+    /// </summary>
+    private async Task<Result<TtsDispatchOutcome>> RequestSegmentsAsync(
+        TtsSpeakRequest request,
+        TtsConfigDto config,
+        CancellationToken ct
+    )
+    {
+        IReadOnlyList<TtsSpeakSegment> parts = request.Segments!;
+        if (parts.Count > MaxSegments)
+            return await RejectRequestAsync(
+                request,
+                "too_many_segments",
+                $"A TTS request can carry at most {MaxSegments} segments.",
+                "VALIDATION_FAILED",
+                ct
+            );
+
+        int cap = await ResolveCapAsync(request.BroadcasterId, config, ct);
+        List<TtsSegment> segments = [];
+        List<string> originals = [];
+        bool wasCensored = false;
+        string? requestVoice = null;
+        foreach (TtsSpeakSegment part in parts)
+        {
+            string text = part.Text.Trim();
+            if (text.Length == 0)
+                continue;
+            if (text.Length > cap)
+                return await RejectRequestAsync(
+                    request,
+                    "too_long",
+                    $"That message is too long to read out ({text.Length}/{cap} characters).",
+                    "VALIDATION_FAILED",
+                    ct
+                );
+
+            string spoken = text;
+            if (config.ProfanityCensorEnabled)
+            {
+                TtsCensorResult censored = _censor.Censor(text);
+                spoken = censored.Text;
+                wasCensored |= censored.WasCensored;
+                if (string.IsNullOrWhiteSpace(spoken))
+                    continue;
+            }
+
+            string? named = string.IsNullOrWhiteSpace(part.VoiceId)
+                ? request.VoiceIdOverride
+                : part.VoiceId;
+            string? voiceId = string.IsNullOrWhiteSpace(named) ? requestVoice : named;
+            voiceId ??= requestVoice = await ResolveVoiceAsync(
+                request.BroadcasterId,
+                request.RequestedByTwitchUserId,
+                null,
+                config,
+                request.AssignVoiceIfMissing,
+                ct
+            );
+            if (string.IsNullOrWhiteSpace(voiceId))
+                return await RejectRequestAsync(
+                    request,
+                    "no_voice",
+                    "No TTS voice is available.",
+                    "VALIDATION_FAILED",
+                    ct
+                );
+            if (!string.IsNullOrWhiteSpace(named) && !await VoiceExistsAsync(voiceId, ct))
+                return await RejectRequestAsync(
+                    request,
+                    "unknown_voice",
+                    $"TTS voice '{voiceId}' does not exist.",
+                    "VALIDATION_FAILED",
+                    ct
+                );
+
+            originals.Add(text);
+            segments.Add(
+                new(
+                    spoken,
+                    voiceId,
+                    part.RatePercent,
+                    part.PitchPercent,
+                    Math.Max(0, part.BreakAfterMs)
+                )
+            );
+        }
+
+        if (segments.Count == 0)
+            return await RejectRequestAsync(
+                request,
+                "empty",
+                "Nothing to say.",
+                "VALIDATION_FAILED",
+                ct
+            );
+
+        string spokenText = string.Join(' ', segments.Select(s => s.Text));
+        if (config.ModApprovalRequired)
+            return await EnqueueForApprovalAsync(
+                request,
+                string.Join(' ', originals),
+                spokenText,
+                wasCensored,
+                segments[0].VoiceId,
+                ct
+            );
+
+        await using IAsyncDisposable gate = await _serializer.AcquireAsync(
+            request.BroadcasterId,
+            ct
+        );
+        return await DispatchAsync(
+            request.BroadcasterId,
+            config,
+            spokenText,
+            segments[0].VoiceId,
+            request.RequestedByTwitchUserId,
+            wasCensored,
+            wasModApproved: null,
+            request.StreamId,
+            request.ChannelEventId,
+            ratePercent: null,
+            pitchPercent: null,
+            segments,
             ct
         );
     }
@@ -283,6 +432,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             channelEventId: null,
             ratePercent: null,
             pitchPercent: null,
+            segments: null,
             ct
         );
         if (played.IsFailure)
@@ -453,10 +603,28 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string? channelEventId,
         double? ratePercent,
         double? pitchPercent,
+        IReadOnlyList<TtsSegment>? segments,
         CancellationToken ct
     )
     {
-        text = await _lexicon.ApplyAsync(broadcasterId, text, ct);
+        if (segments is not null)
+        {
+            List<TtsSegment> lexed = [];
+            foreach (TtsSegment segment in segments)
+                lexed.Add(
+                    segment with
+                    {
+                        Text = await _lexicon.ApplyAsync(broadcasterId, segment.Text, ct),
+                    }
+                );
+            segments = lexed;
+            text = string.Join(' ', lexed.Select(s => s.Text));
+        }
+        else
+        {
+            text = await _lexicon.ApplyAsync(broadcasterId, text, ct);
+        }
+
         return await (
             config.Mode == "client_edge"
                 ? DispatchClientEdgeAsync(
@@ -483,6 +651,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     channelEventId,
                     ratePercent,
                     pitchPercent,
+                    segments,
                     ct
                 )
         );
@@ -578,6 +747,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string? channelEventId,
         double? ratePercent,
         double? pitchPercent,
+        IReadOnlyList<TtsSegment>? segments,
         CancellationToken ct
     )
     {
@@ -602,13 +772,15 @@ public sealed class TtsDispatchService : ITtsDispatchService
                         "SERVICE_UNAVAILABLE",
                         ct
                     );
-                TtsSynthesisResult byokSynth = await provider.Value.SynthesizeAsync(
-                    text,
-                    voiceId,
-                    ratePercent,
-                    pitchPercent,
-                    ct
-                );
+                TtsSynthesisResult byokSynth = segments is null
+                    ? await provider.Value.SynthesizeAsync(
+                        text,
+                        voiceId,
+                        ratePercent,
+                        pitchPercent,
+                        ct
+                    )
+                    : await provider.Value.SynthesizeSegmentsAsync(segments, ct);
                 synth = new(
                     byokSynth.AudioData,
                     byokSynth.DurationMs,
@@ -618,7 +790,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
             }
             else
             {
-                synth = await _tts.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct);
+                synth = segments is null
+                    ? await _tts.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct)
+                    : await _tts.SynthesizeSegmentsAsync(segments, ct);
             }
         }
         catch (Exception ex)

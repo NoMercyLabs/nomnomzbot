@@ -40,6 +40,11 @@ public sealed class TtsVoiceCatalogSyncTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException("The catalogue sync never synthesizes.");
 
+        public Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+            IReadOnlyList<TtsSegment> segments,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException("The catalogue sync never synthesizes.");
+
         public Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
             CancellationToken cancellationToken = default
         ) => Task.FromResult(_voices);

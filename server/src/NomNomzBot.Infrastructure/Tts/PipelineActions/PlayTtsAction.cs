@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -48,9 +49,14 @@ public sealed class PlayTtsAction : ICommandAction
             new(
                 "text",
                 PipelineActionFieldKind.Text,
-                Required: true,
                 Templated: true,
                 Description: new("pipeline.play_tts.text.help")
+            ),
+            new(
+                "segments",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.play_tts.segments.help")
             ),
             new(
                 "voice",
@@ -77,18 +83,34 @@ public sealed class PlayTtsAction : ICommandAction
         ActionDefinition action
     )
     {
-        string template = action.GetString("text") ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(template))
-            return ActionResult.Failure("play_tts requires a 'text' parameter.");
+        List<TtsSpeakSegment>? segments = null;
+        string text;
+        if (action.Parameters is not null && action.Parameters.ContainsKey("segments"))
+        {
+            (List<TtsSpeakSegment>? parsed, string? segmentError) = await ResolveSegmentsAsync(
+                action.Parameters["segments"],
+                ctx
+            );
+            if (parsed is null)
+                return ActionResult.Failure(segmentError ?? "play_tts 'segments' is invalid.");
+            segments = parsed;
+            text = string.Join(' ', parsed.Select(p => p.Text));
+        }
+        else
+        {
+            string template = action.GetString("text") ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(template))
+                return ActionResult.Failure("play_tts requires a 'text' parameter.");
 
-        string text = await _resolver.ResolveAsync(
-            template,
-            ctx.Variables,
-            ctx.BroadcasterId,
-            ctx.CancellationToken
-        );
-        if (string.IsNullOrWhiteSpace(text))
-            return ActionResult.Failure("play_tts resolved to empty text.");
+            text = await _resolver.ResolveAsync(
+                template,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            );
+            if (string.IsNullOrWhiteSpace(text))
+                return ActionResult.Failure("play_tts resolved to empty text.");
+        }
 
         string voiceTemplate = action.GetString("voice") ?? string.Empty;
         string? voiceOverride = null;
@@ -160,7 +182,11 @@ public sealed class PlayTtsAction : ICommandAction
             StreamId: null,
             ChannelEventId: ctx.ChannelEventId,
             RatePercent: ratePercent,
-            AssignVoiceIfMissing: !asField.Equals("broadcaster", StringComparison.OrdinalIgnoreCase)
+            AssignVoiceIfMissing: !asField.Equals(
+                "broadcaster",
+                StringComparison.OrdinalIgnoreCase
+            ),
+            Segments: segments
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(
@@ -174,6 +200,92 @@ public sealed class PlayTtsAction : ICommandAction
             $"play_tts:{result.Value.VoiceId} chars={result.Value.CharacterCount}"
         );
     }
+
+    /// <summary>
+    /// Reads the <c>segments</c> field — a JSON array (or JSON text of one) of
+    /// <c>{text, voice, rate, pitch, breakAfterMs}</c> — and resolves text, voice, rate and pitch through the
+    /// template resolver. Returns the error message instead of segments when the field is not a non-empty array
+    /// of objects that each carry <c>text</c>, or a rate/pitch is not a number.
+    /// </summary>
+    private async Task<(List<TtsSpeakSegment>? Segments, string? Error)> ResolveSegmentsAsync(
+        JsonElement raw,
+        PipelineExecutionContext ctx
+    )
+    {
+        JsonDocument? owned = null;
+        try
+        {
+            JsonElement array = raw;
+            if (raw.ValueKind == JsonValueKind.String)
+            {
+                try
+                {
+                    owned = JsonDocument.Parse(raw.GetString() ?? string.Empty);
+                    array = owned.RootElement;
+                }
+                catch (JsonException)
+                {
+                    return (null, "play_tts 'segments' is not valid JSON.");
+                }
+            }
+
+            if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() == 0)
+                return (null, "play_tts 'segments' must be a non-empty array.");
+
+            List<TtsSpeakSegment> segments = [];
+            int index = 0;
+            foreach (JsonElement item in array.EnumerateArray())
+            {
+                if (
+                    item.ValueKind != JsonValueKind.Object
+                    || !item.TryGetProperty("text", out JsonElement textElement)
+                    || textElement.ValueKind != JsonValueKind.String
+                )
+                    return (null, $"play_tts segment {index} needs a 'text' string.");
+
+                string text = await ResolveAsync(textElement.GetString() ?? string.Empty, ctx);
+                string voice = (await ResolveFieldAsync(item, "voice", ctx)).Trim();
+                if (
+                    !TryParseRate(await ResolveFieldAsync(item, "rate", ctx), out double? rate)
+                    || !TryParseRate(await ResolveFieldAsync(item, "pitch", ctx), out double? pitch)
+                )
+                    return (null, $"play_tts segment {index} 'rate'/'pitch' must be a number.");
+
+                int breakMs = 0;
+                if (item.TryGetProperty("breakAfterMs", out JsonElement breakElement))
+                    _ = int.TryParse(
+                        breakElement.ToString(),
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out breakMs
+                    );
+
+                segments.Add(
+                    new(text, voice.Length == 0 ? null : voice, rate, pitch, Math.Max(0, breakMs))
+                );
+                index++;
+            }
+
+            return (segments, null);
+        }
+        finally
+        {
+            owned?.Dispose();
+        }
+    }
+
+    private async Task<string> ResolveFieldAsync(
+        JsonElement item,
+        string name,
+        PipelineExecutionContext ctx
+    ) =>
+        !item.TryGetProperty(name, out JsonElement element) ? string.Empty
+        : element.ValueKind == JsonValueKind.String
+            ? await ResolveAsync(element.GetString() ?? string.Empty, ctx)
+        : element.ToString();
+
+    private Task<string> ResolveAsync(string template, PipelineExecutionContext ctx) =>
+        _resolver.ResolveAsync(template, ctx.Variables, ctx.BroadcasterId, ctx.CancellationToken);
 
     /// <summary>
     /// Reads a rate in the legacy form (<c>+30%</c>, <c>-20</c>, <c>15%</c>): a percent of the normal speed.

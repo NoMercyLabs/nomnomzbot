@@ -5061,6 +5061,7 @@
     <string name="pipeline_timeout_duration_help">How long the timeout lasts, in seconds.</string>
     <string name="pipeline_timeout_reason_help">Shown to the viewer and logged in the moderation history.</string>
     <string name="pipeline_play_tts_text_help">The text to speak. Supports template variables (e.g. {{user.name}}).</string>
+    <string name="pipeline_play_tts_segments_help">Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables.</string>
     <string name="pipeline_play_tts_voice_help">Blank uses the channel's default TTS voice.</string>
     <string name="pipeline_play_tts_rate_help">How fast the line is spoken, as a percent of normal speed: +30% faster, -20% slower. Blank keeps the normal speed. Values are limited to -50% to +50%.</string>
     <string name="pipeline_play_tts_as_help">Whose voice speaks the line: blank/user/viewer uses the trigger's voice, broadcaster uses the broadcaster's own voice, bot/channel uses the channel default, or a platform user id speaks as them.</string>

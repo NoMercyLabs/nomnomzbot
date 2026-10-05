@@ -29,6 +29,16 @@ public interface ITtsProvider
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Synthesizes an ordered list of <paramref name="segments"/> (each with its own voice, prosody and trailing
+    /// silence) as ONE audio clip. Providers with SSML build one document; providers without join per-segment audio.
+    /// Returns empty audio when any part fails — never a half clip.
+    /// </summary>
+    Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+        IReadOnlyList<TtsSegment> segments,
+        CancellationToken cancellationToken = default
+    );
+
     Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>True when the provider actually has what it needs to synthesize (a BYOK provider with no key

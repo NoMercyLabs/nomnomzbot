@@ -103,6 +103,20 @@ public sealed class TtsDispatchServiceTests
             .Returns(ci =>
                 Task.FromResult(new TtsResult([1, 2, 3, 4], 1200, ci.ArgAt<string>(1), "edge"))
             );
+        tts.SynthesizeSegmentsAsync(
+                Arg.Any<IReadOnlyList<TtsSegment>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+                Task.FromResult(
+                    new TtsResult(
+                        [9, 8, 7],
+                        2400,
+                        ci.Arg<IReadOnlyList<TtsSegment>>()[0].VoiceId,
+                        "edge"
+                    )
+                )
+            );
         tts.GetAvailableVoicesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<TtsVoiceInfo>>([]));
 
@@ -1352,5 +1366,141 @@ public sealed class TtsDispatchServiceTests
         await Task.WhenAll(firstTask, secondTask);
 
         dispatchOrder.Should().Equal("first", "second");
+    }
+
+    // ── One request, several segments, ONE audio ─────────────────────────────────────────────────
+
+    private static async Task<Harness> BuildWithVoicesAsync(
+        bool censorEnabled = false,
+        int maxLength = 500
+    )
+    {
+        Harness h = Build(censorEnabled: censorEnabled, maxLength: maxLength);
+        h.Db.TtsVoices.Add(CatalogueVoice("en-US-GuyNeural", "en-US"));
+        h.Db.TtsVoices.Add(CatalogueVoice("en-US-AriaNeural", "en-US"));
+        await h.Db.SaveChangesAsync();
+        return h;
+    }
+
+    private static IReadOnlyList<TtsSegment> SentSegments(Harness h) =>
+        (IReadOnlyList<TtsSegment>)
+            h
+                .Tts.ReceivedCalls()
+                .Single(c => c.GetMethodInfo().Name == nameof(ITtsService.SynthesizeSegmentsAsync))
+                .GetArguments()[0]!;
+
+    [Fact]
+    public async Task RequestSpeakAsync_Segments_DispatchesOneAudioCarryingAllSegmentsInOrder()
+    {
+        Harness h = await BuildWithVoicesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("ignored when segments are set") with
+            {
+                AssignVoiceIfMissing = false,
+                Segments =
+                [
+                    new("Welcome in", "en-US-GuyNeural", RatePercent: -20, BreakAfterMs: 600),
+                    new("  hi chat  ", PitchPercent: 5),
+                ],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.PlaybackUrl.Should().Be("data:audio/mpeg;base64,CQgH");
+        result.Value.DurationMs.Should().Be(2400);
+        result.Value.CharacterCount.Should().Be("Welcome in hi chat".Length);
+        result.Value.VoiceId.Should().Be("en-US-GuyNeural");
+
+        // ONE synthesis for the whole request, in order; a segment naming no voice gets the channel default.
+        SentSegments(h)
+            .Should()
+            .Equal(
+                new TtsSegment("Welcome in", "en-US-GuyNeural", -20, null, 600),
+                new TtsSegment("hi chat", "default-voice", null, 5)
+            );
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+
+        // One ledger row and one dispatched event for the one clip.
+        TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
+        usage.CharacterCount.Should().Be("Welcome in hi chat".Length);
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceDispatchedEvent>(e =>
+                    e.Text == "Welcome in hi chat" && e.AudioUrl == "data:audio/mpeg;base64,CQgH"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Segments_ACensoredSegmentIsMasked_WhileTheOthersStayUntouched()
+    {
+        Harness h = await BuildWithVoicesAsync(censorEnabled: true);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("x") with
+            {
+                Segments =
+                [
+                    new("Viewer says", "en-US-GuyNeural"),
+                    new("you piece of shit", "en-US-AriaNeural"),
+                ],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        SentSegments(h).Select(s => s.Text).Should().Equal("Viewer says", "you piece of s***");
+        (await h.Db.TtsUsageRecords.SingleAsync()).WasCensored.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Segments_OneSegmentOverTheCap_RejectsTheWholeRequestWithoutSynth()
+    {
+        Harness h = await BuildWithVoicesAsync(maxLength: 10);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("x") with
+            {
+                Segments =
+                [
+                    new("short", "en-US-GuyNeural"),
+                    new("this one is far too long", "en-US-AriaNeural"),
+                ],
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("too long");
+        h.Tts.ReceivedCalls()
+            .Should()
+            .NotContain(c => c.GetMethodInfo().Name == nameof(ITtsService.SynthesizeSegmentsAsync));
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Segments_AnUnknownSegmentVoice_RejectsHonestly()
+    {
+        Harness h = await BuildWithVoicesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("x") with
+            {
+                Segments = [new("one", "en-US-GuyNeural"), new("two", "not-a-real-voice")],
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("not-a-real-voice");
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
     }
 }

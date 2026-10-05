@@ -5045,6 +5045,7 @@
     <string name="pipeline_timeout_duration_help">Hoe lang de timeout duurt, in seconden.</string>
     <string name="pipeline_timeout_reason_help">Wordt aan de kijker getoond en vastgelegd in de moderatiegeschiedenis.</string>
     <string name="pipeline_play_tts_text_help">De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {{user.name}}).</string>
+    <string name="pipeline_play_tts_segments_help">Meerdere stemmen in een fragment. Een JSON-lijst met delen, elk met text en optioneel voice, rate, pitch en breakAfterMs (stilte na het deel, tot 5000 ms). Als dit is ingevuld, vervangt het Tekst. Ondersteunt sjabloonvariabelen.</string>
     <string name="pipeline_play_tts_voice_help">Leeg gebruikt de standaard TTS-stem van het kanaal.</string>
     <string name="pipeline_play_tts_rate_help">Hoe snel de regel wordt gesproken, als percentage van de normale snelheid: +30% sneller, -20% langzamer. Leeg houdt de normale snelheid. Waarden zijn beperkt tot -50% tot +50%.</string>
     <string name="pipeline_play_tts_as_help">Wiens stem de regel spreekt: leeg/user/viewer gebruikt de stem van de trigger, broadcaster gebruikt de eigen stem van de streamer, bot/channel gebruikt de standaard van het kanaal, of een platform-gebruikers-id spreekt als hen.</string>

@@ -47,12 +47,36 @@ public sealed class AzureTtsProvider : ITtsProvider
         _region = region;
     }
 
-    public async Task<TtsSynthesisResult> SynthesizeAsync(
+    public Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
         double? ratePercent = null,
         double? pitchPercent = null,
         CancellationToken cancellationToken = default
+    ) =>
+        SynthesizeSsmlAsync(
+            BuildSsml(text, voiceId, ratePercent, pitchPercent),
+            text,
+            voiceId,
+            cancellationToken
+        );
+
+    public Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+        IReadOnlyList<TtsSegment> segments,
+        CancellationToken cancellationToken = default
+    ) =>
+        SynthesizeSsmlAsync(
+            BuildSsml(segments),
+            string.Join('\n', segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)),
+            segments[0].VoiceId,
+            cancellationToken
+        );
+
+    private async Task<TtsSynthesisResult> SynthesizeSsmlAsync(
+        string ssml,
+        string hashSource,
+        string voiceId,
+        CancellationToken cancellationToken
     )
     {
         if (string.IsNullOrEmpty(_apiKey))
@@ -60,8 +84,6 @@ public sealed class AzureTtsProvider : ITtsProvider
             _logger.LogDebug("Azure TTS: No API key configured, returning empty result");
             return EmptyResult(voiceId);
         }
-
-        string ssml = BuildSsml(text, voiceId, ratePercent, pitchPercent);
 
         string url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
 
@@ -84,7 +106,7 @@ public sealed class AzureTtsProvider : ITtsProvider
             int durationMs = Mp3Duration.ToMilliseconds(audioData, 48);
 
             string hash = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId))
+                SHA256.HashData(Encoding.UTF8.GetBytes(hashSource + voiceId))
             )[..16];
 
             return new()
@@ -174,6 +196,10 @@ public sealed class AzureTtsProvider : ITtsProvider
               </voice>
             </speak>
             """;
+
+    /// <summary>One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and a <c>&lt;break&gt;</c> between them.</summary>
+    internal static string BuildSsml(IReadOnlyList<TtsSegment> segments) =>
+        TtsSegmentSsml.Build(segments);
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
         new()

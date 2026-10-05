@@ -116,6 +116,64 @@ public sealed class TtsService : ITtsService
         return new(result.AudioData, result.DurationMs, voiceId, result.Provider);
     }
 
+    public async Task<TtsResult> SynthesizeSegmentsAsync(
+        IReadOnlyList<TtsSegment> segments,
+        CancellationToken ct = default
+    )
+    {
+        string firstVoice = segments[0].VoiceId;
+        if (segments.All(s => string.IsNullOrWhiteSpace(s.Text)))
+            return new([], 0, firstVoice, "none");
+
+        // Every part of the clip (voice, prosody, silence) is part of its identity, so a re-spoken sequence is
+        // served from the cache and a changed pause or voice never is.
+        string cacheKey = BuildSegmentsCacheKey(segments);
+        lock (_cacheLock)
+        {
+            if (_cache.TryGetValue(cacheKey, out byte[]? cached))
+            {
+                _logger.LogDebug("TTS cache hit for a {Count}-segment utterance", segments.Count);
+                return new(
+                    cached,
+                    Mp3Duration.ToMilliseconds(cached, 48),
+                    firstVoice,
+                    "edge-cached"
+                );
+            }
+        }
+
+        ITtsProvider provider = ResolveProvider(firstVoice);
+        TtsSynthesisResult result;
+        try
+        {
+            result = await provider.SynthesizeSegmentsAsync(segments, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "TTS segment synthesis failed for voice {VoiceId}, falling back to Edge TTS",
+                firstVoice
+            );
+            EdgeTtsProvider? edgeProvider = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
+            if (edgeProvider is null)
+                return new([], 0, firstVoice, "error");
+            result = await edgeProvider.SynthesizeSegmentsAsync(segments, ct);
+        }
+
+        if (result.AudioData.Length > 0)
+        {
+            lock (_cacheLock)
+            {
+                _cache[cacheKey] = result.AudioData;
+                if (_cache.Count > 200)
+                    _cache.Remove(_cache.Keys.First());
+            }
+        }
+
+        return new(result.AudioData, result.DurationMs, firstVoice, result.Provider);
+    }
+
     public async Task<IReadOnlyList<TtsVoiceInfo>> GetAvailableVoicesAsync(
         CancellationToken ct = default
     )
@@ -211,6 +269,17 @@ public sealed class TtsService : ITtsService
         return voices.Count > 0
             ? await provider.SynthesizeAsync(text, voices[0].Id, ratePercent, pitchPercent, ct)
             : result;
+    }
+
+    private static string BuildSegmentsCacheKey(IReadOnlyList<TtsSegment> segments)
+    {
+        string key = string.Join(
+            "\n",
+            segments.Select(s =>
+                $"{s.Text}|{s.VoiceId}|{s.RatePercent}|{s.PitchPercent}|{s.BreakAfterMs}"
+            )
+        );
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..24];
     }
 
     private static string BuildCacheKey(

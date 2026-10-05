@@ -67,12 +67,36 @@ public sealed class EdgeTtsProvider : ITtsProvider
         _logger = logger;
     }
 
-    public async Task<TtsSynthesisResult> SynthesizeAsync(
+    public Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
         double? ratePercent = null,
         double? pitchPercent = null,
         CancellationToken cancellationToken = default
+    ) =>
+        SynthesizeSsmlAsync(
+            BuildSsml(text, voiceId, ratePercent, pitchPercent),
+            text,
+            voiceId,
+            cancellationToken
+        );
+
+    public Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+        IReadOnlyList<TtsSegment> segments,
+        CancellationToken cancellationToken = default
+    ) =>
+        SynthesizeSsmlAsync(
+            BuildSsml(segments),
+            string.Join('\n', segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)),
+            segments[0].VoiceId,
+            cancellationToken
+        );
+
+    private async Task<TtsSynthesisResult> SynthesizeSsmlAsync(
+        string ssml,
+        string hashSource,
+        string voiceId,
+        CancellationToken cancellationToken
     )
     {
         string connectionId = Guid.NewGuid().ToString("N");
@@ -120,7 +144,6 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
         // Send synthesis request
         string requestId = Guid.NewGuid().ToString("N");
-        string ssml = BuildSsml(text, voiceId, ratePercent, pitchPercent);
         string synthesisMsg = BuildSynthesisMessage(requestId, ssml);
         await SendTextAsync(ws, synthesisMsg, cancellationToken);
 
@@ -195,9 +218,9 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
         // The length comes from the MP3 frame headers; 48 kbit/s is the rate requested above.
         int durationMs = Mp3Duration.ToMilliseconds(audioData, 48);
-        string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
-            ..16
-        ];
+        string hash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(hashSource + voiceId))
+        )[..16];
 
         return new()
         {
@@ -547,6 +570,10 @@ public sealed class EdgeTtsProvider : ITtsProvider
             </speak>
             """;
     }
+
+    /// <summary>One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and a <c>&lt;break&gt;</c> between them.</summary>
+    internal static string BuildSsml(IReadOnlyList<TtsSegment> segments) =>
+        TtsSegmentSsml.Build(segments);
 
     private static async Task SendTextAsync(
         ClientWebSocket ws,

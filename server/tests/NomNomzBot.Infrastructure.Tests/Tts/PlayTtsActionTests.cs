@@ -535,4 +535,100 @@ public sealed class PlayTtsActionTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    private static Result<TtsDispatchOutcome> Outcome() =>
+        Result.Success(
+            new TtsDispatchOutcome(TtsDispatchDisposition.Dispatched, "v1", "edge", 20, 900, "u")
+        );
+
+    [Fact]
+    public async Task ExecuteAsync_Segments_DispatchesOneRequestCarryingAllSegments()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["Welcome {{user}}"] = "Welcome Bob",
+                ["{{intro.voice}}"] = "en-US-GuyNeural",
+                ["and you"] = "and you",
+            }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Outcome());
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(
+                (
+                    "segments",
+                    new object[]
+                    {
+                        new
+                        {
+                            text = "Welcome {{user}}",
+                            voice = "{{intro.voice}}",
+                            rate = -20,
+                            pitch = 10,
+                            breakAfterMs = 600,
+                        },
+                        new { text = "and you" },
+                    }
+                )
+            )
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Segments != null
+                    && r.Segments.Count == 2
+                    && r.Segments[0]
+                        == new TtsSpeakSegment("Welcome Bob", "en-US-GuyNeural", -20, 10, 600)
+                    && r.Segments[1] == new TtsSpeakSegment("and you", null, null, null, 0)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SegmentsGivenAsJsonText_AreParsedLikeAnArray()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("resolved");
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Outcome());
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(("segments", "[{\"text\":\"a\",\"breakAfterMs\":300},{\"text\":\"b\"}]"))
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Segments != null && r.Segments.Count == 2 && r.Segments[0].BreakAfterMs == 300
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("not json")]
+    [InlineData("[]")]
+    [InlineData("[{\"voice\":\"v\"}]")]
+    public async Task ExecuteAsync_BadSegments_FailsWithoutDispatch(string segments)
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("resolved");
+
+        ActionResult result = await action.ExecuteAsync(Context(), Action(("segments", segments)));
+
+        result.Succeeded.Should().BeFalse();
+        await dispatch
+            .DidNotReceive()
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+    }
 }

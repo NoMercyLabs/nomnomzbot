@@ -110,6 +110,49 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         }
     }
 
+    // ElevenLabs has no SSML, so each segment is its own synthesis call and the mp3 bytes are joined into one
+    // clip. A segment's trailing silence (BreakAfterMs) is not rendered: there is no SSML break to carry it, and
+    // inventing silent mp3 frames would misrepresent what the provider produced. One failed segment fails the
+    // whole clip — a half-spoken sentence is worse than a clear "no audio" rejection.
+    public async Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+        IReadOnlyList<TtsSegment> segments,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string firstVoice = segments[0].VoiceId;
+        using MemoryStream joined = new();
+        foreach (TtsSegment segment in segments)
+        {
+            TtsSynthesisResult part = await SynthesizeAsync(
+                segment.Text,
+                segment.VoiceId,
+                segment.RatePercent,
+                segment.PitchPercent,
+                cancellationToken
+            );
+            if (part.AudioData.Length == 0)
+                return EmptyResult(firstVoice);
+            joined.Write(part.AudioData);
+        }
+
+        byte[] audioData = joined.ToArray();
+        string hash = Convert.ToHexString(
+            SHA256.HashData(
+                Encoding.UTF8.GetBytes(
+                    string.Join('\n', segments.Select(s => s.Text + s.VoiceId)) + firstVoice
+                )
+            )
+        )[..16];
+        return new()
+        {
+            AudioData = audioData,
+            DurationMs = Mp3Duration.ToMilliseconds(audioData, 128),
+            Provider = ProviderName,
+            VoiceId = firstVoice,
+            ContentHash = hash,
+        };
+    }
+
     public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
         CancellationToken cancellationToken = default
     )

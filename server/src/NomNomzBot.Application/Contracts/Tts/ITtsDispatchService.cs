@@ -120,6 +120,13 @@ public sealed record TtsQueueEntryDto(
 /// like the old bot. <c>false</c> keeps the channel default voice and saves nothing; used for the
 /// broadcaster's own lines.
 /// </param>
+/// <param name="Segments">
+/// An ordered list of parts that play as ONE audio clip, each with its own voice, prosody and trailing silence
+/// (e.g. a bot intro in one voice, a pause, then the viewer's words in theirs). When set it replaces
+/// <see cref="Text"/>/<see cref="VoiceIdOverride"/>/<see cref="RatePercent"/>/<see cref="PitchPercent"/>; a part
+/// naming no voice speaks in <see cref="VoiceIdOverride"/> or the usual resolved voice. The length cap, the
+/// censor and the voice check run on every part. <c>null</c> or empty keeps the single-text behavior.
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -134,7 +141,22 @@ public sealed record TtsSpeakRequest(
     string? ChannelEventId = null,
     double? RatePercent = null,
     double? PitchPercent = null,
-    bool AssignVoiceIfMissing = true
+    bool AssignVoiceIfMissing = true,
+    IReadOnlyList<TtsSpeakSegment>? Segments = null
+);
+
+/// <summary>One part of a segmented <see cref="TtsSpeakRequest"/> (see <see cref="TtsSpeakRequest.Segments"/>).</summary>
+/// <param name="Text">The words to speak; checked against the same cap and censor as a single text.</param>
+/// <param name="VoiceId">The voice for this part; <c>null</c> uses the request's own voice.</param>
+/// <param name="RatePercent">Optional speaking-rate override (percent, clamped by the provider).</param>
+/// <param name="PitchPercent">Optional pitch override (percent, clamped by the provider).</param>
+/// <param name="BreakAfterMs">Silence after this part in milliseconds; <c>0</c> none. Ignored after the last part.</param>
+public sealed record TtsSpeakSegment(
+    string Text,
+    string? VoiceId = null,
+    double? RatePercent = null,
+    double? PitchPercent = null,
+    int BreakAfterMs = 0
 );
 
 public enum TtsDispatchDisposition

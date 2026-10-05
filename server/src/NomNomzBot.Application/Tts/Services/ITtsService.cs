@@ -27,6 +27,15 @@ public interface ITtsService
         double? pitchPercent = null,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Synthesizes an ordered list of <paramref name="segments"/> (own voice, prosody and trailing silence each)
+    /// as ONE audio clip, on the provider that owns the first segment's voice.
+    /// </summary>
+    Task<TtsResult> SynthesizeSegmentsAsync(
+        IReadOnlyList<TtsSegment> segments,
+        CancellationToken ct = default
+    );
     Task<IReadOnlyList<TtsVoiceInfo>> GetAvailableVoicesAsync(CancellationToken ct = default);
 }
 

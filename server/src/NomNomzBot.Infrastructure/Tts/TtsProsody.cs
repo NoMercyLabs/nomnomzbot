@@ -25,6 +25,9 @@ internal static class TtsProsody
     internal const double MinPercent = -50;
     internal const double MaxPercent = 50;
 
+    /// <summary>The longest silence one <c>&lt;break&gt;</c> may ask for (Azure/Edge reject more than 5 s).</summary>
+    internal const int MaxBreakMs = 5000;
+
     /// <summary>
     /// Formats an optional percent override as SSML's <c>+N%</c>/<c>-N%</c> token, clamped to
     /// <see cref="MinPercent"/>..<see cref="MaxPercent"/>. <c>null</c> formats as <c>+0%</c> (provider default —
