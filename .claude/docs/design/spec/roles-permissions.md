@@ -608,6 +608,7 @@ These are the `[GLOBAL, seed]` rows the seeders (`ActionDefinitionSeeder`, `IamC
 | live-ops:polls:write | Moderator(10) | Low | true |
 | live-ops:predictions:read | Moderator(10) | Low | true |
 | live-ops:predictions:write | Editor(30) | Low | true |
+| live-ops:raids:read | Moderator(10) | Low | true |
 | live-ops:raids:write | Editor(30) | Low | true |
 | live-ops:ads:read | Moderator(10) | Low | true |
 | live-ops:ads:write | Editor(30) | Low | true |
