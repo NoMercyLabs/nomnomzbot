@@ -20,6 +20,12 @@
     <string name="builtin_reply_commands_empty_description">Iemand vraagt de commando's, maar er staan er geen aan.</string>
     <string name="builtin_reply_help_described_label">Commando-uitleg</string>
     <string name="builtin_reply_help_described_description">Iemand vraagt wat een commando doet.</string>
+    <string name="builtin_reply_help_usage_label">Help-gebruik</string>
+    <string name="builtin_reply_help_usage_description">Iemand vraagt om hulp zonder een commando te noemen.</string>
+    <string name="builtin_reply_help_unknown_label">Onbekend commando</string>
+    <string name="builtin_reply_help_unknown_description">Iemand vraagt om hulp bij een commando dat niet bestaat.</string>
+    <string name="builtin_reply_help_nodescription_label">Geen uitleg</string>
+    <string name="builtin_reply_help_nodescription_description">Iemand vraagt om hulp bij een commando zonder beschrijving.</string>
     <string name="builtin_reply_lurk_lurking_label">Nu aan het lurken</string>
     <string name="builtin_reply_lurk_lurking_description">Een kijker zegt dat ze gaan lurken.</string>
     <string name="builtin_reply_lurk_notlurking_label">Terug van lurken</string>
@@ -57,6 +63,7 @@
     <string name="builtin_reply_var_commands">De lijst met commando's</string>
     <string name="builtin_reply_var_command">De naam van het commando</string>
     <string name="builtin_reply_var_description">Wat het commando doet</string>
+    <string name="builtin_reply_var_prefix">Het commando-voorvoegsel, bijvoorbeeld !</string>
     <string name="builtin_reply_var_age">Hoe oud het account is</string>
     <string name="builtin_reply_lurk_accountunresolved_label">Account niet gevonden</string>
     <string name="builtin_reply_lurk_accountunresolved_description">Het account van de kijker is niet gevonden.</string>

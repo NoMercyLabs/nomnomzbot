@@ -20,6 +20,12 @@
     <string name="builtin_reply_commands_empty_description">Someone asks for the commands, but none are turned on.</string>
     <string name="builtin_reply_help_described_label">Command help</string>
     <string name="builtin_reply_help_described_description">Someone asks what one command does.</string>
+    <string name="builtin_reply_help_usage_label">Help usage</string>
+    <string name="builtin_reply_help_usage_description">Someone asks for help without naming a command.</string>
+    <string name="builtin_reply_help_unknown_label">Unknown command</string>
+    <string name="builtin_reply_help_unknown_description">Someone asks for help with a command that does not exist.</string>
+    <string name="builtin_reply_help_nodescription_label">No help text</string>
+    <string name="builtin_reply_help_nodescription_description">Someone asks for help with a command that has no description.</string>
     <string name="builtin_reply_lurk_lurking_label">Now lurking</string>
     <string name="builtin_reply_lurk_lurking_description">A viewer says they are lurking.</string>
     <string name="builtin_reply_lurk_notlurking_label">Back from lurking</string>
@@ -57,6 +63,7 @@
     <string name="builtin_reply_var_commands">The list of commands</string>
     <string name="builtin_reply_var_command">The command's name</string>
     <string name="builtin_reply_var_description">What the command does</string>
+    <string name="builtin_reply_var_prefix">The command prefix, for example !</string>
     <string name="builtin_reply_var_age">How old the account is</string>
     <string name="builtin_reply_lurk_accountunresolved_label">Account not found</string>
     <string name="builtin_reply_lurk_accountunresolved_description">The viewer's account could not be found.</string>
