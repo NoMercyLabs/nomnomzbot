@@ -85,18 +85,12 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
         QueueEntry entry = new(ownerKey, item, rank);
 
-        // Insert after all entries with rank <= this rank (stable FIFO within same rank)
-        int insertAt = _queue.Count;
-        for (int i = _queue.Count - 1; i >= 0; i--)
-        {
-            if (_queue[i].Rank <= rank)
-            {
-                insertAt = i + 1;
-                break;
-            }
-
-            insertAt = i;
-        }
+        // Ranks are positional and the queue is incremental (removals and MoveToFront can leave it
+        // non-monotonic), so insert before the FIRST entry with a higher rank, scanning front to back.
+        // Equal ranks stay FIFO because the new entry lands after them.
+        int insertAt = _queue.FindIndex(e => e.Rank > rank);
+        if (insertAt < 0)
+            insertAt = _queue.Count;
 
         _queue.Insert(insertAt, entry);
     }

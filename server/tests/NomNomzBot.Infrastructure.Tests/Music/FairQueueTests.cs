@@ -124,6 +124,55 @@ public class FairQueueTests
         q.Dequeue().Should().Be("a2");
     }
 
+    [Fact]
+    public void Enqueue_FreshRank1_AfterMiddleRemoval_GoesBeforeFirstHigherRank()
+    {
+        FairQueue<string> q = new();
+        q.Enqueue("alice", "a1");
+        q.Enqueue("bob", "b1");
+        q.Enqueue("alice", "a2");
+        q.Enqueue("bob", "b2");
+        q.Enqueue("alice", "a3");
+        // queue: a1 b1 a2 b2 a3. Removing b1 leaves b2 as rank 1 behind a2 (rank 2): a1 a2 b2 a3.
+        q.RemoveFirst(item => item == "b1");
+
+        q.Enqueue("carol", "c1");
+
+        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
+        order.Should().Equal("a1", "c1", "a2", "b2", "a3");
+        q.GetSnapshot().Single(e => e.Item == "c1").Rank.Should().Be(1);
+    }
+
+    [Fact]
+    public void Enqueue_FreshRank1_AfterMoveToFront_GoesBeforeFirstHigherRank()
+    {
+        FairQueue<string> q = new();
+        q.Enqueue("alice", "a1");
+        q.Enqueue("bob", "b1");
+        q.Enqueue("alice", "a2");
+        q.MoveToFront(2); // a2 a1 b1 with ranks 1 2 1
+
+        q.Enqueue("carol", "c1");
+
+        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
+        order.Should().Equal("a2", "c1", "a1", "b1");
+    }
+
+    [Fact]
+    public void Enqueue_AfterDequeue_KeepsRoundRobinOrder()
+    {
+        FairQueue<string> q = new();
+        q.Enqueue("alice", "a1");
+        q.Enqueue("alice", "a2");
+        q.Enqueue("bob", "b1");
+        q.Dequeue(); // a1 gone: b1 a2 (a2 is rank 1 now)
+        q.Enqueue("carol", "c1");
+        q.Enqueue("bob", "b2");
+
+        List<string> order = [.. q.GetSnapshot().Select(e => e.Item)];
+        order.Should().Equal("b1", "a2", "c1", "b2");
+    }
+
     // ─── Peek ────────────────────────────────────────────────────────────────
 
     [Fact]
