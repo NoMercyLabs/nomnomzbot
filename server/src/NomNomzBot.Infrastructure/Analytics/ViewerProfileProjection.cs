@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Analytics;
 
@@ -36,6 +37,8 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         "RewardRedeemedEvent",
         "NewSubscriptionEvent",
         "ResubscriptionEvent",
+        "SongRequestedEvent",
+        "CommandExecutedEvent",
     };
 
     public string Name => "viewer-profile";
@@ -53,8 +56,17 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         JObject? payload = ViewerResolver.TryParse(@event.PayloadJson);
         if (payload is null)
             return Result.Success();
+        // A command run that did not do its work is not "used" (the same rule as ViewerEngagementDaily).
+        if (
+            @event.EventType == "CommandExecutedEvent"
+            && payload["Succeeded"]?.Value<bool?>() != true
+        )
+            return Result.Success();
+
         (string Provider, string ExternalUserId, string Login, string Display)? identity =
-            ViewerResolver.ParseIdentity(payload);
+            @event.EventType == "SongRequestedEvent"
+                ? SongRequesterIdentity(payload)
+                : ViewerResolver.ParseIdentity(payload);
         if (identity is null)
             return Result.Success();
 
@@ -88,6 +100,12 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
             case "RewardRedeemedEvent":
                 profile.TotalRedemptions++;
                 break;
+            case "SongRequestedEvent":
+                profile.TotalSongRequests++;
+                break;
+            case "CommandExecutedEvent":
+                profile.TotalCommandsUsed++;
+                break;
             case "NewSubscriptionEvent":
             case "ResubscriptionEvent":
                 profile.IsSubscriber = true;
@@ -97,6 +115,26 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
 
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// The requester of an accepted song request. The event's UserId holds a display name (journal rows written
+    /// before RequesterUserId existed, dashboard and script requests), never a platform id, so only the
+    /// RequesterUserId counts: a row without one names no viewer and a replay must not invent one.
+    /// </summary>
+    private static (
+        string Provider,
+        string ExternalUserId,
+        string Login,
+        string Display
+    )? SongRequesterIdentity(JObject payload)
+    {
+        string? requesterUserId = payload["RequesterUserId"]?.Value<string>();
+        if (string.IsNullOrEmpty(requesterUserId))
+            return null;
+
+        string display = payload["UserDisplayName"]?.Value<string>() ?? requesterUserId;
+        return (AuthEnums.Platform.Twitch, requesterUserId, display.ToLowerInvariant(), display);
     }
 
     public async Task<Result> ResetAsync(

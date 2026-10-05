@@ -21,6 +21,9 @@ public sealed class SongRequestedEvent : DomainEventBase
     /// <summary>The name of the viewer who requested the song, as shown in chat. Set to anonymous when the requester is not known.</summary>
     public required string UserDisplayName { get; init; }
 
+    /// <summary>The platform user id of the viewer who requested the song. Null when no viewer is behind the request.</summary>
+    public string? RequesterUserId { get; init; }
+
     /// <summary>The id of the requested track at the music service.</summary>
     public required string TrackUri { get; init; }
 

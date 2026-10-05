@@ -140,11 +140,99 @@ public sealed class ViewerProfileProjectionTests
         (ViewerProfileProjection sut, AuthDbContext db) = Build();
         await sut.ApplyAsync(Chat("t1", "one", "One"));
 
+        await sut.ApplyAsync(SongRequest("t1", "One", requesterUserId: "t1"));
+        await sut.ApplyAsync(CommandRun("t1", "One", succeeded: true));
+
         await sut.ResetAsync(Channel);
 
         ViewerProfile profile = db.ViewerProfiles.Single();
         profile.TotalMessages.Should().Be(0);
+        profile.TotalSongRequests.Should().Be(0);
+        profile.TotalCommandsUsed.Should().Be(0);
         profile.LastSeenAt.Should().BeNull();
+    }
+
+    private static EventRecord SongRequest(
+        string userId,
+        string display,
+        string? requesterUserId
+    ) =>
+        Event(
+            "SongRequestedEvent",
+            new
+            {
+                UserId = userId,
+                UserDisplayName = display,
+                RequesterUserId = requesterUserId,
+                TrackUri = "spotify:track:q1",
+                TrackName = "Song Q",
+            }
+        );
+
+    private static EventRecord CommandRun(string userId, string display, bool succeeded) =>
+        Event(
+            "CommandExecutedEvent",
+            new
+            {
+                CommandName = "hello",
+                UserId = userId,
+                Username = display.ToLowerInvariant(),
+                UserDisplayName = display,
+                Succeeded = succeeded,
+            }
+        );
+
+    [Fact]
+    public async Task Folding_accepted_song_requests_counts_them_for_the_requester_only()
+    {
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(SongRequest("One", "One", requesterUserId: "t1"));
+        await sut.ApplyAsync(SongRequest("One", "One", requesterUserId: "t1"));
+
+        ViewerProfile profile = db.ViewerProfiles.Single();
+        profile.ViewerTwitchUserId.Should().Be("t1");
+        profile.TotalSongRequests.Should().Be(2);
+        profile.TotalMessages.Should().Be(0);
+        profile.TotalCommandsUsed.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_song_request_without_a_requester_id_counts_nothing_and_invents_no_viewer()
+    {
+        // Old journal rows (and dashboard or script requests) carry a display name in UserId, never a
+        // platform id. Replaying them must not turn that name into a viewer.
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(SongRequest("Viewer One", "Viewer One", requesterUserId: null));
+
+        db.ViewerProfiles.Should().BeEmpty();
+        db.Users.Should().NotContain(u => u.TwitchUserId == "Viewer One");
+    }
+
+    [Fact]
+    public async Task Folding_a_command_run_counts_it_for_the_caller()
+    {
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(CommandRun("t1", "One", succeeded: true));
+        await sut.ApplyAsync(CommandRun("t1", "One", succeeded: true));
+
+        ViewerProfile profile = db.ViewerProfiles.Single();
+        profile.TotalCommandsUsed.Should().Be(2);
+        profile.TotalMessages.Should().Be(0);
+        profile.TotalSongRequests.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_command_run_that_failed_is_not_counted()
+    {
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(CommandRun("t1", "One", succeeded: false));
+
+        // A failed run neither counts nor creates a viewer profile.
+        db.ViewerProfiles.Should().BeEmpty();
     }
 
     [Fact]

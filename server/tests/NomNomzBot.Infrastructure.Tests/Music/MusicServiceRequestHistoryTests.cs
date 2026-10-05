@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -117,7 +118,43 @@ public sealed class MusicServiceRequestHistoryTests
         (await db.Records.CountAsync()).Should().Be(0);
     }
 
+    [Fact]
+    public async Task The_accepted_request_event_carries_the_requesters_platform_id()
+    {
+        // The viewer-profile projection counts a viewer's song requests from this id. UserId holds the
+        // display name, so without RequesterUserId the count would key on a name, never a viewer.
+        (MusicService sut, _, RecordingEventBus bus) = BuildWithBus();
+
+        await sut.RequestTrackAsync(
+            Channel.ToString(),
+            "song q",
+            requestedBy: "Viewer One",
+            requesterRoleLevel: null,
+            requesterUserId: "42660213"
+        );
+
+        SongRequestedEvent accepted = bus.Published.OfType<SongRequestedEvent>().Single();
+        accepted.RequesterUserId.Should().Be("42660213");
+        accepted.UserDisplayName.Should().Be("Viewer One");
+    }
+
+    [Fact]
+    public async Task A_dashboard_request_event_has_no_requester_id()
+    {
+        (MusicService sut, _, RecordingEventBus bus) = BuildWithBus();
+
+        await sut.RequestTrackAsync(Channel.ToString(), "song q", requestedBy: "Dashboard");
+
+        bus.Published.OfType<SongRequestedEvent>().Single().RequesterUserId.Should().BeNull();
+    }
+
     private static (MusicService Sut, MusicTestDbContext Db) Build()
+    {
+        (MusicService sut, MusicTestDbContext db, _) = BuildWithBus();
+        return (sut, db);
+    }
+
+    private static (MusicService Sut, MusicTestDbContext Db, RecordingEventBus Bus) BuildWithBus()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -150,10 +187,11 @@ public sealed class MusicServiceRequestHistoryTests
             new OutboundSanctionAccessor()
         );
 
+        RecordingEventBus bus = new();
         MusicService sut = new(
             [spotify],
             db,
-            new RecordingEventBus(),
+            bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
@@ -165,7 +203,7 @@ public sealed class MusicServiceRequestHistoryTests
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>()
         );
-        return (sut, db);
+        return (sut, db, bus);
     }
 
     /// <summary>Search always resolves to the one canned track "Song Q"; everything else is a 204.</summary>
