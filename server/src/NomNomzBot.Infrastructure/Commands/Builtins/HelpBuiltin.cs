@@ -17,12 +17,11 @@ using NomNomzBot.Application.Common.Models;
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
-/// <c>!help</c> (legacy parity, S068b) — with no argument, replies with the same enabled-trigger listing as
-/// <see cref="CommandsBuiltin"/>. With a command name argument (<c>!help sr</c>), looks that authored command
-/// up via <see cref="ICommandService.GetAsync"/> and replies with its real <see cref="CommandDto.Description"/>
-/// when one is set; a built-in has no description field on <see cref="BuiltinCommandDto"/>, and an unknown or
-/// undescribed name falls back to the same generic listing rather than answering with nothing useful. Both
-/// branches render in the channel's personality tone via <see cref="IBuiltinResponseComposer"/>.
+/// <c>!help</c> (legacy parity) — with no argument, replies with the usage line. With a command name
+/// (<c>!help sr</c>) it answers with that command's real <see cref="CommandDto.Description"/>; a command that
+/// exists (authored, or an enabled built-in) but has no description says so; an unknown name gets the
+/// legacy "Unknown command" line. It never answers a name with the command list. Every branch renders in the
+/// channel's personality tone via <see cref="IBuiltinResponseComposer"/>.
 /// </summary>
 public sealed class HelpBuiltin : IBuiltinCommand
 {
@@ -50,45 +49,104 @@ public sealed class HelpBuiltin : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        string requestedName = context.Args.Trim().TrimStart('!').Split(' ')[0];
+        string requestedName = context.Args.Trim().TrimStart('!').Split(' ')[0].ToLowerInvariant();
 
-        if (requestedName.Length > 0)
-        {
-            Result<CommandDto> lookup = await _commands.GetAsync(
-                context.BroadcasterId.ToString(),
-                requestedName,
-                ct
-            );
-            if (lookup.IsSuccess && !string.IsNullOrWhiteSpace(lookup.Value.Description))
-            {
-                string described = await _composer.ComposeAsync(
-                    new()
-                    {
-                        BroadcasterId = context.BroadcasterId,
-                        Personality = context.Personality,
-                        BuiltinKey = BuiltinResponseSlots.Help.Key,
-                        Slot = BuiltinResponseSlots.Help.Described,
-                        NeutralFallback =
-                            $"@{context.TriggeringUserDisplayName} !{lookup.Value.Name}: {lookup.Value.Description}",
-                        Variables = new Dictionary<string, string>
-                        {
-                            ["user"] = context.TriggeringUserDisplayName,
-                            ["command"] = lookup.Value.Name,
-                            ["description"] = lookup.Value.Description,
-                        },
-                    },
+        if (requestedName.Length == 0)
+            return Result.Success(
+                await ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.Help.Usage,
+                    requestedName,
+                    null,
                     ct
-                );
-                return Result.Success(described);
-            }
-        }
+                )
+            );
 
+        Result<CommandDto> lookup = await _commands.GetAsync(
+            context.BroadcasterId.ToString(),
+            requestedName,
+            ct
+        );
+        if (lookup.IsSuccess && !string.IsNullOrWhiteSpace(lookup.Value.Description))
+            return Result.Success(
+                await ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.Help.Described,
+                    lookup.Value.Name,
+                    lookup.Value.Description,
+                    ct
+                )
+            );
+
+        bool exists = lookup.IsSuccess || await IsEnabledBuiltinAsync(context, requestedName, ct);
+        string slot = exists
+            ? BuiltinResponseSlots.Help.NoDescription
+            : BuiltinResponseSlots.Help.Unknown;
+        return Result.Success(await ComposeAsync(context, slot, requestedName, null, ct));
+    }
+
+    private async Task<bool> IsEnabledBuiltinAsync(
+        BuiltinCommandContext context,
+        string name,
+        CancellationToken ct
+    )
+    {
         IReadOnlyList<string> triggers = await _commandsListing.ResolveEnabledTriggersAsync(
             context,
             ct
         );
-
-        string reply = await _commandsListing.ComposeListingAsync(context, triggers, ct);
-        return Result.Success(reply);
+        return triggers.Contains(context.CommandPrefix + name, StringComparer.OrdinalIgnoreCase);
     }
+
+    private Task<string> ComposeAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string command,
+        string? description,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = context.TriggeringUserDisplayName,
+            ["command"] = command,
+            ["prefix"] = context.CommandPrefix,
+        };
+        if (description is not null)
+            variables["description"] = description;
+
+        return _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinResponseSlots.Help.Key,
+                Slot = slot,
+                NeutralFallback = NeutralFallback(
+                    slot,
+                    context.CommandPrefix,
+                    command,
+                    description
+                ),
+                Variables = variables,
+            },
+            ct
+        );
+    }
+
+    private static string NeutralFallback(
+        string slot,
+        string prefix,
+        string command,
+        string? description
+    ) =>
+        slot switch
+        {
+            BuiltinResponseSlots.Help.Usage =>
+                $"Use {prefix}help <command> to get help for a specific command, or {prefix}commands to see what's available.",
+            BuiltinResponseSlots.Help.Described => $"!{command} — {description}",
+            BuiltinResponseSlots.Help.NoDescription =>
+                $"{prefix}{command} — no help text yet. Use {prefix}commands to see what's available.",
+            _ => $"Unknown command \"{command}\". Use {prefix}commands to see what's available.",
+        };
 }

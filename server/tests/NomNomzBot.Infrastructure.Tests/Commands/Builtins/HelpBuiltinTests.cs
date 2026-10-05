@@ -126,111 +126,6 @@ public sealed class HelpBuiltinTests
     }
 
     [Fact]
-    public async Task Help_with_an_unknown_command_name_falls_back_to_the_generic_listing()
-    {
-        ICommandService commands = Substitute.For<ICommandService>();
-        commands
-            .GetAsync(Arg.Any<string>(), "nosuchcommand", Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<CommandDto>("Command not found.", "NOT_FOUND"));
-        commands
-            .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success(
-                    new PagedList<CommandListItem>(
-                        [
-                            new CommandListItem(
-                                Guid.CreateVersion7(),
-                                "hug",
-                                "template",
-                                "Everyone",
-                                true,
-                                "Default",
-                                null,
-                                "StartsWith",
-                                null,
-                                0,
-                                0,
-                                false,
-                                null,
-                                [],
-                                0,
-                                DateTime.UtcNow,
-                                "hug msg",
-                                null,
-                                null
-                            ),
-                        ],
-                        1,
-                        100,
-                        1
-                    )
-                )
-            );
-
-        HelpBuiltin help = new(
-            commands,
-            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
-            FakeComposer()
-        );
-
-        Result<string> result = await help.ExecuteAsync(Context("nosuchcommand"));
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("hug");
-    }
-
-    [Fact]
-    public async Task Help_with_no_argument_replies_with_the_generic_listing()
-    {
-        ICommandService commands = Substitute.For<ICommandService>();
-        commands
-            .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success(
-                    new PagedList<CommandListItem>(
-                        [
-                            new CommandListItem(
-                                Guid.CreateVersion7(),
-                                "hug",
-                                "template",
-                                "Everyone",
-                                true,
-                                "Default",
-                                null,
-                                "StartsWith",
-                                null,
-                                0,
-                                0,
-                                false,
-                                null,
-                                [],
-                                0,
-                                DateTime.UtcNow,
-                                "hug msg",
-                                null,
-                                null
-                            ),
-                        ],
-                        1,
-                        100,
-                        1
-                    )
-                )
-            );
-
-        HelpBuiltin help = new(
-            commands,
-            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
-            FakeComposer()
-        );
-
-        Result<string> result = await help.ExecuteAsync(Context());
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("hug");
-    }
-
-    [Fact]
     public async Task Sassy_tone_produces_the_sassy_described_variant_not_the_raw_hardcoded_string()
     {
         ICommandService commands = Substitute.For<ICommandService>();
@@ -251,7 +146,7 @@ public sealed class HelpBuiltinTests
             Context("sr", personality: PersonalityTone.Informative)
         );
 
-        string oldHardcodedString = "@Stoney_Eagle !sr: Request a song by title or link.";
+        string oldHardcodedString = "!sr — Request a song by title or link.";
         sassy.Value.Should().NotBe(oldHardcodedString);
         HashSet<string> sassyVariants =
         [
@@ -269,7 +164,125 @@ public sealed class HelpBuiltinTests
         ];
         sassyVariants.Should().Contain(sassy.Value);
 
-        // Default tone still reads exactly as it did before this slice (regression).
         informative.Value.Should().Be(oldHardcodedString);
+    }
+
+    private static HelpBuiltin HelpOver(ICommandService commands, params string[] builtinKeys)
+    {
+        IBuiltinCommandService builtins = Substitute.For<IBuiltinCommandService>();
+        builtins
+            .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<BuiltinCommandDto>>([
+                    .. builtinKeys.Select(k => new BuiltinCommandDto(
+                        k,
+                        k,
+                        true,
+                        5,
+                        "Everyone",
+                        k,
+                        false,
+                        false,
+                        null,
+                        null,
+                        0
+                    )),
+                ])
+            );
+        IServiceProvider serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IBuiltinCommandService)).Returns(builtins);
+        commands
+            .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new PagedList<CommandListItem>([], 1, 100, 0)));
+        return new(
+            commands,
+            new CommandsBuiltin(commands, serviceProvider, FakeComposer()),
+            FakeComposer()
+        );
+    }
+
+    [Fact]
+    public async Task Help_with_no_argument_replies_with_the_legacy_usage_line()
+    {
+        HelpBuiltin help = HelpOver(Substitute.For<ICommandService>(), "uptime");
+
+        Result<string> result = await help.ExecuteAsync(Context());
+
+        result
+            .Value.Should()
+            .Be(
+                "Use !help <command> to get help for a specific command, or !commands to see what's available."
+            );
+    }
+
+    [Fact]
+    public async Task Help_with_an_unknown_name_replies_with_the_legacy_unknown_line_and_not_the_list()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .GetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<CommandDto>("Command not found.", "NOT_FOUND"));
+        HelpBuiltin help = HelpOver(commands, "uptime");
+
+        Result<string> result = await help.ExecuteAsync(Context("!NoSuch"));
+
+        result
+            .Value.Should()
+            .Be("Unknown command \"nosuch\". Use !commands to see what's available.");
+    }
+
+    [Fact]
+    public async Task Help_for_a_command_without_a_description_says_so_and_does_not_list_commands()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .GetAsync(Arg.Any<string>(), "hug", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(FakeCommand("hug", null)));
+        commands
+            .GetAsync(Arg.Any<string>(), "uptime", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<CommandDto>("Command not found.", "NOT_FOUND"));
+        HelpBuiltin help = HelpOver(commands, "uptime");
+
+        Result<string> authored = await help.ExecuteAsync(Context("hug"));
+        Result<string> builtin = await help.ExecuteAsync(Context("uptime"));
+
+        authored
+            .Value.Should()
+            .Be("!hug — no help text yet. Use !commands to see what's available.");
+        builtin
+            .Value.Should()
+            .Be("!uptime — no help text yet. Use !commands to see what's available.");
+    }
+
+    [Fact]
+    public async Task Every_tone_of_every_help_answer_keeps_the_facts()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .GetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<CommandDto>("Command not found.", "NOT_FOUND"));
+        HelpBuiltin help = HelpOver(commands, "uptime");
+
+        foreach (
+            string tone in new[]
+            {
+                PersonalityTone.Friendly,
+                PersonalityTone.Sassy,
+                PersonalityTone.Hype,
+                PersonalityTone.Chill,
+            }
+        )
+        {
+            Result<string> usage = await help.ExecuteAsync(Context("", tone));
+            Result<string> unknown = await help.ExecuteAsync(Context("zzz", tone));
+            Result<string> noDescription = await help.ExecuteAsync(Context("uptime", tone));
+
+            usage.Value.Should().Contain("!help <command>", tone);
+            usage.Value.Should().Contain("!commands", tone);
+            unknown.Value.Should().Contain("zzz", tone);
+            unknown.Value.Should().Contain("!commands", tone);
+            noDescription.Value.Should().Contain("!uptime", tone);
+            noDescription.Value.Should().Contain("!commands", tone);
+        }
     }
 }
