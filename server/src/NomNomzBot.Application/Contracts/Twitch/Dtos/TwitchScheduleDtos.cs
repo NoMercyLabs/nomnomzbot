@@ -28,7 +28,14 @@ public sealed record TwitchSchedule(
     string BroadcasterName,
     string BroadcasterLogin,
     TwitchScheduleVacation? Vacation
-);
+)
+{
+    /// <summary>
+    /// The streamer's saved IANA timezone, stamped on by the API (Twitch does not return one). Null when the
+    /// streamer has not saved a zone; the dashboard then falls back to the device zone.
+    /// </summary>
+    public string? Timezone { get; init; }
+}
 
 /// <summary>One broadcast segment in the schedule (a single or recurring entry).</summary>
 public sealed record TwitchScheduleSegment(
@@ -39,7 +46,11 @@ public sealed record TwitchScheduleSegment(
     DateTimeOffset? CanceledUntil,
     TwitchScheduleCategory? Category,
     bool IsRecurring
-);
+)
+{
+    /// <summary>The streamer's saved IANA timezone the segment is shown in; null when none is saved.</summary>
+    public string? Timezone { get; init; }
+}
 
 /// <summary>The category (game) a schedule segment is tagged with.</summary>
 public sealed record TwitchScheduleCategory(string Id, string Name);

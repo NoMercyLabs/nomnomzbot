@@ -407,7 +407,15 @@ public class LiveOpsController : BaseController
         );
         return result.IsFailure
             ? TwitchResultResponse(result)
-            : Ok(new StatusResponseDto<TwitchSchedule> { Data = result.Value });
+            : Ok(
+                new StatusResponseDto<TwitchSchedule>
+                {
+                    Data = ScheduleTimezone.Stamp(
+                        result.Value,
+                        await SavedTimezoneAsync(channelId, ct)
+                    ),
+                }
+            );
     }
 
     /// <summary>Get the channel's schedule as an iCalendar feed (RFC 5545, text/calendar).</summary>
@@ -473,6 +481,9 @@ public class LiveOpsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
+        if (!ScheduleTimezone.IsValid(request.Timezone))
+            return InvalidTimezoneResponse();
+
         Result<TwitchSchedule> result = await _schedule.CreateSegmentAsync(
             broadcasterId,
             request,
@@ -480,7 +491,15 @@ public class LiveOpsController : BaseController
         );
         return result.IsFailure
             ? TwitchResultResponse(result)
-            : Ok(new StatusResponseDto<TwitchSchedule> { Data = result.Value });
+            : Ok(
+                new StatusResponseDto<TwitchSchedule>
+                {
+                    Data = ScheduleTimezone.Stamp(
+                        result.Value,
+                        await SavedTimezoneAsync(channelId, ct)
+                    ),
+                }
+            );
     }
 
     /// <summary>Edit a scheduled segment (Helix PATCH /schedule/segment).</summary>
@@ -497,6 +516,9 @@ public class LiveOpsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
+        if (request.Timezone is not null && !ScheduleTimezone.IsValid(request.Timezone))
+            return InvalidTimezoneResponse();
+
         Result<TwitchSchedule> result = await _schedule.UpdateSegmentAsync(
             broadcasterId,
             segmentId,
@@ -505,7 +527,15 @@ public class LiveOpsController : BaseController
         );
         return result.IsFailure
             ? TwitchResultResponse(result)
-            : Ok(new StatusResponseDto<TwitchSchedule> { Data = result.Value });
+            : Ok(
+                new StatusResponseDto<TwitchSchedule>
+                {
+                    Data = ScheduleTimezone.Stamp(
+                        result.Value,
+                        await SavedTimezoneAsync(channelId, ct)
+                    ),
+                }
+            );
     }
 
     /// <summary>Remove a segment from the schedule (Helix DELETE /schedule/segment).</summary>
@@ -544,6 +574,9 @@ public class LiveOpsController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
+
+        if (dto.Timezone is not null && !ScheduleTimezone.IsValid(dto.Timezone))
+            return InvalidTimezoneResponse();
 
         Result result = await _schedule.UpdateScheduleSettingsAsync(
             broadcasterId,
@@ -593,4 +626,17 @@ public class LiveOpsController : BaseController
                 }
             );
     }
+
+    /// <summary>The streamer's saved IANA zone, or null when none is saved or it cannot be read.</summary>
+    private async Task<string?> SavedTimezoneAsync(string channelId, CancellationToken ct)
+    {
+        Result<ChannelBasicsDto> basics = await _channels.GetBasicsAsync(channelId, ct);
+        return basics.IsSuccess ? basics.Value.Timezone : null;
+    }
+
+    private IActionResult InvalidTimezoneResponse() =>
+        BadRequestResponse(
+            "The timezone must be an IANA zone id such as Europe/Amsterdam.",
+            "VALIDATION_FAILED"
+        );
 }

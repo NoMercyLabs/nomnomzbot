@@ -131305,6 +131305,13 @@
                 "$ref": "#/components/schemas/TwitchScheduleVacation"
               }
             ]
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The streamer's saved IANA timezone, stamped on by the API (Twitch does not return one). Null when the\nstreamer has not saved a zone; the dashboard then falls back to the device zone."
           }
         },
         "description": "Get Channel Stream Schedule — the broadcaster's streaming schedule: the segment list, the active\nvacation window (null when none), and the broadcaster's identity. The data is a single object, so the\ntransport's `data[]` envelope wraps exactly one of these."
@@ -131370,6 +131377,13 @@
           },
           "isRecurring": {
             "type": "boolean"
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The streamer's saved IANA timezone the segment is shown in; null when none is saved."
           }
         },
         "description": "One broadcast segment in the schedule (a single or recurring entry)."

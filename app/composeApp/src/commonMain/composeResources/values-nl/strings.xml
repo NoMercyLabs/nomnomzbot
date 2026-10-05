@@ -194,7 +194,10 @@
     <string name="schedule_new_title">Geplande stream toevoegen</string>
     <string name="schedule_edit_title">Geplande stream bewerken</string>
     <string name="schedule_start_label">Start (datum &amp; tijd)</string>
-    <string name="schedule_timezone_label">Tijdzone (bijv. Europe/Amsterdam)</string>
+    <string name="timezone_picker_label">Tijdzone</string>
+    <string name="timezone_picker_placeholder">Zoek een tijdzone, bijv. Amsterdam</string>
+    <string name="timezone_picker_empty">Geen overeenkomende tijdzones.</string>
+    <string name="schedule_timezone_required">Kies een tijdzone uit de lijst.</string>
     <string name="schedule_duration_label">Duur (minuten)</string>
     <string name="schedule_title_label">Titel (optioneel)</string>
     <string name="schedule_category_label">Categorie-ID (optioneel)</string>

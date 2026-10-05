@@ -197,7 +197,10 @@
     <string name="schedule_new_title">Add a scheduled stream</string>
     <string name="schedule_edit_title">Edit scheduled stream</string>
     <string name="schedule_start_label">Start (date &amp; time)</string>
-    <string name="schedule_timezone_label">Timezone (e.g. Europe/Amsterdam)</string>
+    <string name="timezone_picker_label">Timezone</string>
+    <string name="timezone_picker_placeholder">Search timezones, e.g. Amsterdam</string>
+    <string name="timezone_picker_empty">No matching timezones.</string>
+    <string name="schedule_timezone_required">Pick a timezone from the list.</string>
     <string name="schedule_duration_label">Duration (minutes)</string>
     <string name="schedule_title_label">Title (optional)</string>
     <string name="schedule_category_label">Category ID (optional)</string>

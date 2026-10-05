@@ -45,12 +45,14 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TimezonePickerField
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.LiveOpsScheduleSegment
 import bot.nomnomz.dashboard.core.network.LiveOpsScheduleVacation
+import bot.nomnomz.dashboard.core.time.ScheduleTimes
 import bot.nomnomz.dashboard.feature.liveops.state.ScheduleController
 import bot.nomnomz.dashboard.feature.liveops.state.ScheduleState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -82,7 +84,7 @@ import nomnomzbot.composeapp.generated.resources.schedule_segment_recurring
 import nomnomzbot.composeapp.generated.resources.schedule_segments_title
 import nomnomzbot.composeapp.generated.resources.schedule_start_label
 import nomnomzbot.composeapp.generated.resources.schedule_time_hint
-import nomnomzbot.composeapp.generated.resources.schedule_timezone_label
+import nomnomzbot.composeapp.generated.resources.schedule_timezone_required
 import nomnomzbot.composeapp.generated.resources.schedule_title_label
 import nomnomzbot.composeapp.generated.resources.schedule_vacation_end
 import nomnomzbot.composeapp.generated.resources.schedule_vacation_save
@@ -103,6 +105,7 @@ fun ScheduleScreen(
     val spacing = LocalSpacing.current
     val scope = rememberCoroutineScope()
     val state: ScheduleState by controller.state.collectAsStateWithLifecycle()
+    val savedZone: String? = (state as? ScheduleState.Ready)?.schedule?.timezone
 
     // Writes gate at Editor; the page itself is visible from Moderator (rememberManageDecision uses the page floor,
     // but schedule writes are an Editor action — the backend re-checks live-ops:schedule:write regardless).
@@ -146,6 +149,7 @@ fun ScheduleScreen(
                         scope.launch { controller.setVacation(enabled, start, end, tz) }
                     },
                     onDownloadIcs = { scope.launch { controller.downloadIcalendar() } },
+                    savedZone = savedZone,
                 )
         }
     }
@@ -153,6 +157,7 @@ fun ScheduleScreen(
     if (showAdd) {
         SegmentDialog(
             existing = null,
+            savedZone = savedZone,
             onSearchCategories = controller::searchCategories,
             onDismiss = { showAdd = false },
             onSave = { start, tz, duration, title, category, recurring ->
@@ -165,6 +170,7 @@ fun ScheduleScreen(
     editorTarget?.let { segment ->
         SegmentDialog(
             existing = segment,
+            savedZone = savedZone,
             onSearchCategories = controller::searchCategories,
             onDismiss = { editorTarget = null },
             onSave = { start, tz, duration, title, category, _ ->
@@ -210,6 +216,7 @@ private fun ScheduleContent(
     onDelete: (LiveOpsScheduleSegment) -> Unit,
     onSetVacation: (enabled: Boolean, start: String?, end: String?, timezone: String?) -> Unit,
     onDownloadIcs: (() -> Unit)? = null,
+    savedZone: String? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -250,7 +257,7 @@ private fun ScheduleContent(
         }
         item(key = "vacation") {
             Card(modifier = Modifier.fillMaxWidth()) {
-                VacationCard(vacation = vacation, manage = manage, onSetVacation = onSetVacation)
+                VacationCard(vacation = vacation, savedZone = savedZone, manage = manage, onSetVacation = onSetVacation)
             }
         }
         item(key = "segments-title") {
@@ -320,7 +327,7 @@ private fun SegmentRow(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${segment.startTime} → ${segment.endTime}",
+            text = ScheduleTimes.range(segment.startTime, segment.endTime, segment.timezone),
             style = typography.sm,
             color = tokens.mutedForeground,
             maxLines = 1,
@@ -360,6 +367,7 @@ private fun SegmentRow(
 @Composable
 private fun VacationCard(
     vacation: LiveOpsScheduleVacation?,
+    savedZone: String?,
     manage: ManageDecision,
     onSetVacation: (enabled: Boolean, start: String?, end: String?, timezone: String?) -> Unit,
 ) {
@@ -370,7 +378,7 @@ private fun VacationCard(
     var enabled: Boolean by remember(vacation) { mutableStateOf(vacation != null) }
     var start: String by remember(vacation) { mutableStateOf(vacation?.startTime ?: "") }
     var end: String by remember(vacation) { mutableStateOf(vacation?.endTime ?: "") }
-    var timezone: String by remember(vacation) { mutableStateOf("") }
+    var timezone: String? by remember(vacation, savedZone) { mutableStateOf(ScheduleTimes.defaultZone(savedZone)) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(spacing.s4),
@@ -404,17 +412,12 @@ private fun VacationCard(
                 label = stringResource(Res.string.schedule_vacation_end),
                 modifier = Modifier.fillMaxWidth(),
             )
-            AppTextField(
-                value = timezone,
-                onValueChange = { timezone = it },
-                label = stringResource(Res.string.schedule_timezone_label),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            TimezonePickerField(zone = timezone, onZoneChange = { timezone = it }, modifier = Modifier.fillMaxWidth())
         }
         ManageGate(decision = manage) { canManage ->
             Button(
                 onClick = { onSetVacation(enabled, start, end, timezone) },
-                enabled = canManage,
+                enabled = canManage && (!enabled || ScheduleTimes.isValidZone(timezone)),
             ) {
                 Text(stringResource(Res.string.schedule_vacation_save))
             }
@@ -428,6 +431,7 @@ private fun VacationCard(
 @Composable
 private fun SegmentDialog(
     existing: LiveOpsScheduleSegment?,
+    savedZone: String?,
     onSearchCategories: suspend (String) -> List<PickerOption>,
     onDismiss: () -> Unit,
     onSave: (start: String, timezone: String, duration: String, title: String?, categoryId: String?, recurring: Boolean) -> Unit,
@@ -436,7 +440,8 @@ private fun SegmentDialog(
     val spacing = LocalSpacing.current
 
     var start: String by remember { mutableStateOf(existing?.startTime ?: "") }
-    var timezone: String by remember { mutableStateOf("") }
+    // The zone starts on the segment's own zone (edit), else the saved zone, else the device zone.
+    var timezone: String? by remember { mutableStateOf(ScheduleTimes.defaultZone(existing?.timezone ?: savedZone)) }
     var duration: String by remember { mutableStateOf("") }
     var title: String by remember { mutableStateOf(existing?.title ?: "") }
     // The category picker owns a PickerRef selection; the segment WRITE consumes the Twitch category id, so the
@@ -451,9 +456,9 @@ private fun SegmentDialog(
     // them here made a title/category-only edit impossible. An edit only needs the (prefilled) start.
     val canSave: Boolean =
         if (existing == null) {
-            start.isNotBlank() && timezone.isNotBlank() && duration.isNotBlank()
+            start.isNotBlank() && ScheduleTimes.isValidZone(timezone) && duration.isNotBlank()
         } else {
-            start.isNotBlank()
+            start.isNotBlank() && ScheduleTimes.isValidZone(timezone)
         }
 
     AlertDialog(
@@ -477,12 +482,18 @@ private fun SegmentDialog(
                     supportingText = stringResource(Res.string.schedule_time_hint),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = timezone,
-                    onValueChange = { timezone = it },
-                    label = stringResource(Res.string.schedule_timezone_label),
+                TimezonePickerField(
+                    zone = timezone,
+                    onZoneChange = { timezone = it },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (timezone == null) {
+                    Text(
+                        text = stringResource(Res.string.schedule_timezone_required),
+                        style = LocalTypography.current.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
                 AppTextField(
                     value = duration,
                     onValueChange = { duration = it.filter { c -> c.isDigit() } },
@@ -519,7 +530,7 @@ private fun SegmentDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(start.trim(), timezone.trim(), duration.trim(), title.ifBlank { null }, selectedCategory?.id, recurring) },
+                onClick = { onSave(start.trim(), timezone.orEmpty(), duration.trim(), title.ifBlank { null }, selectedCategory?.id, recurring) },
                 enabled = canSave,
             ) {
                 Text(

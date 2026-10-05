@@ -226,6 +226,8 @@ data class LiveOpsSchedule(
     val broadcasterLogin: String = "",
     val segments: List<LiveOpsScheduleSegment> = emptyList(),
     val vacation: LiveOpsScheduleVacation? = null,
+    /** The streamer's saved IANA timezone (null when none is saved). */
+    val timezone: String? = null,
 )
 
 /**
@@ -241,6 +243,8 @@ data class LiveOpsScheduleSegment(
     val canceledUntil: String? = null,
     val category: LiveOpsScheduleCategory? = null,
     val isRecurring: Boolean = false,
+    /** The streamer's saved IANA timezone the segment is shown in (null when none is saved). */
+    val timezone: String? = null,
 )
 
 /** A stream category on a schedule segment (backend `TwitchScheduleCategory`). */
