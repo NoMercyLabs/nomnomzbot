@@ -156,6 +156,11 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Streams)
             .Ignore(e => e.Events);
 
+        b.Entity<SavingsJar>().HasKey(e => e.Id);
+        b.Entity<SavingsJar>().HasQueryFilter(e => e.DeletedAt == null);
+        b.Entity<SavingsJarMembership>().HasKey(e => e.Id);
+        b.Entity<SavingsJarMembership>().HasQueryFilter(e => e.DeletedAt == null);
+
         b.Entity<DiscordGuildConnection>().HasKey(e => e.Id);
         b.Entity<DiscordGuildConnection>().Ignore(e => e.Channel);
         b.Entity<DiscordGuildConnection>().HasQueryFilter(e => e.DeletedAt == null);
@@ -200,6 +205,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(Domain.Platform.Entities.Configuration),
         typeof(Channel),
         typeof(DiscordGuildConnection),
+        typeof(SavingsJar),
+        typeof(SavingsJarMembership),
         typeof(Widget),
         typeof(RenderedAlertCapture),
         typeof(IamPermission),
@@ -369,8 +376,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
-    public DbSet<SavingsJar> SavingsJars => throw new NotSupportedException();
-    public DbSet<SavingsJarMembership> SavingsJarMemberships => throw new NotSupportedException();
+    public DbSet<SavingsJar> SavingsJars => Set<SavingsJar>();
+    public DbSet<SavingsJarMembership> SavingsJarMemberships => Set<SavingsJarMembership>();
     public DbSet<JarContribution> JarContributions => throw new NotSupportedException();
     public DbSet<LeaderboardConfig> LeaderboardConfigs => throw new NotSupportedException();
     public DbSet<LeaderboardOptOut> LeaderboardOptOuts => throw new NotSupportedException();

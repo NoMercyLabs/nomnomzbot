@@ -24,7 +24,8 @@ public sealed class ChannelConfigChangedEvent : DomainEventBase
     /// The dashboard config page this mutation belongs to — a closed catalogue matching the frontend's config
     /// query keys: commands, timers, pipelines, event-responses, rewards, economy-config, earning-rules, catalog,
     /// moderation-rules, blocked-terms, automod, tts-config, music-config, sr-config, webhooks, widgets, features,
-    /// quotes, builtins, channel-settings, roles-permits.
+    /// quotes, builtins, channel-settings, roles-permits, savings-jar (pushed to every channel in a jar group,
+    /// with the jar id as the entity).
     /// </summary>
     public required string Domain { get; init; }
 
