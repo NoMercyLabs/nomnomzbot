@@ -11,6 +11,9 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
@@ -38,7 +41,10 @@ public sealed class VoiceChatAssignTests
     private static readonly int ModeratorLevel = PermissionLevel.Moderator.ToLevelValue();
     private static readonly int BroadcasterLevel = PermissionLevel.Broadcaster.ToLevelValue();
 
-    private static async Task<(VoiceBuiltin Sut, TtsTestDbContext Db)> BuildAsync()
+    private static async Task<(VoiceBuiltin Sut, TtsTestDbContext Db)> BuildAsync(
+        ITwitchUsersApi? twitchUsers = null,
+        IUserService? users = null
+    )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
         db.TtsVoices.AddRange(
@@ -89,7 +95,31 @@ public sealed class VoiceChatAssignTests
             Substitute.For<Application.Identity.Services.IUserService>(),
             new PlatformTtsVoiceDefault(db)
         );
-        return (new VoiceBuiltin(config, db, TestBuiltinComposer.Create()), db);
+        twitchUsers ??= TwitchKnowing();
+        users ??= Substitute.For<IUserService>();
+        return (
+            new VoiceBuiltin(config, db, TestBuiltinComposer.Create(), twitchUsers, users),
+            db
+        );
+    }
+
+    private static TwitchUser TwitchAccount(string id, string login, string displayName) =>
+        new(id, login, displayName, "", "", "", "", "", 0, DateTimeOffset.UnixEpoch);
+
+    /// <summary>A Twitch lookup that knows exactly the given accounts (none by default).</summary>
+    private static ITwitchUsersApi TwitchKnowing(params TwitchUser[] accounts)
+    {
+        ITwitchUsersApi api = Substitute.For<ITwitchUsersApi>();
+        api.GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                IReadOnlyList<string> asked = call.Arg<IReadOnlyList<string>>();
+                IReadOnlyList<TwitchUser> hits = accounts
+                    .Where(a => asked.Contains(a.Login, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+                return Task.FromResult(Result.Success(hits));
+            });
+        return api;
     }
 
     private static BuiltinCommandContext Ctx(string args, int roleLevel) =>
@@ -192,5 +222,66 @@ public sealed class VoiceChatAssignTests
 
         reply.Value.Should().Be("✅ Voice set to Thomas (GB)!");
         (await db.UserTtsVoices.SingleAsync()).UserId.Should().Be(CallerId);
+    }
+
+    [Fact]
+    public async Task Moderator_sets_the_voice_of_a_viewer_who_never_chatted_after_a_Twitch_lookup()
+    {
+        const string NewId = "555001";
+        IUserService users = Substitute.For<IUserService>();
+        ITwitchUsersApi twitch = TwitchKnowing(TwitchAccount(NewId, "neverseen", "NeverSeen"));
+        (VoiceBuiltin sut, TtsTestDbContext db) = await BuildAsync(twitch, users);
+        // The real IUserService mints the user + identity row; the fake does the same on the test database.
+        users
+            .GetOrCreateAsync(NewId, "neverseen", "NeverSeen", "twitch", Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                db.UserIdentities.Add(
+                    new()
+                    {
+                        UserId = Guid.CreateVersion7(),
+                        Provider = "twitch",
+                        ProviderUserId = NewId,
+                        ProviderUsername = "neverseen",
+                        ProviderDisplayName = "NeverSeen",
+                    }
+                );
+                await db.SaveChangesAsync();
+                return Result.Success(
+                    new UserDto(
+                        Guid.NewGuid().ToString(),
+                        "neverseen",
+                        "NeverSeen",
+                        null,
+                        null,
+                        DateTime.UtcNow,
+                        DateTime.UtcNow
+                    )
+                );
+            });
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("set @neverseen thomas", ModeratorLevel));
+
+        reply.Value.Should().Be("Voice for NeverSeen set to Thomas (GB)!");
+        (await db.UserIdentities.AnyAsync(i => i.ProviderUserId == NewId)).Should().BeTrue();
+        UserTtsVoice row = await db.UserTtsVoices.SingleAsync();
+        row.UserId.Should().Be(NewId);
+        row.BroadcasterId.Should().Be(Channel);
+        row.VoiceId.Should().Be("en-GB-ThomasNeural");
+    }
+
+    [Fact]
+    public async Task Login_Twitch_does_not_know_gets_the_unknown_viewer_reply_and_no_user_is_created()
+    {
+        IUserService users = Substitute.For<IUserService>();
+        (VoiceBuiltin sut, TtsTestDbContext db) = await BuildAsync(TwitchKnowing(), users);
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("set @ghost thomas", ModeratorLevel));
+
+        reply.Value.Should().Be("I don't know a viewer called 'ghost' here.");
+        await users
+            .DidNotReceiveWithAnyArgs()
+            .GetOrCreateAsync(default!, default!, default!, default!, default);
+        (await db.UserTtsVoices.AnyAsync()).Should().BeFalse();
     }
 }

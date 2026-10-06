@@ -14,6 +14,9 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
+using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -49,16 +52,22 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     private readonly ITtsConfigService _tts;
     private readonly IApplicationDbContext _db;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IUserService _users;
 
     public VoiceBuiltin(
         ITtsConfigService tts,
         IApplicationDbContext db,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        ITwitchUsersApi twitchUsers,
+        IUserService users
     )
     {
         _tts = tts;
         _db = db;
         _composer = composer;
+        _twitchUsers = twitchUsers;
+        _users = users;
     }
 
     public string BuiltinKey => "voice";
@@ -415,7 +424,9 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                 ct
             );
 
-        UserIdentity? viewer = await FindViewerAsync(context, login, ct);
+        UserIdentity? viewer =
+            await FindViewerAsync(context, login, ct)
+            ?? await CreateViewerFromTwitchAsync(context, login, ct);
         if (viewer is null)
             return await ReplyAsync(
                 context,
@@ -443,6 +454,43 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             i => i.Provider == platform && i.ProviderUsername.ToLower() == loginLower,
             ct
         );
+    }
+
+    /// <summary>
+    /// A viewer who never chatted here has no identity row yet: look the login up on Twitch and mint the user
+    /// the same way the chat path does. Null when the platform is not Twitch, Twitch does not know the login,
+    /// or the lookup itself failed (never reported as a found viewer).
+    /// </summary>
+    private async Task<UserIdentity?> CreateViewerFromTwitchAsync(
+        BuiltinCommandContext context,
+        string login,
+        CancellationToken ct
+    )
+    {
+        string platform = context.TriggeringPlatform ?? AuthEnums.Platform.Twitch;
+        if (platform != AuthEnums.Platform.Twitch || login.Length == 0)
+            return null;
+
+        Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByLoginsAsync(
+            [login.ToLowerInvariant()],
+            ct
+        );
+        TwitchUser? account = lookup.IsSuccess
+            ? lookup.Value.FirstOrDefault(u =>
+                string.Equals(u.Login, login, StringComparison.OrdinalIgnoreCase)
+            )
+            : null;
+        if (account is null)
+            return null;
+
+        Result<UserDto> created = await _users.GetOrCreateAsync(
+            account.Id,
+            account.Login,
+            account.DisplayName,
+            platform,
+            ct
+        );
+        return created.IsSuccess ? await FindViewerAsync(context, login, ct) : null;
     }
 
     private async Task<Result<string>> SetAsync(
