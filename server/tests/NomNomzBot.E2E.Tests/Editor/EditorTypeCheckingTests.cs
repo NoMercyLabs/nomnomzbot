@@ -128,6 +128,67 @@ public sealed class EditorTypeCheckingTests : EditorPageTest
     }
 
     [E2EFact]
+    public async Task A_vue_widget_importing_sibling_components_has_no_module_errors()
+    {
+        await OpenAsync(
+            "vue",
+            "index.vue",
+            """
+            <script setup lang="ts">
+            import { ref } from 'vue';
+            import GlitchLayer from './components/GlitchLayer.vue';
+            import StatusLine from './components/StatusLine.vue';
+            const active = ref<boolean>(true);
+            </script>
+
+            <template>
+              <GlitchLayer :intensity="3" />
+              <StatusLine v-if="active" label="ok" />
+            </template>
+            """,
+            "",
+            extraFiles: new Dictionary<string, string>
+            {
+                ["components/GlitchLayer.vue"] = """
+                <script setup lang="ts">
+                const props = defineProps<{ intensity: number }>();
+                </script>
+
+                <template>
+                  <div class="glitch">{{ props.intensity }}</div>
+                </template>
+                """,
+                ["components/StatusLine.vue"] = """
+                <script setup lang="ts">
+                const props = defineProps<{ label: string }>();
+                </script>
+
+                <template>
+                  <p>{{ props.label }}</p>
+                </template>
+                """,
+            }
+        );
+
+        await Page.WaitForTimeoutAsync(5_000);
+        // Template-only use of an import or a prop is invisible to the script model, so unused-binding hints
+        // (TS6133) are not problems here; the editor filters them out of its markers the same way.
+        IReadOnlyList<string> worker = (await WorkerDiagnosticsAsync("index.vue.__script.ts"))
+            .Where(problem => !problem.Contains(" TS6133 "))
+            .ToList();
+        string[] markers = await Page.EvaluateAsync<string[]>(
+            """
+            () => window.monaco.editor.getModelMarkers({})
+                .filter((m) => !m.resource.path.endsWith('.__script.ts'))
+                .map((m) => `${m.resource.path}:${m.startLineNumber} ${typeof m.code === 'object' ? m.code.value : m.code} ${m.message}`)
+            """
+        );
+
+        AssertNoProblems(worker);
+        Assert.True(markers.Length == 0, string.Join(Environment.NewLine, markers));
+    }
+
+    [E2EFact]
     public async Task A_react_widget_flags_a_wrong_state_setter_argument_and_a_wrong_event_property()
     {
         await OpenAsync(
