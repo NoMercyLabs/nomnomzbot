@@ -109210,6 +109210,10 @@
           "code": {
             "type": "string",
             "default": ""
+          },
+          "inFlight": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "An item in the music playback queue. Cost is 0 for a free request."

@@ -42,9 +42,10 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 ///
 /// <para>
 /// The legacy bot did this from the other end: <c>SpotifyApiService.TryConsumeSkip(trackId)</c> marked a
-/// retracted track and its realtime socket auto-skipped it when it started. We have no such socket (the
-/// endpoint it used is a restricted API), so the skip happens here, at the moment the user asks for it,
-/// rather than being armed and waiting.
+/// retracted track and its realtime socket auto-skipped it when it started. Here the same happens in two
+/// parts: removing an entry the provider already holds arms a marker in the queue store, and
+/// <c>SongRetractionSkipHandler</c> skips the track when playback reports it. The reply says "will skip"
+/// only for that case.
 /// </para>
 ///
 /// Usage example:
@@ -152,7 +153,9 @@ public sealed class SongWrongAction : ICommandAction
         await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
         await SendAsync(
             ctx,
-            $"@{ctx.TriggeredByDisplayName} Will auto-skip {item.TrackName} by {item.Artist} when it plays."
+            item.InFlight
+                ? $"@{ctx.TriggeredByDisplayName} Will skip {item.TrackName} by {item.Artist} when it starts."
+                : $"@{ctx.TriggeredByDisplayName} Removed {item.TrackName} by {item.Artist} from the queue."
         );
         return ActionResult.Success($"removed: {item.TrackName}");
     }

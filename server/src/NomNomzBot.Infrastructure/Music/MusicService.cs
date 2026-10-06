@@ -491,6 +491,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
 
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
         IReadOnlyList<MusicQueueItem> items = queue is null
             ? []
             : queue
@@ -502,7 +503,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                     e.Item.DurationMs,
                     e.Item.RequestedBy,
                     e.Item.Cost,
-                    e.Item.Code
+                    e.Item.Code,
+                    ReferenceEquals(e.Item, inFlight)
                 ))
                 .ToList();
 
@@ -1490,7 +1492,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 removedEntry is not null
                 && ReferenceEquals(_queueStore.GetInFlight(broadcasterId), removedEntry)
             )
+            {
                 _queueStore.SetInFlight(broadcasterId, null);
+
+                // Spotify cannot delete from its own queue, so the removed track still plays. Arm a
+                // marker; SongRetractionSkipHandler skips it the moment it starts.
+                _queueStore.ArmRetraction(broadcasterId, removedEntry.TrackUri);
+            }
 
             await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
             if (Guid.TryParse(broadcasterId, out Guid tenantId))

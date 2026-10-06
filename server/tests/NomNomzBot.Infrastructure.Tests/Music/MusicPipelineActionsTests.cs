@@ -995,7 +995,37 @@ public sealed class MusicPipelineActionsTests
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
-                "@Bamo Will auto-skip First Pick by A when it plays.",
+                "@Bamo Removed First Pick by A from the queue.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_promises_a_skip_only_when_the_request_is_already_at_the_provider()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(null, [new("First Pick", "A", null, 100, "Bamo", InFlight: true)])
+            );
+        music
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(
+            music,
+            MusicTestDbContext.New(),
+            chat,
+            NullLogger<SongWrongAction>.Instance
+        );
+
+        await action.ExecuteAsync(Ctx(displayName: "Bamo"), Def("song_wrong"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "@Bamo Will skip First Pick by A when it starts.",
                 Arg.Any<CancellationToken>()
             );
     }
