@@ -88,9 +88,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Pipeline lane
 
-- **S-PIPE-VARIABLE-PICKER** Typing `{` in a template field opens a list of the variables that exist
-  here: event context, declared variables, viewer data, counters — each with a sample value; insert
-  at the cursor (today: end of field only). R10, R9. Done-when: UI test inserts a variable mid-text.
 - **S-PIPE-TEST-TRACE** A test run shows each step: what ran, which branch, variables before/after, and
   the output. The input is a sample-event picker (same samples as the editor), not key=value; viewer
   data can be simulated. `TestRunResultDto` gets a per-step trace. R14, R2, R6. Done-when: test of a
