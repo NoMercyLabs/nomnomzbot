@@ -38,7 +38,7 @@ public interface ITtsDispatchService
 
     /// <summary>
     /// The voice <see cref="RequestSpeakAsync"/> would speak with, synthesizing nothing: the override when it names a
-    /// catalogue voice, else the viewer's assigned voice, the channel default, then the first available voice. Null
+    /// catalogue voice, else (for a <see cref="TtsSpeaker.Viewer"/> line) the viewer's assigned voice, the channel default, then the first available voice. Null
     /// when a live request would be refused for its voice (unknown override, or no voice at all). A script test run
     /// uses it so the preview returns what a live run returns.
     /// </summary>
@@ -46,6 +46,7 @@ public interface ITtsDispatchService
         Guid broadcasterId,
         string requestedByTwitchUserId,
         string? voiceIdOverride,
+        TtsSpeaker speaker = TtsSpeaker.Bot,
         CancellationToken ct = default
     );
 
@@ -120,6 +121,13 @@ public sealed record TtsQueueEntryDto(
 /// like the old bot. <c>false</c> keeps the channel default voice and saves nothing; used for the
 /// broadcaster's own lines.
 /// </param>
+/// <param name="Speaker">
+/// WHOSE words these are, and so whose voice reads them. <see cref="TtsSpeaker.Bot"/> (the default) is any text the
+/// bot wrote itself (a command reply, an announcement, an event response): it speaks in the channel's voice and
+/// never touches the requester's saved voice. <see cref="TtsSpeaker.Viewer"/> is the requester's own words (a TTS
+/// reward, their chat line): it speaks in the requester's saved voice. The requester id stays on the request for
+/// attribution, limits and history either way. An explicit <see cref="VoiceIdOverride"/> wins over both.
+/// </param>
 /// <param name="Segments">
 /// An ordered list of parts that play as ONE audio clip, each with its own voice, prosody and trailing silence
 /// (e.g. a bot intro in one voice, a pause, then the viewer's words in theirs). When set it replaces
@@ -142,7 +150,8 @@ public sealed record TtsSpeakRequest(
     double? RatePercent = null,
     double? PitchPercent = null,
     bool AssignVoiceIfMissing = true,
-    IReadOnlyList<TtsSpeakSegment>? Segments = null
+    IReadOnlyList<TtsSpeakSegment>? Segments = null,
+    TtsSpeaker Speaker = TtsSpeaker.Bot
 );
 
 /// <summary>One part of a segmented <see cref="TtsSpeakRequest"/> (see <see cref="TtsSpeakRequest.Segments"/>).</summary>
@@ -158,6 +167,16 @@ public sealed record TtsSpeakSegment(
     double? PitchPercent = null,
     int BreakAfterMs = 0
 );
+
+/// <summary>Whose words a TTS line carries; picks the voice (see <see cref="TtsSpeakRequest.Speaker"/>).</summary>
+public enum TtsSpeaker
+{
+    /// <summary>Text the bot wrote: the channel's voice.</summary>
+    Bot,
+
+    /// <summary>The requester's own words: the requester's saved voice.</summary>
+    Viewer,
+}
 
 public enum TtsDispatchDisposition
 {

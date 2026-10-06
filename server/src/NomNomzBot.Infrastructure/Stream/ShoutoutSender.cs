@@ -147,10 +147,9 @@ public sealed class ShoutoutSender : IShoutoutSender
 
         // TTS is opt-in per invocation (old-bot parity: manual !so speaks it, an automated
         // presence-detection shoutout stays silent by simply never passing tts:true) and best-effort — a
-        // synthesis/dispatch failure never fails the shoutout itself. Speaks in the SHOUTED-OUT target's
-        // own assigned voice (ResolveVoiceAsync looks up UserTtsVoices by RequestedByTwitchUserId) — old-bot
-        // parity (ShoutoutQueueService.ExecuteShoutoutAsync called SendCachedTts(ttsText, TargetUserId, ...)).
-        // A raid speaks by default (old-bot parity); an explicit tts:false still wins.
+        // synthesis/dispatch failure never fails the shoutout itself. The announcement is the bot's own text, so
+        // it speaks in the channel's one bot voice (the default TtsSpeaker.Bot); the target is only the
+        // attribution on the request, never the voice. A raid speaks by default (old-bot parity); an explicit tts:false still wins.
         if (request.Speak && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
@@ -164,7 +163,8 @@ public sealed class ShoutoutSender : IShoutoutSender
                     BitsAmount: 0,
                     CommunityStanding: "broadcaster",
                     SourceMessageId: null,
-                    StreamId: null
+                    StreamId: null,
+                    Speaker: TtsSpeaker.Bot
                 ),
                 cancellationToken
             );

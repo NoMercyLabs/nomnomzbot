@@ -125,12 +125,11 @@ public sealed class PlayTtsAction : ICommandAction
             voiceOverride = string.IsNullOrWhiteSpace(resolvedVoice) ? null : resolvedVoice;
         }
 
-        // WHOSE voice speaks this line. The bot's own lines (an event announcement, a snarky cheer intro)
-        // must read in the CHANNEL's voice, while the viewer's own words read in theirs — a cheer with a
-        // message is one flow with both, back to back. Empty/"user" keeps the trigger's voice; "bot" (or
-        // "channel") resolves to the channel default by naming no viewer; "broadcaster" names the channel
-        // owner, so their own saved voice speaks, like the old bot; anything else is a literal
-        // platform user id, so a flow can read a line as a specific person.
+        // WHOSE voice speaks this line. Blank (or "bot"/"channel"/"default") is the bot's own line and reads
+        // in the CHANNEL's voice. "user"/"viewer"/"trigger" is the triggering viewer's own words (a TTS
+        // reward) and reads in their saved voice; "broadcaster" reads in the channel owner's saved voice,
+        // like the old bot; anything else is a literal platform user id, so a flow can read a line as a
+        // specific person.
         string asTemplate = action.GetString("as") ?? string.Empty;
         string asField = string.IsNullOrWhiteSpace(asTemplate)
             ? string.Empty
@@ -186,7 +185,8 @@ public sealed class PlayTtsAction : ICommandAction
                 "broadcaster",
                 StringComparison.OrdinalIgnoreCase
             ),
-            Segments: segments
+            Segments: segments,
+            Speaker: IsBotSpeaker(asField) ? TtsSpeaker.Bot : TtsSpeaker.Viewer
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(
@@ -318,6 +318,9 @@ public sealed class PlayTtsAction : ICommandAction
     /// naming nobody. <c>broadcaster</c> names the channel owner by platform id: the dispatch resolver then
     /// uses the owner's saved voice, and the channel default when they have none.
     /// </summary>
+    private static bool IsBotSpeaker(string speakerField) =>
+        speakerField.ToLowerInvariant() is "" or "bot" or "channel" or "default";
+
     private async Task<string> ResolveSpeakerAsync(
         string speakerField,
         PipelineExecutionContext ctx
