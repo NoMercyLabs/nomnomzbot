@@ -4607,6 +4607,7 @@ private fun EscalationLadderDialog(
                             ladder = ladder,
                             offenseWindowHours = windowInput.trim().toIntOrNull() ?: 0,
                             countAutoModViolations = countAutomod,
+                            defaultTimeoutSeconds = policy.defaultTimeoutSeconds,
                         )
                     )
                 },

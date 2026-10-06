@@ -26,6 +26,9 @@ namespace NomNomzBot.Infrastructure.Moderation;
 public sealed class ModerationEscalationService(IApplicationDbContext db, TimeProvider clock)
     : IModerationEscalationService
 {
+    /// <summary>Twitch's longest timeout: 14 days.</summary>
+    private const int MaxTimeoutSeconds = 1_209_600;
+
     private static readonly IReadOnlyList<EscalationLadderStep> DefaultLadder =
     [
         new(1, "warn", null),
@@ -190,7 +193,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
                 ct
             );
         return Result.Success(
-            policy is null ? new(false, DefaultLadder, 168, false) : ToDto(policy)
+            policy is null ? new(false, DefaultLadder, 168, false, 600) : ToDto(policy)
         );
     }
 
@@ -203,6 +206,11 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         if (request.OffenseWindowHours <= 0)
             return Result.Failure<ModerationEscalationPolicyDto>(
                 "The offense window must be positive.",
+                "VALIDATION_FAILED"
+            );
+        if (request.DefaultTimeoutSeconds is < 1 or > MaxTimeoutSeconds)
+            return Result.Failure<ModerationEscalationPolicyDto>(
+                $"The default timeout must be 1 to {MaxTimeoutSeconds} seconds.",
                 "VALIDATION_FAILED"
             );
         if (request.Ladder.Count == 0)
@@ -245,6 +253,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         policy.LadderJson = JsonSerializer.Serialize(request.Ladder);
         policy.OffenseWindowHours = request.OffenseWindowHours;
         policy.CountAutoModViolations = request.CountAutoModViolations;
+        policy.DefaultTimeoutSeconds = request.DefaultTimeoutSeconds;
         await db.SaveChangesAsync(ct);
         return Result.Success(ToDto(policy));
     }
@@ -284,6 +293,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
             policy.IsEnabled,
             ParseLadder(policy.LadderJson),
             policy.OffenseWindowHours,
-            policy.CountAutoModViolations
+            policy.CountAutoModViolations,
+            policy.DefaultTimeoutSeconds
         );
 }

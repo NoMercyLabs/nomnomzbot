@@ -35,5 +35,10 @@ public class ModerationEscalationPolicy : SoftDeletableEntity, ITenantScoped
     /// <summary>Whether AutoMod violations count as ladder offenses too.</summary>
     public bool CountAutoModViolations { get; set; }
 
+    /// <summary>
+    /// The timeout length, in seconds, a one-click chat Timeout uses (1..1209600 — Twitch's maximum).
+    /// </summary>
+    public int DefaultTimeoutSeconds { get; set; } = 600;
+
     public int ConfigSchemaVersion { get; set; } = 1;
 }

@@ -1383,6 +1383,7 @@ data class EscalationPolicy(
     val ladder: List<EscalationLadderStep> = emptyList(),
     val offenseWindowHours: Int = 0,
     val countAutoModViolations: Boolean = false,
+    val defaultTimeoutSeconds: Int = 600,
 )
 
 /** Full-policy upsert (backend `UpsertEscalationPolicyRequest`) — the ladder is replaced whole, never patched. */
@@ -1392,6 +1393,7 @@ data class UpsertEscalationPolicyBody(
     val ladder: List<EscalationLadderStep>,
     val offenseWindowHours: Int,
     val countAutoModViolations: Boolean,
+    val defaultTimeoutSeconds: Int = 600,
 )
 
 /**
