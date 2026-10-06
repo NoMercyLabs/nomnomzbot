@@ -45,6 +45,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly IByokTtsProviderFactory _byokProviders;
     private readonly ITtsConfigService _config;
     private readonly ITtsLexiconService _lexicon;
+    private readonly ISpokenNameFormatter _spokenNames;
     private readonly ITtsProfanityCensor _censor;
     private readonly ISoundClipStore _audioStore;
     private readonly ITtsOverlayNotifier _ttsOverlay;
@@ -60,6 +61,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IByokTtsProviderFactory byokProviders,
         ITtsConfigService config,
         ITtsLexiconService lexicon,
+        ISpokenNameFormatter spokenNames,
         ITtsProfanityCensor censor,
         ISoundClipStore audioStore,
         ITtsOverlayNotifier ttsOverlay,
@@ -75,6 +77,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _byokProviders = byokProviders;
         _config = config;
         _lexicon = lexicon;
+        _spokenNames = spokenNames;
         _censor = censor;
         _audioStore = audioStore;
         _ttsOverlay = ttsOverlay;
@@ -237,6 +240,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             request.RatePercent,
             request.PitchPercent,
             segments: null,
+            request.SpokenNames,
             ct
         );
     }
@@ -389,6 +393,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             ratePercent: null,
             pitchPercent: null,
             segments,
+            request.SpokenNames,
             ct
         );
     }
@@ -435,6 +440,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             ratePercent: null,
             pitchPercent: null,
             segments: null,
+            spokenNames: null,
             ct
         );
         if (played.IsFailure)
@@ -591,7 +597,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
     /// to the OBS widget to render edge-side (no server audio); <c>byok</c>/<c>self_host</c> synthesize server-side.
     /// Shared by direct dispatch and post-approval so both planes obey the channel's <c>Mode</c>.
     /// Right before either leg, the channel's pronunciation lexicon rewrites the utterance (usernames and
-    /// message content alike) — so what is synthesized/pushed is always the lexicon-applied text.
+    /// message content alike) — so what is synthesized/pushed is always the lexicon-applied text. The spoken-name
+    /// cleaning runs right after it, so a name the override already rewrote is never touched twice.
     /// </summary>
     private async Task<Result<TtsDispatchOutcome>> DispatchAsync(
         Guid broadcasterId,
@@ -606,6 +613,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         double? ratePercent,
         double? pitchPercent,
         IReadOnlyList<TtsSegment>? segments,
+        IReadOnlyList<string>? spokenNames,
         CancellationToken ct
     )
     {
@@ -616,7 +624,10 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 lexed.Add(
                     segment with
                     {
-                        Text = await _lexicon.ApplyAsync(broadcasterId, segment.Text, ct),
+                        Text = _spokenNames.ApplyToText(
+                            await _lexicon.ApplyAsync(broadcasterId, segment.Text, ct),
+                            spokenNames
+                        ),
                     }
                 );
             segments = lexed;
@@ -624,7 +635,10 @@ public sealed class TtsDispatchService : ITtsDispatchService
         }
         else
         {
-            text = await _lexicon.ApplyAsync(broadcasterId, text, ct);
+            text = _spokenNames.ApplyToText(
+                await _lexicon.ApplyAsync(broadcasterId, text, ct),
+                spokenNames
+            );
         }
 
         return await (

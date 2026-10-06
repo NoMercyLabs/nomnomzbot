@@ -1238,6 +1238,10 @@ public static class DependencyInjection
         // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
         services.AddSingleton<Application.Contracts.Tts.ITtsProfanityCensor, TtsProfanityCensor>();
 
+        // Spoken-name cleaning for TTS (leetspeak, underscores, decoration) — pure + stateless, so singleton. Does not
+        // end in "Service", so registered explicitly here.
+        services.AddSingleton<ISpokenNameFormatter, SpokenNameFormatter>();
+
         // Background runner for fired scheduled pipeline tasks — singleton (one shared set of per-channel queues
         // and run slots). Does not end in "Service", so registered explicitly here.
         services.AddSingleton<IScheduledPipelineDispatcher, ScheduledPipelineDispatcher>();

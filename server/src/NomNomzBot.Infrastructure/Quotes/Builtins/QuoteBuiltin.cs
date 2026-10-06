@@ -182,7 +182,8 @@ public sealed class QuoteBuiltin : IBuiltinCommand
             BitsAmount: 0,
             CommunityStanding: "everyone",
             SourceMessageId: context.MessageId,
-            StreamId: null
+            StreamId: null,
+            SpokenNames: quote.QuotedDisplayName is { } author ? [author] : null
         );
 
         await _tts.RequestSpeakAsync(request, ct);

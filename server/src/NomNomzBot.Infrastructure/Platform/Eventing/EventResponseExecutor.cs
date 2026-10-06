@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Infrastructure.Tts;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
@@ -333,7 +334,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                         : 0,
                     CommunityStanding: "broadcaster",
                     SourceMessageId: null,
-                    StreamId: null
+                    StreamId: null,
+                    SpokenNames: SpokenNameVariables.From(variables)
                 ),
                 ct
             );
