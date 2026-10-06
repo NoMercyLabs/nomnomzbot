@@ -367,13 +367,13 @@ data class ViewerPermits(
 
 /**
  * Custom bot behavior overrides (owner punch list §3 row 6) — backend `ViewerOverridesDto`. All three fields
- * are genuinely editable: [shoutoutMessageTemplate] / [raidMessageTemplate] via ModerationApi's shoutout-
- * override endpoints (keyed on the person's Twitch id), [ttsVoice] via TtsApi's per-viewer voice endpoints.
+ * are genuinely editable: [shoutoutMessageTemplate] (the person's one line, also used when raiding them) via
+ * ModerationApi's shoutout-override endpoints (keyed on the person's Twitch id), [ttsVoice] via TtsApi's
+ * per-viewer voice endpoints.
  */
 @Serializable
 data class ViewerOverrides(
     val shoutoutMessageTemplate: String? = null,
-    val raidMessageTemplate: String? = null,
     val ttsVoice: UserTtsVoice? = null,
 )
 

@@ -62,7 +62,6 @@ import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
 import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.Quote
-import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.ViewerIdentity
 import bot.nomnomz.dashboard.core.network.ViewerProfileSummary
@@ -101,8 +100,6 @@ import nomnomzbot.composeapp.generated.resources.community_messages_clear_confir
 import nomnomzbot.composeapp.generated.resources.community_messages_clear_message
 import nomnomzbot.composeapp.generated.resources.community_messages_clear_title
 import nomnomzbot.composeapp.generated.resources.community_messages_placeholder
-import nomnomzbot.composeapp.generated.resources.community_messages_raid_help
-import nomnomzbot.composeapp.generated.resources.community_messages_raid_label
 import nomnomzbot.composeapp.generated.resources.community_messages_save
 import nomnomzbot.composeapp.generated.resources.community_messages_section
 import nomnomzbot.composeapp.generated.resources.community_messages_shoutout_help
@@ -350,10 +347,8 @@ private fun ProfileContent(
                 overrides = profile.overrides,
                 availableVoices = state.availableVoices,
                 write = configWrite,
-                onSaveMessage = { kind, template ->
-                    scope.launch { controller.saveOverrideMessage(kind, template) }
-                },
-                onClearMessage = { kind -> scope.launch { controller.clearOverrideMessage(kind) } },
+                onSaveMessage = { template -> scope.launch { controller.saveOverrideMessage(template) } },
+                onClearMessage = { scope.launch { controller.clearOverrideMessage() } },
                 onSaveVoice = { voiceId -> scope.launch { controller.saveTtsVoice(voiceId) } },
                 onClearVoice = { scope.launch { controller.clearTtsVoice() } },
             )
@@ -845,7 +840,7 @@ private fun PermitsSection(
 }
 
 // ── 6. Custom bot behavior (owner punch list §3 row 6) ──────────────────────────────────────────────────────
-// All three are genuinely editable: shoutout/raid lines via ModerationApi (the SAME endpoint the old Community
+// Both are genuinely editable: the person's one shoutout line (also used when raiding them) via ModerationApi (the SAME endpoint the old Community
 // "Messages" section used, keyed on the person's Twitch id), TTS voice via TtsApi's per-viewer voice endpoints
 // — a real picker from [availableVoices], not a raw voice-id text field.
 @Composable
@@ -854,27 +849,16 @@ private fun OverridesSection(
     overrides: bot.nomnomz.dashboard.core.network.ViewerOverrides,
     availableVoices: List<TtsVoice>,
     write: ManageDecision,
-    onSaveMessage: (kind: String, template: String) -> Unit,
-    onClearMessage: (kind: String) -> Unit,
+    onSaveMessage: (template: String) -> Unit,
+    onClearMessage: () -> Unit,
     onSaveVoice: (voiceId: String) -> Unit,
     onClearVoice: () -> Unit,
 ) {
     ProfileCard(title = stringResource(Res.string.community_messages_section)) {
         OverrideMessageField(
-            kind = ShoutoutOverrideKind.Shoutout,
             label = stringResource(Res.string.community_messages_shoutout_label),
             help = stringResource(Res.string.community_messages_shoutout_help),
             saved = overrides.shoutoutMessageTemplate,
-            write = write,
-            name = name,
-            onSave = onSaveMessage,
-            onClear = onClearMessage,
-        )
-        OverrideMessageField(
-            kind = ShoutoutOverrideKind.Raid,
-            label = stringResource(Res.string.community_messages_raid_label),
-            help = stringResource(Res.string.community_messages_raid_help),
-            saved = overrides.raidMessageTemplate,
             write = write,
             name = name,
             onSave = onSaveMessage,
@@ -891,20 +875,19 @@ private fun OverridesSection(
 
 @Composable
 private fun OverrideMessageField(
-    kind: String,
     label: String,
     help: String,
     saved: String?,
     write: ManageDecision,
     name: String,
-    onSave: (kind: String, template: String) -> Unit,
-    onClear: (kind: String) -> Unit,
+    onSave: (template: String) -> Unit,
+    onClear: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    var draft: String by remember(kind) { mutableStateOf(saved.orEmpty()) }
-    var pendingClear: Boolean by remember(kind) { mutableStateOf(false) }
+    var draft: String by remember { mutableStateOf(saved.orEmpty()) }
+    var pendingClear: Boolean by remember { mutableStateOf(false) }
     LaunchedEffect(saved) { draft = saved.orEmpty() }
 
     ManageGate(decision = write) { enabled ->
@@ -920,7 +903,7 @@ private fun OverrideMessageField(
             Text(text = help, style = typography.xs, color = tokens.mutedForeground)
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 val canSave: Boolean = enabled && draft.trim().isNotBlank() && draft.trim() != saved.orEmpty()
-                TextButton(onClick = { if (canSave) onSave(kind, draft.trim()) }, enabled = canSave) {
+                TextButton(onClick = { if (canSave) onSave(draft.trim()) }, enabled = canSave) {
                     Text(text = stringResource(Res.string.community_messages_save), color = if (canSave) tokens.primary else tokens.mutedForeground)
                 }
                 if (!saved.isNullOrBlank()) {
@@ -938,7 +921,7 @@ private fun OverrideMessageField(
             confirmLabel = stringResource(Res.string.community_messages_clear_confirm),
             dismissLabel = stringResource(Res.string.community_stats_close),
             destructive = false,
-            onConfirm = { pendingClear = false; onClear(kind) },
+            onConfirm = { pendingClear = false; onClear() },
             onDismiss = { pendingClear = false },
         )
     }

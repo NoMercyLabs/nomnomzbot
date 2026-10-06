@@ -10653,11 +10653,6 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("MessageTemplate")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -10678,9 +10673,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "TargetTwitchUserId", "Kind")
+                    b.HasIndex("BroadcasterId", "TargetTwitchUserId")
                         .IsUnique()
-                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target_Kind")
+                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target")
                         .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("ShoutoutOverrides");

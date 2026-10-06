@@ -41,25 +41,4 @@ public class ShoutoutOverride : SoftDeletableEntity, ITenantScoped
 
     [MaxLength(1000)]
     public string MessageTemplate { get; set; } = null!;
-
-    /// <summary>
-    /// Which line this is: <see cref="ShoutoutOverrideKinds.Shoutout"/> (the default, and what every row
-    /// written before this column existed is) or <see cref="ShoutoutOverrideKinds.Raid"/>.
-    /// </summary>
-    [MaxLength(20)]
-    public string Kind { get; set; } = ShoutoutOverrideKinds.Shoutout;
-}
-
-/// <summary>The closed set of per-person message kinds. A row's kind is one of exactly these.</summary>
-public static class ShoutoutOverrideKinds
-{
-    /// <summary>The line posted when this person is shouted out.</summary>
-    public const string Shoutout = "shoutout";
-
-    /// <summary>The line posted when this channel raids this person.</summary>
-    public const string Raid = "raid";
-
-    public static bool IsKnown(string? kind) => kind is Shoutout or Raid;
-
-    public static IReadOnlyList<string> All { get; } = [Shoutout, Raid];
 }

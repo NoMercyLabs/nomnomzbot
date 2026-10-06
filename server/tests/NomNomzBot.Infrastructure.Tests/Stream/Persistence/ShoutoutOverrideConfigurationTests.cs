@@ -17,15 +17,8 @@ using NomNomzBot.Infrastructure.Stream.Persistence;
 namespace NomNomzBot.Infrastructure.Tests.Stream.Persistence;
 
 /// <summary>
-/// Regression (S-UX-4-FINISH): <see cref="ShoutoutOverride.Kind"/> says a broadcaster's shoutout line and
-/// their raid line for the SAME person are two separate rows — but the unique index that shipped alongside
-/// <c>Kind</c> (migration <c>AddShoutoutOverrideKind</c>) never grew to include it, so it stayed
-/// <c>(BroadcasterId, TargetTwitchUserId)</c> only. <c>ModerationController.SetShoutoutOverride</c> looks a
-/// row up by <c>(Broadcaster, Target, Kind)</c> and always finds nothing for the second kind, so it always
-/// INSERTs — which the old two-column unique index then rejected outright the moment a second kind was
-/// saved for a person who already had one. Found live: setting a raid line for a viewer who already had a
-/// shoutout line failed. Proves the fixed <c>IX_ShoutoutOverride_Broadcaster_Target_Kind</c> index lets the
-/// two coexist, while still rejecting a genuine duplicate of the SAME kind for the SAME person.
+/// A person has ONE custom line per channel: the unique index is (BroadcasterId, TargetTwitchUserId) among
+/// live rows, and a soft-deleted row frees the slot for a re-add.
 /// </summary>
 public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
 {
@@ -51,55 +44,7 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ShoutoutAndRaidLines_ForTheSamePerson_BothPersist()
-    {
-        Guid broadcasterId = Guid.NewGuid();
-        const string targetTwitchUserId = "773007254";
-
-        _db.ShoutoutOverrides.Add(
-            new ShoutoutOverride
-            {
-                BroadcasterId = broadcasterId,
-                TargetTwitchUserId = targetTwitchUserId,
-                TargetDisplayName = "Viewer One",
-                MessageTemplate = "Go check out Viewer One!",
-                Kind = ShoutoutOverrideKinds.Shoutout,
-            }
-        );
-        await _db.SaveChangesAsync();
-
-        // Before the fix this second insert throws SqliteException (UNIQUE constraint failed) — the exact
-        // failure driving the raid line's PUT hit live, because the two-column index could not tell this
-        // apart from a duplicate of the row just saved above.
-        _db.ShoutoutOverrides.Add(
-            new ShoutoutOverride
-            {
-                BroadcasterId = broadcasterId,
-                TargetTwitchUserId = targetTwitchUserId,
-                TargetDisplayName = "Viewer One",
-                MessageTemplate = "Raiding Viewer One now!",
-                Kind = ShoutoutOverrideKinds.Raid,
-            }
-        );
-        await _db.SaveChangesAsync();
-
-        List<ShoutoutOverride> rows = await _db
-            .ShoutoutOverrides.AsNoTracking()
-            .Where(o =>
-                o.BroadcasterId == broadcasterId && o.TargetTwitchUserId == targetTwitchUserId
-            )
-            .OrderBy(o => o.Kind)
-            .ToListAsync();
-
-        Assert.Equal(2, rows.Count);
-        Assert.Equal(ShoutoutOverrideKinds.Raid, rows[0].Kind);
-        Assert.Equal("Raiding Viewer One now!", rows[0].MessageTemplate);
-        Assert.Equal(ShoutoutOverrideKinds.Shoutout, rows[1].Kind);
-        Assert.Equal("Go check out Viewer One!", rows[1].MessageTemplate);
-    }
-
-    [Fact]
-    public async Task TwoOverrides_SamePersonSameKind_StillViolatesUniqueness()
+    public async Task TwoOverrides_ForTheSamePerson_ViolateUniqueness()
     {
         Guid broadcasterId = Guid.NewGuid();
         const string targetTwitchUserId = "773007254";
@@ -111,7 +56,6 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
                 TargetTwitchUserId = targetTwitchUserId,
                 TargetDisplayName = "Viewer One",
                 MessageTemplate = "First",
-                Kind = ShoutoutOverrideKinds.Shoutout,
             }
         );
         await _db.SaveChangesAsync();
@@ -122,13 +66,11 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
                 BroadcasterId = broadcasterId,
                 TargetTwitchUserId = targetTwitchUserId,
                 TargetDisplayName = "Viewer One",
-                MessageTemplate = "Second, same kind",
-                Kind = ShoutoutOverrideKinds.Shoutout,
+                MessageTemplate = "Second, same person",
             }
         );
 
-        // The fix narrows uniqueness to include Kind — it must not have widened it away entirely. A true
-        // duplicate (same broadcaster, target AND kind) is still rejected at the database.
+        // A person has one line per channel: a second live row for the same broadcaster and target is rejected.
         await Assert.ThrowsAsync<DbUpdateException>(() => _db.SaveChangesAsync());
     }
 
@@ -154,7 +96,6 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
                 TargetTwitchUserId = sameTargetAcrossChannels,
                 TargetDisplayName = "Viewer One",
                 MessageTemplate = "Channel A's own line for Viewer One",
-                Kind = ShoutoutOverrideKinds.Shoutout,
             }
         );
         _db.ShoutoutOverrides.Add(
@@ -164,12 +105,11 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
                 TargetTwitchUserId = sameTargetAcrossChannels,
                 TargetDisplayName = "Viewer One",
                 MessageTemplate = "Channel B's DIFFERENT line for the same viewer",
-                Kind = ShoutoutOverrideKinds.Shoutout,
             }
         );
         await _db.SaveChangesAsync();
 
-        // Both rows persist independently — the unique index (BroadcasterId, TargetTwitchUserId, Kind) does
+        // Both rows persist independently — the unique index (BroadcasterId, TargetTwitchUserId) does
         // NOT collapse them, proving the row is keyed per (channel, viewer), not per viewer alone.
         List<ShoutoutOverride> both = await _db
             .ShoutoutOverrides.AsNoTracking()
@@ -185,7 +125,7 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
                 o.BroadcasterId == broadcasterA && o.TargetTwitchUserId == sameTargetAcrossChannels
             );
         seenByA.Should().NotBeNull();
-        seenByA!.MessageTemplate.Should().Be("Channel A's own line for Viewer One");
+        seenByA.MessageTemplate.Should().Be("Channel A's own line for Viewer One");
     }
 }
 

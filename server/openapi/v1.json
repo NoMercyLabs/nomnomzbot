@@ -58120,14 +58120,6 @@
             }
           },
           {
-            "name": "kind",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "default": "shoutout"
-            }
-          },
-          {
             "name": "version",
             "in": "path",
             "required": true,
@@ -117920,8 +117912,7 @@
         "required": [
           "targetTwitchUserId",
           "targetDisplayName",
-          "messageTemplate",
-          "kind"
+          "messageTemplate"
         ],
         "type": "object",
         "properties": {
@@ -117933,10 +117924,6 @@
           },
           "messageTemplate": {
             "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "description": "Which line this is — `shoutout` or `raid`. Rows written before the kind existed read as\n`shoutout`, which is what they were."
           }
         }
       },
@@ -136653,11 +136640,6 @@
           },
           "messageTemplate": {
             "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "description": "Defaults to `shoutout` so an existing caller keeps its meaning.",
-            "default": "shoutout"
           }
         }
       },
@@ -137660,18 +137642,11 @@
       "ViewerOverridesDto": {
         "required": [
           "shoutoutMessageTemplate",
-          "raidMessageTemplate",
           "ttsVoice"
         ],
         "type": "object",
         "properties": {
           "shoutoutMessageTemplate": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "raidMessageTemplate": {
             "type": [
               "null",
               "string"
@@ -137688,7 +137663,7 @@
             ]
           }
         },
-        "description": "Custom bot behavior overrides — shoutout, raid, TTS voice (owner punch list §3 row 6)."
+        "description": "Custom bot behavior overrides — the person's one shoutout line (also used when raiding them) and TTS\nvoice (owner punch list §3 row 6)."
       },
       "ViewerPermitsDto": {
         "required": [

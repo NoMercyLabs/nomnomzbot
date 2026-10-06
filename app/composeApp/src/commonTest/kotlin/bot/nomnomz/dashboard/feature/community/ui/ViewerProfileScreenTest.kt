@@ -162,7 +162,7 @@ class ViewerProfileScreenTest {
         // The ManageGate wraps the disabled control in a parent node carrying the [Disabled] state + reason —
         // the same shape TimersScreenTest/CommandsScreenTest assert against for every other gated screen. The
         // overrides section sits below the initial LazyColumn viewport — scroll via its unique saved value
-        // rather than "Save" itself, which is ambiguous (both the shoutout and raid fields render one).
+        // rather than "Save" itself, which is ambiguous (other sections render one too).
         scrollTo("Go check out Cathy!")
         onAllNodesWithText("Save")[0].assertIsNotEnabled()
     }

@@ -18,7 +18,6 @@ using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Stream.Entities;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.Community;
 using NSubstitute;
@@ -268,7 +267,7 @@ public sealed class ViewerProfileServiceTests
     }
 
     [Fact]
-    public async Task GetProfileAsync_FoldsShoutoutAndRaidOverrides_ByKind_FromTheirOwnRows()
+    public async Task GetProfileAsync_FoldsTheOneShoutoutLine_FromThePersonsOwnRow()
     {
         (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
         await SeedSubjectAsync(db);
@@ -280,17 +279,6 @@ public sealed class ViewerProfileServiceTests
                 TargetTwitchUserId = "subject-twitch",
                 TargetDisplayName = "Subject",
                 MessageTemplate = "Go check out Subject!",
-                Kind = ShoutoutOverrideKinds.Shoutout,
-            }
-        );
-        db.ShoutoutOverrides.Add(
-            new()
-            {
-                BroadcasterId = Broadcaster,
-                TargetTwitchUserId = "subject-twitch",
-                TargetDisplayName = "Subject",
-                MessageTemplate = "Raiding Subject now!",
-                Kind = ShoutoutOverrideKinds.Raid,
             }
         );
         await db.SaveChangesAsync();
@@ -298,7 +286,6 @@ public sealed class ViewerProfileServiceTests
         Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
 
         result.Value.Overrides.ShoutoutMessageTemplate.Should().Be("Go check out Subject!");
-        result.Value.Overrides.RaidMessageTemplate.Should().Be("Raiding Subject now!");
     }
 
     [Fact]

@@ -140,22 +140,20 @@ interface ModerationApi {
     suspend fun shoutoutOverrides(channelId: String): ApiResult<List<ShoutoutOverride>>
 
     /**
-     * Create or update this channel's own [kind] line for [targetTwitchUserId] ([ShoutoutOverrideKind]).
-     * The row is keyed on (target, kind), so writing the raid line never disturbs the shoutout line.
+     * Create or update this channel's one custom line for [targetTwitchUserId]. The bot uses it for the
+     * shoutout and when this channel raids that person.
      */
     suspend fun setShoutoutOverride(
         channelId: String,
         targetTwitchUserId: String,
         targetDisplayName: String,
         messageTemplate: String,
-        kind: String = ShoutoutOverrideKind.Shoutout,
     ): ApiResult<Unit>
 
     /** Remove this channel's own shoutout line for [targetTwitchUserId]. */
     suspend fun deleteShoutoutOverride(
         channelId: String,
         targetTwitchUserId: String,
-        kind: String = ShoutoutOverrideKind.Shoutout,
     ): ApiResult<Unit>
 
     /**
@@ -525,21 +523,18 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         targetTwitchUserId: String,
         targetDisplayName: String,
         messageTemplate: String,
-        kind: String,
     ): ApiResult<Unit> =
         client.putUnit(
             "api/v1/channels/$channelId/moderation/shoutout-overrides",
-            UpsertShoutoutOverrideBody(targetTwitchUserId, targetDisplayName, messageTemplate, kind),
+            UpsertShoutoutOverrideBody(targetTwitchUserId, targetDisplayName, messageTemplate),
         )
 
     override suspend fun deleteShoutoutOverride(
         channelId: String,
         targetTwitchUserId: String,
-        kind: String,
     ): ApiResult<Unit> =
         client.deleteUnit(
-            "api/v1/channels/$channelId/moderation/shoutout-overrides/" +
-                "${targetTwitchUserId.encodeURLPathPart()}?kind=${kind.encodeURLQueryComponent()}"
+            "api/v1/channels/$channelId/moderation/shoutout-overrides/${targetTwitchUserId.encodeURLPathPart()}"
         )
 
     // Single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the context object.
@@ -863,15 +858,7 @@ data class ShoutoutOverride(
     val targetTwitchUserId: String = "",
     val targetDisplayName: String = "",
     val messageTemplate: String = "",
-    /** Which line this is — [ShoutoutOverrideKind.Shoutout] or [ShoutoutOverrideKind.Raid]. */
-    val kind: String = ShoutoutOverrideKind.Shoutout,
 )
-
-/** The closed set of per-person message kinds the backend accepts. */
-object ShoutoutOverrideKind {
-    const val Shoutout: String = "shoutout"
-    const val Raid: String = "raid"
-}
 
 /** Mirrors the backend `UpsertShoutoutOverrideRequest`. */
 @Serializable
@@ -879,7 +866,6 @@ data class UpsertShoutoutOverrideBody(
     val targetTwitchUserId: String,
     val targetDisplayName: String,
     val messageTemplate: String,
-    val kind: String = ShoutoutOverrideKind.Shoutout,
 )
 
 /**
