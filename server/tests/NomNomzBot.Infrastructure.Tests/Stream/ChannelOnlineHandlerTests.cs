@@ -227,8 +227,6 @@ public sealed class ChannelOnlineHandlerTests
                 ViewCount: 0,
                 CreatedAt: DateTimeOffset.UnixEpoch
             ),
-            "line",
-            false,
             "viewer-1",
             IsRaid: false,
             TimeSpan.FromMinutes(2),

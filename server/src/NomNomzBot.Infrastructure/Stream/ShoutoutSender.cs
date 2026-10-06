@@ -112,17 +112,28 @@ public sealed class ShoutoutSender : IShoutoutSender
 
         // rawUserId is the Twitch id of the channel to shout out. The sub-client resolves this channel's
         // tenant Guid → Twitch id internally and sends the shoutout as its own moderator.
-        Result result = request.SkipNativeCall
-            ? Result.Failure("native shoutout skipped: cooldown active")
-            : await _chat.SendShoutoutAsync(request.BroadcasterId, rawUserId, cancellationToken);
+        Result result =
+            request.SkipNativeCall || request.DeferNative
+                ? Result.Failure("native shoutout skipped: cooldown active")
+                : await _chat.SendShoutoutAsync(
+                    request.BroadcasterId,
+                    rawUserId,
+                    cancellationToken
+                );
 
-        ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
+        // A deferred native call is still waiting in the queue: its run stamps the cooldowns, not this one. A
+        // queued native call that failed stamps nothing either, so its retry is not mistaken for a repeat.
+        bool stamps = !request.DeferNative && !(request.SkipAnnouncement && result.IsFailure);
+        ChannelContext? channelCtx = stamps ? _registry.Get(request.BroadcasterId) : null;
         if (channelCtx is not null)
         {
             DateTimeOffset now = _timeProvider.GetUtcNow();
             channelCtx.LastGlobalShoutout = now;
             channelCtx.LastShoutoutPerUser[rawUserId] = now;
         }
+
+        if (request.SkipAnnouncement)
+            return NativeOnlyOutcome(result, rawUserId);
 
         // The native Helix shoutout carries no visible text and Twitch renders it minimally — post the
         // channel's own custom-templated announcement too (old-bot parity), independent of whether the
@@ -199,6 +210,18 @@ public sealed class ShoutoutSender : IShoutoutSender
                 ? $"shoutout announced for {rawUserId} (native Twitch shoutout not sent)"
                 : $"shoutout sent to {rawUserId}"
         );
+    }
+
+    // The queued run carries only the native call: a rate limit or dropped connection goes back in the queue,
+    // anything else is final (the announcement and TTS went out when the shoutout was asked for).
+    private ActionResult NativeOnlyOutcome(Result native, string rawUserId)
+    {
+        if (native.IsSuccess)
+            return ActionResult.Success($"shoutout sent to {rawUserId}");
+        string failure = $"the native shoutout for {rawUserId} was not sent: {native.ErrorMessage}";
+        return IsTransient(native.ErrorCode)
+            ? ActionResult.RetryableFailure(failure)
+            : ActionResult.Failure(failure);
     }
 
     // A rate limit or a dropped connection passes by itself; a missing scope or token never does.

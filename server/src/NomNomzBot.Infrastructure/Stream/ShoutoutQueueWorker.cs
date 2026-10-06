@@ -117,7 +117,14 @@ public sealed class ShoutoutQueueWorker : BackgroundService
             );
             IShoutoutSender sender = scope.ServiceProvider.GetRequiredService<IShoutoutSender>();
             result = await sender.SendAsync(
-                new(item.BroadcasterId, item.Target, item.Announcement, item.Speak, skipNativeCall),
+                new(
+                    item.BroadcasterId,
+                    item.Target,
+                    string.Empty,
+                    Speak: false,
+                    skipNativeCall,
+                    SkipAnnouncement: true
+                ),
                 cancellationToken
             );
         }

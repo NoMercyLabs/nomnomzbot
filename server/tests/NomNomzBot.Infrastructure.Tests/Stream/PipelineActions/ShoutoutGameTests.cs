@@ -230,7 +230,7 @@ public sealed class ShoutoutGameTests
     }
 
     [Fact]
-    public async Task A_queued_shoutout_already_holds_the_game_in_its_announcement()
+    public async Task A_queued_shoutout_announces_the_game_at_once()
     {
         Rig rig = await BuildAsync(ChannelsReturning(Found("Just Chatting")));
         rig.ChannelCtx.LastGlobalShoutout = DateTimeOffset.UtcNow;
@@ -238,8 +238,14 @@ public sealed class ShoutoutGameTests
         ActionResult result = await rig.Action.ExecuteAsync(Ctx(), Step());
 
         result.Output.Should().Be("queued (global cooldown)");
-        rig.Queue.Peek(Channel)!
-            .Announcement.Should()
-            .Be("Playing Just Chatting with numerictarget");
+        rig.Queue.Peek(Channel).Should().NotBeNull();
+        await rig
+            .Chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "Playing Just Chatting with numerictarget",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

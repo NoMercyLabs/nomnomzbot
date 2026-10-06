@@ -215,7 +215,7 @@ public sealed class ShoutoutRaidTtsTests
     }
 
     [Fact]
-    public async Task A_raid_shoutout_inside_the_global_cooldown_waits_instead_of_announcing_early()
+    public async Task A_raid_shoutout_inside_the_global_cooldown_announces_at_once_and_only_the_native_call_waits()
     {
         Rig rig = await BuildAsync();
         rig.ChannelCtx.LastGlobalShoutout = TimeProvider.System.GetUtcNow();
@@ -225,8 +225,8 @@ public sealed class ShoutoutRaidTtsTests
         result.Succeeded.Should().BeTrue();
         result.Output.Should().Be("queued (global cooldown)");
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
-        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
-        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+        await AssertRaiderLineAnnouncedAsync(rig);
+        await AssertRaiderLineSpokenAsync(rig);
     }
 
     [Fact]
