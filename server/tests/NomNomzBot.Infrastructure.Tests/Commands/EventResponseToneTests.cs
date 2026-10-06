@@ -543,6 +543,72 @@ public sealed class EventResponseToneTests
             .Be("Hello {user}, welcome to the couch!", "an admin's edit is never touched");
     }
 
+    public static TheoryData<string> CatalogueEventTypes()
+    {
+        TheoryData<string> data = [];
+        foreach (string eventType in EventResponseToneCatalog.EventTypes)
+            data.Add(eventType);
+        return data;
+    }
+
+    // Owner report 2026-10-06 ("you call this sassy?"): a row saved while the dashboard pre-filled the preset text
+    // holds the informative line as literal text, so a sassy channel kept speaking it.
+    [Theory]
+    [MemberData(nameof(CatalogueEventTypes))]
+    public async Task An_own_row_holding_the_informative_default_as_text_still_speaks_its_channels_tone(
+        string eventType
+    )
+    {
+        Harness h = await BuildAsync();
+        EventResponse row = await h.Db.EventResponses.SingleAsync(r =>
+            r.BroadcasterId == SassyChannel && r.EventType == eventType
+        );
+        row.FollowsPlatformDefault = false;
+        row.IsEnabled = true;
+        row.ResponseType = "chat_message";
+        row.Message = EventResponseToneCatalog.FirstInformative(eventType);
+        await h.Db.SaveChangesAsync();
+
+        await h.Executor.ExecuteAsync(SassyChannel, eventType, "u1", "viewer", new());
+
+        SentTo(h, SassyChannel)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOneOf(EventResponseToneCatalog.Get(PersonalityTone.Sassy, eventType));
+    }
+
+    [Theory]
+    [MemberData(nameof(CatalogueEventTypes))]
+    public async Task Saving_the_informative_default_as_the_text_of_a_chat_row_stores_no_text(
+        string eventType
+    )
+    {
+        Harness h = await BuildAsync();
+
+        Result<EventResponseDto> saved = await h.Channels.UpsertAsync(
+            SassyChannel.ToString(),
+            eventType,
+            new()
+            {
+                IsEnabled = true,
+                Message = EventResponseToneCatalog.FirstInformative(eventType),
+            }
+        );
+
+        saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        (
+            await h
+                .Db.EventResponses.AsNoTracking()
+                .SingleAsync(r => r.BroadcasterId == SassyChannel && r.EventType == eventType)
+        )
+            .Message.Should()
+            .BeNull("a saved copy of the shown default must not freeze every tone into one line");
+        saved
+            .Value.ToneLines.Should()
+            .Equal(EventResponseToneCatalog.Get(PersonalityTone.Sassy, eventType));
+    }
+
     [Fact]
     public void Every_legacy_seeded_line_is_the_first_informative_line_of_its_event()
     {

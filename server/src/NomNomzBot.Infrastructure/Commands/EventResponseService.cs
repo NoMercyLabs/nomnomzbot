@@ -204,6 +204,9 @@ public class EventResponseService : IEventResponseService
                 entity.SpeakWithTts = request.SpeakWithTts.Value;
         }
         entity.FollowsPlatformDefault = false;
+        // A saved copy of the shown Informative default is no text of its own: the row keeps speaking its tone.
+        if (entity.ResponseType == "chat_message")
+            entity.Message = EventResponseToneCatalog.OwnText(eventType, entity.Message);
 
         await _db.SaveChangesAsync(cancellationToken);
         await _eventBus.PublishAsync(
@@ -346,7 +349,8 @@ public class EventResponseService : IEventResponseService
     }
 
     private static IReadOnlyList<string> OwnToneLines(EventResponse e, string tone) =>
-        e.ResponseType == "chat_message" && string.IsNullOrWhiteSpace(e.Message)
+        e.ResponseType == "chat_message"
+        && EventResponseToneCatalog.OwnText(e.EventType, e.Message) is null
             ? EventResponseToneCatalog.Get(tone, e.EventType)
             : [];
 }
