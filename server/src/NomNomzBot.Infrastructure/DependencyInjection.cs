@@ -1391,6 +1391,11 @@ public static class DependencyInjection
         // (music-sr.md §3.5.2). App-level YouTube:ApiKey — no per-user OAuth (music-sr.md decision #8).
         services.AddHttpClient("youtube");
 
+        // Keyless oEmbed title read for a YouTube link pasted while another provider is active. Explicit:
+        // the interface is not named I<X>Service, so the convention scan does not bind it.
+        services.AddHttpClient(Music.YouTubeOEmbedTitleLookup.ClientName);
+        services.AddSingleton<Music.IForeignLinkTitleLookup, Music.YouTubeOEmbedTitleLookup>();
+
         // YouTube live-chat READ transport (cross-platform combined chat, item 6). Stateless over the "youtube"
         // client + the broadcaster's youtube.readonly bearer, so a singleton the future poll worker can inject.
         services.AddSingleton<IYouTubeLiveChatClient, YouTubeLiveChatClient>();

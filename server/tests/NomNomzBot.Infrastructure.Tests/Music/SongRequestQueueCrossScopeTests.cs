@@ -163,7 +163,8 @@ public sealed class SongRequestQueueCrossScopeTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
 
     private static MusicTestDbContext SeedChannel(Guid channelId, MusicTestDbContext? into = null)

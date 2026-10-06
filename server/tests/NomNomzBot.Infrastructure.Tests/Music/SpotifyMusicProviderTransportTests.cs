@@ -261,7 +261,8 @@ public sealed class SpotifyMusicProviderTransportTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
         return (sut, bus, handler, store);
     }

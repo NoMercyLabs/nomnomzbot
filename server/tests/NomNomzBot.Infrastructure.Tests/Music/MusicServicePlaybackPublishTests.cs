@@ -502,7 +502,8 @@ public sealed class MusicServicePlaybackPublishTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -579,7 +580,8 @@ public sealed class MusicServicePlaybackPublishTests
                 Substitute.For<IServiceScopeFactory>(),
                 TimeProvider.System,
                 bus
-            )
+            ),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
         return (sut, bus, handler);
     }

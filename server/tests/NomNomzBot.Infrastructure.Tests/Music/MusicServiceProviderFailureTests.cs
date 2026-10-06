@@ -128,7 +128,8 @@ public sealed class MusicServiceProviderFailureTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
     }
 }

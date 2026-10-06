@@ -172,7 +172,8 @@ public sealed class MusicServiceCapacityTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
         return (sut, handler);
     }

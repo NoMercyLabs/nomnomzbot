@@ -49,6 +49,10 @@ public enum MusicProviderFailureReason
     /// <summary>The track exists, but the provider will not play it in the streamer's country. The provider
     /// still accepts it into its own queue and then skips it silently, so it must be refused up front.</summary>
     NotPlayableInRegion,
+
+    /// <summary>The query is a link this provider does not own and no title could be read from it, so it
+    /// was never searched as text (a URL string searched by name finds an unrelated song).</summary>
+    UnsupportedLink,
 }
 
 /// <summary>
@@ -234,6 +238,10 @@ public interface IMusicProvider
         string uriOrId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>True when the web link points at this provider's own catalogue, even if the track behind
+    /// it no longer exists. A link no provider owns is never searched as text.</summary>
+    bool OwnsLink(string link) => false;
 
     Task<bool> AddToQueueAsync(
         Guid broadcasterId,

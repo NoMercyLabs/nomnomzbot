@@ -125,6 +125,9 @@ public static partial class BuiltinResponseSlots
         /// <summary>The link is a playlist, album, show or artist, not a track — no variables.</summary>
         public const string UnsupportedContent = "unsupportedcontent";
 
+        /// <summary>The link belongs to another site and its title could not be read — no variables.</summary>
+        public const string UnsupportedLink = "unsupportedlink";
+
         /// <summary>The track cannot play in the streamer's country — no variables.</summary>
         public const string NotPlayable = "notplayable";
 

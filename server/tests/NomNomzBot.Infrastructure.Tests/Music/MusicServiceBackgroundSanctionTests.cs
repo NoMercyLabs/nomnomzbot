@@ -90,7 +90,8 @@ public sealed class MusicServiceBackgroundSanctionTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             sanctions,
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
 
         return (service, sanctions, provider);
