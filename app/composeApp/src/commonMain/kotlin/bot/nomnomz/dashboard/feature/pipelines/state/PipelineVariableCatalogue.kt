@@ -50,6 +50,44 @@ fun declaredVariablesBefore(steps: List<PipelineStep>, index: Int, palette: Runt
     return declared
 }
 
+/**
+ * A spot in the pipeline tree: a lane ([parentStepId] + [branch]; both null for the root) and, when
+ * [beforeStepId] names a step of that lane, the position in front of it (null means the end of the lane).
+ */
+data class VariableScope(val parentStepId: String? = null, val branch: String? = null, val beforeStepId: String? = null)
+
+/**
+ * The steps whose variables are visible at a spot in the pipeline tree, outermost first. The result holds the steps before the spot in its
+ * own lane, then, for each enclosing block up the tree, the steps before that block in the block's own lane.
+ * Nothing that runs after the spot is included.
+ */
+fun stepsInScope(steps: List<PipelineStep>, scope: VariableScope): List<PipelineStep> {
+    fun lane(parent: String?, laneBranch: String?): List<PipelineStep> =
+        steps.filter { it.parentStepId == parent && it.branch == laneBranch }.sortedBy { it.order ?: 0 }
+
+    val chunks: MutableList<List<PipelineStep>> = mutableListOf()
+    var parent: String? = scope.parentStepId
+    var laneBranch: String? = scope.branch
+    var stopAt: String? = scope.beforeStepId
+    val seen: MutableSet<String> = mutableSetOf()
+    while (true) {
+        val laneSteps: List<PipelineStep> = lane(parent, laneBranch)
+        val cut: Int = stopAt?.let { id -> laneSteps.indexOfFirst { it.id == id } }?.takeIf { it >= 0 } ?: laneSteps.size
+        chunks += laneSteps.take(cut)
+        val enclosing: PipelineStep = parent?.takeIf { seen.add(it) }?.let { id -> steps.firstOrNull { it.id == id } } ?: break
+        stopAt = enclosing.id
+        parent = enclosing.parentStepId
+        laneBranch = enclosing.branch
+    }
+    return chunks.asReversed().flatten()
+}
+
+/** The variables declared by the steps that run before a spot in the pipeline tree; see [stepsInScope]. */
+fun declaredVariablesInScope(steps: List<PipelineStep>, scope: VariableScope, palette: RuntimePalette): List<DeclaredVariable> {
+    val scoped: List<PipelineStep> = stepsInScope(steps, scope)
+    return declaredVariablesBefore(scoped, scoped.size, palette)
+}
+
 /** The picker rows: declared variables first (the most local), then the registry helpers. */
 fun variableOptions(declared: List<DeclaredVariable>, helpers: List<TemplateHelperDto>): List<VariableOption> =
     declared.map { VariableOption(key = it.name, descriptionKey = null, sample = it.sample) } +

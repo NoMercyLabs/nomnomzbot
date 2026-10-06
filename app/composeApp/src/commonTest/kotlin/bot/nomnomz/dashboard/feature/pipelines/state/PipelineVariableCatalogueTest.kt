@@ -98,6 +98,66 @@ class PipelineVariableCatalogueTest {
         assertEquals(listOf("a"), declaredVariablesBefore(steps, index = 2, palette = palette).map { it.name })
     }
 
+    private fun setVar(id: String, name: String, parent: String? = null, branch: String? = null, order: Int): PipelineStep =
+        PipelineStep(
+            action = PipelineNode(type = "set_variable", params = mapOf("name" to name)),
+            id = id,
+            parentStepId = parent,
+            branch = branch,
+            order = order,
+        )
+
+    private fun ifBlock(id: String, parent: String? = null, branch: String? = null, order: Int): PipelineStep =
+        PipelineStep(action = PipelineNode(type = "block"), id = id, parentStepId = parent, branch = branch, blockKind = "if", order = order)
+
+    // root: before, if1 { inner1, if2 { deep }, innerAfter }, after
+    private val tree: List<PipelineStep> =
+        listOf(
+            setVar("a", "before", order = 0),
+            ifBlock("if1", order = 1),
+            setVar("c", "after", order = 2),
+            setVar("i1", "inner1", parent = "if1", branch = "then", order = 0),
+            ifBlock("if2", parent = "if1", branch = "then", order = 1),
+            setVar("i3", "innerAfter", parent = "if1", branch = "then", order = 2),
+            setVar("d", "deep", parent = "if2", branch = "then", order = 0),
+        )
+
+    @Test
+    fun inside_an_if_lane_only_what_runs_before_it_is_offered() {
+        val declared: List<DeclaredVariable> =
+            declaredVariablesInScope(tree, VariableScope(parentStepId = "if1", branch = "then"), palette)
+
+        // The end of the lane: its own steps are all before the spot; the nested lane's "deep" and the root's "after" are not.
+        assertEquals(listOf("before", "inner1", "innerAfter"), declared.map { it.name })
+    }
+
+    @Test
+    fun a_block_nested_two_deep_sees_every_enclosing_lane_up_to_the_blocks_but_nothing_after() {
+        val declared: List<DeclaredVariable> =
+            declaredVariablesInScope(tree, VariableScope(parentStepId = "if2", branch = "then"), palette)
+
+        assertEquals(listOf("before", "inner1", "deep"), declared.map { it.name })
+    }
+
+    @Test
+    fun editing_a_step_in_a_lane_scopes_to_the_position_in_front_of_it() {
+        val declared: List<DeclaredVariable> =
+            declaredVariablesInScope(tree, VariableScope(parentStepId = "if1", branch = "then", beforeStepId = "if2"), palette)
+
+        assertEquals(listOf("before", "inner1"), declared.map { it.name })
+        assertEquals(
+            listOf("before"),
+            declaredVariablesInScope(tree, VariableScope(parentStepId = "if1", branch = "then", beforeStepId = "i1"), palette).map { it.name },
+        )
+    }
+
+    @Test
+    fun the_root_scope_sees_the_whole_root_lane_and_none_of_the_nested_lanes() {
+        val declared: List<DeclaredVariable> = declaredVariablesInScope(tree, VariableScope(), palette)
+
+        assertEquals(listOf("before", "after"), declared.map { it.name })
+    }
+
     @Test
     fun picking_a_variable_mid_text_inserts_at_the_cursor_and_keeps_the_text_around_it() {
         val field: TextFieldValue = TextFieldValue(text = "Hello , welcome", selection = TextRange(6))

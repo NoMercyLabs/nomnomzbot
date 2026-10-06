@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelperDto
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.feature.pipelines.state.EditorOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.VariableScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -101,7 +102,7 @@ class IfLoopVariablePickerTest {
                     IfBlockFormDialog(
                         initial = initialCondition,
                         steps = steps,
-                        index = steps.size,
+                        scope = VariableScope(),
                         palette = palette,
                         options = EditorOptions(),
                         templateHelpersApi = api,
@@ -128,6 +129,47 @@ class IfLoopVariablePickerTest {
     }
 
     @Test
+    fun a_variable_declared_after_the_if_is_not_listed_inside_its_lane_but_the_ones_before_are() = runComposeUiTest {
+        val tree: List<PipelineStep> =
+            listOf(
+                PipelineStep(id = "a", order = 0, action = PipelineNode(type = "set_variable", params = mapOf("name" to "winner"))),
+                PipelineStep(id = "if1", order = 1, action = PipelineNode(type = "block"), blockKind = "if"),
+                PipelineStep(id = "c", order = 2, action = PipelineNode(type = "set_variable", params = mapOf("name" to "afterIf"))),
+                PipelineStep(
+                    id = "i1",
+                    order = 0,
+                    parentStepId = "if1",
+                    branch = "then",
+                    action = PipelineNode(type = "set_variable", params = mapOf("name" to "sameLane")),
+                ),
+            )
+        setContent {
+            AppEnvironment(tag = "en") {
+                NomNomzTheme {
+                    IfBlockFormDialog(
+                        initial = initialCondition,
+                        steps = tree,
+                        scope = VariableScope(parentStepId = "if1", branch = "then"),
+                        palette = palette,
+                        options = EditorOptions(),
+                        templateHelpersApi = api,
+                        onOpenCodeScript = {},
+                        createCodeScript = { null },
+                        onDismiss = {},
+                        onSubmit = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+        typeBraceMidText()
+
+        onNodeWithText("{winner}").assertExists()
+        onNodeWithText("{sameLane}").assertExists()
+        onNodeWithText("{afterIf}").assertDoesNotExist()
+    }
+
+    @Test
     fun the_loop_while_dialog_lists_the_earlier_step_variable_and_a_pick_lands_mid_text() = runComposeUiTest {
         var whileCondition: PipelineNode? = null
         setContent {
@@ -141,7 +183,7 @@ class IfLoopVariablePickerTest {
                         initialMaxLoopRuntimeSeconds = null,
                         initialCondition = initialCondition,
                         steps = steps,
-                        index = steps.size,
+                        scope = VariableScope(),
                         palette = palette,
                         options = EditorOptions(),
                         templateHelpersApi = api,

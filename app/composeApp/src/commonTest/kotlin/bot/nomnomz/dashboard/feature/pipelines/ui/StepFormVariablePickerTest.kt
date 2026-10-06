@@ -34,6 +34,7 @@ import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelperDto
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.feature.pipelines.state.EditorOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.VariableScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -89,7 +90,7 @@ class StepFormVariablePickerTest {
                     StepFormDialog(
                         initial = messageStep,
                         steps = listOf(declaringStep, messageStep),
-                        index = 1,
+                        scope = VariableScope(),
                         palette = palette,
                         options = EditorOptions(),
                         templateHelpersApi = api,
