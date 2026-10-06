@@ -470,6 +470,7 @@ public static class TemplateHelperRegistry
                 "template.helper.transform"
             ),
             // ── Command arguments (command only) ────────────────────────────
+            Literal("args", CommandArgContexts, "template.helper.args_all"),
             Prefixed("args.<n>", "args.", CommandArgContexts, "template.helper.args"),
             // ── Triggering user (command + event response — no bare trigger user on a timer) ──
             Literal("user", TriggerContexts, "template.helper.user"),

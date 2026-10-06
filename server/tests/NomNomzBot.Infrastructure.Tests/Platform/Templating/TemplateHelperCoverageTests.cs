@@ -79,6 +79,7 @@ public sealed partial class TemplateHelperCoverageTests
     private static readonly HashSet<string> SeedPassthroughOnly = new(StringComparer.Ordinal)
     {
         "args.",
+        "args",
         "user",
         "user.id",
         "user.name",

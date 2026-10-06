@@ -41,13 +41,13 @@ internal static class FunCommandPresets
         {
             Name = "hug",
             Description = "Give someone a hug.",
-            TemplateResponse = "{user.name} gives {args.1} a big warm hug! 🤗",
+            TemplateResponse = "{user.name} gives {args} a big warm hug! 🤗",
         },
         new()
         {
             Name = "slap",
             Description = "Slap someone with a trout.",
-            TemplateResponse = "{user.name} slaps {args.1} around a bit with a large trout! 🐟",
+            TemplateResponse = "{user.name} slaps {args} around a bit with a large trout! 🐟",
         },
         new()
         {
@@ -72,10 +72,10 @@ internal static class FunCommandPresets
             Description = "Give someone a compliment.",
             TemplateResponses =
             [
-                "{args.1}, you're doing amazing today! ✨",
-                "{args.1} lights up the room! 🌟",
-                "{args.1} has impeccable taste in streams. 😎",
-                "{args.1} deserves a round of applause! 👏",
+                "{args}, you're doing amazing today! ✨",
+                "{args} lights up the room! 🌟",
+                "{args} has impeccable taste in streams. 😎",
+                "{args} deserves a round of applause! 👏",
             ],
         },
     ];

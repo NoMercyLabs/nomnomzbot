@@ -47,9 +47,9 @@ public sealed class FunCommandPresetResolutionTests
         );
     }
 
-    private Task<string> ResolveAsync(string template)
+    private Task<string> ResolveAsync(string template, string args = "Bob")
     {
-        Dictionary<string, string> vars = ChatMessageHandler.BuildArgumentVariables("Bob");
+        Dictionary<string, string> vars = ChatMessageHandler.BuildArgumentVariables(args);
         vars["user"] = "Stoney";
         vars["user.name"] = "Stoney";
         return _resolver.ResolveAsync(template, vars, Channel);
@@ -86,5 +86,29 @@ public sealed class FunCommandPresetResolutionTests
         string resolved = await ResolveAsync(hug.TemplateResponse!);
 
         resolved.Should().Be("Stoney gives Bob a big warm hug! 🤗");
+    }
+
+    [Theory]
+    [InlineData("hug", "Stoney gives the bot a big warm hug! 🤗")]
+    [InlineData("slap", "Stoney slaps the bot around a bit with a large trout! 🐟")]
+    public async Task ASingleTargetPreset_JoinsEveryWordTheViewerTyped(string key, string expected)
+    {
+        CreateCommandDto preset = FunCommandPresets.Find(key)!;
+
+        string resolved = await ResolveAsync(preset.TemplateResponse!, "the bot");
+
+        resolved.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task TheCompliments_JoinEveryWordTheViewerTyped()
+    {
+        CreateCommandDto compliment = FunCommandPresets.Find("compliment")!;
+
+        foreach (string template in compliment.TemplateResponses!)
+        {
+            string resolved = await ResolveAsync(template, "the whole chat");
+            resolved.Should().StartWith("the whole chat");
+        }
     }
 }

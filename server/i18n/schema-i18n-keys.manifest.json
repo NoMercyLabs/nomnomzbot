@@ -967,6 +967,7 @@
     "template.helper.also_said",
     "template.helper.anonymous",
     "template.helper.args",
+    "template.helper.args_all",
     "template.helper.bits",
     "template.helper.botname",
     "template.helper.broadcaster",
