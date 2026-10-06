@@ -48,8 +48,13 @@ interface ChatApi {
     /** Delete the single chat message [messageId] (moderation quick-action). */
     suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit>
 
-    /** Timeout [userId] for [durationSeconds] (moderation quick-action). */
-    suspend fun timeout(channelId: String, userId: String, durationSeconds: Int): ApiResult<Unit>
+    /** Timeout [userId] for [durationSeconds] (moderation quick-action); [reason] lands in Twitch and the mod log. */
+    suspend fun timeout(
+        channelId: String,
+        userId: String,
+        durationSeconds: Int,
+        reason: String? = null,
+    ): ApiResult<Unit>
 
     /**
      * Ban [targetTwitchUserId] — in THIS channel ([scope] = "this_channel"; a permanent ban, or a timeout when
@@ -123,6 +128,7 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
         channelId: String,
         userId: String,
         durationSeconds: Int,
+        reason: String?,
     ): ApiResult<Unit> =
         client.postUnit(
             "api/v1/channels/$channelId/moderation/actions",
@@ -130,6 +136,7 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
                 action = "timeout",
                 targetUserId = userId,
                 durationSeconds = durationSeconds,
+                reason = reason,
             ),
         )
 
@@ -198,7 +205,7 @@ data class SendChatMessageBody(
 
 /**
  * The moderation-action request body (backend `PerformModerationActionRequest`). camelCase JSON. The chat page
- * only issues `timeout`, so [reason] stays null; [durationSeconds] carries the timeout length.
+ * issues `timeout`: [durationSeconds] carries the length and [reason] the optional reason chip or typed text.
  */
 @Serializable
 data class ModerationActionBody(

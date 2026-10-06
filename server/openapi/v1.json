@@ -108600,7 +108600,8 @@
           "isEnabled",
           "ladder",
           "offenseWindowHours",
-          "countAutoModViolations"
+          "countAutoModViolations",
+          "defaultTimeoutSeconds"
         ],
         "type": "object",
         "properties": {
@@ -108623,6 +108624,14 @@
           },
           "countAutoModViolations": {
             "type": "boolean"
+          },
+          "defaultTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "The channel's escalation policy (J.10)."
@@ -136291,6 +136300,14 @@
           },
           "countAutoModViolations": {
             "type": "boolean"
+          },
+          "defaultTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "Full-policy upsert — the ladder is replaced whole, never patched."

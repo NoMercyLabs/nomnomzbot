@@ -281,4 +281,76 @@ public sealed class ModerationEscalationServiceTests
         );
         nextOffense.Value.Should().Be(new EscalationDecision("warn", null, concurrency + 1));
     }
+
+    [Fact]
+    public async Task Unset_policy_reads_back_a_default_timeout_of_600_seconds()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (ModerationEscalationService sut, _, _) = Build(database);
+
+        (await sut.GetPolicyAsync(Channel)).Value.DefaultTimeoutSeconds.Should().Be(600);
+    }
+
+    [Fact]
+    public async Task Upsert_persists_the_default_timeout_and_reads_it_back()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (ModerationEscalationService sut, _, _) = Build(database);
+
+        Result<ModerationEscalationPolicyDto> saved = await sut.UpsertPolicyAsync(
+            Channel,
+            EnabledPolicy() with
+            {
+                DefaultTimeoutSeconds = 300,
+            }
+        );
+
+        saved.Value.DefaultTimeoutSeconds.Should().Be(300);
+        (await sut.GetPolicyAsync(Channel)).Value.DefaultTimeoutSeconds.Should().Be(300);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(1209601)]
+    public async Task Upsert_rejects_a_default_timeout_outside_1_to_1209600_and_keeps_the_old_value(
+        int seconds
+    )
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (ModerationEscalationService sut, _, _) = Build(database);
+        await sut.UpsertPolicyAsync(Channel, EnabledPolicy() with { DefaultTimeoutSeconds = 300 });
+
+        Result<ModerationEscalationPolicyDto> rejected = await sut.UpsertPolicyAsync(
+            Channel,
+            EnabledPolicy() with
+            {
+                DefaultTimeoutSeconds = seconds,
+            }
+        );
+
+        rejected.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await sut.GetPolicyAsync(Channel)).Value.DefaultTimeoutSeconds.Should().Be(300);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(1209600)]
+    public async Task Upsert_accepts_the_default_timeout_bounds(int seconds)
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (ModerationEscalationService sut, _, _) = Build(database);
+
+        (
+            await sut.UpsertPolicyAsync(
+                Channel,
+                EnabledPolicy() with
+                {
+                    DefaultTimeoutSeconds = seconds,
+                }
+            )
+        )
+            .Value.DefaultTimeoutSeconds.Should()
+            .Be(seconds);
+    }
 }

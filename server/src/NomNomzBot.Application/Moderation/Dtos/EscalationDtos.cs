@@ -16,12 +16,14 @@ public sealed record EscalationLadderStep(int AtOffense, string Action, int? Tim
 /// <summary>What the ladder decided for THIS offense — the caller applies it via IModerationService.</summary>
 public sealed record EscalationDecision(string Action, int? TimeoutSeconds, int OffenseCount);
 
+// DefaultTimeoutSeconds: the length one click on a chat line's Timeout icon uses (1..1209600; 600 unset).
 /// <summary>The channel's escalation policy (J.10).</summary>
 public sealed record ModerationEscalationPolicyDto(
     bool IsEnabled,
     IReadOnlyList<EscalationLadderStep> Ladder,
     int OffenseWindowHours,
-    bool CountAutoModViolations
+    bool CountAutoModViolations,
+    int DefaultTimeoutSeconds
 );
 
 /// <summary>Full-policy upsert — the ladder is replaced whole, never patched.</summary>
@@ -29,5 +31,6 @@ public sealed record UpsertEscalationPolicyRequest(
     bool IsEnabled,
     IReadOnlyList<EscalationLadderStep> Ladder,
     int OffenseWindowHours,
-    bool CountAutoModViolations
+    bool CountAutoModViolations,
+    int DefaultTimeoutSeconds = 600
 );

@@ -7790,6 +7790,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DefaultTimeoutSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(600);
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("TEXT");
 

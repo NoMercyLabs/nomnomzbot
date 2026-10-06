@@ -521,7 +521,12 @@ private class FakeMultiChatApi : ChatApi {
         return deleteResult
     }
 
-    override suspend fun timeout(channelId: String, userId: String, durationSeconds: Int): ApiResult<Unit> {
+    override suspend fun timeout(
+        channelId: String,
+        userId: String,
+        durationSeconds: Int,
+        reason: String?,
+    ): ApiResult<Unit> {
         timedOut += Triple(channelId, userId, durationSeconds)
         return timeoutResult
     }

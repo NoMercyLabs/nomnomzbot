@@ -350,4 +350,46 @@ public sealed class ModerationServiceBanTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    [Fact]
+    public async Task TimeoutAsync_WithAReason_SendsItToTwitchAndWritesItToTheModLogRow()
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        await SeedChannelAsync(db);
+
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .TimeoutAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(TwitchSuccess(ViewerTwitchId));
+
+        Result<ModerationActionResult> result = await NewService(db, moderation)
+            .TimeoutAsync(BroadcasterId, Operator, ViewerTwitchId, 3600, reason: "Spam");
+
+        result.IsSuccess.Should().BeTrue();
+        await moderation
+            .Received(1)
+            .TimeoutAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                ViewerTwitchId,
+                3600,
+                "Spam",
+                Arg.Any<CancellationToken>()
+            );
+
+        Record record = (
+            await db.Records.Where(r => r.RecordType == ActionRecordType).ToListAsync()
+        ).Single();
+        using System.Text.Json.JsonDocument data = System.Text.Json.JsonDocument.Parse(record.Data);
+        data.RootElement.GetProperty("Reason").GetString().Should().Be("Spam");
+        data.RootElement.GetProperty("DurationSeconds").GetInt32().Should().Be(3600);
+        data.RootElement.GetProperty("Action").GetString().Should().Be("timeout");
+    }
 }

@@ -807,6 +807,7 @@ private class FakeChatApi(
         channelId: String,
         userId: String,
         durationSeconds: Int,
+        reason: String?,
     ): ApiResult<Unit> {
         timeoutCalls.add(Triple(channelId, userId, durationSeconds))
         return timeoutResult
