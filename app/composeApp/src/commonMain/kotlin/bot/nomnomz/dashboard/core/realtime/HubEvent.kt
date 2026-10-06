@@ -230,6 +230,7 @@ data class HubModAction(
     val reason: String? = null,
     val durationSeconds: Int? = null,
     val moderatorDisplayName: String? = null,
+    val broadcasterId: String = "",
 )
 
 @Serializable

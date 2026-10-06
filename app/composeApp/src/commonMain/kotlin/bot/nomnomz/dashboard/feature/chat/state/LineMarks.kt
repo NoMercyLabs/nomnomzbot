@@ -25,14 +25,14 @@ data class LineMark(
     val durationSeconds: Int? = null,
 )
 
-/** Marks keyed by message id (one deleted line) and by user id (a timeout, ban or purge hits every line). */
+/**
+ * Marks keyed by message id. A timeout, ban or purge marks the author's lines that exist in the feed at that
+ * moment — never the author's later lines, which the action did not touch.
+ */
 data class LineMarks(
     val byMessageId: Map<String, LineMark> = emptyMap(),
-    val byUserId: Map<String, LineMark> = emptyMap(),
 ) {
-    /** The mark for [message]: its own deletion wins over a mark on its author. */
-    fun forMessage(message: ChatMessage): LineMark? =
-        byMessageId[message.id] ?: message.userId.takeIf { it.isNotBlank() }?.let { byUserId[it] }
+    fun forMessage(message: ChatMessage): LineMark? = byMessageId[message.id]
 
     /** A deletion mark; a named push upgrades an unnamed one, and an unnamed redelivery never erases a name. */
     fun withDeleted(messageId: String, byDisplayName: String): LineMarks {
@@ -42,9 +42,12 @@ data class LineMarks(
         return copy(byMessageId = byMessageId + (messageId to LineMark(LineMarkKind.Deleted, name)))
     }
 
-    /** A timeout or ban from a mod-action push. Other actions (unban, ...) leave the lines alone. */
-    fun withModAction(action: HubModAction): LineMarks {
-        if (action.targetUserId.isBlank()) return this
+    /**
+     * A timeout or ban from a mod-action push, applied to the target's lines in [lines] (the feed now, already
+     * limited to the action's channel). Other actions (unban, ...) add nothing: past marks stay as they were.
+     * A deleted line keeps its deletion mark.
+     */
+    fun withModAction(action: HubModAction, lines: List<ChatMessage>): LineMarks {
         val kind: LineMarkKind =
             when (action.action.lowercase()) {
                 "timeout" -> LineMarkKind.TimedOut
@@ -52,12 +55,24 @@ data class LineMarks(
                 else -> return this
             }
         val mark = LineMark(kind, action.moderatorDisplayName.orEmpty(), action.durationSeconds)
-        return copy(byUserId = byUserId + (action.targetUserId to mark))
+        return markAuthorLines(lines, action.targetUserId, { existing -> existing?.kind != LineMarkKind.Deleted }) { mark }
     }
 
-    /** A per-chatter purge with no detail: never replaces a richer timeout/ban mark. */
-    fun withPurge(userId: String): LineMarks {
-        if (userId.isBlank() || byUserId.containsKey(userId)) return this
-        return copy(byUserId = byUserId + (userId to LineMark(LineMarkKind.Cleared)))
+    /** A per-chatter purge with no detail: only marks lines that carry no mark yet, so it never downgrades. */
+    fun withPurge(userId: String, lines: List<ChatMessage>): LineMarks =
+        markAuthorLines(lines, userId, { existing -> existing == null }) { LineMark(LineMarkKind.Cleared) }
+
+    private fun markAuthorLines(
+        lines: List<ChatMessage>,
+        userId: String,
+        mayReplace: (LineMark?) -> Boolean,
+        mark: () -> LineMark,
+    ): LineMarks {
+        if (userId.isBlank()) return this
+        val added: Map<String, LineMark> =
+            lines
+                .filter { it.userId == userId && it.id.isNotBlank() && mayReplace(byMessageId[it.id]) }
+                .associate { it.id to mark() }
+        return if (added.isEmpty()) this else copy(byMessageId = byMessageId + added)
     }
 }

@@ -229,11 +229,13 @@ class ChatController(
                     applyShieldModeEvent(evt.event)
                     applyChatModerationEvent(evt.event)
                 }
-                // A timeout/ban marks that chatter's lines (with duration and moderator) — no refetch.
+                // A timeout/ban marks that chatter's lines in this feed right now (with duration and moderator) —
+                // no refetch. A push for another channel, or one that names no channel, marks nothing.
                 is HubEvent.ModAction -> {
                     val current: ChatState = _state.value
-                    if (current is ChatState.Ready) {
-                        _state.value = current.copy(lineMarks = current.lineMarks.withModAction(evt.action))
+                    if (current is ChatState.Ready && evt.action.broadcasterId == channelId) {
+                        _state.value =
+                            current.copy(lineMarks = current.lineMarks.withModAction(evt.action, current.messages))
                     }
                 }
                 else -> Unit
@@ -280,7 +282,7 @@ class ChatController(
                 val payload: UserMessagesClearedPayload =
                     runCatching { ChatModerationJson.decodeFromJsonElement<UserMessagesClearedPayload>(data) }
                         .getOrNull() ?: return
-                _state.value = current.copy(lineMarks = current.lineMarks.withPurge(payload.targetUserId))
+                _state.value = current.copy(lineMarks = current.lineMarks.withPurge(payload.targetUserId, current.messages))
             }
         }
     }

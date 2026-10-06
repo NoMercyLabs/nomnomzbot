@@ -32,10 +32,12 @@ import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
@@ -194,7 +196,13 @@ class MultiChatControllerTest {
 
         events.emit(
             HubEvent.ModAction(
-                HubModAction(action = "timeout", targetUserId = "u2", durationSeconds = 600, moderatorDisplayName = "Ana")
+                HubModAction(
+                    action = "timeout",
+                    targetUserId = "u2",
+                    durationSeconds = 600,
+                    moderatorDisplayName = "Ana",
+                    broadcasterId = "a",
+                )
             )
         )
         ready = controller.state.value as MultiChatState.Ready
@@ -203,6 +211,67 @@ class MultiChatControllerTest {
             LineMark(LineMarkKind.TimedOut, "Ana", 600),
             ready.lineMarks.forMessage(ready.messages[1]),
         )
+    }
+
+    // Two watched channels, the same chatter u1 in both: the shared setup for the channel-scope tests.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun TestScope.twoChannelsSameChatter(): Pair<MultiChatController, MutableSharedFlow<HubEvent>> {
+        val chat = FakeMultiChatApi()
+        chat.messagesByChannel["a"] =
+            listOf(ChatMessage(id = "a1", channelId = "a", userId = "u1", message = "in a", timestamp = "2026-07-18T10:00:00Z"))
+        chat.messagesByChannel["b"] =
+            listOf(ChatMessage(id = "b1", channelId = "b", userId = "u1", message = "in b", timestamp = "2026-07-18T10:01:00Z"))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha"), channel("b", "Beta")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+        controller.addChannel("b")
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+        return controller to events
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_purge_in_channel_a_leaves_channel_b_lines_unmarked() = runTest {
+        val (controller, events) = twoChannelsSameChatter()
+
+        events.emit(
+            HubEvent.ChannelEvent(
+                HubChannelEvent(
+                    type = "user_messages_cleared",
+                    broadcasterId = "a",
+                    data = buildJsonObject { put("targetUserId", "u1") },
+                )
+            )
+        )
+
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals(LineMarkKind.Cleared, ready.lineMarks.forMessage(ready.messages.single { it.id == "a1" })?.kind)
+        assertNull(ready.lineMarks.forMessage(ready.messages.single { it.id == "b1" }))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_mod_action_for_channel_a_leaves_channel_b_lines_unmarked() = runTest {
+        val (controller, events) = twoChannelsSameChatter()
+
+        events.emit(
+            HubEvent.ModAction(
+                HubModAction(action = "timeout", targetUserId = "u1", durationSeconds = 600, broadcasterId = "a")
+            )
+        )
+        // A push that names no channel marks nothing anywhere.
+        events.emit(HubEvent.ModAction(HubModAction(action = "ban", targetUserId = "u1")))
+
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals(LineMarkKind.TimedOut, ready.lineMarks.forMessage(ready.messages.single { it.id == "a1" })?.kind)
+        assertNull(ready.lineMarks.forMessage(ready.messages.single { it.id == "b1" }))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

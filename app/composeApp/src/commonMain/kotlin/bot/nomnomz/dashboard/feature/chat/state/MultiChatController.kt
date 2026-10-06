@@ -281,10 +281,15 @@ class MultiChatController(
                     applyShieldModeEvent(evt.event)
                     applyChatModerationEvent(evt.event)
                 }
-                // A timeout/ban marks that chatter's lines (the push names no channel) — no refetch.
+                // A timeout/ban marks that chatter's lines in the action's channel only — no refetch. A push that
+                // names no channel marks nothing.
                 is HubEvent.ModAction -> {
                     val ready: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return@collect
-                    _state.value = ready.copy(lineMarks = ready.lineMarks.withModAction(evt.action))
+                    val channelLines: List<ChatMessage> =
+                        ready.messages.filter { it.channelId == evt.action.broadcasterId }
+                    if (evt.action.broadcasterId.isBlank() || channelLines.isEmpty()) return@collect
+                    _state.value =
+                        ready.copy(lineMarks = ready.lineMarks.withModAction(evt.action, channelLines))
                 }
                 else -> Unit
             }
@@ -332,7 +337,10 @@ class MultiChatController(
                 val payload: UserMessagesClearedPayload =
                     runCatching { ChatModerationJson.decodeFromJsonElement<UserMessagesClearedPayload>(data) }
                         .getOrNull() ?: return
-                _state.value = ready.copy(lineMarks = ready.lineMarks.withPurge(payload.targetUserId))
+                val channelLines: List<ChatMessage> =
+                    ready.messages.filter { it.channelId == event.broadcasterId }
+                _state.value =
+                    ready.copy(lineMarks = ready.lineMarks.withPurge(payload.targetUserId, channelLines))
             }
         }
     }

@@ -610,6 +610,7 @@ class ChatControllerTest {
                     targetUserId = "u1",
                     durationSeconds = 600,
                     moderatorDisplayName = "Ana",
+                    broadcasterId = "ch1",
                 )
             )
         )
@@ -634,7 +635,11 @@ class ChatControllerTest {
         val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
 
-        events.emit(HubEvent.ModAction(HubModAction(action = "ban", targetUserId = "u1", moderatorDisplayName = "Ana")))
+        events.emit(
+            HubEvent.ModAction(
+                HubModAction(action = "ban", targetUserId = "u1", moderatorDisplayName = "Ana", broadcasterId = "ch1")
+            )
+        )
         events.emit(
             HubEvent.ChannelEvent(
                 HubChannelEvent(
@@ -648,6 +653,78 @@ class ChatControllerTest {
         val ready: ChatState.Ready = controller.state.value as ChatState.Ready
         assertEquals(1, ready.messages.size)
         assertEquals(LineMark(LineMarkKind.Banned, "Ana"), ready.lineMarks.forMessage(ready.messages[0]))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_line_sent_after_the_timeout_has_no_mark() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "before")))),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(
+            HubEvent.ModAction(
+                HubModAction(action = "timeout", targetUserId = "u1", durationSeconds = 600, broadcasterId = "ch1")
+            )
+        )
+        events.emit(HubEvent.ChatMessage(HubChatMessage(id = "m2", channelId = "ch1", userId = "u1", message = "after")))
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertEquals(listOf("m1", "m2"), ready.messages.map { it.id })
+        assertEquals(LineMarkKind.TimedOut, ready.lineMarks.forMessage(ready.messages[0])?.kind)
+        assertNull(ready.lineMarks.forMessage(ready.messages[1]))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun an_unban_adds_no_mark_and_keeps_the_past_ones() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(
+                    ApiResult.Ok(
+                        listOf(
+                            ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "a"),
+                            ChatMessage(id = "m2", channelId = "ch1", userId = "u2", message = "b"),
+                        )
+                    )
+                ),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(HubEvent.ModAction(HubModAction(action = "ban", targetUserId = "u1", broadcasterId = "ch1")))
+        events.emit(HubEvent.ModAction(HubModAction(action = "unban", targetUserId = "u1", broadcasterId = "ch1")))
+        events.emit(HubEvent.ModAction(HubModAction(action = "unban", targetUserId = "u2", broadcasterId = "ch1")))
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertEquals(LineMarkKind.Banned, ready.lineMarks.forMessage(ready.messages[0])?.kind)
+        assertNull(ready.lineMarks.forMessage(ready.messages[1]))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_timeout_push_for_another_channel_marks_nothing_in_this_feed() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "a")))),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(HubEvent.ModAction(HubModAction(action = "timeout", targetUserId = "u1", broadcasterId = "other")))
+        events.emit(HubEvent.ModAction(HubModAction(action = "ban", targetUserId = "u1")))
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertNull(ready.lineMarks.forMessage(ready.messages[0]))
     }
 
     // ─── Shield Mode (S076c) — the single-channel Chat page's toggle, wired to the SAME ModerationApi the

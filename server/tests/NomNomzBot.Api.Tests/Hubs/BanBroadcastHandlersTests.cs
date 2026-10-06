@@ -75,6 +75,7 @@ public sealed class BanBroadcastHandlersTests
                     && dto.TargetCommunityStanding == "Everyone"
                     && dto.ModeratorDisplayName == "ModeratorMax"
                     && dto.Timestamp == occurredAt
+                    && dto.BroadcasterId == channel.ToString()
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -118,6 +119,7 @@ public sealed class BanBroadcastHandlersTests
                 Arg.Is<ModActionDto>(dto =>
                     dto.Action == "timeout"
                     && dto.DurationSeconds == 600
+                    && dto.BroadcasterId == channel.ToString()
                     && dto.TargetDisplayName == null
                     && dto.TargetAvatarUrl == null
                     && dto.TargetPronouns == null
