@@ -19,6 +19,14 @@ import bot.nomnomz.dashboard.core.network.ChatPollOption
 import bot.nomnomz.dashboard.core.network.ChatPollsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.OpenChatPollRequest
+import bot.nomnomz.dashboard.core.realtime.HubChatPollChanged
+import bot.nomnomz.dashboard.core.realtime.HubChatPollOption
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -100,6 +108,82 @@ class ChatPollsControllerTest {
         assertNotNull(closed)
         assertEquals("closed", closed.status)
     }
+
+    private fun change(
+        status: String,
+        votes: List<Int>,
+        id: String = "poll-1",
+        kind: String = "vote",
+    ): HubEvent.ChatPollChanged =
+        HubEvent.ChatPollChanged(
+            HubChatPollChanged(
+                pollId = id,
+                change = kind,
+                question = "Best game?",
+                status = status,
+                totalVotes = votes.sum(),
+                options = votes.mapIndexed { i, v -> HubChatPollOption(index = i + 1, label = "Opt ${i + 1}", votes = v) },
+                openedAt = "2026-07-20T00:00:00Z",
+                closedAt = if (status == "closed") "2026-07-20T00:05:00Z" else null,
+            ),
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_pushed_vote_updates_the_open_poll_tallies_with_no_api_call() = runTest(UnconfinedTestDispatcher()) {
+        val api = FakeChatPollsApi()
+        val controller = ChatPollsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.open("Best game?", listOf("A", "B"), null, true)
+        val callsBefore: Int = api.listCalls
+        val events: MutableSharedFlow<HubEvent> = MutableSharedFlow()
+        val job = launch(start = CoroutineStart.UNDISPATCHED) { controller.subscribeToHub(events) }
+
+        events.emit(change(status = "open", votes = listOf(3, 1), id = "poll-1"))
+
+        val ready: ChatPollsState.Ready = controller.state.value as ChatPollsState.Ready
+        assertEquals(listOf(3, 1), ready.openPoll?.options?.map { it.votes })
+        assertEquals(4, ready.openPoll?.totalVotes)
+        assertEquals(callsBefore, api.listCalls)
+        job.cancel()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_pushed_close_moves_the_poll_to_history_with_no_api_call() = runTest(UnconfinedTestDispatcher()) {
+        val api = FakeChatPollsApi()
+        val controller = ChatPollsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.open("Best game?", listOf("A", "B"), null, true)
+        val callsBefore: Int = api.listCalls
+        val events: MutableSharedFlow<HubEvent> = MutableSharedFlow()
+        val job = launch(start = CoroutineStart.UNDISPATCHED) { controller.subscribeToHub(events) }
+
+        events.emit(change(status = "closed", votes = listOf(5, 2), id = "poll-1", kind = "closed"))
+
+        val ready: ChatPollsState.Ready = controller.state.value as ChatPollsState.Ready
+        assertNull(ready.openPoll)
+        assertEquals(1, ready.history.size)
+        assertEquals("closed", ready.history.single().status)
+        assertEquals(listOf(5, 2), ready.history.single().options.map { it.votes })
+        assertEquals(callsBefore, api.listCalls)
+        job.cancel()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_pushed_open_from_another_operator_shows_the_new_poll() = runTest(UnconfinedTestDispatcher()) {
+        val api = FakeChatPollsApi()
+        val controller = ChatPollsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        val events: MutableSharedFlow<HubEvent> = MutableSharedFlow()
+        val job = launch(start = CoroutineStart.UNDISPATCHED) { controller.subscribeToHub(events) }
+
+        events.emit(change(status = "open", votes = listOf(0, 0), id = "poll-9", kind = "opened"))
+
+        val ready: ChatPollsState.Ready = controller.state.value as ChatPollsState.Ready
+        assertEquals("poll-9", ready.openPoll?.id)
+        assertEquals("Best game?", ready.openPoll?.question)
+        job.cancel()
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -135,7 +219,11 @@ private class FakeChatPollsApi : ChatPollsApi {
     var openedOnChannel: String? = null
         private set
 
+    var listCalls: Int = 0
+        private set
+
     override suspend fun list(channelId: String): ApiResult<List<ChatPoll>> {
+        listCalls += 1
         val open: ChatPoll? = store.firstOrNull { it.status == "open" }
         val ordered: List<ChatPoll> = listOfNotNull(open) + store.filter { it.id != open?.id }.reversed()
         return ApiResult.Ok(ordered)
