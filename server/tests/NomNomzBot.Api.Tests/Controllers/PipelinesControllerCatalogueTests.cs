@@ -139,4 +139,66 @@ public sealed class PipelinesControllerCatalogueTests
         fields[2].Kind.Should().Be("enum");
         fields[2].Options.Should().BeEquivalentTo(["off", "track", "context"]);
     }
+
+    [Fact]
+    public void Catalogue_carries_DeclaresVariable_and_default_for_fields_that_name_a_variable()
+    {
+        ICommandAction[] actions =
+        [
+            new FakeAction(
+                "set_variable",
+                "flow",
+                [
+                    new(
+                        "name",
+                        PipelineActionFieldKind.Text,
+                        Required: true,
+                        DeclaresVariable: true
+                    ),
+                    new("value", PipelineActionFieldKind.Text, Templated: true),
+                ]
+            ),
+            new FakeAction(
+                "pick_from_list",
+                "pick_lists",
+                [
+                    new("list", PipelineActionFieldKind.Text, Required: true),
+                    new(
+                        "variable",
+                        PipelineActionFieldKind.Text,
+                        DeclaresVariable: true,
+                        DeclaredVariableDefault: "pick"
+                    ),
+                ]
+            ),
+        ];
+        PipelinesController controller = new(
+            Substitute.For<IPipelineService>(),
+            Substitute.For<IPipelineTestRunService>(),
+            Substitute.For<ICommandConfigValidator>(),
+            actions,
+            [],
+            Substitute.For<IPlatformDefaultRestoreService>()
+        );
+
+        OkObjectResult ok = controller
+            .ListActionCatalogue("chan")
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject;
+        PipelineCatalogueDto data = ok
+            .Value.Should()
+            .BeOfType<StatusResponseDto<PipelineCatalogueDto>>()
+            .Subject.Data!;
+
+        PipelineActionDescriptorDto pick = data.Actions.Single(a => a.Type == "pick_from_list");
+        PipelineActionDescriptorDto set = data.Actions.Single(a => a.Type == "set_variable");
+
+        set.Fields.Single(f => f.Name == "name").DeclaresVariable.Should().BeTrue();
+        set.Fields.Single(f => f.Name == "name").DeclaredVariableDefault.Should().BeNull();
+        set.Fields.Single(f => f.Name == "value").DeclaresVariable.Should().BeFalse();
+        pick.Fields.Single(f => f.Name == "variable").DeclaresVariable.Should().BeTrue();
+        pick.Fields.Single(f => f.Name == "variable").DeclaredVariableDefault.Should().Be("pick");
+        pick.Fields.Single(f => f.Name == "list").DeclaresVariable.Should().BeFalse();
+    }
 }

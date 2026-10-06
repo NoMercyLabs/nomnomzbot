@@ -64,6 +64,11 @@ data class BlockField(
     // any hand-matched field key, so a NEW picker kind only needs the backend field tagged with that kind —
     // never a new key-based branch in the editor.
     val remoteKind: String? = null,
+    // Whether this field's value names a variable the action writes for later steps, and the name it writes
+    // when left empty (backend `PipelineActionFieldDto.DeclaresVariable` / `DeclaredVariableDefault`).
+    // [PipelineCatalogue.buildPalette] fills both in from the matching backend field by [key].
+    val declaresVariable: Boolean = false,
+    val declaredVariableDefault: String? = null,
 )
 
 /** What a block is — an action (does something) or a condition (gates the step). */
@@ -798,6 +803,8 @@ object PipelineCatalogue {
                     field.copy(
                         descriptionKey = remote?.description?.key?.ifBlank { null } ?: field.descriptionKey,
                         remoteKind = remote?.kind?.ifBlank { null } ?: field.remoteKind,
+                        declaresVariable = remote?.declaresVariable ?: field.declaresVariable,
+                        declaredVariableDefault = remote?.declaredVariableDefault ?: field.declaredVariableDefault,
                     )
                 }
         )

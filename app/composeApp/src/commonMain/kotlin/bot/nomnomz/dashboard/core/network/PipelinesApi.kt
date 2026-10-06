@@ -163,6 +163,11 @@ data class PipelineActionFieldRemote(
     val repeatable: Boolean = false,
     val options: List<String>? = null,
     val description: LocalizedTextDto = LocalizedTextDto(),
+    // True when this field's value is the NAME of a variable the action writes for later steps
+    // (`set_variable` "name", `pick_from_list` "variable"); [declaredVariableDefault] is the name written
+    // when the field is left empty (null = the action writes nothing without it).
+    val declaresVariable: Boolean = false,
+    val declaredVariableDefault: String? = null,
 )
 
 /** One available pipeline condition type (backend `PipelineConditionDescriptorDto`). */

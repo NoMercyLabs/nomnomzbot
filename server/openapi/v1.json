@@ -113816,7 +113816,9 @@
           "required",
           "repeatable",
           "options",
-          "description"
+          "description",
+          "declaresVariable",
+          "declaredVariableDefault"
         ],
         "type": "object",
         "properties": {
@@ -113849,6 +113851,15 @@
               {
                 "$ref": "#/components/schemas/LocalizedText"
               }
+            ]
+          },
+          "declaresVariable": {
+            "type": "boolean"
+          },
+          "declaredVariableDefault": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         },
@@ -131755,7 +131766,8 @@
       "TemplateHelperDto": {
         "required": [
           "key",
-          "descriptionKey"
+          "descriptionKey",
+          "sample"
         ],
         "type": "object",
         "properties": {
@@ -131763,6 +131775,9 @@
             "type": "string"
           },
           "descriptionKey": {
+            "type": "string"
+          },
+          "sample": {
             "type": "string"
           }
         },

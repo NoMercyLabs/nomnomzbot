@@ -62,6 +62,7 @@ public sealed class SchemaDtoStringShapeTests
         {
             nameof(PipelineActionFieldDto.Name),
             nameof(PipelineActionFieldDto.Kind),
+            nameof(PipelineActionFieldDto.DeclaredVariableDefault),
         },
         // PipelineActionDescriptorDto.Category/Description are LocalizedText (S-SCHEMA-I18N-d, sourced from
         // ICommandAction.Category/Description) — only the machine routing key `Type` is a bare string here.
@@ -87,6 +88,8 @@ public sealed class SchemaDtoStringShapeTests
         {
             nameof(TemplateHelperEntry.Key),
             nameof(TemplateHelperEntry.Prefix),
+            // Sample is an example data value shown beside the helper, never translated prose.
+            nameof(TemplateHelperEntry.Sample),
         },
     };
 
