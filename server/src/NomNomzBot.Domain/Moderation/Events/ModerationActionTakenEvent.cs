@@ -29,4 +29,10 @@ public sealed class ModerationActionTakenEvent : DomainEventBase
 
     /// <summary>The reason given for the action. Empty when no reason was given.</summary>
     public required string? Reason { get; init; }
+
+    /// <summary>The display name of the moderator. Empty when the source did not name them.</summary>
+    public string ModeratorDisplayName { get; init; } = string.Empty;
+
+    /// <summary>The id of the chat message a <c>delete</c> action removed; null for every other action.</summary>
+    public string? MessageId { get; init; }
 }
