@@ -11,10 +11,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Enums;
@@ -92,15 +92,12 @@ public sealed class VoiceChatAssignTests
             Substitute.For<ITtsService>(),
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
-            Substitute.For<Application.Identity.Services.IUserService>(),
+            Substitute.For<IUserService>(),
             new PlatformTtsVoiceDefault(db)
         );
         twitchUsers ??= TwitchKnowing();
         users ??= Substitute.For<IUserService>();
-        return (
-            new VoiceBuiltin(config, db, TestBuiltinComposer.Create(), twitchUsers, users),
-            db
-        );
+        return (new VoiceBuiltin(config, db, TestBuiltinComposer.Create(), twitchUsers, users), db);
     }
 
     private static TwitchUser TwitchAccount(string id, string login, string displayName) =>
@@ -233,7 +230,13 @@ public sealed class VoiceChatAssignTests
         (VoiceBuiltin sut, TtsTestDbContext db) = await BuildAsync(twitch, users);
         // The real IUserService mints the user + identity row; the fake does the same on the test database.
         users
-            .GetOrCreateAsync(NewId, "neverseen", "NeverSeen", "twitch", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                NewId,
+                "neverseen",
+                "NeverSeen",
+                "twitch",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(async _ =>
             {
                 db.UserIdentities.Add(
@@ -281,7 +284,7 @@ public sealed class VoiceChatAssignTests
         reply.Value.Should().Be("I don't know a viewer called 'ghost' here.");
         await users
             .DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
         (await db.UserTtsVoices.AnyAsync()).Should().BeFalse();
     }
 }

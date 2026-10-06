@@ -15,15 +15,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "TtsApprovalQueueEntries",
                 type: "TEXT",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "SpokenNames",
-                table: "TtsApprovalQueueEntries");
+            migrationBuilder.DropColumn(name: "SpokenNames", table: "TtsApprovalQueueEntries");
         }
     }
 }

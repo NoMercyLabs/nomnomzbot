@@ -15,15 +15,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "TtsApprovalQueueEntries",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "SpokenNames",
-                table: "TtsApprovalQueueEntries");
+            migrationBuilder.DropColumn(name: "SpokenNames", table: "TtsApprovalQueueEntries");
         }
     }
 }
