@@ -32,12 +32,11 @@ public sealed class PronounGrammarTemplateResolverTests
 {
     private static readonly Guid Channel = Guid.Parse("0192b400-0000-7000-9000-00000000c001");
 
-    private readonly PronounGrammarTestDbContext _db;
     private readonly TemplateResolver _resolver;
 
     public PronounGrammarTemplateResolverTests()
     {
-        _db = PronounGrammarTestDbContext.New();
+        PronounGrammarTestDbContext db = PronounGrammarTestDbContext.New();
 
         Pronoun heHim = new()
         {
@@ -66,9 +65,27 @@ public sealed class PronounGrammarTemplateResolverTests
             GenderedTerm = "person",
             Singular = false,
         };
-        _db.Pronouns.AddRange(heHim, sheHer, theyThem);
+        Pronoun anyAll = new()
+        {
+            Name = "any/all",
+            Subject = "any",
+            Object = "all",
+            Possessive = "their",
+            GenderedTerm = "person",
+            Singular = false,
+        };
+        Pronoun otherAsk = new()
+        {
+            Name = "other/ask",
+            Subject = "other",
+            Object = "ask",
+            Possessive = "their",
+            GenderedTerm = "person",
+            Singular = false,
+        };
+        db.Pronouns.AddRange(heHim, sheHer, theyThem, anyAll, otherAsk);
 
-        _db.Users.AddRange(
+        db.Users.AddRange(
             new User
             {
                 TwitchUserId = "111",
@@ -100,12 +117,28 @@ public sealed class PronounGrammarTemplateResolverTests
                 UsernameNormalized = "dave",
                 DisplayName = "Dave",
                 Pronoun = theyThem,
+            },
+            new User
+            {
+                TwitchUserId = "555",
+                Username = "erin",
+                UsernameNormalized = "erin",
+                DisplayName = "Erin",
+                Pronoun = anyAll,
+            },
+            new User
+            {
+                TwitchUserId = "666",
+                Username = "frank",
+                UsernameNormalized = "frank",
+                DisplayName = "Frank",
+                Pronoun = otherAsk,
             }
         );
-        _db.SaveChanges();
+        db.SaveChanges();
 
         ServiceCollection services = new();
-        services.AddSingleton<IApplicationDbContext>(_db);
+        services.AddSingleton<IApplicationDbContext>(db);
         ServiceProvider provider = services.BuildServiceProvider();
 
         _resolver = new(
@@ -222,6 +255,22 @@ public sealed class PronounGrammarTemplateResolverTests
         );
 
         resolved.Should().Be("they/them/their/person/are");
+    }
+
+    // ── "any/all" and "other/ask" are a choice, not words to put in a sentence ──
+
+    [Theory]
+    [InlineData("erin")] // any/all
+    [InlineData("frank")] // other/ask
+    public async Task AnyOrOtherPronoun_ReadsAsTheyThem_NeverAsTheLabelWord(string target)
+    {
+        string resolved = await _resolver.ResolveAsync(
+            "{Subject} {pastTense} here. Follow before {subject} {verb:refactors|refactor} you and {object}/{possessive}/{presentTense}",
+            Seeds("111", target: target),
+            Channel
+        );
+
+        resolved.Should().Be("They were here. Follow before they refactor you and them/their/are");
     }
 
     // ── Capitalization keys off the placeholder's own first letter ──────────

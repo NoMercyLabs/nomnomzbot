@@ -943,13 +943,20 @@ public sealed partial class TemplateResolver : ITemplateResolver
     /// they/them/their/person/are fallback is applied afterwards in
     /// <see cref="ApplyPronounGrammarBareAndFallback"/>, never here, so callers never see a partial mix.
     /// </summary>
+    private static readonly HashSet<string> OpenChoiceSubjects = new(
+        ["any", "other"],
+        StringComparer.OrdinalIgnoreCase
+    );
+
     private static void ApplyPronounGrammarVars(
         Dictionary<string, string> vars,
         string prefix,
         Pronoun? pronoun
     )
     {
-        if (pronoun is null)
+        // "any/all" and "other/ask" name a choice, not words for a sentence ("Any was here"): they take
+        // the same they/them fallback as a viewer with no pronoun on record.
+        if (pronoun is null || OpenChoiceSubjects.Contains(pronoun.Subject))
             return;
 
         vars.TryAdd($"{prefix}subject", pronoun.Subject);
