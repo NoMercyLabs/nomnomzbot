@@ -569,6 +569,14 @@
    ]
   },
   {
+   "id": "massban-opt-in-only",
+   "text": "A cross-channel mass ban reaches only channels that opted in: the owner's flag (Channel.AcceptsModeratorMassBans, off by default), the operator's own channel, a channel named as attacked, or a ModeratorMassBanOptIn row where the moderator recorded the streamer's word. Every other moderated channel is not_opted_in and gets no batch. Never widen reach without a recorded opt-in (Stoney 2026-10-06).",
+   "source": "memory feedback-massban-opt-in-only.md",
+   "covers": [
+    "feedback-massban-opt-in-only.md"
+   ]
+  },
+  {
    "id": "massban-runs-now-only-live-holds",
    "text": "A cross-channel moderation action (mass ban) runs at once on the operator's own channel, every attacked channel and every offline channel; only a LIVE channel holds for !allow/!disallow (floor 20) or until the stream ends. Holding is the exception that needs a named reason, never the default. A notice the bot posts in another streamer's channel is formal: one text for every tone, no personality variants.",
    "source": "memory feedback-massban-bans-happen-live-only-holds.md",
