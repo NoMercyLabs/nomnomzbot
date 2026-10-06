@@ -341,5 +341,8 @@ public sealed record MusicQueueItem(
     int Cost = 0,
     // The short speakable handle for this request (e.g. "K7QM") — what a viewer types to name it in
     // !wrongsong. Empty for a request queued before codes existed.
-    string Code = ""
+    string Code = "",
+    // True for the one request already handed to the provider's own queue. Removing it cannot stop the
+    // provider playing it; it is skipped when it starts instead.
+    bool InFlight = false
 );

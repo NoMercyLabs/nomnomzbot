@@ -86,6 +86,20 @@ public interface ISongRequestQueueStore
     bool WasInFlightSeen(string broadcasterId);
 
     /// <summary>
+    /// Marks a track the provider already holds in its own queue as retracted. Spotify has no call to delete
+    /// from its queue, so the only way to honour a retraction is to skip the track when it starts. The marker
+    /// expires after <see cref="SongRequestQueueStore.RetractionLifetime"/>, so a later legitimate request of
+    /// the same song is never skipped by a marker that was never consumed.
+    /// </summary>
+    void ArmRetraction(string broadcasterId, string trackUri);
+
+    /// <summary>
+    /// Consumes the channel's retraction marker for <paramref name="trackUri"/>: true exactly once, and only
+    /// while the marker has not expired. A second call, an expired marker and another track all answer false.
+    /// </summary>
+    bool TryConsumeRetraction(string broadcasterId, string trackUri);
+
+    /// <summary>
     /// Serialises every hand-over to the provider for one channel. The in-flight check and the in-flight
     /// write sit on either side of an awaited provider call, and several callers race for them: admission,
     /// the reconciler on every playback change, and the poller's recovery tick every second, each in its
@@ -124,6 +138,9 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 {
     internal static readonly TimeSpan InFlightCheckInterval = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long an armed retraction waits for its track to start before it is forgotten.</summary>
+    internal static readonly TimeSpan RetractionLifetime = TimeSpan.FromHours(2);
+
     private readonly ConcurrentDictionary<string, FairQueue<SongRequestEntry>> _queues = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlight = new();
     private readonly ConcurrentDictionary<
@@ -132,6 +149,10 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     > _inFlightChecks = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlightSeen = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
+    private readonly ConcurrentDictionary<
+        (string BroadcasterId, string TrackUri),
+        DateTimeOffset
+    > _retractions = new();
     private readonly TimeProvider _timeProvider;
 
     public SongRequestQueueStore(TimeProvider? timeProvider = null)
@@ -192,6 +213,23 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     public bool WasInFlightSeen(string broadcasterId) =>
         _inFlightSeen.TryGetValue(broadcasterId, out SongRequestEntry? seen)
         && ReferenceEquals(seen, GetInFlight(broadcasterId));
+
+    public void ArmRetraction(string broadcasterId, string trackUri) =>
+        _retractions[(broadcasterId, trackUri.ToLowerInvariant())] =
+            _timeProvider.GetUtcNow() + RetractionLifetime;
+
+    public bool TryConsumeRetraction(string broadcasterId, string trackUri)
+    {
+        if (
+            !_retractions.TryRemove(
+                (broadcasterId, trackUri.ToLowerInvariant()),
+                out DateTimeOffset expiresAt
+            )
+        )
+            return false;
+
+        return _timeProvider.GetUtcNow() < expiresAt;
+    }
 
     private void ScheduleNextCheck(string broadcasterId, SongRequestEntry entry) =>
         _inFlightChecks[broadcasterId] = (entry, _timeProvider.GetUtcNow() + InFlightCheckInterval);
