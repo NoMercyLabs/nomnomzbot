@@ -156,6 +156,15 @@
             <div class="preview-body">
                 <iframe id="previewFrame" data-i18n-title="widgetPreview" title="Widget preview" sandbox="allow-scripts"></iframe>
                 <p class="preview-note" id="previewNote" hidden></p>
+                <div class="preview-error" id="previewError" role="alert" hidden>
+                    <button type="button" class="preview-error-main" id="previewErrorMain">
+                        <strong class="preview-error-title"></strong>
+                        <span class="preview-error-message"></span>
+                        <code class="preview-error-where" hidden></code>
+                    </button>
+                    <button type="button" class="btn btn-quiet preview-error-toggle" id="previewErrorToggle" data-i18n="previewErrorDetails" aria-expanded="false">Details</button>
+                    <pre class="preview-error-stack" id="previewErrorStack" hidden></pre>
+                </div>
             </div>
         </aside>
     </div>

@@ -40,6 +40,11 @@ const VUE_ENTRY = '__nnz_vue_main__.js';
 
 const REBUILD_DEBOUNCE_MS = 500;
 
+import { createSourceMap } from './preview-sourcemap.js';
+
+// esbuild reports files of the in-memory file system under this namespace prefix.
+const VFS_PREFIX = /^.*nnzvfs:/;
+
 // The editor's label function (editor.js `t`), handed in by initPreview. Until then an id shows itself.
 let t = (id) => id;
 
@@ -68,7 +73,8 @@ const RESOLVE_SUFFIXES = Object.freeze([
 ]);
 
 // Events a widget subscribes to, discovered from its own source: nnz.on('follow') / NomNomz.on("cheer").
-const SUBSCRIPTION_PATTERN = /\.on\(\s*['"]([a-zA-Z0-9_.:-]+)['"]/g;
+// Optional-chained calls count too: nnz?.on?.('follow').
+const SUBSCRIPTION_PATTERN = /\.on\??\.?\(\s*['"]([a-zA-Z0-9_.:-]+)['"]/g;
 const NON_WIDGET_EVENTS = new Set(['message', 'error']);
 
 function extensionOf(path) {
@@ -110,6 +116,8 @@ function inlineScript(source) {
 export function initPreview({
     frame,
     note,
+    errorBox,
+    onReveal,
     fireBar,
     refresh,
     language,
@@ -150,8 +158,100 @@ export function initPreview({
         note.textContent = text;
     }
 
+    // ── Error overlay: a failed build or a runtime error, over the preview ──
+
+    const errorMain = errorBox.querySelector('.preview-error-main');
+    const errorToggle = errorBox.querySelector('.preview-error-toggle');
+    const errorStack = errorBox.querySelector('.preview-error-stack');
+    const errorWhere = errorBox.querySelector('.preview-error-where');
+    let errorTarget = null;
+
+    function hideError() {
+        errorBox.hidden = true;
+        errorTarget = null;
+    }
+
+    function showError({ title, message, file, line, details }) {
+        errorTarget = file && line ? { file, line } : null;
+        errorBox.querySelector('.preview-error-title').textContent = title;
+        errorBox.querySelector('.preview-error-message').textContent = message;
+        errorWhere.hidden = errorTarget === null;
+        errorWhere.textContent = errorTarget ? t('previewErrorLine', errorTarget) : '';
+        errorStack.textContent = details ?? '';
+        errorStack.hidden = true;
+        errorToggle.hidden = !details;
+        errorToggle.setAttribute('aria-expanded', 'false');
+        errorBox.hidden = false;
+    }
+
+    errorMain.addEventListener('click', () => {
+        if (errorTarget) onReveal(errorTarget.file, errorTarget.line);
+    });
+    errorToggle.addEventListener('click', () => {
+        errorStack.hidden = !errorStack.hidden;
+        errorToggle.setAttribute('aria-expanded', String(!errorStack.hidden));
+    });
+
+    // Where the last rendered document puts the author's code, so a stack position can be mapped back:
+    // the document lines before it, and (for a bundle) the bundle's source map and the per-file Vue maps.
+    let lastRender = { lineOffset: 0, bundleMap: null };
+    let vueMaps = new Map();
+    // Filled while a build runs; it replaces vueMaps only when that build succeeds and renders.
+    let pendingVueMaps = new Map();
+
+    function newlinesIn(text) {
+        return text.split('\n').length - 1;
+    }
+
+    // The first stack frame inside the widget document that lands in the author's own files.
+    function locateInStack(stack, files) {
+        for (const text of String(stack ?? '').split('\n')) {
+            const match = /srcdoc:(\d+):(\d+)/.exec(text);
+            if (!match) continue;
+
+            const line = Number(match[1]) - lastRender.lineOffset;
+            if (line < 1) continue;
+
+            if (!lastRender.bundleMap) return { file: entry, line };
+
+            const position = lastRender.bundleMap.lookup(line, Number(match[2]) - 1);
+            const file = position?.source.replace(VFS_PREFIX, '');
+            if (!file || !(file in files)) continue;
+
+            const original = vueMaps.get(file)?.lookup(position.line, position.column);
+            return { file, line: original?.line ?? position.line };
+        }
+        return null;
+    }
+
+    function showRuntimeError(report) {
+        const where = locateInStack(report.stack, snapshotFiles());
+        showError({
+            title: t('previewErrorRunTitle'),
+            message: report.message ?? t('previewLogError'),
+            file: where?.file,
+            line: where?.line,
+            details: report.stack,
+        });
+    }
+
+    function showBuildError(error) {
+        const first = error?.errors?.[0];
+        const file = first?.location?.file?.replace(VFS_PREFIX, '');
+        note.hidden = true;
+        frame.hidden = false;
+        showError({
+            title: t('previewErrorBuildTitle'),
+            message: first?.text ?? error?.message ?? String(error),
+            file,
+            line: first?.location?.line,
+            details: error?.message,
+        });
+    }
+
     function showFrame(srcdoc) {
         clearLog();
+        hideError();
         note.hidden = true;
         frame.hidden = false;
         frame.srcdoc = srcdoc;
@@ -254,22 +354,26 @@ export function initPreview({
     window.addEventListener('message', (event) => {
         if (event.source !== frame.contentWindow) return;
         const entry = event.data?.__nnzPreview;
-        if (entry && typeof entry === 'object') addLogEntry(entry);
+        if (entry && typeof entry === 'object') {
+            addLogEntry(entry);
+            if (entry.kind === 'error') showRuntimeError(entry);
+        }
     });
 
     // ── Rendering ──────────────────────────────────────────────────────────
 
-    function renderBundle(files, javascript, css) {
+    function renderBundle(files, javascript, css, bundleMap) {
         const reset =
             'html,body{margin:0;padding:0;background:transparent;color:#e5e5e5;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}';
         const sdk = sdkScripts(files);
-        showFrame(
+        const before =
             '<!doctype html><html><head><meta charset="utf-8">' +
-                `<style>${reset}</style><style>${css ?? ''}</style>` +
-                `<script type="importmap">${JSON.stringify(IMPORT_MAP)}<\/script></head><body>` +
-                `<div id="app"></div><div id="root"></div>${sdk}` +
-                `<script type="module">${javascript}<\/script></body></html>`,
-        );
+            `<style>${reset}</style><style>${css ?? ''}</style>` +
+            `<script type="importmap">${JSON.stringify(IMPORT_MAP)}<\/script></head><body>` +
+            `<div id="app"></div><div id="root"></div>${sdk}` +
+            '<script type="module">';
+        showFrame(`${before}${javascript}<\/script></body></html>`);
+        lastRender = { lineOffset: newlinesIn(before), bundleMap };
         refreshFireBar(files);
     }
 
@@ -280,6 +384,7 @@ export function initPreview({
         // The SDK must exist before the widget's own scripts, so it goes in as early as the page allows.
         const head = /<head[^>]*>/i;
         showFrame(head.test(html) ? html.replace(head, (tag) => tag + sdk) : sdk + html);
+        lastRender = { lineOffset: newlinesIn(sdk), bundleMap: null };
         refreshFireBar(files);
     }
 
@@ -302,7 +407,10 @@ export function initPreview({
     // it via the 'ts' loader on the caller's side.
     function compileVueFile(path, source) {
         const parsed = vueSfc.parse(source, { filename: path });
-        if (parsed.errors?.length) throw new Error(parsed.errors[0].message ?? String(parsed.errors[0]));
+        if (parsed.errors?.length) {
+            const problem = parsed.errors[0];
+            throw Object.assign(new Error(problem.message ?? String(problem)), { line: problem.loc?.start?.line });
+        }
 
         const descriptor = parsed.descriptor;
         if (!descriptor.scriptSetup && !descriptor.script) throw new Error(t('previewSfcNoScript'));
@@ -318,6 +426,10 @@ export function initPreview({
             templateOptions: { scoped },
             babelParserPlugins: ['typescript'],
         });
+
+        // The compiled script's lines are not the author's: keep the map so a stack line can be taken back.
+        const scriptMap = createSourceMap(compiled.map);
+        if (scriptMap) pendingVueMaps.set(path, scriptMap);
 
         // rewriteDefault re-parses the compiled script, which is still TS — it needs the plugin too.
         let code = vueSfc.rewriteDefault(compiled.content, '__sfc_main', ['typescript']);
@@ -339,9 +451,23 @@ export function initPreview({
         return (
             `import __App from "./${entry}";\n` +
             'import { createApp } from "vue";\n' +
-            'try { window.__nnzApp = createApp(__App); window.__nnzApp.mount("#app"); }\n' +
-            `catch (e) { var d = document.getElementById("app"); if (d) { d.textContent = ${mountErrorTemplate}.replace("{message}", (e && e.message) || e); d.style.color = "#f87171"; } }`
+            // Vue hands render and setup errors to this handler instead of logging them, so it reports them.
+            'try { window.__nnzApp = createApp(__App); window.__nnzApp.config.errorHandler = function (e) { window.NomNomz.reportError(e); }; window.__nnzApp.mount("#app"); }\n' +
+            `catch (e) { window.NomNomz.reportError(e); var d = document.getElementById("app"); if (d) { d.textContent = ${mountErrorTemplate}.replace("{message}", (e && e.message) || e); d.style.color = "#f87171"; } }`
         );
+    }
+
+    // A position esbuild can show: the file and the author's own line.
+    function lineLocation(source, file, line) {
+        const lineText = source.split('\n')[line - 1] ?? '';
+        return { file, line, column: 0, lineText };
+    }
+
+    // The first line of `file` that mentions `needle` — where an import of it was written.
+    function locateText(files, file, needle) {
+        const source = files[file] ?? '';
+        const index = source.split('\n').findIndex((text) => text.includes(needle));
+        return index === -1 ? undefined : lineLocation(source, file, index + 1);
     }
 
     function vfsPlugin(files) {
@@ -354,7 +480,14 @@ export function initPreview({
                         const resolved = resolveVfs(files, args.importer, args.path);
                         return resolved
                             ? { path: resolved, namespace: 'nnzvfs' }
-                            : { errors: [{ text: t('previewCannotResolve', { path: args.path, importer: args.importer }) }] };
+                            : {
+                                  errors: [
+                                      {
+                                          text: t('previewCannotResolve', { path: args.path, importer: args.importer }),
+                                          location: locateText(files, args.importer, args.path),
+                                      },
+                                  ],
+                              };
                     }
                     return { path: args.path, external: true };
                 });
@@ -370,7 +503,12 @@ export function initPreview({
                             return { contents: compileVueFile(args.path, contents), loader: 'ts' };
                         } catch (error) {
                             return {
-                                errors: [{ text: t('previewVueCompile', { path: args.path, message: error?.message ?? error }) }],
+                                errors: [
+                                    {
+                                        text: t('previewVueCompile', { path: args.path, message: error?.message ?? error }),
+                                        location: error?.line ? lineLocation(contents, args.path, error.line) : undefined,
+                                    },
+                                ],
                             };
                         }
                     }
@@ -401,11 +539,13 @@ export function initPreview({
             }
         }
 
+        pendingVueMaps = new Map();
         try {
             const result = await esbuild.build({
                 entryPoints: [isVue ? VUE_ENTRY : entry],
                 bundle: true,
                 write: false,
+                sourcemap: 'external',
                 format: 'esm',
                 target: 'es2020',
                 outdir: 'nnzout',
@@ -425,9 +565,12 @@ export function initPreview({
 
             const javascript = result.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? '';
             const css = result.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
-            renderBundle(files, javascript, css);
+            const mapText = result.outputFiles.find((file) => file.path.endsWith('.js.map'))?.text;
+            vueMaps = pendingVueMaps;
+            renderBundle(files, javascript, css, mapText ? createSourceMap(JSON.parse(mapText)) : null);
         } catch (error) {
-            showNote(`${t('previewBuildFailed')}\n${error?.message ?? error}`, true);
+            // The last good frame stays under the message, so a typo does not blank the widget.
+            showBuildError(error);
         }
     }
 

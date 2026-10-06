@@ -29,7 +29,7 @@
 
   // A throwing handler never stops the others, and the editor shows where it threw.
   function run(where, fn, a, b) {
-    try { fn(a, b); } catch (e) { tell({ kind: "error", message: where + ": " + describe(e) }); }
+    try { fn(a, b); } catch (e) { tell({ kind: "error", message: where + ": " + describe(e), stack: (e && e.stack) ? String(e.stack) : "" }); }
   }
 
   function on(type, fn) { if (typeof fn === "function") (handlers[type] = handlers[type] || []).push(fn); return api; }
@@ -69,12 +69,14 @@
     return Promise.resolve(true);
   }
 
-  function report(message) {
-    tell({ kind: "error", message: String(message) });
+  // An Error carries its stack, which the editor maps back to a file and line. A plain message has none.
+  function report(error) {
+    var isError = error && typeof error === "object" && typeof error.message === "string";
+    tell({ kind: "error", message: isError ? error.message : String(error), stack: isError ? String(error.stack || "") : "" });
   }
 
-  window.addEventListener("error", function (e) { report((e && e.message) || "script error"); });
-  window.addEventListener("unhandledrejection", function (e) { report((e && e.reason && e.reason.message) || "unhandled rejection"); });
+  window.addEventListener("error", function (e) { report((e && e.error) || (e && e.message) || "script error"); });
+  window.addEventListener("unhandledrejection", function (e) { report((e && e.reason) || "unhandled rejection"); });
 
   window.addEventListener("message", function (ev) {
     var m = ev.data;

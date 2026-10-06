@@ -876,6 +876,76 @@ body {
     color: var(--danger);
 }
 
+/* A failed build or a runtime error, over the preview. The button is the whole message, so a click anywhere on it
+   moves the editor to the line. */
+.preview-error {
+    position: absolute;
+    inset: var(--s2) var(--s2) auto var(--s2);
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--s1);
+    padding: var(--s2);
+    background: var(--surface-raised);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-lg);
+    max-height: calc(100% - 2 * var(--s2));
+    overflow: auto;
+}
+
+.preview-error[hidden] {
+    display: none;
+}
+
+.preview-error-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s1);
+    padding: var(--s2);
+    min-width: 0;
+    text-align: left;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.preview-error-main:hover {
+    background: var(--surface-sunken);
+}
+
+.preview-error-title {
+    color: var(--danger);
+}
+
+.preview-error-message {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.preview-error-where {
+    font-family: var(--font-code);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.preview-error-stack {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: var(--s2);
+    font-family: var(--font-code);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface-sunken);
+    border-radius: var(--radius-md);
+    overflow: auto;
+    white-space: pre;
+}
+
 /* Collapsed preview: hide the pane AND its handle, so the code column takes the full width. */
 .shell[data-preview="collapsed"] .preview,
 .shell[data-preview="collapsed"] .splitter {
