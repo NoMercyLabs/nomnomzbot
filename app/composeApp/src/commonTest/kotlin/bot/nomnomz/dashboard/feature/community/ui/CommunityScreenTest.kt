@@ -198,6 +198,8 @@ private class FakeCommunityApi(
 ) : CommunityApi {
     override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> = ApiResult.Ok(emptyList())
     override suspend fun membersPage(channelId: String, role: String?, page: Int, pageSize: Int, cursor: String?): ApiResult<CommunityPage> = pageResult
+    override suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<bot.nomnomz.dashboard.core.network.PlatformViewer> = error("stub")
+
     override suspend fun searchViewers(channelId: String, query: String, limit: Int): ApiResult<List<ViewerOption>> = ApiResult.Ok(searchResults)
     override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> = memberResult
     override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> = ApiResult.Ok(emptyList())

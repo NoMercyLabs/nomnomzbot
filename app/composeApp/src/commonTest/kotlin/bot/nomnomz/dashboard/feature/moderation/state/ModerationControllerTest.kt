@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
 import bot.nomnomz.dashboard.core.network.UpdateTwitchAutoModSettingsBody
 import bot.nomnomz.dashboard.core.network.asUpdateBody
 import bot.nomnomz.dashboard.feature.moderation.ui.formatTrustValue
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import kotlin.test.assertNotNull
 import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -68,6 +69,7 @@ import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
+import bot.nomnomz.dashboard.core.network.PlatformViewer
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1104,7 +1106,15 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 
 private class FakeCommunityApi(
     private val searchResult: ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList()),
+    private val lookupResult: ApiResult<PlatformViewer> = ApiResult.Failure(ApiError(404, "TWITCH_USER_NOT_FOUND", "none")),
 ) : CommunityApi {
+    val lookupCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<PlatformViewer> {
+        lookupCalls += login
+        return lookupResult
+    }
+
     // Keyed by Twitch id, so a test can prove the Twitch-id → internal-Guid resolution
     // (ModerationController.setHistorySubjectFilter) picks up the RIGHT row for the RIGHT id, not just any
     // configured result. A userId with no entry falls back to a member with no internalUserId (the real
@@ -2212,4 +2222,98 @@ class ModerationHistoryLogTests {
             assertTrue(ready.historyEntries.isEmpty())
             assertEquals(ModerationHistoryActionTypes.Warn, ready.historyFilter.actionType)
         }
+}
+
+// S-MOD-BAN-UNSEEN: a viewer the bot has never seen can still be banned — when no known viewer matches the typed
+// name the controller asks Twitch (through the backend lookup) and offers the account, keyed on its platform id.
+class ModerationControllerBanTargetTests {
+
+    private suspend fun controllerFor(community: FakeCommunityApi): ModerationController {
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList()))),
+                community,
+            )
+        controller.load()
+        return controller
+    }
+
+    @Test
+    fun a_known_viewer_match_wins_and_no_twitch_lookup_is_made() = runTest {
+        val community =
+            FakeCommunityApi(searchResult = ApiResult.Ok(listOf(ViewerOption(id = "42", label = "Nibbles", subLabel = "nibbles"))))
+        val controller = controllerFor(community)
+
+        val found: BanTargetSearch = controller.searchBanTargets("nib")
+
+        assertEquals(listOf("42"), found.options.map { it.id })
+        assertTrue(community.lookupCalls.isEmpty())
+        assertEquals(null, found.notFoundLogin)
+        assertEquals(false, found.lookupFailed)
+    }
+
+    @Test
+    fun no_known_match_offers_the_twitch_account_keyed_on_its_platform_id() = runTest {
+        val community =
+            FakeCommunityApi(
+                lookupResult =
+                    ApiResult.Ok(
+                        PlatformViewer(
+                            id = "777",
+                            login = "newperson",
+                            displayName = "NewPerson",
+                            profileImageUrl = "https://img/np.png",
+                            createdAt = "2019-03-04T10:20:30+00:00",
+                        )
+                    )
+            )
+        val controller = controllerFor(community)
+
+        val found: BanTargetSearch = controller.searchBanTargets("@NewPerson")
+
+        assertEquals(listOf("newperson"), community.lookupCalls)
+        assertEquals(1, found.options.size)
+        val option: PickerOption = found.options.single()
+        assertEquals("777", option.id)
+        assertEquals("NewPerson", option.label)
+        assertEquals("https://img/np.png", option.avatarUrl)
+        assertEquals("2019-03-04", option.createdAt)
+    }
+
+    @Test
+    fun a_404_is_reported_as_not_found_with_the_typed_login() = runTest {
+        val controller = controllerFor(FakeCommunityApi())
+
+        val found: BanTargetSearch = controller.searchBanTargets("ghostperson")
+
+        assertTrue(found.options.isEmpty())
+        assertEquals("ghostperson", found.notFoundLogin)
+        assertEquals(false, found.lookupFailed)
+    }
+
+    @Test
+    fun a_lookup_failure_is_an_error_never_not_found() = runTest {
+        val community =
+            FakeCommunityApi(lookupResult = ApiResult.Failure(ApiError(502, "TWITCH_UPSTREAM", "Twitch is down")))
+        val controller = controllerFor(community)
+
+        val found: BanTargetSearch = controller.searchBanTargets("someone")
+
+        assertTrue(found.options.isEmpty())
+        assertEquals(null, found.notFoundLogin)
+        assertEquals(true, found.lookupFailed)
+    }
+
+    @Test
+    fun text_that_cannot_be_a_twitch_login_is_not_sent_to_twitch() = runTest {
+        val community = FakeCommunityApi()
+        val controller = controllerFor(community)
+
+        val found: BanTargetSearch = controller.searchBanTargets("two words")
+
+        assertTrue(community.lookupCalls.isEmpty())
+        assertTrue(found.options.isEmpty())
+        assertEquals(null, found.notFoundLogin)
+    }
 }

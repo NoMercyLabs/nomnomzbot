@@ -34,6 +34,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import kotlinx.coroutines.delay
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.search_picker_change
+import nomnomzbot.composeapp.generated.resources.search_picker_created
 import nomnomzbot.composeapp.generated.resources.search_picker_hint
 import nomnomzbot.composeapp.generated.resources.search_picker_searching
 import nomnomzbot.composeapp.generated.resources.search_picker_selected
@@ -52,6 +53,10 @@ data class PickerOption(
     val id: String,
     val label: String,
     val sublabel: String = "",
+    /** Profile image, when the source has one (a Twitch account found by lookup); shown as the row's avatar. */
+    val avatarUrl: String? = null,
+    /** The account's creation date (yyyy-MM-dd), when known; shown as a "Created" line. */
+    val createdAt: String? = null,
 )
 
 /** The option the caller committed to — [id] is the identifier the write consumes, [name] labels the selection. */
@@ -79,6 +84,7 @@ fun SearchPickerField(
     label: String? = null,
     placeholder: String? = null,
     emptyText: String? = null,
+    emptyTextIsError: Boolean = false,
     enabled: Boolean = true,
     showAllWhenEmpty: Boolean = false,
 ) {
@@ -160,7 +166,7 @@ fun SearchPickerField(
                 Text(
                     text = emptyText ?: stringResource(Res.string.viewer_picker_empty),
                     style = typography.xs,
-                    color = tokens.mutedForeground,
+                    color = if (emptyTextIsError) tokens.destructive else tokens.mutedForeground,
                 )
         }
         results.take(6).forEach { option ->
@@ -175,24 +181,42 @@ fun SearchPickerField(
                             contentDescription = name
                         },
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = name,
-                        style = typography.sm,
-                        color = tokens.popoverForeground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (option.sublabel.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    if (option.avatarUrl != null) {
+                        Avatar(name = name, size = spacing.s8, imageUrl = option.avatarUrl)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = option.sublabel,
-                            style = typography.xs,
-                            color = tokens.mutedForeground,
+                            text = name,
+                            style = typography.sm,
+                            color = tokens.popoverForeground,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        if (option.sublabel.isNotBlank()) {
+                            Text(
+                                text = option.sublabel,
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        if (option.createdAt != null) {
+                            Text(
+                                text = stringResource(Res.string.search_picker_created, option.createdAt),
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
+                                maxLines = 1,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

@@ -397,6 +397,8 @@ internal class VPCFakeCommunityApi(private val profileResult: ApiResult<ViewerPr
     override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> = ApiResult.Ok(emptyList())
     override suspend fun membersPage(channelId: String, role: String?, page: Int, pageSize: Int, cursor: String?): ApiResult<CommunityPage> =
         ApiResult.Ok(CommunityPage())
+    override suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<bot.nomnomz.dashboard.core.network.PlatformViewer> = error("stub")
+
     override suspend fun searchViewers(channelId: String, query: String, limit: Int): ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList())
 
     // ViewerProfileController.refresh() reads this for the ban badge/toggle (the profile summary itself

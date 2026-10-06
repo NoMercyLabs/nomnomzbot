@@ -2737,6 +2737,9 @@
     <string name="search_picker_searching">Zoeken…</string>
     <string name="search_picker_change">Wijzigen</string>
     <string name="search_picker_selected">Geselecteerd: %1$s</string>
+    <string name="search_picker_created">Account aangemaakt op %1$s</string>
+    <string name="moderation_ban_target_not_found">Geen Twitch-account met de naam %1$s</string>
+    <string name="moderation_ban_target_lookup_failed">Twitch is niet bereikbaar. Probeer het opnieuw.</string>
     <string name="viewer_picker_label">Zoek een kijker</string>
     <string name="viewer_picker_placeholder">Zoek op naam…</string>
     <string name="viewer_picker_empty">Geen overeenkomende kijkers.</string>
