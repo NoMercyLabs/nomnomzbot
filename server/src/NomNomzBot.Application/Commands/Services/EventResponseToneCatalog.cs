@@ -82,6 +82,21 @@ public static class EventResponseToneCatalog
     public static string? FirstInformative(string eventType) =>
         Get(PersonalityTone.Informative, eventType) is { Count: > 0 } lines ? lines[0] : null;
 
+    /// <summary>
+    /// The text a chat row really owns: null for blank text and for a copy of the event's shown Informative
+    /// default. A row saved while the dashboard pre-filled that default holds it as literal text, which would
+    /// freeze every channel on the Informative voice; treating it as "no text" keeps the row on its tone.
+    /// </summary>
+    public static string? OwnText(string eventType, string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return null;
+
+        return string.Equals(message.Trim(), FirstInformative(eventType), StringComparison.Ordinal)
+            ? null
+            : message;
+    }
+
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string[]>> Build()
     {
         Dictionary<string, IReadOnlyDictionary<string, string[]>> catalog = new(

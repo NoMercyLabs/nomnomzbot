@@ -238,15 +238,16 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         if (platform is null)
             return null;
 
-        string? message = string.IsNullOrWhiteSpace(platform.Message)
-            ? EventResponseToneCatalog.Pick(await PersonalityAsync(broadcasterId, ct), eventType)
-            : platform.Message;
+        string? message =
+            EventResponseToneCatalog.OwnText(eventType, platform.Message)
+            ?? EventResponseToneCatalog.Pick(await PersonalityAsync(broadcasterId, ct), eventType);
         return new(platform.IsEnabled, "chat_message", message, null, [], platform.SpeakWithTts);
     }
 
     /// <summary>A chat row of its own with no text speaks a line in the channel's tone; any other row, its own text.</summary>
     private async Task<string?> OwnMessageAsync(EventResponse row, CancellationToken ct) =>
-        row.ResponseType == "chat_message" && string.IsNullOrWhiteSpace(row.Message)
+        row.ResponseType == "chat_message"
+        && EventResponseToneCatalog.OwnText(row.EventType, row.Message) is null
             ? EventResponseToneCatalog.Pick(
                 await PersonalityAsync(row.BroadcasterId, ct),
                 row.EventType
