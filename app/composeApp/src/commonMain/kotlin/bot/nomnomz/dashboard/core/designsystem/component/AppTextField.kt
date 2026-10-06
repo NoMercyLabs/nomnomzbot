@@ -45,7 +45,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -92,6 +94,107 @@ fun AppTextField(
     showLabelInfoIcon: Boolean = false,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
+) {
+    AppTextFieldFrame(
+        isEmpty = value.isEmpty(),
+        label = label,
+        modifier = modifier,
+        enabled = enabled,
+        isError = isError,
+        errorText = errorText,
+        placeholder = placeholder,
+        supportingText = supportingText,
+        trailingIcon = trailingIcon,
+        leadingIcon = leadingIcon,
+        showLabelInfoIcon = showLabelInfoIcon,
+        actionLabel = actionLabel,
+        onActionClick = onActionClick,
+    ) { fieldModifier, textStyle, interactionSource, decorationBox ->
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            singleLine = true,
+            textStyle = textStyle,
+            cursorBrush = SolidColor(ControlPalette.White),
+            visualTransformation = visualTransformation,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            interactionSource = interactionSource,
+            modifier = fieldModifier,
+            decorationBox = decorationBox,
+        )
+    }
+}
+
+/**
+ * The same field over a [TextFieldValue], for a caller that needs the cursor/selection (the pipeline template
+ * field inserts a picked variable at the caret). Looks and behaves exactly like the [String] overload.
+ */
+@Composable
+fun AppTextField(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    placeholder: String? = null,
+    supportingText: String? = null,
+) {
+    AppTextFieldFrame(
+        isEmpty = value.text.isEmpty(),
+        label = label,
+        modifier = modifier,
+        enabled = enabled,
+        isError = false,
+        errorText = null,
+        placeholder = placeholder,
+        supportingText = supportingText,
+        trailingIcon = null,
+        leadingIcon = null,
+        showLabelInfoIcon = false,
+        actionLabel = null,
+        onActionClick = null,
+    ) { fieldModifier, textStyle, interactionSource, decorationBox ->
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            singleLine = true,
+            textStyle = textStyle,
+            cursorBrush = SolidColor(ControlPalette.White),
+            interactionSource = interactionSource,
+            modifier = fieldModifier,
+            decorationBox = decorationBox,
+        )
+    }
+}
+
+// The shared field chrome (label, border, focus ring, placeholder, trailing slot, supporting text). The two
+// public overloads differ only in the value type, so each supplies its own BasicTextField through [input].
+@Composable
+private fun AppTextFieldFrame(
+    isEmpty: Boolean,
+    label: String,
+    modifier: Modifier,
+    enabled: Boolean,
+    isError: Boolean,
+    errorText: String?,
+    placeholder: String?,
+    supportingText: String?,
+    trailingIcon: @Composable (() -> Unit)?,
+    leadingIcon: @Composable (() -> Unit)?,
+    showLabelInfoIcon: Boolean,
+    actionLabel: String?,
+    onActionClick: (() -> Unit)?,
+    input:
+        @Composable
+        (
+            fieldModifier: Modifier,
+            textStyle: TextStyle,
+            interactionSource: MutableInteractionSource,
+            decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit,
+        ) -> Unit,
 ) {
     val typography = LocalTypography.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -143,28 +246,18 @@ fun AppTextField(
             Spacer(Modifier.height(LabelGap))
         }
 
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            singleLine = true,
-            textStyle =
-                typography.base.copy(
-                    color = inputColor,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                    letterSpacing = (-0.0688).sp,
-                ),
-            cursorBrush = SolidColor(ControlPalette.White),
-            visualTransformation = visualTransformation,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            interactionSource = interactionSource,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .hoverable(interactionSource, enabled = enabled),
-            decorationBox = { innerTextField ->
+        input(
+            Modifier
+                .fillMaxWidth()
+                .hoverable(interactionSource, enabled = enabled),
+            typography.base.copy(
+                color = inputColor,
+                fontSize = 16.sp,
+                lineHeight = 22.sp,
+                letterSpacing = (-0.0688).sp,
+            ),
+            interactionSource,
+        ) { innerTextField ->
                 Row(
                     modifier =
                         Modifier
@@ -202,7 +295,7 @@ fun AppTextField(
                         }
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        if (value.isEmpty() && placeholder != null) {
+                        if (isEmpty && placeholder != null) {
                             Text(
                                 text = placeholder,
                                 style =
@@ -231,8 +324,7 @@ fun AppTextField(
                         trailingIcon != null -> trailingIcon()
                     }
                 }
-            },
-        )
+        }
 
         val subText =
             when {
