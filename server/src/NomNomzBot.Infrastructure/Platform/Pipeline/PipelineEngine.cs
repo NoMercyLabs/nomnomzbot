@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -265,6 +266,7 @@ public sealed class PipelineEngine : IPipelineEngine
             ChannelEventId = request.ChannelEventId,
             RawMessage = request.RawMessage,
             CancellationToken = ct,
+            Trace = request.CollectTrace ? new() : null,
         };
 
         // Seed initial variables
@@ -334,6 +336,8 @@ public sealed class PipelineEngine : IPipelineEngine
         // decrement in `finally` from running first.
         await PersistExecutionAsync(request, definition, startedAt, result, ct);
         result.RepliedToChat = execCtx.RepliedToChat;
+        if (execCtx.Trace is not null)
+            result.Trace = execCtx.Trace.Steps;
         return result;
     }
 
@@ -685,6 +689,17 @@ public sealed class PipelineEngine : IPipelineEngine
 
             PipelineStepDefinition step = definition.Steps[i];
             DateTimeOffset stepStart = _timeProvider.GetUtcNow();
+            Dictionary<string, string>? traceBefore = ctx.Trace is null
+                ? null
+                : PipelineTraceCollector.Snapshot(ctx.Variables);
+
+            void TraceStep() =>
+                ctx.Trace?.RecordLeaf(
+                    step.Id ?? i.ToString(),
+                    ctx.StepLogs[^1],
+                    traceBefore!,
+                    ctx.Variables
+                );
 
             // Evaluate condition (skip step if condition false)
             if (step.Condition is not null && !await EvaluateConditionAsync(ctx, step.Condition))
@@ -700,6 +715,7 @@ public sealed class PipelineEngine : IPipelineEngine
                         Output = "Condition not met — step skipped",
                     }
                 );
+                TraceStep();
                 continue;
             }
 
@@ -731,6 +747,7 @@ public sealed class PipelineEngine : IPipelineEngine
                         ErrorMessage = ex.Message,
                     }
                 );
+                TraceStep();
                 // Fail-CLOSED: an unhandled exception from an action aborts the pipeline.
                 failedBreak = true;
                 break;
@@ -747,6 +764,7 @@ public sealed class PipelineEngine : IPipelineEngine
                     ErrorMessage = actionResult.ErrorMessage,
                 }
             );
+            TraceStep();
 
             // Expose the just-run action's outcome as pipeline variables so a LATER step can branch on it
             // (e.g. `play_tts` with continue_on_error, then a `redemption_refund` gated by a comparison on
@@ -1378,7 +1396,7 @@ public sealed class PipelineEngine : IPipelineEngine
         switch (step.BlockKind)
         {
             case null:
-                await ExecuteLeafAsync(step, ctx, state, ct);
+                await ExecuteTracedLeafAsync(step, ctx, state, ct);
                 break;
 
             case "if":
@@ -1386,6 +1404,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 bool matched = resumeFrame is not null
                     ? resumeFrame.Branch == "then"
                     : await EvaluateConditionTreeAsync(ctx, step.Conditions);
+                ctx.Trace?.BeginBlock(step.Id.ToString(), "if", matched ? "then" : "else");
                 List<PipelineTreeNode> arm =
                 [
                     .. node.Children.Where(c => c.Step.Branch == (matched ? "then" : "else")),
@@ -1441,6 +1460,27 @@ public sealed class PipelineEngine : IPipelineEngine
                 state.FailedBreak = true;
                 break;
         }
+    }
+
+    /// <summary>Runs one leaf and, on a test run only, reports its trace row from the log the leaf wrote.</summary>
+    private async Task ExecuteTracedLeafAsync(
+        PipelineStep step,
+        PipelineExecutionContext ctx,
+        PipelineTreeRunState state,
+        CancellationToken ct
+    )
+    {
+        if (ctx.Trace is null)
+        {
+            await ExecuteLeafAsync(step, ctx, state, ct);
+            return;
+        }
+
+        Dictionary<string, string> before = PipelineTraceCollector.Snapshot(ctx.Variables);
+        int logsBefore = ctx.StepLogs.Count;
+        await ExecuteLeafAsync(step, ctx, state, ct);
+        if (ctx.StepLogs.Count > logsBefore)
+            ctx.Trace.RecordLeaf(step.Id.ToString(), ctx.StepLogs[^1], before, ctx.Variables);
     }
 
     private async Task ExecuteLeafAsync(
@@ -1843,6 +1883,7 @@ public sealed class PipelineEngine : IPipelineEngine
         // Resuming: jump straight to the recorded iteration — every earlier pass already ran and
         // committed its effects before suspension (S-PIPE-TREE-d3a). Fresh runs start at 0 as before.
         int index = resumeFrame?.LoopIndex ?? 0;
+        PipelineTraceStepDto? traceRow = ctx.Trace?.BeginBlock(node.Step.Id.ToString(), "loop");
         string previousItem =
             resumeFrame is not null && index > 0
                 ? mode == "foreach"
@@ -1883,6 +1924,8 @@ public sealed class PipelineEngine : IPipelineEngine
             }
 
             string currentItem = mode == "foreach" ? items[index] : index.ToString();
+            if (traceRow is not null)
+                traceRow.Iterations++;
             ctx.Variables[PipelineEngineVariables.LoopIndex] = index.ToString();
             ctx.Variables[PipelineEngineVariables.LoopItem] = currentItem;
             ctx.Variables[PipelineEngineVariables.LoopPreviousItem] = previousItem;

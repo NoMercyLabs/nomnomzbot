@@ -77,6 +77,9 @@ public sealed class PipelineExecutionContext
     /// sibling call.</summary>
     public string? ReturnValue { get; set; }
 
+    /// <summary>The step-by-step trace of a TEST run; null on every normal run, so tracing costs nothing there.</summary>
+    public PipelineTraceCollector? Trace { get; init; }
+
     /// <summary>Per-step execution logs accumulated during the run.</summary>
     public List<StepExecutionLog> StepLogs { get; } = [];
 }

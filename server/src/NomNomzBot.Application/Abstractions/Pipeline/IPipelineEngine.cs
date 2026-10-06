@@ -113,6 +113,10 @@ public class PipelineRequest
 
     public string RawMessage { get; init; } = "";
     public Dictionary<string, string> InitialVariables { get; init; } = new();
+
+    /// <summary>True only for a dashboard test run: the engine then records a per-step trace into
+    /// <see cref="PipelineExecutionResult.Trace"/>. Normal runs leave it false and pay nothing.</summary>
+    public bool CollectTrace { get; init; }
 }
 
 public class PipelineExecutionResult
@@ -130,6 +134,9 @@ public class PipelineExecutionResult
     public bool RepliedToChat { get; set; }
 
     public IReadOnlyList<StepExecutionLog> StepLogs { get; init; } = [];
+
+    /// <summary>One row per executed step; filled only when <see cref="PipelineRequest.CollectTrace"/> was set.</summary>
+    public IReadOnlyList<Contracts.CustomCode.PipelineTraceStepDto> Trace { get; set; } = [];
 
     /// <summary>Set only when <see cref="Outcome"/> is <see cref="PipelineOutcome.Suspended"/> — the
     /// leaf step the run is now parked at.</summary>
