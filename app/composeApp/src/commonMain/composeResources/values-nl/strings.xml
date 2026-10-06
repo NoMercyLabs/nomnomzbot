@@ -3175,6 +3175,14 @@
     <string name="pipelines_testrun_chat_empty">Geen chatuitvoer.</string>
     <string name="pipelines_testrun_effects_heading">Vastgelegde effecten</string>
     <string name="pipelines_testrun_effects_empty">Geen effecten vastgelegd.</string>
+    <string name="pipelines_testrun_trace_heading">Wat elke stap deed</string>
+    <string name="pipelines_testrun_trace_empty">Geen stapdetails voor deze run.</string>
+    <string name="pipelines_testrun_trace_branch">Nam de %1$s-tak</string>
+    <string name="pipelines_testrun_trace_iterations">%1$d keer uitgevoerd</string>
+    <string name="pipelines_testrun_trace_change">%1$s: %2$s → %3$s</string>
+    <string name="pipelines_testrun_trace_not_set">(niet ingesteld)</string>
+    <string name="pipelines_testrun_trace_output">Uitvoer: %1$s</string>
+    <string name="pipelines_testrun_trace_error">Fout: %1$s</string>
     <string name="pipelines_effect_row_type">Effect</string>
     <string name="pipeline_test_action">Pipeline testen</string>
     <string name="pipeline_test_disabled_reason">Koppel eerst een pipeline om te testen</string>

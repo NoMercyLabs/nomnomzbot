@@ -234,7 +234,28 @@ data class TestRunResult(
     val timeline: List<TimelineEntry> = emptyList(),
     /** Where the failing script threw; null when the run passed or the position is unknown. */
     val errorPosition: SourcePosition? = null,
+    /** What each executed pipeline step did, in run order; empty for script runs. */
+    val trace: List<PipelineTraceStep> = emptyList(),
 )
+
+/** One executed step of a pipeline test run (backend `PipelineTraceStepDto`). */
+@Serializable
+data class PipelineTraceStep(
+    val stepId: String = "",
+    val stepType: String = "",
+    /** The arm an `if` step took (`then` / `else`); null for other steps. */
+    val branch: String? = null,
+    /** The pass count of a `loop` step; null for other steps. */
+    val iterations: Int? = null,
+    val variableChanges: List<PipelineTraceVariableChange> = emptyList(),
+    /** What the step produced, e.g. the chat text it would send. */
+    val output: String? = null,
+    val error: String? = null,
+)
+
+/** A variable a traced step changed (backend `PipelineTraceVariableChangeDto`); null = unset. */
+@Serializable
+data class PipelineTraceVariableChange(val key: String = "", val before: String? = null, val after: String? = null)
 
 /** A position in a script file (backend `ScriptSourcePosition`). */
 @Serializable

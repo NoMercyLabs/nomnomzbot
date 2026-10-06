@@ -56,6 +56,7 @@ import nomnomzbot.composeapp.generated.resources.pipelines_testrun_run
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_running
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_subtitle
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_title
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_trace_heading
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_vars_label
 
 // The S047 dry-run dialog, extracted (S047-remaining) so every pipeline-binding surface — the Pipelines editor
@@ -158,6 +159,12 @@ private fun TestRunResultView(result: TestRunResult) {
         }
         result.error?.takeIf { it.isNotBlank() }?.let {
             Text(text = it, style = typography.xs, color = tokens.destructive)
+        }
+
+        if (result.trace.isNotEmpty()) {
+            Separator()
+            Text(text = stringResource(Res.string.pipelines_testrun_trace_heading), style = typography.sm, color = tokens.cardForeground)
+            PipelineTraceList(result.trace)
         }
 
         Separator()

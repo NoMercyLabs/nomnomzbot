@@ -3180,6 +3180,14 @@
     <string name="pipelines_testrun_chat_empty">No chat output.</string>
     <string name="pipelines_testrun_effects_heading">Captured effects</string>
     <string name="pipelines_testrun_effects_empty">No effects captured.</string>
+    <string name="pipelines_testrun_trace_heading">What each step did</string>
+    <string name="pipelines_testrun_trace_empty">No step details for this run.</string>
+    <string name="pipelines_testrun_trace_branch">Took the %1$s branch</string>
+    <string name="pipelines_testrun_trace_iterations">Ran %1$d time(s)</string>
+    <string name="pipelines_testrun_trace_change">%1$s: %2$s → %3$s</string>
+    <string name="pipelines_testrun_trace_not_set">(not set)</string>
+    <string name="pipelines_testrun_trace_output">Output: %1$s</string>
+    <string name="pipelines_testrun_trace_error">Error: %1$s</string>
     <string name="pipelines_effect_row_type">Effect</string>
     <string name="pipeline_test_action">Test pipeline</string>
     <string name="pipeline_test_disabled_reason">Bind a pipeline first to test it</string>
