@@ -70,7 +70,8 @@ public sealed class NowPlayingReaderCacheTests
                 Substitute.For<ICurrencyAccountService>(),
                 cache,
                 new OutboundSanctionAccessor(),
-                Substitute.For<IUserIdentityService>()
+                Substitute.For<IUserIdentityService>(),
+                Substitute.For<IForeignLinkTitleLookup>()
             ),
             Cache = cache,
             Provider = provider,

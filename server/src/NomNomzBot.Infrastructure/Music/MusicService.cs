@@ -43,6 +43,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private const int QueueSnapshotSize = 10;
     private const int MaxTrackDurationMs = 10 * 60 * 1000;
 
+    private const string UnsupportedLinkMessage =
+        "That link can't be used here. Send a song name, or a link for the music service this channel uses.";
+
     private readonly IEnumerable<IMusicProvider> _providers;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
@@ -56,6 +59,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly INowPlayingCache _nowPlayingCache;
     private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IUserIdentityService _identities;
+    private readonly IForeignLinkTitleLookup _linkTitles;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -70,9 +74,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         ICurrencyAccountService accounts,
         INowPlayingCache nowPlayingCache,
         IOutboundSanctionAccessor sanctions,
-        IUserIdentityService identities
+        IUserIdentityService identities,
+        IForeignLinkTitleLookup linkTitles
     )
     {
+        _linkTitles = linkTitles;
         _providers = providers;
         _db = db;
         _eventBus = eventBus;
@@ -536,6 +542,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // metadata gap is diagnosable.
         (TrackInfo? resolvedTrack, MusicProviderFailureReason resolveFailure) =
             await ResolveOrSearchAsync(provider, tenantId, trackUri, cancellationToken);
+        if (resolveFailure == MusicProviderFailureReason.UnsupportedLink)
+            return Result.Failure(UnsupportedLinkMessage, "UNSUPPORTED_LINK");
         if (resolveFailure != MusicProviderFailureReason.None)
             _logger.LogWarning(
                 "Track metadata lookup failed for channel {TenantId} via {Provider}: {Failure} — queuing \"{TrackUri}\" with placeholder metadata",
@@ -678,10 +686,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// failure reason means the search/resolve never meaningfully ran and must NOT be read as "not found"
     /// by the caller — the bot must never report a provider outage as a song that doesn't exist.
     /// </summary>
-    private static async Task<(
-        TrackInfo? Track,
-        MusicProviderFailureReason Failure
-    )> ResolveOrSearchAsync(
+    private async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveOrSearchAsync(
         IMusicProvider provider,
         Guid tenantId,
         string queryOrUri,
@@ -695,12 +700,26 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (resolved is not null)
             return (resolved, MusicProviderFailureReason.None);
 
+        string searchText = queryOrUri;
+        if (IsWebLink(queryOrUri) && !provider.OwnsLink(queryOrUri))
+        {
+            // A link the provider did not claim is never searched as text: its URL finds an unrelated song.
+            string? title = await _linkTitles.TryGetTitleAsync(queryOrUri, cancellationToken);
+            if (string.IsNullOrWhiteSpace(title))
+                return (null, MusicProviderFailureReason.UnsupportedLink);
+            searchText = title;
+        }
+
         (IReadOnlyList<TrackInfo> hits, MusicProviderFailureReason searchFailure) =
-            await provider.SearchAsync(tenantId, queryOrUri, 1, cancellationToken);
+            await provider.SearchAsync(tenantId, searchText, 1, cancellationToken);
         return searchFailure != MusicProviderFailureReason.None
             ? (null, searchFailure)
             : (hits.FirstOrDefault(), MusicProviderFailureReason.None);
     }
+
+    private static bool IsWebLink(string query) =>
+        Uri.TryCreate(query.Trim(), UriKind.Absolute, out Uri? uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     /// <summary>
     /// Translates a provider's <see cref="MusicProviderFailureReason"/> into the caller-facing error code
@@ -740,6 +759,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "Song requests only take individual tracks — that link is a playlist, album, episode, "
                     + "show, or artist page. Paste a single track link, or just search by name instead.",
                 "UNSUPPORTED_CONTENT_TYPE"
+            ),
+            MusicProviderFailureReason.UnsupportedLink => Result.Failure<T>(
+                UnsupportedLinkMessage,
+                "UNSUPPORTED_LINK"
             ),
             MusicProviderFailureReason.NotPlayableInRegion => Result.Failure<T>(
                 "That track can't play in the streamer's country. Try a different version of the song.",

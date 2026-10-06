@@ -300,7 +300,8 @@ public sealed class MusicServiceQueuePushFailureTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
         return (sut, handler, db, vault, connectionId);
     }

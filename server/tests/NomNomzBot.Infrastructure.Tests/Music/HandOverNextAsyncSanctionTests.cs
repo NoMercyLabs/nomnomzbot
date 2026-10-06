@@ -93,7 +93,8 @@ public sealed class HandOverNextAsyncSanctionTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             sanctions,
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
 
         // No sanction in force here, matching exactly how the reconciler and the poller's recovery tick
@@ -163,7 +164,8 @@ public sealed class HandOverNextAsyncSanctionTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             sanctions,
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
 
         sanctions.Current.Should().BeNull();
@@ -211,7 +213,8 @@ public sealed class HandOverNextAsyncSanctionTests
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
 
         queueStore

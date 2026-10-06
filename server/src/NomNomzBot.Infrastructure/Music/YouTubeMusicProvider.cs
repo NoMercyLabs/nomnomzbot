@@ -359,6 +359,8 @@ public sealed class YouTubeMusicProvider
         return (results, MusicProviderFailureReason.None);
     }
 
+    public bool OwnsLink(string link) => ExtractVideoId(link.Trim()) is not null;
+
     public async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
         Guid broadcasterId,
         string uriOrId,

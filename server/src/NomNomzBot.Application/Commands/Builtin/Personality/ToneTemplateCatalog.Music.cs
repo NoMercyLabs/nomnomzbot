@@ -345,6 +345,33 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.UnsupportedLink,
+            variables: [],
+            informative:
+            [
+                "That link can't be used here. Send a song name, or a link for the music service this channel uses.",
+            ],
+            friendly:
+            [
+                "I can't use that link, sorry! Send a song name or a link for this channel's music service.",
+            ],
+            sassy:
+            [
+                "I can't do anything with that link. Send a song name or a link for this channel's music service.",
+            ],
+            hype:
+            [
+                "CAN'T USE THAT LINK! SEND A SONG NAME OR A LINK FOR THIS CHANNEL'S MUSIC SERVICE.",
+            ],
+            chill:
+            [
+                "can't use that link. send a song name or a link for this channel's music service.",
+            ]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.NotPlayable,
             variables: [],
             informative:

@@ -191,6 +191,14 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
+            // A link the active provider does not own and whose title could not be read.
+            "UNSUPPORTED_LINK" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.UnsupportedLink,
+                "That link can't be used here. Send a song name, or a link for the music service this channel uses.",
+                null,
+                ct
+            ),
             // Spotify would accept it into its queue and then skip it without a word.
             "TRACK_UNAVAILABLE" => ComposeAsync(
                 context,

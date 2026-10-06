@@ -414,6 +414,10 @@ public sealed class SpotifyMusicProvider
         );
     }
 
+    public bool OwnsLink(string link) =>
+        Uri.TryCreate(link.Trim(), UriKind.Absolute, out Uri? url)
+        && url.Host.EndsWith("open.spotify.com", StringComparison.OrdinalIgnoreCase);
+
     public async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
         Guid broadcasterId,
         string uriOrId,

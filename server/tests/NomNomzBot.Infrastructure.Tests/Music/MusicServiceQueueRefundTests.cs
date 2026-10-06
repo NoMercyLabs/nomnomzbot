@@ -247,7 +247,8 @@ public sealed class MusicServiceQueueRefundTests
             accounts,
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Substitute.For<IForeignLinkTitleLookup>()
         );
         return (sut, accounts, store);
     }
