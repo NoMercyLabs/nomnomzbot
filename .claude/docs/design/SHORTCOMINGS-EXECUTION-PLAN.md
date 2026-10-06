@@ -38,10 +38,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Editor lane
 
-- **S-EDITOR-VUE-IMPORTS** `import X from "./components/X.vue"` shows TS 2307 although the file exists
-  (no `*.vue` module typing; hidden script model at `vue-script-model.js:51-58`). R5. Done-when: a
-  multi-file Vue widget (index.vue + 4 components) shows zero 2307 markers; a wrong path still shows
-  2307; E2E test fails before the fix.
 - **S-EDITOR-CONSOLE** `console.*` from the preview and from script test runs lands in a Console panel
   (level, time, source line). Today only errors are forwarded (`preview-sdk.js:73-77`). R4, R21.
   Done-when: E2E logs log/warn/error → three rows with the right level.
