@@ -613,7 +613,7 @@ class ApiClient(
             // PROVIDER_NOT_CONFIGURED) — this is how a caller branches on WHY a request failed, not just
             // its HTTP status. Problem-details `type` is the alternate machine-readable slot when THAT shape
             // is what came back; the bare status number is the last-resort fallback.
-            code = envelope?.code ?: problem?.type ?: status.toString(),
+            code = envelope?.code ?: problem?.code ?: problem?.type ?: status.toString(),
             message = failureMessage(
                 status,
                 problem?.detail ?: envelope?.message,
@@ -622,6 +622,9 @@ class ApiClient(
             ),
             traceId = problem?.traceId,
             errors = buildErrorsOf(envelope?.data),
+            action = problem?.action,
+            requiredRole = problem?.requiredRole,
+            heldRole = problem?.heldRole,
         )
     }
 

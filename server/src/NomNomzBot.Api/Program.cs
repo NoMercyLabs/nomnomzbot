@@ -348,6 +348,11 @@ try
         >(NomNomzBot.Api.Authentication.ApiTokenAuthenticationHandler.SchemeName, null);
 
     builder.Services.AddAuthorization();
+    // A failed RequireAction answers which action, the role it needs and the role the caller holds.
+    builder.Services.AddSingleton<
+        Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler,
+        NomNomzBot.Api.Authorization.ForbiddenActionResultHandler
+    >();
 
     // Roles-permissions Gate 2 (§6) + Plane-C IAM (§3.7): ONE dynamic policy provider that synthesizes
     // rbac:<actionKey> policies (Gate-2 handler over IActionAuthorizationService) and verbatim

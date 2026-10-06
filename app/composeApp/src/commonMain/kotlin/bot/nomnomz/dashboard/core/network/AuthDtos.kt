@@ -93,4 +93,9 @@ data class ProblemDetails(
     val status: Int? = null,
     val detail: String? = null,
     @SerialName("traceId") val traceId: String? = null,
+    /** Machine code of a forbidden action (`FORBIDDEN_ACTION`); the three fields below come with it. */
+    val code: String? = null,
+    val action: String? = null,
+    val requiredRole: String? = null,
+    val heldRole: String? = null,
 )
