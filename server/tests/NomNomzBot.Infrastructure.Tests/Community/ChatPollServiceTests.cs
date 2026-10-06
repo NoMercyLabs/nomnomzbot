@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Community;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -37,7 +38,7 @@ public sealed class ChatPollServiceTests
         IChatProvider Chat,
         ChannelContext Ctx,
         FakeTimeProvider Time
-    ) Build()
+    ) Build(IEventBus? bus = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ChannelContext ctx = new()
@@ -55,6 +56,7 @@ public sealed class ChatPollServiceTests
             registry,
             chat,
             time,
+            bus ?? Substitute.For<IEventBus>(),
             NullLogger<ChatPollService>.Instance
         );
         return (service, chat, ctx, time);
@@ -128,6 +130,77 @@ public sealed class ChatPollServiceTests
         poll.Options.Single(o => o.Index == 1).Votes.Should().Be(0);
         poll.Options.Single(o => o.Index == 2).Votes.Should().Be(2);
         poll.Options.Single(o => o.Index == 3).Votes.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_vote_pushes_exactly_one_change_carrying_the_new_tally()
+    {
+        IEventBus bus = Substitute.For<IEventBus>();
+        (ChatPollService service, _, _, _) = Build(bus);
+        Guid pollId = (await OpenAsync(service)).Value.Id;
+        bus.ClearReceivedCalls();
+
+        await service.RecordVoteAsync(Tenant, pollId, "twitch", "alice", 2);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<ChatPollChangedEvent>(e =>
+                    e.BroadcasterId == Tenant
+                    && e.PollId == pollId
+                    && e.Change == "voted"
+                    && e.Status == "open"
+                    && e.TotalVotes == 1
+                    && e.Options.Single(o => o.Index == 2).Votes == 1
+                    && e.Options.Single(o => o.Index == 1).Votes == 0
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await bus.ReceivedWithAnyArgs(1).PublishAsync<ChatPollChangedEvent>(default!);
+    }
+
+    [Fact]
+    public async Task Opening_and_closing_each_push_one_change()
+    {
+        IEventBus bus = Substitute.For<IEventBus>();
+        (ChatPollService service, _, _, _) = Build(bus);
+
+        Guid pollId = (await OpenAsync(service)).Value.Id;
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<ChatPollChangedEvent>(e =>
+                    e.PollId == pollId && e.Change == "opened" && e.Status == "open"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        await service.RecordVoteAsync(Tenant, pollId, "twitch", "alice", 1);
+        bus.ClearReceivedCalls();
+        await service.CloseAsync(Tenant.ToString(), pollId);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<ChatPollChangedEvent>(e =>
+                    e.PollId == pollId
+                    && e.Change == "closed"
+                    && e.Status == "closed"
+                    && e.TotalVotes == 1
+                    && e.ClosedAt != null
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_vote_for_a_missing_option_pushes_nothing()
+    {
+        IEventBus bus = Substitute.For<IEventBus>();
+        (ChatPollService service, _, _, _) = Build(bus);
+        Guid pollId = (await OpenAsync(service)).Value.Id;
+        bus.ClearReceivedCalls();
+
+        await service.RecordVoteAsync(Tenant, pollId, "twitch", "alice", 9);
+
+        await bus.DidNotReceiveWithAnyArgs().PublishAsync<ChatPollChangedEvent>(default!);
     }
 
     [Fact]

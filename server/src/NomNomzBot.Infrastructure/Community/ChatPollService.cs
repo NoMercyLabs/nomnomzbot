@@ -17,6 +17,7 @@ using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Community.Entities;
+using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Community;
@@ -31,6 +32,7 @@ public sealed class ChatPollService : IChatPollService
     private readonly IChannelRegistry _registry;
     private readonly IChatProvider _chat;
     private readonly TimeProvider _clock;
+    private readonly IEventBus _eventBus;
     private readonly ILogger<ChatPollService> _logger;
 
     public ChatPollService(
@@ -38,6 +40,7 @@ public sealed class ChatPollService : IChatPollService
         IChannelRegistry registry,
         IChatProvider chat,
         TimeProvider clock,
+        IEventBus eventBus,
         ILogger<ChatPollService> logger
     )
     {
@@ -45,6 +48,7 @@ public sealed class ChatPollService : IChatPollService
         _registry = registry;
         _chat = chat;
         _clock = clock;
+        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -105,7 +109,9 @@ public sealed class ChatPollService : IChatPollService
             );
         }
 
-        return Result.Success(ToDto(poll, options, votes: []));
+        ChatPollDto opened = ToDto(poll, options, votes: []);
+        await PublishChangeAsync(broadcaster, "opened", opened, cancellationToken);
+        return Result.Success(opened);
     }
 
     public async Task<Result<IReadOnlyList<ChatPollDto>>> ListAsync(
@@ -250,6 +256,13 @@ public sealed class ChatPollService : IChatPollService
             existing.VotedAt = now;
         }
         await _db.SaveChangesAsync(cancellationToken);
+
+        await PublishChangeAsync(
+            broadcasterId,
+            "voted",
+            await ProjectAsync(poll, cancellationToken),
+            cancellationToken
+        );
     }
 
     /// <summary>Closes any open-but-expired poll for the channel (the lazy auto-close touchpoint).</summary>
@@ -280,6 +293,7 @@ public sealed class ChatPollService : IChatPollService
         ClearHotPathPoll(poll.BroadcasterId);
 
         ChatPollDto dto = await ProjectAsync(poll, ct);
+        await PublishChangeAsync(poll.BroadcasterId, "closed", dto, ct);
         if (announce)
         {
             ChatPollOptionDto? winner = dto
@@ -297,6 +311,38 @@ public sealed class ChatPollService : IChatPollService
         }
         return dto;
     }
+
+    /// <summary>Tells the dashboard the poll changed, with the whole poll as it now stands.</summary>
+    private Task PublishChangeAsync(
+        Guid broadcaster,
+        string change,
+        ChatPollDto poll,
+        CancellationToken ct
+    ) =>
+        _eventBus.PublishAsync(
+            new ChatPollChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                PollId = poll.Id,
+                Change = change,
+                Question = poll.Question,
+                Status = poll.Status,
+                TotalVotes = poll.TotalVotes,
+                Options =
+                [
+                    .. poll.Options.Select(o => new ChatPollChangedOption(
+                        o.Index,
+                        o.Label,
+                        o.Votes
+                    )),
+                ],
+                OpenedAt = poll.OpenedAt,
+                ClosesAt = poll.ClosesAt,
+                ClosedAt = poll.ClosedAt,
+                OccurredAt = _clock.GetUtcNow(),
+            },
+            ct
+        );
 
     private async Task<ChatPollDto> ProjectAsync(ChatPoll poll, CancellationToken ct)
     {
