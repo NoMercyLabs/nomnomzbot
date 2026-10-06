@@ -94,9 +94,11 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("game.lobby", null, LiveFrames),
         new("game.running", null, LiveFrames),
         new("game.resolved", null, FinalFrames),
-        // Raised by the overlay SDK itself from the raw PlaySound / StopSound hub targets.
-        new("play_sound", null),
-        new("stop_sound", null),
+        // Raised by the overlay SDK itself from the raw PlaySound / StopSound hub targets; the hub sends these records.
+        new("play_sound", typeof(PlaySoundPayload)),
+        new("stop_sound", typeof(StopSoundPayload)),
+        // The generic event: free-form, fired at a widget that declares no event of its own.
+        new("test", null),
     ];
 
     public Type CustomEventPayloadType => typeof(CustomDataWidgetPayload);
