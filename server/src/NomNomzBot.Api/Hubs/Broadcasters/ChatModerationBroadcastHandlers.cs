@@ -12,6 +12,7 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -111,6 +112,47 @@ public sealed class ChatMessageDeletedBroadcastHandler : IEventHandler<ChatMessa
             dto,
             excludeWidgetId: null,
             @event.EventId.ToString(),
+            ct
+        );
+    }
+}
+
+/// <summary>
+/// Names the moderator on a deleted line. Twitch's <c>channel.chat.message_delete</c> never says who deleted the
+/// message; the <c>channel.moderate</c> <c>delete</c> action does. This pushes a second, named <c>message_deleted</c>
+/// to the DASHBOARD ONLY: the unnamed <see cref="ChatMessageDeletedEvent"/> already stored the deletion, retracted the
+/// overlays and journaled it once, so no second <see cref="ChatMessageDeletedEvent"/> is published. The dashboard
+/// upgrades the line's tag from "deleted" to "deleted by Ana".
+/// </summary>
+public sealed class ModerationDeleteBroadcastHandler : IEventHandler<ModerationActionTakenEvent>
+{
+    private readonly IDashboardNotifier _notifier;
+
+    public ModerationDeleteBroadcastHandler(IDashboardNotifier notifier)
+    {
+        _notifier = notifier;
+    }
+
+    public async Task HandleAsync(ModerationActionTakenEvent @event, CancellationToken ct = default)
+    {
+        if (
+            @event.BroadcasterId == Guid.Empty
+            || @event.ActionType != "delete"
+            || string.IsNullOrEmpty(@event.MessageId)
+        )
+            return;
+
+        MessageDeletedDto dto = new(
+            @event.MessageId,
+            @event.ModeratorId,
+            @event.TargetUserId,
+            @event.ModeratorDisplayName
+        );
+
+        await _notifier.NotifyChannelAsync(
+            @event.BroadcasterId.ToString(),
+            "message_deleted",
+            dto,
             ct
         );
     }

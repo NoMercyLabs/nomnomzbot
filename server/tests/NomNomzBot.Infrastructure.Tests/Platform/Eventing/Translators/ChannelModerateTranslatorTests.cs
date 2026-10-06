@@ -12,6 +12,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
@@ -131,6 +132,49 @@ public sealed class ChannelModerateTranslatorTests
             .Be("141981764", "the delete action's nested object names the target chatter");
         published.Reason.Should().BeNull("the delete object carries no reason field");
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
+    }
+
+    [Fact]
+    public async Task ChannelModerate_DeleteAction_NamesTheModeratorAndMessageWithoutASecondDeletionEvent()
+    {
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelModerateTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                """
+                {
+                    "broadcaster_user_id": "423374343",
+                    "moderator_user_id": "424596340",
+                    "moderator_user_login": "ana",
+                    "moderator_user_name": "Ana",
+                    "action": "delete",
+                    "delete": {
+                        "user_id": "141981764",
+                        "user_login": "twitchdev",
+                        "user_name": "TwitchDev",
+                        "message_id": "abc-123",
+                        "message_body": "bad message"
+                    }
+                }
+                """
+            )
+        );
+
+        // One deletion must stay ONE ChatMessageDeletedEvent (that topic already feeds the store, overlays,
+        // journal, webhooks); this feed only enriches the moderation event with who and which message.
+        bus.EventsOf<ChatMessageDeletedEvent>().Should().BeEmpty();
+        ModerationActionTakenEvent moderated = bus.EventsOf<ModerationActionTakenEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        moderated.ActionType.Should().Be("delete");
+        moderated.MessageId.Should().Be("abc-123");
+        moderated.TargetUserId.Should().Be("141981764");
+        moderated.ModeratorId.Should().Be("424596340");
+        moderated.ModeratorDisplayName.Should().Be("Ana");
     }
 
     [Fact]

@@ -120,7 +120,12 @@ public record RaidAlertDto(
 
 public record ChatClearedDto(string ClearedByUserId);
 
-public record MessageDeletedDto(string MessageId, string DeletedByUserId, string TargetUserId);
+public record MessageDeletedDto(
+    string MessageId,
+    string DeletedByUserId,
+    string TargetUserId,
+    string DeletedByDisplayName = ""
+);
 
 public record UserMessagesClearedDto(
     string TargetUserId,

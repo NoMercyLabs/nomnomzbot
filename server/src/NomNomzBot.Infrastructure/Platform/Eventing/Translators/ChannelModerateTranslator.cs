@@ -55,6 +55,9 @@ public sealed class ChannelModerateTranslator(IEventBus bus, TimeProvider clock)
             ActionType = action,
             TargetUserId = detail?.GetRequiredString("user_id") ?? string.Empty,
             Reason = detail?.GetString("reason"),
+            // channel.chat.message_delete never names the moderator; this feed does (see ModerationDeleteBroadcastHandler).
+            ModeratorDisplayName = payload.GetString("moderator_user_name") ?? string.Empty,
+            MessageId = action == "delete" ? detail?.GetString("message_id") : null,
         };
 
         await PublishAsync(moderated, ct);
