@@ -142,7 +142,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   says so.
 **S-SR-FOLLOWER-CAP** The per-role song request cap (5cbfb905a) covers viewer, subscriber, VIP, moderator and broadcaster, but not follower: the permission ladder has no follower rung (PermissionLevel.cs:19). Done-when: the streamer sets a follower cap on the music settings card; a follower who is not a subscriber gets it; a test that failed first.
 - **S-TTS-SPOKEN-NAME-QUEUE** Approval-queued TTS cleans only @mentions: the queued entry does not keep the SpokenNames list, so a plain viewer name in a held message is read raw after approval. Done-when: the queued entry stores SpokenNames and the approved playback cleans them; a test that failed first.
-- **S-TTS-VOICE-CHAT-UNSEEN** `!voice set @viewer <voice>` answers "unknown viewer" for a viewer who never chatted in this channel. Done-when: an unknown name is looked up on Twitch (the users lookup from 999055e37), the viewer row is created, and the voice is set; a test that failed first.
 - **IDEA-REACT-RUNTIME** (owner idea 2026-10-04, an idea for later, not a slice) Real React widget support:
   a vendored React runtime the overlay page loads like `/overlay/vue.js`, `react` on the dependency allowlist,
   an esbuild JSX setup that resolves `react/jsx-runtime`, and the app offering `react` again. Until then
