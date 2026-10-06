@@ -67,6 +67,7 @@ import bot.nomnomz.dashboard.core.network.ViewerIdentity
 import bot.nomnomz.dashboard.core.network.ViewerProfileSummary
 import bot.nomnomz.dashboard.feature.community.state.ViewerProfileController
 import bot.nomnomz.dashboard.feature.community.state.ViewerProfileState
+import bot.nomnomz.dashboard.feature.tts.ui.ViewerVoiceEditor
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole as ShellManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
@@ -283,6 +284,7 @@ private fun ProfileContent(
     var pendingUnban: Boolean by remember { mutableStateOf(false) }
     var pendingExport: Boolean by remember { mutableStateOf(false) }
     var pendingErase: Boolean by remember { mutableStateOf(false) }
+    var voiceError: String? by remember { mutableStateOf(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -344,13 +346,16 @@ private fun ProfileContent(
         item(key = "overrides") {
             OverridesSection(
                 name = name,
+                userId = identity.userId,
                 overrides = profile.overrides,
                 availableVoices = state.availableVoices,
+                voiceError = voiceError,
+                searchAssignableVoices = { query -> controller.searchAssignableVoices(query) },
                 write = configWrite,
                 onSaveMessage = { template -> scope.launch { controller.saveOverrideMessage(template) } },
                 onClearMessage = { scope.launch { controller.clearOverrideMessage() } },
-                onSaveVoice = { voiceId -> scope.launch { controller.saveTtsVoice(voiceId) } },
-                onClearVoice = { scope.launch { controller.clearTtsVoice() } },
+                onSaveVoice = { voiceId -> scope.launch { voiceError = controller.saveTtsVoice(voiceId) } },
+                onClearVoice = { scope.launch { voiceError = controller.clearTtsVoice() } },
             )
         }
         item(key = "command-usage") { CommandUsageSection(profile) }
@@ -846,8 +851,11 @@ private fun PermitsSection(
 @Composable
 private fun OverridesSection(
     name: String,
+    userId: String,
     overrides: bot.nomnomz.dashboard.core.network.ViewerOverrides,
     availableVoices: List<TtsVoice>,
+    voiceError: String?,
+    searchAssignableVoices: suspend (query: String) -> List<TtsVoice>,
     write: ManageDecision,
     onSaveMessage: (template: String) -> Unit,
     onClearMessage: () -> Unit,
@@ -869,7 +877,17 @@ private fun OverridesSection(
         Separator()
         Spacer(modifier = Modifier.height(LocalSpacing.current.s2))
 
-        VoicePicker(current = overrides.ttsVoice, availableVoices = availableVoices, write = write, onSave = onSaveVoice, onClear = onClearVoice)
+        ViewerVoiceEditor(
+            userId = userId,
+            currentVoiceId = overrides.ttsVoice?.voiceId,
+            busy = false,
+            error = voiceError,
+            voices = availableVoices,
+            manage = write,
+            searchAssignableVoices = searchAssignableVoices,
+            onAssign = onSaveVoice,
+            onClear = onClearVoice,
+        )
     }
 }
 
@@ -924,61 +942,6 @@ private fun OverrideMessageField(
             onConfirm = { pendingClear = false; onClear() },
             onDismiss = { pendingClear = false },
         )
-    }
-}
-
-@Composable
-private fun VoicePicker(
-    current: bot.nomnomz.dashboard.core.network.UserTtsVoice?,
-    availableVoices: List<TtsVoice>,
-    write: ManageDecision,
-    onSave: (voiceId: String) -> Unit,
-    onClear: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-    var expanded: Boolean by remember { mutableStateOf(false) }
-    val currentLabel: String =
-        availableVoices.firstOrNull { it.id == current?.voiceId }?.displayName
-            ?: current?.voiceId
-            ?: stringResource(Res.string.community_profile_tts_voice_none)
-
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.s2)) {
-        Text(text = stringResource(Res.string.community_profile_tts_voice_label), style = typography.sm, color = tokens.mutedForeground)
-        Box {
-            ManageGate(decision = write) { enabled ->
-                TextButton(onClick = { expanded = true }, enabled = enabled) {
-                    Text(text = currentLabel, color = if (enabled) tokens.primary else tokens.mutedForeground)
-                }
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                availableVoices.take(50).forEach { voice ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text =
-                                    resolveRowLabel(
-                                        primary = voice.displayName,
-                                        secondary = voice.id,
-                                        typeLabel = "Voice",
-                                        discriminatorSource = voice.id,
-                                    ),
-                                style = typography.sm,
-                                color = tokens.popoverForeground,
-                            )
-                        },
-                        onClick = { expanded = false; onSave(voice.id) },
-                    )
-                }
-            }
-        }
-        if (current != null) {
-            ManageGate(decision = write) { enabled ->
-                TextButton(onClick = onClear, enabled = enabled) {
-                    Text(text = stringResource(Res.string.community_profile_tts_voice_clear), color = if (enabled) tokens.foreground else tokens.mutedForeground)
-                }
-            }
-        }
     }
 }
 

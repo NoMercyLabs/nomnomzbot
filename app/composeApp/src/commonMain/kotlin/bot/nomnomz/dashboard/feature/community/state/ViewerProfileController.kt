@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
 import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.TtsVoicePage
 import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.core.network.UsersApi
 import bot.nomnomz.dashboard.core.network.ViewerDataApi
@@ -245,6 +246,19 @@ class ViewerProfileController(
                 failWrite(result.error.message)
                 result.error.message
             }
+        }
+    }
+
+    /**
+     * Search the full TTS voice catalogue (`GET /tts/voices?q=`) for the shared voice editor. The cached
+     * first page in [ViewerProfileState.Ready.availableVoices] only labels an already-saved voice. A failure
+     * or a missing channel resolves to an empty list so the editor just shows no matches.
+     */
+    suspend fun searchAssignableVoices(query: String): List<TtsVoice> {
+        val channel: String = channelId ?: return emptyList()
+        return when (val result: ApiResult<TtsVoicePage> = ttsApi.voicesPage(channel, query = query, pageSize = 50)) {
+            is ApiResult.Ok -> result.value.data
+            is ApiResult.Failure -> emptyList()
         }
     }
 
