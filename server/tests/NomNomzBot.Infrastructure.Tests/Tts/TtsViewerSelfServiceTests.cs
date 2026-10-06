@@ -163,7 +163,7 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Set_own_voice_is_refused_when_tts_is_disabled()
     {
-        (TtsConfigService config, _) = await BuildAsync(ttsEnabled: false);
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync(ttsEnabled: false);
 
         Result<UserTtsVoiceDto> set = await config.SetOwnVoiceAsync(
             Channel,
@@ -178,7 +178,7 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Get_own_voice_is_null_until_set_then_returns_the_pick()
     {
-        (TtsConfigService config, _) = await BuildAsync();
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
 
         (await config.GetOwnVoiceAsync(Channel, ViewerId)).Value.Should().BeNull();
 
@@ -192,7 +192,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_command_searches_sets_and_reports_the_display_name()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("british"));
 
@@ -205,7 +205,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_command_clear_resets_to_the_channel_default()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
         await sut.ExecuteAsync(Ctx("guy"));
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("clear"));
@@ -220,7 +220,7 @@ public sealed class TtsViewerSelfServiceTests
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync(
             selfServiceEnabled: false
         );
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("british"));
 
@@ -235,7 +235,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_command_full_id_and_friendly_name_resolve_to_the_same_voice()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> byId = await sut.ExecuteAsync(Ctx("en-GB-SoniaNeural"));
         UserTtsVoice afterId = await db.UserTtsVoices.SingleAsync();
@@ -254,7 +254,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_command_full_id_resolves_regardless_of_case()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("EN-gb-SONIANEURAL"));
 
@@ -275,7 +275,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_set_by_bare_speaker_name_picks_that_speaker_not_a_substring_neighbour()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin voice = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin voice = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await voice.ExecuteAsync(Ctx("set Ana"));
 
@@ -288,7 +288,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_set_by_full_id_still_wins_outright()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin voice = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin voice = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await voice.ExecuteAsync(Ctx("set en-GB-SoniaNeural"));
 
@@ -299,8 +299,8 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Voice_languages_lists_every_locale_grouped_by_language()
     {
-        (TtsConfigService config, _) = await BuildAsync();
-        VoiceBuiltin voice = new(config, TestBuiltinComposer.Create());
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin voice = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await voice.ExecuteAsync(Ctx("languages"));
 
@@ -312,8 +312,8 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Voice_get_by_bare_language_covers_every_locale_under_it()
     {
-        (TtsConfigService config, _) = await BuildAsync();
-        VoiceBuiltin voice = new(config, TestBuiltinComposer.Create());
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin voice = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await voice.ExecuteAsync(Ctx("get en"));
 
@@ -329,7 +329,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_roulette_keeps_the_pick_it_announces()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin voice = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin voice = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await voice.ExecuteAsync(Ctx("roulette"));
 
@@ -343,8 +343,8 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Voice_set_speaks_the_informative_line_of_its_slot_with_the_voice_filled_in()
     {
-        (TtsConfigService config, _) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("guy"));
 
@@ -354,8 +354,10 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Voice_locked_refusal_comes_from_the_disabled_slot()
     {
-        (TtsConfigService config, _) = await BuildAsync(selfServiceEnabled: false);
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync(
+            selfServiceEnabled: false
+        );
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("guy"));
 
@@ -372,7 +374,7 @@ public sealed class TtsViewerSelfServiceTests
             BuiltinResponseSlots.Voice.Cleared,
             "Back to the house voice."
         );
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create(own));
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create(own));
 
         Result<string> picked = await sut.ExecuteAsync(Ctx("guy"));
         Result<string> cleared = await sut.ExecuteAsync(Ctx("clear"));
@@ -405,7 +407,7 @@ public sealed class TtsViewerSelfServiceTests
             db.TtsVoices.RemoveRange(db.TtsVoices);
             await db.SaveChangesAsync();
         }
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
         Result<string> reply = await sut.ExecuteAsync(Ctx(args));
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
         return reply.Value;
@@ -462,8 +464,8 @@ public sealed class TtsViewerSelfServiceTests
     [Fact]
     public async Task Voice_current_after_a_set_answers_the_legacy_line()
     {
-        (TtsConfigService config, _) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
         await sut.ExecuteAsync(Ctx("set guy"));
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("current"));
@@ -502,7 +504,7 @@ public sealed class TtsViewerSelfServiceTests
             }
         );
         await db.SaveChangesAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("set nat"));
 
@@ -519,7 +521,7 @@ public sealed class TtsViewerSelfServiceTests
         TtsVoice guy = await db.TtsVoices.SingleAsync(v => v.Id == "en-US-GuyNeural");
         guy.IsDefault = true;
         await db.SaveChangesAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("current"));
 
@@ -536,7 +538,7 @@ public sealed class TtsViewerSelfServiceTests
     public async Task Voice_roulette_speaks_one_of_the_six_legacy_lines_with_the_stored_voice()
     {
         (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
-        VoiceBuiltin sut = new(config, TestBuiltinComposer.Create());
+        VoiceBuiltin sut = new(config, db, TestBuiltinComposer.Create());
 
         Result<string> reply = await sut.ExecuteAsync(Ctx("roulette"));
 

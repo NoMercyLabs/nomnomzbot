@@ -175,6 +175,15 @@ public static partial class BuiltinResponseSlots
         /// <summary><c>!voice set</c> without a name.</summary>
         public const string SetUsage = "setusage";
 
+        /// <summary>A moderator set another viewer's voice.</summary>
+        public const string SetFor = "setfor";
+
+        /// <summary>A viewer without moderator rank named another viewer.</summary>
+        public const string OwnVoiceOnly = "ownvoiceonly";
+
+        /// <summary>The viewer a moderator named is not known on this channel.</summary>
+        public const string UnknownViewer = "unknownviewer";
+
         /// <summary><c>!voice</c> without anything after it: the list of subcommands.</summary>
         public const string Usage = "usage";
 
