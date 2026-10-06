@@ -116,7 +116,8 @@ try {
         # day a new play_tts accessor failed PipelineActionFieldSchemaGuard, so every *Guard/*Drift/*Coverage/
         # *Integrity test class runs here, in every project that has one).
         [string]$contractGuards = 'FullyQualifiedName~.Localization.|FullyQualifiedName~GuardTests|' +
-            'FullyQualifiedName~DriftTests|FullyQualifiedName~CoverageTests|FullyQualifiedName~IntegrityTests'
+            'FullyQualifiedName~DriftTests|FullyQualifiedName~CoverageTests|FullyQualifiedName~IntegrityTests|' +
+            'FullyQualifiedName~ScannerTests'
         foreach ($guardProject in @('tests/NomNomzBot.Infrastructure.Tests', 'tests/NomNomzBot.Api.Tests', 'tests/NomNomzBot.Application.Tests')) {
             Write-Host "== test (repo-wide contract guards: $guardProject) =="
             Invoke-Native 'a repo-wide contract guard failed - the slice broke a guard, drift, coverage or integrity check' {

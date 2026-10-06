@@ -250,6 +250,9 @@ public class ModerationController : BaseController
 
     /// <summary>Removes the operator's opt-in for that channel; 404 when there was none.</summary>
     [RequireAction("moderation:ban")]
+    [NotDestructive(
+        "Deletes the caller's own opt-in row for one channel; nothing references it, and batches already queued keep their own targets."
+    )]
     [HttpDelete("actions/mass-ban/opt-ins/{broadcasterLogin}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveMassBanOptIn(
