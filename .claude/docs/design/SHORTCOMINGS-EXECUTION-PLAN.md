@@ -140,12 +140,7 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   the platform (Twitch Helix Get Users by login), shows that account (name, avatar, created date) as a
   pickable result, and ban / timeout applies to its platform id; a login that does not exist on Twitch
   says so.
-- **S-SR-ROLE-LIMIT** (owner idea 2026-10-01: "per role song queue limit", filed for later) The song
-  queue has one cap for everyone: `MusicConfig.MaxRequestsPerUser` (default 5), enforced as
-  `PER_USER_LIMIT`. Done-when: the streamer sets a separate cap per role (viewer, follower, subscriber,
-  VIP, moderator, broadcaster) on the music settings page; a requester gets the highest cap of the roles
-  they hold; the refusal reply names their cap; a role without its own value falls back to the channel
-  cap.
+**S-SR-FOLLOWER-CAP** The per-role song request cap (5cbfb905a) covers viewer, subscriber, VIP, moderator and broadcaster, but not follower: the permission ladder has no follower rung (PermissionLevel.cs:19). Done-when: the streamer sets a follower cap on the music settings card; a follower who is not a subscriber gets it; a test that failed first.
 - **IDEA-REACT-RUNTIME** (owner idea 2026-10-04, an idea for later, not a slice) Real React widget support:
   a vendored React runtime the overlay page loads like `/overlay/vue.js`, `react` on the dependency allowlist,
   an esbuild JSX setup that resolves `react/jsx-runtime`, and the app offering `react` again. Until then
