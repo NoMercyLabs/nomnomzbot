@@ -24,8 +24,8 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// </summary>
 public sealed partial class WidgetEventPayloadRegistryDriftTests
 {
-    // Events the overlay SDK raises itself from raw hub targets (OverlaySdkController: PlaySound / StopSound).
-    private static readonly string[] SdkLocalEvents = ["play_sound", "stop_sound"];
+    // The only free-form event: the generic "test" one, whose payload a widget defines itself.
+    private static readonly string[] SdkLocalEvents = ["test"];
 
     private static readonly WidgetEventPayloadRegistry Registry = new();
 
@@ -98,7 +98,7 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
     [Fact]
     public void No_registered_widget_event_has_a_null_payload_type()
     {
-        // Only the two events the overlay SDK raises itself from raw hub targets may stay free-form.
+        // Only the generic "test" event may stay free-form.
         List<string> untyped =
         [
             .. Registry
@@ -116,7 +116,7 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
     }
 
     [Fact]
-    public void The_registry_holds_exactly_the_sampled_events_plus_the_sdk_local_ones()
+    public void The_registry_holds_exactly_the_sampled_events()
     {
         List<string> sampled =
         [
@@ -125,10 +125,7 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
             ),
         ];
 
-        Registry
-            .Events.Select(e => e.Name)
-            .Should()
-            .BeEquivalentTo([.. sampled, .. SdkLocalEvents]);
+        Registry.Events.Select(e => e.Name).Should().BeEquivalentTo(sampled);
         Registry.Events.Select(e => e.Name).Should().OnlyHaveUniqueItems();
     }
 

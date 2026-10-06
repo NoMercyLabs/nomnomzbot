@@ -282,37 +282,126 @@ export function initPreview({
         return inlineScript(widgetGlobals(widget, subscribedEvents(files))) + inlineScript(previewSdk);
     }
 
-    function fireEvent(type) {
-        const sample = fireSamples[type] ?? fireSamples._default ?? {};
+    const fireSearch = fireBar.querySelector('#fireSearch');
+    const fireList = fireBar.querySelector('#fireList');
+    const fireEmpty = fireBar.querySelector('#fireEmpty');
+    const fireEditor = fireBar.querySelector('#fireEditor');
+    const fireEditorTitle = fireBar.querySelector('#fireEditorTitle');
+    const fireJson = fireBar.querySelector('#fireJson');
+    const fireJsonError = fireBar.querySelector('#fireJsonError');
+    const fireSend = fireBar.querySelector('#fireSend');
+    const fireClose = fireBar.querySelector('#fireClose');
+    let listedKey = '';
+    let editingType = null;
+
+    function sampleFor(type) {
+        return fireSamples[type] ?? fireSamples._default ?? {};
+    }
+
+    function postFire(type, data) {
         addLogEntry({ kind: 'fired', type });
         // '*' rather than the origin: a sandboxed frame without allow-same-origin has an opaque origin, which
         // matches no origin string at all.
-        frame.contentWindow?.postMessage({ __nnzFire: { type, data: sample } }, '*');
+        frame.contentWindow?.postMessage({ __nnzFire: { type, data } }, '*');
+    }
+
+    function fireEvent(type) {
+        postFire(type, sampleFor(type));
+    }
+
+    // The widget's own events first (what it listens to), then every other event the server can send.
+    function listedEventTypes(files) {
+        const own = subscribedEvents(files);
+        const rest = Object.keys(fireSamples)
+            .filter((type) => type !== '_default' && !own.includes(type))
+            .sort((a, b) => a.localeCompare(b));
+        return [...own, ...rest];
+    }
+
+    function applyFireSearch() {
+        const query = fireSearch.value.trim().toLowerCase();
+        let shown = 0;
+        for (const row of fireList.children) {
+            const match = row.dataset.type.toLowerCase().includes(query);
+            row.hidden = !match;
+            if (match) shown += 1;
+        }
+        fireEmpty.hidden = shown > 0;
+    }
+
+    // Fire is only possible while the text is valid JSON; the error says what is wrong with it.
+    function validateFireJson() {
+        try {
+            JSON.parse(fireJson.value);
+            fireJsonError.hidden = true;
+            fireSend.disabled = false;
+            return true;
+        } catch (error) {
+            fireJsonError.textContent = t('previewFireJsonInvalid', { message: error.message });
+            fireJsonError.hidden = false;
+            fireSend.disabled = true;
+            return false;
+        }
+    }
+
+    function markEditingRow() {
+        for (const row of fireList.children) row.dataset.editing = String(row.dataset.type === editingType);
+    }
+
+    function openFireEditor(type) {
+        editingType = type;
+        fireEditorTitle.textContent = t('previewFireEditing', { type });
+        fireJson.value = JSON.stringify(sampleFor(type), null, 2);
+        validateFireJson();
+        fireEditor.hidden = false;
+        markEditingRow();
+        fireJson.focus();
+    }
+
+    function closeFireEditor() {
+        editingType = null;
+        fireEditor.hidden = true;
+        markEditingRow();
+    }
+
+    fireSearch.addEventListener('input', applyFireSearch);
+    fireJson.addEventListener('input', validateFireJson);
+    fireClose.addEventListener('click', closeFireEditor);
+    fireSend.addEventListener('click', () => {
+        if (editingType !== null && validateFireJson()) postFire(editingType, JSON.parse(fireJson.value));
+    });
+
+    function fireRow(type) {
+        const row = document.createElement('div');
+        row.className = 'fire-row';
+        row.dataset.type = type;
+
+        const fire = document.createElement('button');
+        fire.type = 'button';
+        fire.className = 'fire-btn';
+        fire.textContent = type;
+        fire.addEventListener('click', () => fireEvent(type));
+
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.classList.add('btn', 'btn-quiet', 'fire-edit');
+        edit.textContent = t('previewFireEdit');
+        edit.setAttribute('aria-label', t('previewFireEditSample', { type }));
+        edit.addEventListener('click', () => openFireEditor(type));
+
+        row.append(fire, edit);
+        return row;
     }
 
     function refreshFireBar(files) {
-        const events = subscribedEvents(files);
-        if (events.length === 0) {
-            fireBar.replaceChildren();
-            fireBar.hidden = true;
-            return;
+        const types = listedEventTypes(files);
+        const key = types.join('|');
+        if (key !== listedKey) {
+            listedKey = key;
+            fireList.replaceChildren(...types.map(fireRow));
+            markEditingRow();
+            applyFireSearch();
         }
-
-        const label = document.createElement('span');
-        label.className = 'fire-label';
-        label.textContent = t('previewFireEvent');
-
-        fireBar.replaceChildren(
-            label,
-            ...events.map((type) => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'fire-btn';
-                button.textContent = type;
-                button.addEventListener('click', () => fireEvent(type));
-                return button;
-            }),
-        );
         fireBar.hidden = false;
     }
 

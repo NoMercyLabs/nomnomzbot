@@ -90,7 +90,7 @@ public abstract class EditorPageTest : PageTest
     /// code in the tree and not whichever build the instance under test runs. Everything else (the SDK types
     /// endpoint included) still goes to the instance.
     /// </summary>
-    private async Task ServeEditorFromTheWorkingTreeAsync()
+    protected async Task ServeEditorFromTheWorkingTreeAsync()
     {
         if (_editorRouted)
             return;
@@ -126,7 +126,7 @@ public abstract class EditorPageTest : PageTest
         );
     }
 
-    private static string EditorAssetsFolder()
+    protected static string EditorAssetsFolder()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (

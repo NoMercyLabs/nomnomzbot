@@ -6177,6 +6177,15 @@
     <string name="editor_preview_script_note">Codescripts draaien in de botsandbox — druk op Opslaan &amp; compileren om te controleren.</string>
     <string name="editor_preview_fire_event">Gebeurtenis afvuren:</string>
     <string name="editor_preview_log_fired">{type} afgevuurd</string>
+    <string name="editor_preview_fire_search">Zoek gebeurtenissen</string>
+    <string name="editor_preview_fire_no_match">Geen gebeurtenis komt overeen met je zoekopdracht.</string>
+    <string name="editor_preview_fire_close">Sluiten</string>
+    <string name="editor_preview_fire_json">Gebeurtenisdata als JSON</string>
+    <string name="editor_preview_fire_send">Afvuren met deze data</string>
+    <string name="editor_preview_fire_edit">Bewerken</string>
+    <string name="editor_preview_fire_edit_sample">Bewerk de data van {type}</string>
+    <string name="editor_preview_fire_editing">Data voor {type}</string>
+    <string name="editor_preview_fire_json_invalid">Dit is geen geldige JSON: {message}</string>
     <string name="editor_preview_log_action">Zou {actionType} uitvoeren {params}</string>
     <string name="editor_preview_log_claim">{key} geclaimd</string>
     <string name="editor_preview_log_error">Fout</string>

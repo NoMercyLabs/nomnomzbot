@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
@@ -74,5 +75,53 @@ public sealed class WidgetTestEventSamplesTests
         );
 
         fallback.GetRawText().Should().Be(fired.GetRawText());
+    }
+
+    [Fact]
+    public void The_table_carries_a_sample_for_every_event_the_widget_catalogue_declares()
+    {
+        Dictionary<string, object> samples = Samples();
+
+        List<string> missing =
+        [
+            .. new WidgetEventPayloadRegistry()
+                .Events.Select(e => e.Name)
+                .Where(name => !samples.ContainsKey(name)),
+        ];
+
+        missing.Should().BeEmpty("the fire bar lists the catalogue, so each event needs a payload");
+    }
+
+    [Fact]
+    public void The_sound_events_carry_the_fields_the_overlay_SDK_reads_from_the_raw_hub_targets()
+    {
+        Dictionary<string, object> samples = Samples();
+
+        JsonElement play = JsonSerializer.SerializeToElement(samples["play_sound"], Json);
+        string url = play.GetProperty("playbackUrl").GetString()!;
+        url.Should().StartWith("data:audio/wav;base64,");
+        byte[] wav = Convert.FromBase64String(url["data:audio/wav;base64,".Length..]);
+        Encoding.ASCII.GetString(wav, 0, 4).Should().Be("RIFF");
+        Encoding.ASCII.GetString(wav, 8, 8).Should().Be("WAVEfmt ");
+        BitConverter.ToInt32(wav, 4).Should().Be(wav.Length - 8);
+        wav.Length.Should().BeGreaterThan(44, "a header with no samples is silence");
+        play.GetProperty("volume").GetInt32().Should().BeInRange(0, 100);
+        play.GetProperty("handle").GetString().Should().NotBeNullOrEmpty();
+
+        JsonElement stop = JsonSerializer.SerializeToElement(samples["stop_sound"], Json);
+        stop.GetProperty("handle").GetString().Should().Be(play.GetProperty("handle").GetString());
+    }
+
+    [Fact]
+    public void The_test_event_has_a_real_sample_not_the_bare_fallback()
+    {
+        Dictionary<string, object> samples = Samples();
+
+        JsonElement test = JsonSerializer.SerializeToElement(samples["test"], Json);
+        test.GetProperty("user").GetString().Should().NotBeNullOrEmpty();
+        test.GetProperty("message").GetString().Should().NotBeNullOrEmpty();
+        test.GetRawText()
+            .Should()
+            .NotBe(JsonSerializer.SerializeToElement(samples["_default"], Json).GetRawText());
     }
 }

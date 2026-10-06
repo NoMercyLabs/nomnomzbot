@@ -272,6 +272,16 @@ internal static class WidgetTestSamples
             3200,
             null
         ),
+        // The overlay SDK raises these from the raw PlaySound / StopSound hub targets; a clip and its handle pair
+        // up, so firing play_sound then stop_sound exercises the same start/stop path a pipeline does.
+        ["play_sound"] = _ => new PlaySoundPayload(WidgetTestBeep.DataUri, 80, "preview-sound"),
+        ["stop_sound"] = _ => new StopSoundPayload("preview-sound", false),
+        // The generic event: what a widget that declares nothing of its own, or a custom event name, receives.
+        ["test"] = _ => new
+        {
+            user = "TestUser",
+            message = "This is a test event from the editor preview.",
+        },
         // goal_bar defaults to the followers metric.
         ["goal"] = _ => new GoalWidgetEventPayload("followers", 72, 100),
         ["supporter.tip"] = _ =>
