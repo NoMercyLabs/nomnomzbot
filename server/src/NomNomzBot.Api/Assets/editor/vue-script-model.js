@@ -24,6 +24,16 @@ const MODULE_MARKER_LINE = '\nexport {};';
 const UNUSED_CODES = new Set([6133, 6192, 6196, 6198, 6199, 6205]);
 const isTemplateUse = (marker) => UNUSED_CODES.has(Number(marker.code?.value ?? marker.code));
 
+// TypeScript resolves `./Foo.vue` by looking for `Foo.vue.ts`, `Foo.vue.tsx` and `Foo.vue.d.ts` next to it. Each real
+// .vue file gets a declaration file under that name, so an import of an existing component resolves and an import of
+// a file that is not there still reports TS2307 (a `declare module "*.vue"` wildcard would hide the typo).
+const COMPONENT_DECLARATION = [
+    'import type { Component } from "vue";',
+    'declare const component: Component;',
+    'export default component;',
+    '',
+].join('\n');
+
 const blankedOutsideLineBreaks = (text) => text.replace(/[^\r\n]/g, ' ');
 
 export function scriptOnlyText(source) {
@@ -57,7 +67,12 @@ export function createVueScriptModels(monaco) {
             monaco.editor.getModel(uri) ??
             monaco.editor.createModel(scriptOnlyText(visible.getValue()), 'typescript', uri);
 
-        const entry = { visible, hidden, timer: 0, subscription: null };
+        const declarations = [
+            monaco.languages.typescript.typescriptDefaults,
+            monaco.languages.typescript.javascriptDefaults,
+        ].map((service) => service.addExtraLib(COMPONENT_DECLARATION, `file:///${path}.d.ts`));
+
+        const entry = { visible, hidden, timer: 0, subscription: null, declarations };
         entry.subscription = visible.onDidChangeContent(() => {
             clearTimeout(entry.timer);
             entry.timer = setTimeout(() => hidden.setValue(scriptOnlyText(visible.getValue())), SYNC_DELAY_MS);
@@ -71,6 +86,7 @@ export function createVueScriptModels(monaco) {
         clearTimeout(entry.timer);
         entry.subscription.dispose();
         entry.hidden.dispose();
+        for (const declaration of entry.declarations) declaration.dispose();
         entries.delete(path);
     }
 

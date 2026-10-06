@@ -188,6 +188,148 @@ public sealed class EditorTypeCheckingTests : EditorPageTest
         Assert.True(markers.Length == 0, string.Join(Environment.NewLine, markers));
     }
 
+    private const string ChildComponent = """
+        <script setup lang="ts">
+        const props = defineProps<{ label: string }>();
+        </script>
+
+        <template>
+          <p>{{ props.label }}</p>
+        </template>
+        """;
+
+    // The same import patterns a real multi-component widget uses: an index that imports many sibling
+    // components, a component that imports a sibling component and a TypeScript helper, and a `../` import.
+    private static Dictionary<string, string> MultiComponentWidget() =>
+        new()
+        {
+            ["components/Outer.vue"] = """
+                <script setup lang="ts">
+                import { computed } from 'vue';
+                import Inner from './Inner.vue';
+                import Other from '../components/Other.vue';
+                import { shout } from '../helpers.ts';
+                import { mood } from '../lib/mood';
+                const text = computed<string>(() => shout(mood));
+                </script>
+
+                <template>
+                  <Inner :label="text" />
+                  <Other label="o" />
+                </template>
+                """,
+            ["components/Inner.vue"] = ChildComponent,
+            ["components/Other.vue"] = ChildComponent,
+            ["components/Third.vue"] = ChildComponent,
+            ["components/Fourth.vue"] = ChildComponent,
+            ["helpers.ts"] =
+                "export function shout(text: string): string { return text.toUpperCase(); }",
+            ["lib/mood.ts"] = "export const mood: string = 'calm';",
+        };
+
+    private const string MultiComponentIndex = """
+        <script setup lang="ts">
+        import { ref } from 'vue';
+        import Outer from './components/Outer.vue';
+        import Inner from './components/Inner.vue';
+        import Third from './components/Third.vue';
+        import Fourth from './components/Fourth.vue';
+        import { shout } from './helpers';
+        import { mood } from './lib/mood.ts';
+        const active = ref<string>(shout(mood));
+        </script>
+
+        <template>
+          <Outer /><Inner :label="active" /><Third label="3" /><Fourth label="4" />
+        </template>
+        """;
+
+    [E2EFact]
+    public async Task A_vue_widget_with_many_components_siblings_and_ts_imports_has_no_missing_module_error()
+    {
+        await OpenAsync(
+            "vue",
+            "index.vue",
+            MultiComponentIndex,
+            "",
+            extraFiles: MultiComponentWidget()
+        );
+
+        await Page.WaitForTimeoutAsync(5_000);
+        await AssertNoMissingModuleAsync("index.vue");
+
+        // What the owner sees after opening a component: its own markers and the problems panel.
+        await OpenFileAsync("Outer.vue");
+        await Page.WaitForTimeoutAsync(3_000);
+        await AssertNoMissingModuleAsync("components/Outer.vue");
+
+        await OpenFileAsync("index.vue");
+        await Page.WaitForTimeoutAsync(1_500);
+        await AssertNoMissingModuleAsync("index.vue");
+    }
+
+    [E2EFact]
+    public async Task A_vue_import_of_a_file_that_is_not_there_still_shows_a_missing_module_error()
+    {
+        await OpenAsync(
+            "vue",
+            "index.vue",
+            """
+            <script setup lang="ts">
+            import Real from './components/Real.vue';
+            import Missing from './components/Mising.vue';
+            import { nope } from './helpers-missing';
+            </script>
+
+            <template><Real label="a" /></template>
+            """,
+            "",
+            extraFiles: new Dictionary<string, string> { ["components/Real.vue"] = ChildComponent }
+        );
+
+        await DiagnosticCodesAsync("index.vue", expected: 2);
+        string[] lines = await VisibleMissingModuleLinesAsync("index.vue");
+
+        // Line 3 and line 4 are wrong paths; line 2 exists and stays clean.
+        Assert.Equal(["3", "4"], lines.Order());
+    }
+
+    private async Task OpenFileAsync(string name) =>
+        await Page.Locator("#fileList button", new() { HasText = name }).First.ClickAsync();
+
+    // Every TS2307 the owner can see for a file: the Monaco markers on the visible model.
+    private async Task<string[]> VisibleMissingModuleLinesAsync(string path) =>
+        await Page.EvaluateAsync<string[]>(
+            """
+            (path) => window.monaco.editor
+                .getModelMarkers({ resource: window.monaco.Uri.parse('file:///' + path) })
+                .filter((m) => String(typeof m.code === 'object' ? m.code.value : m.code) === '2307')
+                .map((m) => String(m.startLineNumber))
+            """,
+            path
+        );
+
+    private async Task AssertNoMissingModuleAsync(string path)
+    {
+        IReadOnlyList<string> worker = await WorkerDiagnosticsAsync(path + ".__script.ts");
+        Assert.True(
+            !worker.Any(problem => problem.Contains(" TS2307 ")),
+            string.Join(Environment.NewLine, worker)
+        );
+
+        string[] markers = await Page.EvaluateAsync<string[]>(
+            """
+            () => window.monaco.editor.getModelMarkers({})
+                .filter((m) => String(typeof m.code === 'object' ? m.code.value : m.code) === '2307')
+                .map((m) => `${m.resource.path}:${m.startLineNumber} ${m.message}`)
+            """
+        );
+        Assert.True(markers.Length == 0, string.Join(Environment.NewLine, markers));
+
+        string panel = await Page.Locator("#problemsSidebar").InnerTextAsync();
+        Assert.DoesNotContain("Cannot find module", panel);
+    }
+
     [E2EFact]
     public async Task A_react_widget_flags_a_wrong_state_setter_argument_and_a_wrong_event_property()
     {

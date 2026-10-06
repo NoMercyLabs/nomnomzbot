@@ -54,12 +54,6 @@ declare module "vue" {
     }
 }
 
-declare module "*.vue" {
-    import type { Component } from "vue";
-    const component: Component;
-    export default component;
-}
-
 declare function defineProps<T extends object>(): Readonly<T>;
 declare function defineEmits<T extends object>(): T;
 declare function defineExpose(exposed?: Record<string, unknown>): void;
