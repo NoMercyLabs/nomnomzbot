@@ -316,7 +316,8 @@ public sealed class EventSubConduitShardCoordinator(
     private IEnumerable<string> SpareShardIds(IReadOnlyList<TwitchConduitShard> listed) =>
         listed
             .Where(s =>
-                s.IsEnabled && s.Transport?.SessionId is { } session && session != _claimedSessionId
+                s is { IsEnabled: true, Transport.SessionId: { } session }
+                && session != _claimedSessionId
             )
             .GroupBy(s => s.Transport!.SessionId!, StringComparer.Ordinal)
             .Where(g => g.Count() > 1)
