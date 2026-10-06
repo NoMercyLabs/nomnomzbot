@@ -42,6 +42,15 @@ public interface IEventSubConduitShardCoordinator
     Task<Result<string>> ClaimShardAsync(string sessionId, CancellationToken ct = default);
 
     /// <summary>
+    /// Binds every shard Twitch does not report <c>enabled</c> to the session that holds this instance's
+    /// shard (one session may back several shards), so no shard is left orphaned after a deploy and Twitch
+    /// drops nothing routed to it. Returns the adopted shard ids; empty when this instance holds no shard.
+    /// Only the active instance may call this: a standby or draining one would pull shards onto a session
+    /// that is about to close.
+    /// </summary>
+    Task<Result<IReadOnlyList<string>>> AdoptOrphanedShardsAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Polls the conduit until a shard other than ours is enabled — a successor is receiving — or
     /// <paramref name="timeout"/> passes. True when a successor shard is live.
     /// </summary>

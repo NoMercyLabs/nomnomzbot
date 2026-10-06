@@ -422,6 +422,9 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
 
     private string ConduitId => _db.EventSubConduits.Single().ConduitId;
 
+    private string ShardOf(string sessionId) =>
+        _twitch.Shard(ConduitId, "0").SessionId == sessionId ? "0" : "1";
+
     [Fact]
     public async Task The_outgoing_instance_closes_its_shard_only_after_the_successor_shard_is_enabled()
     {
@@ -490,8 +493,82 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         _twitch.Calls.Clear();
         await lone.StopAsync(CancellationToken.None);
 
-        // No successor: it never polls the shards, it closes straight away.
-        _twitch.Calls.Should().Equal("lone closes with 1 enabled shard(s)");
+        // No successor: it never polls the shards, it closes straight away. It held both shards: the one it
+        // claimed and the unbound one it adopted, so nothing Twitch routed was dropped while it ran.
+        _twitch.Calls.Should().Equal("lone closes with 2 enabled shard(s)");
+    }
+
+    [Fact]
+    public async Task The_active_instance_adopts_a_shard_that_went_disconnected_on_its_periodic_recheck()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        (TwitchEventSubHostedService survivor, _) = NewInstance("blue", serviceClock: clock);
+        await StartAsync(survivor);
+        // Incident 2026-10-05: the departed colour's shard stays websocket_disconnected at Twitch.
+        _twitch.BindOnTwitch(ConduitId, "1", "departed-session");
+        _twitch.Disconnect("departed-session");
+        _twitch.Calls.Clear();
+
+        await WaitUntilAsync(() =>
+        {
+            clock.Advance(TwitchEventSubHostedService.ShardRecheckInterval);
+            return _twitch.Shard(ConduitId, "1").SessionId == "blue-shard-1";
+        });
+
+        _twitch.Calls.Should().Contain($"PATCH shards {ConduitId} 1->blue-shard-1");
+        _twitch.Shard(ConduitId, "0").Should().Be(("enabled", "blue-shard-1"));
+        _twitch.Shard(ConduitId, "1").Should().Be(("enabled", "blue-shard-1"));
+        await survivor.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_standby_does_not_adopt_but_adopts_the_old_shard_once_it_takes_over()
+    {
+        (TwitchEventSubHostedService blue, _) = NewInstance("blue");
+        await StartAsync(blue);
+        (TwitchEventSubHostedService green, _) = NewInstance("green");
+        await StartAsync(green);
+        string greenShard = ShardOf("green-shard-1");
+        string blueShard = greenShard == "0" ? "1" : "0";
+        _twitch.Disconnect("blue-shard-1");
+        _twitch.Calls.Clear();
+
+        await green.RecheckConduitShardsAsync(CancellationToken.None);
+
+        _twitch.Calls.Should().NotContain(c => c.StartsWith("PATCH shards"));
+        _twitch.Shard(ConduitId, blueShard).Status.Should().Be("websocket_disconnected");
+
+        await blue.StopAsync(CancellationToken.None);
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        await green.WaitUntilActiveAsync(timeout.Token);
+        await WaitUntilAsync(() => _twitch.Shard(ConduitId, blueShard).Status == "enabled");
+
+        _twitch.Shard(ConduitId, blueShard).Should().Be(("enabled", "green-shard-1"));
+        _twitch.Shard(ConduitId, greenShard).Should().Be(("enabled", "green-shard-1"));
+        await green.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_draining_instance_does_not_pull_a_shard_back_onto_its_closing_session()
+    {
+        (TwitchEventSubHostedService blue, _) = NewInstance("blue");
+        await StartAsync(blue);
+        (TwitchEventSubHostedService green, _) = NewInstance("green");
+        await StartAsync(green);
+        string greenShard = ShardOf("green-shard-1");
+        // Green's shard blips: blue's stop now waits for a successor shard, and blue is draining.
+        _twitch.Disconnect("green-shard-1");
+        Task stopping = blue.StopAsync(CancellationToken.None);
+        _twitch.Calls.Clear();
+
+        await blue.RecheckConduitShardsAsync(CancellationToken.None);
+
+        _twitch.Calls.Should().NotContain(c => c.StartsWith("PATCH shards"));
+        _twitch.Shard(ConduitId, greenShard).Status.Should().Be("websocket_disconnected");
+
+        _twitch.BindOnTwitch(ConduitId, greenShard, "green-shard-1");
+        await stopping;
+        await green.StopAsync(CancellationToken.None);
     }
 
     [Fact]

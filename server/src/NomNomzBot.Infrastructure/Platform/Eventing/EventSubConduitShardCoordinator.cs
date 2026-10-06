@@ -25,9 +25,11 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// The conduit + shard owner (twitch-eventsub.md §10). A singleton: the conduit id and the claimed shard are
 /// process state, while every Helix and database call runs in its own short scope.
 /// <para>
-/// Invariant it protects: the conduit has exactly two shards and each running instance holds exactly one.
-/// With two shards, a notification Twitch routes to a disabled shard is resent to the other one, so a single
-/// disabled shard never loses an event.
+/// Invariant it protects: the conduit has exactly two shards and every shard is enabled on a live session.
+/// Each running instance claims one; the active instance also adopts any shard Twitch reports not enabled,
+/// because Twitch drops what it routes to a disconnected shard (incident 2026-10-05: three hours of lost
+/// events after a deploy left the old colour's shard unclaimed). An incoming instance may take an adopted
+/// shard back, so the handover still has a successor.
 /// </para>
 /// </summary>
 public sealed class EventSubConduitShardCoordinator(
@@ -57,6 +59,9 @@ public sealed class EventSubConduitShardCoordinator(
     private volatile string? _conduitId;
     private Guid _conduitRowId;
     private volatile string? _claimedShardId;
+
+    // The session behind the claimed shard; adopted shards are bound to it too.
+    private volatile string? _claimedSessionId;
 
     public string? ConduitId => _conduitId;
 
@@ -252,6 +257,9 @@ public sealed class EventSubConduitShardCoordinator(
         if (shards.IsFailure)
             return shards.WithValue<string>(default!);
 
+        if (_claimedSessionId is { } previousSession)
+            KeepClaimOnOurSession(shards.Value, previousSession);
+
         foreach (string candidate in FreeShardIds(shards.Value))
         {
             Result<bool> bound = await TryBindAsync(api, conduit.Value, candidate, sessionId, ct);
@@ -261,6 +269,7 @@ public sealed class EventSubConduitShardCoordinator(
                 continue;
 
             _claimedShardId = candidate;
+            _claimedSessionId = sessionId;
             await PersistClaimAsync(scope.ServiceProvider, candidate, sessionId, ct);
             logger.LogInformation(
                 "EventSub: shard {ShardId} of conduit {ConduitId} bound to session {SessionId}",
@@ -282,21 +291,37 @@ public sealed class EventSubConduitShardCoordinator(
     /// the session it replaces, and re-binding it to the new session id is idempotent). Every id the conduit was
     /// created with counts — not only the ones Twitch lists — because a shard that was never bound need not
     /// appear in the listing at all, and treating an unlisted shard as taken leaves a fresh conduit unclaimable.
+    /// Spare shards come last: taking one leaves the session that adopted it its other shard.
     /// </summary>
     private IEnumerable<string> FreeShardIds(IReadOnlyList<TwitchConduitShard> listed)
     {
+        HashSet<string> spare = [.. SpareShardIds(listed)];
         HashSet<string> taken =
         [
-            .. listed.Where(s => s.IsEnabled && s.Id != _claimedShardId).Select(s => s.Id),
+            .. listed
+                .Where(s => s.IsEnabled && s.Id != _claimedShardId && !spare.Contains(s.Id))
+                .Select(s => s.Id),
         ];
-        return Enumerable
-            .Range(0, IEventSubConduitShardCoordinator.ShardCount)
-            .Select(i => i.ToString(CultureInfo.InvariantCulture))
-            .Union(listed.Select(s => s.Id))
+        return AllShardIds(listed)
             .Where(id => !taken.Contains(id))
             .OrderByDescending(id => id == _claimedShardId)
+            .ThenBy(id => spare.Contains(id))
             .ThenBy(id => id, StringComparer.Ordinal);
     }
+
+    /// <summary>
+    /// Enabled shards of another session that backs more than one shard (it adopted them), except that
+    /// session's first, so taking a spare never leaves a session without a shard.
+    /// </summary>
+    private IEnumerable<string> SpareShardIds(IReadOnlyList<TwitchConduitShard> listed) =>
+        listed
+            .Where(s =>
+                s.IsEnabled && s.Transport?.SessionId is { } session && session != _claimedSessionId
+            )
+            .GroupBy(s => s.Transport!.SessionId!, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.OrderBy(s => s.Id, StringComparer.Ordinal).Skip(1))
+            .Select(s => s.Id);
 
     /// <summary>
     /// PATCHes one shard onto the session, then re-reads it: two instances binding the same free shard at the
@@ -374,6 +399,100 @@ public sealed class EventSubConduitShardCoordinator(
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<Result<IReadOnlyList<string>>> AdoptOrphanedShardsAsync(
+        CancellationToken ct = default
+    )
+    {
+        if (_conduitId is not { } conduitId || _claimedSessionId is not { } sessionId)
+            return Result.Success<IReadOnlyList<string>>([]);
+
+        using IDisposable sanction = sanctions.Begin(ConduitLifecycle);
+        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+        ITwitchEventSubConduitsApi api =
+            scope.ServiceProvider.GetRequiredService<ITwitchEventSubConduitsApi>();
+
+        Result<IReadOnlyList<TwitchConduitShard>> shards = await api.GetConduitShardsAsync(
+            conduitId,
+            ct: ct
+        );
+        if (shards.IsFailure)
+            return shards.WithValue<IReadOnlyList<string>>(default!);
+
+        KeepClaimOnOurSession(shards.Value, sessionId);
+        List<string> orphaned =
+        [
+            .. AllShardIds(shards.Value)
+                .Where(id => !shards.Value.Any(s => s.Id == id && s.IsEnabled)),
+        ];
+        if (orphaned.Count == 0)
+            return Result.Success<IReadOnlyList<string>>([]);
+
+        Result<TwitchConduitShardUpdateResult> updated = await api.UpdateConduitShardsAsync(
+            conduitId,
+            [.. orphaned.Select(id => TwitchConduitShardAssignment.ForWebSocket(id, sessionId))],
+            ct
+        );
+        if (updated.IsFailure)
+            return updated.WithValue<IReadOnlyList<string>>(default!);
+
+        List<string> adopted = [];
+        foreach (string shardId in orphaned)
+        {
+            TwitchConduitShardError? refused = updated.Value.Errors.FirstOrDefault(e =>
+                e.Id == shardId
+            );
+            if (refused is not null)
+            {
+                logger.LogWarning(
+                    "EventSub: Twitch refused adopting shard {ShardId} of conduit {ConduitId} onto session {SessionId}: {Code} {Message}",
+                    shardId,
+                    conduitId,
+                    sessionId,
+                    refused.Code,
+                    refused.Message
+                );
+                continue;
+            }
+
+            await PersistClaimAsync(scope.ServiceProvider, shardId, sessionId, ct);
+            logger.LogInformation(
+                "EventSub: adopted orphaned shard {ShardId} of conduit {ConduitId} onto session {SessionId}",
+                shardId,
+                conduitId,
+                sessionId
+            );
+            adopted.Add(shardId);
+        }
+
+        return Result.Success<IReadOnlyList<string>>(adopted);
+    }
+
+    /// <summary>
+    /// A successor may take a shard our session held twice, and it may be the one we first claimed. The claim
+    /// then moves to a shard still on our session, so a reconnect never pulls the successor's shard back.
+    /// </summary>
+    private void KeepClaimOnOurSession(IReadOnlyList<TwitchConduitShard> listed, string sessionId)
+    {
+        List<string> ours =
+        [
+            .. listed
+                .Where(s => s.IsEnabled && s.Transport?.SessionId == sessionId)
+                .Select(s => s.Id),
+        ];
+        if (ours.Count > 0 && !ours.Contains(_claimedShardId ?? string.Empty))
+            _claimedShardId = ours.Min(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Every id the conduit was created with plus every id Twitch lists: a shard that was never bound need not
+    /// appear in the listing at all.
+    /// </summary>
+    private static IEnumerable<string> AllShardIds(IReadOnlyList<TwitchConduitShard> listed) =>
+        Enumerable
+            .Range(0, IEventSubConduitShardCoordinator.ShardCount)
+            .Select(i => i.ToString(CultureInfo.InvariantCulture))
+            .Union(listed.Select(s => s.Id));
+
     public async Task<bool> WaitForSuccessorShardAsync(
         TimeSpan timeout,
         CancellationToken ct = default
@@ -415,8 +534,18 @@ public sealed class EventSubConduitShardCoordinator(
             conduitId,
             ct: ct
         );
-        return shards.IsSuccess && shards.Value.Any(s => s.IsEnabled && s.Id != _claimedShardId);
+        // By session, not by shard id: a shard this instance adopted is enabled, but on our own closing session.
+        return shards.IsSuccess
+            && shards.Value.Any(s =>
+                s.IsEnabled
+                && s.Id != _claimedShardId
+                && s.Transport?.SessionId != _claimedSessionId
+            );
     }
 
-    public void ReleaseClaim() => _claimedShardId = null;
+    public void ReleaseClaim()
+    {
+        _claimedShardId = null;
+        _claimedSessionId = null;
+    }
 }
