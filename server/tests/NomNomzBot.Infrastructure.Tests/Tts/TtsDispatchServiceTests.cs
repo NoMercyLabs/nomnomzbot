@@ -158,6 +158,7 @@ public sealed class TtsDispatchServiceTests
             byokProviders,
             config,
             lexicon,
+            new SpokenNameFormatter(),
             new TtsProfanityCensor(),
             store,
             ttsOverlay,
@@ -1098,6 +1099,120 @@ public sealed class TtsDispatchServiceTests
             .Tts.Received(1)
             .SynthesizeAsync(
                 "thanks Jaydee for the redeem",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // ── Spoken-name cleaning — after the lexicon, spoken text only ──
+
+    [Fact]
+    public async Task RequestSpeakAsync_CleansAKnownName_InTheSpokenText()
+    {
+        Harness h = Build();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("shoutout to xX_D4rk_Xx, go follow") with
+            {
+                SpokenNames = ["xX_D4rk_Xx"],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "shoutout to Dark, go follow",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await h.Db.TtsUsageRecords.SingleAsync())
+            .CharacterCount.Should()
+            .Be("shoutout to Dark, go follow".Length);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_CleansAnAtMention_WithoutAKnownNameList()
+    {
+        Harness h = Build();
+
+        await h.Service.RequestSpeakAsync(Speak("hi @N00bSl4y3r and gamer123"));
+
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "hi Noob Slayer and gamer123",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ChannelOverrideWins_OverTheNameCleaning()
+    {
+        Harness h = Build();
+        h.ChannelNames.ListAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult<IReadOnlyList<ChannelNamePronunciation>>([
+                    new("xX_D4rk_Xx", "Darrick"),
+                ])
+            );
+
+        await h.Service.RequestSpeakAsync(
+            Speak("thanks xX_D4rk_Xx and N00bSl4y3r") with
+            {
+                SpokenNames = ["xX_D4rk_Xx", "N00bSl4y3r"],
+            }
+        );
+
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "thanks Darrick and Noob Slayer",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_CleansNamesInEverySegment()
+    {
+        Harness h = await BuildWithVoicesAsync();
+        TtsSpeakRequest request = Speak("unused") with
+        {
+            AssignVoiceIfMissing = false,
+            Segments = [new("welcome N00bSl4y3r"), new("and Stoney_Eagle")],
+            SpokenNames = ["N00bSl4y3r", "Stoney_Eagle"],
+        };
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(request);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        SentSegments(h)
+            .Select(s => s.Text)
+            .Should()
+            .Equal("welcome Noob Slayer", "and Stoney Eagle");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_LeavesBareWordsAlone_WhenNoNameIsKnown()
+    {
+        Harness h = Build();
+
+        await h.Service.RequestSpeakAsync(Speak("kani_dev said gamer123 is a n00b"));
+
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "kani_dev said gamer123 is a n00b",
                 "default-voice",
                 Arg.Any<double?>(),
                 Arg.Any<double?>(),

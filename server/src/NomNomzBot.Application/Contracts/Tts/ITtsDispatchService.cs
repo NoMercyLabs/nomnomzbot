@@ -135,6 +135,11 @@ public sealed record TtsQueueEntryDto(
 /// naming no voice speaks in <see cref="VoiceIdOverride"/> or the usual resolved voice. The length cap, the
 /// censor and the voice check run on every part. <c>null</c> or empty keeps the single-text behavior.
 /// </param>
+/// <param name="SpokenNames">
+/// Names the caller knows sit in the text (a shoutout target, an event actor, the redeeming viewer, a quote author).
+/// Each is cleaned for the voice after the channel's pronunciation override ("xX_D4rk_Xx" is read "Dark"); the
+/// shown chat text is never changed. Every <c>@mention</c> in the text is cleaned too, with no list needed.
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -151,7 +156,8 @@ public sealed record TtsSpeakRequest(
     double? PitchPercent = null,
     bool AssignVoiceIfMissing = true,
     IReadOnlyList<TtsSpeakSegment>? Segments = null,
-    TtsSpeaker Speaker = TtsSpeaker.Bot
+    TtsSpeaker Speaker = TtsSpeaker.Bot,
+    IReadOnlyList<string>? SpokenNames = null
 );
 
 /// <summary>One part of a segmented <see cref="TtsSpeakRequest"/> (see <see cref="TtsSpeakRequest.Segments"/>).</summary>

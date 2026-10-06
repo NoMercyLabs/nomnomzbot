@@ -186,7 +186,8 @@ public sealed class PlayTtsAction : ICommandAction
                 StringComparison.OrdinalIgnoreCase
             ),
             Segments: segments,
-            Speaker: IsBotSpeaker(asField) ? TtsSpeaker.Bot : TtsSpeaker.Viewer
+            Speaker: IsBotSpeaker(asField) ? TtsSpeaker.Bot : TtsSpeaker.Viewer,
+            SpokenNames: SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName)
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(

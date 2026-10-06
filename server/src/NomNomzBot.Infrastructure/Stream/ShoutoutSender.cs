@@ -170,7 +170,8 @@ public sealed class ShoutoutSender : IShoutoutSender
                     CommunityStanding: "broadcaster",
                     SourceMessageId: null,
                     StreamId: null,
-                    Speaker: TtsSpeaker.Bot
+                    Speaker: TtsSpeaker.Bot,
+                    SpokenNames: [target.DisplayName, target.Login]
                 ),
                 cancellationToken
             );
