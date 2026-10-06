@@ -1136,6 +1136,32 @@ public sealed class TtsDispatchServiceTests
     }
 
     [Fact]
+    public async Task ApproveAsync_CleansTheNamesTheHeldRequestCarried_LikeADirectPlay()
+    {
+        Harness h = Build(modApprovalRequired: true);
+        await h.Service.RequestSpeakAsync(
+            Speak("shoutout to xX_D4rk_Xx, go follow") with
+            {
+                SpokenNames = ["xX_D4rk_Xx"],
+            }
+        );
+        TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+
+        Result result = await h.Service.ApproveAsync(Tenant, entry.Id, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "shoutout to Dark, go follow",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task RequestSpeakAsync_CleansAnAtMention_WithoutAKnownNameList()
     {
         Harness h = Build();

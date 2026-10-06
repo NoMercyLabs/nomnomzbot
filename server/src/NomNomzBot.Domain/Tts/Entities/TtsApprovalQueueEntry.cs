@@ -70,6 +70,9 @@ public class TtsApprovalQueueEntry : SoftDeletableEntity, ITenantScoped
 
     public Guid? StreamId { get; set; }
 
+    /// <summary>Viewer names the request carried, so an approved playback cleans them like a direct one; empty when none.</summary>
+    public List<string> SpokenNames { get; set; } = [];
+
     /// <summary>Stale entries auto-expire (default: queued + 10 minutes) so the queue never fills with dead requests.</summary>
     public DateTime ExpiresAt { get; set; }
 

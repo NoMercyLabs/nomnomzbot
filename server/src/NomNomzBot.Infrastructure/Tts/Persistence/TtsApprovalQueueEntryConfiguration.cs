@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 
 namespace NomNomzBot.Infrastructure.Tts.Persistence;
 
@@ -28,6 +29,14 @@ public class TtsApprovalQueueEntryConfiguration : IEntityTypeConfiguration<TtsAp
         builder.Property(e => e.Provider).HasMaxLength(20);
         builder.Property(e => e.Status).IsRequired().HasMaxLength(20);
         builder.Property(e => e.SourceMessageId).HasMaxLength(255);
+
+        // [VC:JSON] TEXT-as-JSON on both Postgres and SQLite.
+        builder
+            .Property(e => e.SpokenNames)
+            .HasConversion(
+                JsonValueConverter.Converter<List<string>>(),
+                JsonValueConverter.Comparer<List<string>>()
+            );
 
         // The mod queue reads pending entries for a channel, newest-first (P.1a index).
         builder.HasIndex(e => new
