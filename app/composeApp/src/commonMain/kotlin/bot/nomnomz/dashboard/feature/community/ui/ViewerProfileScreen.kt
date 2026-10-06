@@ -160,6 +160,7 @@ import nomnomzbot.composeapp.generated.resources.community_profile_history_note_
 import nomnomzbot.composeapp.generated.resources.community_profile_history_section
 import nomnomzbot.composeapp.generated.resources.community_profile_history_timeouts
 import nomnomzbot.composeapp.generated.resources.community_profile_history_warnings
+import nomnomzbot.composeapp.generated.resources.community_profile_notes_heading
 import nomnomzbot.composeapp.generated.resources.community_profile_identity_section
 import nomnomzbot.composeapp.generated.resources.community_profile_leaderboard_opted_out
 import nomnomzbot.composeapp.generated.resources.community_profile_lifetime_earned
@@ -323,6 +324,7 @@ private fun ProfileContent(
             HistorySection(
                 summary = profile.moderationHistory,
                 history = state.history,
+                notes = state.notes,
                 hasMore = state.historyHasMore,
                 moderate = moderate,
                 onLoadMore = { scope.launch { controller.loadMoreHistory() } },
@@ -620,6 +622,7 @@ private fun trustLabelRes(level: String) =
 private fun HistorySection(
     summary: bot.nomnomz.dashboard.core.network.UserModerationHistorySummary?,
     history: List<ModerationHistoryEntry>,
+    notes: List<bot.nomnomz.dashboard.core.network.UserNote>,
     hasMore: Boolean,
     moderate: ManageDecision,
     onLoadMore: () -> Unit,
@@ -662,6 +665,21 @@ private fun HistorySection(
                 TextButton(onClick = onLoadMore, modifier = Modifier.fillMaxWidth()) {
                     Text(text = stringResource(Res.string.community_profile_history_load_more), color = tokens.primary)
                 }
+            }
+        }
+
+        // The shared notes list — the same notes the Moderation panel shows. A note added below lands here.
+        if (notes.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(spacing.s2))
+            Separator()
+            Spacer(modifier = Modifier.height(spacing.s2))
+            Text(text = stringResource(Res.string.community_profile_notes_heading), style = typography.sm, color = tokens.foreground)
+            notes.forEachIndexed { index, note ->
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(text = note.content, style = typography.sm, color = tokens.foreground)
+                    note.authorName?.let { author -> Text(text = author, style = typography.xs, color = tokens.mutedForeground) }
+                }
+                if (index < notes.lastIndex) Separator()
             }
         }
 

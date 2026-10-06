@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.ModerationHistoryPage
 import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import bot.nomnomz.dashboard.core.network.UsersApi
 import bot.nomnomz.dashboard.core.network.ViewerDataApi
@@ -283,16 +284,51 @@ class ViewerProfileControllerTest {
     }
 
     @Test
-    fun add_history_note_posts_the_note_then_reloads() = runTest {
+    fun load_reads_the_shared_notes_list_for_the_person() = runTest {
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
         val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        moderationApi.notesResult = ApiResult.Ok(listOf(UserNote(id = 3, subjectUserId = "u1", content = "Pinned context", pinned = true)))
+        val controller = controller(communityApi = communityApi, moderationApi = moderationApi)
+
+        controller.load("u1")
+
+        val ready: ViewerProfileState.Ready = controller.state.value as ViewerProfileState.Ready
+        assertEquals(listOf(3), ready.notes.map { it.id })
+    }
+
+    @Test
+    fun add_history_note_puts_the_returned_note_in_the_shared_notes_list_not_the_history() = runTest {
+        val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        val pinned = UserNote(id = 1, subjectUserId = "u1", content = "Pinned", pinned = true)
+        moderationApi.notesResult = ApiResult.Ok(listOf(pinned))
+        val created = UserNote(id = 2, subjectUserId = "u1", content = "Warned verbally in Discord.", authorName = "Mod")
+        moderationApi.addHistoryNoteResult = ApiResult.Ok(created)
         val controller = controller(communityApi = communityApi, moderationApi = moderationApi)
         controller.load("u1")
 
         controller.addHistoryNote("Warned verbally in Discord.")
 
         assertEquals(listOf("u1" to "Warned verbally in Discord."), moderationApi.addedHistoryNotes)
-        assertEquals(2, communityApi.profileCallCount)
+        val ready: ViewerProfileState.Ready = controller.state.value as ViewerProfileState.Ready
+        // Pinned notes stay first (the backend's order); the new note follows them, ahead of older unpinned ones.
+        assertEquals(listOf(pinned, created), ready.notes)
+        assertTrue(ready.history.isEmpty())
+    }
+
+    @Test
+    fun a_failed_add_history_note_leaves_the_notes_list_and_toasts_the_error() = runTest {
+        val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        moderationApi.addHistoryNoteResult = ApiResult.Failure(ApiError(400, "BAD_REQUEST", "Note too long."))
+        val feedback = RecordingFeedback()
+        val controller = controller(communityApi = communityApi, moderationApi = moderationApi, feedback = feedback)
+        controller.load("u1")
+
+        controller.addHistoryNote("x")
+
+        assertTrue((controller.state.value as ViewerProfileState.Ready).notes.isEmpty())
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
     }
 
     private fun controller(

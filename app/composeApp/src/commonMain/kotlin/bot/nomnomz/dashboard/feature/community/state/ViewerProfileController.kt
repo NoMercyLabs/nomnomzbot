@@ -26,6 +26,7 @@ import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.core.network.UsersApi
 import bot.nomnomz.dashboard.core.network.ViewerDataApi
 import bot.nomnomz.dashboard.core.network.ViewerProfileSummary
@@ -135,10 +136,18 @@ class ViewerProfileController(
                 }
             } ?: false
 
+        // The same shared notes list the Moderation panel reads (best-effort, like the history page).
+        val notes: List<UserNote> =
+            when (val notesResult: ApiResult<List<UserNote>> = moderationApi.notesFor(channel, profile.identity.userId)) {
+                is ApiResult.Ok -> notesResult.value
+                is ApiResult.Failure -> emptyList()
+            }
+
         _state.value =
             ViewerProfileState.Ready(
                 profile = profile,
                 history = history,
+                notes = notes,
                 historyHasMore = historyHasMore,
                 availableVoices = availableVoices,
                 isBanned = isBanned,
@@ -173,7 +182,11 @@ class ViewerProfileController(
         }
     }
 
-    /** Add a manual moderation-history note, then reload so the log and summary reflect it. */
+    /**
+     * Add a note from the history card. The backend stores it in the shared notes store, so the returned
+     * [UserNote] joins [ViewerProfileState.Ready.notes] (after the pinned ones, ahead of older notes) — it is
+     * not a history row.
+     */
     suspend fun addHistoryNote(note: String) {
         val channel: String = channelId ?: return
         val current: ViewerProfileState = _state.value
@@ -181,7 +194,11 @@ class ViewerProfileController(
         when (
             val result = moderationApi.addHistoryNote(channel, current.profile.identity.userId, note)
         ) {
-            is ApiResult.Ok -> refresh(isInitial = false)
+            is ApiResult.Ok -> {
+                val pinned: List<UserNote> = current.notes.filter { it.pinned }
+                val rest: List<UserNote> = current.notes.filterNot { it.pinned }
+                _state.value = current.copy(notes = pinned + result.value + rest)
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
@@ -448,6 +465,7 @@ sealed interface ViewerProfileState {
         val profile: ViewerProfileSummary,
         val history: List<ModerationHistoryEntry>,
         val historyHasMore: Boolean,
+        val notes: List<UserNote> = emptyList(),
         val availableVoices: List<TtsVoice> = emptyList(),
         val isBanned: Boolean = false,
     ) : ViewerProfileState
