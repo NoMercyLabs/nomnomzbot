@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -432,31 +429,24 @@ private fun MergedFeed(
     onBan: (channelId: String, userId: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    // Auto-follow the tail as new lines arrive, like a live chat feed. Key on the tail id as well as the size:
-    // the merged feed is capped (300), so a size-only key would freeze auto-follow once it fills — exactly on the
-    // busy multi-channel case this page exists for.
-    val listState = rememberLazyListState()
-    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
-        if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
-    }
-
     Card(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
+        // Follows the tail like a live chat feed, but holds still while the pointer is over it, the user scrolled
+        // up, or a line menu is open (see FollowingFeed).
+        FollowingFeed(
+            items = messages,
+            key = { index, msg -> if (msg.id.isNotEmpty()) msg.id else "idx-$index" },
             modifier = Modifier.fillMaxSize().padding(vertical = spacing.s2),
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
-        ) {
-            itemsIndexed(items = messages, key = { index, msg -> if (msg.id.isNotEmpty()) msg.id else "idx-$index" }) { _, msg ->
-                MultiChatRow(
-                    message = msg,
-                    channelName = nameByChannel[msg.channelId],
-                    channelChatColor = colorByChannel[msg.channelId],
-                    manage = manage,
-                    onDelete = onDelete,
-                    onTimeout = onTimeout,
-                    onBan = onBan,
-                )
-            }
+        ) { msg ->
+            MultiChatRow(
+                message = msg,
+                channelName = nameByChannel[msg.channelId],
+                channelChatColor = colorByChannel[msg.channelId],
+                manage = manage,
+                onDelete = onDelete,
+                onTimeout = onTimeout,
+                onBan = onBan,
+            )
         }
     }
 }
@@ -551,6 +541,8 @@ private fun ModerationMenu(
     var confirmDelete: Boolean by remember { mutableStateOf(false) }
     var confirmTimeout: Boolean by remember { mutableStateOf(false) }
     var confirmBan: Boolean by remember { mutableStateOf(false) }
+    // The menu and every dialog it opens hold the feed still, so the line being acted on cannot move away.
+    FeedPauseEffect(FeedPauseReason.LineMenu, expanded || confirmDelete || confirmTimeout || confirmBan)
 
     val menuLabel: String = stringResource(Res.string.multichat_row_actions, name)
     val deleteItemLabel: String = stringResource(Res.string.multichat_delete_action)

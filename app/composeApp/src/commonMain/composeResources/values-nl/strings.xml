@@ -2145,6 +2145,10 @@
     <!-- Chat page. -->
     <string name="chat_subtitle">Live feed en moderatie</string>
     <string name="chat_loading">Chat laden…</string>
+    <plurals name="chat_new_messages">
+        <item quantity="one">%1$d nieuw bericht</item>
+        <item quantity="other">%1$d nieuwe berichten</item>
+    </plurals>
     <string name="chat_empty">Nog geen chat. Berichten verschijnen hier zodra ze binnenkomen.</string>
     <string name="chat_error">Chat laden mislukt: %1$s</string>
     <string name="chat_retry">Opnieuw</string>
