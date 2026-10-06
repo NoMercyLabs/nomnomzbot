@@ -10,6 +10,7 @@
 
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +38,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/channels/{channelId}/community")]
 [Authorize]
 [Tags("Community")]
-public class CommunityController : BaseController
+public partial class CommunityController : BaseController
 {
     private readonly IApplicationDbContext _db;
     private readonly ITwitchChannelsApi _channels;
@@ -48,6 +49,7 @@ public class CommunityController : BaseController
     private readonly ICommunityStandingService _communityStanding;
     private readonly ICurrentUserService _currentUser;
     private readonly IViewerProfileService _viewerProfile;
+    private readonly ITwitchUsersApi _users;
 
     public CommunityController(
         IApplicationDbContext db,
@@ -58,7 +60,8 @@ public class CommunityController : BaseController
         TimeProvider timeProvider,
         ICommunityStandingService communityStanding,
         ICurrentUserService currentUser,
-        IViewerProfileService viewerProfile
+        IViewerProfileService viewerProfile,
+        ITwitchUsersApi users
     )
     {
         _db = db;
@@ -70,6 +73,7 @@ public class CommunityController : BaseController
         _communityStanding = communityStanding;
         _currentUser = currentUser;
         _viewerProfile = viewerProfile;
+        _users = users;
     }
 
     // ── Full Profile (owner punch list 2026-09-08 §3) ───────────────────────────
@@ -184,6 +188,19 @@ public class CommunityController : BaseController
     /// </summary>
     public record ViewerOptionDto(string Id, string Label, string SubLabel);
 
+    /// <summary>
+    /// A Twitch account resolved straight from the platform by login (Helix Get Users) — for a person the bot
+    /// has never seen, so a streamer can ban or time them out ahead of time. <c>Id</c> is the Twitch user id
+    /// the moderation writes consume.
+    /// </summary>
+    public record PlatformViewerDto(
+        string Id,
+        string Login,
+        string DisplayName,
+        string? ProfileImageUrl,
+        DateTimeOffset CreatedAt
+    );
+
     public record BannedUserDto(
         string Id,
         string Username,
@@ -264,6 +281,61 @@ public class CommunityController : BaseController
 
         return Ok(new StatusResponseDto<List<ViewerOptionDto>> { Data = options });
     }
+
+    /// <summary>
+    /// Looks a typed login up on Twitch itself (Helix Get Users by login, app token) so a viewer the bot has
+    /// never seen can still be picked for a ban or timeout. A leading <c>@</c> and letter case are ignored.
+    /// 404 <c>TWITCH_USER_NOT_FOUND</c> when no such account exists; a Twitch outage is reported as the
+    /// upstream failure, never as "not found".
+    /// </summary>
+    [RequireAction("community:read")]
+    [HttpGet("lookup")]
+    [ProducesResponseType<StatusResponseDto<PlatformViewerDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> LookupPlatformViewer(
+        string channelId,
+        [FromQuery] string? login,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid _))
+            return BadRequestResponse("Invalid channel id.");
+
+        string normalised = (login ?? string.Empty).Trim().TrimStart('@').ToLowerInvariant();
+        if (!TwitchLoginPattern().IsMatch(normalised))
+            return BadRequestResponse("Enter a valid Twitch login.", "INVALID_TWITCH_LOGIN");
+
+        Result<IReadOnlyList<TwitchUser>> found = await _users.GetUsersByLoginsAsync(
+            [normalised],
+            ct
+        );
+        if (found.IsFailure)
+            return ResultResponse(found);
+
+        TwitchUser? user = found.Value.FirstOrDefault(u =>
+            string.Equals(u.Login, normalised, StringComparison.OrdinalIgnoreCase)
+        );
+        if (user is null)
+            return NotFoundResponse(
+                $"No Twitch account named {normalised}.",
+                "TWITCH_USER_NOT_FOUND"
+            );
+
+        return Ok(
+            new StatusResponseDto<PlatformViewerDto>
+            {
+                Data = new PlatformViewerDto(
+                    user.Id,
+                    user.Login,
+                    user.DisplayName,
+                    string.IsNullOrWhiteSpace(user.ProfileImageUrl) ? null : user.ProfileImageUrl,
+                    user.CreatedAt
+                ),
+            }
+        );
+    }
+
+    [GeneratedRegex("^[a-z0-9_]{1,25}$")]
+    private static partial Regex TwitchLoginPattern();
 
     // ── Paginated user list ──────────────────────────────────────────────────
 
