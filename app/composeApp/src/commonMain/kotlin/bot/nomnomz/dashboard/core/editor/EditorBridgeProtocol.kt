@@ -93,6 +93,8 @@ object EditorBridgeProtocol {
                         put("sdkTypesUnavailable", sdkTypesUnavailable)
                         // The server's sample table, the one the widget Test button fires from.
                         put("fireSamples", previewWidget?.fireSamples ?: JsonObject(emptyMap()))
+                        // Set when the table could not be fetched: the fire bar shows it and fires nothing.
+                        previewWidget?.fireSamplesError?.let { error -> put("fireSamplesError", error) }
                         // The widget's PERSISTED subscription list — the fire bar's authoritative source.
                         put(
                             "eventSubscriptions",

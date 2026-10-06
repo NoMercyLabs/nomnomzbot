@@ -345,6 +345,39 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun edit_widget_code_flags_the_preview_when_the_event_samples_could_not_be_fetched() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"))
+                ),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.html" to "<old/>"),
+                            manifest =
+                                ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                        )
+                    ),
+                putProjectResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
+            )
+        widgetsApi.testEventSamplesResult = ApiResult.Failure(ApiError(503, "DOWN", "samples down"))
+        val editor = FakeProjectEditor(toSave = listOf("<new/>"))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
+        )
+
+        val preview: EditorPreviewWidget = editor.openedPreviewWidget!!
+        assertTrue(preview.fireSamples.isEmpty(), "no invented samples")
+        assertTrue(!preview.fireSamplesError.isNullOrBlank(), "the preview is told the samples did not load")
+    }
+
+    @Test
     fun a_system_widget_opens_in_the_same_editor_saves_as_an_edit_and_resets_to_the_system_default() = runTest {
         val alerts =
             WidgetSummary(

@@ -33,6 +33,7 @@ class EditorBridgeSessionTest {
         history: EditorHistory? = null,
         testRun: EditorTestRun? = null,
         sdkTypesUnavailable: Boolean = false,
+        fireSamplesError: String? = null,
         private val feedback: CompileFeedback = CompileFeedback(ok = true, message = "Compiled v2"),
     ) {
         val compiled: MutableList<Map<String, String>> = mutableListOf()
@@ -55,6 +56,7 @@ class EditorBridgeSessionTest {
                             JsonObject(
                                 mapOf("channel.follow" to JsonObject(mapOf("login" to JsonPrimitive("server-login"))))
                             ),
+                        fireSamplesError = fireSamplesError,
                     ),
                 history = history,
                 testRun = testRun,
@@ -103,6 +105,26 @@ class EditorBridgeSessionTest {
 
         val payload: JsonObject = parse(harness.posted.single())["payload"]!!.jsonObject
         assertTrue(payload["sdkTypesUnavailable"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun theOpenMessageCarriesTheFireSamplesErrorWhenTheSamplesDidNotLoad() = runTest {
+        val harness = Harness(fireSamplesError = "Samples did not load")
+
+        harness.session.handle(EditorInboundMessage(EditorBridgeProtocol.READY))
+
+        val payload: JsonObject = parse(harness.posted.single())["payload"]!!.jsonObject
+        assertEquals("Samples did not load", payload["fireSamplesError"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun theOpenMessageHasNoFireSamplesErrorWhenTheSamplesLoaded() = runTest {
+        val harness = Harness()
+
+        harness.session.handle(EditorInboundMessage(EditorBridgeProtocol.READY))
+
+        val payload: JsonObject = parse(harness.posted.single())["payload"]!!.jsonObject
+        assertNull(payload["fireSamplesError"])
     }
 
     @Test

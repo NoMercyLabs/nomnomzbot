@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.editor_preview_fire_samples_error
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_no_channel_error
 import nomnomzbot.composeapp.generated.resources.widgets_review_action_error
@@ -419,19 +420,21 @@ class WidgetsController(
         load()
     }
 
-    // A failed samples fetch opens the editor anyway; its fire bar then sends empty payloads.
+    // A failed samples fetch opens the editor anyway; its fire bar then says so and fires nothing.
     private suspend fun previewWidgetOf(channel: String, widget: WidgetSummary): EditorPreviewWidget {
-        val samples: JsonObject =
-            when (val fetched: ApiResult<JsonObject> = widgetsApi.testEventSamples(channel)) {
-                is ApiResult.Ok -> fetched.value
-                is ApiResult.Failure -> JsonObject(emptyMap())
-            }
+        var samples: JsonObject = JsonObject(emptyMap())
+        var samplesError: String? = null
+        when (val fetched: ApiResult<JsonObject> = widgetsApi.testEventSamples(channel)) {
+            is ApiResult.Ok -> samples = fetched.value
+            is ApiResult.Failure -> samplesError = getString(Res.string.editor_preview_fire_samples_error)
+        }
         return EditorPreviewWidget(
             widget.id,
             widget.name,
             widget.settings ?: JsonObject(emptyMap()),
             widget.eventSubscriptions,
             samples,
+            samplesError,
         )
     }
 

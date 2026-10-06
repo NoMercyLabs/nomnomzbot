@@ -124,6 +124,7 @@ export function initPreview({
     entry,
     log,
     fireSamples = {},
+    fireSamplesFailed = false,
     declaredEvents = [],
     widget = {},
     noteText = '',
@@ -285,6 +286,7 @@ export function initPreview({
     const fireSearch = fireBar.querySelector('#fireSearch');
     const fireList = fireBar.querySelector('#fireList');
     const fireEmpty = fireBar.querySelector('#fireEmpty');
+    const fireSamplesError = fireBar.querySelector('#fireSamplesError');
     const fireEditor = fireBar.querySelector('#fireEditor');
     const fireEditorTitle = fireBar.querySelector('#fireEditorTitle');
     const fireJson = fireBar.querySelector('#fireJson');
@@ -305,7 +307,9 @@ export function initPreview({
         frame.contentWindow?.postMessage({ __nnzFire: { type, data } }, '*');
     }
 
+    // Without the server's samples every payload would be empty, so nothing is fired at all.
     function fireEvent(type) {
+        if (fireSamplesFailed) return;
         postFire(type, sampleFor(type));
     }
 
@@ -380,12 +384,14 @@ export function initPreview({
         fire.type = 'button';
         fire.className = 'fire-btn';
         fire.textContent = type;
+        fire.disabled = fireSamplesFailed;
         fire.addEventListener('click', () => fireEvent(type));
 
         const edit = document.createElement('button');
         edit.type = 'button';
         edit.classList.add('btn', 'btn-quiet', 'fire-edit');
         edit.textContent = t('previewFireEdit');
+        edit.disabled = fireSamplesFailed;
         edit.setAttribute('aria-label', t('previewFireEditSample', { type }));
         edit.addEventListener('click', () => openFireEditor(type));
 
@@ -394,6 +400,8 @@ export function initPreview({
     }
 
     function refreshFireBar(files) {
+        fireSamplesError.textContent = fireSamplesFailed ? t('previewFireSamplesError') : '';
+        fireSamplesError.hidden = !fireSamplesFailed;
         const types = listedEventTypes(files);
         const key = types.join('|');
         if (key !== listedKey) {
