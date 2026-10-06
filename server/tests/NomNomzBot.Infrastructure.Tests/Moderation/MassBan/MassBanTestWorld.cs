@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.MassBan;
 using NomNomzBot.Infrastructure.Platform.Security;
@@ -124,10 +125,35 @@ internal sealed class MassBanTestWorld
             _live.Add(twitchId);
     }
 
+    /// <summary>The moderator recorded the streamer's permission for a channel they moderate.</summary>
+    public void ModeratorOptIn(string twitchId, string login)
+    {
+        Db.ModeratorMassBanOptIns.Add(
+            new ModeratorMassBanOptIn
+            {
+                OperatorUserId = Operator,
+                BroadcasterTwitchId = twitchId,
+                BroadcasterLogin = login,
+                Note = "asked in Discord",
+                RecordedAt = Clock.GetUtcNow().UtcDateTime,
+            }
+        );
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+    }
+
     public void GoOffline(string twitchId) => _live.Remove(twitchId);
 
     public MassBanConsentService Consent() =>
-        new(Planner(), Db, Composer, Chat, Clock, NullLogger<MassBanConsentService>.Instance);
+        new(
+            Planner(),
+            Resolver(),
+            Db,
+            Composer,
+            Chat,
+            Clock,
+            NullLogger<MassBanConsentService>.Instance
+        );
 
     public MassBanExecutor Executor() =>
         new(
@@ -142,12 +168,9 @@ internal sealed class MassBanTestWorld
         );
 
     private MassBanChannelPlanner Planner() =>
-        new(
-            new OperatorModeratedChannelResolver(Access, Moderators, Db),
-            Access,
-            new MassBanLiveChannels(Streams),
-            Db
-        );
+        new(Resolver(), Access, new MassBanLiveChannels(Streams), Db);
+
+    private OperatorModeratedChannelResolver Resolver() => new(Access, Moderators, Db);
 
     private Guid AddServed(Guid id, string twitchId, string login, bool live, bool accepts)
     {

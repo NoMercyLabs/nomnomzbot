@@ -69,6 +69,7 @@ public sealed class MassBanChannelPlanner
             ct
         );
         Dictionary<string, Channel> rows = await LoadChannelRowsAsync(moderated.Value, ct);
+        HashSet<string> moderatorOptIns = await LoadModeratorOptInsAsync(operatorUserId, ct);
         HashSet<string> attacked = new(
             scope.AttackedChannelLogins,
             StringComparer.OrdinalIgnoreCase
@@ -86,22 +87,45 @@ public sealed class MassBanChannelPlanner
             bool isOwn = row is not null && row.Id == ownChannelId;
             bool isAttacked = attacked.Contains(channel.BroadcasterLogin);
             bool isLive = live.Value.Contains(channel.BroadcasterId);
+            string? optIn = OptInFor(
+                isOwn,
+                isAttacked,
+                ownerOptedIn: row is { AcceptsModeratorMassBans: true },
+                moderatorOptedIn: moderatorOptIns.Contains(channel.BroadcasterId)
+            );
             string status = StatusFor(
                 excluded.Contains(channel.BroadcasterLogin),
-                optedOut: row is { AcceptsModeratorMassBans: false },
+                optedIn: optIn is not null,
                 holdsWhileLive: !isOwn && !isAttacked,
                 isLive,
                 usesBot: served is not null
             );
-            plans.Add(new(channel, served, isOwn, isAttacked, isLive, status));
+            plans.Add(new(channel, served, isOwn, isAttacked, isLive, status, optIn));
         }
         return Result.Success<IReadOnlyList<MassBanChannelPlan>>(plans);
     }
 
-    // The owner's opt-out and the moderator's exclusion win over everything; after that only a live channel waits.
+    // The strongest reason a channel is in, or null when nobody opted it in (owner 2026-10-06: opt-in only).
+    private static string? OptInFor(
+        bool isOwn,
+        bool isAttacked,
+        bool ownerOptedIn,
+        bool moderatorOptedIn
+    )
+    {
+        if (isOwn)
+            return MassBanOptInSource.Own;
+        if (isAttacked)
+            return MassBanOptInSource.Attacked;
+        if (ownerOptedIn)
+            return MassBanOptInSource.Owner;
+        return moderatorOptedIn ? MassBanOptInSource.Moderator : null;
+    }
+
+    // The moderator's exclusion and a missing opt-in win over everything; after that only a live channel waits.
     private static string StatusFor(
         bool excluded,
-        bool optedOut,
+        bool optedIn,
         bool holdsWhileLive,
         bool isLive,
         bool usesBot
@@ -109,13 +133,26 @@ public sealed class MassBanChannelPlanner
     {
         if (excluded)
             return MassBanChannelStatus.Excluded;
-        if (optedOut)
-            return MassBanChannelStatus.OptedOut;
+        if (!optedIn)
+            return MassBanChannelStatus.NotOptedIn;
         if (!holdsWhileLive || !isLive)
             return MassBanChannelStatus.Banning;
         return usesBot
             ? MassBanChannelStatus.AwaitingApproval
             : MassBanChannelStatus.HeldUntilOffline;
+    }
+
+    private async Task<HashSet<string>> LoadModeratorOptInsAsync(
+        Guid operatorUserId,
+        CancellationToken ct
+    )
+    {
+        List<string> ids = await _db
+            .ModeratorMassBanOptIns.AsNoTracking()
+            .Where(o => o.OperatorUserId == operatorUserId)
+            .Select(o => o.BroadcasterTwitchId)
+            .ToListAsync(ct);
+        return [.. ids];
     }
 
     // A channel row per Twitch id; when one Twitch channel has several rows, the one the bot serves speaks for it.
@@ -148,7 +185,8 @@ public sealed record MassBanChannelPlan(
     bool IsOwnChannel,
     bool IsAttacked,
     bool IsLive,
-    string Status
+    string Status,
+    string? OptIn
 )
 {
     /// <summary>The own and attacked channels ban even while live; every other channel waits while it is live.</summary>
@@ -156,5 +194,5 @@ public sealed record MassBanChannelPlan(
 
     /// <summary>Whether a batch is created for this channel at all.</summary>
     public bool IsIncluded =>
-        Status is not (MassBanChannelStatus.Excluded or MassBanChannelStatus.OptedOut);
+        Status is not (MassBanChannelStatus.Excluded or MassBanChannelStatus.NotOptedIn);
 }

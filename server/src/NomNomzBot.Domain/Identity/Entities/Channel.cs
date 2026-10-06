@@ -184,9 +184,10 @@ public class Channel : SoftDeletableEntity
 
     /// <summary>
     /// When on, a moderator's mass ban across their channels also covers this channel (held while live, chat-client.md
-    /// §3.5). On by default: a Twitch moderator may already ban here. The owner turns it off to keep this channel out.
+    /// §3.5). Off by default (owner 2026-10-06: opt-in only); the owner turns it on. A channel that never joined
+    /// the bot is opted in by its moderator instead, on the streamer's word (<c>ModeratorMassBanOptIn</c>).
     /// </summary>
-    public bool AcceptsModeratorMassBans { get; set; } = true;
+    public bool AcceptsModeratorMassBans { get; set; }
 
     [ForeignKey(nameof(OwnerUserId))]
     public virtual User User { get; set; } = null!;

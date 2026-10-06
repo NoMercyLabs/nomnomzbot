@@ -175,6 +175,8 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
         throw new NotSupportedException();
+    public DbSet<Domain.Moderation.Entities.ModeratorMassBanOptIn> ModeratorMassBanOptIns =>
+        throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>

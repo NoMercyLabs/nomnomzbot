@@ -49,6 +49,7 @@ public sealed class MassBanExecutorTests
     {
         MassBanTestWorld world = new();
         world.UnservedChannel("l1", "live_unserved", live: true);
+        world.ModeratorOptIn("l1", "live_unserved");
         await QueueAsync(world);
 
         int whileLive = await world.Executor().RunAsync(maxBans: 50);
@@ -153,7 +154,15 @@ public sealed class MassBanExecutorTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Failure<TwitchBanResult>("The user is already banned.", "CONFLICT"));
+            .Returns(
+                // Live 2026-10-06: the Helix transport says "Twitch request failed (400)." and keeps Twitch's own
+                // sentence in the detail; 60 already-banned accounts were recorded as refusals.
+                Result.Failure<TwitchBanResult>(
+                    "Twitch request failed (400).",
+                    "TWITCH_ERROR",
+                    "{\"error\":\"Bad Request\",\"status\":400,\"message\":\"The user specified in the user_id field is already banned.\"}"
+                )
+            );
         world
             .Moderation.BanAsOperatorAsync(
                 Arg.Any<Guid>(),
@@ -162,7 +171,13 @@ public sealed class MassBanExecutorTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Failure<TwitchBanResult>("Missing scope.", "FORBIDDEN"));
+            .Returns(
+                Result.Failure<TwitchBanResult>(
+                    "Twitch request failed (403).",
+                    "FORBIDDEN",
+                    "Missing scope."
+                )
+            );
 
         await world.Executor().RunAsync(maxBans: 50);
 
@@ -172,7 +187,9 @@ public sealed class MassBanExecutorTests
         targets["1001"].Banned.Should().BeTrue();
         targets["1002"].Banned.Should().BeTrue("Twitch already has the ban we wanted");
         targets["1003"].Banned.Should().BeFalse();
-        targets["1003"].Error.Should().Be("Missing scope.");
+        targets["1003"]
+            .Error.Should()
+            .Be("Twitch request failed (403). Missing scope.", "the detail names the cause");
         targets.Values.Should().OnlyContain(t => t.ProcessedAt != null, "a refusal is not retried");
     }
 

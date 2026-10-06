@@ -48,8 +48,10 @@ public sealed class MassBanConsentServiceTests
         world.ServedChannel("k1", "qtkitte", live: true);
         world.ServedChannel("o1", "offline_served");
         world.UnservedChannel("o2", "offline_unserved");
+        world.ModeratorOptIn("o2", "offline_unserved");
         Guid liveServed = world.ServedChannel("l1", "live_served", live: true);
         world.UnservedChannel("l2", "live_unserved", live: true);
+        world.ModeratorOptIn("l2", "live_unserved");
 
         Result<MassBanSweepResult> result = await world
             .Consent()
@@ -107,16 +109,20 @@ public sealed class MassBanConsentServiceTests
     }
 
     [Fact]
-    public async Task Excluded_and_opted_out_channels_get_no_batch_and_the_preview_says_so()
+    public async Task Only_an_opted_in_channel_gets_a_batch_and_the_preview_says_who_opted_it_in()
     {
         MassBanTestWorld world = new();
         world.OwnChannel("own1", "stoney");
         world.ServedChannel("x1", "left_out");
         world.ServedChannel("n1", "said_no", accepts: false);
         world.ServedChannel("y1", "takes_part");
+        world.UnservedChannel("u1", "never_asked");
+        world.UnservedChannel("u2", "on_their_word");
+        world.ModeratorOptIn("u2", "on_their_word");
+        world.UnservedChannel("a1", "attacked");
 
         MassBanConsentService consent = world.Consent();
-        MassBanScope scope = Scope(excluded: ["LEFT_OUT"]);
+        MassBanScope scope = Scope(attacked: ["attacked"], excluded: ["LEFT_OUT"]);
         Result<IReadOnlyList<MassBanChannelPreview>> preview = await consent.PreviewAsync(
             MassBanTestWorld.Operator,
             scope
@@ -130,13 +136,16 @@ public sealed class MassBanConsentServiceTests
 
         preview.IsSuccess.Should().BeTrue(preview.ErrorMessage);
         preview
-            .Value.Select(p => (p.BroadcasterLogin, p.Status))
+            .Value.Select(p => (p.BroadcasterLogin, p.Status, p.OptIn))
             .Should()
             .Equal(
-                ("stoney", MassBanChannelStatus.Banning),
-                ("left_out", MassBanChannelStatus.Excluded),
-                ("said_no", MassBanChannelStatus.OptedOut),
-                ("takes_part", MassBanChannelStatus.Banning)
+                ("stoney", MassBanChannelStatus.Banning, MassBanOptInSource.Own),
+                ("left_out", MassBanChannelStatus.Excluded, MassBanOptInSource.Owner),
+                ("said_no", MassBanChannelStatus.NotOptedIn, null),
+                ("takes_part", MassBanChannelStatus.Banning, MassBanOptInSource.Owner),
+                ("never_asked", MassBanChannelStatus.NotOptedIn, null),
+                ("on_their_word", MassBanChannelStatus.Banning, MassBanOptInSource.Moderator),
+                ("attacked", MassBanChannelStatus.Banning, MassBanOptInSource.Attacked)
             );
         preview.Value.Single(p => p.BroadcasterLogin == "stoney").IsOwnChannel.Should().BeTrue();
 
@@ -147,12 +156,95 @@ public sealed class MassBanConsentServiceTests
             .Equal(
                 ("stoney", MassBanChannelStatus.Banning, 2),
                 ("left_out", MassBanChannelStatus.Excluded, 0),
-                ("said_no", MassBanChannelStatus.OptedOut, 0),
-                ("takes_part", MassBanChannelStatus.Banning, 2)
+                ("said_no", MassBanChannelStatus.NotOptedIn, 0),
+                ("takes_part", MassBanChannelStatus.Banning, 2),
+                ("never_asked", MassBanChannelStatus.NotOptedIn, 0),
+                ("on_their_word", MassBanChannelStatus.Banning, 2),
+                ("attacked", MassBanChannelStatus.Banning, 2)
             );
         (await world.Db.MassBanBatches.Select(b => b.ChannelLogin).ToListAsync())
             .Should()
-            .BeEquivalentTo(["stoney", "takes_part"]);
+            .BeEquivalentTo(["stoney", "takes_part", "on_their_word", "attacked"]);
+    }
+
+    [Fact]
+    public async Task A_moderator_records_the_streamers_word_only_for_a_channel_twitch_lists_them_on()
+    {
+        MassBanTestWorld world = new();
+        world.OwnChannel("own1", "stoney");
+        world.UnservedChannel("u1", "Their_Channel");
+        MassBanConsentService consent = world.Consent();
+
+        Result<ModeratorMassBanOptInRecord> stranger = await consent.OptInChannelAsync(
+            MassBanTestWorld.Operator,
+            "not_moderated",
+            "they said yes"
+        );
+        Result<ModeratorMassBanOptInRecord> unsaid = await consent.OptInChannelAsync(
+            MassBanTestWorld.Operator,
+            "their_channel",
+            "   "
+        );
+        Result<ModeratorMassBanOptInRecord> recorded = await consent.OptInChannelAsync(
+            MassBanTestWorld.Operator,
+            "their_channel",
+            " asked in Discord "
+        );
+        Result<ModeratorMassBanOptInRecord> again = await consent.OptInChannelAsync(
+            MassBanTestWorld.Operator,
+            "THEIR_CHANNEL",
+            "asked again on stream"
+        );
+
+        stranger.IsFailure.Should().BeTrue();
+        stranger.ErrorCode.Should().Be("NOT_FOUND");
+        unsaid.ErrorCode.Should().Be("VALIDATION_FAILED");
+        recorded.IsSuccess.Should().BeTrue(recorded.ErrorMessage);
+        recorded
+            .Value.Should()
+            .Be(
+                new ModeratorMassBanOptInRecord(
+                    "u1",
+                    "Their_Channel",
+                    "asked in Discord",
+                    world.Clock.GetUtcNow().UtcDateTime
+                )
+            );
+        again.Value.Note.Should().Be("asked again on stream", "a second record replaces the note");
+        (await world.Db.ModeratorMassBanOptIns.CountAsync())
+            .Should()
+            .Be(1, "one row per moderator and channel");
+
+        IReadOnlyList<ModeratorMassBanOptInRecord> listed = await consent.ListOptInsAsync(
+            MassBanTestWorld.Operator
+        );
+        listed.Should().Equal(again.Value);
+        (await consent.ListOptInsAsync(Guid.NewGuid()))
+            .Should()
+            .BeEmpty("another moderator's word is their own");
+
+        Result<IReadOnlyList<MassBanChannelPreview>> preview = await consent.PreviewAsync(
+            MassBanTestWorld.Operator,
+            Scope()
+        );
+        preview
+            .Value.Single(p => p.BroadcasterLogin == "Their_Channel")
+            .Should()
+            .Match<MassBanChannelPreview>(p =>
+                p.Status == MassBanChannelStatus.Banning && p.OptIn == MassBanOptInSource.Moderator
+            );
+
+        (await consent.RemoveOptInAsync(MassBanTestWorld.Operator, "their_channel"))
+            .Should()
+            .BeTrue();
+        (await consent.RemoveOptInAsync(MassBanTestWorld.Operator, "their_channel"))
+            .Should()
+            .BeFalse("it is gone");
+        preview = await consent.PreviewAsync(MassBanTestWorld.Operator, Scope());
+        preview
+            .Value.Single(p => p.BroadcasterLogin == "Their_Channel")
+            .Status.Should()
+            .Be(MassBanChannelStatus.NotOptedIn);
     }
 
     [Fact]

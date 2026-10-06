@@ -164,6 +164,8 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn> ModeratorMassBanOptIns =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>

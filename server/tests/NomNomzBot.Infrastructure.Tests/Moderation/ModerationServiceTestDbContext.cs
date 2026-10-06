@@ -214,6 +214,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch),
         // Mass-ban batches; their targets map by convention through the navigation.
         typeof(NomNomzBot.Domain.Moderation.Entities.MassBanBatch),
+        // A moderator's record of a streamer's permission — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn),
         // The J.4/J.5 projections — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.UserModerationHistory),
         typeof(NomNomzBot.Domain.Moderation.Entities.UserTrustScore),
@@ -269,6 +271,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
         Set<NomNomzBot.Domain.Moderation.Entities.MassBanBatch>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn> ModeratorMassBanOptIns =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>

@@ -29,14 +29,26 @@ public sealed record MassBanChannelPreviewDto(
     string BroadcasterId,
     string BroadcasterLogin,
     string Status,
+    string? OptIn,
     bool IsOwnChannel,
     bool IsAttacked,
     bool IsLive,
     bool UsesBot
 );
 
-/// <summary>Whether this channel takes part in moderators' mass bans across their channels.</summary>
+/// <summary>Whether this channel takes part in moderators' mass bans across their channels (off until the owner says so).</summary>
 public sealed record MassBanOptInDto(bool Accepts);
+
+/// <summary>A streamer's permission as recorded by the operator, for a channel that may never have joined the bot.</summary>
+public sealed record ModeratorMassBanOptInDto(
+    string BroadcasterId,
+    string BroadcasterLogin,
+    string Note,
+    DateTime RecordedAt
+);
+
+/// <summary>Where the permission came from, in the operator's words ("asked in Discord 2026-10-06").</summary>
+public sealed record ModeratorMassBanOptInRequest(string? Note);
 
 /// <summary>One account: its numeric Twitch user id and the optional reason Twitch shows.</summary>
 public sealed record MassBanTargetDto(string TwitchUserId, string? Reason);
@@ -46,6 +58,6 @@ public sealed record MassBanResultDto(IReadOnlyList<MassBanChannelOutcomeDto> Ch
 
 /// <summary>
 /// One channel: its login, the status (<c>banning</c>, <c>awaiting_approval</c>, <c>held_until_offline</c>,
-/// <c>excluded</c> or <c>opted_out</c>) and how many accounts its batch holds (0 when it was skipped).
+/// <c>excluded</c> or <c>not_opted_in</c>) and how many accounts its batch holds (0 when it was skipped).
 /// </summary>
 public sealed record MassBanChannelOutcomeDto(string BroadcasterLogin, string Status, int Accounts);

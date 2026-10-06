@@ -5020,7 +5020,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<bool>("AcceptsModeratorMassBans")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasDefaultValue(true);
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("AnnounceOnConnect")
                         .HasColumnType("boolean");
@@ -7612,6 +7612,47 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId", "Status");
 
                     b.ToTable("ModerationQueueItems");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BroadcasterLogin")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("BroadcasterTwitchId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("OperatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperatorUserId", "BroadcasterTwitchId")
+                        .IsUnique();
+
+                    b.ToTable("ModeratorMassBanOptIns");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.NetworkBlock", b =>

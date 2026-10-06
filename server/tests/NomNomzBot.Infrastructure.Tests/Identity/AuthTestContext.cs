@@ -297,6 +297,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
         Set<NomNomzBot.Domain.Moderation.Entities.MassBanBatch>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn> ModeratorMassBanOptIns =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>

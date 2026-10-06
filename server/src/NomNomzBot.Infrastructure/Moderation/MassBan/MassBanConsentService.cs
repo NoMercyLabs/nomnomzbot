@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
@@ -27,8 +28,10 @@ public sealed class MassBanConsentService : IMassBanConsentService
 {
     private const int MaxTargets = 1000;
     private const int MaxReasonLength = 500;
+    private const int MaxNoteLength = 500;
 
     private readonly MassBanChannelPlanner _planner;
+    private readonly IOperatorModeratedChannelResolver _channels;
     private readonly IApplicationDbContext _db;
     private readonly IBuiltinResponseComposer _composer;
     private readonly IChatProvider _chat;
@@ -37,6 +40,7 @@ public sealed class MassBanConsentService : IMassBanConsentService
 
     public MassBanConsentService(
         MassBanChannelPlanner planner,
+        IOperatorModeratedChannelResolver channels,
         IApplicationDbContext db,
         IBuiltinResponseComposer composer,
         IChatProvider chat,
@@ -45,6 +49,7 @@ public sealed class MassBanConsentService : IMassBanConsentService
     )
     {
         _planner = planner;
+        _channels = channels;
         _db = db;
         _composer = composer;
         _chat = chat;
@@ -71,6 +76,7 @@ public sealed class MassBanConsentService : IMassBanConsentService
                 p.Channel.BroadcasterId,
                 p.Channel.BroadcasterLogin,
                 p.Status,
+                p.OptIn,
                 p.IsOwnChannel,
                 p.IsAttacked,
                 p.IsLive,
@@ -138,6 +144,95 @@ public sealed class MassBanConsentService : IMassBanConsentService
         string decidedByDisplayName,
         CancellationToken ct = default
     ) => DecideAsync(channelId, decidedByDisplayName, MassBanDecisionStatus.Declined, ct);
+
+    public async Task<Result<ModeratorMassBanOptInRecord>> OptInChannelAsync(
+        Guid operatorUserId,
+        string broadcasterLogin,
+        string note,
+        CancellationToken ct = default
+    )
+    {
+        string trimmed = note.Trim();
+        if (trimmed.Length == 0)
+            return Result.Failure<ModeratorMassBanOptInRecord>(
+                "Say where the streamer's permission came from.",
+                "VALIDATION_FAILED"
+            );
+        if (trimmed.Length > MaxNoteLength)
+            trimmed = trimmed[..MaxNoteLength];
+
+        // Only a channel Twitch lists this moderator on can be opted in: the ban rides their moderator token.
+        Result<IReadOnlyList<TwitchModeratedChannel>> moderated = await _channels.ResolveAsync(
+            operatorUserId,
+            ct
+        );
+        if (moderated.IsFailure)
+            return moderated.WithValue<ModeratorMassBanOptInRecord>(default!);
+        TwitchModeratedChannel? channel = moderated.Value.FirstOrDefault(c =>
+            string.Equals(c.BroadcasterLogin, broadcasterLogin, StringComparison.OrdinalIgnoreCase)
+        );
+        if (channel is null)
+            return Result.Failure<ModeratorMassBanOptInRecord>(
+                "You are not a moderator of that channel on Twitch.",
+                "NOT_FOUND"
+            );
+
+        ModeratorMassBanOptIn? existing = await _db.ModeratorMassBanOptIns.FirstOrDefaultAsync(
+            o =>
+                o.OperatorUserId == operatorUserId
+                && o.BroadcasterTwitchId == channel.BroadcasterId,
+            ct
+        );
+        ModeratorMassBanOptIn optIn =
+            existing
+            ?? new ModeratorMassBanOptIn
+            {
+                OperatorUserId = operatorUserId,
+                BroadcasterTwitchId = channel.BroadcasterId,
+            };
+        optIn.BroadcasterLogin = channel.BroadcasterLogin;
+        optIn.Note = trimmed;
+        optIn.RecordedAt = _clock.GetUtcNow().UtcDateTime;
+        if (existing is null)
+            _db.ModeratorMassBanOptIns.Add(optIn);
+        await _db.SaveChangesAsync(ct);
+        return Result.Success(ToRecord(optIn));
+    }
+
+    public async Task<bool> RemoveOptInAsync(
+        Guid operatorUserId,
+        string broadcasterLogin,
+        CancellationToken ct = default
+    )
+    {
+        List<ModeratorMassBanOptIn> rows = await _db
+            .ModeratorMassBanOptIns.Where(o =>
+                o.OperatorUserId == operatorUserId
+                && o.BroadcasterLogin.ToLower() == broadcasterLogin.ToLower()
+            )
+            .ToListAsync(ct);
+        if (rows.Count == 0)
+            return false;
+        _db.ModeratorMassBanOptIns.RemoveRange(rows);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<IReadOnlyList<ModeratorMassBanOptInRecord>> ListOptInsAsync(
+        Guid operatorUserId,
+        CancellationToken ct = default
+    )
+    {
+        List<ModeratorMassBanOptIn> rows = await _db
+            .ModeratorMassBanOptIns.AsNoTracking()
+            .Where(o => o.OperatorUserId == operatorUserId)
+            .OrderBy(o => o.BroadcasterLogin)
+            .ToListAsync(ct);
+        return [.. rows.Select(ToRecord)];
+    }
+
+    private static ModeratorMassBanOptInRecord ToRecord(ModeratorMassBanOptIn o) =>
+        new(o.BroadcasterTwitchId, o.BroadcasterLogin, o.Note, o.RecordedAt);
 
     // One row per account, a numeric Twitch id each, and a reason Twitch accepts.
     private static Result<List<MassBanTarget>> Clean(IReadOnlyList<MassBanTarget> targets)

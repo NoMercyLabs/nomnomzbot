@@ -187,6 +187,7 @@ public class ModerationController : BaseController
                 p.BroadcasterId,
                 p.BroadcasterLogin,
                 p.Status,
+                p.OptIn,
                 p.IsOwnChannel,
                 p.IsAttacked,
                 p.IsLive,
@@ -195,6 +196,77 @@ public class ModerationController : BaseController
         ];
         return Ok(new StatusResponseDto<List<MassBanChannelPreviewDto>> { Data = rows });
     }
+
+    /// <summary>The channels this operator opted into their mass bans on the streamer's word.</summary>
+    [RequireAction("moderation:ban")]
+    [HttpGet("actions/mass-ban/opt-ins")]
+    [ProducesResponseType<StatusResponseDto<List<ModeratorMassBanOptInDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListMassBanOptIns(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        IReadOnlyList<ModeratorMassBanOptInRecord> optIns = await _massBan.ListOptInsAsync(
+            operatorUserId,
+            ct
+        );
+        return Ok(
+            new StatusResponseDto<List<ModeratorMassBanOptInDto>>
+            {
+                Data = [.. optIns.Select(ToDto)],
+            }
+        );
+    }
+
+    /// <summary>
+    /// Records, on the streamer's word, that a channel the operator moderates takes part in their mass bans — the
+    /// way in for a channel that never joined the bot. The note says where the permission came from.
+    /// </summary>
+    [RequireAction("moderation:ban")]
+    [HttpPut("actions/mass-ban/opt-ins/{broadcasterLogin}")]
+    [ProducesResponseType<StatusResponseDto<ModeratorMassBanOptInDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> OptInMassBanChannel(
+        string channelId,
+        string broadcasterLogin,
+        [FromBody] ModeratorMassBanOptInRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<ModeratorMassBanOptInRecord> optIn = await _massBan.OptInChannelAsync(
+            operatorUserId,
+            broadcasterLogin,
+            request.Note ?? "",
+            ct
+        );
+        if (optIn.IsFailure)
+            return ResultResponse(optIn);
+        return Ok(new StatusResponseDto<ModeratorMassBanOptInDto> { Data = ToDto(optIn.Value) });
+    }
+
+    /// <summary>Removes the operator's opt-in for that channel; 404 when there was none.</summary>
+    [RequireAction("moderation:ban")]
+    [HttpDelete("actions/mass-ban/opt-ins/{broadcasterLogin}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveMassBanOptIn(
+        string channelId,
+        string broadcasterLogin,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        bool removed = await _massBan.RemoveOptInAsync(operatorUserId, broadcasterLogin, ct);
+        return removed ? NoContent() : NotFoundResponse("No opt-in recorded for that channel.");
+    }
+
+    private static ModeratorMassBanOptInDto ToDto(ModeratorMassBanOptInRecord r) =>
+        new(r.BroadcasterId, r.BroadcasterLogin, r.Note, r.RecordedAt);
 
     /// <summary>
     /// Ban a list of accounts (for example a follow-bot storm) in EVERY channel the operator moderates, one batch

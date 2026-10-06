@@ -150,6 +150,7 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
         throw new NotSupportedException();
     public DbSet<NetworkNukeBatch> NetworkNukeBatches => throw new NotSupportedException();
     public DbSet<MassBanBatch> MassBanBatches => throw new NotSupportedException();
+    public DbSet<ModeratorMassBanOptIn> ModeratorMassBanOptIns => throw new NotSupportedException();
     public DbSet<NetworkBlock> NetworkBlocks => throw new NotSupportedException();
     public DbSet<UserModerationHistory> UserModerationHistories =>
         throw new NotSupportedException();

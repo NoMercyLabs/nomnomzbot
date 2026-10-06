@@ -17,11 +17,38 @@ namespace NomNomzBot.Application.Moderation.Services;
 /// run at once in the moderator's own channel, in the attacked channel(s), and in every channel that is offline.
 /// Only a live channel is held back, so its stream is not disrupted: its chat is told (when the bot is there), and
 /// the bans run when its broadcaster, a lead moderator or an editor types <c>!allow massban</c>, or when the stream
-/// ends. <c>!disallow massban</c> stops them. A channel the moderator excludes, or whose owner turned mass bans off
-/// (<c>Channel.AcceptsModeratorMassBans</c>), gets no batch at all.
+/// ends. <c>!disallow massban</c> stops them. Opt-in only (owner 2026-10-06): besides the moderator's own and the
+/// attacked channels, a channel takes part only when its owner turned <c>Channel.AcceptsModeratorMassBans</c> on,
+/// or when the moderator recorded the streamer's permission (<see cref="OptInChannelAsync"/>) — the way in for a
+/// channel that never joined the bot. A channel the moderator excludes gets no batch either.
 /// </summary>
 public interface IMassBanConsentService
 {
+    /// <summary>
+    /// Records, on the streamer's word, that <paramref name="broadcasterLogin"/> takes part in this moderator's mass
+    /// bans. Fails when the moderator does not moderate that channel on Twitch, or when the note is empty.
+    /// Recording twice updates the note.
+    /// </summary>
+    Task<Result<ModeratorMassBanOptInRecord>> OptInChannelAsync(
+        Guid operatorUserId,
+        string broadcasterLogin,
+        string note,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Removes the moderator's opt-in for that channel; false when there was none.</summary>
+    Task<bool> RemoveOptInAsync(
+        Guid operatorUserId,
+        string broadcasterLogin,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Every channel this moderator opted in on a streamer's word.</summary>
+    Task<IReadOnlyList<ModeratorMassBanOptInRecord>> ListOptInsAsync(
+        Guid operatorUserId,
+        CancellationToken ct = default
+    );
+
     /// <summary>
     /// Lists every channel the moderator moderates with the status a request would give it, so channels can be
     /// excluded before anything is banned. Fails when the channels or their live state cannot be read from Twitch.
@@ -77,6 +104,7 @@ public sealed record MassBanChannelPreview(
     string BroadcasterId,
     string BroadcasterLogin,
     string Status,
+    string? OptIn,
     bool IsOwnChannel,
     bool IsAttacked,
     bool IsLive,
@@ -120,6 +148,30 @@ public static class MassBanChannelStatus
     /// <summary>The moderator left this channel out.</summary>
     public const string Excluded = "excluded";
 
-    /// <summary>The channel's owner turned mass bans from moderators off.</summary>
-    public const string OptedOut = "opted_out";
+    /// <summary>Nobody opted this channel in: neither its owner nor the moderator on the streamer's word.</summary>
+    public const string NotOptedIn = "not_opted_in";
 }
+
+/// <summary>Why a channel takes part in a mass ban (<see cref="MassBanChannelPreview.OptIn"/>); null when it does not.</summary>
+public static class MassBanOptInSource
+{
+    /// <summary>The moderator's own channel.</summary>
+    public const string Own = "own";
+
+    /// <summary>Named as attacked in this request: the moderator's own call for this run.</summary>
+    public const string Attacked = "attacked";
+
+    /// <summary>The channel's owner turned <c>AcceptsModeratorMassBans</c> on in the dashboard.</summary>
+    public const string Owner = "owner";
+
+    /// <summary>The moderator recorded the streamer's permission (<c>ModeratorMassBanOptIn</c>).</summary>
+    public const string Moderator = "moderator";
+}
+
+/// <summary>A streamer's permission as recorded by the moderator, for a channel that may never have joined the bot.</summary>
+public sealed record ModeratorMassBanOptInRecord(
+    string BroadcasterId,
+    string BroadcasterLogin,
+    string Note,
+    DateTime RecordedAt
+);

@@ -145,13 +145,16 @@ public sealed class MassBanExecutor
             target.Reason,
             ct
         );
-        if (ban.IsSuccess || IsAlreadyBanned(ban.ErrorMessage))
+        if (ban.IsSuccess || IsAlreadyBanned(ban.ErrorMessage) || IsAlreadyBanned(ban.ErrorDetail))
         {
             target.Banned = true;
             return;
         }
 
-        string error = ban.ErrorMessage ?? "Twitch rejected the ban.";
+        // The transport's message is only the status; Twitch's own sentence is the detail (2026-10-06).
+        string error = string.IsNullOrEmpty(ban.ErrorDetail)
+            ? ban.ErrorMessage ?? "Twitch rejected the ban."
+            : $"{ban.ErrorMessage} {ban.ErrorDetail}";
         target.Error = error.Length > MaxErrorLength ? error[..MaxErrorLength] : error;
         _logger.LogWarning(
             "Mass ban in {Channel}: {Target} was not banned: {Error}",
