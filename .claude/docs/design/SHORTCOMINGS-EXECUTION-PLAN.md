@@ -38,9 +38,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Editor lane
 
-- **S-EDITOR-CONSOLE** `console.*` from the preview and from script test runs lands in a Console panel
-  (level, time, source line). Today only errors are forwarded (`preview-sdk.js:73-77`). R4, R21.
-  Done-when: E2E logs log/warn/error → three rows with the right level.
 - **S-EDITOR-SAMPLES-REAL** The 76 EventSub fixtures are checked against the live Twitch docs (numeric
   ids, `rewards.cheer` broadcaster login/name, `chat.message` cheer/reply); a test proves all 76
   translate to domain events. R2. Done-when: the translate test covers 76 of 76; the doc comparison
