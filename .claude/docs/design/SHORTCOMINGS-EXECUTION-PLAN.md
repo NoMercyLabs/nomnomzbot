@@ -42,12 +42,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
   (no `*.vue` module typing; hidden script model at `vue-script-model.js:51-58`). R5. Done-when: a
   multi-file Vue widget (index.vue + 4 components) shows zero 2307 markers; a wrong path still shows
   2307; E2E test fails before the fix.
-- **S-EDITOR-FIRE-ALL-EVENTS** The fire bar is always visible, lists every event the widget can receive
-  (catalogue, not only `.on()` regex hits, `preview.js:71,175-179`), is searchable, and lets the user
-  edit the sample JSON before firing. A failed samples fetch shows an error, never empty payloads
-  (`WidgetsController.kt:422-427`). Add `play_sound`/`stop_sound` samples and a real `test` sample.
-  R2, R4, R12. Done-when: E2E fires each of 53 types into the preview; the fetch-fail path shows the
-  error.
 - **S-EDITOR-CONSOLE** `console.*` from the preview and from script test runs lands in a Console panel
   (level, time, source line). Today only errors are forwarded (`preview-sdk.js:73-77`). R4, R21.
   Done-when: E2E logs log/warn/error → three rows with the right level.
