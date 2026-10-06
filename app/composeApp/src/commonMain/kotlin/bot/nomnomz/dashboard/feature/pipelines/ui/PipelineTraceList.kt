@@ -24,6 +24,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.PipelineTraceStep
 import bot.nomnomz.dashboard.core.network.PipelineTraceVariableChange
+import bot.nomnomz.dashboard.core.network.RuntimePalette
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_trace_branch
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_trace_change
@@ -40,7 +41,7 @@ import org.jetbrains.compose.resources.stringResource
  * step's error on its own row. Rows are separated by a [Separator] — no nested rounded containers.
  */
 @Composable
-fun PipelineTraceList(trace: List<PipelineTraceStep>) {
+fun PipelineTraceList(trace: List<PipelineTraceStep>, palette: RuntimePalette) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -57,20 +58,22 @@ fun PipelineTraceList(trace: List<PipelineTraceStep>) {
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         trace.forEachIndexed { index: Int, step: PipelineTraceStep ->
             if (index > 0) Separator()
-            TraceRow(step)
+            TraceRow(step, palette)
         }
     }
 }
 
 @Composable
-private fun TraceRow(step: PipelineTraceStep) {
+private fun TraceRow(step: PipelineTraceStep, palette: RuntimePalette) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = humanizeStepType(step.stepType), style = typography.sm, color = tokens.foreground)
+            Text(
+                text = blockDisplayName(palette.action(step.stepType) ?: palette.condition(step.stepType), step.stepType),
+                style = typography.sm, color = tokens.foreground)
             step.branch?.takeIf { it.isNotBlank() }?.let { branch: String ->
                 Badge(variant = BadgeVariant.Outline) {
                     Text(text = stringResource(Res.string.pipelines_testrun_trace_branch, branch))
@@ -114,10 +117,3 @@ private fun TraceRow(step: PipelineTraceStep) {
         }
     }
 }
-
-// A backend step discriminator ("set_variable") in plain words ("Set variable"); the same fallback the palette
-// uses for a block type without a local label.
-private fun humanizeStepType(raw: String): String =
-    raw.replace('_', ' ').replace('.', ' ').replace('-', ' ').trim().replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase() else it.toString()
-    }

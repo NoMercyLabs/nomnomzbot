@@ -16,7 +16,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
+import bot.nomnomz.dashboard.core.network.PipelineCatalogue
 import bot.nomnomz.dashboard.core.network.PipelineTraceStep
+import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.PipelineTraceVariableChange
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,6 +30,8 @@ import kotlin.test.assertEquals
  */
 @OptIn(ExperimentalTestApi::class)
 class PipelineTraceListTest {
+
+    private val palette: RuntimePalette = PipelineCatalogue.fallbackPalette()
 
     private val trace: List<PipelineTraceStep> =
         listOf(
@@ -42,7 +46,7 @@ class PipelineTraceListTest {
 
     @Test
     fun three_steps_render_three_rows_with_branch_change_and_output() = runComposeUiTest {
-        setContent { AppEnvironment(tag = "en") { NomNomzTheme { PipelineTraceList(trace) } } }
+        setContent { AppEnvironment(tag = "en") { NomNomzTheme { PipelineTraceList(trace, palette) } } }
         waitUntil(timeoutMillis = 2_000) { onAllNodesWithText("Set variable").fetchSemanticsNodes().isNotEmpty() }
 
         assertEquals(1, onAllNodesWithText("If").fetchSemanticsNodes().size)
@@ -66,7 +70,8 @@ class PipelineTraceListTest {
                                 variableChanges = listOf(PipelineTraceVariableChange("mood", null, "happy")),
                             ),
                             PipelineTraceStep(stepId = "s2", stepType = "ban", error = "Missing scope"),
-                        )
+                        ),
+                        palette,
                     )
                 }
             }
@@ -78,8 +83,18 @@ class PipelineTraceListTest {
     }
 
     @Test
+    fun rows_show_the_translated_palette_name_for_the_step_type() = runComposeUiTest {
+        setContent { AppEnvironment(tag = "nl") { NomNomzTheme { PipelineTraceList(trace, palette) } } }
+        waitUntil(timeoutMillis = 2_000) { onAllNodesWithText("Variabele instellen").fetchSemanticsNodes().isNotEmpty() }
+
+        assertEquals(1, onAllNodesWithText("Variabele instellen").fetchSemanticsNodes().size)
+        assertEquals(1, onAllNodesWithText("Bericht versturen").fetchSemanticsNodes().size)
+        assertEquals(0, onAllNodesWithText("Set variable").fetchSemanticsNodes().size)
+    }
+
+    @Test
     fun an_empty_trace_says_so() = runComposeUiTest {
-        setContent { AppEnvironment(tag = "en") { NomNomzTheme { PipelineTraceList(emptyList()) } } }
+        setContent { AppEnvironment(tag = "en") { NomNomzTheme { PipelineTraceList(emptyList(), palette) } } }
         waitUntil(timeoutMillis = 2_000) {
             onAllNodesWithText("No step details for this run.").fetchSemanticsNodes().isNotEmpty()
         }
