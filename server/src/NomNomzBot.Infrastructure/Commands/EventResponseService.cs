@@ -185,7 +185,7 @@ public class EventResponseService : IEventResponseService
             // The first save of its own takes the row off the platform default: start from what the channel
             // was actually getting, so fields the request leaves out keep the behaviour it already had.
             if (entity.FollowsPlatformDefault)
-                await AdoptPlatformDefaultAsync(entity, broadcaster, cancellationToken);
+                await AdoptPlatformDefaultAsync(entity, cancellationToken);
             if (request.IsEnabled.HasValue)
                 entity.IsEnabled = request.IsEnabled.Value;
             if (request.ResponseType is not null)
@@ -295,11 +295,7 @@ public class EventResponseService : IEventResponseService
                 .FirstOrDefaultAsync(ct)
         );
 
-    private async Task AdoptPlatformDefaultAsync(
-        EventResponse entity,
-        Guid broadcaster,
-        CancellationToken ct
-    )
+    private async Task AdoptPlatformDefaultAsync(EventResponse entity, CancellationToken ct)
     {
         PlatformEventResponseDefault? platform =
             await _db.PlatformEventResponseDefaults.FirstOrDefaultAsync(
@@ -310,21 +306,15 @@ public class EventResponseService : IEventResponseService
             return;
         entity.IsEnabled = platform.IsEnabled;
         entity.ResponseType = "chat_message";
-        // Start from what the channel was actually saying: the admin's text, else the first line of its tone.
-        entity.Message = EventResponseToneCatalog
-            .FollowingLines(
-                platform.Message,
-                await PersonalityAsync(broadcaster, ct),
-                entity.EventType
-            )
-            .FirstOrDefault();
+        // Start from what the channel was actually saying: the admin's text, else no text, so every tone line still speaks.
+        entity.Message = platform.Message;
         entity.SpeakWithTts = platform.SpeakWithTts;
     }
 
     /// <summary>
     /// The response as the runtime performs it: a row that follows the platform default reports the platform
     /// default enabled flag and the lines it speaks from in the channel's tone (or, with no platform row,
-    /// nothing — disabled). A chat row of its own with no text reports the tone lines it picks from, and keeps
+    /// nothing — disabled), and only the admin's text as its message. A chat row of its own with no text reports the tone lines it picks from, and keeps
     /// its message empty so a save never freezes one line into it.
     /// </summary>
     private static EventResponseDto ToDto(
@@ -344,7 +334,7 @@ public class EventResponseService : IEventResponseService
             e.EventType,
             follows ? platform?.IsEnabled ?? false : e.IsEnabled,
             follows ? "chat_message" : e.ResponseType,
-            follows ? toneLines.FirstOrDefault() : e.Message,
+            follows ? platform?.Message : e.Message,
             follows ? null : e.PipelineId,
             e.MetadataJson,
             e.CreatedAt,

@@ -283,7 +283,7 @@ public sealed class EventResponseToneTests
     // ── what the dashboard is told ──────────────────────────────────────────
 
     [Fact]
-    public async Task A_following_row_lists_the_lines_of_its_channels_tone_and_reports_the_first_as_its_message()
+    public async Task A_following_row_lists_the_lines_of_its_channels_tone_and_reports_no_text_of_its_own()
     {
         Harness h = await BuildAsync();
 
@@ -293,7 +293,8 @@ public sealed class EventResponseToneTests
 
         dto.FollowsPlatformDefault.Should().BeTrue();
         dto.ToneLines.Should().Equal(EventResponseToneCatalog.Get(PersonalityTone.Sassy, Follow));
-        dto.Message.Should().Be(dto.ToneLines[0]);
+        dto.Message.Should()
+            .BeNull("an editor that saves the shown text back must never freeze one tone line");
     }
 
     [Fact]
@@ -365,7 +366,7 @@ public sealed class EventResponseToneTests
     }
 
     [Fact]
-    public async Task The_first_edit_of_a_following_row_copies_the_first_line_of_its_tone_into_its_message()
+    public async Task The_first_edit_of_a_following_row_keeps_speaking_every_line_of_its_tone()
     {
         Harness h = await BuildAsync();
 
@@ -378,15 +379,15 @@ public sealed class EventResponseToneTests
         ).Value;
 
         saved.FollowsPlatformDefault.Should().BeFalse();
-        saved.ToneLines.Should().BeEmpty();
-        saved.Message.Should().Be(EventResponseToneCatalog.Get(PersonalityTone.Sassy, Cheer)[0]);
+        saved.ToneLines.Should().Equal(EventResponseToneCatalog.Get(PersonalityTone.Sassy, Cheer));
+        saved.Message.Should().BeNull();
         (
             await h
                 .Db.EventResponses.AsNoTracking()
                 .SingleAsync(r => r.BroadcasterId == SassyChannel && r.EventType == Cheer)
         )
             .Message.Should()
-            .Be(saved.Message);
+            .BeNull("a tts toggle is no reason to freeze one line of the tone");
     }
 
     // ── the platform admin's view and the seeder ────────────────────────────

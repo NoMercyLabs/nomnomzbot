@@ -276,13 +276,13 @@ public sealed class EventResponseDefaultsAdminServiceTests
         following
             .IsEnabled.Should()
             .BeTrue("the page shows what the runtime does: the platform default");
-        following.Message.Should().Be("Welcome {user}! Thanks for the follow!");
+        following.Message.Should().BeNull("the tone lines speak; there is no text of its own");
         own.FollowsPlatformDefault.Should().BeFalse();
         own.IsEnabled.Should()
             .BeTrue("the first own save starts from the default it was following");
         own.Message.Should().Be("My own welcome, {user}");
         reset.FollowsPlatformDefault.Should().BeTrue();
-        reset.Message.Should().Be("Welcome {user}! Thanks for the follow!");
+        reset.Message.Should().BeNull();
     }
 
     [Fact]
