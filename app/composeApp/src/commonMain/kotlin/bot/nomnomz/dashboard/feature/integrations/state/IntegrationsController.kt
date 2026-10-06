@@ -13,6 +13,9 @@ package bot.nomnomz.dashboard.feature.integrations.state
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackAction
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.FeedbackMessage
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
@@ -41,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_action_retry
 import nomnomzbot.composeapp.generated.resources.feedback_connect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_regrant_failed
 import nomnomzbot.composeapp.generated.resources.feedback_credentials_saved
@@ -657,7 +661,19 @@ class IntegrationsController(
         _state.value = ready.copy(busy = target)
         when (val result: ApiResult<*> = action()) {
             is ApiResult.Ok -> successMessage?.let { feedback.success(it) }
-            is ApiResult.Failure -> feedback.error(failureMessage, result.error.message)
+            is ApiResult.Failure ->
+                feedback.emit(
+                    FeedbackMessage(
+                        kind = FeedbackKind.Error,
+                        label = failureMessage,
+                        formatArgs = listOf(result.error.message),
+                        // Retry re-runs this same call (and announces its own outcome the same way).
+                        action =
+                            FeedbackAction(Res.string.feedback_action_retry) {
+                                withBusy(target, successMessage, failureMessage, action)
+                            },
+                    )
+                )
         }
         refresh()
     }

@@ -2006,6 +2006,8 @@
     <string name="scripts_create_confirm">Aanmaken</string>
     <string name="scripts_create_dismiss">Annuleren</string>
     <string name="feedback_dismiss">Sluiten</string>
+    <string name="feedback_action_undo">Ongedaan maken</string>
+    <string name="feedback_action_retry">Opnieuw proberen</string>
     <string name="feedback_connected">Verbonden</string>
     <string name="feedback_connect_failed">Verbinden mislukt: %1$s</string>
     <string name="feedback_regrant_failed">Kon de rechtenaanvraag niet starten: %1$s</string>

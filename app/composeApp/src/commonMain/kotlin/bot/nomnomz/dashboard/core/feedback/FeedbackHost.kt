@@ -20,16 +20,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.Toast
 import bot.nomnomz.dashboard.core.designsystem.component.ToastVariant
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_dismiss
 import org.jetbrains.compose.resources.stringResource
@@ -46,35 +46,28 @@ import org.jetbrains.compose.resources.stringResource
 //
 // This host renders the design-system `Toast` primitive (core/designsystem/component/Toast.kt) —
 // modeled on shadcn's Sonner. Colors, width cap, and dp all come from that primitive's tokens.
-private const val AUTO_DISMISS_MS: Long = 4_000L
-
+// The dwell (4 s, 10 s with an action, errors until dismissed) and the run-once action live in
+// [FeedbackToastState] so they are tested on a virtual clock.
 @Composable
 fun FeedbackHost(
     controller: FeedbackController,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val scope: CoroutineScope = rememberCoroutineScope()
+    val state: FeedbackToastState = remember(scope) { FeedbackToastState(scope) }
 
     // The message currently on screen, or null when the host is empty. A new emission replaces the current
     // one (latest-wins), so a fresh outcome always supersedes a lingering banner.
-    var current: FeedbackMessage? by remember { mutableStateOf(null) }
+    val shown: FeedbackMessage? by state.current.collectAsState()
+    val running: Boolean by state.running.collectAsState()
 
     // Subscribe once for the host's lifetime. replay=1 means a message emitted while a page was redirecting
     // (the host briefly absent) is re-delivered here on (re)subscribe — that is the survive-the-redirect
     // requirement. Re-collecting also lands the replayed message, which is correct: after a rebuild the user
     // still needs to see "Connected".
-    LaunchedEffect(controller) {
-        controller.messages.collect { message -> current = message }
-    }
-
-    // Auto-dismiss only the non-error kinds; an error waits for an explicit dismiss. Keyed on the message
-    // instance so each new success restarts its own timer and a replaced message cancels the prior timer.
-    val shown: FeedbackMessage? = current
-    if (shown != null && shown.kind != FeedbackKind.Error) {
-        LaunchedEffect(shown) {
-            delay(AUTO_DISMISS_MS)
-            if (current === shown) current = null
-        }
+    LaunchedEffect(controller, state) {
+        controller.messages.collect { message -> state.show(message) }
     }
 
     // Top-right, flowing down from off-screen — the Sonner-style toast corner, not a center-page banner
@@ -88,7 +81,9 @@ fun FeedbackHost(
             shown?.let { message ->
                 FeedbackToast(
                     message = message,
-                    onDismiss = { if (current === message) current = null },
+                    onDismiss = { state.dismiss(message) },
+                    onAction = { state.runAction(message) },
+                    actionEnabled = !running,
                     modifier = Modifier.padding(spacing.s4),
                 )
             }
@@ -100,6 +95,8 @@ fun FeedbackHost(
 private fun FeedbackToast(
     message: FeedbackMessage,
     onDismiss: () -> Unit,
+    onAction: () -> Unit,
+    actionEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val variant: ToastVariant =
@@ -118,5 +115,8 @@ private fun FeedbackToast(
         onDismiss = onDismiss,
         modifier = modifier,
         variant = variant,
+        actionLabel = message.action?.let { stringResource(it.label) },
+        onAction = onAction,
+        actionEnabled = actionEnabled,
     )
 }

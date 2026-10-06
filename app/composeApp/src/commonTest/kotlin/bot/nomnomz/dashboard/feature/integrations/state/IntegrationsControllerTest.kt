@@ -45,6 +45,17 @@ import bot.nomnomz.dashboard.core.network.EventSubSubscription
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackAction
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.FeedbackMessage
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_action_retry
+import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
+import nomnomzbot.composeapp.generated.resources.feedback_disconnected
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -76,6 +87,7 @@ class IntegrationsControllerTest {
         // Whether the build is web (redirect re-grant allowed) or desktop (device-only). Defaults to web so the
         // existing redirect-path tests keep passing; the desktop test overrides it to false.
         isWeb: Boolean = true,
+        feedback: Feedback = NoOpFeedback,
     ): IntegrationsController {
         val session = SessionStore(FakeVault())
         // Pin an active backend so baseUrl()-dependent flows (the redirect re-grant) resolve a URL — exactly as
@@ -100,7 +112,40 @@ class IntegrationsControllerTest {
             auth,
             system,
             isWeb = isWeb,
+            feedback = feedback,
         )
+    }
+
+    @Test
+    fun a_failed_disconnect_offers_retry_that_re_invokes_the_disconnect_exactly_once() = runTest {
+        val integrations =
+            FakeIntegrationsApi(status = listOf(IntegrationStatus("spotify", connected = true, accountName = "stoney")))
+        val feedback = RecordingFeedback()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = integrations,
+                launcher = FakeConnectLauncher(),
+                feedback = feedback,
+            )
+        controller.load()
+        integrations.disconnectGenericFailure = ApiResult.Failure(ApiError(503, "DOWN", "Backend down."))
+
+        controller.disconnect("spotify")
+
+        val failed: FeedbackMessage = feedback.only
+        assertEquals(FeedbackKind.Error, failed.kind)
+        assertEquals(Res.string.feedback_disconnect_failed, failed.label)
+        assertEquals(1, integrations.disconnectGenericCalls)
+        val retry: FeedbackAction = assertNotNull(failed.action)
+        assertEquals(Res.string.feedback_action_retry, retry.label)
+
+        retry.handler()
+
+        assertEquals(2, integrations.disconnectGenericCalls)
+        assertEquals(FeedbackKind.Success, feedback.messages.last().kind)
+        assertEquals(Res.string.feedback_disconnected, feedback.messages.last().label)
     }
 
     @Test
@@ -1109,9 +1154,16 @@ private class FakeIntegrationsApi(
     override fun discordStartUrl(baseUrl: String, channelId: String): String =
         "$baseUrl/api/v1/channels/$channelId/integrations/discord/callback/start"
 
+    // A one-shot failure for the next disconnectGeneric call (cleared once returned), to model a retryable error.
+    var disconnectGenericFailure: ApiResult<Unit>? = null
+    var disconnectGenericCalls: Int = 0
+
     override suspend fun disconnectGeneric(channelId: String, provider: String): ApiResult<Unit> {
+        disconnectGenericCalls++
         disconnectedGenericProvider = provider
-        return ApiResult.Ok(Unit)
+        val failure: ApiResult<Unit>? = disconnectGenericFailure
+        disconnectGenericFailure = null
+        return failure ?: ApiResult.Ok(Unit)
     }
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> {

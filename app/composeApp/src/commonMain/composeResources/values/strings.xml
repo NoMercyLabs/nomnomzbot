@@ -2011,6 +2011,8 @@
     <string name="scripts_create_confirm">Create</string>
     <string name="scripts_create_dismiss">Cancel</string>
     <string name="feedback_dismiss">Dismiss</string>
+    <string name="feedback_action_undo">Undo</string>
+    <string name="feedback_action_retry">Retry</string>
     <string name="feedback_connected">Connected</string>
     <string name="feedback_connect_failed">Couldn't connect: %1$s</string>
     <string name="feedback_regrant_failed">Couldn't start the permission request: %1$s</string>

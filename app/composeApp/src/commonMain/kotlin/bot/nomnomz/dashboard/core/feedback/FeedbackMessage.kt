@@ -37,4 +37,15 @@ data class FeedbackMessage(
     val kind: FeedbackKind,
     val label: StringResource,
     val formatArgs: List<Any> = emptyList(),
+    val action: FeedbackAction? = null,
+)
+
+/**
+ * The one button a toast can carry (Undo on a success, Retry on a failure). [label] is the localized button
+ * text; [handler] is the work it runs. The handler announces its OWN outcome on the bus, so the toast then
+ * shows that outcome — the host never invents a result for it. The host runs it at most once per toast.
+ */
+class FeedbackAction(
+    val label: StringResource,
+    val handler: suspend () -> Unit,
 )

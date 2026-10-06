@@ -21,7 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -40,6 +43,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Typography
 // A readability cap on the toast width — a layout constraint (like Button's CompactButtonHeight),
 // not a spacing-scale token — so a long message doesn't stretch edge-to-edge on a wide window.
 private val MaxToastWidth: Dp = 480.dp
+
+// Same disabled treatment as Button (0.48f) while the action runs.
+private const val DisabledActionAlpha: Float = 0.48f
 
 /** shadcn Toast variants (frontend-design-system.md §4, catalogue row — modeled on Sonner). */
 enum class ToastVariant {
@@ -74,6 +80,9 @@ fun Toast(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     variant: ToastVariant = ToastVariant.Default,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {},
+    actionEnabled: Boolean = true,
 ) {
     val tokens: Tokens = LocalTokens.current
     val spacing: Spacing = LocalSpacing.current
@@ -105,6 +114,23 @@ fun Toast(
             // reserves room for the dismiss control up front so it always stays on-screen.
             modifier = Modifier.weight(1f, fill = false).padding(end = spacing.s1),
         )
+        // The optional action (Undo / Retry) is a ghost control: no fill, no accent of its own — the toast
+        // body is already the one filled surface, and Dismiss stays the quiet sibling beside it. It is
+        // semibold so it reads as the actionable one of the two.
+        if (actionLabel != null) {
+            Text(
+                text = actionLabel,
+                style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                color = colors.content,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .alpha(if (actionEnabled) 1f else DisabledActionAlpha)
+                        .clip(RoundedCornerShape(tokens.radius.sm))
+                        .clickable(enabled = actionEnabled, role = Role.Button, onClick = onAction)
+                        .padding(horizontal = spacing.s2, vertical = spacing.s1),
+            )
+        }
         Text(
             text = dismissLabel,
             style = typography.sm,
