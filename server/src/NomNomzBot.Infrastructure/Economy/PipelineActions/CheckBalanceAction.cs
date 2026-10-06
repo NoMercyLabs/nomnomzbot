@@ -33,7 +33,9 @@ public sealed class CheckBalanceAction(ICurrencyAccountService accounts) : IComm
             new(
                 "set_var",
                 PipelineActionFieldKind.Text,
-                Description: new("pipeline.check_balance.set_var.help")
+                Description: new("pipeline.check_balance.set_var.help"),
+                DeclaresVariable: true,
+                DeclaredVariableDefault: "balance"
             ),
             new(
                 "min",

@@ -752,9 +752,12 @@ public sealed class PipelineEngine : IPipelineEngine
             // (e.g. `play_tts` with continue_on_error, then a `redemption_refund` gated by a comparison on
             // {last.success} == false). Without this a pipeline could proceed past a failure but never react
             // to it — the generic building block behind the legacy "refund on failed queue / empty TTS" flows.
-            ctx.Variables["last.success"] = actionResult.Succeeded ? "true" : "false";
-            ctx.Variables["last.output"] = actionResult.Output ?? string.Empty;
-            ctx.Variables["last.error"] = actionResult.ErrorMessage ?? string.Empty;
+            ctx.Variables[PipelineEngineVariables.LastSuccess] = actionResult.Succeeded
+                ? "true"
+                : "false";
+            ctx.Variables[PipelineEngineVariables.LastOutput] = actionResult.Output ?? string.Empty;
+            ctx.Variables[PipelineEngineVariables.LastError] =
+                actionResult.ErrorMessage ?? string.Empty;
 
             if (actionResult.Succeeded)
             {
@@ -1527,9 +1530,12 @@ public sealed class PipelineEngine : IPipelineEngine
             }
         );
 
-        ctx.Variables["last.success"] = actionResult.Succeeded ? "true" : "false";
-        ctx.Variables["last.output"] = actionResult.Output ?? string.Empty;
-        ctx.Variables["last.error"] = actionResult.ErrorMessage ?? string.Empty;
+        ctx.Variables[PipelineEngineVariables.LastSuccess] = actionResult.Succeeded
+            ? "true"
+            : "false";
+        ctx.Variables[PipelineEngineVariables.LastOutput] = actionResult.Output ?? string.Empty;
+        ctx.Variables[PipelineEngineVariables.LastError] =
+            actionResult.ErrorMessage ?? string.Empty;
 
         if (actionResult.Succeeded)
         {
@@ -1877,10 +1883,10 @@ public sealed class PipelineEngine : IPipelineEngine
             }
 
             string currentItem = mode == "foreach" ? items[index] : index.ToString();
-            ctx.Variables["loop.index"] = index.ToString();
-            ctx.Variables["loop.item"] = currentItem;
-            ctx.Variables["loop.previous_item"] = previousItem;
-            ctx.Variables["loop.count"] =
+            ctx.Variables[PipelineEngineVariables.LoopIndex] = index.ToString();
+            ctx.Variables[PipelineEngineVariables.LoopItem] = currentItem;
+            ctx.Variables[PipelineEngineVariables.LoopPreviousItem] = previousItem;
+            ctx.Variables[PipelineEngineVariables.LoopCount] =
                 mode == "foreach" ? items.Count.ToString() : (config.Count ?? 0).ToString();
 
             walk.LivePath.Add(
