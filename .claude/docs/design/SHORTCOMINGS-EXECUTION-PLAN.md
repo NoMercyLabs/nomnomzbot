@@ -88,6 +88,11 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Pipeline lane
 
+- **S-PIPE-VARIABLE-SCOPE** The `{` list inside a nested block (an If/Loop lane) lists every root step's
+  variables, also the ones declared after it (`insertIndex` and `declaredVariablesBefore` in
+  `PipelineVariableCatalogue.kt` know root positions only). Scope by the block's tree path: steps before it in
+  its own lane and in every enclosing lane, nothing after. A new step added mid-list scopes to its insert
+  position, not the end. R10. Done-when: UI test, a variable declared after an If is absent inside it.
 - **S-PIPE-TEST-TRACE** A test run shows each step: what ran, which branch, variables before/after, and
   the output. The input is a sample-event picker (same samples as the editor), not key=value; viewer
   data can be simulated. `TestRunResultDto` gets a per-step trace. R14, R2, R6. Done-when: test of a
