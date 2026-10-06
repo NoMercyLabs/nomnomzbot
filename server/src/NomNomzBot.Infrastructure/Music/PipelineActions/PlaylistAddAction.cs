@@ -184,7 +184,11 @@ public sealed class PlaylistAddAction : ICommandAction
             ctx.BroadcasterId,
             ctx.CancellationToken
         );
-        await _chat.SendMessageAsync(ctx.BroadcasterId, resolved, ctx.CancellationToken);
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            resolved,
+            ctx.CancellationToken
+        );
         return ActionResult.Success(resolved);
     }
 

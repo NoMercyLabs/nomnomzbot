@@ -1960,6 +1960,82 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
+    public async Task Pipeline_that_failed_after_replying_sends_no_second_failure_notice()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["broken"] = new()
+        {
+            Name = "broken",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "pipeline",
+            PipelineGraphJson = "{\"steps\":[{\"action\":{\"type\":\"send_message\"}}]}",
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IInboundOriginChatSender chat = NoopChatSender();
+        IEventBus bus = Substitute.For<IEventBus>();
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        pipeline
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-3",
+                    Outcome = PipelineOutcome.PartiallyFailed,
+                    Duration = TimeSpan.Zero,
+                    StepsExecuted = 1,
+                    Total = 1,
+                    RepliedToChat = true,
+                }
+            );
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            chat,
+            pipeline,
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            bus,
+            new(),
+            TimeProvider.System,
+            new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!broken"), CancellationToken.None);
+
+        await chat.DidNotReceive()
+            .SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceive()
+            .SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "broken" && !e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Pipeline_fully_completed_sends_no_extra_chatter()
     {
         // Regression guard: a clean Completed run must NOT trigger the new failure-notice path.

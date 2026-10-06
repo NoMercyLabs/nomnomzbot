@@ -69,6 +69,7 @@ public sealed class SendReplyAction : ICommandAction
             ctx.CancellationToken
         );
 
+        ctx.RepliedToChat |= sent;
         if (sent)
             return ActionResult.Success(resolved);
 
@@ -85,6 +86,8 @@ public sealed class SendReplyAction : ICommandAction
             fallback.Message,
             ctx.CancellationToken
         );
+
+        ctx.RepliedToChat |= fallbackSent;
 
         return fallbackSent
             ? ActionResult.Success(resolved)

@@ -333,6 +333,7 @@ public sealed class PipelineEngine : IPipelineEngine
         // failure) and must not mask the pipeline's own outcome above, nor prevent the active-count
         // decrement in `finally` from running first.
         await PersistExecutionAsync(request, definition, startedAt, result, ct);
+        result.RepliedToChat = execCtx.RepliedToChat;
         return result;
     }
 

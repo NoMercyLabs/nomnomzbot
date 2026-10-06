@@ -481,7 +481,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // exactly one failure notice here instead of leaving the caller guessing.
                 bool pipelineSucceeded =
                     pipelineResult.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped;
-                if (!pipelineSucceeded)
+                if (!pipelineSucceeded && !pipelineResult.RepliedToChat)
                     await SendPipelineFailureNoticeAsync(@event, ctx, cancellationToken);
 
                 await PublishExecutedAsync(

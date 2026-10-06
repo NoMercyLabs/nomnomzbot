@@ -49,6 +49,7 @@ public class InfraPipelineEngineTests
             new StopAction(),
             new SetVariableAction(),
             new WaitAction(resolver),
+            new ReplyThenFailAction(),
         ];
 
         ICommandCondition[] conditions = [new UserRoleCondition(), new RandomCondition()];
@@ -222,6 +223,43 @@ public class InfraPipelineEngineTests
 
         // Pipeline completes (not failed) but only one step ran
         result.StepsExecuted.Should().Be(1);
+    }
+
+    private sealed class ReplyThenFailAction : ICommandAction
+    {
+        public string ActionType => "reply_then_fail";
+
+        public LocalizedText Category => new("pipeline.category.flow");
+
+        public LocalizedText Description => new("pipeline.stop.description");
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            ctx.RepliedToChat = true;
+            return Task.FromResult(ActionResult.Failure("replied, then broke"));
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ActionThatRepliedThenFailed_ResultCarriesRepliedToChat()
+    {
+        PipelineEngine engine = CreateEngine();
+
+        PipelineExecutionResult replied = await engine.ExecuteAsync(
+            BuildRequest("""{"steps":[{"action":{"type":"reply_then_fail"}}]}""")
+        );
+        PipelineExecutionResult silent = await engine.ExecuteAsync(
+            BuildRequest(
+                """{"steps":[{"action":{"type":"set_variable","name":"a","value":"b"}}]}"""
+            )
+        );
+
+        replied.Outcome.Should().Be(PipelineOutcome.PartiallyFailed);
+        replied.RepliedToChat.Should().BeTrue();
+        silent.RepliedToChat.Should().BeFalse();
     }
 
     // ─── SetVariable ──────────────────────────────────────────────────────────

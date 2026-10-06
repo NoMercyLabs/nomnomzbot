@@ -56,7 +56,7 @@ public sealed class SongSkipAction : ICommandAction
         if (skipped.IsFailure)
             return ActionResult.Failure(skipped.ErrorMessage ?? "skip failed");
 
-        await _chat.SendMessageAsync(
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
             ctx.BroadcasterId,
             "Skipped to the next track.",
             ctx.CancellationToken

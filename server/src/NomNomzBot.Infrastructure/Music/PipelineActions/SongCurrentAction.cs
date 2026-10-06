@@ -56,7 +56,7 @@ public sealed class SongCurrentAction : ICommandAction
         );
         if (now is null || string.IsNullOrWhiteSpace(now.TrackName))
         {
-            await _chat.SendMessageAsync(
+            ctx.RepliedToChat |= await _chat.SendMessageAsync(
                 ctx.BroadcasterId,
                 "Nothing is playing right now.",
                 ctx.CancellationToken
@@ -68,7 +68,11 @@ public sealed class SongCurrentAction : ICommandAction
         if (now.RequestedBy is not null)
             msg += $" (requested by {now.RequestedBy})";
 
-        await _chat.SendMessageAsync(ctx.BroadcasterId, msg, ctx.CancellationToken);
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            msg,
+            ctx.CancellationToken
+        );
         return ActionResult.Success(msg);
     }
 }

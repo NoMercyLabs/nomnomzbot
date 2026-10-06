@@ -68,7 +68,11 @@ public sealed class PostQuoteAction : ICommandAction
         string line = QuoteFormatter.Format(result.Value);
         ctx.Variables["quote"] = line;
 
-        await _chat.SendMessageAsync(ctx.BroadcasterId, line, ctx.CancellationToken);
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            line,
+            ctx.CancellationToken
+        );
         return ActionResult.Success(line);
     }
 

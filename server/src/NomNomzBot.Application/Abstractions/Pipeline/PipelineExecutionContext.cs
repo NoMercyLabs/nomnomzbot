@@ -46,6 +46,10 @@ public sealed class PipelineExecutionContext
     public int CurrentStepIndex { get; set; }
     public bool ShouldStop { get; set; }
 
+    /// <summary>Set by an action after it sent a chat message; copied into
+    /// <see cref="PipelineExecutionResult.RepliedToChat"/> so a failed run is not answered twice.</summary>
+    public bool RepliedToChat { get; set; }
+
     /// <summary>Set by the <c>break</c> action; consumed by the innermost enclosing <c>loop</c> block.
     /// Outside a loop (<see cref="LoopDepth"/> == 0) it is an honest no-op — the engine never sets it
     /// (pipeline-control-flow.md D3).</summary>

@@ -81,6 +81,7 @@ public sealed class SendMessageAction : ICommandAction
                 ctx.CancellationToken
             )
             : await _chat.SendMessageAsync(ctx.BroadcasterId, resolved, ctx.CancellationToken);
+        ctx.RepliedToChat |= sent;
         return sent
             ? ActionResult.Success(resolved)
             : ActionResult.Failure("send_message could not be delivered");

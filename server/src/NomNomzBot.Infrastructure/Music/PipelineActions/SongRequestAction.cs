@@ -111,7 +111,7 @@ public sealed class SongRequestAction : ICommandAction
                 requested,
                 ctx.CancellationToken
             );
-            await _chat.SendMessageAsync(
+            ctx.RepliedToChat |= await _chat.SendMessageAsync(
                 ctx.BroadcasterId,
                 $"@{ctx.TriggeredByDisplayName} {refusal}",
                 ctx.CancellationToken
@@ -156,7 +156,7 @@ public sealed class SongRequestAction : ICommandAction
             );
         }
 
-        await _chat.SendMessageAsync(
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
             ctx.BroadcasterId,
             $"@{ctx.TriggeredByDisplayName} {confirmation}",
             ctx.CancellationToken
