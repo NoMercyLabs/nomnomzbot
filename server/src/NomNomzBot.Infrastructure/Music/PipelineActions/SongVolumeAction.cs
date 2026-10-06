@@ -88,7 +88,7 @@ public sealed class SongVolumeAction : ICommandAction
         if (set.IsFailure)
             return ActionResult.Failure(set.ErrorMessage ?? "song_volume: failed to set volume");
 
-        await _chat.SendMessageAsync(
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
             ctx.BroadcasterId,
             $"Volume set to {volume}%.",
             ctx.CancellationToken

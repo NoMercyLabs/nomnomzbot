@@ -124,6 +124,11 @@ public class PipelineExecutionResult
     public int StepsSkipped { get; init; }
     public int Total { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>True when an action in the run already sent a chat message. A failed run that replied
+    /// needs no generic failure notice on top of that reply.</summary>
+    public bool RepliedToChat { get; set; }
+
     public IReadOnlyList<StepExecutionLog> StepLogs { get; init; } = [];
 
     /// <summary>Set only when <see cref="Outcome"/> is <see cref="PipelineOutcome.Suspended"/> — the

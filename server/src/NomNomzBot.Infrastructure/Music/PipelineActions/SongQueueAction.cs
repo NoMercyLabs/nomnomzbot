@@ -65,7 +65,7 @@ public sealed class SongQueueAction : ICommandAction
 
         if (queue.Queue.Count == 0)
         {
-            await _chat.SendMessageAsync(
+            ctx.RepliedToChat |= await _chat.SendMessageAsync(
                 ctx.BroadcasterId,
                 "The queue is empty.",
                 ctx.CancellationToken
@@ -82,7 +82,7 @@ public sealed class SongQueueAction : ICommandAction
                         : $"{i + 1}. {t.TrackName} by {t.Artist}"
             );
 
-        await _chat.SendMessageAsync(
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
             ctx.BroadcasterId,
             "Queue: " + string.Join(" | ", entries),
             ctx.CancellationToken

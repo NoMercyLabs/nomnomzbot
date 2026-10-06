@@ -129,7 +129,8 @@ public sealed class SongWrongAction : ICommandAction
                 ctx,
                 $"@{ctx.TriggeredByDisplayName} No request of yours with code {requestedCode}."
             );
-            return ActionResult.Failure($"no request matching code {requestedCode}");
+            ctx.ShouldStop = true;
+            return ActionResult.Success($"no request matching code {requestedCode}");
         }
 
         if (item is null)
@@ -173,8 +174,17 @@ public sealed class SongWrongAction : ICommandAction
             text,
             ctx.CancellationToken
         );
-        if (!replied)
-            await _chat.SendMessageAsync(ctx.BroadcasterId, text, ctx.CancellationToken);
+        if (replied)
+        {
+            ctx.RepliedToChat = true;
+            return;
+        }
+
+        ctx.RepliedToChat = await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            text,
+            ctx.CancellationToken
+        );
     }
 
     /// <summary>
@@ -264,14 +274,16 @@ public sealed class SongWrongAction : ICommandAction
                     ctx,
                     $"@{ctx.TriggeredByDisplayName} Too late — {played.TrackName} by {played.Artist} already played."
                 );
-                return ActionResult.Failure("the triggering user's last request already played");
+                ctx.ShouldStop = true;
+                return ActionResult.Success("the triggering user's last request already played");
             }
 
             await SendAsync(
                 ctx,
                 $"@{ctx.TriggeredByDisplayName} You haven't requested any songs to retract."
             );
-            return ActionResult.Failure("no queued request for the triggering user");
+            ctx.ShouldStop = true;
+            return ActionResult.Success("no queued request for the triggering user");
         }
 
         Result skipped = await _music.SkipAsync(

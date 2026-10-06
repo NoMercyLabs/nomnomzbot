@@ -103,7 +103,7 @@ public sealed class SongBanAction : ICommandAction
                 skipped.ErrorMessage
             );
 
-        await _chat.SendMessageAsync(
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
             ctx.BroadcasterId,
             $"Blocked from requests: {now.TrackName ?? now.TrackUri}",
             ctx.CancellationToken

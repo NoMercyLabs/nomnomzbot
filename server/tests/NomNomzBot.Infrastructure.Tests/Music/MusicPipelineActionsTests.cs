@@ -649,7 +649,7 @@ public sealed class MusicPipelineActionsTests
             Def("song_wrong")
         );
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
         await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
     }
 
@@ -675,7 +675,7 @@ public sealed class MusicPipelineActionsTests
             Def("song_wrong")
         );
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
         await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
         await chat.Received(1)
             .SendMessageAsync(
@@ -789,7 +789,7 @@ public sealed class MusicPipelineActionsTests
             Def("song_wrong")
         );
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
         await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
@@ -815,7 +815,7 @@ public sealed class MusicPipelineActionsTests
             Def("song_wrong")
         );
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
         await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
@@ -944,13 +944,20 @@ public sealed class MusicPipelineActionsTests
     }
 
     [Fact]
-    public async Task Song_wrong_fails_typed_when_the_caller_has_no_queued_request()
+    public async Task Song_wrong_finishes_quietly_when_the_caller_has_no_queued_request()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, [new("Other Pick", "B", null, 100, "SomeoneElse")]));
         IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
         SongWrongAction action = new(
             music,
             MusicTestDbContext.New(),
@@ -958,13 +965,14 @@ public sealed class MusicPipelineActionsTests
             NullLogger<SongWrongAction>.Instance
         );
 
-        ActionResult result = await action.ExecuteAsync(
-            Ctx(displayName: "Bamo"),
-            Def("song_wrong")
-        );
+        PipelineExecutionContext ctx = Ctx(displayName: "Bamo");
 
-        result.Succeeded.Should().BeFalse();
-        result.ErrorMessage.Should().Be("no queued request for the triggering user");
+        ActionResult result = await action.ExecuteAsync(ctx, Def("song_wrong"));
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("no queued request for the triggering user");
+        ctx.ShouldStop.Should().BeTrue();
+        ctx.RepliedToChat.Should().BeTrue();
         await music
             .DidNotReceive()
             .RemoveFromQueueAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
@@ -1171,12 +1179,12 @@ public sealed class MusicPipelineActionsTests
             .Returns(true);
         SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
 
-        ActionResult result = await action.ExecuteAsync(
-            Ctx(userId: "twitch-42", displayName: "Bamo"),
-            Def("song_wrong")
-        );
+        PipelineExecutionContext ctx = Ctx(userId: "twitch-42", displayName: "Bamo");
+        ActionResult result = await action.ExecuteAsync(ctx, Def("song_wrong"));
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
+        ctx.ShouldStop.Should().BeTrue();
+        ctx.RepliedToChat.Should().BeTrue();
         await chat.Received(1)
             .SendReplyAsync(
                 ChannelId,
@@ -1213,7 +1221,7 @@ public sealed class MusicPipelineActionsTests
             Def("song_wrong")
         );
 
-        result.Succeeded.Should().BeFalse();
+        result.Succeeded.Should().BeTrue();
         await chat.Received(1)
             .SendReplyAsync(
                 ChannelId,
