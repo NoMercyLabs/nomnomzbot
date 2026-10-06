@@ -16,8 +16,8 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// dashboard resolves for display — never resolved English text (the backend never ships English
 /// literals for user-facing strings).
 /// </summary>
-public sealed record TemplateHelperDto(string Key, string DescriptionKey)
+public sealed record TemplateHelperDto(string Key, string DescriptionKey, string Sample = "")
 {
     public static TemplateHelperDto FromEntry(TemplateHelperEntry entry) =>
-        new(entry.Key, entry.Description.Key);
+        new(entry.Key, entry.Description.Key, entry.Sample);
 }

@@ -131,7 +131,11 @@ public static class TemplateHelperRegistry
         TemplateHelperContext[] contexts,
         string descriptionKey,
         bool eventScoped = false
-    ) => new(key, contexts, new LocalizedText(descriptionKey), EventScoped: eventScoped);
+    ) =>
+        new(key, contexts, new LocalizedText(descriptionKey), EventScoped: eventScoped)
+        {
+            Sample = TemplateHelperSamples.For(key),
+        };
 
     private static TemplateHelperEntry Prefixed(
         string displayKey,
@@ -139,7 +143,11 @@ public static class TemplateHelperRegistry
         TemplateHelperContext[] contexts,
         string descriptionKey,
         bool eventScoped = false
-    ) => new(displayKey, contexts, new LocalizedText(descriptionKey), prefix, eventScoped);
+    ) =>
+        new(displayKey, contexts, new LocalizedText(descriptionKey), prefix, eventScoped)
+        {
+            Sample = TemplateHelperSamples.For(displayKey),
+        };
 
     private static List<TemplateHelperEntry> BuildEntries() =>
         [

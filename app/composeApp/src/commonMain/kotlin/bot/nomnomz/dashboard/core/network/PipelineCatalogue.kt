@@ -67,6 +67,11 @@ data class BlockField(
     // The resource-key suffix (`pipelines_condition_help_<helpKey>`) of this field's one-line plain help text, or
     // null when it has none. A LOCAL hint: condition descriptors carry no backend field help (type-only DTO).
     val helpKey: String? = null,
+    // Whether this field's value names a variable the action writes for later steps, and the name it writes
+    // when left empty (backend `PipelineActionFieldDto.DeclaresVariable` / `DeclaredVariableDefault`).
+    // [PipelineCatalogue.buildPalette] fills both in from the matching backend field by [key].
+    val declaresVariable: Boolean = false,
+    val declaredVariableDefault: String? = null,
 )
 
 /** What a block is — an action (does something) or a condition (gates the step). */
@@ -816,6 +821,8 @@ object PipelineCatalogue {
                     field.copy(
                         descriptionKey = remote?.description?.key?.ifBlank { null } ?: field.descriptionKey,
                         remoteKind = remote?.kind?.ifBlank { null } ?: field.remoteKind,
+                        declaresVariable = remote?.declaresVariable ?: field.declaresVariable,
+                        declaredVariableDefault = remote?.declaredVariableDefault ?: field.declaredVariableDefault,
                     )
                 }
         )

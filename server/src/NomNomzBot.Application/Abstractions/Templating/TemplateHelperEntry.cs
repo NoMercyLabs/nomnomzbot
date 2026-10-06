@@ -45,6 +45,9 @@ public sealed record TemplateHelperEntry(
     bool EventScoped = false
 )
 {
+    /// <summary>A plain, realistic example value for this helper, shown in the variable picker.</summary>
+    public string Sample { get; init; } = string.Empty;
+
     /// <summary>True when <paramref name="placeholderKey"/> (already trimmed, no braces) matches this entry.</summary>
     public bool Matches(string placeholderKey)
     {

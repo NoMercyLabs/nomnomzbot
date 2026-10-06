@@ -97,7 +97,9 @@ public sealed record PipelineActionFieldDto(
     bool Required,
     bool Repeatable,
     IReadOnlyList<string>? Options,
-    LocalizedText? Description
+    LocalizedText? Description,
+    bool DeclaresVariable = false,
+    string? DeclaredVariableDefault = null
 );
 
 /// <summary>One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13).</summary>

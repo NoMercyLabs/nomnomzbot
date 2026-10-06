@@ -62,4 +62,6 @@ enum class TemplateHelperContext(val wireName: String) {
 data class TemplateHelperDto(
     val key: String = "",
     val descriptionKey: String = "",
+    // A plain example value for the helper (data, not prose, so never translated) shown by the variable picker.
+    val sample: String = "",
 )
