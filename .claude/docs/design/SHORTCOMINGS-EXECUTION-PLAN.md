@@ -75,10 +75,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Pipeline lane
 
-- **S-PIPE-TEST-TRACE** A test run shows each step: what ran, which branch, variables before/after, and
-  the output. The input is a sample-event picker (same samples as the editor), not key=value; viewer
-  data can be simulated. `TestRunResultDto` gets a per-step trace. R14, R2, R6. Done-when: test of a
-  3-step pipeline with a condition returns 3 trace rows with the taken branch; UI shows them.
 - **S-PIPE-RECIPES** A new pipeline never starts empty: recipes for common goals ("every Nth redemption
   per viewer", "chance to chain", "random reply from a list", "count and remember per viewer"). R1, R2,
   R18. Done-when: each recipe saves and passes its own test run.
