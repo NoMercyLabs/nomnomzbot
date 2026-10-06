@@ -124,6 +124,11 @@ public sealed class TwitchEventSubHostedService
     // on the first poll; the bound keeps a broken successor from holding shutdown past docker's stop -t 25.
     private static readonly TimeSpan SuccessorShardWait = TimeSpan.FromSeconds(10);
 
+    /// <summary>How often the active instance re-reads the conduit for shards nobody holds.</summary>
+    internal static readonly TimeSpan ShardRecheckInterval = TimeSpan.FromSeconds(60);
+
+    private Task? _shardRecheckLoop;
+
     // The shared inbox (twitch-eventsub §10.1): with two instances each holding a shard, the receiver is not
     // necessarily the processor. Every receiver stores here; only the lease holder drains. Null on SQLite,
     // where the single instance processes what it receives directly.
@@ -292,6 +297,8 @@ public sealed class TwitchEventSubHostedService
         await StopInboxDrainAsync();
 
         await _lifetime.CancelAsync();
+        if (_shardRecheckLoop is not null)
+            await _shardRecheckLoop;
 
         // Cancel first, dispose only AFTER the waiter has been awaited — the waiter's PeriodicTimer
         // registers on the token, and registering against a disposed source throws.
@@ -392,6 +399,56 @@ public sealed class TwitchEventSubHostedService
 
         _conduitMode = true;
         _logger.LogInformation("EventSub: conduit mode on (conduit {ConduitId}).", conduit.Value);
+        CancellationToken lifetime = _lifetime.Token;
+        _shardRecheckLoop = Task.Run(() => RecheckShardsPeriodicallyAsync(lifetime), lifetime);
+    }
+
+    /// <summary>
+    /// Adopts every conduit shard nobody holds onto our shard's session, so Twitch drops nothing routed to a
+    /// shard a departed instance left behind. Only the active instance does this: a standby is not the one
+    /// that stays, and a draining (handed-over) instance would pull shards onto a session about to close.
+    /// </summary>
+    internal async Task RecheckConduitShardsAsync(CancellationToken ct)
+    {
+        if (!_conduitMode || _conduits is null || !IsActiveInstance)
+            return;
+
+        Result<IReadOnlyList<string>> adopted = await _conduits.AdoptOrphanedShardsAsync(ct);
+        if (adopted.IsFailure)
+            _logger.LogWarning(
+                "EventSub: conduit shard re-check failed: {Error}",
+                adopted.ErrorMessage
+            );
+    }
+
+    /// <summary>
+    /// The safety net behind the claim-time and takeover adoption: Twitch can mark a shard disconnected at
+    /// any moment (a departed colour's socket closing late), and the database row stays "enabled" regardless.
+    /// </summary>
+    private async Task RecheckShardsPeriodicallyAsync(CancellationToken ct)
+    {
+        try
+        {
+            using PeriodicTimer timer = new(ShardRecheckInterval, _clock);
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                try
+                {
+                    await RecheckConduitShardsAsync(ct);
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    _logger.LogError(
+                        ex,
+                        "EventSub: conduit shard re-check failed; retrying next tick"
+                    );
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Host is stopping.
+        }
     }
 
     private volatile bool _conduitProbed;
@@ -563,6 +620,10 @@ public sealed class TwitchEventSubHostedService
         }
 
         await StartTransportAsync(ct);
+        // The outgoing colour's shard is left behind the moment it releases the lease: adopt it now rather
+        // than on the next periodic re-check.
+        if (_transportStarted)
+            await RecheckConduitShardsAsync(ct);
         return _transportStarted;
     }
 
@@ -707,11 +768,16 @@ public sealed class TwitchEventSubHostedService
 
         Result<string> claimed = await _conduits.ClaimShardAsync(sessionId, ct);
         if (claimed.IsFailure)
+        {
             _logger.LogWarning(
                 "EventSub: no conduit shard for session {SessionId}: {Error}",
                 sessionId,
                 claimed.ErrorMessage
             );
+            return;
+        }
+
+        await RecheckConduitShardsAsync(ct);
     }
 
     private async Task HandleFreshWelcomeAsync(

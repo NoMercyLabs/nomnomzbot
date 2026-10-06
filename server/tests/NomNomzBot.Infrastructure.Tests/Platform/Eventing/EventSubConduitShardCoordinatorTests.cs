@@ -227,6 +227,88 @@ public sealed class EventSubConduitShardCoordinatorTests : IDisposable
         _twitch.Shard(instance.ConduitId!, shard).Should().Be(("enabled", "session-2"));
     }
 
+    [Fact]
+    public async Task A_shard_left_disconnected_by_a_departed_session_is_adopted_onto_the_survivor_session()
+    {
+        // Incident 2026-10-05: after the switch the old colour's shard stayed websocket_disconnected, nobody
+        // claimed it, and Twitch dropped every notification routed to it for three hours.
+        EventSubConduitShardCoordinator survivor = NewInstance();
+        string survivorShard = (await survivor.ClaimShardAsync("session-survivor")).Value;
+        string departedShard = (await NewInstance().ClaimShardAsync("session-departed")).Value;
+        string conduit = survivor.ConduitId!;
+        _twitch.Disconnect("session-departed");
+        _twitch.Calls.Clear();
+
+        Result<IReadOnlyList<string>> adopted = await survivor.AdoptOrphanedShardsAsync();
+
+        adopted.Value.Should().Equal(departedShard);
+        _twitch.Calls.Should().Contain($"PATCH shards {conduit} {departedShard}->session-survivor");
+        _twitch.Shard(conduit, departedShard).Should().Be(("enabled", "session-survivor"));
+        _twitch.Shard(conduit, survivorShard).Should().Be(("enabled", "session-survivor"));
+    }
+
+    [Fact]
+    public async Task Nothing_is_adopted_while_every_shard_is_enabled()
+    {
+        EventSubConduitShardCoordinator blue = NewInstance();
+        await blue.ClaimShardAsync("session-blue");
+        await NewInstance().ClaimShardAsync("session-green");
+        _twitch.Calls.Clear();
+
+        Result<IReadOnlyList<string>> adopted = await blue.AdoptOrphanedShardsAsync();
+
+        adopted.Value.Should().BeEmpty();
+        _twitch.Calls.Should().NotContain(c => c.StartsWith("PATCH shards"));
+    }
+
+    [Fact]
+    public async Task An_instance_that_released_its_claim_adopts_nothing()
+    {
+        // The outgoing colour releases its claim once its session is closed; a late re-check must not pull
+        // a shard onto that dead session.
+        EventSubConduitShardCoordinator outgoing = NewInstance();
+        await outgoing.ClaimShardAsync("session-old");
+        outgoing.ReleaseClaim();
+        _twitch.Disconnect("session-old");
+        _twitch.Calls.Clear();
+
+        Result<IReadOnlyList<string>> adopted = await outgoing.AdoptOrphanedShardsAsync();
+
+        adopted.Value.Should().BeEmpty();
+        _twitch.Calls.Should().NotContain(c => c.StartsWith("PATCH shards"));
+    }
+
+    [Fact]
+    public async Task An_incoming_session_takes_a_shard_the_active_session_adopted()
+    {
+        // The active colour holds both shards on one session; the incoming colour must still get one, or
+        // Twitch closes its idle socket and the handover has no successor.
+        EventSubConduitShardCoordinator blue = NewInstance();
+        string blueShard = (await blue.ClaimShardAsync("session-blue")).Value;
+        await blue.AdoptOrphanedShardsAsync();
+        _twitch.Shard(blue.ConduitId!, "1").Should().Be(("enabled", "session-blue"));
+
+        Result<string> greenShard = await NewInstance().ClaimShardAsync("session-green");
+
+        greenShard.IsSuccess.Should().BeTrue();
+        greenShard.Value.Should().NotBe(blueShard);
+        _twitch.Shard(blue.ConduitId!, greenShard.Value).Should().Be(("enabled", "session-green"));
+        _twitch.Shard(blue.ConduitId!, blueShard).Should().Be(("enabled", "session-blue"));
+    }
+
+    [Fact]
+    public async Task A_shard_adopted_onto_our_own_session_is_not_taken_for_a_successor()
+    {
+        EventSubConduitShardCoordinator outgoing = NewInstance();
+        await outgoing.ClaimShardAsync("session-old");
+        await outgoing.AdoptOrphanedShardsAsync();
+        _twitch.EnabledShardCount(outgoing.ConduitId!).Should().Be(2);
+
+        (await outgoing.WaitForSuccessorShardAsync(TimeSpan.FromMilliseconds(700)))
+            .Should()
+            .BeFalse();
+    }
+
     private sealed class AlwaysGrantedGuard : IRunOnceGuard
     {
         public Task<IAsyncDisposable?> TryAcquireAsync(
