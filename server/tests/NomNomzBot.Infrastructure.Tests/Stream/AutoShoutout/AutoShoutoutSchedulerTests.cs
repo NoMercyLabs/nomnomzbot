@@ -387,8 +387,6 @@ public sealed class AutoShoutoutSchedulerTests
             new QueuedShoutout(
                 Channel,
                 User("tw-raider"),
-                "hi",
-                true,
                 "tw-mod",
                 true,
                 TimeSpan.FromMinutes(2),

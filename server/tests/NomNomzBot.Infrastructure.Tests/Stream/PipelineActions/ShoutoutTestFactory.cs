@@ -42,11 +42,13 @@ internal static class ShoutoutTestFactory
         TimeProvider time,
         IShoutoutQueue? queue = null,
         ITwitchChannelsApi? channels = null,
-        IChatProvider? botChat = null
+        IChatProvider? botChat = null,
+        ITwitchStreamsApi? streams = null
     ) =>
         new(
             users,
             channels ?? NoChannelInfo(),
+            streams ?? NoStream(),
             registry,
             queue ?? new ShoutoutQueue(),
             Sender(chat, registry, db, tts, time),
@@ -75,6 +77,20 @@ internal static class ShoutoutTestFactory
                 )
             );
         return channels;
+    }
+
+    /// <summary>A streams client that reports nobody live: the target is offline.</summary>
+    public static ITwitchStreamsApi NoStream()
+    {
+        ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
+        streams
+            .GetStreamsAsync(
+                Arg.Any<TwitchStreamsFilter>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Task.FromResult(Result.Success(new TwitchPage<TwitchStream>([], null, 0))));
+        return streams;
     }
 
     /// <summary>The real composer over the given resolver, with no platform text and no channel override set.</summary>

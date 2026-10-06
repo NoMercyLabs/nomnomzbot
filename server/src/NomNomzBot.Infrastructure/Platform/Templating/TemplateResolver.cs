@@ -597,7 +597,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
         // ── Live-state grammar: {status} = live/offline; {tense} = presentTense while live, pastTense
         // once offline ("StoneyEagle is live" / "StoneyEagle was live"). Sides mirror the grammar vars.
-        bool isLive = channelCtx?.IsLive == true;
+        // A shoutout seeds target.isLive: the line is about the TARGET's stream, not the broadcaster's.
+        bool isLive = vars.TryGetValue("target.isLive", out string? targetLive)
+            ? string.Equals(targetLive, "true", StringComparison.OrdinalIgnoreCase)
+            : channelCtx?.IsLive == true;
         if (needed.Contains("status"))
             vars.TryAdd("status", isLive ? "live" : "offline");
         foreach (string side in GrammarSides)
@@ -952,8 +955,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
         vars.TryAdd($"{prefix}subject", pronoun.Subject);
         vars.TryAdd($"{prefix}object", pronoun.Object);
         vars.TryAdd($"{prefix}possessive", pronoun.Possessive);
-        vars.TryAdd($"{prefix}presenttense", pronoun.Singular ? "is" : "are");
-        vars.TryAdd($"{prefix}pasttense", pronoun.Singular ? "was" : "were");
+        // The verb agrees with the SUBJECT word that is shown, never with the stored flag: a he/they or
+        // she/they combo (flag false) shows "he"/"she", and "he are" is wrong; only "they" takes the plural.
+        bool singular = !string.Equals(pronoun.Subject, "they", StringComparison.OrdinalIgnoreCase);
+        vars.TryAdd($"{prefix}presenttense", singular ? "is" : "are");
+        vars.TryAdd($"{prefix}pasttense", singular ? "was" : "were");
         vars.TryAdd($"{prefix}genderedterm", pronoun.GenderedTerm);
     }
 

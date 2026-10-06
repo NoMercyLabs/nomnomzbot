@@ -134,8 +134,6 @@ public sealed class ChannelOfflineHandlerTests
                 ViewCount: 0,
                 CreatedAt: DateTimeOffset.UnixEpoch
             ),
-            "line",
-            false,
             "viewer-1",
             IsRaid: false,
             TimeSpan.FromMinutes(2),
