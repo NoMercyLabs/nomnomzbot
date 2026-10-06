@@ -56,7 +56,9 @@ public sealed class PickFromListAction : ICommandAction
             new(
                 "variable",
                 PipelineActionFieldKind.Text,
-                Description: new("pipeline.pick_from_list.variable.help")
+                Description: new("pipeline.pick_from_list.variable.help"),
+                DeclaresVariable: true,
+                DeclaredVariableDefault: "pick"
             ),
         ];
 

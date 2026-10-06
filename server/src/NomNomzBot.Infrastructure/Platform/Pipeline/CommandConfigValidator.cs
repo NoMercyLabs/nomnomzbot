@@ -81,7 +81,8 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
     /// helper registry, given the raw config for that step/action.</summary>
     private Result<PipelineValidationResult> ValidateTemplatedFields(
         string actionType,
-        IReadOnlyDictionary<string, object?> config
+        IReadOnlyDictionary<string, object?> config,
+        IReadOnlyCollection<string> declaredVariables
     )
     {
         if (!_actionsByType.TryGetValue(actionType, out ICommandAction? action))
@@ -96,7 +97,8 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
             {
                 Result validation = _templateHelperValidator.Validate(
                     template,
-                    TemplateHelperContext.Pipeline
+                    TemplateHelperContext.Pipeline,
+                    declaredVariables
                 );
                 if (validation.IsFailure)
                     return Result.Success(
@@ -109,6 +111,36 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
         }
 
         return Result.Success(PipelineValidationResult.Valid());
+    }
+
+    /// <summary>Every variable name a step of the pipeline writes for later steps — the value of each field
+    /// an action marks <see cref="PipelineActionFieldDescriptor.DeclaresVariable"/>, or that field's
+    /// <see cref="PipelineActionFieldDescriptor.DeclaredVariableDefault"/> when left empty. Nested block
+    /// children arrive in the same flat step list, so one pass covers them.</summary>
+    private HashSet<string> CollectDeclaredVariables(IReadOnlyList<PipelineStepInput> steps)
+    {
+        HashSet<string> names = new(PipelineEngineVariables.All, StringComparer.OrdinalIgnoreCase);
+        foreach (PipelineStepInput step in steps)
+        {
+            if (!_actionsByType.TryGetValue(step.ActionType, out ICommandAction? action))
+                continue;
+
+            foreach (
+                PipelineActionFieldDescriptor field in action.Fields.Where(f => f.DeclaresVariable)
+            )
+            {
+                string? name =
+                    step.Config.TryGetValue(field.Name, out object? raw)
+                    && ExtractTemplateStrings(raw ?? string.Empty).FirstOrDefault() is { } given
+                    && !string.IsNullOrWhiteSpace(given)
+                        ? given.Trim()
+                        : field.DeclaredVariableDefault;
+                if (name is not null)
+                    names.Add(name);
+            }
+        }
+
+        return names;
     }
 
     /// <summary>Validates every field an action declares <see cref="PipelineActionFieldKind.ResourceId"/> —
@@ -199,6 +231,8 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
                 )
             );
 
+        HashSet<string> declaredVariables = CollectDeclaredVariables(graph.Steps);
+
         foreach (PipelineStepInput step in graph.Steps)
         {
             // Check action type registration and key-level invariants from raw config.
@@ -237,7 +271,8 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
 
             Result<PipelineValidationResult> templateValidation = ValidateTemplatedFields(
                 step.ActionType,
-                step.Config
+                step.Config,
+                declaredVariables
             );
             if (!templateValidation.Value.IsValid)
                 return Task.FromResult(templateValidation);
@@ -314,7 +349,8 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
 
             Result<PipelineValidationResult> templateValidation = ValidateTemplatedFields(
                 action.Type,
-                paramsAsObjects
+                paramsAsObjects,
+                []
             );
             if (!templateValidation.Value.IsValid)
                 return templateValidation;

@@ -26,7 +26,8 @@ public sealed class SetVariableAction : ICommandAction
                 "name",
                 PipelineActionFieldKind.Text,
                 Required: true,
-                Description: new("pipeline.set_variable.name.help")
+                Description: new("pipeline.set_variable.name.help"),
+                DeclaresVariable: true
             ),
             new(
                 "value",

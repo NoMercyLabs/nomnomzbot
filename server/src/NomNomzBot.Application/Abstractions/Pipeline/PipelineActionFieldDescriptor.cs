@@ -75,6 +75,15 @@ public enum PipelineActionFieldKind
 /// positional parameter would force every one of the ~110 existing field sites to be touched atomically in a
 /// single commit; the DI-graph guard gives the same "cannot ship without it" property without that coupling.
 /// </param>
+/// <param name="DeclaresVariable">
+/// Whether this field's value is the NAME of a variable the action writes for later steps
+/// (<c>pick_from_list</c>'s <c>variable</c>, <c>set_variable</c>'s <c>name</c>). The save-time template guard
+/// accepts <c>{name}</c> in every templated field of the same pipeline for each such name.
+/// </param>
+/// <param name="DeclaredVariableDefault">
+/// The variable name the action writes when a <see cref="DeclaresVariable"/> field is left empty
+/// (e.g. <c>pick</c>); null when the action writes nothing without it.
+/// </param>
 public sealed record PipelineActionFieldDescriptor(
     string Name,
     PipelineActionFieldKind Kind,
@@ -82,7 +91,9 @@ public sealed record PipelineActionFieldDescriptor(
     bool Repeatable = false,
     IReadOnlyList<string>? Options = null,
     bool Templated = false,
-    LocalizedText? Description = null
+    LocalizedText? Description = null,
+    bool DeclaresVariable = false,
+    string? DeclaredVariableDefault = null
 );
 
 /// <summary>Converts a <see cref="PipelineActionFieldKind"/> to its snake_case wire name for the catalogue DTO.</summary>

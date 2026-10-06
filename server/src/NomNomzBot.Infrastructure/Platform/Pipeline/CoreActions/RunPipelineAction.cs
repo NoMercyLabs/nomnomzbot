@@ -133,7 +133,7 @@ public sealed class RunPipelineAction : ICommandAction
                 inlineResult.ErrorMessage ?? "run_pipeline inline call failed"
             );
 
-        ctx.Variables["call.result"] = inlineResult.Value ?? string.Empty;
+        ctx.Variables[PipelineEngineVariables.CallResult] = inlineResult.Value ?? string.Empty;
         return ActionResult.Success(inlineResult.Value);
     }
 

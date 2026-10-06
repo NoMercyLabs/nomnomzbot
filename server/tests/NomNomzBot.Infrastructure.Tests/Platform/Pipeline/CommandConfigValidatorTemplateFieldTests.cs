@@ -56,11 +56,124 @@ public sealed class CommandConfigValidatorTemplateFieldTests
         ) => Task.FromResult(ActionResult.Success());
     }
 
+    private sealed class FakeVariableDeclaringAction : ICommandAction
+    {
+        public string ActionType => "pick_from_list";
+
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+        public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+            [
+                new("list", PipelineActionFieldKind.Text, Required: true),
+                new(
+                    "variable",
+                    PipelineActionFieldKind.Text,
+                    DeclaresVariable: true,
+                    DeclaredVariableDefault: "pick"
+                ),
+            ];
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        ) => Task.FromResult(ActionResult.Success());
+    }
+
+    private sealed class FakeTemplatedTtsAction : ICommandAction
+    {
+        public string ActionType => "play_tts";
+
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+        public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+            [new("text", PipelineActionFieldKind.Text, Required: true, Templated: true)];
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        ) => Task.FromResult(ActionResult.Success());
+    }
+
     private static CommandConfigValidator BuildValidator() =>
         new(
-            [new FakeTemplatedAction(), new FakeNonTemplatedNumberAction()],
+            [
+                new FakeTemplatedAction(),
+                new FakeNonTemplatedNumberAction(),
+                new FakeVariableDeclaringAction(),
+                new FakeTemplatedTtsAction(),
+            ],
             new TemplateHelperValidator()
         );
+
+    private static PipelineGraphInput PickThenSpeak(string ttsText, string? variable = "line")
+    {
+        Dictionary<string, object?> pick = Config("list", "auction-scripts");
+        if (variable is not null)
+            pick["variable"] = JsonSerializer.SerializeToElement(variable);
+
+        return new PipelineGraphInput([
+            new PipelineStepInput("pick_from_list", pick),
+            new PipelineStepInput("play_tts", Config("text", ttsText)),
+            new PipelineStepInput("send_message", Config("message", ttsText)),
+        ]);
+    }
+
+    [Fact]
+    public async Task A_variable_declared_by_an_earlier_step_is_valid_in_every_later_templated_field()
+    {
+        CommandConfigValidator sut = BuildValidator();
+
+        PipelineValidationResult result = (
+            await sut.ValidatePipelineAsync(PickThenSpeak("{line}"))
+        ).Value;
+
+        result.IsValid.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Every_variable_the_engine_sets_is_valid_without_any_declaring_step()
+    {
+        CommandConfigValidator sut = BuildValidator();
+
+        string template = string.Join(
+            " ",
+            PipelineEngineVariables.All.Select(name => "{" + name + "}")
+        );
+        PipelineGraphInput graph = new([
+            new PipelineStepInput("send_message", Config("message", template)),
+        ]);
+
+        PipelineValidationResult result = (await sut.ValidatePipelineAsync(graph)).Value;
+
+        result.IsValid.Should().BeTrue(result.ErrorMessage);
+        template.Should().Contain("{last.output}").And.Contain("{last.error}");
+    }
+
+    [Fact]
+    public async Task A_declaring_step_without_a_name_declares_its_default_variable()
+    {
+        CommandConfigValidator sut = BuildValidator();
+
+        PipelineValidationResult result = (
+            await sut.ValidatePipelineAsync(PickThenSpeak("{pick}", variable: null))
+        ).Value;
+
+        result.IsValid.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task A_name_no_step_declares_is_still_rejected_as_an_unknown_helper()
+    {
+        CommandConfigValidator sut = BuildValidator();
+
+        PipelineValidationResult result = (
+            await sut.ValidatePipelineAsync(PickThenSpeak("{lnie}"))
+        ).Value;
+
+        result.IsValid.Should().BeFalse();
+        result.ErrorCode.Should().Be("UNKNOWN_TEMPLATE_HELPER");
+        result.ErrorMessage.Should().Contain("lnie");
+    }
 
     private static Dictionary<string, object?> Config(string key, string value) =>
         new() { [key] = JsonSerializer.SerializeToElement(value) };
