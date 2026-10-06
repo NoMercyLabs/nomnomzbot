@@ -70,6 +70,9 @@ public sealed record TestRunResultDto(
     /// <summary>Every effect, chat message and console line in the order it happened; empty when the run kind has none.</summary>
     public IReadOnlyList<TimelineEntryDto> Timeline { get; init; } = [];
 
+    /// <summary>What each executed step did, in run order (pipeline test-runs only; empty for scripts).</summary>
+    public IReadOnlyList<PipelineTraceStepDto> Trace { get; init; } = [];
+
     /// <summary>Where in the author's own file a failed script run threw; null when the run passed or the place is unknown.</summary>
     public ScriptSourcePosition? ErrorPosition { get; init; }
 }

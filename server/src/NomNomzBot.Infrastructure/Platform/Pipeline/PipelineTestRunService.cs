@@ -111,6 +111,7 @@ public sealed class PipelineTestRunService(
             MessageId = null,
             RawMessage = string.Empty,
             InitialVariables = new(request.Variables, StringComparer.OrdinalIgnoreCase),
+            CollectTrace = true,
         };
 
         PipelineExecutionResult result = await engine.ExecuteAsync(
@@ -154,6 +155,9 @@ public sealed class PipelineTestRunService(
                 VariablesSet: null,
                 Console: null
             )
+            {
+                Trace = result.Trace,
+            }
         );
     }
 }

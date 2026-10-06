@@ -294,6 +294,95 @@ public sealed class PipelineTestRunServiceTests
     }
 
     [Fact]
+    public async Task A_test_run_traces_every_executed_step_in_order_with_the_branch_and_variable_changes()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        PipelineStep setScore = Step(
+            0,
+            "set_variable",
+            """{"type":"set_variable","name":"score","value":"5"}"""
+        );
+        PipelineStep ifBlock = Step(1, "if", "{}", Comparison("{score}", "gt", "3"));
+        ifBlock.BlockKind = "if";
+        PipelineStep thenSay = Step(
+            0,
+            "send_message",
+            """{"type":"send_message","message":"big {score}"}"""
+        );
+        thenSay.ParentStepId = ifBlock.Id;
+        thenSay.Branch = "then";
+        PipelineStep elseSay = Step(
+            0,
+            "send_message",
+            """{"type":"send_message","message":"small"}"""
+        );
+        elseSay.ParentStepId = ifBlock.Id;
+        elseSay.Branch = "else";
+        await SeedPipelineAsync(db, setScore, ifBlock, thenSay, elseSay);
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
+
+        result.Success.Should().BeTrue();
+        result.Trace.Select(t => t.StepType).Should().Equal("set_variable", "if", "send_message");
+        result
+            .Trace.Select(t => t.StepId)
+            .Should()
+            .Equal(setScore.Id.ToString(), ifBlock.Id.ToString(), thenSay.Id.ToString());
+
+        PipelineTraceStepDto set = result.Trace[0];
+        set.VariableChanges.Should().ContainSingle();
+        set.VariableChanges[0].Key.Should().Be("score");
+        set.VariableChanges[0].Before.Should().BeNull();
+        set.VariableChanges[0].After.Should().Be("5");
+
+        result.Trace[1].Branch.Should().Be("then");
+        result.Trace[1].VariableChanges.Should().BeEmpty();
+
+        result.Trace[2].Output.Should().Be("big 5");
+        result.Trace[2].Error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_traced_loop_row_counts_its_iterations()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        PipelineStep loop = Step(0, "loop", "{}");
+        loop.BlockKind = "loop";
+        loop.BlockConfigJson = """{"mode":"repeat","count":3}""";
+        PipelineStep body = Step(
+            0,
+            "send_message",
+            """{"type":"send_message","message":"tick {loop.index}"}"""
+        );
+        body.ParentStepId = loop.Id;
+        await SeedPipelineAsync(db, loop, body);
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
+
+        result.Trace.Should().HaveCount(4);
+        result.Trace[0].StepType.Should().Be("loop");
+        result.Trace[0].Iterations.Should().Be(3);
+        result.Trace.Skip(1).Select(t => t.Output).Should().Equal("tick 0", "tick 1", "tick 2");
+    }
+
+    [Fact]
+    public async Task A_failed_step_row_carries_its_error()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedPipelineAsync(db, Step(0, "no_such_action", """{"type":"no_such_action"}"""));
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
+
+        result.Success.Should().BeFalse();
+        result.Trace.Should().ContainSingle();
+        result.Trace[0].StepType.Should().Be("no_such_action");
+        result.Trace[0].Error.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
     public async Task An_unknown_pipeline_is_not_found()
     {
         PipelineTestRunDbContext db = NewDb();
