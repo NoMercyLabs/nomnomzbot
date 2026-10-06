@@ -30,6 +30,7 @@ public static partial class ToneTemplateCatalog
 
     private static void AddCommunitySamples(Dictionary<string, string> samples)
     {
+        samples["viewer"] = "StreamFan42";
         samples["target.name"] = "StreamFan42";
         samples["target.link"] = "twitch.tv/streamfan42";
         samples["target.game"] = "Just Chatting";
@@ -750,6 +751,48 @@ public static partial class ToneTemplateCatalog
             sassy: ["Set it to what? !voice set <name> — e.g. !voice set Ana."],
             hype: ["!VOICE SET <NAME> — LIKE !VOICE SET ANA!"],
             chill: ["!voice set <name>, e.g. !voice set Ana."]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.SetFor,
+            variables: ["viewer", "voice.name"],
+            informative: ["Voice for {viewer} set to {voice.name}!"],
+            friendly: ["Done! {viewer} now speaks with {voice.name}."],
+            sassy: ["{viewer} is now {voice.name}. Hope they like it."],
+            hype: ["{viewer} IS NOW {voice.name}!"],
+            chill: ["{viewer} now uses {voice.name}."]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.OwnVoiceOnly,
+            variables: [],
+            informative:
+            [
+                "You can only set your own voice. Naming another viewer is for moderators.",
+            ],
+            friendly:
+            [
+                "You can pick your own voice with !voice set <name>. Setting someone else's is for moderators.",
+            ],
+            sassy: ["Your voice only, please. Other people's voices are for moderators."],
+            hype: ["YOU CAN SET YOUR OWN VOICE! OTHER VIEWERS' VOICES ARE FOR MODERATORS!"],
+            chill: ["only your own voice. mods can set other viewers' voices."]
+        );
+
+        Add(
+            catalog,
+            key,
+            BuiltinResponseSlots.Voice.UnknownViewer,
+            variables: ["viewer"],
+            informative: ["I don't know a viewer called '{viewer}' here."],
+            friendly: ["I haven't seen a viewer called '{viewer}' here. Check the spelling?"],
+            sassy: ["'{viewer}'? Never heard of them."],
+            hype: ["NO VIEWER CALLED '{viewer}' FOUND!"],
+            chill: ["don't know a viewer called '{viewer}'."]
         );
 
         Add(

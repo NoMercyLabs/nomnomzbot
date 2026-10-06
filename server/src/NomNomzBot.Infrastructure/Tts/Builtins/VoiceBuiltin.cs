@@ -8,12 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.Tts.Builtins;
@@ -43,11 +47,17 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     private const int MaxListedMatches = 10;
 
     private readonly ITtsConfigService _tts;
+    private readonly IApplicationDbContext _db;
     private readonly IBuiltinResponseComposer _composer;
 
-    public VoiceBuiltin(ITtsConfigService tts, IBuiltinResponseComposer composer)
+    public VoiceBuiltin(
+        ITtsConfigService tts,
+        IApplicationDbContext db,
+        IBuiltinResponseComposer composer
+    )
     {
         _tts = tts;
+        _db = db;
         _composer = composer;
     }
 
@@ -77,6 +87,15 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         string head = parts[0].ToLowerInvariant();
         string rest = parts.Length > 1 ? string.Join(' ', parts[1..]).Trim() : string.Empty;
 
+        // `!voice @viewer set <voice>` is the same command as `!voice set @viewer <voice>`.
+        if (head.StartsWith('@') && parts.Length > 2 && IsSetWord(parts[1]))
+            return await SetForViewerAsync(
+                context,
+                MentionParser.ParseUserMention(parts[0]),
+                string.Join(' ', parts[2..]),
+                ct
+            );
+
         // Subcommands first; anything else stays the bare fuzzy search, so `!voice british female` keeps
         // working without a subcommand.
         return head switch
@@ -101,9 +120,9 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                     null,
                     ct
                 )
-                : await SetAsync(context, rest, bare: false, ct),
+                : await SetOwnOrNamedAsync(context, rest, ct),
             "roulette" => await RouletteAsync(context, ct),
-            _ => await SetAsync(context, args, bare: true, ct),
+            _ => await SetAsync(context, args, bare: true, ct: ct),
         };
     }
 
@@ -341,11 +360,97 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             );
     }
 
+    private static bool IsSetWord(string word) =>
+        string.Equals(word, "set", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary><c>!voice set &lt;voice&gt;</c>, or <c>!voice set @viewer &lt;voice&gt;</c> when the first word names a viewer.</summary>
+    private async Task<Result<string>> SetOwnOrNamedAsync(
+        BuiltinCommandContext context,
+        string rest,
+        CancellationToken ct
+    )
+    {
+        string[] words = rest.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (!words[0].StartsWith('@'))
+            return await SetAsync(context, rest, bare: false, ct: ct);
+
+        string voiceQuery = words.Length > 1 ? words[1].Trim() : string.Empty;
+        return await SetForViewerAsync(
+            context,
+            MentionParser.ParseUserMention(words[0]),
+            voiceQuery,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Sets a NAMED viewer's voice. Moderators and up only; naming yourself is the plain self form for any rank.
+    /// The assignment goes through <see cref="ITtsConfigService.SetUserVoiceAsync"/> — the dashboard's path.
+    /// </summary>
+    private async Task<Result<string>> SetForViewerAsync(
+        BuiltinCommandContext context,
+        string login,
+        string voiceQuery,
+        CancellationToken ct
+    )
+    {
+        if (voiceQuery.Length == 0)
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.SetUsage,
+                "Usage: !voice set <name> (e.g. !voice set Ana, !voice set en-US-AnaNeural)",
+                null,
+                ct
+            );
+
+        if (string.Equals(login, context.TriggeringUserLogin, StringComparison.OrdinalIgnoreCase))
+            return await SetAsync(context, voiceQuery, bare: false, ct: ct);
+
+        if (context.RoleLevel < PermissionLevel.Moderator.ToLevelValue())
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.OwnVoiceOnly,
+                "You can only set your own voice. Naming another viewer is for moderators.",
+                null,
+                ct
+            );
+
+        UserIdentity? viewer = await FindViewerAsync(context, login, ct);
+        if (viewer is null)
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.UnknownViewer,
+                "I don't know a viewer called '{viewer}' here.",
+                Vars(("viewer", login)),
+                ct
+            );
+
+        return await SetAsync(context, voiceQuery, bare: false, viewer, ct);
+    }
+
+    private async Task<UserIdentity?> FindViewerAsync(
+        BuiltinCommandContext context,
+        string login,
+        CancellationToken ct
+    )
+    {
+        string platform = context.TriggeringPlatform ?? AuthEnums.Platform.Twitch;
+        string loginLower = login.ToLowerInvariant();
+        if (loginLower.Length == 0)
+            return null;
+
+        return await _db.UserIdentities.FirstOrDefaultAsync(
+            i => i.Provider == platform && i.ProviderUsername.ToLower() == loginLower,
+            ct
+        );
+    }
+
     private async Task<Result<string>> SetAsync(
         BuiltinCommandContext context,
         string query,
         bool bare,
-        CancellationToken ct
+        UserIdentity? viewer = null,
+        CancellationToken ct = default
     )
     {
         Result<PagedList<TtsVoiceDto>> matches = await _tts.SearchVoicesAsync(
@@ -390,6 +495,9 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         }
 
         TtsVoiceDto pick = candidates[0];
+        if (viewer is not null)
+            return await AssignToViewerAsync(context, viewer, pick, ct);
+
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
             context.BroadcasterId,
             context.TriggeringUserId,
@@ -415,6 +523,34 @@ public sealed class VoiceBuiltin : IBuiltinCommand
                 PickVars(pick),
                 ct
             );
+    }
+
+    private async Task<Result<string>> AssignToViewerAsync(
+        BuiltinCommandContext context,
+        UserIdentity viewer,
+        TtsVoiceDto pick,
+        CancellationToken ct
+    )
+    {
+        Result<UserTtsVoiceDto> set = await _tts.SetUserVoiceAsync(
+            context.BroadcasterId,
+            viewer.ProviderUserId,
+            new() { VoiceId = pick.Id },
+            ct
+        );
+        if (set.IsFailure)
+            return await SetFailedAsync(context, set, ct);
+
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Voice.SetFor,
+            "Voice for {viewer} set to {voice.name}!",
+            Vars(
+                ("viewer", viewer.ProviderDisplayName ?? viewer.ProviderUsername),
+                ("voice.name", pick.DisplayName)
+            ),
+            ct
+        );
     }
 
     /// <summary>
