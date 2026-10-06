@@ -40,7 +40,6 @@ import bot.nomnomz.dashboard.core.network.ChatPoll
 import bot.nomnomz.dashboard.core.network.ChatPollOption
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_poll_close
@@ -52,9 +51,6 @@ import nomnomzbot.composeapp.generated.resources.chat_poll_title
 import nomnomzbot.composeapp.generated.resources.chat_poll_total_votes
 import nomnomzbot.composeapp.generated.resources.chat_poll_votes
 import org.jetbrains.compose.resources.stringResource
-
-// Poll interval for the open poll's live tallies (poll the GET so the bars move as chatters type numbers).
-private const val PollIntervalMillis: Long = 4_000L
 
 // The "Chat poll" surface — bot-run polls where viewers vote by typing an option number in ANY platform's chat.
 // Labeled "Chat poll" to distinguish it from the Twitch-native live-ops poll on the same page. It renders the
@@ -69,14 +65,8 @@ fun ChatPollsCard(controller: ChatPollsController, modifier: Modifier = Modifier
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // Load on first composition and poll while mounted so an open poll's bars move without a manual refresh.
-    LaunchedEffect(Unit) {
-        controller.load()
-        while (true) {
-            delay(PollIntervalMillis)
-            controller.load()
-        }
-    }
+    // Load once on first composition; the open poll's bars then move through the hub push the controller follows.
+    LaunchedEffect(Unit) { controller.load() }
 
     Column(
         modifier = modifier.fillMaxWidth(),

@@ -15,14 +15,18 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatPoll
 import bot.nomnomz.dashboard.core.network.ChatPollsApi
+import bot.nomnomz.dashboard.core.network.ChatPollOption
 import bot.nomnomz.dashboard.core.network.OpenChatPollRequest
+import bot.nomnomz.dashboard.core.realtime.HubChatPollChanged
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 // The Chat-polls state-holder: resolves the active channel, loads its polls (the open one first, then history),
-// and drives open/close. The screen renders [state] and re-loads on a poll tick so the open poll's tallies stay
-// live. Open/close hit the backend and reload on success; a failure keeps the current polls and surfaces the
+// and drives open/close. The screen renders [state]; the open poll's tallies stay live through the hub push
+// ([subscribeToHub]), never a polling loop. Open/close hit the backend and reload on success; a failure keeps the current polls and surfaces the
 // error on the Ready state. The open poll is the first entry with status "open"; everything else is history.
 class ChatPollsController(
     private val channelsApi: ChannelsApi,
@@ -107,6 +111,39 @@ class ChatPollsController(
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> surfaceError(result.error.message)
         }
+    }
+
+    /**
+     * Follow the server's `ChatPollChanged` push (open, vote, close). Each event carries the whole poll, so it is
+     * applied to [state] directly with no API call. Before the first load there is nothing to patch; the card's
+     * own [load] on mount supplies the baseline.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { event ->
+            if (event is HubEvent.ChatPollChanged) apply(event.poll)
+        }
+    }
+
+    private fun apply(change: HubChatPollChanged) {
+        val current: ChatPollsState.Ready = _state.value as? ChatPollsState.Ready ?: return
+        val poll = ChatPoll(
+            id = change.pollId,
+            question = change.question,
+            options = change.options.map { ChatPollOption(index = it.index, label = it.label, votes = it.votes) },
+            status = change.status,
+            totalVotes = change.totalVotes,
+            openedAt = change.openedAt,
+            closesAt = change.closesAt,
+            closedAt = change.closedAt,
+        )
+        val others: List<ChatPoll> = current.history.filter { it.id != poll.id }
+        _state.value =
+            if (poll.status.equals("open", ignoreCase = true)) {
+                current.copy(openPoll = poll, history = others)
+            } else {
+                val stillOpen: ChatPoll? = current.openPoll?.takeIf { it.id != poll.id }
+                current.copy(openPoll = stillOpen, history = listOf(poll) + others)
+            }
     }
 
     /** Clear the last action error. */

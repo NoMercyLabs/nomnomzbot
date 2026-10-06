@@ -69,6 +69,9 @@ sealed interface HubEvent {
     /** The AutoMod review queue changed — a new hold, or a resolution (any moderator, or Twitch expiry). */
     data class AutoModQueueChanged(val change: HubAutoModQueueChange) : HubEvent
 
+    /** A bot-run chat poll opened, got a vote, or closed; the payload carries the whole poll. */
+    data class ChatPollChanged(val poll: HubChatPollChanged) : HubEvent
+
     /** A hub target not yet modelled — carry the raw argument so callers can inspect it. */
     data class Unknown(val target: String, val rawArgs: String) : HubEvent
 
@@ -96,6 +99,7 @@ sealed interface HubEvent {
                     "ConfigChanged" -> ConfigChanged(json.decodeFromString(first))
                     "RewardChanged" -> RewardChanged(json.decodeFromString(first))
                     "automod_queue_changed" -> AutoModQueueChanged(json.decodeFromString(first))
+                    "ChatPollChanged" -> ChatPollChanged(json.decodeFromString(first))
                     else -> Unknown(target, first)
                 }
             }.getOrNull()
@@ -354,6 +358,24 @@ data class HubRewardChanged(
     val isEnabled: Boolean? = null,
     val timestamp: String = "",
 )
+
+/** Mirrors the backend `ChatPollChangedAlertDto` — [change] names the cause; the whole poll rides along. */
+@Serializable
+data class HubChatPollChanged(
+    val pollId: String = "",
+    val change: String = "",
+    val question: String = "",
+    val status: String = "",
+    val totalVotes: Int = 0,
+    val options: List<HubChatPollOption> = emptyList(),
+    val openedAt: String = "",
+    val closesAt: String? = null,
+    val closedAt: String? = null,
+)
+
+/** One option of a changed chat poll (backend `ChatPollChangedOptionDto`). */
+@Serializable
+data class HubChatPollOption(val index: Int = 0, val label: String = "", val votes: Int = 0)
 
 /** Mirrors AutoModQueueChangedAlertDto — the AutoMod review queue changed (a hold, or a resolution). */
 @Serializable
