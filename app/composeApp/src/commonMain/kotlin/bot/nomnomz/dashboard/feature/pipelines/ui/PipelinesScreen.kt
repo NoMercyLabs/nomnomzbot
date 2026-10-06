@@ -942,7 +942,7 @@ internal fun ChainEditor(
         StepFormDialog(
             initial = target.step,
             steps = editing.steps,
-            index = target.step?.id?.let { id -> editing.steps.indexOfFirst { it.id == id } }?.takeIf { it >= 0 } ?: editing.steps.size,
+            index = insertIndex(editing.steps, target.step?.id),
             palette = editing.palette,
             options = editing.options,
             templateHelpersApi = templateHelpersApi,
@@ -967,6 +967,8 @@ internal fun ChainEditor(
     ifBlockDialog?.let { target ->
         IfBlockFormDialog(
             initial = target.condition,
+            steps = editing.steps,
+            index = insertIndex(editing.steps, target.blockId),
             palette = editing.palette,
             options = editing.options,
             templateHelpersApi = templateHelpersApi,
@@ -1063,6 +1065,8 @@ internal fun ChainEditor(
             initialMaxIterations = decoded.maxIterations,
             initialMaxLoopRuntimeSeconds = decoded.maxLoopRuntimeSeconds,
             initialCondition = target.condition,
+            steps = editing.steps,
+            index = insertIndex(editing.steps, target.blockId),
             palette = editing.palette,
             options = editing.options,
             templateHelpersApi = templateHelpersApi,
@@ -1640,8 +1644,10 @@ private fun PipelineTreeRow(
 // gated the same way a step's optional condition is, just promoted to its own addressable tree node so it can
 // own "then"/"else" child lanes.
 @Composable
-private fun IfBlockFormDialog(
+internal fun IfBlockFormDialog(
     initial: PipelineNode?,
+    steps: List<PipelineStep>,
+    index: Int,
     palette: RuntimePalette,
     options: EditorOptions,
     templateHelpersApi: TemplateHelpersApi,
@@ -1652,6 +1658,8 @@ private fun IfBlockFormDialog(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val helpers: List<TemplateHelperDto> = rememberPipelineHelpers(templateHelpersApi)
+    val declared: List<DeclaredVariable> = rememberDeclaredVariables(steps, index, palette)
 
     val firstConditionType: String? = initial?.type ?: palette.conditions.firstOrNull()?.type
     var conditionType: String? by remember { mutableStateOf(firstConditionType) }
@@ -1686,6 +1694,8 @@ private fun IfBlockFormDialog(
                         templateHelpersApi = templateHelpersApi,
                         onOpenCodeScript = onOpenCodeScript,
                         createCodeScript = createCodeScript,
+                        declared = declared,
+                        helpers = helpers,
                     )
                 }
             }
@@ -2050,13 +2060,15 @@ private fun LoopBlockCard(
 // [ConditionPicker]/[BlockParamEditor] pair the "if" block's condition editor uses, since its condition lands
 // on the SAME `condition` field (never `blockConfig`) — see [PipelinesController.addLoopBlock].
 @Composable
-private fun LoopBlockFormDialog(
+internal fun LoopBlockFormDialog(
     initialMode: String,
     initialCount: Int?,
     initialListVar: String?,
     initialMaxIterations: Int?,
     initialMaxLoopRuntimeSeconds: Int?,
     initialCondition: PipelineNode?,
+    steps: List<PipelineStep>,
+    index: Int,
     palette: RuntimePalette,
     options: EditorOptions,
     templateHelpersApi: TemplateHelpersApi,
@@ -2074,6 +2086,8 @@ private fun LoopBlockFormDialog(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val helpers: List<TemplateHelperDto> = rememberPipelineHelpers(templateHelpersApi)
+    val declared: List<DeclaredVariable> = rememberDeclaredVariables(steps, index, palette)
 
     var mode: String by remember { mutableStateOf(initialMode) }
     var countText: String by remember { mutableStateOf(initialCount?.toString().orEmpty()) }
@@ -2152,6 +2166,8 @@ private fun LoopBlockFormDialog(
                                 templateHelpersApi = templateHelpersApi,
                                 onOpenCodeScript = onOpenCodeScript,
                                 createCodeScript = createCodeScript,
+                                declared = declared,
+                                helpers = helpers,
                             )
                         }
                     }
@@ -2410,8 +2426,7 @@ internal fun StepFormDialog(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val helpers: List<TemplateHelperDto> = rememberPipelineHelpers(templateHelpersApi)
-    val declared: List<DeclaredVariable> =
-        remember(steps, index, palette) { declaredVariablesBefore(steps, index, palette) }
+    val declared: List<DeclaredVariable> = rememberDeclaredVariables(steps, index, palette)
 
     val firstActionType: String = palette.actions.firstOrNull()?.type ?: ""
     var actionType: String by remember { mutableStateOf(initial?.action?.type ?: firstActionType) }
@@ -2754,6 +2769,15 @@ private fun TypedParamFields(
         }
     }
 }
+
+// The variables the steps before [index] declare, for the `{` list of a dialog that edits or inserts at [index].
+@Composable
+private fun rememberDeclaredVariables(steps: List<PipelineStep>, index: Int, palette: RuntimePalette): List<DeclaredVariable> =
+    remember(steps, index, palette) { declaredVariablesBefore(steps, index, palette) }
+
+// Where a dialog's step sits: its own position when it edits the step [id], else the end (a new step lands last).
+private fun insertIndex(steps: List<PipelineStep>, id: String?): Int =
+    id?.let { stepId -> steps.indexOfFirst { it.id == stepId } }?.takeIf { it >= 0 } ?: steps.size
 
 // Loads the pipeline helper registry once for a dialog. A failed load leaves the list empty: the `{` list then
 // shows the declared variables only, and the "All helpers" link still reports its own error.
