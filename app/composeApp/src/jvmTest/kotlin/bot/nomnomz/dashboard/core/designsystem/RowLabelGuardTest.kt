@@ -73,6 +73,8 @@ class RowLabelGuardTest {
             "admin/ui/AdminContentRewardAuthoring.kt" to 1,
             "admin/ui/AdminContentTimerAuthoring.kt" to 1,
             "analytics/ui/AnalyticsScreen.kt" to 1,
+            // ChatPollsController: the live poll push copies each option's label into the poll state, unchanged.
+            "chatpolls/state/ChatPollsController.kt" to 1,
             "chattriggers/state/ChatTriggersController.kt" to 1,
             "commands/state/CommandsController.kt" to 2,
             "commands/ui/CommandsScreen.kt" to 1,

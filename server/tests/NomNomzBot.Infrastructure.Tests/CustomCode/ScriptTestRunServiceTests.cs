@@ -369,6 +369,7 @@ public sealed class ScriptTestRunServiceTests
                 Channel,
                 Arg.Any<string>(),
                 Arg.Is<string?>(v => v == null),
+                Arg.Any<TtsSpeaker>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns("en-GB-Sonia");
@@ -397,6 +398,7 @@ public sealed class ScriptTestRunServiceTests
                 Channel,
                 Arg.Any<string>(),
                 "no-such-voice",
+                Arg.Any<TtsSpeaker>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns((string?)null);

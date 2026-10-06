@@ -14,6 +14,8 @@
     <string name="builtin_reply_forgetme_done_description">Someone erased their data with the forgetme command.</string>
     <string name="builtin_reply_shoutout_announcement_label">Shoutout announcement</string>
     <string name="builtin_reply_shoutout_announcement_description">The chat line posted for a shoutout when no custom shoutout text is set.</string>
+    <string name="builtin_reply_shoutout_queued_label">Shoutout queued</string>
+    <string name="builtin_reply_shoutout_queued_description">The chat line posted when Twitch makes a shoutout wait in the queue.</string>
     <string name="builtin_reply_stats_profile_label">Viewer stats</string>
     <string name="builtin_reply_stats_profile_description">A viewer asks for their stats.</string>
     <string name="builtin_reply_stats_notseen_label">Viewer not seen</string>

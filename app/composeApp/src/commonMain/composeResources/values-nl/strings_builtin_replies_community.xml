@@ -14,6 +14,8 @@
     <string name="builtin_reply_forgetme_done_description">Iemand wist de eigen gegevens met het forgetme-commando.</string>
     <string name="builtin_reply_shoutout_announcement_label">Shoutout-aankondiging</string>
     <string name="builtin_reply_shoutout_announcement_description">De chatregel voor een shoutout als er geen eigen shoutout-tekst is ingesteld.</string>
+    <string name="builtin_reply_shoutout_queued_label">Shoutout in de wachtrij</string>
+    <string name="builtin_reply_shoutout_queued_description">De chatregel als Twitch een shoutout in de wachtrij laat wachten.</string>
     <string name="builtin_reply_stats_profile_label">Kijkerstatistieken</string>
     <string name="builtin_reply_stats_profile_description">Een kijker vraagt hun statistieken.</string>
     <string name="builtin_reply_stats_notseen_label">Kijker niet gezien</string>

@@ -5112,7 +5112,7 @@
     <string name="pipeline_play_tts_segments_help">Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables.</string>
     <string name="pipeline_play_tts_voice_help">Blank uses the channel's default TTS voice.</string>
     <string name="pipeline_play_tts_rate_help">How fast the line is spoken, as a percent of normal speed: +30% faster, -20% slower. Blank keeps the normal speed. Values are limited to -50% to +50%.</string>
-    <string name="pipeline_play_tts_as_help">Whose voice speaks the line: blank/user/viewer uses the trigger's voice, broadcaster uses the broadcaster's own voice, bot/channel uses the channel default, or a platform user id speaks as them.</string>
+    <string name="pipeline_play_tts_as_help">Whose voice speaks the line: blank (or bot/channel) is the bot's own voice for text the bot wrote. Set it to viewer (or user) only when the line is that viewer's own words, such as a TTS reward. broadcaster uses the broadcaster's own voice, or a platform user id speaks as them.</string>
     <string name="pipeline_send_webhook_endpoint_help">The webhook endpoint to deliver this event to.</string>
     <string name="pipeline_send_webhook_event_type_help">The event type string the endpoint's subscription matches. Sent verbatim — not resolved as a template, even if it contains {{ }}.</string>
     <string name="widget_group_content">Content</string>

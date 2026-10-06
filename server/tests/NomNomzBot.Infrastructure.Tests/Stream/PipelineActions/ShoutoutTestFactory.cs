@@ -15,10 +15,13 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -38,16 +41,20 @@ internal static class ShoutoutTestFactory
         ITtsDispatchService tts,
         TimeProvider time,
         IShoutoutQueue? queue = null,
-        ITwitchChannelsApi? channels = null
+        ITwitchChannelsApi? channels = null,
+        IChatProvider? botChat = null,
+        ITwitchStreamsApi? streams = null
     ) =>
         new(
             users,
             channels ?? NoChannelInfo(),
+            streams ?? NoStream(),
             registry,
             queue ?? new ShoutoutQueue(),
             Sender(chat, registry, db, tts, time),
             resolver,
             Composer(resolver),
+            botChat ?? Substitute.For<IChatProvider>(),
             time,
             NullLogger<ShoutoutAction>.Instance
         );
@@ -70,6 +77,20 @@ internal static class ShoutoutTestFactory
                 )
             );
         return channels;
+    }
+
+    /// <summary>A streams client that reports nobody live: the target is offline.</summary>
+    public static ITwitchStreamsApi NoStream()
+    {
+        ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
+        streams
+            .GetStreamsAsync(
+                Arg.Any<TwitchStreamsFilter>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Task.FromResult(Result.Success(new TwitchPage<TwitchStream>([], null, 0))));
+        return streams;
     }
 
     /// <summary>The real composer over the given resolver, with no platform text and no channel override set.</summary>
@@ -96,14 +117,17 @@ internal static class ShoutoutTestFactory
         IChannelRegistry registry,
         IApplicationDbContext db,
         ITtsDispatchService tts,
-        TimeProvider time
+        TimeProvider time,
+        IOutboundSanctionAccessor? sanctions = null
     )
     {
         ServiceCollection services = new();
         services.AddScoped<IShoutoutSender>(_ => Sender(chat, registry, db, tts, time));
+        services.AddSingleton<IApplicationDbContext>(db);
         ServiceProvider provider = services.BuildServiceProvider();
         return new(
             queue,
+            sanctions ?? new OutboundSanctionAccessor(),
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             time,

@@ -17,9 +17,11 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Chat;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.AutoShoutout;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -54,6 +56,7 @@ public sealed class AutoShoutoutSchedulerTests
         public required ITtsDispatchService Tts { get; init; }
         public required ChannelContext ChannelCtx { get; init; }
         public required IShoutoutQueue Queue { get; init; }
+        public required List<OutboundSanction?> SeenSanctions { get; init; }
 
         public Task ChatAsync(string userId) =>
             Sut.TryEnqueueAsync(Channel, userId, userId, CancellationToken.None);
@@ -113,6 +116,8 @@ public sealed class AutoShoutoutSchedulerTests
     {
         FakeTimeProvider clock = new(StreamStart);
 
+        OutboundSanctionAccessor sanctions = new();
+        List<OutboundSanction?> seenSanctions = [];
         ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
         chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
@@ -122,7 +127,11 @@ public sealed class AutoShoutoutSchedulerTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success());
+            .Returns(_ =>
+            {
+                seenSanctions.Add(sanctions.Current);
+                return Result.Success();
+            });
 
         ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
         users
@@ -212,6 +221,7 @@ public sealed class AutoShoutoutSchedulerTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             registry,
             queue,
+            sanctions,
             guard,
             clock,
             NullLogger<AutoShoutoutScheduler>.Instance
@@ -219,6 +229,7 @@ public sealed class AutoShoutoutSchedulerTests
 
         return new()
         {
+            SeenSanctions = seenSanctions,
             Sut = sut,
             Clock = clock,
             Chat = chat,
@@ -264,6 +275,20 @@ public sealed class AutoShoutoutSchedulerTests
         await rig.TickAtAsync(30);
         rig.Shoutouts.Should().Be(1);
         rig.Announcements.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task An_auto_shoutout_posts_under_the_channel_configuration_sanction()
+    {
+        Rig rig = await BuildAsync();
+        await rig.TickAtAsync(2);
+        await rig.ChatAsync(StreamerA);
+
+        await rig.TickAtAsync(17);
+
+        OutboundSanction? sanction = rig.SeenSanctions.Should().ContainSingle().Subject;
+        sanction!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sanction.Detail.Should().Be("channel:auto-shoutout");
     }
 
     [Fact]
@@ -362,8 +387,6 @@ public sealed class AutoShoutoutSchedulerTests
             new QueuedShoutout(
                 Channel,
                 User("tw-raider"),
-                "hi",
-                true,
                 "tw-mod",
                 true,
                 TimeSpan.FromMinutes(2),

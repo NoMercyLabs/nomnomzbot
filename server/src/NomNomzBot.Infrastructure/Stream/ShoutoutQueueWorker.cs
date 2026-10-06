@@ -8,10 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream;
@@ -23,10 +26,13 @@ namespace NomNomzBot.Infrastructure.Stream;
 /// </summary>
 public sealed class ShoutoutQueueWorker : BackgroundService
 {
-    private const int MaxRetries = 1;
+    private const int MaxAttempts = 20;
+    private const string ShoutoutActionKey = "moderation:shoutout";
+    private const string RaidSanction = "shoutout:raid-or-priority-step";
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
 
     private readonly IShoutoutQueue _queue;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IChannelRegistry _registry;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _timeProvider;
@@ -34,6 +40,7 @@ public sealed class ShoutoutQueueWorker : BackgroundService
 
     public ShoutoutQueueWorker(
         IShoutoutQueue queue,
+        IOutboundSanctionAccessor sanctions,
         IChannelRegistry registry,
         IServiceScopeFactory scopeFactory,
         TimeProvider timeProvider,
@@ -41,6 +48,7 @@ public sealed class ShoutoutQueueWorker : BackgroundService
     )
     {
         _queue = queue;
+        _sanctions = sanctions;
         _registry = registry;
         _scopeFactory = scopeFactory;
         _timeProvider = timeProvider;
@@ -102,9 +110,21 @@ public sealed class ShoutoutQueueWorker : BackgroundService
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
+            // No HTTP request or chat pipeline stands behind a queued run, so it carries its own basis: the
+            // moderator who asked, or the channel's own raid/priority step when no person asked.
+            using IDisposable sanction = _sanctions.Begin(
+                await SanctionForAsync(item, scope.ServiceProvider, cancellationToken)
+            );
             IShoutoutSender sender = scope.ServiceProvider.GetRequiredService<IShoutoutSender>();
             result = await sender.SendAsync(
-                new(item.BroadcasterId, item.Target, item.Announcement, item.Speak, skipNativeCall),
+                new(
+                    item.BroadcasterId,
+                    item.Target,
+                    string.Empty,
+                    Speak: false,
+                    skipNativeCall,
+                    SkipAnnouncement: true
+                ),
                 cancellationToken
             );
         }
@@ -116,15 +136,40 @@ public sealed class ShoutoutQueueWorker : BackgroundService
         if (result.Succeeded)
             return;
 
-        if (item.Attempts >= MaxRetries)
+        // A rate limit or a dropped connection waits out its window and goes again; only a permanent error
+        // (or a run that never succeeds in MaxAttempts passes) drops the item.
+        if (result.Retryable && item.Attempts < MaxAttempts)
         {
-            _logger.LogWarning(
-                "Queued shoutout to {UserId} failed again and is dropped: {Error}",
+            _logger.LogInformation(
+                "Queued shoutout to {UserId} hit a temporary error and waits for the next window: {Error}",
                 item.Target.Id,
                 result.ErrorMessage
             );
+            _queue.Enqueue(item with { Attempts = item.Attempts + 1 });
             return;
         }
-        _queue.Enqueue(item with { Attempts = item.Attempts + 1 });
+        _logger.LogWarning(
+            "Queued shoutout to {UserId} was not delivered and is dropped: {Error}",
+            item.Target.Id,
+            result.ErrorMessage
+        );
+    }
+
+    private static async Task<OutboundSanction> SanctionForAsync(
+        QueuedShoutout item,
+        IServiceProvider services,
+        CancellationToken cancellationToken
+    )
+    {
+        if (item.IsRaid)
+            return OutboundSanction.ChannelConfiguration(RaidSanction);
+
+        IApplicationDbContext db = services.GetRequiredService<IApplicationDbContext>();
+        Guid? actor = await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId == item.TriggeredByUserId)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return OutboundSanction.UserAction(ShoutoutActionKey, actor);
     }
 }

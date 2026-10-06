@@ -314,7 +314,7 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiTtsNamespace {
-                  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. asUser is a login or id: the line then speaks in that user's saved voice instead of the triggering viewer's. Null when TTS refused the line or asUser is unknown. */
+                  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. The line speaks in the bot's own voice unless asUser is set: 'viewer' reads it in the triggering viewer's saved voice, a login or id in that user's saved voice. Null when TTS refused the line or asUser is unknown. */
                   speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number, asUser?: string): NnzApiTtsResult | null;
                   /** Speaks 1 to 20 parts, each in its own voice, as ONE audio clip. Null when a part is invalid or TTS refused the line. */
                   speakSequence(segments: NnzApiTtsSegment[]): NnzApiTtsResult | null;

@@ -631,17 +631,23 @@ public sealed partial class ScriptHostBridge(
         double? ratePercent = ParseOptionalDouble(args, 2);
         double? pitchPercent = ParseOptionalDouble(args, 3);
 
-        // Optional fifth arg: whose saved voice speaks the line (a login or id), e.g. the broadcaster for a
-        // bot-authored line. Absent/blank is the triggering viewer; an unknown name is a typed failure.
+        // Optional fifth arg: whose saved voice reads the line. Absent/blank/"bot" is the bot's own line in the
+        // channel's voice; "viewer"/"user"/"trigger" is the triggering viewer's words; any other value is a
+        // login or id whose saved voice speaks. An unknown name is a typed failure.
         string? speakerTwitchId = triggeringUserId;
-        if (args.Count > 4 && !string.IsNullOrWhiteSpace(args[4]))
+        TtsSpeaker speaker = TtsSpeaker.Bot;
+        string asUser = args.Count > 4 ? args[4].Trim() : string.Empty;
+        if (asUser.ToLowerInvariant() is "viewer" or "user" or "trigger")
+            speaker = TtsSpeaker.Viewer;
+        else if (asUser.Length > 0 && !asUser.Equals("bot", StringComparison.OrdinalIgnoreCase))
         {
-            speakerTwitchId = ResolveViewerPlatformId(args[4], ct);
+            speakerTwitchId = ResolveViewerPlatformId(asUser, ct);
             if (speakerTwitchId is null)
             {
-                Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{args[4]}'.");
+                Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{asUser}'.");
                 return _failureReturn;
             }
+            speaker = TtsSpeaker.Viewer;
         }
 
         // The same shape PlayTtsAction hands the dispatcher: the gate (enabled + caps + censor + voice
@@ -658,7 +664,8 @@ public sealed partial class ScriptHostBridge(
             SourceMessageId: null,
             StreamId: null,
             RatePercent: ratePercent,
-            PitchPercent: pitchPercent
+            PitchPercent: pitchPercent,
+            Speaker: speaker
         );
         return DispatchSpeak(request, ct);
     }

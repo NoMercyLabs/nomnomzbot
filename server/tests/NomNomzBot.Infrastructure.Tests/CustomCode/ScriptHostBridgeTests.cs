@@ -1925,6 +1925,68 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
+    public void Tts_speak_without_asUser_is_the_bots_own_line()
+    {
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+
+        Build(tts: tts)
+            .Resolve("tts.speak")("tts.speak", ["hello chat"], CancellationToken.None)
+            .Should()
+            .NotBeNull();
+
+        seen!.Speaker.Should().Be(TtsSpeaker.Bot);
+    }
+
+    [Theory]
+    [InlineData("bot", TtsSpeaker.Bot)]
+    [InlineData("viewer", TtsSpeaker.Viewer)]
+    [InlineData("user", TtsSpeaker.Viewer)]
+    public void Tts_speak_asUser_keywords_pick_the_bot_or_the_triggering_viewer(
+        string asUser,
+        TtsSpeaker expected
+    )
+    {
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+
+        Build(tts: tts)
+            .Resolve("tts.speak")(
+                "tts.speak",
+                ["hello", "", "", "", asUser],
+                CancellationToken.None
+            )
+            .Should()
+            .NotBeNull();
+
+        seen!.Speaker.Should().Be(expected);
+        seen.RequestedByTwitchUserId.Should().Be(Viewer.ToString());
+    }
+
+    [Fact]
+    public async Task Tts_speak_naming_a_user_reads_the_line_in_that_users_voice()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b2"),
+            "streamer",
+            "777001"
+        );
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+
+        Build(tts: tts, db: db)
+            .Resolve("tts.speak")(
+                "tts.speak",
+                ["hello", "", "", "", "streamer"],
+                CancellationToken.None
+            )
+            .Should()
+            .NotBeNull();
+
+        seen!.Speaker.Should().Be(TtsSpeaker.Viewer);
+    }
+
+    [Fact]
     public async Task Tts_speak_with_an_unknown_speaker_fails_without_dispatching()
     {
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();

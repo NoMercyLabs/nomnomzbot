@@ -178,6 +178,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             request.VoiceIdOverride,
             config,
             request.AssignVoiceIfMissing,
+            request.Speaker,
             ct
         );
         if (string.IsNullOrWhiteSpace(voiceId))
@@ -319,6 +320,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 null,
                 config,
                 request.AssignVoiceIfMissing,
+                request.Speaker,
                 ct
             );
             if (string.IsNullOrWhiteSpace(voiceId))
@@ -955,6 +957,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         Guid broadcasterId,
         string requestedByTwitchUserId,
         string? voiceIdOverride,
+        TtsSpeaker speaker = TtsSpeaker.Bot,
         CancellationToken ct = default
     )
     {
@@ -968,6 +971,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             voiceIdOverride,
             configResult.Value,
             assignVoiceIfMissing: false,
+            speaker,
             ct
         );
         if (string.IsNullOrWhiteSpace(voiceId))
@@ -983,13 +987,14 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string? voiceIdOverride,
         TtsConfigDto config,
         bool assignVoiceIfMissing,
+        TtsSpeaker speaker,
         CancellationToken ct
     )
     {
         if (!string.IsNullOrWhiteSpace(voiceIdOverride))
             return voiceIdOverride;
 
-        if (!string.IsNullOrWhiteSpace(requestedByTwitchUserId))
+        if (speaker == TtsSpeaker.Viewer && !string.IsNullOrWhiteSpace(requestedByTwitchUserId))
         {
             string? userVoice = await _db
                 .UserTtsVoices.Where(v =>

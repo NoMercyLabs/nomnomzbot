@@ -25,7 +25,8 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 /// </summary>
 public sealed class RollTemplateResolverTests
 {
-    private const int Draws = 400;
+    // Enough draws that the widest range (95 step values) misses an end with odds near 1 in 10^9.
+    private const int Draws = 2000;
     private static readonly Guid Channel = Guid.Parse("0192b400-0000-7000-9000-00000000f201");
 
     private readonly TemplateResolver _resolver;

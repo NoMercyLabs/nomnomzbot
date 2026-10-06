@@ -107,17 +107,28 @@ public sealed class ShoutoutSender : IShoutoutSender
 
         // rawUserId is the Twitch id of the channel to shout out. The sub-client resolves this channel's
         // tenant Guid → Twitch id internally and sends the shoutout as its own moderator.
-        Result result = request.SkipNativeCall
-            ? Result.Failure("native shoutout skipped: cooldown active")
-            : await _chat.SendShoutoutAsync(request.BroadcasterId, rawUserId, cancellationToken);
+        Result result =
+            request.SkipNativeCall || request.DeferNative
+                ? Result.Failure("native shoutout skipped: cooldown active")
+                : await _chat.SendShoutoutAsync(
+                    request.BroadcasterId,
+                    rawUserId,
+                    cancellationToken
+                );
 
-        ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
+        // A deferred native call is still waiting in the queue: its run stamps the cooldowns, not this one. A
+        // queued native call that failed stamps nothing either, so its retry is not mistaken for a repeat.
+        bool stamps = !request.DeferNative && !(request.SkipAnnouncement && result.IsFailure);
+        ChannelContext? channelCtx = stamps ? _registry.Get(request.BroadcasterId) : null;
         if (channelCtx is not null)
         {
             DateTimeOffset now = _timeProvider.GetUtcNow();
             channelCtx.LastGlobalShoutout = now;
             channelCtx.LastShoutoutPerUser[rawUserId] = now;
         }
+
+        if (request.SkipAnnouncement)
+            return NativeOnlyOutcome(result, rawUserId);
 
         // The native Helix shoutout carries no visible text and Twitch renders it minimally — post the
         // channel's own custom-templated announcement too (old-bot parity), independent of whether the
@@ -142,10 +153,9 @@ public sealed class ShoutoutSender : IShoutoutSender
 
         // TTS is opt-in per invocation (old-bot parity: manual !so speaks it, an automated
         // presence-detection shoutout stays silent by simply never passing tts:true) and best-effort — a
-        // synthesis/dispatch failure never fails the shoutout itself. Speaks in the SHOUTED-OUT target's
-        // own assigned voice (ResolveVoiceAsync looks up UserTtsVoices by RequestedByTwitchUserId) — old-bot
-        // parity (ShoutoutQueueService.ExecuteShoutoutAsync called SendCachedTts(ttsText, TargetUserId, ...)).
-        // A raid speaks by default (old-bot parity); an explicit tts:false still wins.
+        // synthesis/dispatch failure never fails the shoutout itself. The announcement is the bot's own text, so
+        // it speaks in the channel's one bot voice (the default TtsSpeaker.Bot); the target is only the
+        // attribution on the request, never the voice. A raid speaks by default (old-bot parity); an explicit tts:false still wins.
         if (request.Speak && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
@@ -159,7 +169,8 @@ public sealed class ShoutoutSender : IShoutoutSender
                     BitsAmount: 0,
                     CommunityStanding: "broadcaster",
                     SourceMessageId: null,
-                    StreamId: null
+                    StreamId: null,
+                    Speaker: TtsSpeaker.Bot
                 ),
                 cancellationToken
             );
@@ -182,11 +193,35 @@ public sealed class ShoutoutSender : IShoutoutSender
                 result.ErrorMessage
             );
         if (announceResult.IsFailure)
-            return ActionResult.Failure(
-                $"shoutout sent to {rawUserId} but the announcement failed: {announceResult.ErrorMessage}"
-            );
-        return ActionResult.Success($"shoutout sent to {rawUserId}");
+        {
+            string failure =
+                $"the shoutout announcement for {rawUserId} was not posted: {announceResult.ErrorMessage}";
+            return IsTransient(announceResult.ErrorCode)
+                ? ActionResult.RetryableFailure(failure)
+                : ActionResult.Failure(failure);
+        }
+        return ActionResult.Success(
+            result.IsFailure
+                ? $"shoutout announced for {rawUserId} (native Twitch shoutout not sent)"
+                : $"shoutout sent to {rawUserId}"
+        );
     }
+
+    // The queued run carries only the native call: a rate limit or dropped connection goes back in the queue,
+    // anything else is final (the announcement and TTS went out when the shoutout was asked for).
+    private ActionResult NativeOnlyOutcome(Result native, string rawUserId)
+    {
+        if (native.IsSuccess)
+            return ActionResult.Success($"shoutout sent to {rawUserId}");
+        string failure = $"the native shoutout for {rawUserId} was not sent: {native.ErrorMessage}";
+        return IsTransient(native.ErrorCode)
+            ? ActionResult.RetryableFailure(failure)
+            : ActionResult.Failure(failure);
+    }
+
+    // A rate limit or a dropped connection passes by itself; a missing scope or token never does.
+    private static bool IsTransient(string? errorCode) =>
+        errorCode is TwitchErrorCodes.RateLimited or TwitchErrorCodes.Transport;
 
     /// <summary>Resolves a whole-value <c>{key}</c> reference against the pipeline's variable bag; a value
     /// that isn't wholly wrapped in braces passes through unchanged.</summary>

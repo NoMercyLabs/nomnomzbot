@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -62,6 +63,7 @@ public sealed class ShoutoutAction : ICommandAction
     private const string RaidEventName = "channel.raid";
     private const string FallbackGame = "something awesome";
     private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
+    private const string QueuedFallback = "Shoutout for {target.name} queued.";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
     // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
@@ -73,11 +75,13 @@ public sealed class ShoutoutAction : ICommandAction
 
     private readonly ITwitchUsersApi _users;
     private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchStreamsApi _streams;
     private readonly IChannelRegistry _registry;
     private readonly IShoutoutQueue _queue;
     private readonly IShoutoutSender _sender;
     private readonly ITemplateResolver _templateResolver;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IChatProvider _chat;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
 
@@ -127,22 +131,26 @@ public sealed class ShoutoutAction : ICommandAction
     public ShoutoutAction(
         ITwitchUsersApi users,
         ITwitchChannelsApi channels,
+        ITwitchStreamsApi streams,
         IChannelRegistry registry,
         IShoutoutQueue queue,
         IShoutoutSender sender,
         ITemplateResolver templateResolver,
         IBuiltinResponseComposer composer,
+        IChatProvider chat,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
     {
         _users = users;
         _channels = channels;
+        _streams = streams;
         _registry = registry;
         _queue = queue;
         _sender = sender;
         _templateResolver = templateResolver;
         _composer = composer;
+        _chat = chat;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -237,12 +245,11 @@ public sealed class ShoutoutAction : ICommandAction
                 return ActionResult.Success("skipped (global cooldown)");
             }
 
+            // Only the native Helix call waits: the announcement and TTS go out at once, every time.
             bool added = _queue.Enqueue(
                 new QueuedShoutout(
                     ctx.BroadcasterId,
                     target,
-                    await ComposeAnnouncementAsync(ctx, action, target),
-                    action.GetBool("tts", isRaid),
                     ctx.TriggeredByUserId,
                     isRaid,
                     globalCooldown,
@@ -250,9 +257,26 @@ public sealed class ShoutoutAction : ICommandAction
                     now
                 )
             );
-            return ActionResult.Success(
-                added ? "queued (global cooldown)" : "already queued (global cooldown)"
+            ActionResult announced = await _sender.SendAsync(
+                new(
+                    ctx.BroadcasterId,
+                    target,
+                    await ComposeAnnouncementAsync(ctx, action, target),
+                    action.GetBool("tts", isRaid),
+                    SkipNativeCall: false,
+                    DeferNative: true
+                ),
+                ctx.CancellationToken
             );
+            // Only a chat-triggered shoutout is answered, and only when it really joined the queue: the
+            // viewer who typed !so is told the native shoutout waits, never told so about a doubled one.
+            if (added && !string.IsNullOrEmpty(ctx.MessageId))
+                await PostQueuedNoticeAsync(ctx, target);
+            return announced.Succeeded
+                ? ActionResult.Success(
+                    added ? "queued (global cooldown)" : "already queued (global cooldown)"
+                )
+                : announced;
         }
 
         if (perUserActive && !waits)
@@ -273,15 +297,71 @@ public sealed class ShoutoutAction : ICommandAction
         );
     }
 
-    /// <summary>The target's current Twitch category, or the old bot's "something awesome" when there is none.</summary>
-    private async Task<string> ResolveGameAsync(TwitchUser target, CancellationToken ct)
+    private async Task PostQueuedNoticeAsync(PipelineExecutionContext ctx, TwitchUser target)
     {
+        ShoutoutTemplateSelection selection = await _sender.SelectTemplateAsync(
+            ctx.BroadcasterId,
+            target,
+            string.Empty,
+            ctx.CancellationToken
+        );
+        string text = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = ctx.BroadcasterId,
+                Personality = selection.Personality,
+                BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
+                Slot = BuiltinResponseSlots.Shoutout.Queued,
+                NeutralFallback = QueuedFallback,
+                Variables = new Dictionary<string, string>
+                {
+                    ["target.name"] = target.DisplayName,
+                    ["target.link"] = $"twitch.tv/{target.Login}",
+                },
+            },
+            ctx.CancellationToken
+        );
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            text,
+            ctx.CancellationToken
+        );
+    }
+
+    private readonly record struct TargetState(string Game, string Title, bool IsLive);
+
+    /// <summary>
+    /// The target's own game, title and live state. A live target answers from one streams lookup; an offline
+    /// one (or a failed lookup) falls back to its channel information. No category gives the old bot's
+    /// "something awesome".
+    /// </summary>
+    private async Task<TargetState> ResolveTargetStateAsync(TwitchUser target, CancellationToken ct)
+    {
+        Result<TwitchPage<TwitchStream>> streams = await _streams.GetStreamsAsync(
+            new(UserIds: [target.Id]),
+            new(PageSize: 1),
+            ct
+        );
+        TwitchStream? live = streams.IsSuccess
+            ? streams.Value.Items.FirstOrDefault(s => s.UserId == target.Id)
+            : null;
+        if (live is not null)
+            return new(
+                string.IsNullOrWhiteSpace(live.GameName) ? FallbackGame : live.GameName,
+                live.Title,
+                true
+            );
+
         Result<IReadOnlyList<TwitchChannelInformation>> lookup =
             await _channels.GetChannelInformationByTwitchIdsAsync([target.Id], ct);
-        string? game = lookup.IsSuccess
-            ? lookup.Value.FirstOrDefault(c => c.BroadcasterId == target.Id)?.GameName
+        TwitchChannelInformation? info = lookup.IsSuccess
+            ? lookup.Value.FirstOrDefault(c => c.BroadcasterId == target.Id)
             : null;
-        return string.IsNullOrWhiteSpace(game) ? FallbackGame : game;
+        return new(
+            string.IsNullOrWhiteSpace(info?.GameName) ? FallbackGame : info.GameName,
+            info?.Title ?? string.Empty,
+            false
+        );
     }
 
     private async Task<string> ComposeAnnouncementAsync(
@@ -300,13 +380,19 @@ public sealed class ShoutoutAction : ICommandAction
             templateOverride,
             ctx.CancellationToken
         );
+        TargetState state = await ResolveTargetStateAsync(target, ctx.CancellationToken);
         Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
         {
             ["target"] = target.Login,
             ["target.id"] = target.Id,
             ["target.name"] = target.DisplayName,
             ["target.link"] = $"twitch.tv/{target.Login}",
-            ["target.game"] = await ResolveGameAsync(target, ctx.CancellationToken),
+            ["target.game"] = state.Game,
+            ["target.title"] = state.Title,
+            ["target.isLive"] = state.IsLive ? "true" : "false",
+            ["game"] = state.Game,
+            ["title"] = state.Title,
+            ["status"] = state.IsLive ? "live" : "offline",
         };
         if (selection.Template is null)
             return await _composer.ComposeAsync(

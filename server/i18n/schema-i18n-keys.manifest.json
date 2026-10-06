@@ -284,6 +284,8 @@
     "builtin.reply.reward.nopermission.label",
     "builtin.reply.shoutout.announcement.description",
     "builtin.reply.shoutout.announcement.label",
+    "builtin.reply.shoutout.queued.description",
+    "builtin.reply.shoutout.queued.label",
     "builtin.reply.skip.failed.description",
     "builtin.reply.skip.failed.label",
     "builtin.reply.skip.noprovider.description",

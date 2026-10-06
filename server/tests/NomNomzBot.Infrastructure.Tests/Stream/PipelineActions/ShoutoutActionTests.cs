@@ -504,7 +504,7 @@ public sealed class ShoutoutActionTests
         await chat.Received(1).SendShoutoutAsync(Channel, "123456", Arg.Any<CancellationToken>());
         // ...but the reported outcome is truthful: nothing claims success when the announcement failed.
         result.Succeeded.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("announcement failed");
+        result.ErrorMessage.Should().Contain("was not posted");
     }
 
     [Fact]
@@ -574,14 +574,14 @@ public sealed class ShoutoutActionTests
                 },
             }
         );
-        // Speaks in the SHOUTED-OUT target's own voice (old-bot parity), not the broadcaster's — a
-        // regression that silently collapsed every shoutout onto one voice, losing the per-target variety
-        // configured through UserTtsVoices.
+        // The bot gives the shoutout, so the line speaks in the bot's voice. The target is attribution
+        // only (RequestedByTwitchUserId), never the voice.
         await tts.Received(1)
             .RequestSpeakAsync(
                 Arg.Is<TtsSpeakRequest>(r =>
                     r.RequestedByTwitchUserId == "123456"
                     && r.RequestedByDisplayName == "numerictarget"
+                    && r.Speaker == TtsSpeaker.Bot
                 ),
                 Arg.Any<CancellationToken>()
             );
