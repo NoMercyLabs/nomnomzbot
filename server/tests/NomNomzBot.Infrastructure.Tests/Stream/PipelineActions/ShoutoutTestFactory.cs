@@ -15,10 +15,13 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -38,7 +41,8 @@ internal static class ShoutoutTestFactory
         ITtsDispatchService tts,
         TimeProvider time,
         IShoutoutQueue? queue = null,
-        ITwitchChannelsApi? channels = null
+        ITwitchChannelsApi? channels = null,
+        IChatProvider? botChat = null
     ) =>
         new(
             users,
@@ -48,6 +52,7 @@ internal static class ShoutoutTestFactory
             Sender(chat, registry, db, tts, time),
             resolver,
             Composer(resolver),
+            botChat ?? Substitute.For<IChatProvider>(),
             time,
             NullLogger<ShoutoutAction>.Instance
         );
@@ -96,14 +101,17 @@ internal static class ShoutoutTestFactory
         IChannelRegistry registry,
         IApplicationDbContext db,
         ITtsDispatchService tts,
-        TimeProvider time
+        TimeProvider time,
+        IOutboundSanctionAccessor? sanctions = null
     )
     {
         ServiceCollection services = new();
         services.AddScoped<IShoutoutSender>(_ => Sender(chat, registry, db, tts, time));
+        services.AddSingleton<IApplicationDbContext>(db);
         ServiceProvider provider = services.BuildServiceProvider();
         return new(
             queue,
+            sanctions ?? new OutboundSanctionAccessor(),
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             time,

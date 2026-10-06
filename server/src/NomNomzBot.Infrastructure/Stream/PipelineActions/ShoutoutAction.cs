@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -62,6 +63,7 @@ public sealed class ShoutoutAction : ICommandAction
     private const string RaidEventName = "channel.raid";
     private const string FallbackGame = "something awesome";
     private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
+    private const string QueuedFallback = "Shoutout for {target.name} queued.";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
     // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
@@ -78,6 +80,7 @@ public sealed class ShoutoutAction : ICommandAction
     private readonly IShoutoutSender _sender;
     private readonly ITemplateResolver _templateResolver;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IChatProvider _chat;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
 
@@ -132,6 +135,7 @@ public sealed class ShoutoutAction : ICommandAction
         IShoutoutSender sender,
         ITemplateResolver templateResolver,
         IBuiltinResponseComposer composer,
+        IChatProvider chat,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
@@ -143,6 +147,7 @@ public sealed class ShoutoutAction : ICommandAction
         _sender = sender;
         _templateResolver = templateResolver;
         _composer = composer;
+        _chat = chat;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -250,6 +255,10 @@ public sealed class ShoutoutAction : ICommandAction
                     now
                 )
             );
+            // Only a chat-triggered shoutout is answered, and only when it really joined the queue: the
+            // viewer who typed !so is told it waits, never told so about one that was dropped or doubled.
+            if (added && !string.IsNullOrEmpty(ctx.MessageId))
+                await PostQueuedNoticeAsync(ctx, target);
             return ActionResult.Success(
                 added ? "queued (global cooldown)" : "already queued (global cooldown)"
             );
@@ -269,6 +278,37 @@ public sealed class ShoutoutAction : ICommandAction
                 action.GetBool("tts", isRaid),
                 perUserActive
             ),
+            ctx.CancellationToken
+        );
+    }
+
+    private async Task PostQueuedNoticeAsync(PipelineExecutionContext ctx, TwitchUser target)
+    {
+        ShoutoutTemplateSelection selection = await _sender.SelectTemplateAsync(
+            ctx.BroadcasterId,
+            target,
+            string.Empty,
+            ctx.CancellationToken
+        );
+        string text = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = ctx.BroadcasterId,
+                Personality = selection.Personality,
+                BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
+                Slot = BuiltinResponseSlots.Shoutout.Queued,
+                NeutralFallback = QueuedFallback,
+                Variables = new Dictionary<string, string>
+                {
+                    ["target.name"] = target.DisplayName,
+                    ["target.link"] = $"twitch.tv/{target.Login}",
+                },
+            },
+            ctx.CancellationToken
+        );
+        ctx.RepliedToChat |= await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            text,
             ctx.CancellationToken
         );
     }

@@ -14,9 +14,12 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -33,6 +36,7 @@ public sealed class ShoutoutQueueTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000b302");
     private static readonly TimeSpan GlobalCooldown = TimeSpan.FromMinutes(2);
+    private static readonly Guid Moderator = Guid.Parse("0192a000-0000-7000-8000-00000000b3a1");
     private const string ManualId = "111001";
     private const string RaiderId = "222002";
 
@@ -42,6 +46,8 @@ public sealed class ShoutoutQueueTests
         public required ShoutoutQueueWorker Worker { get; init; }
         public required ShoutoutQueue Queue { get; init; }
         public required ITwitchChatApi Chat { get; init; }
+        public required IChatProvider BotChat { get; init; }
+        public required List<OutboundSanction?> SeenSanctions { get; init; }
         public required ITtsDispatchService Tts { get; init; }
         public required ChannelContext ChannelCtx { get; init; }
         public required FakeTimeProvider Clock { get; init; }
@@ -67,6 +73,8 @@ public sealed class ShoutoutQueueTests
     {
         FakeTimeProvider clock = new(new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero));
 
+        OutboundSanctionAccessor sanctions = new();
+        List<OutboundSanction?> seenSanctions = [];
         ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
         chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
@@ -76,7 +84,15 @@ public sealed class ShoutoutQueueTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success());
+            .Returns(_ =>
+            {
+                seenSanctions.Add(sanctions.Current);
+                return Result.Success();
+            });
+        IChatProvider botChat = Substitute.For<IChatProvider>();
+        botChat
+            .SendMessageAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
         users
@@ -121,6 +137,16 @@ public sealed class ShoutoutQueueTests
                 OwnerUserId = Guid.NewGuid(),
             }
         );
+        db.Users.Add(
+            new()
+            {
+                Id = Moderator,
+                TwitchUserId = "viewer-1",
+                Username = "viewer",
+                UsernameNormalized = "viewer",
+                DisplayName = "viewer",
+            }
+        );
         await db.SaveChangesAsync();
 
         ChannelContext channelCtx = new()
@@ -143,9 +169,12 @@ public sealed class ShoutoutQueueTests
                 resolver,
                 tts,
                 clock,
-                queue
+                queue,
+                botChat: botChat
             ),
-            Worker = ShoutoutTestFactory.Worker(queue, chat, registry, db, tts, clock),
+            Worker = ShoutoutTestFactory.Worker(queue, chat, registry, db, tts, clock, sanctions),
+            BotChat = botChat,
+            SeenSanctions = seenSanctions,
             Queue = queue,
             Chat = chat,
             Tts = tts,
@@ -495,7 +524,7 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_queued_run_whose_announcement_fails_goes_back_once_and_is_then_dropped()
+    public async Task A_queued_run_whose_announcement_fails_for_good_is_dropped_without_a_retry()
     {
         Rig rig = await BuildAsync();
         rig.Chat.SendAnnouncementAsync(
@@ -504,13 +533,9 @@ public sealed class ShoutoutQueueTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Failure("missing scope"));
+            .Returns(Result.Failure("missing scope", TwitchErrorCodes.MissingScope));
         StampGlobalCooldown(rig);
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
-
-        rig.Clock.Advance(GlobalCooldown);
-        await rig.Worker.ProcessDueAsync(CancellationToken.None);
-        rig.Queue.Peek(Channel)!.Attempts.Should().Be(1);
 
         rig.Clock.Advance(GlobalCooldown);
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
@@ -519,12 +544,107 @@ public sealed class ShoutoutQueueTests
         rig.Clock.Advance(GlobalCooldown);
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
         await rig
-            .Chat.Received(2)
+            .Chat.Received(1)
             .SendAnnouncementAsync(
                 Channel,
                 Line(ManualId),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_queued_run_that_hits_a_rate_limit_waits_and_is_sent_when_the_window_opens()
+    {
+        Rig rig = await BuildAsync();
+        int calls = 0;
+        rig.Chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ =>
+                ++calls <= 3
+                    ? Result.Failure("429", TwitchErrorCodes.RateLimited)
+                    : Result.Success()
+            );
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        for (int pass = 0; pass < 4; pass++)
+        {
+            rig.Clock.Advance(GlobalCooldown);
+            await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        }
+
+        calls.Should().Be(4);
+        rig.Queue.Peek(Channel).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_queued_manual_shoutout_is_sent_under_a_user_action_sanction_naming_the_requester()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        OutboundSanction? sanction = rig.SeenSanctions.Should().ContainSingle().Subject;
+        sanction!.Basis.Should().Be(OutboundSanctionBasis.UserAction);
+        sanction.Detail.Should().Be("moderation:shoutout");
+        sanction.ActorUserId.Should().Be(Moderator);
+    }
+
+    [Fact]
+    public async Task A_queued_raid_shoutout_is_sent_under_a_channel_configuration_sanction()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        rig.SeenSanctions.Should()
+            .ContainSingle()
+            .Which!.Basis.Should()
+            .Be(OutboundSanctionBasis.ChannelConfiguration);
+    }
+
+    [Fact]
+    public async Task A_manual_shoutout_that_must_queue_posts_a_queued_reply_once_and_a_raid_posts_none()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+
+        PipelineExecutionContext manual = Manual();
+        await rig.Action.ExecuteAsync(manual, Step(ManualId));
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
+
+        await rig
+            .BotChat.Received(1)
+            .SendMessageAsync(
+                Channel,
+                $"Shoutout for Name{ManualId} queued.",
+                Arg.Any<CancellationToken>()
+            );
+        await rig
+            .BotChat.DidNotReceive()
+            .SendMessageAsync(Channel, Arg.Is<string>(t => t.Contains(RaiderId)), default);
+        manual.RepliedToChat.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_shoutout_sent_immediately_posts_no_queued_reply()
+    {
+        Rig rig = await BuildAsync();
+
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
     }
 }

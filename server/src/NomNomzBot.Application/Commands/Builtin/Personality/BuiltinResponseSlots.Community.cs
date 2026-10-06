@@ -54,6 +54,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The chat announcement; <c>{target.name}</c>, <c>{target.link}</c> and <c>{target.game}</c> are set.</summary>
         public const string Announcement = "announcement";
+
+        /// <summary>The chat reply to a shoutout that waits for Twitch's cooldown; <c>{target.name}</c> is set.</summary>
+        public const string Queued = "queued";
     }
 
     /// <summary><c>!quote</c> — the quote library in chat (quotes.md section 4).</summary>

@@ -76,7 +76,25 @@ public static partial class ToneTemplateCatalog
 
     // ── shoutout / announcement — the line posted when no custom shoutout template is set anywhere ──
     // The sassy pool is the old bot's SnarkyShoutoutReplies, mapped onto this catalogue's variables.
-    private static void AddShoutoutSlots(Dictionary<(string, string), SlotEntry> catalog) =>
+    private static void AddShoutoutSlots(Dictionary<(string, string), SlotEntry> catalog)
+    {
+        Add(
+            catalog,
+            BuiltinResponseSlots.Shoutout.Key,
+            BuiltinResponseSlots.Shoutout.Queued,
+            variables: ["target.name", "target.link"],
+            informative: ["Shoutout for {target.name} queued."],
+            friendly: ["Your shoutout for {target.name} is queued, it goes out in a moment!"],
+            sassy: ["Shoutout for {target.name} queued. Twitch makes us wait, don't look at me."],
+            hype: ["SHOUTOUT FOR {target.name} QUEUED! IT IS COMING!"],
+            chill: ["shoutout for {target.name} is queued, it'll go out soon."]
+        );
+        AddShoutoutAnnouncementSlot(catalog);
+    }
+
+    private static void AddShoutoutAnnouncementSlot(
+        Dictionary<(string, string), SlotEntry> catalog
+    ) =>
         Add(
             catalog,
             BuiltinResponseSlots.Shoutout.Key,

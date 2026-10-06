@@ -187,11 +187,23 @@ public sealed class ShoutoutSender : IShoutoutSender
                 result.ErrorMessage
             );
         if (announceResult.IsFailure)
-            return ActionResult.Failure(
-                $"shoutout sent to {rawUserId} but the announcement failed: {announceResult.ErrorMessage}"
-            );
-        return ActionResult.Success($"shoutout sent to {rawUserId}");
+        {
+            string failure =
+                $"the shoutout announcement for {rawUserId} was not posted: {announceResult.ErrorMessage}";
+            return IsTransient(announceResult.ErrorCode)
+                ? ActionResult.RetryableFailure(failure)
+                : ActionResult.Failure(failure);
+        }
+        return ActionResult.Success(
+            result.IsFailure
+                ? $"shoutout announced for {rawUserId} (native Twitch shoutout not sent)"
+                : $"shoutout sent to {rawUserId}"
+        );
     }
+
+    // A rate limit or a dropped connection passes by itself; a missing scope or token never does.
+    private static bool IsTransient(string? errorCode) =>
+        errorCode is TwitchErrorCodes.RateLimited or TwitchErrorCodes.Transport;
 
     /// <summary>Resolves a whole-value <c>{key}</c> reference against the pipeline's variable bag; a value
     /// that isn't wholly wrapped in braces passes through unchanged.</summary>

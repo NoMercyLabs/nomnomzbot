@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Contracts.Chat;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -30,6 +31,7 @@ namespace NomNomzBot.Infrastructure.Stream.AutoShoutout;
 public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
 {
     private const string ShoutoutActionType = "shoutout";
+    private const string AutoShoutoutSanction = "channel:auto-shoutout";
 
     private static readonly TimeSpan MinStreamAge = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan ChatDelay = TimeSpan.FromMinutes(5);
@@ -42,6 +44,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly IShoutoutQueue _queue;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IBotSelfEchoGuard _botGuard;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutoShoutoutScheduler> _logger;
@@ -50,6 +53,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
         IShoutoutQueue queue,
+        IOutboundSanctionAccessor sanctions,
         IBotSelfEchoGuard botGuard,
         TimeProvider timeProvider,
         ILogger<AutoShoutoutScheduler> logger
@@ -58,6 +62,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
         _scopeFactory = scopeFactory;
         _registry = registry;
         _queue = queue;
+        _sanctions = sanctions;
         _botGuard = botGuard;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -253,6 +258,11 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
                 },
             };
 
+            // No chat message or request stands behind an auto shoutout; the channel's own saved
+            // auto-shoutout setting is the basis, and it is what a broadcaster is pointed to.
+            using IDisposable sanction = _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration(AutoShoutoutSanction)
+            );
             ActionResult result = await action.ExecuteAsync(context, definition);
             if (!result.Succeeded)
                 _logger.LogWarning(

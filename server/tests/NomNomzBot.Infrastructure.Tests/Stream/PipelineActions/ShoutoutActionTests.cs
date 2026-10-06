@@ -600,7 +600,7 @@ public sealed class ShoutoutActionTests
         await chat.Received(1).SendShoutoutAsync(Channel, "123456", Arg.Any<CancellationToken>());
         // ...but the reported outcome is truthful: nothing claims success when the announcement failed.
         result.Succeeded.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("announcement failed");
+        result.ErrorMessage.Should().Contain("was not posted");
     }
 
     [Fact]
