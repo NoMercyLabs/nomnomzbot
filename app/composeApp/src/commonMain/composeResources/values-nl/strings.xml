@@ -5195,6 +5195,7 @@
     <string name="template_helper_obs_event_field">Een veld uit de eigen payload van de OBS-gebeurtenis (bijv. {obs.event.sceneName})</string>
     <string name="template_helper_vts_event_field">Een veld uit de eigen payload van de VTube Studio-gebeurtenis (bijv. {vts.event.modelName})</string>
     <string name="template_helper_args">Commando-argument N (bijv. {args.1} is het eerste woord na het commando)</string>
+    <string name="template_helper_args_all">Alles wat na het commando is getypt, als een tekst</string>
     <string name="template_helper_botname">De weergavenaam van de bot</string>
     <string name="template_helper_broadcaster">De weergavenaam van de streamer (stream.online/.offline en de Discord go-live seed-alias)</string>
     <string name="template_helper_channel">De inlognaam van het kanaal</string>
