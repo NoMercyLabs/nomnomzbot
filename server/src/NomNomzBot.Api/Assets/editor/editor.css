@@ -868,9 +868,11 @@ body {
 }
 
 .fire-label {
+    flex-shrink: 0;
     align-self: center;
     font-size: 11px;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .fire-btn {
@@ -883,8 +885,13 @@ body {
     cursor: pointer;
 }
 
-.fire-btn:hover {
+.fire-btn:hover:not(:disabled) {
     border-color: #454545;
+}
+
+.fire-bar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .preview-log {
