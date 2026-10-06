@@ -156,10 +156,22 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
     }
 
     private static string DecodeLeet(string token) =>
-        LeetRun.Replace(
-            token,
-            run => run.Value.All(Leet.ContainsKey) ? Decode(run.Value) : run.Value
-        );
+        LeetRun.Replace(token, run => DecodeRun(token, run));
+
+    // "Player1Gamer": a lowercase letter before the run and a capital after it is a word break, not
+    // leetspeak. A run between two capitals ("L33T") decodes in capitals.
+    private static string DecodeRun(string token, Match run)
+    {
+        char before = token[run.Index - 1];
+        char after = token[run.Index + run.Length];
+        if (!run.Value.All(Leet.ContainsKey) || (char.IsLower(before) && char.IsUpper(after)))
+            return run.Value;
+
+        string decoded = Decode(run.Value);
+        return char.IsUpper(before) && char.IsUpper(after)
+            ? decoded.ToUpperInvariant()
+            : decoded;
+    }
 
     private static string Decode(string run)
     {
