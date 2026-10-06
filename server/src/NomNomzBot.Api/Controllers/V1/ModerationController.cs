@@ -718,12 +718,12 @@ public class ModerationController : BaseController
     ) => GetHistory(channelId, request, userId, null, null, null, ct);
 
     /// <summary>
-    /// Adds a manual, non-enforcement note to a person's moderation history — a moderator leaving context with
-    /// no matching Twitch action (<see cref="Domain.Moderation.Entities.ModerationHistoryEntryKinds.Note"/>).
+    /// Adds a manual, non-enforcement note about a person — a moderator leaving context with no matching Twitch
+    /// action. It lands in the shared user-note store (the notes <c>users/{userId}/notes</c> lists).
     /// </summary>
     [RequireAction("moderation:history:write")]
     [HttpPost("history/{userId:guid}/notes")]
-    [ProducesResponseType<StatusResponseDto<ModerationHistoryEntryDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<UserNoteDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> AddHistoryNote(
         string channelId,
         Guid userId,
@@ -736,7 +736,7 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(_currentUser.UserId, out Guid moderatorUserId))
             return UnauthenticatedResponse();
 
-        Result<ModerationHistoryEntryDto> result = await _history.AddNoteAsync(
+        Result<UserNoteDto> result = await _history.AddNoteAsync(
             broadcasterId,
             userId,
             moderatorUserId,
@@ -746,7 +746,7 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
 
-        return Ok(new StatusResponseDto<ModerationHistoryEntryDto> { Data = result.Value });
+        return Ok(new StatusResponseDto<UserNoteDto> { Data = result.Value });
     }
 
     public record AddModerationNoteRequest(string Note);

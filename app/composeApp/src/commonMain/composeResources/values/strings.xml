@@ -3472,6 +3472,7 @@
     <string name="community_profile_history_empty">No history entries yet.</string>
     <string name="community_profile_history_load_more">Load more</string>
     <string name="community_profile_history_note_label">Add a note</string>
+    <string name="community_profile_notes_heading">Notes</string>
     <string name="community_profile_history_note_placeholder">Context for other moderators…</string>
     <string name="community_profile_history_add_note">Add note</string>
     <string name="community_profile_activity_section">Chat &amp; watch activity</string>

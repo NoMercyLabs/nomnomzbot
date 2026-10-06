@@ -19,11 +19,14 @@ using NomNomzBot.Domain.Moderation.Entities;
 namespace NomNomzBot.Infrastructure.Moderation;
 
 /// <summary>
-/// The read + manual-note implementation of <see cref="IModerationHistoryService"/> over the queryable
-/// <see cref="ModerationHistoryEntry"/> log.
+/// The read + manual-note implementation of <see cref="IModerationHistoryService"/>: reads the queryable
+/// <see cref="ModerationHistoryEntry"/> log; a manual note is written through the one surviving note store
+/// (<see cref="IModerationService.AddUserNoteAsync"/>), never as a history row.
 /// </summary>
-public sealed class ModerationHistoryService(IApplicationDbContext db, TimeProvider clock)
-    : IModerationHistoryService
+public sealed class ModerationHistoryService(
+    IApplicationDbContext db,
+    IModerationService moderation
+) : IModerationHistoryService
 {
     public async Task<Result<PagedList<ModerationHistoryEntryDto>>> GetHistoryAsync(
         Guid broadcasterId,
@@ -77,7 +80,7 @@ public sealed class ModerationHistoryService(IApplicationDbContext db, TimeProvi
         );
     }
 
-    public async Task<Result<ModerationHistoryEntryDto>> AddNoteAsync(
+    public async Task<Result<UserNoteDto>> AddNoteAsync(
         Guid broadcasterId,
         Guid subjectUserId,
         Guid moderatorUserId,
@@ -86,44 +89,18 @@ public sealed class ModerationHistoryService(IApplicationDbContext db, TimeProvi
     )
     {
         if (string.IsNullOrWhiteSpace(note))
-            return Errors
-                .ValidationFailed("A moderation note needs text.")
-                .ToTyped<ModerationHistoryEntryDto>();
+            return Errors.ValidationFailed("A moderation note needs text.").ToTyped<UserNoteDto>();
 
         User? subject = await db.Users.FirstOrDefaultAsync(u => u.Id == subjectUserId, ct);
         if (subject?.TwitchUserId is null)
-            return Errors.NotFound<ModerationHistoryEntryDto>("User", subjectUserId.ToString());
+            return Errors.NotFound<UserNoteDto>("User", subjectUserId.ToString());
 
-        User? moderator = await db.Users.FirstOrDefaultAsync(u => u.Id == moderatorUserId, ct);
-
-        ModerationHistoryEntry entry = new()
-        {
-            BroadcasterId = broadcasterId,
-            SubjectUserId = subjectUserId,
-            SubjectTwitchUserId = subject.TwitchUserId,
-            ActionType = ModerationHistoryEntryKinds.Note,
-            ModeratorUserId = moderatorUserId,
-            ModeratorTwitchUserId = moderator?.TwitchUserId,
-            ModeratorDisplayName = moderator?.DisplayName ?? moderator?.Username,
-            Reason = note.Length > 500 ? note[..500] : note,
-            OccurredAt = clock.GetUtcNow().UtcDateTime,
-        };
-
-        db.ModerationHistoryEntries.Add(entry);
-        await db.SaveChangesAsync(ct);
-
-        return Result.Success(
-            new ModerationHistoryEntryDto(
-                entry.Id,
-                entry.SubjectUserId,
-                entry.SubjectTwitchUserId,
-                entry.ActionType,
-                entry.ModeratorUserId,
-                entry.ModeratorDisplayName,
-                entry.Reason,
-                entry.DurationSeconds,
-                entry.OccurredAt
-            )
+        return await moderation.AddUserNoteAsync(
+            broadcasterId.ToString(),
+            subject.TwitchUserId,
+            new CreateUserNoteRequest { Content = note },
+            moderatorUserId.ToString(),
+            ct
         );
     }
 }

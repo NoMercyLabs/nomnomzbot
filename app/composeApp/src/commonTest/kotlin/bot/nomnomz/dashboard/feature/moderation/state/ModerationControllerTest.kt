@@ -1413,15 +1413,14 @@ internal class FakeModerationApi(
         return historyPageResult
     }
 
-    var addHistoryNoteResult: ApiResult<ModerationHistoryEntry> =
-        ApiResult.Ok(ModerationHistoryEntry())
+    var addHistoryNoteResult: ApiResult<UserNote> = ApiResult.Ok(UserNote())
     val addedHistoryNotes: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun addHistoryNote(
         channelId: String,
         userId: String,
         note: String,
-    ): ApiResult<ModerationHistoryEntry> {
+    ): ApiResult<UserNote> {
         addedHistoryNotes.add(userId to note)
         return addHistoryNoteResult
     }

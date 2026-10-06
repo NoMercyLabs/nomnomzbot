@@ -43,6 +43,7 @@ import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
+import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
@@ -1301,7 +1302,7 @@ private class FakeModerationApi : ModerationApi {
     override suspend fun deleteNote(channelId: String, noteId: String) = error("stub")
     override suspend fun historyForUser(channelId: String, userId: String, page: Int, pageSize: Int) =
         error("stub")
-    override suspend fun addHistoryNote(channelId: String, userId: String, note: String) = error("stub")
+    override suspend fun addHistoryNote(channelId: String, userId: String, note: String): ApiResult<UserNote> = error("stub")
     override suspend fun announce(channelId: String, message: String, color: String?) = error("stub")
     override suspend fun warn(channelId: String, userId: String, reason: String) = error("stub")
     override suspend fun setSuspicious(channelId: String, userId: String, status: String) = error("stub")

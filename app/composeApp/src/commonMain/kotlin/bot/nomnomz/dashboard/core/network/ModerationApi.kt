@@ -202,11 +202,11 @@ interface ModerationApi {
     ): ApiResult<ModerationHistoryPage>
 
     /**
-     * Adds a manual, non-enforcement note to [userId]'s moderation history — a moderator leaving context with no
-     * matching Twitch action (`POST /moderation/history/{userId}/notes`). Distinct from [createNote]/[UserNote]
-     * (the mod-team's free-text notes list): this lands as a dated row IN the history log itself.
+     * Adds a note to [userId] from their moderation history (`POST /moderation/history/{userId}/notes`). It is
+     * stored in the one shared notes store — the same list [notesFor] reads — and returns the created
+     * [UserNote]; it does NOT appear as a row in the history log.
      */
-    suspend fun addHistoryNote(channelId: String, userId: String, note: String): ApiResult<ModerationHistoryEntry>
+    suspend fun addHistoryNote(channelId: String, userId: String, note: String): ApiResult<UserNote>
 
     /**
      * Send a chat announcement to [channelId]. [color] is one of `"blue"`, `"green"`, `"orange"`, `"purple"`,
@@ -589,7 +589,7 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         channelId: String,
         userId: String,
         note: String,
-    ): ApiResult<ModerationHistoryEntry> =
+    ): ApiResult<UserNote> =
         client.postEnvelope(
             "api/v1/channels/$channelId/moderation/history/${userId.encodeURLPathPart()}/notes",
             AddHistoryNoteBody(note = note),

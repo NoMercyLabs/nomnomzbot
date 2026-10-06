@@ -31,11 +31,11 @@ public interface IModerationHistoryService
     );
 
     /// <summary>
-    /// Appends a manual, non-enforcement note (<see cref="Domain.Moderation.Entities.ModerationHistoryEntryKinds.Note"/>)
-    /// to a subject's history — a moderator leaving context with no matching Twitch action. NOT_FOUND if the
-    /// subject has no local <c>User</c> row.
+    /// Adds a manual, non-enforcement note about a subject — a moderator leaving context with no matching
+    /// Twitch action. It is written to the shared user-note store (author, date, pin), not to the history log.
+    /// NOT_FOUND if the subject has no local <c>User</c> row.
     /// </summary>
-    Task<Result<ModerationHistoryEntryDto>> AddNoteAsync(
+    Task<Result<UserNoteDto>> AddNoteAsync(
         Guid broadcasterId,
         Guid subjectUserId,
         Guid moderatorUserId,
