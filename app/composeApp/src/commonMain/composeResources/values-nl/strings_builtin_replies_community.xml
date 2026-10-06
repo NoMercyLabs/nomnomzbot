@@ -94,6 +94,12 @@
     <string name="builtin_reply_voice_setusage_description">Iemand stelt een stem in zonder naam.</string>
     <string name="builtin_reply_voice_usage_label">Uitleg stemcommando</string>
     <string name="builtin_reply_voice_usage_description">Iemand typt het stemcommando zonder iets erachter.</string>
+    <string name="builtin_reply_voice_setfor_label">Stem ingesteld voor een kijker</string>
+    <string name="builtin_reply_voice_setfor_description">Een moderator stelt de stem van een andere kijker in.</string>
+    <string name="builtin_reply_voice_ownvoiceonly_label">Alleen eigen stem</string>
+    <string name="builtin_reply_voice_ownvoiceonly_description">Een kijker probeert de stem van iemand anders in te stellen, wat alleen moderators mogen.</string>
+    <string name="builtin_reply_voice_unknownviewer_label">Onbekende kijker</string>
+    <string name="builtin_reply_voice_unknownviewer_description">Een moderator noemt een kijker die de bot niet kent.</string>
     <string name="builtin_reply_voice_unknowncommand_label">Onbekend stemcommando</string>
     <string name="builtin_reply_voice_unknowncommand_description">Iemand typt een woord dat geen stemcommando is en bij geen enkele stem past.</string>
     <string name="builtin_reply_voice_novoicesforroulette_label">Geen stemmen voor roulette</string>
@@ -231,6 +237,7 @@
     <string name="builtin_reply_var_voice_list">De namen van de stemmen</string>
     <string name="builtin_reply_var_voice_languages">De talen met hun codes</string>
     <string name="builtin_reply_var_voice_more">Hoeveel stemmen niet getoond zijn</string>
+    <string name="builtin_reply_var_viewer">De kijker van wie de stem is ingesteld</string>
     <string name="builtin_reply_var_media_title">De titel van de clip of video</string>
     <string name="builtin_reply_var_permit_role">De rol</string>
     <string name="builtin_reply_var_permit_capability">Het recht of de rol die is genoemd</string>

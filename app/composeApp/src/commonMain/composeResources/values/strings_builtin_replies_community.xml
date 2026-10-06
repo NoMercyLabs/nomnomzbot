@@ -94,6 +94,12 @@
     <string name="builtin_reply_voice_setusage_description">Someone sets a voice without a name.</string>
     <string name="builtin_reply_voice_usage_label">Voice help</string>
     <string name="builtin_reply_voice_usage_description">Someone types the voice command with nothing after it.</string>
+    <string name="builtin_reply_voice_setfor_label">Voice set for a viewer</string>
+    <string name="builtin_reply_voice_setfor_description">A moderator sets the voice of another viewer.</string>
+    <string name="builtin_reply_voice_ownvoiceonly_label">Own voice only</string>
+    <string name="builtin_reply_voice_ownvoiceonly_description">A viewer tries to set the voice of someone else, which only moderators may do.</string>
+    <string name="builtin_reply_voice_unknownviewer_label">Unknown viewer</string>
+    <string name="builtin_reply_voice_unknownviewer_description">A moderator names a viewer the bot does not know.</string>
     <string name="builtin_reply_voice_unknowncommand_label">Unknown voice command</string>
     <string name="builtin_reply_voice_unknowncommand_description">Someone types a word that is no voice command and matches no voice.</string>
     <string name="builtin_reply_voice_novoicesforroulette_label">No voices for roulette</string>
@@ -231,6 +237,7 @@
     <string name="builtin_reply_var_voice_list">The voice names</string>
     <string name="builtin_reply_var_voice_languages">The languages with their codes</string>
     <string name="builtin_reply_var_voice_more">How many voices are not shown</string>
+    <string name="builtin_reply_var_viewer">The viewer whose voice was set</string>
     <string name="builtin_reply_var_media_title">The clip or video title</string>
     <string name="builtin_reply_var_permit_role">The role</string>
     <string name="builtin_reply_var_permit_capability">The right or role that was named</string>

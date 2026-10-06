@@ -168,9 +168,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
             return run.Value;
 
         string decoded = Decode(run.Value);
-        return char.IsUpper(before) && char.IsUpper(after)
-            ? decoded.ToUpperInvariant()
-            : decoded;
+        return char.IsUpper(before) && char.IsUpper(after) ? decoded.ToUpperInvariant() : decoded;
     }
 
     private static string Decode(string run)
