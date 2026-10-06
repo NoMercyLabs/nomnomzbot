@@ -17,9 +17,7 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// </summary>
 internal static class TemplateHelperSamples
 {
-    private static readonly Dictionary<string, string> ByKey = new(
-        StringComparer.OrdinalIgnoreCase
-    )
+    private static readonly Dictionary<string, string> ByKey = new(StringComparer.OrdinalIgnoreCase)
     {
         ["channel"] = "kani_dev",
         ["channel.display"] = "Kani_Dev",

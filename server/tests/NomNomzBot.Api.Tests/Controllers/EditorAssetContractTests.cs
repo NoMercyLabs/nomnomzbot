@@ -235,18 +235,25 @@ public class EditorAssetContractTests
     }
 
     [Fact]
-    public void The_preview_labels_are_all_used_by_the_preview_script()
+    public void The_preview_labels_are_all_used_by_the_preview_script_or_page()
     {
         Dictionary<string, string> defaults = ReadDefaultLabels();
         string script = Read("preview.js");
+        string page = Read("index.html");
 
-        List<string> ids = Regex
+        List<string> scriptIds = Regex
             .Matches(script, @"\bt\('(?<id>\w+)'")
             .Select(match => match.Groups["id"].Value)
-            .Distinct(StringComparer.Ordinal)
             .ToList();
+        scriptIds.Should().NotBeEmpty("preview.js must read its words through t()");
 
-        ids.Should().NotBeEmpty("preview.js must read its words through t()");
+        HashSet<string> ids = new(scriptIds, StringComparer.Ordinal);
+        ids.UnionWith(
+            Regex
+                .Matches(page, "data-i18n=\"(?<id>\\w+)\"")
+                .Select(match => match.Groups["id"].Value)
+        );
+
         defaults
             .Keys.Where(id => id.StartsWith("preview", StringComparison.Ordinal))
             .Where(id => !ids.Contains(id))

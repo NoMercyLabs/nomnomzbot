@@ -6181,7 +6181,10 @@
     <string name="editor_preview_entry_missing">Het startbestand {entry} ontbreekt.</string>
     <string name="editor_preview_loading_vue">Vue-compiler laden…</string>
     <string name="editor_preview_vue_load_failed">De Vue-compiler kon niet laden:</string>
-    <string name="editor_preview_build_failed">Het voorbeeld bouwen is mislukt:</string>
+    <string name="editor_preview_error_build_title">Het voorbeeld kon niet worden gebouwd</string>
+    <string name="editor_preview_error_run_title">De widget is gestopt met een fout</string>
+    <string name="editor_preview_error_details">Details</string>
+    <string name="editor_preview_error_line">{file}:{line}</string>
     <string name="editor_preview_starting">Voorbeeld starten…</string>
     <string name="editor_preview_unavailable">Live voorbeeld niet beschikbaar (het kon niet laden):</string>
     <string name="editor_preview_unavailable_hint">Opslaan &amp; compileren bouwt nog steeds op de server.</string>

@@ -263,7 +263,6 @@ const DEFAULT_LABELS = Object.freeze({
     previewEntryMissing: 'Entry file {entry} is missing.',
     previewLoadingVue: 'Loading Vue compiler…',
     previewVueLoadFailed: 'Vue compiler could not load:',
-    previewBuildFailed: 'Preview build failed:',
     previewStarting: 'Starting preview…',
     previewUnavailable: 'Live preview unavailable (it could not load):',
     previewUnavailableHint: 'Save & Compile still builds on the server.',

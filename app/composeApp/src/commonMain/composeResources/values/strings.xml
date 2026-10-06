@@ -6208,7 +6208,10 @@
     <string name="editor_preview_entry_missing">Entry file {entry} is missing.</string>
     <string name="editor_preview_loading_vue">Loading Vue compiler…</string>
     <string name="editor_preview_vue_load_failed">Vue compiler could not load:</string>
-    <string name="editor_preview_build_failed">Preview build failed:</string>
+    <string name="editor_preview_error_build_title">The preview could not be built</string>
+    <string name="editor_preview_error_run_title">The widget stopped with an error</string>
+    <string name="editor_preview_error_details">Details</string>
+    <string name="editor_preview_error_line">{file}:{line}</string>
     <string name="editor_preview_starting">Starting preview…</string>
     <string name="editor_preview_unavailable">Live preview unavailable (it could not load):</string>
     <string name="editor_preview_unavailable_hint">Save &amp; Compile still builds on the server.</string>
