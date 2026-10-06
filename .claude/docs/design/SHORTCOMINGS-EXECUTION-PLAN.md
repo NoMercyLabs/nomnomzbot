@@ -42,10 +42,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
   (no `*.vue` module typing; hidden script model at `vue-script-model.js:51-58`). R5. Done-when: a
   multi-file Vue widget (index.vue + 4 components) shows zero 2307 markers; a wrong path still shows
   2307; E2E test fails before the fix.
-- **S-EDITOR-PREVIEW-ERRORS** The BSOD widget preview is black with no message. A runtime or build error
-  in the preview iframe shows over the preview in plain words, with file:line and a click that jumps
-  the editor there. R5, R4. Done-when: E2E throws in a component → overlay shows message + line; click
-  moves the cursor; the BSOD export renders (cause named in the commit).
 - **S-EDITOR-FIRE-ALL-EVENTS** The fire bar is always visible, lists every event the widget can receive
   (catalogue, not only `.on()` regex hits, `preview.js:71,175-179`), is searchable, and lets the user
   edit the sample JSON before firing. A failed samples fetch shows an error, never empty payloads
