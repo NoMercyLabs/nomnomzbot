@@ -2148,6 +2148,10 @@
     <!-- Chat page. -->
     <string name="chat_subtitle">Live feed and moderation</string>
     <string name="chat_loading">Loading chat…</string>
+    <plurals name="chat_new_messages">
+        <item quantity="one">%1$d new message</item>
+        <item quantity="other">%1$d new messages</item>
+    </plurals>
     <string name="chat_empty">No chat yet. Messages appear here as they arrive.</string>
     <string name="chat_error">Couldn't load chat: %1$s</string>
     <string name="chat_retry">Retry</string>

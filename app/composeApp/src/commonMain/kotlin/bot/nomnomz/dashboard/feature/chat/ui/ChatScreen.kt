@@ -25,9 +25,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -320,14 +317,6 @@ private fun MessageFeed(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val listState = rememberLazyListState()
-    // Keep the newest line in view as chat arrives (the feed is oldest-first, so the bottom is newest). Key on the
-    // tail id as well as the size: the buffer is capped (200), so once it fills `size` stops changing and a
-    // size-only key would freeze auto-follow — the mod would silently stop seeing new lines on a busy channel.
-    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
-        if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
-    }
-
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         // A background refresh of the feed failed — a section-load failure, stays visible in place until the
         // next refresh. A write action's outcome (send/delete/timeout/announce) instead announces on the
@@ -335,12 +324,15 @@ private fun MessageFeed(
         actionError?.let { detail ->
             InlineError(message = stringResource(Res.string.chat_action_error, detail))
         }
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            items(items = messages, key = { message -> message.id }) { message ->
+        // Follows the newest line unless the pointer is over the feed, the user scrolled up, or a line menu is
+        // open (see FollowingFeed); the buffer is capped, which FollowingFeed keys on the tail id to survive.
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            FollowingFeed(
+                items = messages,
+                key = { _, message -> message.id },
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) { message ->
                 MessageRow(
                     message = message,
                     manage = manage,
@@ -661,6 +653,8 @@ private fun ModerationMenu(
     var confirmTimeout: Boolean by remember { mutableStateOf(false) }
     var showBan: Boolean by remember { mutableStateOf(false) }
     var showReport: Boolean by remember { mutableStateOf(false) }
+    // The menu and every dialog it opens hold the feed still, so the line being acted on cannot move away.
+    FeedPauseEffect(FeedPauseReason.LineMenu, expanded || confirmDelete || confirmTimeout || showBan || showReport)
 
     val menuLabel: String = stringResource(Res.string.chat_row_actions, name)
     val deleteItemLabel: String = stringResource(Res.string.chat_delete_action)
