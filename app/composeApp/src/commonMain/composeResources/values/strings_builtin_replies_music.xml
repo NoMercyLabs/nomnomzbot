@@ -92,6 +92,8 @@
     <string name="builtin_reply_sr_ratelimited_description">The music service is rate-limiting this channel for a while.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Track links only</string>
     <string name="builtin_reply_sr_unsupportedcontent_description">A viewer pasted a playlist, album, show or artist link.</string>
+    <string name="builtin_reply_sr_unsupportedlink_label">Link not supported</string>
+    <string name="builtin_reply_sr_unsupportedlink_description">A viewer pasted a link the music service cannot play, and no title could be read from it.</string>
     <string name="builtin_reply_sr_notplayable_label">Not playable here</string>
     <string name="builtin_reply_sr_notplayable_description">The track cannot play in the streamer's country.</string>
     <string name="builtin_reply_sr_unreachable_label">Music service error</string>

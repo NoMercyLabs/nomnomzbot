@@ -392,6 +392,8 @@
     "builtin.reply.sr.unreachable.label",
     "builtin.reply.sr.unsupportedcontent.description",
     "builtin.reply.sr.unsupportedcontent.label",
+    "builtin.reply.sr.unsupportedlink.description",
+    "builtin.reply.sr.unsupportedlink.label",
     "builtin.reply.sr.usage.description",
     "builtin.reply.sr.usage.label",
     "builtin.reply.stats.accountunresolved.description",

@@ -92,6 +92,8 @@
     <string name="builtin_reply_sr_ratelimited_description">De muziekdienst beperkt dit kanaal een tijdje.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Alleen nummerlinks</string>
     <string name="builtin_reply_sr_unsupportedcontent_description">Een kijker plakte een afspeellijst-, album-, show- of artiestlink.</string>
+    <string name="builtin_reply_sr_unsupportedlink_label">Link niet ondersteund</string>
+    <string name="builtin_reply_sr_unsupportedlink_description">Een kijker plakte een link die de muziekdienst niet kan afspelen, en er was geen titel uit te lezen.</string>
     <string name="builtin_reply_sr_notplayable_label">Hier niet afspeelbaar</string>
     <string name="builtin_reply_sr_notplayable_description">Het nummer kan niet spelen in het land van de streamer.</string>
     <string name="builtin_reply_sr_unreachable_label">Muziekdienstfout</string>
