@@ -52704,7 +52704,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfModerationHistoryEntryDto"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfUserNoteDto"
                 }
               }
             }
@@ -126075,43 +126075,6 @@
               },
               {
                 "$ref": "#/components/schemas/ModerationEscalationPolicyDto"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseDtoOfModerationHistoryEntryDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ModerationHistoryEntryDto"
               }
             ]
           },

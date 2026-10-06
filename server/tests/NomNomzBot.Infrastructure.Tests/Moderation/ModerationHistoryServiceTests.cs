@@ -10,11 +10,15 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -33,7 +37,34 @@ public sealed class ModerationHistoryServiceTests
     private static readonly DateTime T0 = new(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
 
     private static ModerationHistoryService NewService(ModerationServiceTestDbContext db) =>
-        new(db, new FakeTimeProvider(new(T0)));
+        new(db, NewModerationService(db));
+
+    private static ModerationService NewModerationService(ModerationServiceTestDbContext db)
+    {
+        if (!db.Channels.Any(c => c.Id == Channel))
+        {
+            db.Channels.Add(
+                new()
+                {
+                    Id = Channel,
+                    TwitchChannelId = "1001",
+                    OwnerUserId = Guid.NewGuid(),
+                    Name = "c",
+                    NameNormalized = "c",
+                }
+            );
+            db.SaveChanges();
+        }
+        return new(
+            db,
+            Substitute.For<ITwitchModerationApi>(),
+            Substitute.For<ITwitchModeratorsApi>(),
+            Substitute.For<IChannelRegistry>(),
+            new FakeTimeProvider(new(T0)),
+            NullLogger<ModerationService>.Instance,
+            Substitute.For<IEventBus>()
+        );
+    }
 
     private static async Task SeedUsersAsync(ModerationServiceTestDbContext db)
     {
@@ -89,7 +120,7 @@ public sealed class ModerationHistoryServiceTests
         Result<PagedList<ModerationHistoryEntryDto>> result = await service.GetHistoryAsync(
             Channel,
             new ModerationHistoryQuery(),
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -161,7 +192,7 @@ public sealed class ModerationHistoryServiceTests
         Result<PagedList<ModerationHistoryEntryDto>> result = await service.GetHistoryAsync(
             Channel,
             new ModerationHistoryQuery(SubjectUserId: Subject),
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         result.Value.TotalCount.Should().Be(1);
@@ -186,7 +217,7 @@ public sealed class ModerationHistoryServiceTests
                 ToUtc: T0.AddDays(2),
                 ActionType: "ban"
             ),
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         result
@@ -196,13 +227,14 @@ public sealed class ModerationHistoryServiceTests
     }
 
     [Fact]
-    public async Task AddNoteAsync_AppendsANoteEntry_AttributedToTheActingModerator()
+    public async Task AddNoteAsync_LandsInTheSharedNoteStore_NotInTheHistoryLog()
     {
         using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         await SeedUsersAsync(db);
         ModerationHistoryService service = NewService(db);
+        ModerationService panel = NewModerationService(db);
 
-        Result<ModerationHistoryEntryDto> result = await service.AddNoteAsync(
+        Result<UserNoteDto> result = await service.AddNoteAsync(
             Channel,
             Subject,
             Moderator,
@@ -210,34 +242,33 @@ public sealed class ModerationHistoryServiceTests
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value.ActionType.Should().Be(ModerationHistoryEntryKinds.Note);
-        result.Value.ModeratorUserId.Should().Be(Moderator);
-        result.Value.ModeratorDisplayName.Should().Be("ModUser");
-        result.Value.Reason.Should().Be("Talked to them in DMs, seems fine now.");
 
-        ModerationHistoryEntry stored = await db.ModerationHistoryEntries.SingleAsync(e =>
-            e.BroadcasterId == Channel
+        Result<List<UserNoteDto>> notes = await panel.ListUserNotesAsync(
+            Channel.ToString(),
+            "subject-twitch"
         );
-        stored.ActionType.Should().Be(ModerationHistoryEntryKinds.Note);
-        stored.SubjectUserId.Should().Be(Subject);
+        notes.IsSuccess.Should().BeTrue(notes.ErrorMessage);
+        UserNoteDto note = notes.Value.Should().ContainSingle().Subject;
+        note.Content.Should().Be("Talked to them in DMs, seems fine now.");
+        note.AuthorName.Should().Be("ModUser");
+        note.Pinned.Should().BeFalse();
+        note.Id.Should().Be(result.Value.Id);
+
+        (await db.ModerationHistoryEntries.CountAsync()).Should().Be(0);
     }
 
     [Fact]
-    public async Task AddNoteAsync_FailsValidation_ForBlankText()
+    public async Task AddNoteAsync_FailsValidation_ForBlankText_AndStoresNothing()
     {
         using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         await SeedUsersAsync(db);
         ModerationHistoryService service = NewService(db);
 
-        Result<ModerationHistoryEntryDto> result = await service.AddNoteAsync(
-            Channel,
-            Subject,
-            Moderator,
-            "   "
-        );
+        Result<UserNoteDto> result = await service.AddNoteAsync(Channel, Subject, Moderator, "   ");
 
         result.IsFailure.Should().BeTrue();
         (await db.ModerationHistoryEntries.CountAsync()).Should().Be(0);
+        (await db.Records.CountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -246,7 +277,7 @@ public sealed class ModerationHistoryServiceTests
         using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         ModerationHistoryService service = NewService(db);
 
-        Result<ModerationHistoryEntryDto> result = await service.AddNoteAsync(
+        Result<UserNoteDto> result = await service.AddNoteAsync(
             Channel,
             Guid.CreateVersion7(),
             Moderator,
@@ -255,5 +286,6 @@ public sealed class ModerationHistoryServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
+        (await db.Records.CountAsync()).Should().Be(0);
     }
 }
