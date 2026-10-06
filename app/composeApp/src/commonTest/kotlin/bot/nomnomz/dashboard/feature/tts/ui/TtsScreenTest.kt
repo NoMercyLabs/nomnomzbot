@@ -16,6 +16,12 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
@@ -302,7 +308,7 @@ class TtsScreenTest {
         mainClock.advanceTimeBy(500)
         waitForIdle()
 
-        onNodeWithContentDescription("Use Zara").performClick()
+        onNode(isSelectable() and hasContentDescription("Zara", substring = true)).performClick()
         waitForIdle()
         onNodeWithText("Assign voice").performClick()
         waitForIdle()
@@ -312,6 +318,80 @@ class TtsScreenTest {
             assignCalls,
             "clicking Assign must send the exact voice picked in the UI to the real assign call",
         )
+    }
+
+    // Owner, live 2026-10-06 ("Libby, Maisie, Ryan" all showed the same check icon; no row read as selected and
+    // Assign stayed grey): a tap on one voice must mark exactly that row selected, keep the list on screen so the
+    // choice is visible, and enable Assign with that voice's id.
+    @Test
+    fun per_viewer_voice_tap_selects_only_that_row_and_enables_assign() = runComposeUiTest {
+        val libby: TtsVoice = TtsVoice(id = "en-GB-LibbyNeural", displayName = "Libby", name = "Libby", locale = "en-GB", provider = "edge")
+        val maisie: TtsVoice = TtsVoice(id = "en-GB-MaisieNeural", displayName = "Maisie", name = "Maisie", locale = "en-GB", provider = "edge")
+        val ryan: TtsVoice = TtsVoice(id = "en-GB-RyanNeural", displayName = "Ryan", name = "Ryan", locale = "en-GB", provider = "edge")
+        val assignCalls: MutableList<Pair<String, String>> = mutableListOf()
+
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    PerViewerTab(
+                        voices = emptyList(),
+                        viewerVoice = ViewerVoiceState(userId = "viewer-1"),
+                        manage = ManageDecision.Allowed,
+                        searchViewers = { emptyList() },
+                        searchAssignableVoices = { listOf(libby, maisie, ryan) },
+                        onLookup = {},
+                        onAssign = { userId, voiceId -> assignCalls.add(userId to voiceId) },
+                        onClear = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Assign voice").assertIsNotEnabled()
+        onAllNodes(hasSetTextAction())[1].performTextInput("en-gb")
+        mainClock.advanceTimeBy(500)
+        waitForIdle()
+
+        onAllNodes(isSelectable()).assertCountEquals(3)
+        onAllNodes(isSelectable() and isSelected()).assertCountEquals(0)
+
+        onNode(isSelectable() and hasContentDescription("Maisie", substring = true)).performClick()
+        waitForIdle()
+
+        onNode(isSelectable() and hasContentDescription("Maisie", substring = true)).assertIsSelected()
+        onNode(isSelectable() and hasContentDescription("Libby", substring = true)).assertIsNotSelected()
+        onNode(isSelectable() and hasContentDescription("Ryan", substring = true)).assertIsNotSelected()
+        onNodeWithText("Assign voice").assertIsEnabled().performClick()
+        waitForIdle()
+
+        assertEquals(listOf("viewer-1" to "en-GB-MaisieNeural"), assignCalls)
+    }
+
+    // After the save and reload the panel must say which voice the viewer has, not the channel default.
+    @Test
+    fun per_viewer_voice_panel_says_this_viewer_uses_the_saved_voice() = runComposeUiTest {
+        val maisie: TtsVoice = TtsVoice(id = "en-GB-MaisieNeural", displayName = "Maisie", name = "Maisie", locale = "en-GB", provider = "edge")
+
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    PerViewerTab(
+                        voices = listOf(maisie),
+                        viewerVoice = ViewerVoiceState(userId = "viewer-1", currentVoiceId = maisie.id),
+                        manage = ManageDecision.Allowed,
+                        searchViewers = { emptyList() },
+                        searchAssignableVoices = { emptyList() },
+                        onLookup = {},
+                        onAssign = { _, _ -> },
+                        onClear = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("This viewer uses Maisie (en-GB)").assertExists()
     }
 
     @Test

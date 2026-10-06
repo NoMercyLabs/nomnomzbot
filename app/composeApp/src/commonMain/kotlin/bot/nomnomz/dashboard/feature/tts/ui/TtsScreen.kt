@@ -1257,87 +1257,6 @@ private fun VoiceBrowserPager(page: Int, hasMore: Boolean, loading: Boolean, onP
 // Sample text spoken when previewing a voice that ships no ready-made clip — routed through POST /tts/test.
 private const val VOICE_PREVIEW_SAMPLE: String = "Hey there, this is how I sound."
 
-// The voice picker used by the viewer-voice panel to pick the voice to ASSIGN to a looked-up viewer. Searches
-// the full server-side voice catalogue via [search] (the same paginated `GET /tts/voices?q=` the Voices tab's
-// browser uses) rather than filtering the small unfiltered first page cached in [voices] — that page is only
-// ~50 of a catalogue that runs into the hundreds, so a client-side filter over it routinely missed voices that
-// genuinely exist and are findable through the Voices tab. [voices] is kept only to resolve the label for the
-// already-selected [currentVoiceId] without a network round trip.
-@Composable
-private fun VoicePicker(
-    voices: List<TtsVoice>,
-    currentVoiceId: String,
-    manage: ManageDecision,
-    search: suspend (query: String) -> List<TtsVoice>,
-    onSelect: (String) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var query: String by remember { mutableStateOf("") }
-    var matches: List<TtsVoice> by remember { mutableStateOf(emptyList()) }
-    val trimmed: String = query.trim()
-
-    // Debounce the query and re-run the live search whenever it settles. A blank query clears the results —
-    // this picker is meant to be searched, not browsed (the full catalogue browser is on the Voices tab).
-    LaunchedEffect(trimmed) {
-        if (trimmed.isBlank()) {
-            matches = emptyList()
-            return@LaunchedEffect
-        }
-        delay(300)
-        matches = search(trimmed)
-    }
-
-    val shown: List<TtsVoice> = matches.take(8)
-    val current: TtsVoice? = voices.firstOrNull { it.id == currentVoiceId }
-    val selectedLabel: String? = current?.let { "${it.displayName} (${it.locale})" }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            if (selectedLabel != null) {
-                Text(
-                    text = stringResource(Res.string.tts_voices_default, selectedLabel),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
-            AppTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = stringResource(Res.string.tts_voices_search),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        shown.forEach { voice ->
-            Separator()
-            VoiceMatchRow(
-                voice = voice,
-                manage = manage,
-                onUse = {
-                    onSelect(voice.id)
-                    query = ""
-                },
-            )
-        }
-        if (matches.size > shown.size) {
-            Separator()
-            Text(
-                text = stringResource(Res.string.tts_voices_more, matches.size),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-                modifier = Modifier.padding(horizontal = spacing.s4, vertical = spacing.s3),
-            )
-        }
-    }
-}
-
 // The "Bring your own key" section (item 1c): per-provider write-only key entry. The key is never echoed — the
 // stored state comes from the config's `has*Key` flags; a stored key shows a "key stored" state + Remove, and
 // an empty box + Save otherwise. Azure additionally carries a region. Writes gate at the page's Editor floor.
@@ -1470,10 +1389,10 @@ private fun ByokProviderRow(
     }
 }
 
-// The per-viewer voice override (item 16): assign one viewer a specific voice so their messages always read in
-// it (overriding the channel default). The operator enters the viewer's Twitch user id and looks them up; the
-// panel then shows their current voice (or "channel default"), a picker to choose a synthesisable voice, Assign,
-// and Clear. The reused [VoicePicker] below drives the pick. Write actions gate at the page's manage floor.
+// The per-viewer voice override (item 16): pick a viewer by name, then give them a specific voice so their
+// messages always read in it (overriding the channel default). Selecting a viewer looks up their current voice;
+// the shared [ViewerVoiceEditor] (also used on the viewer's profile page) does the rest. Write actions gate at
+// the page's manage floor.
 @Composable
 private fun ViewerVoiceSection(
     voices: List<TtsVoice>,
@@ -1490,16 +1409,11 @@ private fun ViewerVoiceSection(
     val typography = LocalTypography.current
 
     var picked: PickerRef? by remember { mutableStateOf(null) }
-    // The voice picked for this viewer — re-seeded from their current override each time a fresh lookup lands, so
-    // the picker starts on the voice they already have (or blank when they use the default).
-    var pickedVoiceId: String by remember(viewerVoice?.userId, viewerVoice?.currentVoiceId) {
-        mutableStateOf(viewerVoice?.currentVoiceId ?: "")
-    }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Text(
                 text = stringResource(Res.string.tts_viewer_voice_title),
@@ -1513,7 +1427,7 @@ private fun ViewerVoiceSection(
                 color = tokens.mutedForeground,
             )
             // Pick the viewer by search (autocomplete), not a raw Twitch id. Selecting one immediately looks up
-            // their current voice override — no separate lookup button.
+            // their current voice override: no separate lookup button.
             SearchPickerField(
                 search = searchViewers,
                 selected = picked,
@@ -1526,56 +1440,20 @@ private fun ViewerVoiceSection(
                 enabled = viewerVoice?.busy != true,
                 modifier = Modifier.fillMaxWidth(),
             )
-
             viewerVoice?.let { vv ->
-                vv.error?.let { detail ->
-                    Text(text = detail, style = typography.sm, color = tokens.destructive)
-                }
-                val currentLabel: String? =
-                    voices.firstOrNull { it.id == vv.currentVoiceId }?.let { "${it.displayName} (${it.locale})" }
-                Text(
-                    text =
-                        if (vv.currentVoiceId == null) {
-                            stringResource(Res.string.tts_viewer_voice_default)
-                        } else {
-                            stringResource(Res.string.tts_viewer_voice_current, currentLabel ?: vv.currentVoiceId)
-                        },
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
+                ViewerVoiceEditor(
+                    userId = vv.userId,
+                    currentVoiceId = vv.currentVoiceId,
+                    busy = vv.busy,
+                    error = vv.error,
+                    voices = voices,
+                    manage = manage,
+                    searchAssignableVoices = searchAssignableVoices,
+                    onAssign = { voiceId -> onAssign(vv.userId, voiceId) },
+                    onClear = { onClear(vv.userId) },
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    ManageGate(decision = manage) { enabled ->
-                        Button(
-                            onClick = { onAssign(vv.userId, pickedVoiceId) },
-                            enabled = enabled && pickedVoiceId.isNotBlank() && !vv.busy,
-                        ) {
-                            Text(stringResource(Res.string.tts_viewer_voice_assign))
-                        }
-                    }
-                    if (vv.currentVoiceId != null) {
-                        ManageGate(decision = manage) { enabled ->
-                            TextButton(onClick = { onClear(vv.userId) }, enabled = enabled && !vv.busy) {
-                                Text(
-                                    text = stringResource(Res.string.tts_viewer_voice_clear),
-                                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
-    }
-
-    // The picker only appears once a viewer is looked up — it drives [pickedVoiceId] for the Assign above.
-    if (viewerVoice != null) {
-        VoicePicker(
-            voices = voices,
-            currentVoiceId = pickedVoiceId,
-            manage = manage,
-            search = searchAssignableVoices,
-            onSelect = { pickedVoiceId = it },
-        )
     }
 }
 
@@ -1889,48 +1767,6 @@ private fun LexiconFormDialog(
             }
         },
     )
-}
-
-// One voice match: name + locale/provider, with a "Use" action that sets it as the default voice (Editor floor).
-@Composable
-private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val displayName: String =
-        resolveRowLabel(voice.displayName, secondary = voice.name, typeLabel = "Voice", discriminatorSource = voice.id)
-    val useLabel: String = stringResource(Res.string.tts_voices_use_action, displayName)
-    val rowDescription: String = "$displayName, ${voice.locale}, ${voice.provider}"
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .clearAndSetSemantics { contentDescription = rowDescription },
-            verticalArrangement = Arrangement.spacedBy(spacing.s1),
-        ) {
-            Text(
-                text = displayName,
-                style = typography.sm,
-                color = tokens.cardForeground,
-                maxLines = 1,
-            )
-            Text(
-                text = "${voice.locale} · ${voice.provider}",
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-            )
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(icon = CheckCircleGlyph, label = useLabel, onClick = onUse, enabled = enabled, tint = tokens.primary)
-        }
-    }
 }
 
 @Composable
