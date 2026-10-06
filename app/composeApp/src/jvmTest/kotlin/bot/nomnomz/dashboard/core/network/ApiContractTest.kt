@@ -112,6 +112,8 @@ class ApiContractTest {
             ProjectManifestDto.serializer() to "ProjectManifestDto",
             TestRunResult.serializer() to "TestRunResultDto",
             CapturedEffect.serializer() to "CapturedEffectDto",
+            PipelineTraceStep.serializer() to "PipelineTraceStepDto",
+            PipelineTraceVariableChange.serializer() to "PipelineTraceVariableChangeDto",
             GalleryItemSummary.serializer() to "GalleryItemSummary",
             GalleryItemDetail.serializer() to "GalleryItemDetail",
             CustomDataSourceOption.serializer() to "CustomDataSourceOptionDto",

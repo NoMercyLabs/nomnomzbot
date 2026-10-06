@@ -37,6 +37,8 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.PipelineCatalogue
+import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import org.jetbrains.compose.resources.stringResource
 import nomnomzbot.composeapp.generated.resources.Res
@@ -56,6 +58,7 @@ import nomnomzbot.composeapp.generated.resources.pipelines_testrun_run
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_running
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_subtitle
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_title
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_trace_heading
 import nomnomzbot.composeapp.generated.resources.pipelines_testrun_vars_label
 
 // The S047 dry-run dialog, extracted (S047-remaining) so every pipeline-binding surface — the Pipelines editor
@@ -92,6 +95,7 @@ fun PipelineTestRunDialog(
     error: String?,
     onRun: (variables: Map<String, String>) -> Unit,
     onDismiss: () -> Unit,
+    palette: RuntimePalette = PipelineCatalogue.fallbackPalette(),
 ) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -120,7 +124,7 @@ fun PipelineTestRunDialog(
                 // The dry-run's own outcome — a diagnostic reading tied to this panel, not a write action —
                 // stays visible in place rather than floating away as a toast.
                 error?.let { InlineError(message = stringResource(Res.string.pipelines_testrun_error, it)) }
-                result?.let { TestRunResultView(it) }
+                result?.let { TestRunResultView(it, palette) }
             }
         },
         confirmButton = {
@@ -136,7 +140,7 @@ fun PipelineTestRunDialog(
 }
 
 @Composable
-private fun TestRunResultView(result: TestRunResult) {
+private fun TestRunResultView(result: TestRunResult, palette: RuntimePalette) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -158,6 +162,12 @@ private fun TestRunResultView(result: TestRunResult) {
         }
         result.error?.takeIf { it.isNotBlank() }?.let {
             Text(text = it, style = typography.xs, color = tokens.destructive)
+        }
+
+        if (result.trace.isNotEmpty()) {
+            Separator()
+            Text(text = stringResource(Res.string.pipelines_testrun_trace_heading), style = typography.sm, color = tokens.cardForeground)
+            PipelineTraceList(result.trace, palette)
         }
 
         Separator()

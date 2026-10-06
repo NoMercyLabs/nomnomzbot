@@ -132008,6 +132008,85 @@
           }
         }
       },
+      "PipelineTraceVariableChangeDto": {
+        "required": [
+          "key",
+          "before",
+          "after"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "before": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "after": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One variable a traced step changed: the value before the step ran and the value after (null = unset)."
+      },
+      "PipelineTraceStepDto": {
+        "required": [
+          "stepId",
+          "stepType",
+          "branch",
+          "iterations",
+          "output",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "stepId": {
+            "type": "string"
+          },
+          "stepType": {
+            "type": "string"
+          },
+          "branch": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "iterations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "variableChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineTraceVariableChangeDto"
+            }
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One row of a pipeline test-run trace: what one executed step did."
+      },
       "TestRunResultDto": {
         "required": [
           "success",
@@ -132089,6 +132168,13 @@
               "$ref": "#/components/schemas/TimelineEntryDto"
             },
             "description": "Every effect, chat message and console line in the order it happened; empty when the run kind has none."
+          },
+          "trace": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineTraceStepDto"
+            },
+            "description": "What each executed step did, in run order (pipeline test-runs only; empty for scripts)."
           },
           "errorPosition": {
             "oneOf": [

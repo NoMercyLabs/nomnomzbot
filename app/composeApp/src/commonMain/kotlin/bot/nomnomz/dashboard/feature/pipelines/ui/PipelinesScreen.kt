@@ -1126,6 +1126,7 @@ internal fun ChainEditor(
             error = editing.testError,
             onRun = { variables -> scope.launch { controller.testRun(variables) } },
             onDismiss = { showTestRun = false },
+            palette = editing.palette,
         )
     }
 }
@@ -3404,7 +3405,7 @@ private fun CenteredMessage(text: String) {
 // Resolve a block's display name: its i18n label when the type is locally known (labelKey set), else a
 // humanized form of the backend type discriminator so a hint-less backend block still reads well.
 @Composable
-private fun blockDisplayName(block: PaletteBlock?, rawType: String): String {
+internal fun blockDisplayName(block: PaletteBlock?, rawType: String): String {
     val labelKey: String? = block?.labelKey
     return if (labelKey != null) stringResource(blockLabel(labelKey)) else humanize(block?.type ?: rawType)
 }
