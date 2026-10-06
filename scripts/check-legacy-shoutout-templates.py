@@ -11,7 +11,9 @@
 # Data-parity gate for rule legacy-parity-ledger (Stoney 2026-10-06: "make sure you have all the custom
 # shoutout templates properly copied over to the new bot"). check-parity-ledger.py covers old-bot code;
 # this covers old-bot channel data. Fails when a legacy per-channel shoutout template is missing from the
-# live bot, differs from it, or when the live channel default differs from the legacy default.
+# live bot, differs from it, uses a placeholder the announcement never fills, or when the live channel
+# default is set. The old bot's default template meant "pick a random snarky line"; the new bot does the
+# same only while the channel template is empty (the personality pool), so a non-empty default is a defect.
 #
 # Live export (one broadcaster), run against the live Postgres with psql:
 #   \copy (select "TargetTwitchUserId", "MessageTemplate" from "ShoutoutOverrides"
@@ -25,10 +27,27 @@ import collections
 import csv
 import io
 import pathlib
+import re
 import sqlite3
 import sys
 
 DEFAULT_LEGACY_DB = pathlib.Path.home() / 'AppData/Local/NoMercyBot/data/database.sqlite'
+
+# Live spelling of a legacy placeholder: the announcement seeds {target.game} / {target.link}, not the bare names.
+RENAMES = {'game': 'target.game', 'link': 'target.link'}
+# Placeholders the shoutout announcement fills (ShoutoutAction.ComposeAnnouncementAsync + TemplateResolver).
+RESOLVED = {'name', 'subject', 'object', 'possessive', 'tense', 'presenttense', 'genderedterm',
+            'target', 'target.id', 'target.name', 'target.link', 'target.game'}
+PLACEHOLDER = re.compile('[{]([^{}]+)[}]')
+
+
+def live_spelling(template):
+    return PLACEHOLDER.sub(lambda m: '{' + RENAMES.get(m.group(1).lower(), m.group(1)) + '}', template)
+
+
+def unresolved(template):
+    keys = (m.group(1).lower() for m in PLACEHOLDER.finditer(template))
+    return sorted({k for k in keys if k not in RESOLVED and not k.startswith('verb:')})
 
 
 def legacy_templates(db_path):
@@ -42,10 +61,11 @@ def legacy_templates(db_path):
 def live_templates(csv_path):
     """({twitch id: template}, channel default) from the two-part live export."""
     header, rest = csv_path.read_text(encoding='utf-8').split('\n', 1)
-    body, _, default_line = rest.rstrip('\n').rpartition('\n')
+    # Drop only the final newline: an empty (NULL) default is an empty last line, not a missing one.
+    body, _, default_line = rest.removesuffix('\n').rpartition('\n')
     reader = csv.DictReader(io.StringIO(header + '\n' + body))
     overrides = {r['TargetTwitchUserId']: r['MessageTemplate'].strip() for r in reader}
-    default = next(csv.reader([default_line]), [''])[0].strip()
+    default = (next(csv.reader([default_line]), None) or [''])[0].strip()
     return overrides, default
 
 
@@ -55,17 +75,19 @@ def main():
     parser.add_argument('--legacy-db', type=pathlib.Path, default=DEFAULT_LEGACY_DB)
     args = parser.parse_args()
 
-    legacy_default, legacy_custom = legacy_templates(args.legacy_db)
+    _, legacy_custom = legacy_templates(args.legacy_db)
     live, live_default = live_templates(args.live_csv)
 
     problems = []
-    if live_default != legacy_default:
-        problems.append(f'channel default differs: live {live_default!r}, legacy {legacy_default!r}')
+    if live_default:
+        problems.append(f'channel default is set ({live_default!r}); it must be empty so the snarky pool is used')
     for twitch_id, (name, template) in sorted(legacy_custom.items(), key=lambda kv: kv[1][0].lower()):
         if twitch_id not in live:
             problems.append(f'missing: {name} ({twitch_id})')
-        elif live[twitch_id] != template:
+        elif live[twitch_id] != live_spelling(template):
             problems.append(f'differs: {name} ({twitch_id})')
+        elif unresolved(live[twitch_id]):
+            problems.append(f'unfilled placeholders {unresolved(live[twitch_id])}: {name} ({twitch_id})')
 
     print(f'legacy custom {len(legacy_custom)}, live overrides {len(live)}, problems {len(problems)}')
     for line in problems:
