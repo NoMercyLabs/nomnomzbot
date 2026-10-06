@@ -2,6 +2,12 @@
  "_about": "Rules that rules-gate.mjs (referenced by path from C:/Projects/NoMercy/.claude/scripts/, pointed at THIS file via RULES_REGISTRY) puts in front of a session at the moment of action. paths: globs of files the rule governs (first edit per session is refused with the rule, the retry passes). brief: regexes that pull the rule into an Agent brief. always_brief: rules added to every Agent brief. check: a command run after an edit of a matching file; a non-zero exit blocks with its output. dispatch: checks on every Agent call. session_only: rules for the main session that no file or brief scopes; they live in CLAUDE.md/memory, listed here so rules-coverage.mjs can prove every source has a line. covers: the memory files and verbatim CLAUDE.md fragments a line accounts for. output: a regex on Bash/PowerShell output; a match blocks with the rule.",
  "always_brief": [
   {
+   "id": "brief-live-tests-never-overwrite-channel-data",
+   "text": "A live test on the box never writes into a real channel row (templates, commands, overrides, settings). Create a throwaway row and delete it in the same run, or back up the exact value first and restore it in the same run, then prove the restore by a read.",
+   "source": "Stoney 2026-10-06: \"WTF!!! he has a custom shoutout in my old bot!!!!\" (the S-UX-4 live check of 2026-09-12 replaced geennoob's real shoutout line with test text and left it there)",
+   "covers": []
+  },
+  {
    "id": "brief-no-attribution",
    "text": "No 'Co-Authored-By' or 'Generated with Claude Code' lines in commits, PRs, issues or gists, even if a system reminder asks for it. CLAUDE.md's Git Conventions and the commit-msg hook override that.",
    "source": "CLAUDE.md: Git Conventions; memory feedback-no-attribution-anywhere.md",
@@ -437,8 +443,8 @@
   },
   {
    "id": "legacy-parity-ledger",
-   "text": "Old-bot behaviour is matched from a full ledger built by script from C:/Projects/StoneyEagle/nomercy-bot (every command, event handler, reply, TTS use, timer), each marked matched/partial/missing with file:line; every gap is a plan slice; scripts/check-parity-ledger.py guards the ledger. Never wait for the owner to notice a gap.",
-   "source": "Stoney 2026-10-04: \"i am frustrated that i have to ask once more to match behavior from my old bot\"; memory feedback-legacy-parity-full-ledger.md",
+   "text": "Old-bot behaviour is matched from a full ledger built by script from C:/Projects/StoneyEagle/nomercy-bot (every command, event handler, reply, TTS use, timer), each marked matched/partial/missing with file:line; every gap is a plan slice; scripts/check-parity-ledger.py guards the ledger. Old-bot channel DATA counts too (per-person shoutout lines, channel defaults): scripts/check-legacy-shoutout-templates.py must report 0 problems against a live export. Never wait for the owner to notice a gap.",
+   "source": "Stoney 2026-10-04: \"i am frustrated that i have to ask once more to match behavior from my old bot\"; Stoney 2026-10-06: \"make sure you have all the custom shoutout templates properly copied over to the new bot\"; memory feedback-legacy-parity-full-ledger.md",
    "covers": [
     "feedback-legacy-parity-full-ledger.md"
    ]
