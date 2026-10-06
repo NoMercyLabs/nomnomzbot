@@ -264,6 +264,8 @@ const DEFAULT_LABELS = Object.freeze({
     previewFireEdit: 'Edit',
     previewFireEditSample: 'Edit the data of {type}',
     previewFireEditing: 'Data for {type}',
+    previewFireSamplesError:
+        'The test events could not be loaded, so nothing can be fired. Close the editor and open it again.',
     previewFireJsonInvalid: 'This is not valid JSON: {message}',
     previewLogAction: 'Would run {actionType} {params}',
     previewLogClaim: 'Claimed {key}',
@@ -1503,6 +1505,7 @@ async function open(payload) {
         language: payload.language ?? '',
         entry: state.entry,
         fireSamples: payload.fireSamples ?? {},
+        fireSamplesFailed: Boolean(payload.fireSamplesError),
         declaredEvents: payload.eventSubscriptions ?? [],
         widget: payload.widget ?? {},
         noteText: payload.previewNote ?? '',

@@ -94,6 +94,24 @@ public sealed class EditorFireBarTests : EditorPageTest
     }
 
     [E2EFact]
+    public async Task A_failed_sample_fetch_is_shown_and_no_event_can_be_fired()
+    {
+        await OpenWidgetAsync(
+            new(),
+            declared: ["follow"],
+            samplesError: "The test events could not be loaded."
+        );
+
+        await Expect(Page.Locator("#fireSamplesError"))
+            .ToHaveTextAsync(new Regex("^The test events could not be loaded"));
+        await Expect(FireButton("follow")).ToBeDisabledAsync();
+        await Expect(EditButton("follow")).ToBeDisabledAsync();
+        await FireButton("follow").ClickAsync(new() { Force = true });
+        await Expect(Received("follow")).ToHaveCountAsync(0);
+        await Expect(Page.Locator("#previewLog li")).ToHaveCountAsync(0);
+    }
+
+    [E2EFact]
     public async Task Search_narrows_the_list_and_declared_events_come_first()
     {
         await OpenWidgetAsync(
@@ -125,7 +143,11 @@ public sealed class EditorFireBarTests : EditorPageTest
     private ILocator Received(string type) =>
         Page.FrameLocator("#previewFrame").Locator($"#got li[data-type='{type}']");
 
-    private async Task OpenWidgetAsync(Dictionary<string, object> samples, string[] declared)
+    private async Task OpenWidgetAsync(
+        Dictionary<string, object> samples,
+        string[] declared,
+        string? samplesError = null
+    )
     {
         await ServeEditorFromTheWorkingTreeAsync();
         await Page.GotoAsync(
@@ -134,7 +156,7 @@ public sealed class EditorFireBarTests : EditorPageTest
         );
         await Page.EvaluateAsync(
             """
-            ([source, samples, declared]) => window.postMessage({
+            ([source, samples, declared, samplesError]) => window.postMessage({
                 type: 'nnz:editor:open',
                 payload: {
                     title: 'Fire bar',
@@ -143,12 +165,13 @@ public sealed class EditorFireBarTests : EditorPageTest
                     files: { 'index.html': source },
                     sdkTypes: '',
                     fireSamples: samples,
+                    fireSamplesError: samplesError,
                     eventSubscriptions: declared,
                     widget: { id: 'w-1', name: 'Alerts', settings: {} },
                 },
             }, window.location.origin)
             """,
-            new object[] { Widget, samples, declared }
+            new object?[] { Widget, samples, declared, samplesError }
         );
         await Page.Locator(".activity-item[data-view='run']").ClickAsync();
         // The frame must be rendered with the SDK before a fired event has a handler to reach.

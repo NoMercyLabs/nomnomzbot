@@ -91,7 +91,8 @@ expect class ProjectEditor() : ProjectEditorIO {
 /**
  * The widget the editor's preview runs as: the same id, name and settings the overlay page injects on stream, so
  * code that reads them behaves in the preview the way it does live. [fireSamples] is the server's sample table
- * (event type to payload, fallback under `_default`) that the preview's fire bar sends.
+ * (event type to payload, fallback under `_default`) that the preview's fire bar sends. [fireSamplesError] is the
+ * localized reason the table could not be fetched; the fire bar then shows it and sends nothing.
  */
 data class EditorPreviewWidget(
     val id: String,
@@ -99,6 +100,7 @@ data class EditorPreviewWidget(
     val settings: JsonObject,
     val eventSubscriptions: List<String>,
     val fireSamples: JsonObject,
+    val fireSamplesError: String? = null,
 )
 
 /** The outcome of a compile the editor renders inline — green on success, red with the real build error. */
