@@ -440,7 +440,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             ratePercent: null,
             pitchPercent: null,
             segments: null,
-            spokenNames: null,
+            entry.SpokenNames,
             ct
         );
         if (played.IsFailure)
@@ -563,6 +563,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             WasCensored = wasCensored,
             SourceMessageId = request.SourceMessageId,
             StreamId = request.StreamId,
+            SpokenNames = request.SpokenNames?.ToList() ?? [],
             ExpiresAt = _clock.GetUtcNow().UtcDateTime.AddMinutes(QueueTtlMinutes),
         };
         _db.TtsApprovalQueueEntries.Add(entry);
