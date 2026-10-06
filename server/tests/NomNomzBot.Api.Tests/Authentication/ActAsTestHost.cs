@@ -244,6 +244,10 @@ internal sealed class ActAsTestHost : IAsyncDisposable
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(o => DashboardJwtBearer.Configure(o, jwt.GetValidationParameters()));
         services.AddAuthorization();
+        services.AddSingleton<
+            IAuthorizationMiddlewareResultHandler,
+            ForbiddenActionResultHandler
+        >();
         services.AddSingleton<IAuthorizationPolicyProvider, ActionAuthorizationPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, ActionAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, PlatformIamAuthorizationHandler>();

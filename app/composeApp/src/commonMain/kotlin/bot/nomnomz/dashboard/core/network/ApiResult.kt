@@ -29,6 +29,10 @@ data class ApiError(
     val traceId: String? = null,
     /** Every build problem a rejected project save listed, each with its file, line and column when known. */
     val errors: List<BuildError> = emptyList(),
+    /** A forbidden action: the action key, the role it needs and the role the caller holds (role names). */
+    val action: String? = null,
+    val requiredRole: String? = null,
+    val heldRole: String? = null,
 )
 
 /** One build or runtime problem the backend located in a project file (the `data.errors` items of a failed save). */
