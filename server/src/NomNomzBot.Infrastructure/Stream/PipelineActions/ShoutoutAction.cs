@@ -50,8 +50,8 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 /// {target}/{target.name}/{target.link} resolved from the shoutout's own target (not the DB {target.*}
 /// lookup, since a shouted-out channel is rarely a known viewer). With no custom template at any level, the
 /// line is composed from the shouting channel's tone (<c>shoutout</c>/<c>announcement</c> in the tone
-/// catalogue: the old bot's snarky pool for a sassy channel, "Go check out {target.name} — {target.link}"
-/// for an informative one) and any channel or platform override of that slot.
+/// catalogue: the old bot's snarky pool for a sassy channel, plain lines for an informative one) and any
+/// channel or platform override of that slot.
 ///
 /// Usage example (static template):
 ///   { "type": "shoutout", "user_id": "{user.id}", "cooldown_minutes": 60, "tts": true }
@@ -62,7 +62,8 @@ public sealed class ShoutoutAction : ICommandAction
 {
     private const string RaidEventName = "channel.raid";
     private const string FallbackGame = "something awesome";
-    private const string DefaultTemplate = "Go check out {target.name} — {target.link}";
+    private const string DefaultTemplate =
+        "Go check out {target.name}! Follow the channel to catch the next stream.";
     private const string QueuedFallback = "Shoutout for {target.name} queued.";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is

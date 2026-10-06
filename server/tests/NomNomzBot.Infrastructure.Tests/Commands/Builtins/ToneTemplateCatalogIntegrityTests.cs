@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin.Personality;
@@ -68,6 +69,48 @@ public sealed class ToneTemplateCatalogIntegrityTests
         lines.Should().OnlyContain(l => l.Contains("{target.name}"));
         foreach (string legacy in new[] { "{game}", "{displayname}", "{tense}", "{presentTense}" })
             lines.Should().NotContain(l => l.Contains(legacy));
+    }
+
+    [Fact]
+    public void Every_tones_shoutout_announcement_has_its_own_pool_that_follows_the_shoutout_rules()
+    {
+        Regex link = new(@"\{target\.link\}|twitch\.tv|https?://", RegexOptions.IgnoreCase);
+        Regex followObject = new(@"\bfollow \{object\}", RegexOptions.IgnoreCase);
+        Regex capitalMidSentence = new(@"[a-z,]\s+\{(Subject|Object|Possessive|PresentTense)\}");
+        Regex bareVerbAfterSubject = new(@"\{subject\}\s+(?!\{)([a-z']+)", RegexOptions.IgnoreCase);
+        string[] safeAfterSubject = ["can", "will", "might", "never", "just", "really", "still"];
+        List<string> failures = [];
+
+        foreach (string tone in Tones)
+        {
+            IReadOnlyList<string> lines = ToneTemplateCatalog.Get(
+                tone,
+                BuiltinResponseSlots.Shoutout.Key,
+                BuiltinResponseSlots.Shoutout.Announcement
+            );
+            if (lines.Count < 3)
+                failures.Add($"{tone}: only {lines.Count} line(s)");
+            foreach (string line in lines)
+            {
+                if (!line.Contains("{target.name}"))
+                    failures.Add($"{tone}: no name: {line}");
+                if (!line.Contains("follow", StringComparison.OrdinalIgnoreCase))
+                    failures.Add($"{tone}: no follow call: {line}");
+                if (line.Length >= 500)
+                    failures.Add($"{tone}: {line.Length} characters: {line}");
+                if (link.IsMatch(line))
+                    failures.Add($"{tone}: link: {line}");
+                if (followObject.IsMatch(line))
+                    failures.Add($"{tone}: follow {{object}}: {line}");
+                if (capitalMidSentence.IsMatch(line))
+                    failures.Add($"{tone}: capital pronoun mid-sentence: {line}");
+                foreach (Match verb in bareVerbAfterSubject.Matches(line))
+                    if (!safeAfterSubject.Contains(verb.Groups[1].Value.ToLowerInvariant()))
+                        failures.Add($"{tone}: untemplated verb '{verb.Groups[1].Value}': {line}");
+            }
+        }
+
+        failures.Should().BeEmpty();
     }
 
     [Fact]

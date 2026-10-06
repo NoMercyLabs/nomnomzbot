@@ -100,30 +100,42 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.Shoutout.Key,
             BuiltinResponseSlots.Shoutout.Announcement,
             variables: ["target.name", "target.link", "target.game"],
-            informative: ["Go check out {target.name} — {target.link}"],
+            informative:
+            [
+                "Go check out {target.name}! Follow the channel to catch the next stream.",
+                "Shoutout to {target.name}, who streams {target.game}. Give the channel a follow.",
+                "Please check out {target.name} and give the channel a follow.",
+            ],
             friendly:
             [
-                "Go show {target.name} some love — {target.link}",
-                "{target.name} is wonderful to watch, go say hi at {target.link}!",
+                "Go show {target.name} some love and hit that follow button!",
+                "{target.name} is wonderful to watch. Go say hi and drop a follow!",
+                "Big love to {target.name}! Pop by, say hello, and give the channel a follow.",
             ],
             sassy:
             [
                 "Check out {target.name}! {Subject} {verb:has|have} some great {target.game} content. Go give {object} a follow! {Subject} {presenttense} practically a pro, or at least {subject} {verb:plays|play} one on Twitch.",
-                "Yo, peep this! {target.name} {presenttense} rocking some {target.game} stuff. Go give {object} a follow! {Subject} {presenttense} so good, it's almost annoying.",
-                "Attention, earthlings! {target.name} has {target.game} videos you need to see. Go give {object} a follow! {Subject} {presenttense} probably putting on a masterclass, or a clown show – either way, it's entertaining.",
-                "Incoming awesome! {target.name} has some {target.game} action for you. Go give {object} a follow! {Subject} {presenttense} crushing it, or at least {subject} {verb:looks|look} like {subject} {presenttense}.",
+                "Yo, peep this! {target.name} has been rocking some {target.game} stuff. Go give {object} a follow! {Subject} {presenttense} so good, it's almost annoying.",
+                "Attention, earthlings! {target.name} has {target.game} videos you need to see. Go give {object} a follow! It's either a masterclass or a clown show, and either way, it's entertaining.",
+                "Incoming awesome! {target.name} has some {target.game} action for you. Go give {object} a follow! {Subject} {verb:has|have} been crushing it, or at least {subject} {verb:makes|make} it look that way.",
                 "Don't walk, run! {target.name} has more {target.game} than you can handle. Go give {object} a follow! {Subject} {presenttense} definitely worth interrupting your snack for.",
-                "Our resident legend, {target.name}, has awesome {target.game}! Go give {object} a follow! {Subject} {presenttense} probably about to pull off something epic, or face-plant gloriously.",
-                "Heads up, buttercups! {target.name} has some {target.game} for you. Go give {object} a follow! {Subject} {presenttense} proving once again that {Subject} {presenttense} awesome (don't tell {object} I said that).",
-                "Guess who's got content? {target.name}! {Subject} {presenttense} rocking {target.game}. Go give {object} a follow! {Subject} {presenttense} bringing the vibes, whether {subject} {verb:likes|like} it or not.",
-                "Behold! {target.name} has some solid {target.game} for you. Go give {object} a follow! {Subject} {presenttense} gracing us with {possessive} presence and questionable decision-making in {target.game}.",
+                "Our resident legend, {target.name}, has awesome {target.game} content! Go give {object} a follow! {Subject} {presenttense} probably about to pull off something epic, or face-plant gloriously.",
+                "Heads up, buttercups! {target.name} has some {target.game} for you. Go give {object} a follow! {Subject} {verb:keeps|keep} proving that {subject} {presenttense} awesome (don't tell {object} I said that).",
+                "Guess who's got content? {target.name}! {Subject} {verb:has|have} been rocking {target.game}. Go give {object} a follow! {Subject} {verb:brings|bring} the vibes, whether you like it or not.",
+                "Behold! {target.name} has some solid {target.game} for you. Go give {object} a follow! {Subject} {verb:graces|grace} us with {possessive} presence and questionable decision-making in {target.game}.",
             ],
             hype:
             [
-                "SHOUTOUT TO {target.name}! GO FOLLOW AT {target.link}!",
-                "GO WATCH {target.name} RIGHT NOW — {target.link}",
+                "SHOUTOUT TO {target.name}! SMASH THAT FOLLOW RIGHT NOW!",
+                "GO WATCH {target.name}! FOLLOW, FOLLOW, FOLLOW!",
+                "HUGE SHOUTOUT TO {target.name}! {target.game} HAS NEVER LOOKED THIS GOOD. HIT FOLLOW!",
             ],
-            chill: ["check out {target.name} when you get a sec — {target.link}"]
+            chill:
+            [
+                "check out {target.name} when you get a sec, and maybe drop a follow",
+                "{target.name} is good company. hit follow whenever you're ready",
+                "no rush, but {target.name} is worth a follow. go have a look",
+            ]
         );
 
     // ── !stats / !profile ────────────────────────────────────────────────────

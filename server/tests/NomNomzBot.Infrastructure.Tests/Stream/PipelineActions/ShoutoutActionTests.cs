@@ -210,16 +210,29 @@ public sealed class ShoutoutActionTests
             ),
         ];
         filled.Should().Contain(announced);
-        announced.Should().NotBe("Go check out numerictarget — twitch.tv/numerictarget");
         announced.Should().Contain("numerictarget");
     }
 
     [Fact]
-    public async Task An_informative_channel_with_no_template_keeps_the_plain_default_line()
+    public async Task An_informative_channel_with_no_template_announces_a_plain_line_without_a_link()
     {
         string announced = await AnnounceAsync(PersonalityTone.Informative, null);
 
-        announced.Should().Be("Go check out numerictarget — twitch.tv/numerictarget");
+        List<string> filled =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.Shoutout.Key,
+                    BuiltinResponseSlots.Shoutout.Announcement
+                )
+                .Select(l =>
+                    l.Replace("{target.name}", "numerictarget")
+                        .Replace("{target.game}", "something awesome")
+                ),
+        ];
+        filled.Should().Contain(announced);
+        announced.Should().NotContain("twitch.tv");
     }
 
     [Fact]
