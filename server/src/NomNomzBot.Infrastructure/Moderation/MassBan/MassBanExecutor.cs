@@ -26,7 +26,8 @@ namespace NomNomzBot.Infrastructure.Moderation.MassBan;
 /// <summary>
 /// Carries out mass-ban batches, a bounded number of bans at a time. A batch that holds while live is skipped for as
 /// long as its channel is live and nobody approved it; it runs once the stream ends. Each ban rides the requesting
-/// moderator's own token. Every target is stamped as it is processed, so a restart resumes where it stopped.
+/// moderator's own token, or the channel's own token where Twitch does not list the moderator but the owner opted
+/// in. Every target is stamped as it is processed, so a restart resumes where it stopped.
 /// </summary>
 public sealed class MassBanExecutor
 {
@@ -138,13 +139,16 @@ public sealed class MassBanExecutor
     private async Task BanAsync(MassBanBatch batch, MassBanBatchTarget target, CancellationToken ct)
     {
         target.ProcessedAt = _clock.GetUtcNow().UtcDateTime;
-        Result<TwitchBanResult> ban = await _moderation.BanAsOperatorAsync(
-            batch.OperatorUserId,
-            batch.ChannelTwitchId,
-            target.TwitchUserId,
-            target.Reason,
-            ct
-        );
+        Result<TwitchBanResult> ban =
+            batch.RunsAsBroadcaster && batch.ChannelId is { } channelId
+                ? await _moderation.BanUserAsync(channelId, target.TwitchUserId, target.Reason, ct)
+                : await _moderation.BanAsOperatorAsync(
+                    batch.OperatorUserId,
+                    batch.ChannelTwitchId,
+                    target.TwitchUserId,
+                    target.Reason,
+                    ct
+                );
         if (ban.IsSuccess || IsAlreadyBanned(ban.ErrorMessage) || IsAlreadyBanned(ban.ErrorDetail))
         {
             target.Banned = true;

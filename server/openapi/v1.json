@@ -108155,7 +108155,8 @@
           "isOwnChannel",
           "isAttacked",
           "isLive",
-          "usesBot"
+          "usesBot",
+          "runsAsBroadcaster"
         ],
         "type": "object",
         "properties": {
@@ -108184,6 +108185,9 @@
             "type": "boolean"
           },
           "usesBot": {
+            "type": "boolean"
+          },
+          "runsAsBroadcaster": {
             "type": "boolean"
           }
         },

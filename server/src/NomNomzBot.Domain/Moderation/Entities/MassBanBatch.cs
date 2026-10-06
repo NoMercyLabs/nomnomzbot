@@ -39,6 +39,12 @@ public class MassBanBatch : BaseEntity
     /// <summary>False for the moderator's own channel and the attacked channel: those never wait.</summary>
     public bool HoldWhileLive { get; set; }
 
+    /// <summary>
+    /// True when the bans ride the channel's own broadcaster token instead of the operator's: Twitch does not
+    /// list the operator as a moderator there, but the channel joined the bot and its owner opted in.
+    /// </summary>
+    public bool RunsAsBroadcaster { get; set; }
+
     public DateTime RequestedAt { get; set; }
 
     /// <summary>When the channel's chat was asked; only an asked chat gets the closing line.</summary>

@@ -33,7 +33,8 @@ public sealed record MassBanChannelPreviewDto(
     bool IsOwnChannel,
     bool IsAttacked,
     bool IsLive,
-    bool UsesBot
+    bool UsesBot,
+    bool RunsAsBroadcaster
 );
 
 /// <summary>Whether this channel takes part in moderators' mass bans across their channels (off until the owner says so).</summary>

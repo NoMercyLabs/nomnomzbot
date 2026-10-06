@@ -7717,6 +7717,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("RunsAsBroadcaster")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 

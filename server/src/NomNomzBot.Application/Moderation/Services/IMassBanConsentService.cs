@@ -108,7 +108,8 @@ public sealed record MassBanChannelPreview(
     bool IsOwnChannel,
     bool IsAttacked,
     bool IsLive,
-    bool UsesBot
+    bool UsesBot,
+    bool RunsAsBroadcaster
 );
 
 /// <summary>What happened in each channel of a sweep.</summary>

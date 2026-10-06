@@ -80,7 +80,8 @@ public sealed class MassBanConsentService : IMassBanConsentService
                 p.IsOwnChannel,
                 p.IsAttacked,
                 p.IsLive,
-                p.ServedChannel is not null
+                p.ServedChannel is not null,
+                p.RunsAsBroadcaster
             )),
         ]);
     }
@@ -279,6 +280,7 @@ public sealed class MassBanConsentService : IMassBanConsentService
             ChannelLogin = channel.Channel.BroadcasterLogin,
             ChannelId = channel.ServedChannel?.Id,
             HoldWhileLive = channel.HoldsWhileLive,
+            RunsAsBroadcaster = channel.RunsAsBroadcaster,
             RequestedAt = now,
             Targets =
             [

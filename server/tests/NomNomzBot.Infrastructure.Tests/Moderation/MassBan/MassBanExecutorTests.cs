@@ -76,6 +76,64 @@ public sealed class MassBanExecutorTests
     }
 
     [Fact]
+    public async Task A_channel_whose_owner_opted_in_bans_with_its_own_token_when_the_operator_is_no_twitch_mod()
+    {
+        // Owner 2026-10-06 (anda_six): "meaning you use his account" — yes. Twitch does not list the operator as
+        // a moderator there, so the operator's token cannot ban; the channel joined the bot and its owner opted
+        // in, so the batch runs under the broadcaster's own token. Only a roster moderator or a platform principal
+        // reaches a channel this way; a stranger gets nothing.
+        MassBanTestWorld world = new();
+        world.OwnChannel("own1", "stoney");
+        Guid rostered = world.OwnerOptedInChannelWithoutTwitchMod(
+            "r1",
+            "on_roster",
+            onRoster: true
+        );
+        world.OwnerOptedInChannelWithoutTwitchMod("s1", "stranger", onRoster: false);
+        await QueueAsync(world);
+
+        int banned = await world.Executor().RunAsync(maxBans: 50);
+        banned += await world.Executor().RunAsync(maxBans: 50);
+
+        banned.Should().Be(6, "the own channel and the rostered channel, three accounts each");
+        List<MassBanBatch> batches = await world.Db.MassBanBatches.ToListAsync();
+        batches.Select(b => b.ChannelLogin).Should().BeEquivalentTo(["stoney", "on_roster"]);
+        MassBanBatch viaOwner = batches.Single(b => b.ChannelLogin == "on_roster");
+        viaOwner.RunsAsBroadcaster.Should().BeTrue();
+        viaOwner.ChannelId.Should().Be(rostered);
+        batches.Single(b => b.ChannelLogin == "stoney").RunsAsBroadcaster.Should().BeFalse();
+        await world
+            .Moderation.Received(3)
+            .BanUserAsync(rostered, Arg.Any<string>(), "storm", Arg.Any<CancellationToken>());
+        await world
+            .Moderation.DidNotReceive()
+            .BanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "r1",
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_platform_principal_reaches_an_owner_opted_in_channel_without_a_roster_row()
+    {
+        MassBanTestWorld world = new();
+        world.OperatorIsPlatformPrincipal();
+        world.OwnChannel("own1", "stoney");
+        Guid channel = world.OwnerOptedInChannelWithoutTwitchMod("a1", "anda", onRoster: false);
+        await QueueAsync(world);
+
+        await world.Executor().RunAsync(maxBans: 50);
+        await world.Executor().RunAsync(maxBans: 50);
+
+        await world
+            .Moderation.Received(3)
+            .BanUserAsync(channel, Arg.Any<string>(), "storm", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task An_approved_batch_runs_while_the_channel_is_still_live()
     {
         MassBanTestWorld world = new();

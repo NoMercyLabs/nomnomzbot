@@ -191,7 +191,8 @@ public class ModerationController : BaseController
                 p.IsOwnChannel,
                 p.IsAttacked,
                 p.IsLive,
-                p.UsesBot
+                p.UsesBot,
+                p.RunsAsBroadcaster
             )),
         ];
         return Ok(new StatusResponseDto<List<MassBanChannelPreviewDto>> { Data = rows });

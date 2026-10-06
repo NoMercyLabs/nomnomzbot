@@ -86,6 +86,24 @@ internal sealed class MassBanTestWorld
                     )
                 )
             );
+        Moderation
+            .BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Result.Success(
+                    new TwitchBanResult(
+                        call.ArgAt<Guid>(0).ToString(),
+                        "owner",
+                        call.ArgAt<string>(1),
+                        DateTimeOffset.UnixEpoch,
+                        null
+                    )
+                )
+            );
         Composer
             .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => "line:" + call.Arg<BuiltinResponseRequest>().Slot);
@@ -123,6 +141,56 @@ internal sealed class MassBanTestWorld
         _moderated.Add(new(twitchId, login, login));
         if (live)
             _live.Add(twitchId);
+    }
+
+    /// <summary>
+    /// A served channel whose owner opted in, where Twitch does NOT list the operator as a moderator. The operator
+    /// is on the bot's roster there when <paramref name="onRoster"/>; its bans ride the broadcaster's token.
+    /// </summary>
+    public Guid OwnerOptedInChannelWithoutTwitchMod(string twitchId, string login, bool onRoster)
+    {
+        Guid id = Guid.NewGuid();
+        Db.Channels.Add(
+            new Channel
+            {
+                Id = id,
+                TwitchChannelId = twitchId,
+                Name = login,
+                NameNormalized = login,
+                IsOnboarded = true,
+                AcceptsModeratorMassBans = true,
+            }
+        );
+        if (onRoster)
+            Db.ChannelModerators.Add(
+                new ChannelModerator
+                {
+                    ChannelId = id,
+                    UserId = Operator,
+                    GrantedAt = Clock.GetUtcNow().UtcDateTime,
+                }
+            );
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+        return id;
+    }
+
+    /// <summary>The operator is a platform principal (admin).</summary>
+    public void OperatorIsPlatformPrincipal()
+    {
+        Db.Users.Add(
+            new User
+            {
+                Id = Operator,
+                TwitchUserId = "op-twitch",
+                Username = "stoney",
+                UsernameNormalized = "stoney",
+                DisplayName = "Stoney",
+                IsPlatformPrincipal = true,
+            }
+        );
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
     }
 
     /// <summary>The moderator recorded the streamer's permission for a channel they moderate.</summary>

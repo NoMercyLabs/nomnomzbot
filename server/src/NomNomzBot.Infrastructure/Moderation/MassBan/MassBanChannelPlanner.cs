@@ -102,7 +102,88 @@ public sealed class MassBanChannelPlanner
             );
             plans.Add(new(channel, served, isOwn, isAttacked, isLive, status, optIn));
         }
+        plans.AddRange(
+            await PlanOwnerTokenChannelsAsync(
+                operatorUserId,
+                moderated.Value,
+                attacked,
+                excluded,
+                ct
+            )
+        );
         return Result.Success<IReadOnlyList<MassBanChannelPlan>>(plans);
+    }
+
+    // Owner 2026-10-06 (anda_six): a served channel whose owner opted in is reached even when Twitch does not list
+    // the operator as its moderator — the bans ride the channel's own token. Only an operator the owner or the
+    // platform already trusts gets there: a roster moderator of that channel, or a platform principal.
+    private async Task<List<MassBanChannelPlan>> PlanOwnerTokenChannelsAsync(
+        Guid operatorUserId,
+        IReadOnlyList<TwitchModeratedChannel> moderated,
+        HashSet<string> attacked,
+        HashSet<string> excluded,
+        CancellationToken ct
+    )
+    {
+        HashSet<string> listedByTwitch = [.. moderated.Select(c => c.BroadcasterId)];
+        bool platformPrincipal = await _db
+            .Users.AsNoTracking()
+            .Where(u => u.Id == operatorUserId)
+            .Select(u => u.IsPlatformPrincipal)
+            .FirstOrDefaultAsync(ct);
+        List<Channel> candidates = await _db
+            .Channels.AsNoTracking()
+            .Where(c =>
+                c.AcceptsModeratorMassBans
+                && c.TwitchChannelId != null
+                && c.OwnerUserId != operatorUserId
+                && (
+                    platformPrincipal
+                    || _db.ChannelModerators.Any(m =>
+                        m.ChannelId == c.Id && m.UserId == operatorUserId
+                    )
+                )
+            )
+            .ToListAsync(ct);
+        List<Channel> reachable =
+        [
+            .. candidates.Where(c => IsServed(c) && !listedByTwitch.Contains(c.TwitchChannelId!)),
+        ];
+        if (reachable.Count == 0)
+            return [];
+
+        Result<HashSet<string>> live = await _liveChannels.FindLiveAsync(
+            [.. reachable.Select(c => c.TwitchChannelId!)],
+            ct
+        );
+        List<MassBanChannelPlan> plans = new(reachable.Count);
+        foreach (Channel row in reachable)
+        {
+            TwitchModeratedChannel channel = new(row.TwitchChannelId!, row.Name, row.Name);
+            bool isAttacked = attacked.Contains(row.Name);
+            // Unknown live state holds the batch: the executor re-checks before it runs.
+            bool isLive = live.IsFailure || live.Value.Contains(row.TwitchChannelId!);
+            string status = StatusFor(
+                excluded.Contains(row.Name),
+                optedIn: true,
+                holdsWhileLive: !isAttacked,
+                isLive,
+                usesBot: true
+            );
+            plans.Add(
+                new(
+                    channel,
+                    row,
+                    IsOwnChannel: false,
+                    isAttacked,
+                    isLive,
+                    status,
+                    MassBanOptInSource.Owner,
+                    RunsAsBroadcaster: true
+                )
+            );
+        }
+        return plans;
     }
 
     // The strongest reason a channel is in, or null when nobody opted it in (owner 2026-10-06: opt-in only).
@@ -186,7 +267,8 @@ public sealed record MassBanChannelPlan(
     bool IsAttacked,
     bool IsLive,
     string Status,
-    string? OptIn
+    string? OptIn,
+    bool RunsAsBroadcaster = false
 )
 {
     /// <summary>The own and attacked channels ban even while live; every other channel waits while it is live.</summary>
