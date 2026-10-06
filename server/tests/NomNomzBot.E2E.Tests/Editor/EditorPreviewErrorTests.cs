@@ -78,7 +78,8 @@ public sealed class EditorPreviewErrorTests : EditorPageTest
         ILocator overlay = Page.Locator("#previewError");
         await Expect(overlay).ToBeVisibleAsync(new() { Timeout = 60_000 });
         await Expect(overlay).ToContainTextAsync("kaboom 1");
-        await Expect(overlay.Locator(".preview-error-where")).ToHaveTextAsync("components/Boom.vue:4");
+        await Expect(overlay.Locator(".preview-error-where"))
+            .ToHaveTextAsync("components/Boom.vue:4");
 
         await overlay.Locator(".preview-error-main").ClickAsync();
 
@@ -126,7 +127,8 @@ public sealed class EditorPreviewErrorTests : EditorPageTest
             ""
         );
 
-        await Expect(Page.Locator("#previewError")).ToContainTextAsync("late failure", new() { Timeout = 60_000 });
+        await Expect(Page.Locator("#previewError"))
+            .ToContainTextAsync("late failure", new() { Timeout = 60_000 });
     }
 
     [E2EFact]
@@ -139,7 +141,8 @@ public sealed class EditorPreviewErrorTests : EditorPageTest
             ""
         );
 
-        await Expect(Page.Locator("#fireBar .fire-btn")).ToHaveTextAsync("reward_redeemed", new() { Timeout = 60_000 });
+        await Expect(Page.Locator("#fireBar .fire-btn"))
+            .ToHaveTextAsync("reward_redeemed", new() { Timeout = 60_000 });
     }
 
     [E2EFact]
@@ -158,7 +161,8 @@ public sealed class EditorPreviewErrorTests : EditorPageTest
         );
 
         IFrameLocator frame = Page.FrameLocator("#previewFrame");
-        await Expect(frame.Locator(".banner")).ToHaveTextAsync("Hello kitte", new() { Timeout = 60_000 });
+        await Expect(frame.Locator(".banner"))
+            .ToHaveTextAsync("Hello kitte", new() { Timeout = 60_000 });
         await Expect(frame.Locator(".badge")).ToHaveTextAsync("live");
         await Expect(Page.Locator("#previewError")).ToBeHiddenAsync();
     }
