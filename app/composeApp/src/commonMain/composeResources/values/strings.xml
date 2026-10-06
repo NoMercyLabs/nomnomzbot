@@ -1341,9 +1341,7 @@
     <string name="community_action_error">Could not complete that action: %1$s</string>
     <string name="community_messages_section">Your lines for this person</string>
     <string name="community_messages_shoutout_label">Shoutout line</string>
-    <string name="community_messages_raid_label">Raid line</string>
-    <string name="community_messages_shoutout_help">Posted when you shout this person out. Leave empty to use your channel default.</string>
-    <string name="community_messages_raid_help">Posted when you raid this person. Leave empty to use your channel default.</string>
+    <string name="community_messages_shoutout_help">Posted when you shout this person out or raid them. Leave empty to use your channel default.</string>
     <string name="community_messages_placeholder">Go follow {user} at {url}!</string>
     <string name="community_messages_save">Save</string>
     <string name="community_messages_clear">Clear</string>

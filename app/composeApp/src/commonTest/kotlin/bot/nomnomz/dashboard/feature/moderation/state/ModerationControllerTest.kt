@@ -1277,16 +1277,14 @@ internal class FakeModerationApi(
         targetTwitchUserId: String,
         targetDisplayName: String,
         messageTemplate: String,
-        kind: String,
     ): ApiResult<Unit> {
         setShoutoutOverrideResult?.let { return it }
-        savedOverrides.removeAll { it.targetTwitchUserId == targetTwitchUserId && it.kind == kind }
+        savedOverrides.removeAll { it.targetTwitchUserId == targetTwitchUserId }
         savedOverrides.add(
             ShoutoutOverride(
                 targetTwitchUserId = targetTwitchUserId,
                 targetDisplayName = targetDisplayName,
                 messageTemplate = messageTemplate,
-                kind = kind,
             )
         )
         return ApiResult.Ok(Unit)
@@ -1295,9 +1293,8 @@ internal class FakeModerationApi(
     override suspend fun deleteShoutoutOverride(
         channelId: String,
         targetTwitchUserId: String,
-        kind: String,
     ): ApiResult<Unit> {
-        savedOverrides.removeAll { it.targetTwitchUserId == targetTwitchUserId && it.kind == kind }
+        savedOverrides.removeAll { it.targetTwitchUserId == targetTwitchUserId }
         return ApiResult.Ok(Unit)
     }
 

@@ -84,12 +84,11 @@ public sealed record ViewerPermitsDto(
     DateTime? AgeConsentConfirmedUtc
 );
 
-/// <summary>Custom bot behavior overrides — shoutout, raid, TTS voice (owner punch list §3 row 6).</summary>
-public sealed record ViewerOverridesDto(
-    string? ShoutoutMessageTemplate,
-    string? RaidMessageTemplate,
-    UserTtsVoiceDto? TtsVoice
-);
+/// <summary>
+/// Custom bot behavior overrides — the person's one shoutout line (also used when raiding them) and TTS
+/// voice (owner punch list §3 row 6).
+/// </summary>
+public sealed record ViewerOverridesDto(string? ShoutoutMessageTemplate, UserTtsVoiceDto? TtsVoice);
 
 /// <summary>Command usage (owner punch list §3 row 7).</summary>
 public sealed record ViewerCommandUsageDto(int TotalCommandsUsed, DateTime? LastUsedUtc);

@@ -1283,9 +1283,8 @@ private class FakeModerationApi : ModerationApi {
         targetTwitchUserId: String,
         targetDisplayName: String,
         messageTemplate: String,
-        kind: String,
     ) = error("stub")
-    override suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String, kind: String) = error("stub")
+    override suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String) = error("stub")
     override suspend fun notesFor(channelId: String, userId: String) = error("stub")
     override suspend fun createNote(
         channelId: String,

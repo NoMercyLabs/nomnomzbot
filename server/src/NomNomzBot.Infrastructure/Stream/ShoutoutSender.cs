@@ -82,12 +82,7 @@ public sealed class ShoutoutSender : IShoutoutSender
         ShoutoutOverride? perTargetOverride = await _db
             .ShoutoutOverrides.AsNoTracking()
             .FirstOrDefaultAsync(
-                o =>
-                    o.BroadcasterId == broadcasterId
-                    && o.TargetTwitchUserId == target.Id
-                    // Only the shoutout line — a raid line for the same person is a different message
-                    // and must never be posted as a shoutout.
-                    && o.Kind == ShoutoutOverrideKinds.Shoutout,
+                o => o.BroadcasterId == broadcasterId && o.TargetTwitchUserId == target.Id,
                 cancellationToken
             );
 

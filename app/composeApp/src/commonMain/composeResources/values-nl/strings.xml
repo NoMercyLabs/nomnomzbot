@@ -1338,9 +1338,7 @@
     <string name="community_action_error">Kon die actie niet voltooien: %1$s</string>
     <string name="community_messages_section">Jouw teksten voor deze persoon</string>
     <string name="community_messages_shoutout_label">Shoutout-tekst</string>
-    <string name="community_messages_raid_label">Raid-tekst</string>
-    <string name="community_messages_shoutout_help">Wordt geplaatst als je deze persoon een shoutout geeft. Laat leeg voor je kanaalstandaard.</string>
-    <string name="community_messages_raid_help">Wordt geplaatst als je deze persoon raidt. Laat leeg voor je kanaalstandaard.</string>
+    <string name="community_messages_shoutout_help">Wordt geplaatst als je deze persoon een shoutout geeft of raidt. Laat leeg voor je kanaalstandaard.</string>
     <string name="community_messages_placeholder">Volg {user} op {url}!</string>
     <string name="community_messages_save">Opslaan</string>
     <string name="community_messages_clear">Wissen</string>

@@ -23,7 +23,6 @@ import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
 import bot.nomnomz.dashboard.core.network.RolesApi
-import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.UserNote
@@ -204,8 +203,8 @@ class ViewerProfileController(
     }
 
     /**
-     * Save this channel's [kind] line ([ShoutoutOverrideKind.Shoutout] / [ShoutoutOverrideKind.Raid]) for this
-     * person, keyed on their Twitch id (the overrides table has no local-user FK — see [ShoutoutOverride]).
+     * Save this channel's one custom line for this person (used for the shoutout and when raiding them),
+     * keyed on their Twitch id (the overrides table has no local-user FK — see [ShoutoutOverride]).
      * Returns null on success, or the backend's message on failure.
      */
     // Every write below returns the backend's error message (null on success) AND, on failure, sets it on
@@ -214,13 +213,13 @@ class ViewerProfileController(
     // do — the SAME pattern the old Community "Messages" section used), and a caller that fires-and-forgets
     // (Profile's quick TTS/role pickers) still surfaces it through the page's top banner rather than swallowing
     // it silently.
-    suspend fun saveOverrideMessage(kind: String, messageTemplate: String): String? {
+    suspend fun saveOverrideMessage(messageTemplate: String): String? {
         val channel: String = channelId ?: return noChannelError()
         val target: String = requireTwitchId() ?: return NoTwitchIdError
         val name: String = (_state.value as? ViewerProfileState.Ready)?.profile?.identity?.displayName ?: target
         return when (
             val result =
-                moderationApi.setShoutoutOverride(channel, target, name, messageTemplate, kind)
+                moderationApi.setShoutoutOverride(channel, target, name, messageTemplate)
         ) {
             is ApiResult.Ok -> {
                 refresh(isInitial = false)
@@ -233,11 +232,11 @@ class ViewerProfileController(
         }
     }
 
-    /** Clear this channel's [kind] line for this person. Returns null on success, else the backend's message. */
-    suspend fun clearOverrideMessage(kind: String): String? {
+    /** Clear this channel's custom line for this person. Returns null on success, else the backend's message. */
+    suspend fun clearOverrideMessage(): String? {
         val channel: String = channelId ?: return noChannelError()
         val target: String = requireTwitchId() ?: return NoTwitchIdError
-        return when (val result = moderationApi.deleteShoutoutOverride(channel, target, kind)) {
+        return when (val result = moderationApi.deleteShoutoutOverride(channel, target)) {
             is ApiResult.Ok -> {
                 refresh(isInitial = false)
                 null

@@ -23,7 +23,6 @@ using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
-using NomNomzBot.Domain.Stream.Entities;
 
 namespace NomNomzBot.Infrastructure.Community;
 
@@ -156,17 +155,15 @@ public sealed class ViewerProfileService(
             ))
             .ToListAsync(ct);
 
-        Domain.Identity.Entities.ChannelCommunityStanding? standing =
-            await db.ChannelCommunityStandings.FirstOrDefaultAsync(
-                s => s.BroadcasterId == broadcasterId && s.UserId == user.Id,
-                ct
-            );
+        ChannelCommunityStanding? standing = await db.ChannelCommunityStandings.FirstOrDefaultAsync(
+            s => s.BroadcasterId == broadcasterId && s.UserId == user.Id,
+            ct
+        );
 
-        Domain.Identity.Entities.ChannelMembership? membership =
-            await db.ChannelMemberships.FirstOrDefaultAsync(
-                m => m.BroadcasterId == broadcasterId && m.UserId == user.Id,
-                ct
-            );
+        ChannelMembership? membership = await db.ChannelMemberships.FirstOrDefaultAsync(
+            m => m.BroadcasterId == broadcasterId && m.UserId == user.Id,
+            ct
+        );
 
         return new ViewerIdentityDto(
             user.Id,
@@ -261,20 +258,14 @@ public sealed class ViewerProfileService(
     )
     {
         string? shoutout = null;
-        string? raid = null;
         if (user.TwitchUserId is not null)
         {
-            List<ShoutoutOverride> overrides = await db
+            shoutout = await db
                 .ShoutoutOverrides.Where(o =>
                     o.BroadcasterId == broadcasterId && o.TargetTwitchUserId == user.TwitchUserId
                 )
-                .ToListAsync(ct);
-            shoutout = overrides
-                .FirstOrDefault(o => o.Kind == ShoutoutOverrideKinds.Shoutout)
-                ?.MessageTemplate;
-            raid = overrides
-                .FirstOrDefault(o => o.Kind == ShoutoutOverrideKinds.Raid)
-                ?.MessageTemplate;
+                .Select(o => o.MessageTemplate)
+                .FirstOrDefaultAsync(ct);
         }
 
         UserTtsVoiceDto? voice = null;
@@ -288,7 +279,7 @@ public sealed class ViewerProfileService(
             voice = voiceResult.IsSuccess ? voiceResult.Value : null;
         }
 
-        return new ViewerOverridesDto(shoutout, raid, voice);
+        return new ViewerOverridesDto(shoutout, voice);
     }
 
     private async Task<ViewerCommandUsageDto> BuildCommandUsageAsync(

@@ -166,7 +166,7 @@ class ViewerProfileControllerTest {
         val controller = controller(communityApi = communityApi, moderationApi = moderationApi)
         controller.load("u1")
 
-        val error: String? = controller.saveOverrideMessage("shoutout", "Go follow Friend!")
+        val error: String? = controller.saveOverrideMessage("Go follow Friend!")
 
         assertNull(error)
         assertEquals(1, moderationApi.savedOverrides.size)
@@ -187,7 +187,7 @@ class ViewerProfileControllerTest {
         val controller = controller(communityApi = communityApi, moderationApi = moderationApi, feedback = feedback)
         controller.load("u1")
 
-        val returned: String? = controller.saveOverrideMessage("shoutout", "x".repeat(2000))
+        val returned: String? = controller.saveOverrideMessage("x".repeat(2000))
 
         assertEquals("Template too long.", returned)
         assertEquals(FeedbackKind.Error, feedback.only.kind)
