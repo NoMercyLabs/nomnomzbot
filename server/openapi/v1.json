@@ -118176,7 +118176,12 @@
         "description": "One correlated cohort, for the Campaigns surface.\n\nDateTime? SpamCampaignDto.ReversedAt null and int SpamCampaignDto.RestoredAccountCount zero means no reversal was\never attempted; DateTime? SpamCampaignDto.ReversedAt null with int SpamCampaignDto.RestoredAccountCount positive or\nstring SpamCampaignDto.RestorationFailedAccountIds non-empty means an attempt fell short of every actioned\naccount; DateTime? SpamCampaignDto.ReversedAt set means every actioned account came back. Three distinct,\nlegible states — a partial restore must never be indistinguishable from either extreme."
       },
       "SpamConfidence": {
-        "type": "integer",
+        "enum": [
+          "Zero",
+          "Low",
+          "Medium",
+          "High"
+        ],
         "description": "How sure the stack is, per SD1."
       },
       "SpamDefensePolicyDto": {
@@ -118482,7 +118487,12 @@
         "description": "A protection the operator gets for free and cannot turn off."
       },
       "SpamOutcome": {
-        "type": "integer",
+        "enum": [
+          "None",
+          "Flag",
+          "DeleteAndQueue",
+          "DeleteAndEscalate"
+        ],
         "description": "What the engine decided to do. Ordered so a stricter outcome is a larger value."
       },
       "SpamSettingDescriptorDto": {
@@ -118552,7 +118562,15 @@
         "description": "One knob as the editor needs it: what it is, where it belongs, and what it is bounded to.\nThe words come from the dashboard's string resources, keyed by these. A setting the engine does\nnot read yet carries the slice that wires it and the key for why it has no effect."
       },
       "SpamTrustTier": {
-        "type": "integer",
+        "enum": [
+          "Untrusted",
+          "Newcomer",
+          "Known",
+          "Regular",
+          "SemiTrusted",
+          "Trusted",
+          "Established"
+        ],
         "description": "The spam-defence trust ladder (spam-defense.md §L4). Ladder-valued so comparisons are ordinary\nnumeric ones, matching the existing permission ladder. <b>Users never see these numbers</b> — the\ndashboard shows tier NAMES, per the role-name rule."
       },
       "StartCheckoutRequest": {

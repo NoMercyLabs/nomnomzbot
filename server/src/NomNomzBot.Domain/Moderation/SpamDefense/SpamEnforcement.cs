@@ -8,9 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
 /// <summary>How sure the stack is, per SD1.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SpamConfidence
 {
     /// <summary>No content signal fired. Nothing happens — this is where ordinary chat lands.</summary>
@@ -27,6 +30,7 @@ public enum SpamConfidence
 }
 
 /// <summary>What the engine decided to do. Ordered so a stricter outcome is a larger value.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SpamOutcome
 {
     /// <summary>Nothing at all — not even a record beyond the routine trust counter.</summary>

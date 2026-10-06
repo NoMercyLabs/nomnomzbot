@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
 /// <summary>
@@ -15,6 +17,7 @@ namespace NomNomzBot.Domain.Moderation.SpamDefense;
 /// numeric ones, matching the existing permission ladder. <b>Users never see these numbers</b> — the
 /// dashboard shows tier NAMES, per the role-name rule.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SpamTrustTier
 {
     /// <summary>Every unknown account. May always post plain text.</summary>
@@ -138,23 +141,18 @@ public static class TrustTierLadder
             return SpamTrustTier.SemiTrusted;
 
         if (
-            account.AccountAgeDays >= 182
-            && account.IsFollowing
-            && account.FollowAgeHours >= 30 * 24
-            && participation.MessageCountHere >= 50
-            && participation.DaysSinceLastUpheldStrike >= 90
+            account is { AccountAgeDays: >= 182, IsFollowing: true, FollowAgeHours: >= 30 * 24 }
+            && participation is { MessageCountHere: >= 50, DaysSinceLastUpheldStrike: >= 90 }
         )
             return SpamTrustTier.Regular;
 
         if (
-            account.AccountAgeDays >= 30
-            && account.IsFollowing
-            && account.FollowAgeHours >= 7 * 24
+            account is { AccountAgeDays: >= 30, IsFollowing: true, FollowAgeHours: >= 7 * 24 }
             && participation.MessageCountHere >= 5
         )
             return SpamTrustTier.Known;
 
-        if (account.AccountAgeDays >= 7 && account.IsFollowing && account.FollowAgeHours >= 24)
+        if (account is { AccountAgeDays: >= 7, IsFollowing: true, FollowAgeHours: >= 24 })
             return SpamTrustTier.Newcomer;
 
         return SpamTrustTier.Untrusted;
