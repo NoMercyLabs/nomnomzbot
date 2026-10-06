@@ -6215,4 +6215,17 @@
     <string name="tts_no_channel_error">No active channel — reconnect and try again.</string>
     <string name="voicetriggers_no_channel_error">No active channel — reconnect and try again.</string>
     <string name="widgets_no_channel_error">No active channel — reconnect and try again.</string>
+    <string name="chat_mark_deleted">Deleted</string>
+    <string name="chat_mark_deleted_by">Deleted by %1$s</string>
+    <string name="chat_mark_banned">Banned</string>
+    <string name="chat_mark_banned_by">Banned by %1$s</string>
+    <string name="chat_mark_cleared">Messages removed</string>
+    <string name="chat_mark_timed_out">Timed out</string>
+    <string name="chat_mark_timed_out_by">Timed out by %1$s</string>
+    <string name="chat_mark_timed_out_for">Timed out %1$s</string>
+    <string name="chat_mark_timed_out_for_by">Timed out %1$s by %2$s</string>
+    <string name="chat_mark_duration_seconds">%1$d s</string>
+    <string name="chat_mark_duration_minutes">%1$d m</string>
+    <string name="chat_mark_duration_hours">%1$d h</string>
+    <string name="chat_mark_duration_days">%1$d d</string>
 </resources>

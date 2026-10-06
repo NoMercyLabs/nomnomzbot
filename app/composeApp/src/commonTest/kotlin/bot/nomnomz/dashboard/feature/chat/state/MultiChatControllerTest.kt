@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubModAction
 import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
@@ -37,6 +38,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 // Proves the multi-watch state machine the screen renders: list the watchable channels, add/remove a channel
 // (joining/leaving its hub group + merging/dropping its scrollback), and route live hub pushes into the merged
@@ -144,6 +147,62 @@ class MultiChatControllerTest {
 
         val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
         assertEquals(listOf("l1"), ready.messages.map { it.id })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_moderated_line_stays_in_the_merged_feed_with_a_mark_saying_who_did_it() = runTest {
+        val chat = FakeMultiChatApi()
+        chat.messagesByChannel["a"] =
+            listOf(
+                ChatMessage(id = "m1", channelId = "a", userId = "u1", message = "bad", timestamp = "2026-07-18T10:00:00Z"),
+                ChatMessage(id = "m2", channelId = "a", userId = "u2", message = "ok", timestamp = "2026-07-18T10:01:00Z"),
+            )
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        fun deleted(by: String): HubEvent.ChannelEvent =
+            HubEvent.ChannelEvent(
+                HubChannelEvent(
+                    type = "message_deleted",
+                    broadcasterId = "a",
+                    data = buildJsonObject {
+                        put("messageId", "m1")
+                        put("targetUserId", "u1")
+                        if (by.isNotEmpty()) put("deletedByDisplayName", by)
+                    },
+                )
+            )
+
+        events.emit(deleted(""))
+        var ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals(listOf("m1", "m2"), ready.messages.map { it.id })
+        assertEquals(LineMark(LineMarkKind.Deleted), ready.lineMarks.forMessage(ready.messages[0]))
+
+        events.emit(deleted("Ana"))
+        ready = controller.state.value as MultiChatState.Ready
+        assertEquals(LineMark(LineMarkKind.Deleted, "Ana"), ready.lineMarks.forMessage(ready.messages[0]))
+
+        events.emit(
+            HubEvent.ModAction(
+                HubModAction(action = "timeout", targetUserId = "u2", durationSeconds = 600, moderatorDisplayName = "Ana")
+            )
+        )
+        ready = controller.state.value as MultiChatState.Ready
+        assertEquals(2, ready.messages.size)
+        assertEquals(
+            LineMark(LineMarkKind.TimedOut, "Ana", 600),
+            ready.lineMarks.forMessage(ready.messages[1]),
+        )
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

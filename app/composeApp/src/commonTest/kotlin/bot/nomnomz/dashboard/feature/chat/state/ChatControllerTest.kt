@@ -26,6 +26,7 @@ import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubModAction
 import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -39,6 +40,8 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -509,6 +512,142 @@ class ChatControllerTest {
         assertTrue(state is ChatState.Ready)
         // The redelivered id appears exactly once; the feed's id-keyed LazyColumn would crash on a duplicate key.
         assertEquals(listOf("hist", "live1"), (state as ChatState.Ready).messages.map { it.id })
+    }
+
+    // ─── Moderated lines stay visible and say what happened and who did it ─────────────────────────────────────
+
+    private fun deletedPush(messageId: String, by: String = ""): HubEvent.ChannelEvent =
+        HubEvent.ChannelEvent(
+            HubChannelEvent(
+                type = "message_deleted",
+                broadcasterId = "ch1",
+                data = buildJsonObject {
+                    put("messageId", messageId)
+                    put("deletedByUserId", "mod1")
+                    put("targetUserId", "u1")
+                    if (by.isNotEmpty()) put("deletedByDisplayName", by)
+                },
+            )
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_deleted_message_stays_in_the_feed_marked_as_deleted() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(
+                    ApiResult.Ok(
+                        listOf(
+                            ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "bad"),
+                            ChatMessage(id = "m2", channelId = "ch1", userId = "u2", message = "fine"),
+                        )
+                    )
+                ),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(deletedPush("m1"))
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertEquals(listOf("m1", "m2"), ready.messages.map { it.id })
+        assertEquals(LineMark(LineMarkKind.Deleted), ready.lineMarks.forMessage(ready.messages[0]))
+        assertNull(ready.lineMarks.forMessage(ready.messages[1]))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun the_named_delete_push_upgrades_the_unnamed_mark() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "bad")))),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(deletedPush("m1"))
+        events.emit(deletedPush("m1", by = "Ana"))
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertEquals(1, ready.messages.size)
+        assertEquals(LineMark(LineMarkKind.Deleted, "Ana"), ready.lineMarks.forMessage(ready.messages[0]))
+
+        // A late unnamed redelivery never erases the name.
+        events.emit(deletedPush("m1"))
+        val after: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertEquals("Ana", after.lineMarks.forMessage(after.messages[0])?.byDisplayName)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_timeout_mod_action_marks_that_users_lines_with_duration_and_moderator() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(
+                    ApiResult.Ok(
+                        listOf(
+                            ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "a"),
+                            ChatMessage(id = "m2", channelId = "ch1", userId = "u2", message = "b"),
+                            ChatMessage(id = "m3", channelId = "ch1", userId = "u1", message = "c"),
+                        )
+                    )
+                ),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(
+            HubEvent.ModAction(
+                HubModAction(
+                    action = "timeout",
+                    moderatorId = "mod1",
+                    targetUserId = "u1",
+                    durationSeconds = 600,
+                    moderatorDisplayName = "Ana",
+                )
+            )
+        )
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        val expected = LineMark(LineMarkKind.TimedOut, byDisplayName = "Ana", durationSeconds = 600)
+        assertEquals(expected, ready.lineMarks.forMessage(ready.messages[0]))
+        assertEquals(expected, ready.lineMarks.forMessage(ready.messages[2]))
+        assertNull(ready.lineMarks.forMessage(ready.messages[1]))
+        assertEquals(3, ready.messages.size)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun a_ban_mod_action_marks_lines_and_a_purge_never_downgrades_it() = runTest {
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", channelId = "ch1", userId = "u1", message = "a")))),
+            )
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(HubEvent.ModAction(HubModAction(action = "ban", targetUserId = "u1", moderatorDisplayName = "Ana")))
+        events.emit(
+            HubEvent.ChannelEvent(
+                HubChannelEvent(
+                    type = "user_messages_cleared",
+                    broadcasterId = "ch1",
+                    data = buildJsonObject { put("targetUserId", "u1") },
+                )
+            )
+        )
+
+        val ready: ChatState.Ready = controller.state.value as ChatState.Ready
+        assertEquals(1, ready.messages.size)
+        assertEquals(LineMark(LineMarkKind.Banned, "Ana"), ready.lineMarks.forMessage(ready.messages[0]))
     }
 
     // ─── Shield Mode (S076c) — the single-channel Chat page's toggle, wired to the SAME ModerationApi the
