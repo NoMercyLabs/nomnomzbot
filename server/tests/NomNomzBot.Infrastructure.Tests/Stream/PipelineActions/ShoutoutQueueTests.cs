@@ -67,7 +67,10 @@ public sealed class ShoutoutQueueTests
             CreatedAt: DateTimeOffset.UnixEpoch
         );
 
-    private static string Line(string id) => $"Go check out Name{id} — twitch.tv/login{id}";
+    // Steps pin this template so the queue tests assert one exact line, not a random pick from the tone pool.
+    private const string Template = "Go check out {target.name}!";
+
+    private static string Line(string id) => $"Go check out Name{id}!";
 
     private static async Task<Rig> BuildAsync()
     {
@@ -216,6 +219,7 @@ public sealed class ShoutoutQueueTests
             {
                 ["user_id"] = JsonSerializer.SerializeToElement(userId),
                 ["tts"] = JsonSerializer.SerializeToElement(tts),
+                ["template"] = JsonSerializer.SerializeToElement(Template),
             },
         };
 
@@ -228,6 +232,7 @@ public sealed class ShoutoutQueueTests
                 ["user_id"] = JsonSerializer.SerializeToElement(userId),
                 ["tts"] = JsonSerializer.SerializeToElement(true),
                 ["priority"] = JsonSerializer.SerializeToElement(priority),
+                ["template"] = JsonSerializer.SerializeToElement(Template),
             },
         };
 
