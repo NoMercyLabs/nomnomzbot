@@ -21,6 +21,107 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
+
+Owner, verbatim: "so basically the code editing is not good enough and lacks too many features. the
+editor screen is still terrible and is still lacking the reliable test examples and buttons for events,
+the import files throw an error when the files are clearly there. the whole thing needs to become more
+like codepen goes vscode! and i think that the pipeline editor is also suffering from the lack of
+features and lack of explaination. so throw in the psychology of how humans interact the best and fix
+it for once and for all. no more slacking, use multiple research agents and come up with a reliable plan
+to work on. i am tired of asking for the 20th time"
+
+Binding UX spec: `spec/editor-ux-rules.md` (25 rules, each with a check; **R#** below). Every slice
+names its rules and proves their checks. Two lanes run in parallel: **Editor** (server
+`Assets/editor/*.js` + `tests/NomNomzBot.E2E.Tests/Editor`) and **Pipeline** (Compose
+`PipelinesScreen.kt` / `PipelineCatalogue.kt` + server catalogue). Order inside each lane is the queue.
+
+### Editor lane
+
+- **S-EDITOR-VUE-IMPORTS** `import X from "./components/X.vue"` shows TS 2307 although the file exists
+  (no `*.vue` module typing; hidden script model at `vue-script-model.js:51-58`). R5. Done-when: a
+  multi-file Vue widget (index.vue + 4 components) shows zero 2307 markers; a wrong path still shows
+  2307; E2E test fails before the fix.
+- **S-EDITOR-PREVIEW-ERRORS** The BSOD widget preview is black with no message. A runtime or build error
+  in the preview iframe shows over the preview in plain words, with file:line and a click that jumps
+  the editor there. R5, R4. Done-when: E2E throws in a component → overlay shows message + line; click
+  moves the cursor; the BSOD export renders (cause named in the commit).
+- **S-EDITOR-FIRE-ALL-EVENTS** The fire bar is always visible, lists every event the widget can receive
+  (catalogue, not only `.on()` regex hits, `preview.js:71,175-179`), is searchable, and lets the user
+  edit the sample JSON before firing. A failed samples fetch shows an error, never empty payloads
+  (`WidgetsController.kt:422-427`). Add `play_sound`/`stop_sound` samples and a real `test` sample.
+  R2, R4, R12. Done-when: E2E fires each of 53 types into the preview; the fetch-fail path shows the
+  error.
+- **S-EDITOR-CONSOLE** `console.*` from the preview and from script test runs lands in a Console panel
+  (level, time, source line). Today only errors are forwarded (`preview-sdk.js:73-77`). R4, R21.
+  Done-when: E2E logs log/warn/error → three rows with the right level.
+- **S-EDITOR-SAMPLES-REAL** The 76 EventSub fixtures are checked against the live Twitch docs (numeric
+  ids, `rewards.cheer` broadcaster login/name, `chat.message` cheer/reply); a test proves all 76
+  translate to domain events. R2. Done-when: the translate test covers 76 of 76; the doc comparison
+  is a committed ledger.
+- **S-EDITOR-SCRIPT-TEST-PANEL** A script test run shows every output it would cause: chat lines, TTS,
+  OBS calls, overlay events — each in plain words. R2, R14, R21. Done-when: E2E run of a script that
+  does all four shows four labelled outputs.
+- **S-EDITOR-DIRTY-AUTOSAVE** Dirty dot per tab, autosave of a draft (never lost on close/crash),
+  explicit Save still makes a version. R7, R21. Done-when: E2E edit → reload → draft restored; tab
+  shows the dot until saved.
+- **S-EDITOR-STARTERS** A new widget or script never opens blank: a starter picker with runnable
+  examples per framework and per common goal. R1, R2, R18. Done-when: each starter opens, builds, and
+  reacts to its fire-bar event with zero markers.
+- **S-EDITOR-EVENT-CATALOG-VIEW** A side panel lists every event with its one-line description, sample
+  payload, and an "insert handler" action. R9, R10, R20. Done-when: insert puts a typed `.on()` at the
+  cursor with zero markers.
+- **S-EDITOR-DIALOGS-TABS** Replace `window.prompt`/`confirm` (`editor.js:361,371,384`) with in-page
+  dialogs; tabs can close; split view editor|preview is resizable. R15, R22. Done-when: E2E rename,
+  delete (with confirm), close tab, and drag the splitter.
+- **S-EDITOR-ASSETS** Upload and pick images/sounds from the editor (AssetsController exists); insert
+  the URL at the cursor. R10, R13. Done-when: E2E upload → asset listed → inserted path loads in the
+  preview.
+- **S-EDITOR-LAST-REAL-EVENT** "Fire the last real one": seed a sample from the event journal for this
+  channel, with personal data redacted. R2, R19. Done-when: test proves redaction and that the payload
+  fires.
+- **S-EDITOR-PREVIEW-SIZES** Preview size presets (1080p, 720p, vertical, custom) and a background
+  toggle. R13. Done-when: E2E switches presets and the iframe size matches.
+- **S-EDITOR-VERSION-DIFF** Compare any saved version with the current text in a diff view; restore one
+  file or all. R6. Done-when: E2E diff shows the change; restore brings it back.
+- **S-EDITOR-SEARCH-REPLACE** Project-wide search with regex and replace; file outline. R20.
+  Done-when: E2E replace across two files.
+- **S-EDITOR-UX-GATES** One E2E suite that runs every rule check in `editor-ux-rules.md` against the
+  editor; it runs in CI. R1–R25. Done-when: suite green; a rule without a check fails the suite.
+- 🔒 **S-SDK-NPM** Publish the widget SDK types as an npm package (publishing needs the owner's yes).
+
+### Pipeline lane
+
+- **S-PIPE-CONDITIONS-EXPLAINED** The 3 conditions (comparison, random, user_role) get a description
+  and help text; the comparison operator becomes a picker with plain labels ("is equal to", "is more
+  than"…) from the values in `ComparisonCondition.cs:27-29`, not free text
+  (`PipelineCatalogue.kt:729-737`). R8, R9, R10. Done-when: UI test picks each operator and the saved
+  pipeline holds the server value; an unknown stored value still shows.
+- **S-PIPE-VARIABLE-PICKER** Typing `{` in a template field opens a list of the variables that exist
+  here: event context, declared variables, viewer data, counters — each with a sample value; insert
+  at the cursor (today: end of field only). R10, R9. Done-when: UI test inserts a variable mid-text.
+- **S-PIPE-TEST-TRACE** A test run shows each step: what ran, which branch, variables before/after, and
+  the output. The input is a sample-event picker (same samples as the editor), not key=value; viewer
+  data can be simulated. `TestRunResultDto` gets a per-step trace. R14, R2, R6. Done-when: test of a
+  3-step pipeline with a condition returns 3 trace rows with the taken branch; UI shows them.
+- **S-PIPE-RECIPES** A new pipeline never starts empty: recipes for common goals ("every Nth redemption
+  per viewer", "chance to chain", "random reply from a list", "count and remember per viewer"). R1, R2,
+  R18. Done-when: each recipe saves and passes its own test run.
+- **S-PIPE-TYPED-FIELDS** Every action type has typed hints: 110 of 110 (34 still use the raw key/value
+  editor, 22 of them `music_*`). R10, R11. Done-when: a test fails for any action without hints.
+- **S-PIPE-EXAMPLES** The field schema gets an `example` property; every field shows a one-line
+  description and an example value; picker fields show help (`PipelinesScreen.kt:2580-2650`). R9.
+  Done-when: a test fails for any field without description and example.
+- **S-PIPE-INLINE-CREATE** A picker that needs a missing thing (pick list, counter, reward) can create
+  it inline without leaving the editor. R13, R17. Done-when: UI test creates a pick list from inside
+  `pick_from_list` and it is selected.
+- **S-PIPE-UNDO-DUPLICATE** Undo/redo, duplicate step, drag to reorder, copy/paste steps between
+  pipelines. R6, R13. Done-when: UI test does each and undo restores the previous tree.
+- **S-PIPE-RANDOM-PERCENT** `random_branch` shows each branch as a percentage, not a raw weight. R8.
+  Done-when: weights 1/3 show 25 % / 75 %.
+
+---
+
 <!-- parity:begin (one slice per gap in LEGACY-PARITY-LEDGER.md; scripts/check-parity-ledger.py keeps them in step) -->
 ## OWNER REQUEST 2026-10-04 — legacy parity (rule legacy-parity-ledger), stream-facing first
 
