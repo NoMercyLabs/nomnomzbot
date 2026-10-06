@@ -69,6 +69,7 @@ fun TemplateVariableField(
     declared: List<DeclaredVariable>,
     helpers: List<TemplateHelperDto>,
     modifier: Modifier = Modifier,
+    supportingText: String? = null,
 ) {
     val spacing = LocalSpacing.current
     val query: String? = braceQuery(value)
@@ -119,6 +120,7 @@ fun TemplateVariableField(
                 onValueChange(next)
             },
             label = label,
+            supportingText = supportingText,
             modifier = Modifier.fillMaxWidth(),
         )
         if (listOpen) {

@@ -53,6 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateVariableField
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +73,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -108,10 +111,14 @@ import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelperDto
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.UserRoleOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.DeclaredVariable
 import bot.nomnomz.dashboard.feature.pipelines.state.EditorOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.declaredVariablesBefore
+import bot.nomnomz.dashboard.feature.pipelines.state.insertAtCursor
 import bot.nomnomz.dashboard.feature.pipelines.state.LoopConfigFields
 import bot.nomnomz.dashboard.feature.pipelines.state.PickerOption
 import bot.nomnomz.dashboard.feature.pipelines.state.decodeLoopConfig
@@ -934,6 +941,8 @@ internal fun ChainEditor(
     stepDialog?.let { target ->
         StepFormDialog(
             initial = target.step,
+            steps = editing.steps,
+            index = target.step?.id?.let { id -> editing.steps.indexOfFirst { it.id == id } }?.takeIf { it >= 0 } ?: editing.steps.size,
             palette = editing.palette,
             options = editing.options,
             templateHelpersApi = templateHelpersApi,
@@ -2386,8 +2395,10 @@ private fun ParamSummary(node: PipelineNode, palette: RuntimePalette) {
 // a hint-less backend block renders a generic key/value editor so it stays configurable. The Save button is
 // disabled until every REQUIRED typed field of the chosen action (and condition, if any) is non-blank.
 @Composable
-private fun StepFormDialog(
+internal fun StepFormDialog(
     initial: PipelineStep?,
+    steps: List<PipelineStep>,
+    index: Int,
     palette: RuntimePalette,
     options: EditorOptions,
     templateHelpersApi: TemplateHelpersApi,
@@ -2398,6 +2409,9 @@ private fun StepFormDialog(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val helpers: List<TemplateHelperDto> = rememberPipelineHelpers(templateHelpersApi)
+    val declared: List<DeclaredVariable> =
+        remember(steps, index, palette) { declaredVariablesBefore(steps, index, palette) }
 
     val firstActionType: String = palette.actions.firstOrNull()?.type ?: ""
     var actionType: String by remember { mutableStateOf(initial?.action?.type ?: firstActionType) }
@@ -2452,6 +2466,8 @@ private fun StepFormDialog(
                         templateHelpersApi = templateHelpersApi,
                         onOpenCodeScript = onOpenCodeScript,
                         createCodeScript = createCodeScript,
+                        declared = declared,
+                        helpers = helpers,
                     )
                 }
 
@@ -2475,6 +2491,8 @@ private fun StepFormDialog(
                         templateHelpersApi = templateHelpersApi,
                         onOpenCodeScript = onOpenCodeScript,
                         createCodeScript = createCodeScript,
+                        declared = declared,
+                        helpers = helpers,
                     )
                 }
 
@@ -2529,6 +2547,8 @@ private fun BlockParamEditor(
     templateHelpersApi: TemplateHelpersApi,
     onOpenCodeScript: (scriptId: String) -> Unit,
     createCodeScript: suspend (name: String) -> PickerOption?,
+    declared: List<DeclaredVariable> = emptyList(),
+    helpers: List<TemplateHelperDto> = emptyList(),
 ) {
     if (block.description.isNotBlank()) {
         val tokens = LocalTokens.current
@@ -2550,6 +2570,8 @@ private fun BlockParamEditor(
             templateHelpersApi = templateHelpersApi,
             onOpenCodeScript = onOpenCodeScript,
             createCodeScript = createCodeScript,
+            declared = declared,
+            helpers = helpers,
         )
     } else {
         GenericParamFields(entries = generic, templateHelpersApi = templateHelpersApi)
@@ -2564,6 +2586,8 @@ private fun TypedParamFields(
     templateHelpersApi: TemplateHelpersApi,
     onOpenCodeScript: (scriptId: String) -> Unit,
     createCodeScript: suspend (name: String) -> PickerOption?,
+    declared: List<DeclaredVariable>,
+    helpers: List<TemplateHelperDto>,
 ) {
     val spacing = LocalSpacing.current
 
@@ -2709,23 +2733,15 @@ private fun TypedParamFields(
                 // trigger, or a timer, so it gets the broadest helper set (TemplateHelperContext.Pipeline,
                 // S042/S043) rather than guessing which trigger this step will end up wired to.
                 else ->
-                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                        AppTextField(
-                            value = params[field.key].orEmpty(),
-                            onValueChange = { params[field.key] = it },
-                            label = fieldLabelWithRequired(field),
-                            supportingText = fieldHelpText(field),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        TemplateHelpersLink(
-                            context = TemplateHelperContext.Pipeline,
-                            api = templateHelpersApi,
-                            onInsert = { token ->
-                                val current: String = params[field.key].orEmpty()
-                                params[field.key] = if (current.isBlank()) token else "$current $token"
-                            },
-                        )
-                    }
+                    TemplateParamField(
+                        label = fieldLabelWithRequired(field),
+                        supportingText = fieldHelpText(field),
+                        text = params[field.key].orEmpty(),
+                        onTextChange = { params[field.key] = it },
+                        declared = declared,
+                        helpers = helpers,
+                        templateHelpersApi = templateHelpersApi,
+                    )
             }
             // One line of plain help under a field that has it (R19) — the conditions' fields carry it.
             field.helpKey?.let(::conditionHelpResource)?.let { help ->
@@ -2736,6 +2752,60 @@ private fun TypedParamFields(
                 )
             }
         }
+    }
+}
+
+// Loads the pipeline helper registry once for a dialog. A failed load leaves the list empty: the `{` list then
+// shows the declared variables only, and the "All helpers" link still reports its own error.
+@Composable
+private fun rememberPipelineHelpers(api: TemplateHelpersApi): List<TemplateHelperDto> {
+    var helpers: List<TemplateHelperDto> by remember { mutableStateOf(emptyList()) }
+    LaunchedEffect(api) {
+        val result: ApiResult<List<TemplateHelperDto>> = api.helpers(TemplateHelperContext.Pipeline)
+        if (result is ApiResult.Ok) helpers = result.value
+    }
+    return helpers
+}
+
+// A free-text template field of a step: the `{` variable list under the field, plus the "All helpers" link. The
+// step's param is a String; the field keeps a TextFieldValue so a pick lands at the cursor, and re-syncs when the
+// String is changed from outside (a block switch clears the params).
+@Composable
+private fun TemplateParamField(
+    label: String,
+    supportingText: String?,
+    text: String,
+    onTextChange: (String) -> Unit,
+    declared: List<DeclaredVariable>,
+    helpers: List<TemplateHelperDto>,
+    templateHelpersApi: TemplateHelpersApi,
+) {
+    val spacing = LocalSpacing.current
+    var value: TextFieldValue by remember { mutableStateOf(TextFieldValue(text, TextRange(text.length))) }
+    if (value.text != text) value = TextFieldValue(text, TextRange(text.length))
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        TemplateVariableField(
+            value = value,
+            onValueChange = { next ->
+                value = next
+                if (next.text != text) onTextChange(next.text)
+            },
+            label = label,
+            declared = declared,
+            helpers = helpers,
+            supportingText = supportingText,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TemplateHelpersLink(
+            context = TemplateHelperContext.Pipeline,
+            api = templateHelpersApi,
+            onInsert = { token ->
+                val next: TextFieldValue = insertAtCursor(value, token)
+                value = next
+                onTextChange(next.text)
+            },
+        )
     }
 }
 
