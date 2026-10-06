@@ -2535,6 +2535,13 @@ private fun BlockParamEditor(
         val typography = LocalTypography.current
         Text(text = resolveSchemaString(block.description), style = typography.xs, color = tokens.mutedForeground)
     }
+    block.summaryKey?.let(::conditionSummaryResource)?.let { summary ->
+        Text(
+            text = stringResource(summary),
+            style = LocalTypography.current.xs,
+            color = LocalTokens.current.mutedForeground,
+        )
+    }
     if (block.hasHints) {
         TypedParamFields(
             block = block,
@@ -2583,6 +2590,21 @@ private fun TypedParamFields(
                         selectedId = params[field.key].orEmpty().ifBlank { null },
                         onSelect = { params[field.key] = it.orEmpty() },
                         label = fieldLabelWithRequired(field),
+                    )
+                // The comparison operator is a picker with plain labels; a stored value the picker does not know
+                // still shows as itself (OptionPicker falls back to the raw value), so nothing is lost.
+                block.type == "comparison" && field.key == "operator" ->
+                    OptionPicker(
+                        label = fieldLabelWithRequired(field),
+                        options =
+                            field.options.map { value ->
+                                PickerOption(
+                                    value = value,
+                                    label = operatorLabelResource(value)?.let { stringResource(it) } ?: humanize(value),
+                                )
+                            },
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
                     )
                 // A closed value set (OBS action verbs / batch execution mode) is a dropdown over its options.
                 field.options.isNotEmpty() ->
@@ -2704,6 +2726,14 @@ private fun TypedParamFields(
                             },
                         )
                     }
+            }
+            // One line of plain help under a field that has it (R19) — the conditions' fields carry it.
+            field.helpKey?.let(::conditionHelpResource)?.let { help ->
+                Text(
+                    text = stringResource(help),
+                    style = LocalTypography.current.xs,
+                    color = LocalTokens.current.mutedForeground,
+                )
             }
         }
     }

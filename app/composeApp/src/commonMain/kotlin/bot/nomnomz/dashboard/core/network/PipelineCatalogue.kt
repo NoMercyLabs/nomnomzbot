@@ -64,6 +64,9 @@ data class BlockField(
     // any hand-matched field key, so a NEW picker kind only needs the backend field tagged with that kind —
     // never a new key-based branch in the editor.
     val remoteKind: String? = null,
+    // The resource-key suffix (`pipelines_condition_help_<helpKey>`) of this field's one-line plain help text, or
+    // null when it has none. A LOCAL hint: condition descriptors carry no backend field help (type-only DTO).
+    val helpKey: String? = null,
 )
 
 /** What a block is — an action (does something) or a condition (gates the step). */
@@ -84,6 +87,9 @@ data class BlockType(
     // label, so the field editor is proper while the name reads from the backend — never a hardcoded UI string.
     val labelKey: String?,
     val fields: List<BlockField> = emptyList(),
+    // The resource-key suffix (`pipelines_condition_summary_<summaryKey>`) of the block's one-line plain
+    // description, or null when it has none (condition descriptors carry no backend description).
+    val summaryKey: String? = null,
 )
 
 // The catalogue. Every descriptor below is grounded in a real backend class:
@@ -716,24 +722,36 @@ object PipelineCatalogue {
                 type = "user_role",
                 role = BlockRole.Condition,
                 labelKey = "user_role",
-                fields = listOf(BlockField("min_role", "min_role", required = true)),
+                summaryKey = "user_role",
+                fields = listOf(BlockField("min_role", "min_role", required = true, helpKey = "min_role")),
             ),
             BlockType(
                 type = "random",
                 role = BlockRole.Condition,
                 labelKey = "random",
-                fields = listOf(BlockField("percent", "percent", required = true, kind = FieldKind.Number)),
+                summaryKey = "random",
+                fields =
+                    listOf(
+                        BlockField("percent", "percent", required = true, kind = FieldKind.Number, helpKey = "percent"),
+                    ),
             ),
             // comparison (ComparisonCondition): gate on two template values, e.g. {user} eq f0xb17 or {count} gte 5.
             BlockType(
                 type = "comparison",
                 role = BlockRole.Condition,
                 labelKey = "var_compare",
+                summaryKey = "comparison",
                 fields =
                     listOf(
-                        BlockField("left", "compare_left", required = true),
-                        BlockField("operator", "compare_operator", required = true),
-                        BlockField("right", "compare_right", required = false),
+                        BlockField("left", "compare_left", required = true, helpKey = "compare_left"),
+                        BlockField(
+                            "operator",
+                            "compare_operator",
+                            required = true,
+                            options = ComparisonOperators.values,
+                            helpKey = "compare_operator",
+                        ),
+                        BlockField("right", "compare_right", required = false, helpKey = "compare_right"),
                     ),
             ),
         )
@@ -828,6 +846,7 @@ object PipelineCatalogue {
             labelKey = hint?.labelKey,
             fields = hint?.fields.orEmpty(),
             hasHints = hint != null,
+            summaryKey = hint?.summaryKey,
         )
 
     // Local fallback category KEYS (offline palette / a blank backend category) — not backend-authored, but
@@ -854,6 +873,7 @@ data class PaletteBlock(
     val labelKey: String?,
     val fields: List<BlockField>,
     val hasHints: Boolean,
+    val summaryKey: String? = null,
 )
 
 /**
@@ -874,6 +894,18 @@ data class RuntimePalette(
 
     val isEmpty: Boolean
         get() = actions.isEmpty()
+}
+
+/**
+ * The operators the server's `comparison` condition accepts (`ComparisonCondition.TryParseOperator`; the symbol
+ * forms `==`, `!=`, `>` ... are aliases of the word forms and stay valid). The editor picker offers exactly these
+ * and stores the word form; `PipelineConditionExplainedTest` fails when the server gains one this list lacks.
+ */
+object ComparisonOperators {
+    val values: List<String> = listOf("eq", "ne", "gt", "lt", "gte", "lte", "contains", "starts_with", "ends_with")
+
+    /** The `pipelines_operator_<key>` resource suffix for a server operator, or null for an unknown stored value. */
+    fun labelKeyFor(value: String): String? = value.takeIf { it in values }
 }
 
 /** The canonical role-floor options for the `user_role` condition's `min_role` field (the backend ladder). */
