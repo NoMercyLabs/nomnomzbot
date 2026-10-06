@@ -47,6 +47,23 @@
  ],
  "rules": [
   {
+   "id": "bot-speaks-in-one-voice",
+   "paths": [
+    "**/server/**/Tts/**/*.cs",
+    "**/server/**/*Tts*.cs"
+   ],
+   "brief": [
+    "\\bTTS\\b",
+    "\\bvoice\\b",
+    "\\bspeak"
+   ],
+   "text": "Bot-authored speech (command replies, announcements, event responses, narration) uses the channel's one bot voice. A viewer's own voice is used only when the spoken text is that viewer's own words (TTS reward, reading their message). Never pick the voice from the requester id alone.",
+   "source": "memory bot-speaks-in-one-voice.md",
+   "covers": [
+    "bot-speaks-in-one-voice.md"
+   ]
+  },
+  {
    "id": "namespace-lock",
    "paths": [
     "**/server/**/*.cs",
