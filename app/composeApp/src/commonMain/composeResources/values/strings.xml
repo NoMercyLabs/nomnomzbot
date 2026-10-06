@@ -5735,6 +5735,9 @@
     <string name="template_helpers_dialog_description">Search every placeholder valid here, grouped by namespace. Click one to insert it.</string>
     <string name="template_helpers_dialog_search_placeholder">Search helpers</string>
     <string name="template_helpers_dialog_empty">No helpers match your search.</string>
+    <string name="template_variable_list_label">Template variables</string>
+    <string name="template_variable_declared_by_earlier_step">Set by an earlier step</string>
+    <string name="template_variable_no_match">No variable matches</string>
     <string name="template_helpers_dialog_error">Could not load the helper list. Try again.</string>
 
     <!-- ===== Trust & Automation (S-OWN23 T4) ===== -->

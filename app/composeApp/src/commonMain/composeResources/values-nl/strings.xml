@@ -5719,6 +5719,9 @@
     <string name="template_helpers_dialog_description">Doorzoek elke placeholder die hier geldig is, gegroepeerd per naamruimte. Klik op een helper om die in te voegen.</string>
     <string name="template_helpers_dialog_search_placeholder">Helpers zoeken</string>
     <string name="template_helpers_dialog_empty">Geen helpers komen overeen met je zoekopdracht.</string>
+    <string name="template_variable_list_label">Sjabloonvariabelen</string>
+    <string name="template_variable_declared_by_earlier_step">Ingesteld door een eerdere stap</string>
+    <string name="template_variable_no_match">Geen variabele komt overeen</string>
     <string name="template_helpers_dialog_error">De helperlijst kon niet worden geladen. Probeer het opnieuw.</string>
 
     <!-- ===== Vertrouwen en automatisering (S-OWN23 T4) ===== -->
