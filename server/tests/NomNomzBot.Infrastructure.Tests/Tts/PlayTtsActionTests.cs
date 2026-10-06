@@ -393,6 +393,46 @@ public sealed class PlayTtsActionTests
             );
     }
 
+    [Theory]
+    [InlineData("", TtsSpeaker.Bot)]
+    [InlineData("bot", TtsSpeaker.Bot)]
+    [InlineData("channel", TtsSpeaker.Bot)]
+    [InlineData("default", TtsSpeaker.Bot)]
+    [InlineData("viewer", TtsSpeaker.Viewer)]
+    [InlineData("user", TtsSpeaker.Viewer)]
+    [InlineData("trigger", TtsSpeaker.Viewer)]
+    [InlineData("broadcaster", TtsSpeaker.Viewer)]
+    [InlineData("some-platform-id", TtsSpeaker.Viewer)]
+    public async Task ExecuteAsync_TheAsField_PicksWhoseVoiceReadsTheLine_BlankIsTheBot(
+        string asValue,
+        TtsSpeaker expected
+    )
+    {
+        ActionResult result = await RunAsAsync(asValue, "chan-77", out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.Speaker == expected),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AsViewer_NamesTheTriggeringUser_SoTheirSavedVoiceReadsTheirWords()
+    {
+        ActionResult result = await RunAsAsync("viewer", "chan-77", out ITtsDispatchService d);
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await d.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Speaker == TtsSpeaker.Viewer && r.RequestedByTwitchUserId == "viewer-9"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static Task<ActionResult> RunWithRateAsync(
         object? rate,
         out ITtsDispatchService dispatch

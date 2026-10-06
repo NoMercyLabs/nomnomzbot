@@ -200,6 +200,12 @@ public sealed class TtsDispatchServiceTests
             StreamId: streamId
         );
 
+    private static TtsSpeakRequest SpeakAsViewer(
+        string text,
+        Guid? streamId = null,
+        string standing = "everyone"
+    ) => Speak(text, streamId, standing) with { Speaker = TtsSpeaker.Viewer };
+
     [Fact]
     public async Task RequestSpeakAsync_DisabledChannel_RejectsWithoutSynthOrPlayOrLedger()
     {
@@ -398,7 +404,7 @@ public sealed class TtsDispatchServiceTests
         );
         await h.Db.SaveChangesAsync();
 
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hi"));
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.VoiceId.Should().Be("viewer-chosen-voice");
@@ -436,7 +442,7 @@ public sealed class TtsDispatchServiceTests
         );
         await h.Db.SaveChangesAsync();
 
-        Result<TtsDispatchOutcome> first = await h.Service.RequestSpeakAsync(Speak("one"));
+        Result<TtsDispatchOutcome> first = await h.Service.RequestSpeakAsync(SpeakAsViewer("one"));
 
         first.IsSuccess.Should().BeTrue(first.ErrorMessage);
         first.Value.VoiceId.Should().Be("en-GB-SoniaNeural");
@@ -450,7 +456,9 @@ public sealed class TtsDispatchServiceTests
         await h.Db.SaveChangesAsync();
         for (int i = 0; i < 5; i++)
         {
-            Result<TtsDispatchOutcome> again = await h.Service.RequestSpeakAsync(Speak("more"));
+            Result<TtsDispatchOutcome> again = await h.Service.RequestSpeakAsync(
+                SpeakAsViewer("more")
+            );
             again.Value.VoiceId.Should().Be("en-GB-SoniaNeural");
         }
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(1);
@@ -463,7 +471,7 @@ public sealed class TtsDispatchServiceTests
         h.Db.TtsVoices.Add(CatalogueVoice("de-DE-KatjaNeural", "de-DE"));
         await h.Db.SaveChangesAsync();
 
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hi"));
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(SpeakAsViewer("hi"));
 
         result.Value.VoiceId.Should().Be("default-voice");
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
@@ -477,7 +485,7 @@ public sealed class TtsDispatchServiceTests
         await h.Db.SaveChangesAsync();
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("hi") with
+            SpeakAsViewer("hi") with
             {
                 AssignVoiceIfMissing = false,
             }
@@ -495,7 +503,7 @@ public sealed class TtsDispatchServiceTests
         await h.Db.SaveChangesAsync();
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("hi") with
+            SpeakAsViewer("hi") with
             {
                 RequestedByTwitchUserId = string.Empty,
             }
@@ -1296,10 +1304,155 @@ public sealed class TtsDispatchServiceTests
         );
         await h.Db.SaveChangesAsync();
 
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("hello")
+        );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.VoiceId.Should().Be("her-own-voice");
+    }
+
+    private async Task<string> SeedViewerVoiceAsync(Harness h, string voice)
+    {
+        h.Db.UserTtsVoices.Add(
+            new()
+            {
+                BroadcasterId = Tenant,
+                UserId = Viewer,
+                VoiceId = voice,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+        return voice;
+    }
+
+    private static async Task AssertSynthVoiceAsync(Harness h, string text, string voice) =>
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                text,
+                voice,
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+
+    [Fact]
+    public async Task RequestSpeakAsync_BotLine_WithARequesterWhoHasASavedVoice_SpeaksInTheChannelVoice_AndKeepsTheRow()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        await SeedViewerVoiceAsync(h, "her-own-voice");
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("so cool"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.VoiceId.Should().Be("channel-voice");
+        await AssertSynthVoiceAsync(h, "so cool", "channel-voice");
+        List<UserTtsVoice> rows = await h.Db.UserTtsVoices.ToListAsync();
+        rows.Should().ContainSingle().Which.VoiceId.Should().Be("her-own-voice");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_BotLine_WithARequesterWithoutAVoice_SpeaksInTheChannelVoice_AndAssignsNothing()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        h.Db.TtsVoices.Add(CatalogueVoice("en-GB-SoniaNeural", "en-GB"));
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.Value.VoiceId.Should().Be("channel-voice");
+        await AssertSynthVoiceAsync(h, "hello", "channel-voice");
+        (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ViewerLine_UsesTheSavedVoice()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        await SeedViewerVoiceAsync(h, "her-own-voice");
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("my words")
+        );
+
+        result.Value.VoiceId.Should().Be("her-own-voice");
+        await AssertSynthVoiceAsync(h, "my words", "her-own-voice");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ViewerLine_WithoutAVoice_AssignsOne_AndSpeaksInIt()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        h.Db.TtsVoices.Add(CatalogueVoice("en-GB-SoniaNeural", "en-GB"));
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("my words")
+        );
+
+        result.Value.VoiceId.Should().Be("en-GB-SoniaNeural");
+        await AssertSynthVoiceAsync(h, "my words", "en-GB-SoniaNeural");
+        List<UserTtsVoice> rows = await h.Db.UserTtsVoices.ToListAsync();
+        rows.Should().ContainSingle().Which.UserId.Should().Be(Viewer);
+    }
+
+    [Theory]
+    [InlineData(TtsSpeaker.Bot)]
+    [InlineData(TtsSpeaker.Viewer)]
+    public async Task RequestSpeakAsync_AnExplicitVoiceOverride_WinsForBothSpeakers(
+        TtsSpeaker speaker
+    )
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        await SeedViewerVoiceAsync(h, "her-own-voice");
+        h.Db.TtsVoices.Add(CatalogueVoice("forced-voice", "en-US"));
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("x") with
+            {
+                Speaker = speaker,
+                VoiceIdOverride = "forced-voice",
+            }
+        );
+
+        result.Value.VoiceId.Should().Be("forced-voice");
+        await AssertSynthVoiceAsync(h, "x", "forced-voice");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_BotSegmentsWithoutAVoice_SpeakInTheChannelVoice_ViewerSegmentsInTheSavedVoice()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        await SeedViewerVoiceAsync(h, "her-own-voice");
+
+        await h.Service.RequestSpeakAsync(Speak("x") with { Segments = [new("bot part")] });
+        await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("x") with
+            {
+                Segments = [new("viewer part")],
+            }
+        );
+
+        List<string> voices = h
+            .Tts.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == "SynthesizeSegmentsAsync")
+            .Select(c => ((IReadOnlyList<TtsSegment>)c.GetArguments()[0]!)[0].VoiceId)
+            .ToList();
+        voices.Should().Equal("channel-voice", "her-own-voice");
+    }
+
+    [Fact]
+    public async Task ResolveVoiceAsync_PreviewFollowsTheSpeaker()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        await SeedViewerVoiceAsync(h, "her-own-voice");
+
+        (await h.Service.ResolveVoiceAsync(Tenant, Viewer, null)).Should().Be("channel-voice");
+        (await h.Service.ResolveVoiceAsync(Tenant, Viewer, null, TtsSpeaker.Viewer))
+            .Should()
+            .Be("her-own-voice");
     }
 
     [Fact]

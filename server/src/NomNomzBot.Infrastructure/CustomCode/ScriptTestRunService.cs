@@ -137,7 +137,7 @@ public sealed class ScriptTestRunService(
             sink,
             (voiceIdOverride, ct) =>
                 ttsDispatch
-                    .ResolveVoiceAsync(broadcasterId, triggeringUserId, voiceIdOverride, ct)
+                    .ResolveVoiceAsync(broadcasterId, triggeringUserId, voiceIdOverride, ct: ct)
                     .GetAwaiter()
                     .GetResult()
         );
