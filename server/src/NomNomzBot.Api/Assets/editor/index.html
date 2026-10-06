@@ -110,6 +110,16 @@
                     </div>
                     <ol class="preview-log" id="previewLog" data-i18n-aria="whatWidgetDid" aria-label="What the widget did" aria-live="polite" hidden></ol>
 
+                    <!-- Console: every console call of the preview, and the console output of a script test run. -->
+                    <div class="console" id="console">
+                        <div class="console-head">
+                            <h3 class="fire-label" data-i18n="consoleTitle">Console</h3>
+                            <button type="button" class="btn btn-quiet" id="consoleClear" data-i18n="consoleClear">Clear</button>
+                        </div>
+                        <p class="console-empty" id="consoleEmpty" data-i18n="consoleEmpty">Nothing logged yet.</p>
+                        <ol class="console-list" id="consoleList" data-i18n-aria="consoleTitle" aria-label="Console" aria-live="polite" hidden></ol>
+                    </div>
+
                     <!-- Code-script dry run (S-CODE-COLLAPSE): sample variables/args against the backend sandbox.
                          Effects are captured, never performed; the live channel is never touched. Hidden unless
                          the host opened this editor with a test-run capability (code scripts, not widgets). -->

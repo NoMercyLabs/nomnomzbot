@@ -6217,6 +6217,14 @@
     <string name="editor_preview_log_action">Would run {actionType} {params}</string>
     <string name="editor_preview_log_claim">Claimed {key}</string>
     <string name="editor_preview_log_error">Error</string>
+    <string name="editor_console_title">Console</string>
+    <string name="editor_console_clear">Clear</string>
+    <string name="editor_console_empty">Nothing logged yet.</string>
+    <string name="editor_console_level_log">log</string>
+    <string name="editor_console_level_info">info</string>
+    <string name="editor_console_level_warn">warn</string>
+    <string name="editor_console_level_error">error</string>
+    <string name="editor_console_level_debug">debug</string>
     <string name="editor_preview_mount_error">Mount error: {message}</string>
     <string name="editor_preview_entry_missing">Entry file {entry} is missing.</string>
     <string name="editor_preview_loading_vue">Loading Vue compiler…</string>

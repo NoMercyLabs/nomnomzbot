@@ -75,6 +75,26 @@
     tell({ kind: "error", message: isError ? error.message : String(error), stack: isError ? String(error.stack || "") : "" });
   }
 
+  // One console argument as the author would read it: text as is, an object as JSON, an Error as its stack.
+  function show(value) {
+    if (typeof value === "string") return value;
+    if (value instanceof Error) return String(value.stack || value.message);
+    if (value === undefined) return "undefined";
+    if (typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") return String(value);
+    try { return JSON.stringify(value); } catch (_) { return String(value); }
+  }
+
+  // Every console level also goes to the editor's Console panel; the browser console still gets it too.
+  ["log", "info", "warn", "error", "debug"].forEach(function (level) {
+    var original = window.console && window.console[level];
+    if (typeof original !== "function") return;
+    window.console[level] = function () {
+      var parts = Array.prototype.slice.call(arguments).map(show);
+      tell({ kind: "console", level: level, text: parts.join(" "), stack: String(new Error().stack || ""), at: Date.now() });
+      return original.apply(window.console, arguments);
+    };
+  });
+
   window.addEventListener("error", function (e) { report((e && e.error) || (e && e.message) || "script error"); });
   window.addEventListener("unhandledrejection", function (e) { report((e && e.reason) || "unhandled rejection"); });
 

@@ -123,6 +123,7 @@ export function initPreview({
     language,
     entry,
     log,
+    consolePanel,
     fireSamples = {},
     fireSamplesFailed = false,
     declaredEvents = [],
@@ -252,6 +253,7 @@ export function initPreview({
 
     function showFrame(srcdoc) {
         clearLog();
+        clearConsole();
         hideError();
         note.hidden = true;
         frame.hidden = false;
@@ -448,9 +450,71 @@ export function initPreview({
         log.hidden = true;
     }
 
+    // ── Console: every console call of the widget, as one row each ──────────
+
+    const CONSOLE_LEVELS = {
+        log: 'consoleLevelLog',
+        info: 'consoleLevelInfo',
+        warn: 'consoleLevelWarn',
+        error: 'consoleLevelError',
+        debug: 'consoleLevelDebug',
+    };
+    const CONSOLE_MAX_ROWS = 500;
+
+    function consoleCell(tag, className, text) {
+        const cell = document.createElement(tag);
+        cell.className = className;
+        cell.textContent = text;
+        return cell;
+    }
+
+    // `where` is `file:line` when known; `at` is a millisecond timestamp, now when absent.
+    function addConsoleRow({ level, text, where, at }) {
+        if (!consolePanel) return;
+        const known = level in CONSOLE_LEVELS ? level : 'log';
+        const row = document.createElement('li');
+        row.className = 'console-row';
+        row.dataset.level = known;
+        row.dataset.text = text;
+        row.append(
+            consoleCell('time', 'console-time', new Date(at ?? Date.now()).toLocaleTimeString([], { hour12: false })),
+            consoleCell('span', 'console-level', t(CONSOLE_LEVELS[known])),
+            consoleCell('span', 'console-text', text),
+            consoleCell('span', 'console-source', where ?? ''),
+        );
+        consolePanel.list.append(row);
+        while (consolePanel.list.childElementCount > CONSOLE_MAX_ROWS) consolePanel.list.firstElementChild.remove();
+        consolePanel.list.hidden = false;
+        consolePanel.empty.hidden = true;
+        row.scrollIntoView({ block: 'nearest' });
+    }
+
+    function clearConsole() {
+        if (!consolePanel) return;
+        consolePanel.list.replaceChildren();
+        consolePanel.list.hidden = true;
+        consolePanel.empty.hidden = false;
+    }
+
+    consolePanel?.clear.addEventListener('click', clearConsole);
+
+    function showConsoleEntry(entry) {
+        const where = locateInStack(entry.stack, snapshotFiles());
+        addConsoleRow({
+            level: entry.level,
+            text: String(entry.text ?? ''),
+            where: where ? `${where.file}:${where.line}` : '',
+            at: entry.at,
+        });
+    }
+
     window.addEventListener('message', (event) => {
         if (event.source !== frame.contentWindow) return;
         const entry = event.data?.__nnzPreview;
+        if (entry?.kind === 'console') {
+            showConsoleEntry(entry);
+            return;
+        }
         if (entry && typeof entry === 'object') {
             addLogEntry(entry);
             if (entry.kind === 'error') showRuntimeError(entry);
@@ -729,5 +793,5 @@ export function initPreview({
             });
     }
 
-    return { mode, schedule, rebuildNow };
+    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole };
 }

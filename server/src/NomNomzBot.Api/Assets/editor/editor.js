@@ -93,6 +93,9 @@ const dom = {
     previewError: document.getElementById('previewError'),
     fireBar: document.getElementById('fireBar'),
     previewLog: document.getElementById('previewLog'),
+    consoleList: document.getElementById('consoleList'),
+    consoleEmpty: document.getElementById('consoleEmpty'),
+    consoleClear: document.getElementById('consoleClear'),
     refresh: document.getElementById('refresh'),
     activity: document.getElementById('activity'),
     sidebar: document.getElementById('sidebar'),
@@ -270,6 +273,14 @@ const DEFAULT_LABELS = Object.freeze({
     previewLogAction: 'Would run {actionType} {params}',
     previewLogClaim: 'Claimed {key}',
     previewLogError: 'Error',
+    consoleTitle: 'Console',
+    consoleClear: 'Clear',
+    consoleEmpty: 'Nothing logged yet.',
+    consoleLevelLog: 'log',
+    consoleLevelInfo: 'info',
+    consoleLevelWarn: 'warn',
+    consoleLevelError: 'error',
+    consoleLevelDebug: 'debug',
     previewMountError: 'Mount error: {message}',
     previewEntryMissing: 'Entry file {entry} is missing.',
     previewLoadingVue: 'Loading Vue compiler…',
@@ -1399,6 +1410,7 @@ function parseTestRunArgs(text) {
 function requestTestRun() {
     dom.testRunButton.disabled = true;
     dom.testRunButton.textContent = t('running');
+    state.preview?.clearConsole();
     dom.testRunStatus.hidden = true;
     dom.testRunResult.hidden = true;
     postToHost({
@@ -1446,8 +1458,15 @@ function showTestRunResult(data) {
           ? t('testRunFailedWith', { error: data.error })
           : t('testRunFailedPlain');
 
-    // One ordered list when the host sent a timeline; the older per-kind sections remain the fallback.
+    // The script's console output also fills the Console panel. The run reports text only: no level, time or line.
     const timeline = data.timeline ?? [];
+    const consoleLines =
+        timeline.length > 0
+            ? timeline.filter((row) => row.kind === 'console').map((row) => row.text)
+            : (data.console ?? []);
+    for (const text of consoleLines) state.preview?.addConsoleRow({ level: 'log', text });
+
+    // One ordered list when the host sent a timeline; the older per-kind sections remain the fallback.
     if (timeline.length > 0) {
         const tags = {
             chat: testRunLabels.timelineChat,
@@ -1501,6 +1520,7 @@ async function open(payload) {
         onReveal: (file, line) => revealMarker(file, { startLineNumber: line, startColumn: 1 }),
         fireBar: dom.fireBar,
         log: dom.previewLog,
+        consolePanel: { list: dom.consoleList, empty: dom.consoleEmpty, clear: dom.consoleClear },
         refresh: dom.refresh,
         language: payload.language ?? '',
         entry: state.entry,

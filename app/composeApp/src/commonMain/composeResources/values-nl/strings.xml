@@ -6190,6 +6190,14 @@
     <string name="editor_preview_log_action">Zou {actionType} uitvoeren {params}</string>
     <string name="editor_preview_log_claim">{key} geclaimd</string>
     <string name="editor_preview_log_error">Fout</string>
+    <string name="editor_console_title">Console</string>
+    <string name="editor_console_clear">Wissen</string>
+    <string name="editor_console_empty">Nog niets gelogd.</string>
+    <string name="editor_console_level_log">log</string>
+    <string name="editor_console_level_info">info</string>
+    <string name="editor_console_level_warn">waarschuwing</string>
+    <string name="editor_console_level_error">fout</string>
+    <string name="editor_console_level_debug">debug</string>
     <string name="editor_preview_mount_error">Fout bij het starten: {message}</string>
     <string name="editor_preview_entry_missing">Het startbestand {entry} ontbreekt.</string>
     <string name="editor_preview_loading_vue">Vue-compiler laden…</string>

@@ -922,6 +922,88 @@ body {
     color: var(--danger);
 }
 
+/* Console: same sunken list as the preview log. Level is its own text column and a left edge colour. */
+.console {
+    margin: var(--s3) 0 0;
+}
+
+.console-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.console-list {
+    max-height: 240px;
+    margin: var(--s2) 0 0;
+    padding: var(--s1) 0;
+    overflow-y: auto;
+    list-style: none;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    font: 400 11px var(--font-code);
+}
+
+.console-empty {
+    margin: var(--s2) 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.console-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    column-gap: var(--s2);
+    padding: 2px var(--s3);
+    color: var(--text);
+    border-left: 2px solid transparent;
+}
+
+.console-time,
+.console-source {
+    color: var(--text-muted);
+}
+
+.console-level {
+    min-width: 5ch;
+    color: var(--text-muted);
+}
+
+.console-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.console-source {
+    grid-column: 3;
+}
+
+.console-source:empty {
+    display: none;
+}
+
+.console-row[data-level="warn"] {
+    border-left-color: var(--warning);
+}
+
+.console-row[data-level="warn"] .console-level {
+    color: var(--warning);
+}
+
+.console-row[data-level="error"] {
+    border-left-color: var(--danger);
+}
+
+.console-row[data-level="error"] .console-level,
+.console-row[data-level="error"] .console-text {
+    color: var(--danger);
+}
+
+.console-row[data-level="debug"] .console-text {
+    color: var(--text-muted);
+}
+
 .preview-body {
     flex: 1;
     min-height: 0;
