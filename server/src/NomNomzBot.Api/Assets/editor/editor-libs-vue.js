@@ -49,6 +49,15 @@ declare module "vue" {
     export function onUnmounted(hook: () => void): void;
     export function nextTick(callback?: () => void): Promise<void>;
     export function defineComponent<T extends object>(options: T): T;
+    export interface Component {
+        readonly __vccOpts?: object;
+    }
+}
+
+declare module "*.vue" {
+    import type { Component } from "vue";
+    const component: Component;
+    export default component;
 }
 
 declare function defineProps<T extends object>(): Readonly<T>;
