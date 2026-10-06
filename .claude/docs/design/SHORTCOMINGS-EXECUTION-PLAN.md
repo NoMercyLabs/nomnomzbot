@@ -92,11 +92,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Pipeline lane
 
-- **S-PIPE-CONDITIONS-EXPLAINED** The 3 conditions (comparison, random, user_role) get a description
-  and help text; the comparison operator becomes a picker with plain labels ("is equal to", "is more
-  than"…) from the values in `ComparisonCondition.cs:27-29`, not free text
-  (`PipelineCatalogue.kt:729-737`). R8, R9, R10. Done-when: UI test picks each operator and the saved
-  pipeline holds the server value; an unknown stored value still shows.
 - **S-PIPE-VARIABLE-PICKER** Typing `{` in a template field opens a list of the variables that exist
   here: event context, declared variables, viewer data, counters — each with a sample value; insert
   at the cursor (today: end of field only). R10, R9. Done-when: UI test inserts a variable mid-text.
