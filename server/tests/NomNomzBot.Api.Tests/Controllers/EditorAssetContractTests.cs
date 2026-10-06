@@ -250,7 +250,7 @@ public class EditorAssetContractTests
         HashSet<string> ids = new(scriptIds, StringComparer.Ordinal);
         ids.UnionWith(
             Regex
-                .Matches(page, "data-i18n=\"(?<id>\\w+)\"")
+                .Matches(page, "data-i18n(?:-placeholder|-aria|-title)?=\"(?<id>\\w+)\"")
                 .Select(match => match.Groups["id"].Value)
         );
 

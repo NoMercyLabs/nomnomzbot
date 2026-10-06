@@ -6201,6 +6201,15 @@
     <string name="editor_preview_script_note">Code scripts run in the bot sandbox — press Save &amp; Compile to validate.</string>
     <string name="editor_preview_fire_event">Fire event:</string>
     <string name="editor_preview_log_fired">Fired {type}</string>
+    <string name="editor_preview_fire_search">Search events</string>
+    <string name="editor_preview_fire_no_match">No event matches your search.</string>
+    <string name="editor_preview_fire_close">Close</string>
+    <string name="editor_preview_fire_json">Event data as JSON</string>
+    <string name="editor_preview_fire_send">Fire with this data</string>
+    <string name="editor_preview_fire_edit">Edit</string>
+    <string name="editor_preview_fire_edit_sample">Edit the data of {type}</string>
+    <string name="editor_preview_fire_editing">Data for {type}</string>
+    <string name="editor_preview_fire_json_invalid">This is not valid JSON: {message}</string>
     <string name="editor_preview_log_action">Would run {actionType} {params}</string>
     <string name="editor_preview_log_claim">Claimed {key}</string>
     <string name="editor_preview_log_error">Error</string>

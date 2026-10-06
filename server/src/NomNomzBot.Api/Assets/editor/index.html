@@ -90,7 +90,23 @@
                     <p class="view-note" id="runNote"></p>
                     <button type="button" class="btn btn-block" id="runTest" data-i18n="runInSandbox">Run in sandbox</button>
                     <p class="view-hint" id="runSandboxHint" data-i18n="sandboxHint">Runs what is in the editor right now, with sample events. Nothing is published and your live channel is never touched.</p>
-                    <div class="fire-bar" id="fireBar" hidden></div>
+                    <div class="fire-bar" id="fireBar" hidden>
+                        <div class="fire-head">
+                            <span class="fire-label" data-i18n="previewFireEvent">Fire event:</span>
+                            <input type="search" class="field" id="fireSearch" data-i18n-placeholder="previewFireSearch" placeholder="Search events" data-i18n-aria="previewFireSearch" aria-label="Search events">
+                        </div>
+                        <div class="fire-list" id="fireList"></div>
+                        <p class="fire-empty" id="fireEmpty" data-i18n="previewFireNoMatch" hidden>No event matches your search.</p>
+                        <div class="fire-editor" id="fireEditor" hidden>
+                            <div class="fire-editor-head">
+                                <span class="fire-editor-title" id="fireEditorTitle"></span>
+                                <button type="button" class="btn btn-quiet" id="fireClose" data-i18n="previewFireClose">Close</button>
+                            </div>
+                            <textarea class="field fire-json" id="fireJson" spellcheck="false" data-i18n-aria="previewFireJson" aria-label="Event data as JSON"></textarea>
+                            <p class="fire-error" id="fireJsonError" role="alert" hidden></p>
+                            <button type="button" class="btn" id="fireSend" data-i18n="previewFireSend">Fire with this data</button>
+                        </div>
+                    </div>
                     <ol class="preview-log" id="previewLog" data-i18n-aria="whatWidgetDid" aria-label="What the widget did" aria-live="polite" hidden></ol>
 
                     <!-- Code-script dry run (S-CODE-COLLAPSE): sample variables/args against the backend sandbox.
