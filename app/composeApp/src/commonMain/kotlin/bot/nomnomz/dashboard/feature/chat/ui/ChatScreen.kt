@@ -34,6 +34,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ReplyGlyph
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,6 +92,8 @@ import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.media.searchEmoji
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.feature.chat.state.LineMark
+import bot.nomnomz.dashboard.feature.chat.state.LineMarks
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
@@ -267,6 +270,7 @@ fun ChatScreen(
                 is ChatState.Ready ->
                     MessageFeed(
                         messages = current.messages,
+                        lineMarks = current.lineMarks,
                         actionError = current.actionError,
                         manage = manage,
                         onDelete = { id -> scope.launch { controller.deleteMessage(id) } },
@@ -306,6 +310,7 @@ fun ChatScreen(
 @Composable
 private fun MessageFeed(
     messages: List<ChatMessage>,
+    lineMarks: LineMarks,
     actionError: String?,
     manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
@@ -335,6 +340,7 @@ private fun MessageFeed(
             ) { message ->
                 MessageRow(
                     message = message,
+                    mark = lineMarks.forMessage(message),
                     manage = manage,
                     onDelete = onDelete,
                     onTimeout = onTimeout,
@@ -350,6 +356,7 @@ private fun MessageFeed(
 @Composable
 private fun MessageRow(
     message: ChatMessage,
+    mark: LineMark?,
     manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
@@ -395,6 +402,7 @@ private fun MessageRow(
                 rowDescription = rowDescription,
                 name = name,
                 nameColor = nameColor,
+                mark = mark,
             )
         }
         MessageActions(
@@ -419,6 +427,7 @@ private fun MessageInlineBody(
     rowDescription: String,
     name: String,
     nameColor: Color,
+    mark: LineMark?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -465,7 +474,11 @@ private fun MessageInlineBody(
         // Fragment body — Twitch emotes/cheermotes as inline images, mentions/links coloured, plain runs (and
         // the flat-string fallback for fragment-less REST history) through [EmojiText]. Shared with the
         // multi-channel feed via [ChatMessageFragments].
-        ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
+        // A moderated line stays visible: struck-through text plus a tag saying what happened and who did it.
+        CompositionLocalProvider(LocalStruckMessage provides (mark != null)) {
+            ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
+        }
+        mark?.let { LineMarkTag(it) }
     }
 }
 

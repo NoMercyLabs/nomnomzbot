@@ -6189,4 +6189,17 @@
     <string name="tts_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="voicetriggers_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="widgets_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
+    <string name="chat_mark_deleted">Verwijderd</string>
+    <string name="chat_mark_deleted_by">Verwijderd door %1$s</string>
+    <string name="chat_mark_banned">Verbannen</string>
+    <string name="chat_mark_banned_by">Verbannen door %1$s</string>
+    <string name="chat_mark_cleared">Berichten verwijderd</string>
+    <string name="chat_mark_timed_out">Time-out</string>
+    <string name="chat_mark_timed_out_by">Time-out door %1$s</string>
+    <string name="chat_mark_timed_out_for">Time-out %1$s</string>
+    <string name="chat_mark_timed_out_for_by">Time-out %1$s door %2$s</string>
+    <string name="chat_mark_duration_seconds">%1$d sec</string>
+    <string name="chat_mark_duration_minutes">%1$d min</string>
+    <string name="chat_mark_duration_hours">%1$d u</string>
+    <string name="chat_mark_duration_days">%1$d d</string>
 </resources>

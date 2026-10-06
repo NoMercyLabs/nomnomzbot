@@ -281,6 +281,16 @@ class MultiChatController(
                     applyShieldModeEvent(evt.event)
                     applyChatModerationEvent(evt.event)
                 }
+                // A timeout/ban marks that chatter's lines in the action's channel only — no refetch. A push that
+                // names no channel marks nothing.
+                is HubEvent.ModAction -> {
+                    val ready: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return@collect
+                    val channelLines: List<ChatMessage> =
+                        ready.messages.filter { it.channelId == evt.action.broadcasterId }
+                    if (evt.action.broadcasterId.isBlank() || channelLines.isEmpty()) return@collect
+                    _state.value =
+                        ready.copy(lineMarks = ready.lineMarks.withModAction(evt.action, channelLines))
+                }
                 else -> Unit
             }
         }
@@ -301,9 +311,9 @@ class MultiChatController(
         }
     }
 
-    // A message removed anywhere in a watched channel (a delete, a whole-channel clear, or a targeted per-chatter
-    // purge) must disappear from the merged feed the same instant it disappears from that platform's own chat —
-    // owner report 2026-09-09. Same generic ChannelEvent wire shape as Shield Mode; filtered to the merged feed's
+    // A message removed in a watched channel (a delete or a targeted per-chatter purge) stays in the merged feed
+    // with a mark saying what happened and who did it (see [LineMarks]); a whole-channel clear still drops that
+    // channel's lines. Same generic ChannelEvent wire shape as Shield Mode; filtered to the merged feed's
     // OWN messages by [ChatMessage.channelId] (never all watched channels at once) since [event.broadcasterId]
     // names exactly one of them.
     private fun applyChatModerationEvent(event: HubChannelEvent) {
@@ -320,23 +330,17 @@ class MultiChatController(
                         .getOrNull() ?: return
                 _state.value =
                     ready.copy(
-                        messages =
-                            ready.messages.filterNot {
-                                it.channelId == event.broadcasterId && it.id == payload.messageId
-                            }
+                        lineMarks = ready.lineMarks.withDeleted(payload.messageId, payload.deletedByDisplayName)
                     )
             }
             "user_messages_cleared" -> {
                 val payload: UserMessagesClearedPayload =
                     runCatching { ChatModerationJson.decodeFromJsonElement<UserMessagesClearedPayload>(data) }
                         .getOrNull() ?: return
+                val channelLines: List<ChatMessage> =
+                    ready.messages.filter { it.channelId == event.broadcasterId }
                 _state.value =
-                    ready.copy(
-                        messages =
-                            ready.messages.filterNot {
-                                it.channelId == event.broadcasterId && it.userId == payload.targetUserId
-                            }
-                    )
+                    ready.copy(lineMarks = ready.lineMarks.withPurge(payload.targetUserId, channelLines))
             }
         }
     }
@@ -398,6 +402,7 @@ sealed interface MultiChatState {
         val messages: List<ChatMessage>,
         val actionError: String? = null,
         val shieldModeActiveChannelIds: Set<String> = emptySet(),
+        val lineMarks: LineMarks = LineMarks(),
     ) : MultiChatState
 
     data class Error(val detail: String) : MultiChatState

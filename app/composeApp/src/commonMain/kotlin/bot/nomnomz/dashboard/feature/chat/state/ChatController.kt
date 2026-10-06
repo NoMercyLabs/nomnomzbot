@@ -117,9 +117,11 @@ class ChatController(
                 val current: ChatState = _state.value
                 val existingSettings: ChatSettings? =
                     if (current is ChatState.Ready) current.settings else null
+                val existingMarks: LineMarks =
+                    if (current is ChatState.Ready) current.lineMarks else LineMarks()
                 _state.value =
                     if (result.value.isEmpty()) ChatState.Empty
-                    else ChatState.Ready(result.value, settings = existingSettings)
+                    else ChatState.Ready(result.value, settings = existingSettings, lineMarks = existingMarks)
             }
         }
         // Load settings + the composer emote catalogue + Shield Mode's current state on first load (once each);
@@ -227,6 +229,15 @@ class ChatController(
                     applyShieldModeEvent(evt.event)
                     applyChatModerationEvent(evt.event)
                 }
+                // A timeout/ban marks that chatter's lines in this feed right now (with duration and moderator) —
+                // no refetch. A push for another channel, or one that names no channel, marks nothing.
+                is HubEvent.ModAction -> {
+                    val current: ChatState = _state.value
+                    if (current is ChatState.Ready && evt.action.broadcasterId == channelId) {
+                        _state.value =
+                            current.copy(lineMarks = current.lineMarks.withModAction(evt.action, current.messages))
+                    }
+                }
                 else -> Unit
             }
         }
@@ -247,9 +258,9 @@ class ChatController(
         }
     }
 
-    // A message removed anywhere (a moderator/AutoMod delete, a whole-channel clear, or a targeted per-chatter
-    // purge) must disappear from THIS feed the same instant it disappears from Twitch's own chat — owner report
-    // 2026-09-09: it was staying on screen. Same generic ChannelEvent wire shape as Shield Mode, decoded per
+    // A message removed anywhere (a moderator/AutoMod delete or a targeted per-chatter purge) stays in THIS feed
+    // with a mark saying what happened and who did it (see [LineMarks]) — a moderator keeps the context; a
+    // whole-channel clear still empties the feed. Same generic ChannelEvent wire shape as Shield Mode, decoded per
     // [ChatModerationJson] since ChannelEventDto.Data is a different DTO shape per event type.
     private fun applyChatModerationEvent(event: HubChannelEvent) {
         if (event.broadcasterId != channelId) return
@@ -263,14 +274,15 @@ class ChatController(
                     runCatching { ChatModerationJson.decodeFromJsonElement<MessageDeletedPayload>(data) }
                         .getOrNull() ?: return
                 _state.value =
-                    current.copy(messages = current.messages.filterNot { it.id == payload.messageId })
+                    current.copy(
+                        lineMarks = current.lineMarks.withDeleted(payload.messageId, payload.deletedByDisplayName)
+                    )
             }
             "user_messages_cleared" -> {
                 val payload: UserMessagesClearedPayload =
                     runCatching { ChatModerationJson.decodeFromJsonElement<UserMessagesClearedPayload>(data) }
                         .getOrNull() ?: return
-                _state.value =
-                    current.copy(messages = current.messages.filterNot { it.userId == payload.targetUserId })
+                _state.value = current.copy(lineMarks = current.lineMarks.withPurge(payload.targetUserId, current.messages))
             }
         }
     }
@@ -497,6 +509,7 @@ sealed interface ChatState {
         val emotes: List<ChatEmoteCatalogue> = emptyList(),
         val shieldEnabled: Boolean? = null,
         val shieldAvailable: Boolean = true,
+        val lineMarks: LineMarks = LineMarks(),
     ) : ChatState
 
     data object Empty : ChatState

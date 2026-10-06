@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +62,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.feature.chat.state.LineMark
+import bot.nomnomz.dashboard.feature.chat.state.LineMarks
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatState
@@ -207,6 +210,7 @@ private fun ReadyContent(
             else ->
                 MergedFeed(
                     messages = ready.messages,
+                    lineMarks = ready.lineMarks,
                     nameByChannel = nameByChannel,
                     colorByChannel = colorByChannel,
                     manage = manage,
@@ -421,6 +425,7 @@ private fun ChannelPicker(
 @Composable
 private fun MergedFeed(
     messages: List<ChatMessage>,
+    lineMarks: LineMarks,
     nameByChannel: Map<String, String>,
     colorByChannel: Map<String, String?>,
     manage: ManageDecision,
@@ -440,6 +445,7 @@ private fun MergedFeed(
         ) { msg ->
             MultiChatRow(
                 message = msg,
+                mark = lineMarks.forMessage(msg),
                 channelName = nameByChannel[msg.channelId],
                 channelChatColor = colorByChannel[msg.channelId],
                 manage = manage,
@@ -459,6 +465,7 @@ private fun MergedFeed(
 @Composable
 private fun MultiChatRow(
     message: ChatMessage,
+    mark: LineMark?,
     channelName: String?,
     channelChatColor: String?,
     manage: ManageDecision,
@@ -513,8 +520,12 @@ private fun MultiChatRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s1),
             verticalArrangement = Arrangement.Center,
         ) {
-            ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
+            CompositionLocalProvider(LocalStruckMessage provides (mark != null)) {
+                ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
+            }
         }
+        // A moderated line stays visible with a tag saying what happened and who did it.
+        mark?.let { LineMarkTag(it) }
         // A system/announcement line carries no chatter id — nothing to timeout/ban/delete there.
         if (message.userId.isNotBlank()) {
             ModerationMenu(message = message, name = name, manage = manage, onDelete = onDelete, onTimeout = onTimeout, onBan = onBan)

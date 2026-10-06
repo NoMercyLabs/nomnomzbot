@@ -23,6 +23,8 @@ data class MessageDeletedPayload(
     val messageId: String,
     val deletedByUserId: String = "",
     val targetUserId: String = "",
+    // Empty on the first push (Twitch never says who deleted); the named second push fills it.
+    val deletedByDisplayName: String = "",
 )
 
 @Serializable

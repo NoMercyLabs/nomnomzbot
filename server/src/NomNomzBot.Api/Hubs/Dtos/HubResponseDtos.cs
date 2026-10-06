@@ -55,6 +55,8 @@ public record MusicTrackDto(
 /// <paramref name="ModeratorDisplayName"/> comes straight off the originating domain event's own
 /// <c>ModeratorDisplayName</c> field (<c>moderator_user_name</c> on Twitch ingests) — no extra lookup.
 /// <paramref name="Timestamp"/> is the originating event's <c>OccurredAt</c>.
+/// <paramref name="BroadcasterId"/> is the channel the action happened in, so a client that watches several
+/// channels marks only that channel's lines; blank on payloads built without a channel (widget test samples).
 /// </summary>
 public record ModActionDto(
     string Action,
@@ -67,7 +69,8 @@ public record ModActionDto(
     string? TargetPronouns = null,
     string? TargetCommunityStanding = null,
     string? ModeratorDisplayName = null,
-    DateTimeOffset Timestamp = default
+    DateTimeOffset Timestamp = default,
+    string BroadcasterId = ""
 );
 
 public record CommandExecutedDto(

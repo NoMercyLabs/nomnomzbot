@@ -17,10 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -35,6 +37,9 @@ import bot.nomnomz.dashboard.core.network.ChatFragment
 // rather than □ tofu on the web build. Extracted from the primary chat feed's row so the multi-channel feed
 // renders the exact same fragments; both callers host it inside their own [FlowRow], hence the receiver scope.
 // Falls back to the flat [fallbackText] when [fragments] is empty (REST scrollback carries no fragments).
+/** True while rendering a moderated line: its plain text is struck through. */
+internal val LocalStruckMessage = compositionLocalOf { false }
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun FlowRowScope.ChatMessageFragments(
@@ -138,10 +143,13 @@ private fun FlowRowScope.PlainRun(text: String) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val uriHandler = LocalUriHandler.current
+    // A moderated line renders struck through (see [LocalStruckMessage]).
+    val bodyStyle: TextStyle =
+        if (LocalStruckMessage.current) typography.sm.copy(textDecoration = TextDecoration.LineThrough) else typography.sm
 
     val matches: Sequence<MatchResult> = UrlRegex.findAll(text)
     if (matches.none()) {
-        EmojiText(text = text, style = typography.sm, color = tokens.cardForeground)
+        EmojiText(text = text, style = bodyStyle, color = tokens.cardForeground)
         return
     }
 
@@ -154,7 +162,7 @@ private fun FlowRowScope.PlainRun(text: String) {
         val urlEnd: Int = urlStart + url.length
 
         if (urlStart > cursor) {
-            EmojiText(text = text.substring(cursor, urlStart), style = typography.sm, color = tokens.cardForeground)
+            EmojiText(text = text.substring(cursor, urlStart), style = bodyStyle, color = tokens.cardForeground)
         }
         Text(
             text = url,
@@ -166,7 +174,7 @@ private fun FlowRowScope.PlainRun(text: String) {
         cursor = urlEnd
     }
     if (cursor < text.length) {
-        EmojiText(text = text.substring(cursor), style = typography.sm, color = tokens.cardForeground)
+        EmojiText(text = text.substring(cursor), style = bodyStyle, color = tokens.cardForeground)
     }
 }
 
