@@ -64,6 +64,7 @@ import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
 import bot.nomnomz.dashboard.core.network.UpdateTwitchAutoModSettingsBody
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
+import bot.nomnomz.dashboard.core.network.PlatformViewer
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -132,6 +133,49 @@ class ModerationController(
             is ApiResult.Ok ->
                 result.value.map { PickerOption(id = it.id, label = it.label, sublabel = it.subLabel) }
             is ApiResult.Failure -> emptyList()
+        }
+    }
+
+    /**
+     * The "moderate a viewer" picker's search: the channel's known viewers first; when none matches and the text
+     * can be a Twitch login, the account is looked up on Twitch itself so a viewer the bot has never seen can
+     * still be banned (its [PickerOption.id] is the platform id). A 404 is [BanTargetSearch.notFoundLogin]; any
+     * other lookup failure is [BanTargetSearch.lookupFailed] — never reported as "not found".
+     */
+    suspend fun searchBanTargets(query: String): BanTargetSearch {
+        val known: List<PickerOption> = searchViewers(query)
+        if (known.isNotEmpty()) return BanTargetSearch(options = known)
+        val channel: String = channelId ?: return BanTargetSearch(options = emptyList())
+        val login: String = query.trim().removePrefix("@").lowercase()
+        if (!TWITCH_LOGIN.matches(login)) return BanTargetSearch(options = emptyList())
+        return when (
+            val result: ApiResult<PlatformViewer> = communityApi.lookupPlatformViewer(channel, login)
+        ) {
+            is ApiResult.Ok ->
+                BanTargetSearch(
+                    options =
+                        listOf(
+                            PickerOption(
+                                id = result.value.id,
+                                label =
+                                    resolveRowLabel(
+                                        result.value.displayName,
+                                        secondary = result.value.login,
+                                        typeLabel = "Twitch account",
+                                        discriminatorSource = result.value.id,
+                                    ),
+                                sublabel = result.value.login,
+                                avatarUrl = result.value.profileImageUrl,
+                                createdAt = result.value.createdAt.take(ISO_DATE_LENGTH).ifBlank { null },
+                            )
+                        )
+                )
+            is ApiResult.Failure ->
+                if (result.error.status == 404) {
+                    BanTargetSearch(options = emptyList(), notFoundLogin = login)
+                } else {
+                    BanTargetSearch(options = emptyList(), lookupFailed = true)
+                }
         }
     }
 
@@ -1361,6 +1405,23 @@ class ModerationController(
 
 /** One cross-channel blocked-term sweep: the [term], whether it was [added] or removed, and each channel's outcome. */
 data class TermSweep(val term: String, val added: Boolean, val result: NetworkBanResult)
+
+/**
+ * What the "moderate a viewer" picker found for the typed text: the pickable [options] (known viewers, or the
+ * Twitch account looked up by login), [notFoundLogin] when Twitch has no such account, and [lookupFailed] when the
+ * lookup itself broke (shown as an error, never as not-found).
+ */
+data class BanTargetSearch(
+    val options: List<PickerOption>,
+    val notFoundLogin: String? = null,
+    val lookupFailed: Boolean = false,
+)
+
+// Twitch logins are letters, digits and underscore, at most 25 characters (the backend validates the same shape).
+private val TWITCH_LOGIN: Regex = Regex("^[a-z0-9_]{1,25}$")
+
+// The leading yyyy-MM-dd of an ISO-8601 timestamp.
+private const val ISO_DATE_LENGTH: Int = 10
 
 /** The Moderation page render state. */
 sealed interface ModerationState {

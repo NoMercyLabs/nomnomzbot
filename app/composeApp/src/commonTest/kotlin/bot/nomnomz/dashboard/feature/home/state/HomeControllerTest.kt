@@ -1117,6 +1117,8 @@ private class FakeStreamApi(
 }
 
 private class FakeCommunityApi : CommunityApi {
+    override suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<bot.nomnomz.dashboard.core.network.PlatformViewer> = error("stub")
+
     override suspend fun searchViewers(
         channelId: String,
         query: String,

@@ -62,6 +62,13 @@ interface CommunityApi {
     ): ApiResult<List<ViewerOption>>
 
     /**
+     * Looks a typed [login] up on Twitch itself (`GET /community/lookup?login=`, backend `LookupPlatformViewer`) so
+     * a viewer the bot has never seen can still be banned or timed out. Success carries the account's platform id;
+     * a 404 (`TWITCH_USER_NOT_FOUND`) means no such account, any other failure means the lookup itself failed.
+     */
+    suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<PlatformViewer>
+
+    /**
      * A single viewer's REAL member state (`GET /community/{userId}`, backend `UserDetailDto`) — the trust level
      * and ban status a moderator acts on. The searched-viewer row fetches this so it shows the truth (Unban for an
      * already-banned viewer, Revoke-VIP for an existing VIP) instead of a synthesized "not banned / not VIP"
@@ -136,6 +143,9 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
         client.getEnvelope(
             "api/v1/channels/$channelId/community/search?q=${query.encodeQuery()}&limit=$limit"
         )
+
+    override suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<PlatformViewer> =
+        client.getEnvelope("api/v1/channels/$channelId/community/lookup?login=${login.encodeQuery()}")
 
     override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> =
         // Backend routing prefers the literal /community/search over the {userId} template, so a numeric Twitch
@@ -266,6 +276,19 @@ data class ViewerOption(
     val id: String = "",
     val label: String = "",
     val subLabel: String = "",
+)
+
+/**
+ * A Twitch account found by login (backend `CommunityController.PlatformViewerDto`). [id] is the Twitch user id the
+ * ban / timeout writes consume; [createdAt] is the account's ISO-8601 creation time.
+ */
+@Serializable
+data class PlatformViewer(
+    val id: String = "",
+    val login: String = "",
+    val displayName: String = "",
+    val profileImageUrl: String? = null,
+    val createdAt: String = "",
 )
 
 /**

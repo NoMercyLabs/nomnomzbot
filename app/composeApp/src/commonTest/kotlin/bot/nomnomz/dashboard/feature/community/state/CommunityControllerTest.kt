@@ -242,6 +242,8 @@ private class FakeCommunityApi(
         return membersPageResults[index]
     }
 
+    override suspend fun lookupPlatformViewer(channelId: String, login: String): ApiResult<bot.nomnomz.dashboard.core.network.PlatformViewer> = error("stub")
+
     override suspend fun searchViewers(channelId: String, query: String, limit: Int): ApiResult<List<ViewerOption>> {
         searchCalls.add(channelId to query)
         return ApiResult.Ok(searchResults)

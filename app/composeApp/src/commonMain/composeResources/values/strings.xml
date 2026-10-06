@@ -2742,6 +2742,9 @@
     <string name="search_picker_searching">Searching…</string>
     <string name="search_picker_change">Change</string>
     <string name="search_picker_selected">Selected: %1$s</string>
+    <string name="search_picker_created">Account created %1$s</string>
+    <string name="moderation_ban_target_not_found">No Twitch account named %1$s</string>
+    <string name="moderation_ban_target_lookup_failed">Twitch could not be reached. Try again.</string>
     <string name="viewer_picker_label">Find a viewer</string>
     <string name="viewer_picker_placeholder">Search by name…</string>
     <string name="viewer_picker_empty">No matching viewers.</string>

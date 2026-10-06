@@ -37,7 +37,8 @@ public sealed class CommunityControllerTests
     private static CommunityController Build(
         CommunityControllerTestDbContext db,
         ITwitchChannelsApi channels,
-        ITwitchModerationApi? moderation = null
+        ITwitchModerationApi? moderation = null,
+        ITwitchUsersApi? users = null
     )
     {
         CommunityController controller = new(
@@ -49,7 +50,8 @@ public sealed class CommunityControllerTests
             TimeProvider.System,
             Substitute.For<ICommunityStandingService>(),
             Substitute.For<ICurrentUserService>(),
-            Substitute.For<IViewerProfileService>()
+            Substitute.For<IViewerProfileService>(),
+            users ?? Substitute.For<ITwitchUsersApi>()
         )
         {
             ControllerContext = new()
@@ -322,6 +324,145 @@ public sealed class CommunityControllerTests
 
         // Five viewers match the query; the limit caps the result at two.
         SearchData(result).Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task LookupPlatformViewer_returns_the_twitch_account_for_a_login_the_bot_never_saw()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        DateTimeOffset created = new(2021, 3, 4, 5, 6, 7, TimeSpan.Zero);
+        users
+            .GetUsersByLoginsAsync(
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "twrtlebeach"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    new TwitchUser(
+                        "9001",
+                        "twrtlebeach",
+                        "TwrtleBeach",
+                        "",
+                        "",
+                        "",
+                        "https://img.example/twrtle.png",
+                        "",
+                        0,
+                        created
+                    ),
+                ])
+            );
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            users: users
+        );
+
+        // Mixed case and a leading @ are normalised before Helix is asked.
+        IActionResult result = await controller.LookupPlatformViewer(
+            Broadcaster.ToString(),
+            login: "@TwrtleBeach",
+            CancellationToken.None
+        );
+
+        StatusResponseDto<CommunityController.PlatformViewerDto> body = result
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Which.Value.Should()
+            .BeOfType<StatusResponseDto<CommunityController.PlatformViewerDto>>()
+            .Subject;
+        body.Data!.Id.Should().Be("9001"); // the platform id a ban / timeout keys on
+        body.Data.Login.Should().Be("twrtlebeach");
+        body.Data.DisplayName.Should().Be("TwrtleBeach");
+        body.Data.ProfileImageUrl.Should().Be("https://img.example/twrtle.png");
+        body.Data.CreatedAt.Should().Be(created);
+    }
+
+    [Fact]
+    public async Task LookupPlatformViewer_says_not_found_when_the_login_does_not_exist_on_twitch()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            users: users
+        );
+
+        IActionResult result = await controller.LookupPlatformViewer(
+            Broadcaster.ToString(),
+            login: "nobodyherexyz",
+            CancellationToken.None
+        );
+
+        NotFoundObjectResult notFound = result.Should().BeOfType<NotFoundObjectResult>().Subject;
+        notFound
+            .Value.Should()
+            .BeOfType<StatusResponseDto<object>>()
+            .Which.Code.Should()
+            .Be("TWITCH_USER_NOT_FOUND");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("has space")]
+    [InlineData("bad-dash")]
+    [InlineData("waytoolongloginnamethatexceedstwentyfive")]
+    public async Task LookupPlatformViewer_rejects_a_malformed_login_without_calling_twitch(
+        string login
+    )
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            users: users
+        );
+
+        IActionResult result = await controller.LookupPlatformViewer(
+            Broadcaster.ToString(),
+            login,
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        await users
+            .DidNotReceive()
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task LookupPlatformViewer_does_not_claim_not_found_when_twitch_itself_fails()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<TwitchUser>>(
+                    "Twitch is down",
+                    TwitchErrorCodes.TwitchError
+                )
+            );
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            users: users
+        );
+
+        IActionResult result = await controller.LookupPlatformViewer(
+            Broadcaster.ToString(),
+            login: "twrtlebeach",
+            CancellationToken.None
+        );
+
+        result.Should().NotBeOfType<OkObjectResult>().And.NotBeOfType<NotFoundObjectResult>();
     }
 
     private static void AddUser(

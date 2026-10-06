@@ -123,6 +123,7 @@ import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import kotlin.math.roundToInt
 import bot.nomnomz.dashboard.feature.moderation.state.AutomationLine
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
+import bot.nomnomz.dashboard.feature.moderation.state.BanTargetSearch
 import bot.nomnomz.dashboard.feature.moderation.state.deriveAutomationLines
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
@@ -316,6 +317,8 @@ import nomnomzbot.composeapp.generated.resources.moderation_action_type_flag
 import nomnomzbot.composeapp.generated.resources.moderation_action_type_escalate
 import nomnomzbot.composeapp.generated.resources.moderation_action_apply
 import nomnomzbot.composeapp.generated.resources.moderation_action_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_ban_target_lookup_failed
+import nomnomzbot.composeapp.generated.resources.moderation_ban_target_not_found
 import nomnomzbot.composeapp.generated.resources.moderation_action_dialog_title
 import nomnomzbot.composeapp.generated.resources.moderation_action_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_action_duration
@@ -686,6 +689,7 @@ fun ModerationScreen(
                     },
                     onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
                     searchViewers = { query -> controller.searchViewers(query) },
+                    searchBanTargets = { query -> controller.searchBanTargets(query) },
                     searchChannels = { query -> controller.searchChannels(query) },
                     onPerformAction = { action, userId, duration, reason ->
                         scope.launch { controller.performAction(action, userId, duration, reason) }
@@ -871,6 +875,7 @@ internal fun BansList(
     onNetworkUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchBanTargets: suspend (query: String) -> BanTargetSearch,
     searchChannels: suspend (query: String) -> List<PickerOption>,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
@@ -1839,7 +1844,7 @@ internal fun BansList(
 
     if (showActionDialog) {
         ModerateViewerDialog(
-            searchViewers = searchViewers,
+            searchBanTargets = searchBanTargets,
             onConfirm = { action, userId, duration, reason ->
                 onPerformAction(action, userId, duration, reason)
                 showActionDialog = false
@@ -1926,8 +1931,8 @@ private fun durationPresetLabel(seconds: Int?): String =
     }
 
 @Composable
-private fun ModerateViewerDialog(
-    searchViewers: suspend (query: String) -> List<PickerOption>,
+internal fun ModerateViewerDialog(
+    searchBanTargets: suspend (query: String) -> BanTargetSearch,
     onConfirm: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1946,6 +1951,9 @@ private fun ModerateViewerDialog(
     var durationText: String by remember { mutableStateOf("600") }
     var isBan: Boolean by remember { mutableStateOf(true) }
     var showUserIdError: Boolean by remember { mutableStateOf(false) }
+    // The latest search outcome, so an empty result reads as "no such Twitch account" or "lookup failed" rather
+    // than the generic "no matching viewers".
+    var lastSearch: BanTargetSearch? by remember { mutableStateOf(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1958,11 +1966,24 @@ private fun ModerateViewerDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                val notFound: String? = lastSearch?.notFoundLogin
                 SearchPickerField(
-                    search = searchViewers,
+                    search = { query ->
+                        val found: BanTargetSearch = searchBanTargets(query)
+                        lastSearch = found
+                        found.options
+                    },
                     selected = target,
                     onSelect = { ref -> target = ref; showUserIdError = false },
                     onClear = { target = null },
+                    emptyText =
+                        when {
+                            lastSearch?.lookupFailed == true ->
+                                stringResource(Res.string.moderation_ban_target_lookup_failed)
+                            notFound != null -> stringResource(Res.string.moderation_ban_target_not_found, notFound)
+                            else -> null
+                        },
+                    emptyTextIsError = lastSearch?.lookupFailed == true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (showUserIdError) {

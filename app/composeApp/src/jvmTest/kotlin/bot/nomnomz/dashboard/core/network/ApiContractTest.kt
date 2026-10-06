@@ -58,6 +58,7 @@ class ApiContractTest {
             SetupWizard.serializer() to "SetupWizardDto",
             SetupAction.serializer() to "SetupActionDto",
             CommunityMember.serializer() to "CommunityUserDto",
+            PlatformViewer.serializer() to "PlatformViewerDto",
             ViewerOption.serializer() to "ViewerOptionDto",
             CommandSummary.serializer() to "CommandDto",
             CommandPreset.serializer() to "CommandPresetDto",

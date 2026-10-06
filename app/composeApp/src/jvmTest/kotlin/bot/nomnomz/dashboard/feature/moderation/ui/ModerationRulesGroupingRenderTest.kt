@@ -38,6 +38,7 @@ import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.feature.moderation.state.AutomationLine
+import bot.nomnomz.dashboard.feature.moderation.state.BanTargetSearch
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performTextReplacement
 import bot.nomnomz.dashboard.feature.moderation.state.TermSweep
@@ -153,6 +154,7 @@ class ModerationRulesGroupingRenderTest {
             onNetworkUnban = {},
             onViewContext = {},
             searchViewers = { emptyList<PickerOption>() },
+            searchBanTargets = { BanTargetSearch(options = emptyList()) },
             searchChannels = { emptyList<PickerOption>() },
             onPerformAction = { _, _, _, _ -> },
             onToggleShield = {},
