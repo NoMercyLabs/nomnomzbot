@@ -119,6 +119,7 @@ export function initPreview({
     errorBox,
     onReveal,
     onEditSample,
+    onHostAction,
     fireBar,
     refresh,
     language,
@@ -502,6 +503,10 @@ export function initPreview({
             showConsoleEntry(entry);
             return;
         }
+        if (entry?.kind === 'previewAction') {
+            onHostAction?.(entry);
+            return;
+        }
         if (entry && typeof entry === 'object') {
             addLogEntry(entry);
             if (entry.kind === 'error') showRuntimeError(entry);
@@ -780,5 +785,10 @@ export function initPreview({
             });
     }
 
-    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole, fire: postFire, setEditingType };
+    // The host's answer to a previewAction goes back down into the frame that asked ('*': opaque sandbox origin).
+    function replyHostAction(result) {
+        frame.contentWindow?.postMessage({ __nnzPreviewActionResult: result }, '*');
+    }
+
+    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole, fire: postFire, setEditingType, replyHostAction };
 }
