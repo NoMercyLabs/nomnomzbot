@@ -155,7 +155,6 @@ public static class EventSamplePayloads
             {
                 "broadcaster_user_id": "broadcaster-99",
                 "chatter_user_id": "42",
-                "chatter_user_login": "loyal_fan",
                 "chatter_user_name": "Loyal_Fan",
                 "chatter_is_anonymous": false,
                 "notice_type": "resub",
@@ -189,12 +188,13 @@ public static class EventSamplePayloads
                     "cumulative_months": 12,
                     "duration_months": 1,
                     "streak_months": null,
-                    "sub_plan": "1000",
                     "is_gift": false,
                     "gifter_is_anonymous": null,
                     "gifter_user_id": null,
                     "gifter_user_login": null,
-                    "gifter_user_name": null
+                    "gifter_user_name": null,
+                    "sub_tier": "1000",
+                    "is_prime": false
                 },
                 "shared_chat_announcement": null,
                 "shared_chat_community_sub_gift": null,
@@ -251,11 +251,9 @@ public static class EventSamplePayloads
                     "text": "suspicious text",
                     "fragments": [
                         {
-                            "type": "text",
                             "text": "suspicious text",
                             "cheermote": null,
-                            "emote": null,
-                            "mention": null
+                            "emote": null
                         }
                     ]
                 },
@@ -279,11 +277,9 @@ public static class EventSamplePayloads
                     "text": "suspicious text",
                     "fragments": [
                         {
-                            "type": "text",
                             "text": "suspicious text",
                             "cheermote": null,
-                            "emote": null,
-                            "mention": null
+                            "emote": null
                         }
                     ]
                 },
@@ -300,7 +296,6 @@ public static class EventSamplePayloads
             {
                 "broadcaster_user_id": "broadcaster-99",
                 "chatter_user_id": "555",
-                "chatter_user_login": "cool_user",
                 "chatter_user_name": "Cool_User",
                 "chatter_is_anonymous": false,
                 "message_id": "n-1",
@@ -451,18 +446,21 @@ public static class EventSamplePayloads
                 "message": {
                     "text": "",
                     "fragments": [
-                        { "type": "text", "text": "you are ", "cheermote": null, "emote": null },
-                        { "type": "text", "text": "such a problem", "cheermote": null, "emote": null }
+                        {
+                            "text": "you are ",
+                            "cheermote": null,
+                            "emote": null
+                        },
+                        {
+                            "text": "such a problem",
+                            "cheermote": null,
+                            "emote": null
+                        }
                     ]
                 },
-                "reason": "automod",
-                "automod": {
-                    "category": "bullying",
-                    "level": 4,
-                    "boundaries": [{ "start_pos": 0, "end_pos": 20 }]
-                },
-                "blocked_term": null,
-                "held_at": "2026-06-20T11:29:30Z"
+                "held_at": "2026-06-20T11:29:30Z",
+                "category": "bullying",
+                "level": 4
             }
             """,
 
@@ -481,31 +479,20 @@ public static class EventSamplePayloads
                 "message_id": "held-msg-1",
                 "message": {
                     "text": "you are such a problem",
-                    "fragments": []
+                    "fragments": [
+                        {
+                            "text": "you are such a problem",
+                            "cheermote": null,
+                            "emote": null
+                        }
+                    ]
                 },
                 "status": "denied",
                 "held_at": "2026-06-20T11:29:30Z",
                 "broadcaster_user_login": "streamer",
                 "broadcaster_user_name": "Streamer",
                 "category": "aggressive",
-                "level": 1,
-                "fragments": {
-                    "emotes": [
-                        {
-                            "text": "Kappa",
-                            "id": "25",
-                            "set-id": "0"
-                        }
-                    ],
-                    "cheermotes": [
-                        {
-                            "text": "cheer100",
-                            "amount": 100,
-                            "prefix": "cheer",
-                            "tier": 1
-                        }
-                    ]
-                }
+                "level": 1
             }
             """,
 
@@ -528,26 +515,7 @@ public static class EventSamplePayloads
                 "bullying": 5,
                 "swearing": 0,
                 "race_ethnicity_or_religion": 6,
-                "sex_based_terms": 7,
-                "data": [
-                    {
-                        "broadcaster_user_id": "broadcaster-99",
-                        "broadcaster_user_login": "streamer",
-                        "broadcaster_user_name": "Streamer",
-                        "moderator_user_id": "mod-7",
-                        "moderator_user_login": "cool_mod",
-                        "moderator_user_name": "Cool_Mod",
-                        "overall_level": null,
-                        "disability": 1,
-                        "aggression": 2,
-                        "sexuality_sex_or_gender": 3,
-                        "misogyny": 4,
-                        "bullying": 5,
-                        "swearing": 0,
-                        "race_ethnicity_or_religion": 6,
-                        "sex_based_terms": 7
-                    }
-                ]
+                "sex_based_terms": 7
             }
             """,
 
@@ -772,14 +740,14 @@ public static class EventSamplePayloads
                 "user_id": "1339",
                 "user_login": "not_cool_user",
                 "user_name": "Not_Cool_User",
-                "moderator_user_id": "1337",
-                "moderator_user_name": "Cool_User",
                 "resolution_text": "no",
                 "status": "denied",
                 "broadcaster_user_id": "broadcaster-99",
                 "broadcaster_user_login": "streamer",
                 "broadcaster_user_name": "Streamer",
-                "moderator_user_login": "cool_user"
+                "moderator_id": "1337",
+                "moderator_login": "cool_user",
+                "moderator_name": "Cool_User"
             }
             """,
 
@@ -875,7 +843,10 @@ public static class EventSamplePayloads
                 "unraid": null,
                 "untimeout": null,
                 "unvip": null,
-                "vip": null
+                "vip": null,
+                "source_broadcaster_user_id": null,
+                "source_broadcaster_user_login": null,
+                "source_broadcaster_user_name": null
             }
             """,
 
@@ -1379,14 +1350,16 @@ public static class EventSamplePayloads
                         "title": "Yes",
                         "color": "blue",
                         "users": 0,
-                        "channel_points": 0
+                        "channel_points": 0,
+                        "top_predictors": []
                     },
                     {
                         "id": "o2",
                         "title": "No",
                         "color": "pink",
                         "users": 0,
-                        "channel_points": 0
+                        "channel_points": 0,
+                        "top_predictors": []
                     }
                 ],
                 "started_at": "2026-06-20T11:30:00Z",
@@ -1687,7 +1660,6 @@ public static class EventSamplePayloads
         ["community.charity.campaign.started"] = """
             {
                 "id": "camp-1",
-                "broadcaster_user_id": "1337",
                 "charity_name": "Save the Cats",
                 "charity_description": "Helping cats everywhere",
                 "charity_logo": "https://abc/logo.png",
@@ -1907,10 +1879,7 @@ public static class EventSamplePayloads
                 "broadcaster_user_login": "streamer",
                 "broadcaster_user_name": "Streamer",
                 "session_id": "session-2KFRQbFtpmfyD3IevNRnCzOzhg1",
-                "started_at": "2026-06-20T11:28:00Z",
-                "moderator_user_id": "mod-1",
-                "moderator_user_login": "mod_user",
-                "moderator_user_name": "Mod_User"
+                "started_at": "2026-06-20T11:28:00Z"
             }
             """,
 
@@ -1925,9 +1894,9 @@ public static class EventSamplePayloads
                 "ended_at": "2026-06-20T11:55:00Z",
                 "broadcaster_user_login": "streamer",
                 "broadcaster_user_name": "Streamer",
-                "moderator_user_id": "mod-1",
-                "moderator_user_login": "mod_user",
-                "moderator_user_name": "Mod_User"
+                "host_user_id": "broadcaster-99",
+                "host_user_login": "streamer",
+                "host_user_name": "Streamer"
             }
             """,
 
@@ -1950,7 +1919,10 @@ public static class EventSamplePayloads
                 "host_audio_enabled": true,
                 "host_volume": 100,
                 "broadcaster_user_login": "streamer",
-                "broadcaster_user_name": "Streamer"
+                "broadcaster_user_name": "Streamer",
+                "host_user_id": "broadcaster-99",
+                "host_user_login": "streamer",
+                "host_user_name": "Streamer"
             }
             """,
 
