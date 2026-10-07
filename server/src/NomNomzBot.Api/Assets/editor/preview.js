@@ -118,6 +118,7 @@ export function initPreview({
     note,
     errorBox,
     onReveal,
+    onEditSample,
     fireBar,
     refresh,
     language,
@@ -289,12 +290,6 @@ export function initPreview({
     const fireList = fireBar.querySelector('#fireList');
     const fireEmpty = fireBar.querySelector('#fireEmpty');
     const fireSamplesError = fireBar.querySelector('#fireSamplesError');
-    const fireEditor = fireBar.querySelector('#fireEditor');
-    const fireEditorTitle = fireBar.querySelector('#fireEditorTitle');
-    const fireJson = fireBar.querySelector('#fireJson');
-    const fireJsonError = fireBar.querySelector('#fireJsonError');
-    const fireSend = fireBar.querySelector('#fireSend');
-    const fireClose = fireBar.querySelector('#fireClose');
     let listedKey = '';
     let editingType = null;
 
@@ -335,47 +330,22 @@ export function initPreview({
         fireEmpty.hidden = shown > 0;
     }
 
-    // Fire is only possible while the text is valid JSON; the error says what is wrong with it.
-    function validateFireJson() {
-        try {
-            JSON.parse(fireJson.value);
-            fireJsonError.hidden = true;
-            fireSend.disabled = false;
-            return true;
-        } catch (error) {
-            fireJsonError.textContent = t('previewFireJsonInvalid', { message: error.message });
-            fireJsonError.hidden = false;
-            fireSend.disabled = true;
-            return false;
-        }
-    }
-
     function markEditingRow() {
         for (const row of fireList.children) row.dataset.editing = String(row.dataset.type === editingType);
     }
 
+    // The data itself is edited in a Monaco tab of the main editor; this bar only marks which event has one open.
     function openFireEditor(type) {
-        editingType = type;
-        fireEditorTitle.textContent = t('previewFireEditing', { type });
-        fireJson.value = JSON.stringify(sampleFor(type), null, 2);
-        validateFireJson();
-        fireEditor.hidden = false;
-        markEditingRow();
-        fireJson.focus();
+        setEditingType(type);
+        onEditSample(type, sampleFor(type));
     }
 
-    function closeFireEditor() {
-        editingType = null;
-        fireEditor.hidden = true;
+    function setEditingType(type) {
+        editingType = type;
         markEditingRow();
     }
 
     fireSearch.addEventListener('input', applyFireSearch);
-    fireJson.addEventListener('input', validateFireJson);
-    fireClose.addEventListener('click', closeFireEditor);
-    fireSend.addEventListener('click', () => {
-        if (editingType !== null && validateFireJson()) postFire(editingType, JSON.parse(fireJson.value));
-    });
 
     function fireRow(type) {
         const row = document.createElement('div');
@@ -793,5 +763,5 @@ export function initPreview({
             });
     }
 
-    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole };
+    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole, fire: postFire, setEditingType };
 }
