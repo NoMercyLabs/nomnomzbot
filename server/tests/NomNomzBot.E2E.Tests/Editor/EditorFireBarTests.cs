@@ -65,7 +65,7 @@ public sealed class EditorFireBarTests : EditorPageTest
         await EditButton("follow").ClickAsync();
 
         await Expect(EventTab("follow")).ToHaveAttributeAsync("aria-selected", "true");
-        Assert.Equal("json",await ActiveModelAsync("getLanguageId()"));
+        Assert.Equal("json", await ActiveModelAsync("getLanguageId()"));
         Assert.Equal("file:///events/follow.json", await ActiveModelAsync("uri.toString()"));
         Assert.Equal(
             "{\n  \"user_name\": \"kitte\",\n  \"total\": 3\n}",
@@ -255,6 +255,56 @@ public sealed class EditorFireBarTests : EditorPageTest
         await Expect(Page.Locator("#fireBar .fire-btn:visible")).ToHaveTextAsync(["raid"]);
     }
 
+    private const string FilteringWidget = """
+        <!doctype html>
+        <html><head></head><body><p id="ready">ready</p><p id="hit"></p>
+        <script>
+        NomNomz.on('reward_redeemed', function (event) {
+            if (event.rewardId !== window.WIDGET_SETTINGS.rewardId) return;
+            document.getElementById('hit').textContent = 'matched ' + event.rewardId;
+        });
+        </script></body></html>
+        """;
+
+    [E2EFact]
+    public async Task A_fired_sample_carries_the_reward_id_of_the_widgets_own_setting()
+    {
+        await OpenWidgetAsync(
+            new() { ["reward_redeemed"] = new { rewardId = "test-reward", user_name = "kitte" } },
+            declared: ["reward_redeemed"],
+            source: FilteringWidget,
+            settings: new { rewardId = "abc" }
+        );
+
+        await FireButton("reward_redeemed").ClickAsync();
+
+        await Expect(Page.FrameLocator("#previewFrame").Locator("#hit"))
+            .ToHaveTextAsync("matched abc");
+        await EditButton("reward_redeemed").ClickAsync();
+        Assert.Equal(
+            "{\n  \"rewardId\": \"abc\",\n  \"user_name\": \"kitte\"\n}",
+            await ActiveModelAsync("getValue()")
+        );
+    }
+
+    [E2EFact]
+    public async Task A_reward_id_edited_in_the_event_tab_wins_over_the_setting()
+    {
+        await OpenWidgetAsync(
+            new() { ["reward_redeemed"] = new { rewardId = "test-reward" } },
+            declared: ["reward_redeemed"],
+            source: FilteringWidget,
+            settings: new { rewardId = "abc" }
+        );
+        await EditButton("reward_redeemed").ClickAsync();
+
+        await SetActiveTextAsync("{\"rewardId\":\"typed\"}");
+        await Page.Locator("#eventFire").ClickAsync();
+
+        await Expect(Page.FrameLocator("#previewFrame").Locator("#hit")).ToHaveCountAsync(1);
+        await Expect(Page.FrameLocator("#previewFrame").Locator("#hit")).ToHaveTextAsync("");
+    }
+
     private ILocator FireButton(string type) =>
         Page.Locator($"#fireBar .fire-row[data-type='{type}'] .fire-btn");
 
@@ -267,7 +317,9 @@ public sealed class EditorFireBarTests : EditorPageTest
     private async Task OpenWidgetAsync(
         Dictionary<string, object> samples,
         string[] declared,
-        string? samplesError = null
+        string? samplesError = null,
+        string source = Widget,
+        object? settings = null
     )
     {
         await ServeEditorFromTheWorkingTreeAsync();
@@ -277,7 +329,7 @@ public sealed class EditorFireBarTests : EditorPageTest
         );
         await Page.EvaluateAsync(
             """
-            ([source, samples, declared, samplesError]) => window.postMessage({
+            ([source, samples, declared, samplesError, settings]) => window.postMessage({
                 type: 'nnz:editor:open',
                 payload: {
                     title: 'Fire bar',
@@ -288,11 +340,11 @@ public sealed class EditorFireBarTests : EditorPageTest
                     fireSamples: samples,
                     fireSamplesError: samplesError,
                     eventSubscriptions: declared,
-                    widget: { id: 'w-1', name: 'Alerts', settings: {} },
+                    widget: { id: 'w-1', name: 'Alerts', settings },
                 },
             }, window.location.origin)
             """,
-            new object?[] { Widget, samples, declared, samplesError }
+            new object?[] { source, samples, declared, samplesError, settings ?? new { } }
         );
         await Page.Locator(".activity-item[data-view='run']").ClickAsync();
         // The frame must be rendered with the SDK before a fired event has a handler to reach.
