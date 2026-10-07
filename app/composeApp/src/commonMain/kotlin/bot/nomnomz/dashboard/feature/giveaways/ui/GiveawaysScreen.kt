@@ -55,6 +55,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.SpinnerSize
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -82,6 +84,7 @@ import bot.nomnomz.dashboard.feature.giveaways.state.PoolDetailState
 import bot.nomnomz.dashboard.feature.giveaways.state.EntriesState
 import bot.nomnomz.dashboard.feature.giveaways.state.WinnersState
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -167,7 +170,10 @@ import nomnomzbot.composeapp.generated.resources.giveaways_keyword
 import nomnomzbot.composeapp.generated.resources.giveaways_loading
 import nomnomzbot.composeapp.generated.resources.giveaways_new_action
 import nomnomzbot.composeapp.generated.resources.giveaways_open_action
+import nomnomzbot.composeapp.generated.resources.feedback_codepool_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_giveaway_save_failed
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_add_action
+import nomnomzbot.composeapp.generated.resources.giveaways_pool_add_failed
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_add_label
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_add_placeholder
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_codes_label
@@ -361,10 +367,15 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onDismiss = { editor = null },
             onSubmit = { body ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) controller.updateGiveaway(open.id, body) else controller.createGiveaway(body)
-                }
+                // The write runs in the screen's scope so dismissing the dialog mid-flight never cancels it; the
+                // dialog stays open (keeping the input) until the server confirms.
+                scope
+                    .async {
+                        if (open.isEdit) controller.updateGiveaway(open.id, body) else controller.createGiveaway(body)
+                    }
+                    .await()
+                    .also { if (it is ApiResult.Ok) editor = null }
+                    .failureDetail()
             },
         )
     }
@@ -435,8 +446,11 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
         NewCodePoolDialog(
             onDismiss = { newPool = false },
             onSubmit = { name, description ->
-                newPool = false
-                scope.launch { controller.createCodePool(name, description) }
+                scope
+                    .async { controller.createCodePool(name, description) }
+                    .await()
+                    .also { if (it is ApiResult.Ok) newPool = false }
+                    .failureDetail()
             },
         )
     }
@@ -509,10 +523,15 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
         ManagePoolDialog(
             state = poolDetail,
             onDismiss = { controller.hidePoolDetail() },
-            onAddCodes = { poolId, codes -> scope.launch { controller.addCodes(poolId, codes) } },
+            onAddCodes = { poolId, codes ->
+                scope.async { controller.addCodes(poolId, codes) }.await().failureDetail()
+            },
         )
     }
 }
+
+// The failure's human-readable detail, or null when the write succeeded — what a dialog shows inline.
+private fun ApiResult<Unit>.failureDetail(): String? = (this as? ApiResult.Failure)?.error?.message
 
 @Composable
 private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
@@ -970,10 +989,13 @@ private fun GiveawayFormDialog(
     pipelines: List<PipelineSummary>,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onDismiss: () -> Unit,
-    onSubmit: (UpsertGiveawayBody) -> Unit,
+    onSubmit: suspend (UpsertGiveawayBody) -> String?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val submitScope = rememberCoroutineScope()
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
 
     var title: String by remember { mutableStateOf(editor.title) }
     var entryMode: String by remember { mutableStateOf(editor.entryMode) }
@@ -1207,12 +1229,15 @@ private fun GiveawayFormDialog(
                         color = if (requires18) tokens.mutedForeground else tokens.destructive,
                     )
                 }
+                saveError?.let { detail ->
+                    SaveErrorText(stringResource(Res.string.feedback_giveaway_save_failed, detail))
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSubmit(
+                    val body: UpsertGiveawayBody =
                         editor.toBody(
                             title = title,
                             entryMode = entryMode,
@@ -1239,11 +1264,16 @@ private fun GiveawayFormDialog(
                             autoCloseMinutes = autoCloseMinutes,
                             now = Clock.System.now(),
                         )
-                    )
+                    submitScope.launch {
+                        saving = true
+                        saveError = null
+                        saveError = onSubmit(body)
+                        saving = false
+                    }
                 },
-                enabled = canSubmit,
+                enabled = canSubmit && !saving,
             ) {
-                Text(text = submitLabel, color = if (canSubmit) tokens.primary else tokens.mutedForeground)
+                SubmitLabel(text = submitLabel, active = canSubmit, saving = saving)
             }
         },
         dismissButton = {
@@ -1631,9 +1661,15 @@ private fun EntryRow(entry: GiveawayEntry) {
 // ── Code-pool dialogs ────────────────────────────────────────────────────────────
 
 @Composable
-private fun NewCodePoolDialog(onDismiss: () -> Unit, onSubmit: (name: String, description: String) -> Unit) {
+private fun NewCodePoolDialog(
+    onDismiss: () -> Unit,
+    onSubmit: suspend (name: String, description: String) -> String?,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val submitScope = rememberCoroutineScope()
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
 
     var name: String by remember { mutableStateOf("") }
     var description: String by remember { mutableStateOf("") }
@@ -1656,13 +1692,27 @@ private fun NewCodePoolDialog(onDismiss: () -> Unit, onSubmit: (name: String, de
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.giveaways_pool_dialog_description_label),
                 )
+                saveError?.let { detail ->
+                    SaveErrorText(stringResource(Res.string.feedback_codepool_save_failed, detail))
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSubmit(name, description) }, enabled = canSubmit) {
-                Text(
+            TextButton(
+                onClick = {
+                    submitScope.launch {
+                        saving = true
+                        saveError = null
+                        saveError = onSubmit(name, description)
+                        saving = false
+                    }
+                },
+                enabled = canSubmit && !saving,
+            ) {
+                SubmitLabel(
                     text = stringResource(Res.string.giveaways_dialog_create),
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                    active = canSubmit,
+                    saving = saving,
                 )
             }
         },
@@ -1677,16 +1727,20 @@ private fun NewCodePoolDialog(onDismiss: () -> Unit, onSubmit: (name: String, de
 // The manage-pool panel: the pool's MASKED code rows (label + status, never plaintext — D6) plus a bulk add-codes
 // field (one code per line). Adding reloads both the masked list and the pool counts.
 @Composable
-private fun ManagePoolDialog(
+internal fun ManagePoolDialog(
     state: PoolDetailState,
     onDismiss: () -> Unit,
-    onAddCodes: (poolId: String, codes: List<String>) -> Unit,
+    onAddCodes: suspend (poolId: String, codes: List<String>) -> String?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val addScope = rememberCoroutineScope()
 
+    // The pasted codes are the operator's only copy: the draft is cleared only once the server confirms the add.
     var draft: String by remember { mutableStateOf("") }
+    var adding: Boolean by remember { mutableStateOf(false) }
+    var addError: String? by remember { mutableStateOf(null) }
     val poolName: String =
         when (state) {
             is PoolDetailState.Loading -> state.name
@@ -1742,18 +1796,27 @@ private fun ManagePoolDialog(
                     placeholder = stringResource(Res.string.giveaways_pool_add_placeholder),
                     minLines = 3,
                     monospace = true,
+                    enabled = !adding,
+                    isError = addError != null,
+                    errorText = addError?.let { stringResource(Res.string.giveaways_pool_add_failed, it) },
                 )
                 Button(
                     onClick = {
                         val codes: List<String> = draft.split('\n')
                         if (poolId != null) {
-                            onAddCodes(poolId, codes)
-                            draft = ""
+                            addScope.launch {
+                                adding = true
+                                addError = null
+                                addError = onAddCodes(poolId, codes)
+                                if (addError == null) draft = ""
+                                adding = false
+                            }
                         }
                     },
                     variant = ButtonVariant.Default,
                     size = ButtonSize.Sm,
                     enabled = canAdd,
+                    loading = adding,
                 ) {
                     Text(text = stringResource(Res.string.giveaways_pool_add_action))
                 }
@@ -1765,6 +1828,23 @@ private fun ManagePoolDialog(
             }
         },
     )
+}
+
+// A dialog's inline save failure, shown under its fields while the dialog stays open with the operator's input.
+@Composable
+private fun SaveErrorText(text: String) {
+    Text(text = text, style = LocalTypography.current.sm, color = LocalTokens.current.destructive)
+}
+
+// A dialog's confirm label: the spinner replaces it while the write is in flight, so the click visibly registered.
+@Composable
+private fun SubmitLabel(text: String, active: Boolean, saving: Boolean) {
+    val tokens = LocalTokens.current
+    if (saving) {
+        Spinner(size = SpinnerSize.Sm, color = tokens.mutedForeground)
+    } else {
+        Text(text = text, color = if (active) tokens.primary else tokens.mutedForeground)
+    }
 }
 
 @Composable

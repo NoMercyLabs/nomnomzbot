@@ -351,6 +351,24 @@ class GiveawaysControllerTest {
     }
 
     @Test
+    fun a_failed_add_codes_hands_the_failure_back_for_the_dialog_and_does_not_toast() = runTest {
+        val feedback = RecordingFeedback()
+        val api =
+            RecordingGiveawaysApi(
+                ApiResult.Ok(emptyList()),
+                poolsInitial = ApiResult.Ok(listOf(CodePool(id = "p1", name = "keys", total = 0))),
+                writeResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
+            )
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi(), feedback)
+        controller.loadCodePools()
+
+        val result: ApiResult<Unit> = controller.addCodes("p1", listOf("ABC-1"))
+
+        assertEquals("boom", (result as ApiResult.Failure).error.message)
+        assertEquals(0, feedback.messages.size)
+    }
+
+    @Test
     fun add_codes_splits_an_optional_pipe_delimited_label() = runTest {
         val api =
             RecordingGiveawaysApi(
