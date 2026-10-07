@@ -2094,6 +2094,8 @@
     <string name="feedback_giveaway_saved">Weggeefactie opgeslagen</string>
     <string name="feedback_economy_adjusted">Saldo bijgewerkt</string>
     <string name="feedback_economy_transferred">Punten overgedragen</string>
+    <string name="feedback_economy_purchase_refunded">Aankoop terugbetaald</string>
+    <string name="feedback_economy_earning_rule_deleted">Verdienregel verwijderd</string>
     <string name="feedback_economy_jar_contributed">Bijdrage aan de pot toegevoegd</string>
     <string name="feedback_economy_jar_withdrawn">Opname uit de pot gedaan</string>
     <string name="feedback_economy_jar_invited">Kanaal uitgenodigd voor de pot</string>

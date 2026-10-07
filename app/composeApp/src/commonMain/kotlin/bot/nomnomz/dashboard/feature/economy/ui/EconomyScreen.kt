@@ -413,6 +413,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     config = config,
                     payoutRules = payoutRules,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
+                    onSaveAwaited = { edited -> controller.save(edited) },
                     onFreeze = { viewerUserId, frozen ->
                         scope.launch { controller.freezeAccount(viewerUserId, frozen) }
                     },
@@ -437,9 +438,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onUpsertEarningRule = { body ->
                         scope.launch { controller.upsertEarningRule(body) }
                     },
-                    onDeleteEarningRule = { ruleId ->
-                        scope.launch { controller.deleteEarningRule(ruleId) }
-                    },
+                    onDeleteEarningRule = { ruleId -> controller.deleteEarningRule(ruleId) },
                     onCreateSavingsJar = { request ->
                         scope.launch { controller.createSavingsJar(request) }
                     },
@@ -460,9 +459,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onTransfer = { request -> controller.transfer(request) },
                     searchViewers = { query -> controller.searchViewers(query) },
                     searchChannels = { query -> controller.searchChannels(query) },
-                    onRefundPurchase = { purchaseId ->
-                        scope.launch { controller.refundPurchase(purchaseId) }
-                    },
+                    onRefundPurchase = { purchaseId -> controller.refundPurchase(purchaseId) },
                     onCreateLeaderboardConfig = { request ->
                         scope.launch { controller.upsertLeaderboardConfig(request) }
                     },
@@ -488,6 +485,8 @@ private fun ReadyContent(
     config: ManageDecision,
     payoutRules: ManageDecision,
     onSave: (CurrencyConfig) -> Unit,
+    // The save behind the disable confirm: awaited so the dialog stays open until the server answers.
+    onSaveAwaited: suspend (CurrencyConfig) -> ApiResult<Unit>,
     onFreeze: (String, Boolean) -> Unit,
     onAccountsPrevPage: () -> Unit,
     onAccountsNextPage: () -> Unit,
@@ -500,7 +499,7 @@ private fun ReadyContent(
     onCatalogItemBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
     onUpsertEarningRule: (UpsertEarningRuleBody) -> Unit,
-    onDeleteEarningRule: (ruleId: String) -> Unit,
+    onDeleteEarningRule: suspend (ruleId: String) -> ApiResult<Unit>,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     onUpdateJar: suspend (jarId: String, UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDeleteJar: suspend (jarId: String) -> Unit,
@@ -521,7 +520,7 @@ private fun ReadyContent(
     onTransfer: suspend (TransferBody) -> ApiResult<Unit>,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
-    onRefundPurchase: (purchaseId: Long) -> Unit,
+    onRefundPurchase: suspend (purchaseId: Long) -> ApiResult<Unit>,
     onCreateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
     onUpdateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
     onDeleteLeaderboardConfig: suspend (String) -> ApiResult<Unit>,
@@ -714,11 +713,8 @@ private fun ReadyContent(
             confirmLabel = stringResource(Res.string.economy_disable_confirm_confirm),
             dismissLabel = stringResource(Res.string.economy_disable_confirm_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDisable = null
-                onSave(edit)
-            },
             onDismiss = { pendingDisable = null },
+            action = { onSaveAwaited(edit).toDialogResult() },
         )
     }
 }
@@ -2057,7 +2053,7 @@ private fun EarningRulesSection(
     manage: ManageDecision,
     onToggle: (source: String, enabled: Boolean) -> Unit,
     onUpsert: (UpsertEarningRuleBody) -> Unit,
-    onDelete: (ruleId: String) -> Unit,
+    onDelete: suspend (ruleId: String) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -2133,7 +2129,7 @@ private fun EarningRuleRow(
     manage: ManageDecision,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    onDelete: suspend () -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -2231,8 +2227,8 @@ private fun EarningRuleRow(
             confirmLabel = stringResource(Res.string.economy_earning_delete_confirm),
             dismissLabel = stringResource(Res.string.economy_earning_delete_cancel),
             destructive = true,
-            onConfirm = { pendingDelete = false; onDelete() },
             onDismiss = { pendingDelete = false },
+            action = { onDelete().toDialogResult() },
         )
     }
 }
@@ -3763,7 +3759,7 @@ private fun CreateSavingsJarDialog(
 private fun CatalogPurchasesSection(
     purchases: List<CatalogPurchase>,
     manage: ManageDecision,
-    onRefund: (purchaseId: Long) -> Unit,
+    onRefund: suspend (purchaseId: Long) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -3820,8 +3816,8 @@ private fun CatalogPurchasesSection(
             confirmLabel = stringResource(Res.string.economy_purchases_refund_confirm),
             dismissLabel = stringResource(Res.string.economy_purchases_refund_cancel),
             destructive = false,
-            onConfirm = { pendingRefund = null; onRefund(p.id) },
             onDismiss = { pendingRefund = null },
+            action = { onRefund(p.id).toDialogResult() },
         )
     }
 }
