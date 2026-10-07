@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.RadioButton
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -387,10 +388,7 @@ fun SettingsScreen(
             confirmLabel = stringResource(Res.string.settings_bot_leave_confirm_ok),
             dismissLabel = stringResource(Res.string.settings_bot_leave_confirm_cancel),
             destructive = false,
-            onConfirm = {
-                pendingLeave = false
-                scope.launch { controller.leaveBot() }
-            },
+            action = { controller.leaveBot().toDialogResult() },
             onDismiss = { pendingLeave = false },
         )
     }
@@ -402,10 +400,7 @@ fun SettingsScreen(
             confirmLabel = stringResource(Res.string.settings_reset_confirm_ok),
             dismissLabel = stringResource(Res.string.settings_reset_confirm_cancel),
             destructive = true,
-            onConfirm = {
-                pendingReset = false
-                scope.launch { controller.resetConfig() }
-            },
+            action = { controller.resetConfig().toDialogResult() },
             onDismiss = { pendingReset = false },
         )
     }
@@ -417,10 +412,7 @@ fun SettingsScreen(
             confirmLabel = stringResource(Res.string.settings_delete_confirm_ok),
             dismissLabel = stringResource(Res.string.settings_delete_confirm_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = false
-                scope.launch { controller.deleteChannel() }
-            },
+            action = { controller.deleteChannel().toDialogResult() },
             onDismiss = { pendingDelete = false },
         )
     }
@@ -1568,10 +1560,7 @@ private fun ChannelBotSection(controller: ChannelBotController, manage: ManageDe
             confirmLabel = stringResource(Res.string.settings_channel_bot_disconnect_confirm),
             dismissLabel = stringResource(Res.string.settings_channel_bot_disconnect_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDisconnect = false
-                scope.launch { controller.disconnect() }
-            },
+            action = { controller.disconnect().toDialogResult() },
             onDismiss = { pendingDisconnect = false },
         )
     }

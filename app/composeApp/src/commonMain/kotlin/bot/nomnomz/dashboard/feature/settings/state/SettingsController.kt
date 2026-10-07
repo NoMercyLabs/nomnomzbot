@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.settings.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -100,32 +101,33 @@ class SettingsController(
     }
 
     /** Make the bot leave the channel's chat. The channel record stays; the bot just stops reading/writing chat. */
-    suspend fun leaveBot() {
-        val target: String = channelId ?: return
-        applyChannelAction(channelsApi.leave(target))
+    suspend fun leaveBot(): ApiResult<Unit> {
+        val target: String = channelId ?: return notReady()
+        return channelsApi.leave(target)
     }
 
     /** Reset all channel configuration to factory defaults (clears every stored Configuration entry). */
-    suspend fun resetConfig() {
-        val target: String = channelId ?: return
-        applyChannelAction(channelsApi.reset(target))
+    suspend fun resetConfig(): ApiResult<Unit> {
+        val target: String = channelId ?: return notReady()
+        return channelsApi.reset(target)
     }
 
     /**
      * Permanently delete the channel record and all its data (irreversible). On success the state
      * advances to [SettingsState.ChannelDeleted] — the screen must react by routing the operator
-     * back to the onboarding wizard so they can start fresh.
+     * back to the onboarding wizard so they can start fresh. The result goes back to the confirm
+     * dialog, which stays open and shows a failure inline.
      */
-    suspend fun deleteChannel() {
-        val target: String = channelId ?: return
-        val current: SettingsState = _state.value
-        if (current !is SettingsState.Ready) return
-        when (val result: ApiResult<Unit> = channelsApi.deleteChannel(target)) {
-            is ApiResult.Ok -> _state.value = SettingsState.ChannelDeleted
-            is ApiResult.Failure ->
-                feedback.error(Res.string.settings_channel_action_error, result.error.message)
-        }
+    suspend fun deleteChannel(): ApiResult<Unit> {
+        val target: String = channelId ?: return notReady()
+        if (_state.value !is SettingsState.Ready) return notReady()
+        val result: ApiResult<Unit> = channelsApi.deleteChannel(target)
+        if (result is ApiResult.Ok) _state.value = SettingsState.ChannelDeleted
+        return result
     }
+
+    private fun notReady(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(status = 0, code = "NOT_READY", message = "The channel is not loaded yet."))
 
     // A join/leave/reset failure announces on the shell-level feedback toast — the page is already showing
     // content, so this is a transient outcome, not a reason to blank the page.

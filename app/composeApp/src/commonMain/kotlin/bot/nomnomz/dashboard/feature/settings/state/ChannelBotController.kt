@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.settings.state
 
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BillingEntitlement
 import bot.nomnomz.dashboard.core.network.ChannelBotStatusDetail
@@ -104,16 +105,19 @@ class ChannelBotController(
     }
 
     /** Revoke and remove the channel's white-label bot account, then reload the status. */
-    suspend fun disconnect() {
-        val target: String = channelId ?: return
+    suspend fun disconnect(): ApiResult<Unit> {
+        val target: String = channelId ?: return notReady()
         val current: ChannelBotState = _state.value
-        if (current !is ChannelBotState.Ready) return
+        if (current !is ChannelBotState.Ready) return notReady()
         _state.value = current.copy(busy = true, actionError = null)
-        when (val result: ApiResult<Unit> = channelsApi.disconnectChannelBot(target)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> applyActionError(result.error.message)
-        }
+        val result: ApiResult<Unit> = channelsApi.disconnectChannelBot(target)
+        // The confirm dialog shows a failure inline, so the card only drops its busy lock.
+        if (result is ApiResult.Ok) load() else _state.value = current.copy(busy = false)
+        return result
     }
+
+    private fun notReady(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(status = 0, code = "NOT_READY", message = "The channel bot is not loaded yet."))
 
     private fun applyActionError(message: String) {
         val current: ChannelBotState = _state.value

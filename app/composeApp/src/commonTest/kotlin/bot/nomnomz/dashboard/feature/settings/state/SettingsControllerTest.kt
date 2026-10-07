@@ -165,7 +165,7 @@ class SettingsControllerTest {
     }
 
     @Test
-    fun delete_channel_announces_on_the_feedback_toast_and_keeps_ready_state_on_failure() = runTest {
+    fun delete_channel_returns_the_failure_to_the_dialog_and_keeps_ready_state() = runTest {
         val feedback = RecordingFeedback()
         val controller =
             SettingsController(
@@ -179,13 +179,13 @@ class SettingsControllerTest {
         controller.load()
         assertTrue(controller.state.value is SettingsState.Ready)
 
-        controller.deleteChannel()
+        val result: ApiResult<Unit> = controller.deleteChannel()
 
-        // Stays Ready (so the user keeps the page) and announces on the shell-level feedback toast.
+        // Stays Ready (so the user keeps the page); the failure goes back to the confirm dialog, not a toast.
         val state: SettingsState = controller.state.value
         assertTrue(state is SettingsState.Ready)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
+        assertEquals("Missing scope.", (result as ApiResult.Failure).error.message)
+        assertEquals(0, feedback.messages.size)
     }
 
     @Test
