@@ -38,17 +38,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -58,6 +59,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
 import bot.nomnomz.dashboard.core.network.AlertSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.feature.alerts.state.AlertQueueUiState
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsState
@@ -195,11 +197,8 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
             editor = open,
             onDismiss = { editor = null },
             onSubmit = { eventType, message, enabled ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) controller.updateAlert(eventType, message, enabled)
-                    else controller.createAlert(eventType, message, enabled)
-                }
+                if (open.isEdit) controller.updateAlert(eventType, message, enabled)
+                else controller.createAlert(eventType, message, enabled)
             },
         )
     }
@@ -211,10 +210,7 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.alerts_delete_confirm),
             dismissLabel = stringResource(Res.string.alerts_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteAlert(eventType) }
-            },
+            action = { controller.deleteAlert(eventType).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -487,7 +483,7 @@ private fun AlertRow(
 private fun AlertFormDialog(
     editor: AlertEditor,
     onDismiss: () -> Unit,
-    onSubmit: (eventType: String, message: String, enabled: Boolean) -> Unit,
+    onSubmit: suspend (eventType: String, message: String, enabled: Boolean) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -498,6 +494,8 @@ private fun AlertFormDialog(
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
 
     val canSubmit: Boolean = eventType.isNotBlank() && message.isNotBlank()
+    val dirty: Boolean =
+        eventType != editor.eventType || message != editor.message || enabled != editor.isEnabled
     val title: String =
         stringResource(
             if (editor.isEdit) Res.string.alerts_dialog_edit_title
@@ -509,68 +507,54 @@ private fun AlertFormDialog(
         )
     val enabledLabel: String = stringResource(Res.string.alerts_dialog_enabled_label)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = eventType,
-                    onValueChange = { eventType = it },
-                    label = stringResource(Res.string.alerts_dialog_event_label),
-                    enabled = !editor.isEdit,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // This dialog only edits chat-message responses (a pipeline binding is built on the Event
-                // Responses / Pipelines pages) — but a row bound to a pipeline must still SHOW that binding
-                // here, by name, rather than opening looking blank/unconfigured (S-OWN13).
-                if (editor.responseType == "pipeline") {
-                    Text(
-                        text =
-                            editor.pipelineName?.let { name ->
-                                stringResource(Res.string.alerts_dialog_pipeline_bound, name)
-                            } ?: stringResource(Res.string.alerts_dialog_pipeline_unresolved),
-                        style = typography.sm,
-                        color = tokens.mutedForeground,
-                    )
-                }
-                AppTextField(
-                    value = message,
-                    onValueChange = { message = it },
-                    label = stringResource(Res.string.alerts_dialog_message_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(text = enabledLabel, color = tokens.cardForeground)
-                    Switch(
-                        checked = enabled,
-                        onCheckedChange = { enabled = it },
-                        modifier = Modifier.semantics { contentDescription = enabledLabel },
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSubmit(eventType, message, enabled) }, enabled = canSubmit) {
-                Text(
-                    text = submitLabel,
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.alerts_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
-            }
-        },
-    )
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.alerts_dialog_cancel),
+        onDismiss = onDismiss,
+        save = { onSubmit(eventType, message, enabled).toDialogResult() },
+        dirty = dirty,
+        valid = canSubmit,
+    ) {
+        AppTextField(
+            value = eventType,
+            onValueChange = { eventType = it },
+            label = stringResource(Res.string.alerts_dialog_event_label),
+            enabled = !editor.isEdit,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        // This dialog only edits chat-message responses (a pipeline binding is built on the Event
+        // Responses / Pipelines pages) — but a row bound to a pipeline must still SHOW that binding
+        // here, by name, rather than opening looking blank/unconfigured (S-OWN13).
+        if (editor.responseType == "pipeline") {
+            Text(
+                text =
+                    editor.pipelineName?.let { name ->
+                        stringResource(Res.string.alerts_dialog_pipeline_bound, name)
+                    } ?: stringResource(Res.string.alerts_dialog_pipeline_unresolved),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        }
+        AppTextField(
+            value = message,
+            onValueChange = { message = it },
+            label = stringResource(Res.string.alerts_dialog_message_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = enabledLabel, color = tokens.cardForeground)
+            Switch(
+                checked = enabled,
+                onCheckedChange = { enabled = it },
+                modifier = Modifier.semantics { contentDescription = enabledLabel },
+            )
+        }
+    }
 }
 
 @Composable
