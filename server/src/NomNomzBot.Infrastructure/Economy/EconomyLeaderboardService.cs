@@ -264,6 +264,22 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         return Result.Success();
     }
 
+    public async Task<Result<LeaderboardConsentDto>> GetConsentAsync(
+        Guid broadcasterId,
+        Guid viewerUserId,
+        CancellationToken ct = default
+    )
+    {
+        bool optedOut = await db.LeaderboardOptOuts.AnyAsync(
+            o =>
+                o.BroadcasterId == broadcasterId
+                && o.ViewerUserId == viewerUserId
+                && o.DeletedAt == null,
+            ct
+        );
+        return Result.Success(new LeaderboardConsentDto(!optedOut));
+    }
+
     private async Task<List<(CurrencyAccount Account, long Value)>> RankedAccountsAsync(
         Guid broadcasterId,
         LeaderboardConfig config,

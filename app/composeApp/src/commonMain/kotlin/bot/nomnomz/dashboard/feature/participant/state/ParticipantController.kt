@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.GamePlay
 import bot.nomnomz.dashboard.core.network.GamePlayResult
 import bot.nomnomz.dashboard.core.network.GameSummary
+import bot.nomnomz.dashboard.core.network.LeaderboardConsent
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
 import bot.nomnomz.dashboard.core.network.MusicApi
@@ -213,10 +214,18 @@ class ParticipantController(
                 _leaderboards.value =
                     LeaderboardsState.Ready(
                         ranking = result.value,
+                        optedIn = readLeaderboardConsent(),
                         subscriberBoardUnlocked = subscriberUnlocked,
                     )
         }
     }
+
+    /** The caller's stored leaderboard visibility, or null (unknown) when the read fails. */
+    private suspend fun readLeaderboardConsent(): Boolean? =
+        when (val result: ApiResult<LeaderboardConsent> = participantApi.leaderboardConsent(channelId)) {
+            is ApiResult.Ok -> result.value.optedIn
+            is ApiResult.Failure -> null
+        }
 
     /** Opt the caller IN to public leaderboards, then reflect it on the Ready state. */
     suspend fun optInToLeaderboards() {
