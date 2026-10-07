@@ -324,7 +324,7 @@ public sealed class LabelsSeedProviderTests : IDisposable
     {
         await AddRows(Cheer("Ann", 100, WentLive.AddMinutes(5)));
 
-        IReadOnlyList<WidgetSeedFrame> frames = await Sut(null)
+        IReadOnlyList<WidgetSeedFrame> frames = await Sut()
             .SeedAsync(Broadcaster, Labels("top_cheerer"), CancellationToken.None);
 
         frames.Should().BeEmpty();
