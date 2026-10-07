@@ -42,6 +42,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -59,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionPermission
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelMembership
 import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.PermitGrant
@@ -180,14 +182,14 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
                     manage = manage,
                     searchViewers = { query -> controller.searchViewers(query) },
                     onAssignRole = { userId, assignedRole -> scope.launch { controller.assignRole(userId, assignedRole) } },
-                    onRemoveRole = { userId -> scope.launch { controller.removeRole(userId) } },
+                    onRemoveRole = { userId -> controller.removeRole(userId) },
                     onGrantCapability = { userId, key, expiresAt, reason ->
                         scope.launch { controller.grantCapability(userId, key, expiresAt, reason) }
                     },
                     onGrantRole = { userId, grantedRole, expiresAt, reason ->
                         scope.launch { controller.grantRole(userId, grantedRole, expiresAt, reason) }
                     },
-                    onRevoke = { userId, selector -> scope.launch { controller.revokePermit(userId, selector) } },
+                    onRevoke = { userId, selector -> controller.revokePermit(userId, selector) },
                     onSetOverride = { actionKey, level -> scope.launch { controller.setOverride(actionKey, level) } },
                     onResetOverride = { actionKey -> scope.launch { controller.resetOverride(actionKey) } },
                 )
@@ -201,10 +203,10 @@ private fun RolesContent(
     manage: ManageDecision,
     searchViewers: suspend (query: String) -> List<UserSearchResult>,
     onAssignRole: (userId: String, role: ManagementRole) -> Unit,
-    onRemoveRole: (userId: String) -> Unit,
+    onRemoveRole: suspend (userId: String) -> ApiResult<Unit>,
     onGrantCapability: (userId: String, actionKey: String, expiresAt: String?, reason: String?) -> Unit,
     onGrantRole: (userId: String, role: ManagementRole, expiresAt: String?, reason: String?) -> Unit,
-    onRevoke: (userId: String, selector: String?) -> Unit,
+    onRevoke: suspend (userId: String, selector: String?) -> ApiResult<Unit>,
     onSetOverride: (actionKey: String, level: Int) -> Unit,
     onResetOverride: (actionKey: String) -> Unit,
 ) {
@@ -329,10 +331,7 @@ private fun RolesContent(
             confirmLabel = stringResource(Res.string.roles_remove_confirm),
             dismissLabel = stringResource(Res.string.roles_remove_dismiss),
             destructive = true,
-            onConfirm = {
-                onRemoveRole(member.userId)
-                pendingRemove = null
-            },
+            action = { onRemoveRole(member.userId).toDialogResult() },
             onDismiss = { pendingRemove = null },
         )
     }
@@ -373,10 +372,7 @@ private fun RolesContent(
             confirmLabel = stringResource(Res.string.roles_revoke_confirm),
             dismissLabel = stringResource(Res.string.roles_revoke_dismiss),
             destructive = true,
-            onConfirm = {
-                onRevoke(permit.userId, permit.revokeSelector)
-                pendingRevoke = null
-            },
+            action = { onRevoke(permit.userId, permit.revokeSelector).toDialogResult() },
             onDismiss = { pendingRevoke = null },
         )
     }

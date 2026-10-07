@@ -2692,14 +2692,15 @@
     <string name="roles_remove_action_short">Remove</string>
     <string name="roles_remove_title">Remove role?</string>
     <string name="roles_remove_message">Remove %1$s's management role? They'll lose this access.</string>
-    <string name="roles_remove_confirm">Remove</string>
+    <string name="roles_remove_confirm">Remove role</string>
     <string name="roles_remove_dismiss">Cancel</string>
     <string name="roles_revoke_action">Revoke %1$s's permit</string>
     <string name="roles_revoke_action_short">Revoke</string>
     <string name="roles_revoke_title">Revoke permit?</string>
     <string name="roles_revoke_message">Revoke %1$s's permit? They'll lose this access.</string>
-    <string name="roles_revoke_confirm">Revoke</string>
+    <string name="roles_revoke_confirm">Revoke permit</string>
     <string name="roles_revoke_dismiss">Cancel</string>
+    <string name="confirm_dialog_failed">That did not work. Nothing was changed.</string>
     <string name="roles_role_everyone">Everyone</string>
     <string name="roles_role_subscriber">Subscriber</string>
     <string name="roles_role_vip">VIP</string>

@@ -157,11 +157,19 @@ fun AlertDialog(
     dismissButton: (@Composable () -> Unit)? = null,
     title: (@Composable () -> Unit)? = null,
     text: (@Composable () -> Unit)? = null,
+    // Both default on; a dialog with an action in flight turns them off so it cannot be dismissed mid-flight.
+    dismissOnBackPress: Boolean = true,
+    dismissOnClickOutside: Boolean = true,
 ) {
     val tokens: Tokens = LocalTokens.current
     val typography: Typography = LocalTypography.current
 
-    Dialog(onDismissRequest = onDismissRequest, modifier = modifier) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        dismissOnBackPress = dismissOnBackPress,
+        dismissOnClickOutside = dismissOnClickOutside,
+    ) {
         if (title != null) {
             CompositionLocalProvider(
                 LocalTextStyle provides typography.lg.copy(fontWeight = FontWeight.SemiBold),

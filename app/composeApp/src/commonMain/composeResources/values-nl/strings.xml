@@ -2687,14 +2687,15 @@
     <string name="roles_remove_action_short">Verwijderen</string>
     <string name="roles_remove_title">Rol verwijderen?</string>
     <string name="roles_remove_message">De beheerrol van %1$s verwijderen? Diegene verliest deze toegang.</string>
-    <string name="roles_remove_confirm">Verwijderen</string>
+    <string name="roles_remove_confirm">Rol verwijderen</string>
     <string name="roles_remove_dismiss">Annuleren</string>
     <string name="roles_revoke_action">Permit van %1$s intrekken</string>
     <string name="roles_revoke_action_short">Intrekken</string>
     <string name="roles_revoke_title">Permit intrekken?</string>
     <string name="roles_revoke_message">De permit van %1$s intrekken? Diegene verliest deze toegang.</string>
-    <string name="roles_revoke_confirm">Intrekken</string>
+    <string name="roles_revoke_confirm">Vergunning intrekken</string>
     <string name="roles_revoke_dismiss">Annuleren</string>
+    <string name="confirm_dialog_failed">Dat is niet gelukt. Er is niets gewijzigd.</string>
     <string name="roles_role_everyone">Iedereen</string>
     <string name="roles_role_subscriber">Abonnee</string>
     <string name="roles_role_vip">VIP</string>

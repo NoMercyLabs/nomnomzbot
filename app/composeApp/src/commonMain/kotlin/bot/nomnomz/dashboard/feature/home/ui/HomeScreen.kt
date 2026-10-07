@@ -95,6 +95,16 @@ import bot.nomnomz.dashboard.core.network.LiveOpsClipStub
 import bot.nomnomz.dashboard.core.network.LiveOpsMarker
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
+import bot.nomnomz.dashboard.core.network.LiveOpsRaid
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionConfirm
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionProgressTag
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
+import androidx.compose.ui.platform.testTag
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
@@ -548,8 +558,7 @@ private fun ReadyContent(
     if (showPredictionDialog) {
         PredictionDialog(
             onConfirm = { title, outcomes, window ->
-                showPredictionDialog = false
-                scope.launch { liveOpsController.createPrediction(title, outcomes, window) }
+                liveOpsController.createPrediction(title, outcomes, window).toDialogResult()
             },
             onDismiss = { showPredictionDialog = false },
         )
@@ -559,8 +568,9 @@ private fun ReadyContent(
         RaidDialog(
             onSearchRaidTargets = onSearchRaidTargets,
             onConfirm = { target ->
-                showRaidDialog = false
-                scope.launch { raidPending = liveOpsController.startRaid(target) != null }
+                val raid: LiveOpsRaid? = liveOpsController.startRaid(target)
+                raidPending = raid != null
+                (raid != null).toDialogResult()
             },
             onDismiss = { showRaidDialog = false },
         )
@@ -568,10 +578,7 @@ private fun ReadyContent(
 
     if (showCommercialDialog) {
         CommercialDialog(
-            onConfirm = { length ->
-                showCommercialDialog = false
-                scope.launch { liveOpsController.startCommercial(length) }
-            },
+            onConfirm = { length -> liveOpsController.startCommercial(length).toDialogResult() },
             onDismiss = { showCommercialDialog = false },
         )
     }
@@ -580,10 +587,7 @@ private fun ReadyContent(
         ready?.activePrediction?.let { prediction: LiveOpsPrediction ->
             ResolvePredictionDialog(
                 prediction = prediction,
-                onConfirm = { winningId ->
-                    showResolvePredictionDialog = false
-                    scope.launch { liveOpsController.resolvePrediction(winningId) }
-                },
+                onConfirm = { winningId -> liveOpsController.resolvePrediction(winningId).toDialogResult() },
                 onDismiss = { showResolvePredictionDialog = false },
             )
         }
@@ -1732,9 +1736,10 @@ private fun StartPollDialog(
 
 @Composable
 private fun PredictionDialog(
-    onConfirm: (title: String, outcomes: List<String>, windowSeconds: Int) -> Unit,
+    onConfirm: suspend (title: String, outcomes: List<String>, windowSeconds: Int) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
+    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
     var title: String by remember { mutableStateOf("") }
     // One field per outcome (2–10, add/remove) — same fix as the poll: the old single-line "one per line"
     // input could never hold 2 lines, so the confirm button was permanently disabled.
@@ -1745,7 +1750,9 @@ private fun PredictionDialog(
     val nonBlank: Int = outcomes.count { it.isNotBlank() }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!action.pending) onDismiss() },
+        dismissOnBackPress = !action.pending,
+        dismissOnClickOutside = !action.pending,
         title = { Text(stringResource(Res.string.home_live_ops_create_prediction)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -1792,18 +1799,25 @@ private fun PredictionDialog(
                     style = LocalTypography.current.sm,
                 )
                 Slider(value = window, onValueChange = { window = it }, valueRange = 30f..1800f)
+                action.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
+            DialogActionConfirm(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_prediction_confirm),
+                enabled = title.isNotBlank() && nonBlank >= 2,
+                action = {
                     onConfirm(title, outcomes.map { it.trim() }.filter { it.isNotEmpty() }, window.toInt())
                 },
-                enabled = title.isNotBlank() && nonBlank >= 2,
-            ) { Text(stringResource(Res.string.home_live_ops_prediction_confirm)) }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.home_live_ops_cancel)) }
+            DialogActionDismiss(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_cancel),
+                onDismiss = onDismiss,
+            )
         },
     )
 }
@@ -1811,50 +1825,67 @@ private fun PredictionDialog(
 @Composable
 private fun RaidDialog(
     onSearchRaidTargets: suspend (String) -> List<PickerOption>,
-    onConfirm: (targetBroadcasterId: String) -> Unit,
+    onConfirm: suspend (targetBroadcasterId: String) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
+    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
     // The picker's PickerRef.id is the Twitch broadcaster id the raid write consumes; the search only finds the
     // channel's own known viewers/chatters by name (the available endpoint).
     var selected: PickerRef? by remember { mutableStateOf(null) }
+    val spacing = LocalSpacing.current
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!action.pending) onDismiss() },
+        dismissOnBackPress = !action.pending,
+        dismissOnClickOutside = !action.pending,
         title = { Text(stringResource(Res.string.home_live_ops_start_raid)) },
         text = {
-            SearchPickerField(
-                search = onSearchRaidTargets,
-                selected = selected,
-                onSelect = { selected = it },
-                onClear = { selected = null },
-                label = stringResource(Res.string.channel_picker_label),
-                placeholder = stringResource(Res.string.channel_picker_placeholder),
-                emptyText = stringResource(Res.string.channel_picker_empty),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            Button(onClick = { selected?.let { onConfirm(it.id) } }, enabled = selected != null) {
-                Text(stringResource(Res.string.home_live_ops_raid_confirm))
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                SearchPickerField(
+                    search = onSearchRaidTargets,
+                    selected = selected,
+                    onSelect = { selected = it },
+                    onClear = { selected = null },
+                    label = stringResource(Res.string.channel_picker_label),
+                    placeholder = stringResource(Res.string.channel_picker_placeholder),
+                    emptyText = stringResource(Res.string.channel_picker_empty),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                action.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
+        confirmButton = {
+            DialogActionConfirm(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_raid_confirm),
+                enabled = selected != null,
+                action = { selected?.let { onConfirm(it.id) } ?: DialogResult.Failed() },
+            )
+        },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.home_live_ops_cancel)) }
+            DialogActionDismiss(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_cancel),
+                onDismiss = onDismiss,
+            )
         },
     )
 }
 
 @Composable
 private fun CommercialDialog(
-    onConfirm: (lengthSeconds: Int) -> Unit,
+    onConfirm: suspend (lengthSeconds: Int) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
+    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
     val lengths: List<Int> = listOf(30, 60, 90, 120, 150, 180)
     var selected: Int by remember { mutableStateOf(30) }
     val spacing = LocalSpacing.current
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!action.pending) onDismiss() },
+        dismissOnBackPress = !action.pending,
+        dismissOnClickOutside = !action.pending,
         title = { Text(stringResource(Res.string.home_live_ops_start_commercial)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
@@ -1874,15 +1905,23 @@ private fun CommercialDialog(
                         ) { Text("${len}s") }
                     }
                 }
+                action.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(selected) }) {
-                Text(stringResource(Res.string.home_live_ops_commercial_confirm))
-            }
+            DialogActionConfirm(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_commercial_confirm),
+                enabled = true,
+                action = { onConfirm(selected) },
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.home_live_ops_cancel)) }
+            DialogActionDismiss(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_cancel),
+                onDismiss = onDismiss,
+            )
         },
     )
 }
@@ -1890,29 +1929,40 @@ private fun CommercialDialog(
 @Composable
 private fun ResolvePredictionDialog(
     prediction: LiveOpsPrediction,
-    onConfirm: (winningOutcomeId: String) -> Unit,
+    onConfirm: suspend (winningOutcomeId: String) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
+    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
     val spacing = LocalSpacing.current
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!action.pending) onDismiss() },
+        dismissOnBackPress = !action.pending,
+        dismissOnClickOutside = !action.pending,
         title = { Text(stringResource(Res.string.home_live_ops_resolve_prediction)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                // Picking an outcome is the act: it runs now, and the pick buttons lock while the answer is awaited.
                 prediction.outcomes.forEach { outcome ->
                     TextButton(
-                        onClick = { onConfirm(outcome.id) },
+                        onClick = { action.run { onConfirm(outcome.id) } },
+                        enabled = !action.pending,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(stringResource(Res.string.home_live_ops_outcome_pick, outcome.title))
                     }
                 }
+                if (action.pending) Spinner(size = SpinnerSize.Sm, modifier = Modifier.testTag(DialogActionProgressTag))
+                action.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.home_live_ops_cancel)) }
+            DialogActionDismiss(
+                state = action,
+                label = stringResource(Res.string.home_live_ops_cancel),
+                onDismiss = onDismiss,
+            )
         },
     )
 }

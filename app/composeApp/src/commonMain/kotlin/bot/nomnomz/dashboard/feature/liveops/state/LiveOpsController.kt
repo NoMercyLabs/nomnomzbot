@@ -105,21 +105,35 @@ class LiveOpsController(
         }
     }
 
-    suspend fun createPrediction(title: String, outcomes: List<String>, windowSeconds: Int) {
-        val ch: String = channelId ?: return
+    /** Returns true when the prediction was created, so its dialog can stay open until the result is known. */
+    suspend fun createPrediction(title: String, outcomes: List<String>, windowSeconds: Int): Boolean {
+        val ch: String = channelId ?: return false
         val body: CreatePredictionBody = CreatePredictionBody(title, outcomes, windowSeconds)
-        when (val r: ApiResult<LiveOpsPrediction> = liveOpsApi.createPrediction(ch, body)) {
-            is ApiResult.Ok -> updateActivePrediction(r.value)
-            is ApiResult.Failure -> setActionError(r.error.message)
+        return when (val r: ApiResult<LiveOpsPrediction> = liveOpsApi.createPrediction(ch, body)) {
+            is ApiResult.Ok -> {
+                updateActivePrediction(r.value)
+                true
+            }
+            is ApiResult.Failure -> {
+                setActionError(r.error.message)
+                false
+            }
         }
     }
 
-    suspend fun resolvePrediction(winningOutcomeId: String) {
-        val ch: String = channelId ?: return
-        val predId: String = activePredictionId() ?: return
-        when (val r: ApiResult<LiveOpsPrediction> = liveOpsApi.endPrediction(ch, predId, "RESOLVED", winningOutcomeId)) {
-            is ApiResult.Ok -> updateActivePrediction(null)
-            is ApiResult.Failure -> setActionError(r.error.message)
+    /** Returns true when the prediction was resolved, so its dialog can stay open until the result is known. */
+    suspend fun resolvePrediction(winningOutcomeId: String): Boolean {
+        val ch: String = channelId ?: return false
+        val predId: String = activePredictionId() ?: return false
+        return when (val r: ApiResult<LiveOpsPrediction> = liveOpsApi.endPrediction(ch, predId, "RESOLVED", winningOutcomeId)) {
+            is ApiResult.Ok -> {
+                updateActivePrediction(null)
+                true
+            }
+            is ApiResult.Failure -> {
+                setActionError(r.error.message)
+                false
+            }
         }
     }
 
@@ -174,11 +188,15 @@ class LiveOpsController(
         }
     }
 
-    suspend fun startCommercial(lengthSeconds: Int) {
-        val ch: String = channelId ?: return
-        when (val r = liveOpsApi.startCommercial(ch, lengthSeconds)) {
-            is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> setActionError(r.error.message)
+    /** Returns true when the commercial started, so its dialog can stay open until the result is known. */
+    suspend fun startCommercial(lengthSeconds: Int): Boolean {
+        val ch: String = channelId ?: return false
+        return when (val r = liveOpsApi.startCommercial(ch, lengthSeconds)) {
+            is ApiResult.Ok -> true
+            is ApiResult.Failure -> {
+                setActionError(r.error.message)
+                false
+            }
         }
     }
 

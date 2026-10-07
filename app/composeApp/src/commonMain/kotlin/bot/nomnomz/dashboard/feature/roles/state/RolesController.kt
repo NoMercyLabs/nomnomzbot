@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.roles.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionPermission
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelMembership
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -134,9 +135,9 @@ class RolesController(
     }
 
     /** Remove [userId]'s management role, then reload so they drop off the membership list. The screen confirms. */
-    suspend fun removeRole(userId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(rolesApi.removeRole(channel, userId))
+    suspend fun removeRole(userId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterWrite(rolesApi.removeRole(channel, userId))
     }
 
     /**
@@ -153,9 +154,9 @@ class RolesController(
      * null revokes all of the user's active grants. Reloads on success. The screen confirms this first — revoking
      * elevated access is consequential.
      */
-    suspend fun revokePermit(userId: String, actionKeyOrRole: String?) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(rolesApi.revokePermit(channel, userId, actionKeyOrRole))
+    suspend fun revokePermit(userId: String, actionKeyOrRole: String?): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterWrite(rolesApi.revokePermit(channel, userId, actionKeyOrRole))
     }
 
     /** Override the effective minimum level for [actionKey] to [level], clamped to the action's floor. */
@@ -172,11 +173,20 @@ class RolesController(
 
     // A write either reloads (success) or surfaces its error over the current Ready state without losing it
     // (failure) — so a failed assign/grant/revoke leaves the page intact with a visible reason.
-    private suspend fun afterWrite(result: ApiResult<Unit>) {
+    // Returns the write's result so a confirm dialog can stay open and show the reason inline; the toast still
+    // announces the failure for the callers that fire and forget.
+    private suspend fun afterWrite(result: ApiResult<Unit>): ApiResult<Unit> {
         when (result) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
+        return result
+    }
+
+    private suspend fun noChannelFailure(): ApiResult<Unit> {
+        val detail: String = noChannelError()
+        failWrite(detail)
+        return ApiResult.Failure(ApiError(status = 0, code = null, message = detail))
     }
 
     private fun failWrite(detail: String) {
