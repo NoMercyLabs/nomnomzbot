@@ -74,6 +74,7 @@ public sealed class OverlayHubWidgetEventsTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IActionRequiredChangeNotifier>(),
             bus,
+            [],
             NullLogger<OverlayHub>.Instance
         )
         {

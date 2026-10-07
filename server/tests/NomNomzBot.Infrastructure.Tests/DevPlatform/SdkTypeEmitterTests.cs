@@ -382,11 +382,11 @@ public sealed class SdkTypeEmitterTests
         ts.Should().Contain("declare const NomNomz: NnzOverlaySdk;");
         ts.Should()
             .Contain(
-                "  on(eventType: string, handler: (data: unknown, eventType: string) => void): NnzOverlaySdk;"
+                "  on(eventType: string, handler: (data: unknown, eventType: string, meta?: NnzEventMeta) => void): NnzOverlaySdk;"
             );
         ts.Should()
             .Contain(
-                "  onAny(handler: (eventType: string, data: unknown) => void): NnzOverlaySdk;"
+                "  onAny(handler: (eventType: string, data: unknown, meta?: NnzEventMeta) => void): NnzOverlaySdk;"
             );
         ts.Should()
             .Contain(

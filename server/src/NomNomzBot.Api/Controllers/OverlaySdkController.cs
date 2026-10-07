@@ -68,7 +68,7 @@ public sealed class OverlaySdkController : ControllerBase
           var pendingActions = {}; // invocationId -> { resolve, reject }
           var nextActionId = 0;
 
-          function run(fn, a, b) { try { fn(a, b); } catch (e) { report((e && e.message) || e); } }
+          function run(fn, a, b, c) { try { fn(a, b, c); } catch (e) { report((e && e.message) || e); } }
 
           function report(message) {
             console.error("[widget] error:", message);
@@ -85,9 +85,23 @@ public sealed class OverlaySdkController : ControllerBase
             if (typeof fn === "function") { settingsHandlers.push(fn); run(fn, currentSettings); }
             return api;
           }
-          function emit(type, data) {
-            (handlers[type] || []).forEach(function (fn) { run(fn, data, type); });
-            anyHandlers.forEach(function (fn) { run(fn, type, data); });
+          // The event types that arrived live since the join was sent: a seed frame of such a type is older than
+          // what the widget already has, so it is dropped.
+          var liveSinceJoin = {};
+          // meta tells a handler whether this is a replayed seed frame ({ replay: true, occurredAt }) or a live one.
+          function emit(type, data, meta) {
+            var m = meta || { replay: false };
+            if (!m.replay) liveSinceJoin[type] = true;
+            (handlers[type] || []).forEach(function (fn) { run(fn, data, type, m); });
+            anyHandlers.forEach(function (fn) { run(fn, type, data, m); });
+          }
+          // Frames come oldest first, from the join answer; they go to the same handlers the live events use.
+          function applySeed(frames) {
+            if (!Array.isArray(frames)) return;
+            frames.forEach(function (f) {
+              if (!f || !f.eventType || liveSinceJoin[f.eventType]) return;
+              emit(f.eventType, f.data == null ? {} : f.data, { replay: true, occurredAt: f.occurredAt });
+            });
           }
           function applySettings(s) {
             if (!s || typeof s !== "object") return;
@@ -171,6 +185,7 @@ public sealed class OverlaySdkController : ControllerBase
                   handshaken = true;
                   if (msg.error) { console.error("[widget] handshake rejected:", msg.error); ws.close(); return; }
                   backoffMs = 1000;
+                  liveSinceJoin = {};
                   if (widgetId)
                     ws.send(JSON.stringify({ type: 1, invocationId: "join", target: "JoinWidgetWithSdk", arguments: [widgetId, "__SDK_VERSION__"] }) + RS);
                   return;
@@ -184,6 +199,7 @@ public sealed class OverlaySdkController : ControllerBase
                   // state after a dropped connection without ever needing a manual OBS reload. A stale
                   // in-page config is refreshed by this same re-apply, not by throwing the page away.
                   if (msg.result.initialState) applySettings(msg.result.initialState);
+                  applySeed(msg.result.seed);
                 }
               });
             };

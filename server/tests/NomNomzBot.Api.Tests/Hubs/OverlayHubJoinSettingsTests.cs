@@ -74,6 +74,7 @@ public sealed class OverlayHubJoinSettingsTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IActionRequiredChangeNotifier>(),
             Substitute.For<IEventBus>(),
+            [],
             NullLogger<OverlayHub>.Instance
         )
         {

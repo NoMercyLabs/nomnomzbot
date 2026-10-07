@@ -226,6 +226,7 @@ public sealed class OverlayAudioRoutingTests
             Substitute.For<IChannelRegistry>(),
             notifier,
             Substitute.For<IEventBus>(),
+            [],
             NullLogger<OverlayHub>.Instance
         )
         {

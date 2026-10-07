@@ -194,6 +194,7 @@ public sealed class OverlayWidgetDeliveryTests
                 Substitute.For<IChannelRegistry>(),
                 Substitute.For<IActionRequiredChangeNotifier>(),
                 Substitute.For<IEventBus>(),
+                [],
                 NullLogger<OverlayHub>.Instance
             )
             {
