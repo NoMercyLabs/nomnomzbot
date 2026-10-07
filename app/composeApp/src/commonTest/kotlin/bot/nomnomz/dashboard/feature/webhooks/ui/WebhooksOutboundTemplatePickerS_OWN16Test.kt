@@ -214,7 +214,10 @@ internal class FakeWebhooksApi(
     private val deleteOutboundResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val reenableOutboundResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val inboundWriteError: ApiError? = null,
+    private val outboundWriteError: ApiError? = null,
 ) : WebhooksApi {
+    val createdOutbound: MutableList<CreateOutboundBody> = mutableListOf()
+    val updatedOutbound: MutableList<UpdateOutboundBody> = mutableListOf()
     val deletedInbound: MutableList<String> = mutableListOf()
     val deletedOutbound: MutableList<String> = mutableListOf()
     val reenabledOutbound: MutableList<String> = mutableListOf()
@@ -246,10 +249,16 @@ internal class FakeWebhooksApi(
     override suspend fun outboundEventCatalogue(channelId: String): ApiResult<List<OutboundEventCatalogueEntry>> =
         ApiResult.Ok(emptyList())
     override suspend fun listOutbound(channelId: String): ApiResult<List<OutboundWebhook>> = ApiResult.Ok(outbound.filterNot { it.id in deletedOutbound })
-    override suspend fun createOutbound(channelId: String, body: CreateOutboundBody): ApiResult<OutboundWebhookCreated> =
-        error("stub")
-    override suspend fun updateOutbound(channelId: String, endpointId: String, body: UpdateOutboundBody): ApiResult<OutboundWebhook> =
-        ApiResult.Ok(outbound.first { it.id == endpointId })
+    override suspend fun createOutbound(channelId: String, body: CreateOutboundBody): ApiResult<OutboundWebhookCreated> {
+        if (outboundWriteError != null) return ApiResult.Failure(outboundWriteError)
+        createdOutbound.add(body)
+        return ApiResult.Ok(OutboundWebhookCreated(signingSecret = "whsec_created_once"))
+    }
+    override suspend fun updateOutbound(channelId: String, endpointId: String, body: UpdateOutboundBody): ApiResult<OutboundWebhook> {
+        if (outboundWriteError != null) return ApiResult.Failure(outboundWriteError)
+        updatedOutbound.add(body)
+        return ApiResult.Ok(outbound.first { it.id == endpointId })
+    }
     override suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> {
