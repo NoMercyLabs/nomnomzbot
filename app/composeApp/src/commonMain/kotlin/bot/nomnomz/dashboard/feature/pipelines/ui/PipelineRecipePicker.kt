@@ -58,6 +58,8 @@ internal fun PipelineRecipePicker(
             text = stringResource(Res.string.pipelines_recipe_picker_label),
             style = typography.sm,
             color = tokens.mutedForeground,
+            // Lines up with the field labels above it, which sit inside their fields.
+            modifier = Modifier.padding(horizontal = spacing.s4),
         )
         Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             RecipeOption(
