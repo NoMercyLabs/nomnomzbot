@@ -35,6 +35,7 @@ class EditorBridgeSessionTest {
         sdkTypesUnavailable: Boolean = false,
         fireSamplesError: String? = null,
         private val feedback: CompileFeedback = CompileFeedback(ok = true, message = "Compiled v2"),
+        runAction: (suspend (String, JsonObject?, Map<String, String>) -> EditorPreviewActionResult)? = null,
     ) {
         val compiled: MutableList<Map<String, String>> = mutableListOf()
         val posted: MutableList<String> = mutableListOf()
@@ -57,6 +58,7 @@ class EditorBridgeSessionTest {
                                 mapOf("channel.follow" to JsonObject(mapOf("login" to JsonPrimitive("server-login"))))
                             ),
                         fireSamplesError = fireSamplesError,
+                        runAction = runAction,
                     ),
                 history = history,
                 testRun = testRun,
@@ -66,6 +68,87 @@ class EditorBridgeSessionTest {
                 },
                 post = { message -> posted += message },
             )
+    }
+
+    private val previewRequest: EditorInboundMessage =
+        EditorInboundMessage(
+            type = EditorBridgeProtocol.PREVIEW_ACTION,
+            variables = mapOf("user" to "bob"),
+            requestId = "req-7",
+            actionType = "tts_synthesize",
+            params = JsonObject(mapOf("text" to JsonPrimitive("hello"))),
+        )
+
+    @Test
+    fun previewActionRunsTheHostRunnerWithTheRequestAndRepliesWithTheAudioUrlByRequestId() = runTest {
+        val calls: MutableList<Triple<String, JsonObject?, Map<String, String>>> = mutableListOf()
+        val harness =
+            Harness(
+                runAction = { actionType, params, variables ->
+                    calls += Triple(actionType, params, variables)
+                    EditorPreviewActionResult(true, "spoken", null, null, mapOf("tts.audioUrl" to "https://cdn.example/a.mp3"))
+                }
+            )
+
+        assertTrue(harness.session.handle(previewRequest))
+
+        assertEquals(
+            listOf(
+                Triple<String, JsonObject?, Map<String, String>>(
+                    "tts_synthesize",
+                    JsonObject(mapOf("text" to JsonPrimitive("hello"))),
+                    mapOf("user" to "bob"),
+                )
+            ),
+            calls,
+        )
+        val reply: JsonObject = parse(harness.posted.single())
+        assertEquals(EditorBridgeProtocol.PREVIEW_ACTION_RESULT, reply["type"]!!.jsonPrimitive.content)
+        assertEquals("req-7", reply["requestId"]!!.jsonPrimitive.content)
+        assertTrue(reply["success"]!!.jsonPrimitive.boolean)
+        assertEquals("https://cdn.example/a.mp3", reply["variables"]!!.jsonObject["tts.audioUrl"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun previewActionFailureReplyCarriesTheErrorCode() = runTest {
+        val harness =
+            Harness(
+                runAction = { _, _, _ ->
+                    EditorPreviewActionResult(false, null, "no voice", "TTS_NOT_CONFIGURED", emptyMap())
+                }
+            )
+
+        harness.session.handle(previewRequest)
+
+        val reply: JsonObject = parse(harness.posted.single())
+        assertEquals("req-7", reply["requestId"]!!.jsonPrimitive.content)
+        assertFalse(reply["success"]!!.jsonPrimitive.boolean)
+        assertEquals("TTS_NOT_CONFIGURED", reply["errorCode"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun previewActionWithoutARunnerIsAnsweredWithAnUnavailableCode() = runTest {
+        val harness = Harness()
+
+        harness.session.handle(previewRequest)
+
+        val reply: JsonObject = parse(harness.posted.single())
+        assertEquals("req-7", reply["requestId"]!!.jsonPrimitive.content)
+        assertFalse(reply["success"]!!.jsonPrimitive.boolean)
+        assertEquals("PREVIEW_ACTION_UNAVAILABLE", reply["errorCode"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun previewActionRequestDecodesFromThePageJson() {
+        val raw: String =
+            """{"type":"nnz:editor:previewAction","requestId":"r1","actionType":"tts_synthesize","params":{"text":"hi"},"variables":{"user":"bob"}}"""
+
+        val message: EditorInboundMessage = EditorBridgeProtocol.decode(raw)!!
+
+        assertEquals("r1", message.requestId)
+        assertEquals("tts_synthesize", message.actionType)
+        assertEquals(JsonObject(mapOf("text" to JsonPrimitive("hi"))), message.params)
+        assertEquals(mapOf("user" to "bob"), message.variables)
     }
 
     @Test

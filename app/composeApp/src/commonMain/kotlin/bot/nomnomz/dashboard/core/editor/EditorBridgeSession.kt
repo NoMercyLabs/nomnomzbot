@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.editor
 
+import kotlinx.serialization.json.JsonObject
+
 // One open editor page, seen from the host: answers each page message by calling the caller's
 // [compile]/[EditorHistory]/[EditorTestRun] and posting the reply through [post]. Transport-free — the web
 // host posts into an iframe, the desktop host evaluates into a native web view — so the whole save/history/
@@ -44,6 +46,7 @@ class EditorBridgeSession(
             EditorBridgeProtocol.HISTORY_ROLLBACK -> postHistory(history?.rollback?.invoke(message.versionId))
             EditorBridgeProtocol.HISTORY_DELETE -> postHistory(history?.delete?.invoke(message.versionId))
             EditorBridgeProtocol.TEST_RUN -> postTestRun(testRun?.run?.invoke(message.variables, message.args, message.trigger, message.role, message.files))
+            EditorBridgeProtocol.PREVIEW_ACTION -> postPreviewAction(message)
             EditorBridgeProtocol.CLOSE -> return false
         }
         return true
@@ -57,6 +60,20 @@ class EditorBridgeSession(
             is EditorOutcome.Failed -> post(EditorBridgeProtocol.historyError(outcome.message))
             null -> post(EditorBridgeProtocol.historyError("History is not available for this project."))
         }
+    }
+
+    // Every request gets exactly one reply: the host's result, or a failure with a code. The page times out on
+    // silence, so a missing runner is answered here instead of being left to that timeout.
+    private suspend fun postPreviewAction(message: EditorInboundMessage) {
+        val runner: (suspend (String, JsonObject?, Map<String, String>) -> EditorPreviewActionResult)? =
+            previewWidget?.runAction
+        val result: EditorPreviewActionResult =
+            if (runner == null) {
+                EditorPreviewActionResult(false, null, null, "PREVIEW_ACTION_UNAVAILABLE", emptyMap())
+            } else {
+                runner(message.actionType, message.params, message.variables)
+            }
+        post(EditorBridgeProtocol.previewActionResult(message.requestId, result))
     }
 
     private fun postTestRun(outcome: EditorOutcome<EditorTestRunResult>?) {

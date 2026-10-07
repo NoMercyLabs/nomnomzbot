@@ -39,10 +39,13 @@ object EditorBridgeProtocol {
     const val HISTORY_ERROR: String = "nnz:editor:historyError"
     const val TEST_RUN: String = "nnz:editor:testRun"
     const val TEST_RUN_RESULT: String = "nnz:editor:testRunResult"
+    /** Page to host: the widget preview wants one real action run (only `tts_synthesize`); answered by [PREVIEW_ACTION_RESULT]. */
+    const val PREVIEW_ACTION: String = "nnz:editor:previewAction"
+    const val PREVIEW_ACTION_RESULT: String = "nnz:editor:previewActionResult"
 
     /** Message types the PAGE sends to the host. Everything else on the channel is host-to-page traffic. */
     val pageToHostTypes: Set<String> =
-        setOf(READY, SAVE, CLOSE, HISTORY_LOAD_MORE, HISTORY_ROLLBACK, HISTORY_DELETE, TEST_RUN)
+        setOf(READY, SAVE, CLOSE, HISTORY_LOAD_MORE, HISTORY_ROLLBACK, HISTORY_DELETE, TEST_RUN, PREVIEW_ACTION)
 
     private val json: Json = Json { ignoreUnknownKeys = true }
 
@@ -60,10 +63,13 @@ object EditorBridgeProtocol {
             files = if (message.type == SAVE || message.type == TEST_RUN) message.files else emptyMap(),
             versionId =
                 if (message.type == HISTORY_ROLLBACK || message.type == HISTORY_DELETE) message.versionId else "",
-            variables = if (message.type == TEST_RUN) message.variables else emptyMap(),
+            variables = if (message.type == TEST_RUN || message.type == PREVIEW_ACTION) message.variables else emptyMap(),
             args = if (message.type == TEST_RUN) message.args else emptyList(),
             trigger = if (message.type == TEST_RUN) message.trigger else null,
             role = if (message.type == TEST_RUN) message.role else null,
+            requestId = if (message.type == PREVIEW_ACTION) message.requestId else "",
+            actionType = if (message.type == PREVIEW_ACTION) message.actionType else "",
+            params = if (message.type == PREVIEW_ACTION) message.params else null,
         )
     }
 
@@ -248,6 +254,20 @@ object EditorBridgeProtocol {
             }
         )
 
+    /** The answer to one [PREVIEW_ACTION], carrying the page's [requestId] back so it can find the waiting call. */
+    fun previewActionResult(requestId: String, result: EditorPreviewActionResult): String =
+        encode(
+            buildJsonObject {
+                put("type", PREVIEW_ACTION_RESULT)
+                put("requestId", requestId)
+                put("success", result.success)
+                put("output", result.output)
+                put("error", result.error)
+                put("errorCode", result.errorCode)
+                put("variables", JsonObject(result.variables.mapValues { (_, value) -> JsonPrimitive(value) }))
+            }
+        )
+
     private fun historyPageJson(versions: List<EditorVersionSummary>, hasMore: Boolean): JsonObject =
         buildJsonObject {
             put(
@@ -282,4 +302,7 @@ data class EditorInboundMessage(
     val args: List<String> = emptyList(),
     val trigger: String? = null,
     val role: String? = null,
+    val requestId: String = "",
+    val actionType: String = "",
+    val params: JsonObject? = null,
 )

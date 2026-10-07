@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.EditorPreviewActionResult
 import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.feedback.Feedback
@@ -27,6 +28,8 @@ import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
+import bot.nomnomz.dashboard.core.network.PreviewActionBody
+import bot.nomnomz.dashboard.core.network.PreviewActionResponse
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
@@ -435,6 +438,9 @@ class WidgetsController(
             widget.eventSubscriptions,
             samples,
             samplesError,
+            runAction = { actionType, params, variables ->
+                previewActionResult(widgetsApi.previewAction(channel, PreviewActionBody(actionType, params, variables)))
+            },
         )
     }
 
@@ -534,3 +540,18 @@ private const val GenericTestEvent: String = "test"
 
 /** The events the row's "Test" can fire: every event the widget listens to, in declared order. */
 fun WidgetSummary.testEvents(): List<String> = eventSubscriptions.ifEmpty { listOf(GenericTestEvent) }
+
+/** Maps the preview-action API answer to the bridge reply; a failure keeps the server's error code, never an empty result. */
+internal fun previewActionResult(result: ApiResult<PreviewActionResponse>): EditorPreviewActionResult =
+    when (result) {
+        is ApiResult.Ok ->
+            EditorPreviewActionResult(
+                result.value.success,
+                result.value.output,
+                result.value.error,
+                result.value.errorCode,
+                result.value.variables,
+            )
+        is ApiResult.Failure ->
+            EditorPreviewActionResult(false, null, result.error.message, result.error.code ?: "HTTP_${result.error.status}", emptyMap())
+    }
