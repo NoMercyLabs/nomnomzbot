@@ -227,6 +227,24 @@
     </div>
 </div>
 
+<!-- In-page confirm for destructive asks that have no undo (a saved version). Opened by askConfirm(). -->
+<div class="confirm-backdrop" id="confirmBackdrop" hidden>
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmBody">
+        <h2 class="confirm-title" id="confirmTitle"></h2>
+        <p class="confirm-body" id="confirmBody"></p>
+        <div class="confirm-actions">
+            <button type="button" class="btn btn-danger" id="confirmAction"></button>
+            <button type="button" class="btn btn-primary" id="confirmCancel" data-i18n="cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Undo toast: a destructive file action runs at once and this offers the way back. -->
+<div class="toast" id="toast" role="status" hidden>
+    <span class="toast-text" id="toastText"></span>
+    <button type="button" class="btn btn-quiet" id="toastUndo" data-i18n="undo">Undo</button>
+</div>
+
 <div class="boot" id="boot">
     <p id="bootMessage" data-i18n="loadingEditor">Loading editor…</p>
 </div>

@@ -93,6 +93,14 @@ const dom = {
     unsavedBackdrop: document.getElementById('unsavedBackdrop'),
     unsavedKeep: document.getElementById('unsavedKeep'),
     unsavedDiscard: document.getElementById('unsavedDiscard'),
+    confirmBackdrop: document.getElementById('confirmBackdrop'),
+    confirmTitle: document.getElementById('confirmTitle'),
+    confirmBody: document.getElementById('confirmBody'),
+    confirmAction: document.getElementById('confirmAction'),
+    confirmCancel: document.getElementById('confirmCancel'),
+    toast: document.getElementById('toast'),
+    toastText: document.getElementById('toastText'),
+    toastUndo: document.getElementById('toastUndo'),
     newFile: document.getElementById('newFile'),
     togglePreview: document.getElementById('togglePreview'),
     format: document.getElementById('format'),
@@ -219,9 +227,12 @@ const DEFAULT_LABELS = Object.freeze({
     commandPalette: 'Command palette',
     loadingEditor: 'Loading editor…',
     editorStartFailed: 'The editor could not start: {message}',
-    newFilePrompt: 'New file path (e.g. lib/helper.ts)',
-    renameFilePrompt: 'Rename file',
-    deleteFileConfirm: 'Delete {path}? This cannot be undone until you close without saving.',
+    newFilePath: 'New file path, for example lib/helper.ts',
+    renameFilePath: 'New name for {path}',
+    fileExists: '{path} already exists.',
+    fileDeleted: 'Deleted {path}',
+    undo: 'Undo',
+    cancel: 'Cancel',
     entryFile: 'Entry file',
     rename: 'Rename',
     delete: 'Delete',
@@ -254,7 +265,9 @@ const DEFAULT_LABELS = Object.freeze({
     versionLabel: 'v{version} — {status}',
     current: '(current)',
     publish: 'Publish',
-    deleteVersionConfirm: 'Delete this saved version? This cannot be undone.',
+    deleteVersionTitle: 'Delete this saved version?',
+    deleteVersionBody: 'This cannot be undone.',
+    deleteVersionAction: 'Delete version',
     actionFailed: 'That action failed.',
     testRunFailed: 'Test run failed.',
     testRunSuccess: 'Success — {ms}ms, {calls} host call(s)',
@@ -464,19 +477,68 @@ function syncEventBar() {
     dom.eventFire.disabled = !state.eventTabs.parse(state.active).ok;
 }
 
+// The inline name field of the tree: `{ kind: 'new' }` or `{ kind: 'rename', path }`, null when none is open.
+// The tree is rebuilt from this, so a re-render never loses the field.
+let nameEntry = null;
+
 function addFile() {
-    const name = normalizePath(window.prompt(t('newFilePrompt')) ?? '');
-    if (!name || state.files.has(name)) return;
+    nameEntry = { kind: 'new', focus: true };
+    showView('explorer');
+    renderFiles();
+}
+
+function renameFile(path) {
+    if (path === state.entry) return;
+    nameEntry = { kind: 'rename', path, focus: true };
+    renderFiles();
+}
+
+function endNameEntry() {
+    const entry = nameEntry;
+    nameEntry = null;
+    renderFiles();
+    if (entry?.kind === 'new') dom.newFile.focus();
+    else if (entry) restoreFocus(dom.fileList.querySelector(`.file-row[title="${CSS.escape(entry.path)}"]`));
+}
+
+function showNameError(input, message) {
+    const item = input.closest('li');
+    let error = item.querySelector('.tree-error');
+    if (!error) {
+        error = document.createElement('p');
+        error.className = 'tree-error';
+        error.setAttribute('role', 'alert');
+        item.append(error);
+    }
+    error.textContent = message;
+    input.setAttribute('aria-invalid', 'true');
+}
+
+function commitName(input) {
+    const entry = nameEntry;
+    if (!entry) return;
+    const name = normalizePath(input.value);
+    if (!name || (entry.kind === 'rename' && name === entry.path)) {
+        endNameEntry();
+        return;
+    }
+    if (state.files.has(name)) {
+        showNameError(input, t('fileExists', { path: name }));
+        return;
+    }
+    nameEntry = null;
+    if (entry.kind === 'new') createFile(name);
+    else moveFile(entry.path, name);
+}
+
+function createFile(name) {
     flushActive();
     state.files.set(name, '');
     selectFile(name);
     state.preview?.schedule();
 }
 
-function renameFile(path) {
-    if (path === state.entry) return;
-    const next = normalizePath(window.prompt(t('renameFilePrompt'), path) ?? '');
-    if (!next || next === path || state.files.has(next)) return;
+function moveFile(path, next) {
     flushActive();
     state.files.set(next, state.files.get(path) ?? '');
     state.files.delete(path);
@@ -486,14 +548,112 @@ function renameFile(path) {
     state.preview?.schedule();
 }
 
+// Delete runs at once; the toast is the way back. The text is kept in the closure, so Undo restores it as it was.
 function deleteFile(path) {
     if (path === state.entry) return;
-    if (!window.confirm(t('deleteFileConfirm', { path }))) return;
+    flushActive();
+    const content = state.files.get(path) ?? '';
+    const wasActive = state.active === path;
     state.files.delete(path);
     disposeModel(path);
-    if (state.active === path) state.active = state.entry;
+    if (wasActive) state.active = state.entry;
     selectFile(state.active);
     state.preview?.schedule();
+    showToast(t('fileDeleted', { path }), () => {
+        if (state.files.has(path)) return;
+        flushActive();
+        state.files.set(path, content);
+        if (wasActive) selectFile(path);
+        else {
+            renderFiles();
+            renderTabs();
+        }
+        state.preview?.schedule();
+    });
+}
+
+// ── Toast, confirm and focus ──────────────────────────────────────────────
+
+const TOAST_MS = 10000;
+let toastTimer = 0;
+let toastUndoAction = null;
+
+function showToast(text, onUndo) {
+    toastUndoAction = onUndo;
+    dom.toastText.textContent = text;
+    dom.toast.hidden = false;
+    startToastTimer();
+}
+
+function startToastTimer() {
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, TOAST_MS);
+}
+
+function hideToast() {
+    clearTimeout(toastTimer);
+    toastUndoAction = null;
+    dom.toast.hidden = true;
+}
+
+function restoreFocus(opener) {
+    if (opener?.isConnected) opener.focus();
+    else state.editor?.focus();
+}
+
+const confirmState = { resolve: null, opener: null };
+
+// Asks in the page, never with window.confirm. Resolves true only on the action button; Esc, Cancel and a click
+// on the backdrop all resolve false. Focus starts on Cancel and returns to the control that asked.
+function askConfirm({ title, body, action }) {
+    confirmState.opener = document.activeElement;
+    dom.confirmTitle.textContent = title;
+    dom.confirmBody.textContent = body;
+    dom.confirmAction.textContent = action;
+    dom.confirmBackdrop.hidden = false;
+    dom.confirmCancel.focus();
+    return new Promise((resolve) => {
+        confirmState.resolve = resolve;
+    });
+}
+
+function settleConfirm(result) {
+    const resolve = confirmState.resolve;
+    if (!resolve) return;
+    confirmState.resolve = null;
+    dom.confirmBackdrop.hidden = true;
+    restoreFocus(confirmState.opener);
+    resolve(result);
+}
+
+// The dialog that is open right now, if any: the one Tab must stay inside.
+function openDialogPanel() {
+    for (const backdrop of [dom.confirmBackdrop, dom.unsavedBackdrop, dom.paletteBackdrop]) {
+        if (!backdrop.hidden) return backdrop.firstElementChild;
+    }
+    return null;
+}
+
+function trapTab(event, panel) {
+    const focusable = [...panel.querySelectorAll('button, input, select, [tabindex]:not([tabindex="-1"])')].filter(
+        (element) => !element.disabled && element.getClientRects().length > 0,
+    );
+    if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!panel.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
 }
 
 function disposeModel(path) {
@@ -560,10 +720,65 @@ function renderFiles() {
         }
     };
     walk(buildTree([...state.files.keys()]), 0);
+    if (nameEntry?.kind === 'new') rows.unshift(nameRow('', t('newFilePath')));
     dom.fileList.replaceChildren(...rows);
+    focusNameField();
+}
+
+// One text field in the tree, for a new file (empty) or a rename (the current path). Enter commits, Esc cancels,
+// and leaving the field cancels too. The path is a name, not code, so this is a plain input.
+function nameRow(initial, label) {
+    const entry = nameEntry;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tree-input';
+    input.value = initial;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', label);
+    input.addEventListener('input', () => {
+        input.removeAttribute('aria-invalid');
+        input.closest('li')?.querySelector('.tree-error')?.remove();
+    });
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            commitName(input);
+        } else if (event.key === 'Escape') {
+            // Stopped here so the editor's own Esc (close) never hears the key that meant "cancel the name".
+            event.preventDefault();
+            event.stopPropagation();
+            endNameEntry();
+        }
+    });
+    // A re-render removes the field and so blurs it; only a field still on the page was really left.
+    input.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (nameEntry === entry && input.isConnected) endNameEntry();
+        }, 0);
+    });
+    const item = document.createElement('li');
+    item.append(input);
+    return item;
+}
+
+function focusNameField() {
+    if (!nameEntry?.focus) return;
+    nameEntry.focus = false;
+    const input = dom.fileList.querySelector('.tree-input');
+    if (!input) return;
+    input.focus();
+    // A rename selects the file's own name, not its folder or extension.
+    const nameStart = input.value.lastIndexOf('/') + 1;
+    const dot = input.value.lastIndexOf('.');
+    input.setSelectionRange(nameStart, dot > nameStart ? dot : input.value.length);
 }
 
 function fileRow(path, name, depth) {
+    if (nameEntry?.kind === 'rename' && nameEntry.path === path) {
+        return nameRow(path, t('renameFilePath', { path }));
+    }
+
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'file-row tree-row';
@@ -1152,7 +1367,7 @@ const VIEW_LABEL = Object.freeze({
     bundle: 'bundle',
 });
 
-const palette = { items: [], filtered: [], index: 0, mode: 'files' };
+const palette = { items: [], filtered: [], index: 0, mode: 'files', opener: null };
 
 function commands() {
     return [
@@ -1187,6 +1402,7 @@ function openPalette(mode) {
             ? commands()
             : [...state.files.keys()].sort().map((path) => ({ label: path, detail: '', run: () => selectFile(path) }));
     dom.paletteInput.value = mode === 'commands' ? '>' : '';
+    palette.opener = document.activeElement;
     dom.paletteBackdrop.hidden = false;
     filterPalette();
     dom.paletteInput.focus();
@@ -1194,7 +1410,7 @@ function openPalette(mode) {
 
 function closePalette() {
     dom.paletteBackdrop.hidden = true;
-    state.editor?.focus();
+    restoreFocus(palette.opener);
 }
 
 function filterPalette() {
@@ -1373,13 +1589,16 @@ function requestClose() {
         postToHost({ type: HOST_MESSAGE.close });
         return;
     }
+    unsavedOpener = document.activeElement;
     dom.unsavedBackdrop.hidden = false;
     dom.unsavedKeep.focus();
 }
 
+let unsavedOpener = null;
+
 function keepEditing() {
     dom.unsavedBackdrop.hidden = true;
-    state.editor?.focus();
+    restoreFocus(unsavedOpener);
 }
 
 function discardChanges() {
@@ -1407,9 +1626,13 @@ function requestHistoryRollback(versionId) {
     postToHost({ type: HOST_MESSAGE.historyRollback, versionId });
 }
 
-function requestHistoryDelete(versionId) {
-    if (!window.confirm(t('deleteVersionConfirm'))) return;
-    postToHost({ type: HOST_MESSAGE.historyDelete, versionId });
+async function requestHistoryDelete(versionId) {
+    const confirmed = await askConfirm({
+        title: t('deleteVersionTitle'),
+        body: t('deleteVersionBody'),
+        action: t('deleteVersionAction'),
+    });
+    if (confirmed) postToHost({ type: HOST_MESSAGE.historyDelete, versionId });
 }
 
 // Renders one full page — `{ versions, hasMore }` — replacing whatever was shown before (the host always sends
@@ -1782,6 +2005,23 @@ function wireChrome() {
     }
     dom.searchInput.addEventListener('input', () => runSearch(dom.searchInput.value));
 
+    dom.toastUndo.addEventListener('click', () => {
+        const undo = toastUndoAction;
+        hideToast();
+        undo?.();
+    });
+    // The clock stops while the author is reaching for Undo.
+    dom.toast.addEventListener('pointerenter', () => clearTimeout(toastTimer));
+    dom.toast.addEventListener('focusin', () => clearTimeout(toastTimer));
+    dom.toast.addEventListener('pointerleave', startToastTimer);
+    dom.toast.addEventListener('focusout', startToastTimer);
+
+    dom.confirmAction.addEventListener('click', () => settleConfirm(true));
+    dom.confirmCancel.addEventListener('click', () => settleConfirm(false));
+    dom.confirmBackdrop.addEventListener('click', (event) => {
+        if (event.target === dom.confirmBackdrop) settleConfirm(false);
+    });
+
     dom.paletteBackdrop.addEventListener('click', (event) => {
         if (event.target === dom.paletteBackdrop) closePalette();
     });
@@ -1808,7 +2048,13 @@ function wireChrome() {
 
     window.addEventListener('keydown', (event) => {
         const meta = event.ctrlKey || event.metaKey;
-        if (event.key === 'Escape') {
+        if (event.key === 'Tab') {
+            const panel = openDialogPanel();
+            if (panel) trapTab(event, panel);
+        } else if (event.key === 'Escape' && !dom.confirmBackdrop.hidden) {
+            event.preventDefault();
+            settleConfirm(false);
+        } else if (event.key === 'Escape') {
             // Esc closes the palette first — closing the whole editor out from under an open palette
             // would lose unsaved work to a keystroke meant for the palette.
             if (!dom.paletteBackdrop.hidden) return;
