@@ -239,14 +239,15 @@ class AlertsControllerTest {
             )
         controller.load()
 
-        controller.deleteAlert(eventType = "channel.follow")
+        val result: ApiResult<Unit> = controller.deleteAlert(eventType = "channel.follow")
 
-        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The list is kept (not blown away); the failure goes back to the open confirm dialog, which shows it
+        // inline, so no toast fires on top of it.
         val state: AlertsState = controller.state.value
         assertTrue(state is AlertsState.Ready)
         assertEquals(1, (state as AlertsState.Ready).alerts.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertEquals(emptyList(), feedback.messages)
     }
 
     @Test

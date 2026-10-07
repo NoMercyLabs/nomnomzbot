@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.AlertQueueDto
 import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
 import bot.nomnomz.dashboard.core.network.AlertSummary
 import bot.nomnomz.dashboard.core.network.AlertsApi
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -137,11 +138,11 @@ class AlertsController(
 
     /**
      * Create (or replace) the response for [eventType] with a chat [message], then reload so the new row
-     * appears. Surfaces the error on failure.
+     * appears. A failure is handed back so the open form shows the reason inline.
      */
-    suspend fun createAlert(eventType: String, message: String, isEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    suspend fun createAlert(eventType: String, message: String, isEnabled: Boolean): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             alertsApi.upsert(
                 channel,
                 eventType,
@@ -156,11 +157,11 @@ class AlertsController(
 
     /**
      * Edit an existing response's [message] (and enabled flag), addressed by its [eventType]. Reloads on
-     * success. Surfaces the error on failure.
+     * success. A failure is handed back so the open form shows the reason inline.
      */
-    suspend fun updateAlert(eventType: String, message: String, isEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    suspend fun updateAlert(eventType: String, message: String, isEnabled: Boolean): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             alertsApi.upsert(
                 channel,
                 eventType,
@@ -175,10 +176,10 @@ class AlertsController(
         afterWrite(alertsApi.upsert(channel, eventType, UpdateAlertBody(isEnabled = enabled)))
     }
 
-    /** Delete the response for [eventType]. Reloads on success. Surfaces the error on failure. */
-    suspend fun deleteAlert(eventType: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(alertsApi.delete(channel, eventType))
+    /** Delete the response for [eventType]. Reloads on success. A failure is handed back to the open confirm. */
+    suspend fun deleteAlert(eventType: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(alertsApi.delete(channel, eventType))
     }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
@@ -189,6 +190,16 @@ class AlertsController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    // A write fired from a dialog that stays open until the server answers: success reloads, a failure is
+    // handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    // Nothing was sent (no channel): the dialog shows the reason.
+    private suspend fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, null, noChannelError()))
 
     private fun failWrite(detail: String) {
         feedback.error(Res.string.alerts_action_error, detail)
