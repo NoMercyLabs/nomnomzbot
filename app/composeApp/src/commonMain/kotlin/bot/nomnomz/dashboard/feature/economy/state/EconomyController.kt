@@ -20,7 +20,10 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.economy_no_channel_error
 import nomnomzbot.composeapp.generated.resources.feedback_economy_adjusted
+import nomnomzbot.composeapp.generated.resources.feedback_economy_catalog_item_created
+import nomnomzbot.composeapp.generated.resources.feedback_economy_catalog_item_saved
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_contributed
+import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_created
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_invited
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_updated
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_withdrawn
@@ -414,27 +417,25 @@ class EconomyController(
      * Full edit of an existing catalog item ([itemId]) with [request] — every field, not just the enabled toggle
      * [setCatalogItemEnabled] carries. Reloads on success; surfaces the error on the Ready state on failure.
      */
-    suspend fun updateCatalogItem(itemId: String, request: UpdateCatalogItemBody) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.updateCatalogItem(channel, itemId, request))
+    suspend fun updateCatalogItem(itemId: String, request: UpdateCatalogItemBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.updateCatalogItem(channel, itemId, request).asUnit(),
+            Res.string.feedback_economy_catalog_item_saved,
+        )
     }
 
     /**
      * Create a new catalog item with [request] and reload so it appears in the store list. Surfaces the error on the
      * Ready state on failure.
      */
-    suspend fun createCatalogItem(request: CreateCatalogItemBody) {
-        val channel: String = channelId ?: return
-        // postEnvelope returns the saved item — we don't need it here; reload gives us the full list.
-        when (val result: ApiResult<CatalogItem> = economyApi.createCatalogItem(channel, request)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: EconomyState = _state.value
-                if (current is EconomyState.Ready) {
-                    _state.value = current.copy(saveError = result.error.message)
-                }
-            }
-        }
+    suspend fun createCatalogItem(request: CreateCatalogItemBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        // The saved item is not needed here; the reload gives us the full list.
+        return afterDialogWrite(
+            economyApi.createCatalogItem(channel, request).asUnit(),
+            Res.string.feedback_economy_catalog_item_created,
+        )
     }
 
     /** Delete the catalog item [itemId], then reload so it drops off the list. Surfaces the error on failure. */
@@ -459,17 +460,12 @@ class EconomyController(
     /**
      * Create a new savings jar with [request] and reload. Surfaces the error on the Ready state on failure.
      */
-    suspend fun createSavingsJar(request: CreateSavingsJarBody) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<SavingsJar> = economyApi.createSavingsJar(channel, request)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: EconomyState = _state.value
-                if (current is EconomyState.Ready) {
-                    _state.value = current.copy(saveError = result.error.message)
-                }
-            }
-        }
+    suspend fun createSavingsJar(request: CreateSavingsJarBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.createSavingsJar(channel, request).asUnit(),
+            Res.string.feedback_economy_jar_created,
+        )
     }
 
     /**

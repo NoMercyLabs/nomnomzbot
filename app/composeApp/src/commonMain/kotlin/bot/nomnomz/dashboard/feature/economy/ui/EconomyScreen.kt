@@ -422,12 +422,8 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onToggleCatalog = { itemId, enabled ->
                         scope.launch { controller.setCatalogItemEnabled(itemId, enabled) }
                     },
-                    onCreateCatalogItem = { request ->
-                        scope.launch { controller.createCatalogItem(request) }
-                    },
-                    onUpdateCatalogItem = { itemId, request ->
-                        scope.launch { controller.updateCatalogItem(itemId, request) }
-                    },
+                    onCreateCatalogItem = { request -> controller.createCatalogItem(request) },
+                    onUpdateCatalogItem = { itemId, request -> controller.updateCatalogItem(itemId, request) },
                     onDeleteCatalogItem = controller::deleteCatalogItem,
                     onCatalogItemBlastRadius = controller::catalogItemBlastRadius,
                     onToggleEarningRule = { source, enabled ->
@@ -437,9 +433,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                         scope.launch { controller.upsertEarningRule(body) }
                     },
                     onDeleteEarningRule = { ruleId -> controller.deleteEarningRule(ruleId) },
-                    onCreateSavingsJar = { request ->
-                        scope.launch { controller.createSavingsJar(request) }
-                    },
+                    onCreateSavingsJar = { request -> controller.createSavingsJar(request) },
                     onUpdateJar = { jarId, request -> controller.updateJar(jarId, request) },
                     onDeleteJar = controller::deleteJar,
                     onJarBlastRadius = controller::jarBlastRadius,
@@ -489,8 +483,8 @@ private fun ReadyContent(
     onAccountsPrevPage: () -> Unit,
     onAccountsNextPage: () -> Unit,
     onToggleCatalog: (String, Boolean) -> Unit,
-    onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
-    onUpdateCatalogItem: (String, UpdateCatalogItemBody) -> Unit,
+    onCreateCatalogItem: suspend (CreateCatalogItemBody) -> ApiResult<Unit>,
+    onUpdateCatalogItem: suspend (String, UpdateCatalogItemBody) -> ApiResult<Unit>,
     onDeleteCatalogItem: suspend (String) -> ApiResult<Unit>,
     // The real, backend-counted blast radius of deleting a catalog item (S-CONSEQ) — rendered in the confirm
     // before the destructive save; never counted in the UI.
@@ -498,7 +492,7 @@ private fun ReadyContent(
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
     onUpsertEarningRule: (UpsertEarningRuleBody) -> Unit,
     onDeleteEarningRule: suspend (ruleId: String) -> ApiResult<Unit>,
-    onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
+    onCreateSavingsJar: suspend (CreateSavingsJarBody) -> ApiResult<Unit>,
     onUpdateJar: suspend (jarId: String, UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDeleteJar: suspend (jarId: String) -> ApiResult<Unit>,
     // The real, backend-counted blast radius of deleting a jar (S-CONSEQ) — rendered in the confirm before the
@@ -2489,13 +2483,13 @@ private fun earningRoleLabel(level: Int): String =
     stringResource(EarningRoleRungs.lastOrNull { level >= it.first }?.second ?: Res.string.economy_earning_role_everyone)
 
 @Composable
-private fun CatalogSection(
+internal fun CatalogSection(
     catalog: List<CatalogItem>,
     pipelines: List<PipelineSummary>,
     manage: ManageDecision,
     onToggle: (String, Boolean) -> Unit,
-    onCreate: (CreateCatalogItemBody) -> Unit,
-    onUpdate: (String, UpdateCatalogItemBody) -> Unit,
+    onCreate: suspend (CreateCatalogItemBody) -> ApiResult<Unit>,
+    onUpdate: suspend (String, UpdateCatalogItemBody) -> ApiResult<Unit>,
     onDelete: suspend (String) -> ApiResult<Unit>,
     onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
 ) {
@@ -2562,10 +2556,7 @@ private fun CatalogSection(
         CatalogItemDialog(
             existing = null,
             pipelines = pipelines,
-            onConfirm = { request ->
-                onCreate(request)
-                showCreateDialog = false
-            },
+            onConfirm = onCreate,
             onDismiss = { showCreateDialog = false },
         )
     }
@@ -2590,7 +2581,6 @@ private fun CatalogSection(
                         sortOrder = request.sortOrder,
                     ),
                 )
-                editing = null
             },
             onDismiss = { editing = null },
         )
@@ -2783,18 +2773,24 @@ private fun catalogPermissionLabel(name: String): String =
 private fun CatalogItemDialog(
     existing: CatalogItem?,
     pipelines: List<PipelineSummary>,
-    onConfirm: (CreateCatalogItemBody) -> Unit,
+    onConfirm: suspend (CreateCatalogItemBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
-    var name: String by remember { mutableStateOf(existing?.name ?: "") }
-    var description: String by remember { mutableStateOf(existing?.description ?: "") }
-    var costText: String by remember { mutableStateOf(existing?.cost?.toString() ?: "") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
-    var costError: Boolean by remember { mutableStateOf(false) }
+    val initialName: String = existing?.name ?: ""
+    val initialDescription: String = existing?.description ?: ""
+    val initialCost: String = existing?.cost?.toString() ?: ""
+    val initialPermission: String = existing?.permission?.ifBlank { "Everyone" } ?: "Everyone"
+    val initialCooldown: String = existing?.cooldownSeconds?.toString() ?: "0"
+    val initialCooldownPerUser: Boolean = existing?.cooldownPerUser ?: false
+    val initialStock: String = existing?.stockLimit?.toString() ?: ""
+    val initialMaxPerViewer: String = existing?.maxPerViewerPerStream?.toString() ?: ""
+    val initialSortOrder: String = existing?.sortOrder?.toString() ?: "0"
+
+    var name: String by remember { mutableStateOf(initialName) }
+    var description: String by remember { mutableStateOf(initialDescription) }
+    var costText: String by remember { mutableStateOf(initialCost) }
     var permission: String by remember { mutableStateOf(existing?.permission?.ifBlank { "Everyone" } ?: "Everyone") }
     var permissionMenuOpen: Boolean by remember { mutableStateOf(false) }
     var pipelineId: String? by remember { mutableStateOf(existing?.pipelineId) }
@@ -2809,29 +2805,56 @@ private fun CatalogItemDialog(
         pipelines.firstOrNull { it.id == pipelineId }?.name
             ?: stringResource(Res.string.economy_catalog_effect_none)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text =
-                    stringResource(
-                        if (existing == null) Res.string.economy_catalog_create_title
-                        else Res.string.economy_catalog_edit_title
-                    ),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
+    val cost: Long? = costText.trim().toLongOrNull()?.takeIf { it > 0 }
+    val nameBlank: Boolean = name.isNotEmpty() && name.isBlank()
+    val costInvalid: Boolean = costText.isNotBlank() && cost == null
+
+    FormDialog(
+        title =
+            stringResource(
+                if (existing == null) Res.string.economy_catalog_create_title
+                else Res.string.economy_catalog_edit_title
+            ),
+        saveLabel =
+            stringResource(
+                if (existing == null) Res.string.economy_catalog_create else Res.string.economy_catalog_save
+            ),
+        cancelLabel = stringResource(Res.string.economy_catalog_cancel),
+        onDismiss = onDismiss,
+        dirty =
+            name != initialName ||
+                description != initialDescription ||
+                costText != initialCost ||
+                permission != initialPermission ||
+                pipelineId != existing?.pipelineId ||
+                cooldownText != initialCooldown ||
+                cooldownPerUser != initialCooldownPerUser ||
+                stockText != initialStock ||
+                maxPerViewerText != initialMaxPerViewer ||
+                sortOrderText != initialSortOrder,
+        valid = name.isNotBlank() && cost != null,
+        save = {
+            onConfirm(
+                CreateCatalogItemBody(
+                    name = name.trim(),
+                    description = description.trim().ifEmpty { null },
+                    cost = cost!!,
+                    permission = permission,
+                    pipelineId = pipelineId,
+                    cooldownSeconds = cooldownText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                    cooldownPerUser = cooldownPerUser,
+                    stockLimit = stockText.trim().toIntOrNull()?.takeIf { it > 0 },
+                    maxPerViewerPerStream = maxPerViewerText.trim().toIntOrNull()?.takeIf { it > 0 },
+                    sortOrder = sortOrderText.trim().toIntOrNull(),
+                )
+            ).toDialogResult()
         },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
+    ) {
                 AppTextField(
                     value = name,
-                    onValueChange = { name = it; nameError = false },
+                    onValueChange = { name = it },
                     label = stringResource(Res.string.economy_catalog_name),
-                    isError = nameError,
+                    isError = nameBlank,
                     errorText = stringResource(Res.string.economy_catalog_name_required),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -2843,9 +2866,9 @@ private fun CatalogItemDialog(
                 )
                 AppTextField(
                     value = costText,
-                    onValueChange = { costText = it; costError = false },
+                    onValueChange = { costText = it },
                     label = stringResource(Res.string.economy_catalog_cost),
-                    isError = costError,
+                    isError = costInvalid,
                     errorText = stringResource(Res.string.economy_catalog_cost_invalid),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -2923,52 +2946,14 @@ private fun CatalogItemDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val trimmedName: String = name.trim()
-                val cost: Long? = costText.trim().toLongOrNull()?.takeIf { it > 0 }
-                nameError = trimmedName.isEmpty()
-                costError = cost == null
-                if (!nameError && !costError) {
-                    onConfirm(
-                        CreateCatalogItemBody(
-                            name = trimmedName,
-                            description = description.trim().ifEmpty { null },
-                            cost = cost!!,
-                            permission = permission,
-                            pipelineId = pipelineId,
-                            cooldownSeconds = cooldownText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
-                            cooldownPerUser = cooldownPerUser,
-                            stockLimit = stockText.trim().toIntOrNull()?.takeIf { it > 0 },
-                            maxPerViewerPerStream = maxPerViewerText.trim().toIntOrNull()?.takeIf { it > 0 },
-                            sortOrder = sortOrderText.trim().toIntOrNull(),
-                        )
-                    )
-                }
-            }) {
-                Text(
-                    stringResource(
-                        if (existing == null) Res.string.economy_catalog_create
-                        else Res.string.economy_catalog_save
-                    )
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_catalog_cancel))
-            }
-        },
-    )
+    }
 }
 
 @Composable
-private fun SavingsJarsSection(
+internal fun SavingsJarsSection(
     jars: List<SavingsJar>,
     manage: ManageDecision,
-    onCreate: (CreateSavingsJarBody) -> Unit,
+    onCreate: suspend (CreateSavingsJarBody) -> ApiResult<Unit>,
     onUpdate: suspend (jarId: String, UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDelete: suspend (jarId: String) -> ApiResult<Unit>,
     onBlastRadius: suspend (jarId: String) -> ApiResult<BlastRadiusSummary>,
@@ -3040,10 +3025,7 @@ private fun SavingsJarsSection(
 
     if (showCreate) {
         CreateSavingsJarDialog(
-            onConfirm = { request ->
-                onCreate(request)
-                showCreate = false
-            },
+            onConfirm = onCreate,
             onDismiss = { showCreate = false },
         )
     }
@@ -3683,74 +3665,52 @@ private fun JarEditDialog(
 
 @Composable
 private fun CreateSavingsJarDialog(
-    onConfirm: (CreateSavingsJarBody) -> Unit,
+    onConfirm: suspend (CreateSavingsJarBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
     var name: String by remember { mutableStateOf("") }
     var description: String by remember { mutableStateOf("") }
     var goalText: String by remember { mutableStateOf("") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
+    val nameBlank: Boolean = name.isNotEmpty() && name.isBlank()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.economy_jars_create_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.economy_jars_name),
-                    isError = nameError,
-                    errorText = stringResource(Res.string.economy_jars_name_required),
-                    modifier = Modifier.fillMaxWidth(),
+    FormDialog(
+        title = stringResource(Res.string.economy_jars_create_title),
+        saveLabel = stringResource(Res.string.economy_jars_create),
+        cancelLabel = stringResource(Res.string.economy_jars_cancel),
+        onDismiss = onDismiss,
+        dirty = name.isNotEmpty() || description.isNotEmpty() || goalText.isNotEmpty(),
+        valid = name.isNotBlank(),
+        save = {
+            onConfirm(
+                CreateSavingsJarBody(
+                    name = name.trim(),
+                    description = description.trim().ifEmpty { null },
+                    goalAmount = goalText.trim().toLongOrNull()?.takeIf { it > 0 },
                 )
-                AppTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = stringResource(Res.string.economy_jars_description),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = goalText,
-                    onValueChange = { goalText = it },
-                    label = stringResource(Res.string.economy_jars_goal),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            ).toDialogResult()
         },
-        confirmButton = {
-            Button(onClick = {
-                val trimmedName: String = name.trim()
-                nameError = trimmedName.isEmpty()
-                if (!nameError) {
-                    onConfirm(
-                        CreateSavingsJarBody(
-                            name = trimmedName,
-                            description = description.trim().ifEmpty { null },
-                            goalAmount = goalText.trim().toLongOrNull()?.takeIf { it > 0 },
-                        )
-                    )
-                }
-            }) {
-                Text(stringResource(Res.string.economy_jars_create))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_jars_cancel))
-            }
-        },
-    )
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = stringResource(Res.string.economy_jars_name),
+            isError = nameBlank,
+            errorText = stringResource(Res.string.economy_jars_name_required),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = description,
+            onValueChange = { description = it },
+            label = stringResource(Res.string.economy_jars_description),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = goalText,
+            onValueChange = { goalText = it },
+            label = stringResource(Res.string.economy_jars_goal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable

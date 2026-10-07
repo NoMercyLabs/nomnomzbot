@@ -2105,6 +2105,9 @@
     <string name="feedback_economy_jar_withdrawn">Withdrawal made from the jar</string>
     <string name="feedback_economy_jar_invited">Channel invited to the jar</string>
     <string name="feedback_economy_jar_updated">Jar saved</string>
+    <string name="feedback_economy_jar_created">Jar created</string>
+    <string name="feedback_economy_catalog_item_created">Catalog item created</string>
+    <string name="feedback_economy_catalog_item_saved">Catalog item saved</string>
     <string name="economy_no_channel_error">No active channel. Reconnect and try again.</string>
     <string name="feedback_giveaway_deleted">Giveaway deleted</string>
     <string name="feedback_giveaway_opened">Giveaway opened</string>
