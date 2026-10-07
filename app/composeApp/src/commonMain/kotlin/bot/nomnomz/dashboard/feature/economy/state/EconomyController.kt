@@ -24,6 +24,8 @@ import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_contribute
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_invited
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_updated
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_withdrawn
+import nomnomzbot.composeapp.generated.resources.feedback_economy_earning_rule_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_economy_purchase_refunded
 import nomnomzbot.composeapp.generated.resources.feedback_economy_transferred
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
@@ -300,10 +302,10 @@ class EconomyController(
      * mark the economy configured. A failure surfaces on the current Ready state without discarding the in-progress
      * edit or the loaded leaderboard. No-ops when no channel is loaded yet (the form is only shown once Ready).
      */
-    suspend fun save(config: CurrencyConfig) {
-        val target: String = channelId ?: return
+    suspend fun save(config: CurrencyConfig): ApiResult<Unit> {
+        val target: String = channelId ?: return noChannel()
         val current: EconomyState = _state.value
-        if (current !is EconomyState.Ready) return
+        if (current !is EconomyState.Ready) return noChannel()
 
         _state.value = current.copy(saving = true, justSaved = false, saveError = null)
 
@@ -318,8 +320,9 @@ class EconomyController(
                 decimalPlaces = config.decimalPlaces,
             )
 
+        val result: ApiResult<CurrencyConfig> = economyApi.updateConfig(target, update)
         _state.value =
-            when (val result: ApiResult<CurrencyConfig> = economyApi.updateConfig(target, update)) {
+            when (result) {
                 is ApiResult.Failure ->
                     current.copy(saving = false, justSaved = false, saveError = result.error.message)
                 is ApiResult.Ok ->
@@ -331,6 +334,7 @@ class EconomyController(
                         saveError = null,
                     )
             }
+        return result.asUnit()
     }
 
     /**
@@ -574,15 +578,21 @@ class EconomyController(
     }
 
     /** Refund a catalog purchase — credits the cost back to the buyer. Reloads on success. */
-    suspend fun refundPurchase(purchaseId: Long) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.refundPurchase(channel, purchaseId))
+    suspend fun refundPurchase(purchaseId: Long): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.refundPurchase(channel, purchaseId),
+            Res.string.feedback_economy_purchase_refunded,
+        )
     }
 
     /** Delete an earning rule permanently. Reloads on success. */
-    suspend fun deleteEarningRule(ruleId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.deleteEarningRule(channel, ruleId))
+    suspend fun deleteEarningRule(ruleId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.deleteEarningRule(channel, ruleId),
+            Res.string.feedback_economy_earning_rule_deleted,
+        )
     }
 
     /**
