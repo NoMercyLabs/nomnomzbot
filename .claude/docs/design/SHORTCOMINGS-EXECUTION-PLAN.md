@@ -38,10 +38,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Editor lane
 
-- **S-EDITOR-SAMPLES-REAL** The 76 EventSub fixtures are checked against the live Twitch docs (numeric
-  ids, `rewards.cheer` broadcaster login/name, `chat.message` cheer/reply); a test proves all 76
-  translate to domain events. R2. Done-when: the translate test covers 76 of 76; the doc comparison
-  is a committed ledger.
 - **S-EDITOR-SCRIPT-TEST-PANEL** A script test run shows every output it would cause: chat lines, TTS,
   OBS calls, overlay events — each in plain words. R2, R14, R21. Done-when: E2E run of a script that
   does all four shows four labelled outputs.
