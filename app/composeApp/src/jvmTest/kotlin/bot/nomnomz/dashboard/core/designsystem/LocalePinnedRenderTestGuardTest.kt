@@ -24,11 +24,15 @@ import kotlin.test.fail
  * build server's locale. Fixed in `0545cb9b`; this stops the class coming back.
  *
  * The scan is structural, and deliberately narrow to stay honest: a file is only an offender if it
- * mounts Compose (`runComposeUiTest`), never mentions `AppEnvironment`, AND asserts a literal that is a
+ * mounts Compose (`runComposeUiTest`), never mentions a pin (`AppEnvironment`, or a test helper from
+ * [localePins] that wraps it), AND asserts a literal that is a
  * real value in `values/strings.xml`. A test asserting its own seeded data ("Ko-fi receipts", a
  * timestamp) needs no locale and is not flagged.
  */
 class LocalePinnedRenderTestGuardTest {
+
+    // EnglishThemedContent (pipelines/ui/PipelineTreeVisTest.kt) is AppEnvironment(tag = "en") around NomNomzTheme.
+    private val localePins: List<String> = listOf("AppEnvironment", "EnglishThemedContent")
 
     @Test
     fun a_render_test_asserting_localised_text_pins_the_locale() {
@@ -45,7 +49,7 @@ class LocalePinnedRenderTestGuardTest {
             .filter { it.isFile && it.extension == "kt" && (it.path.contains("jvmTest") || it.path.contains("commonTest")) }
             .forEach { file ->
                 val text: String = file.readText()
-                if (!text.contains("runComposeUiTest") || text.contains("AppEnvironment")) return@forEach
+                if (!text.contains("runComposeUiTest") || localePins.any { text.contains(it) }) return@forEach
                 val localised: List<String> =
                     assertion.findAll(text)
                         .mapNotNull { m -> m.groupValues.drop(1).firstOrNull { it.isNotEmpty() } }
