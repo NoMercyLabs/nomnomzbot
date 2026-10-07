@@ -81,6 +81,7 @@ import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Assets page (Sound Clips twin): the channel's uploaded media library for overlays and widgets.
@@ -143,10 +144,7 @@ fun AssetsScreen(controller: AssetsController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.assets_delete_confirm),
             dismissLabel = stringResource(Res.string.assets_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                scope.launch { controller.deleteAsset(asset.id) }
-                deleteTarget = null
-            },
+            action = { controller.deleteAsset(asset.id).toDialogResult() },
             onDismiss = { deleteTarget = null },
         )
     }

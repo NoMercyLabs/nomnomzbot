@@ -219,7 +219,7 @@ class AssetsControllerTest {
     }
 
     @Test
-    fun a_failed_delete_keeps_the_list_and_announces_on_the_feedback_toast() = runTest {
+    fun a_failed_delete_keeps_the_list_and_hands_the_failure_to_the_dialog_without_a_toast() = runTest {
         val assetsApi =
             RecordingAssetsApi(
                 ApiResult.Ok(listOf(ChannelAsset(id = "a1", name = "keep-me", displayName = "Keep me", kind = "image"))),
@@ -229,13 +229,14 @@ class AssetsControllerTest {
         val controller = controller(assetsApi, feedback = feedback)
         controller.load()
 
-        controller.deleteAsset("a1")
+        val result: ApiResult<Unit> = controller.deleteAsset("a1")
 
         val state: AssetsState = controller.state.value
         assertTrue(state is AssetsState.Ready)
         assertEquals(1, (state as AssetsState.Ready).assets.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf("no permission"), feedback.only.formatArgs)
+        // The dialog shows the reason inline, so the controller returns the failure untouched and stays silent.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test

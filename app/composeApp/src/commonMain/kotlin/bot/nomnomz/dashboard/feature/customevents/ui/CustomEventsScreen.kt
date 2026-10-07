@@ -148,6 +148,7 @@ import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Custom Events page: the channel's external data source integrations (custom-events.md). Each source
@@ -317,7 +318,7 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
                 confirmLabel = stringResource(Res.string.custom_events_delete_confirm),
                 dismissLabel = stringResource(Res.string.custom_events_delete_cancel),
                 blastRadius = blastRadius,
-                onConfirm = { scope.launch { controller.delete(target.id) }; deleteTarget = null },
+                action = { controller.delete(target.id).toDialogResult() },
                 onDismiss = { deleteTarget = null },
             )
         }

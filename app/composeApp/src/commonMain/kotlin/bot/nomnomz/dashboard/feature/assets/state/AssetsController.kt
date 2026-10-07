@@ -96,15 +96,17 @@ class AssetsController(
     suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
         assetsApi.blastRadius(id)
 
-    suspend fun deleteAsset(id: String) {
-
-        when (val result: ApiResult<Unit> = assetsApi.delete(id)) {
-            is ApiResult.Ok -> {
-                feedback.success(Res.string.feedback_asset_deleted)
-                load()
-            }
-            is ApiResult.Failure -> failWrite(result.error.message)
+    /**
+     * Deletes the asset; success announces and reloads. The result is handed back untouched: the delete confirm
+     * stays open until it arrives and shows a failure's reason inline, so no failure toast fires here.
+     */
+    suspend fun deleteAsset(id: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = assetsApi.delete(id)
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_asset_deleted)
+            load()
         }
+        return result
     }
 
     /**
