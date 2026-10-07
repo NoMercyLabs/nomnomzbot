@@ -38,6 +38,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -193,7 +196,7 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                                     OptInRow(
                                         optIn = optIn,
                                         manage = manage,
-                                        onToggle = { scope.launch { controller.upsertOptIn(optIn.peerId, optIn.capability, !optIn.isEnabled) } },
+                                        onToggle = { scope.launch { controller.toggleOptIn(optIn.peerId, optIn.capability, !optIn.isEnabled) } },
                                         onRemove = { pendingRemoveOptIn = optIn },
                                     )
                                     if (index < current.optIns.lastIndex) {
@@ -215,7 +218,7 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.federation_peer_revoke_confirm),
             dismissLabel = stringResource(Res.string.federation_peer_revoke_cancel),
             destructive = true,
-            onConfirm = { pendingRevoke = null; scope.launch { controller.revokePeer(peer.id) } },
+            action = { controller.revokePeer(peer.id).toDialogResult() },
             onDismiss = { pendingRevoke = null },
         )
     }
@@ -227,21 +230,21 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.federation_optin_remove_confirm),
             dismissLabel = stringResource(Res.string.federation_optin_remove_cancel),
             destructive = true,
-            onConfirm = { pendingRemoveOptIn = null; scope.launch { controller.removeOptIn(optIn.id) } },
+            action = { controller.removeOptIn(optIn.id).toDialogResult() },
             onDismiss = { pendingRemoveOptIn = null },
         )
     }
 
     if (showAddPeer) {
         AddPeerDialog(
-            onConfirm = { name, url -> showAddPeer = false; scope.launch { controller.registerPeer(name, url) } },
+            onConfirm = { name, url -> controller.registerPeer(name, url).toDialogResult() },
             onDismiss = { showAddPeer = false },
         )
     }
 
     if (showAddOptIn) {
         AddOptInDialog(
-            onConfirm = { peerId, capability -> showAddOptIn = false; scope.launch { controller.upsertOptIn(peerId, capability, true) } },
+            onConfirm = { peerId, capability -> controller.upsertOptIn(peerId, capability, true).toDialogResult() },
             onDismiss = { showAddOptIn = false },
         )
     }
@@ -372,87 +375,53 @@ private fun OptInRow(
 }
 
 @Composable
-private fun AddPeerDialog(onConfirm: (name: String, url: String) -> Unit, onDismiss: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
+private fun AddPeerDialog(onConfirm: suspend (name: String, url: String) -> DialogResult, onDismiss: () -> Unit) {
     var name: String by remember { mutableStateOf("") }
     var url: String by remember { mutableStateOf("") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
-    var urlError: Boolean by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.federation_peer_title_dialog), style = typography.lg, color = tokens.cardForeground) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name, onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.federation_peer_name),
-                    isError = nameError,
-                    errorText = if (nameError) stringResource(Res.string.federation_peer_name_required) else null,
-                )
-                AppTextField(
-                    value = url, onValueChange = { url = it; urlError = false },
-                    label = stringResource(Res.string.federation_peer_baseurl),
-                    isError = urlError,
-                    errorText = if (urlError) stringResource(Res.string.federation_peer_baseurl_required) else null,
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                var valid: Boolean = true
-                if (name.isBlank()) { nameError = true; valid = false }
-                if (url.isBlank()) { urlError = true; valid = false }
-                if (valid) onConfirm(name.trim(), url.trim())
-            }) { Text(stringResource(Res.string.federation_peer_confirm)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.federation_peer_dismiss)) } },
-    )
+    FormDialog(
+        title = stringResource(Res.string.federation_peer_title_dialog),
+        saveLabel = stringResource(Res.string.federation_peer_confirm),
+        cancelLabel = stringResource(Res.string.federation_peer_dismiss),
+        onDismiss = onDismiss,
+        dirty = name.isNotEmpty() || url.isNotEmpty(),
+        valid = name.isNotBlank() && url.isNotBlank(),
+        save = { onConfirm(name.trim(), url.trim()) },
+    ) {
+        AppTextField(
+            value = name, onValueChange = { name = it },
+            label = stringResource(Res.string.federation_peer_name),
+        )
+        AppTextField(
+            value = url, onValueChange = { url = it },
+            label = stringResource(Res.string.federation_peer_baseurl),
+        )
+    }
 }
 
 @Composable
-private fun AddOptInDialog(onConfirm: (peerId: String, capability: String) -> Unit, onDismiss: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
+private fun AddOptInDialog(onConfirm: suspend (peerId: String, capability: String) -> DialogResult, onDismiss: () -> Unit) {
     var peerId: String by remember { mutableStateOf("") }
     var capability: String by remember { mutableStateOf("") }
-    var peerError: Boolean by remember { mutableStateOf(false) }
-    var capError: Boolean by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.federation_optin_add), style = typography.lg, color = tokens.cardForeground) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = peerId, onValueChange = { peerId = it; peerError = false },
-                    label = stringResource(Res.string.federation_optin_peerid),
-                    isError = peerError,
-                    errorText = if (peerError) stringResource(Res.string.federation_optin_peer_required) else null,
-                )
-                AppTextField(
-                    value = capability, onValueChange = { capability = it; capError = false },
-                    label = stringResource(Res.string.federation_optin_capability),
-                    isError = capError,
-                    errorText = if (capError) stringResource(Res.string.federation_optin_capability_required) else null,
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                var valid: Boolean = true
-                if (peerId.isBlank()) { peerError = true; valid = false }
-                if (capability.isBlank()) { capError = true; valid = false }
-                if (valid) onConfirm(peerId.trim(), capability.trim())
-            }) { Text(stringResource(Res.string.federation_optin_confirm)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.federation_optin_dismiss)) } },
-    )
+    FormDialog(
+        title = stringResource(Res.string.federation_optin_add),
+        saveLabel = stringResource(Res.string.federation_optin_confirm),
+        cancelLabel = stringResource(Res.string.federation_optin_dismiss),
+        onDismiss = onDismiss,
+        dirty = peerId.isNotEmpty() || capability.isNotEmpty(),
+        valid = peerId.isNotBlank() && capability.isNotBlank(),
+        save = { onConfirm(peerId.trim(), capability.trim()) },
+    ) {
+        AppTextField(
+            value = peerId, onValueChange = { peerId = it },
+            label = stringResource(Res.string.federation_optin_peerid),
+        )
+        AppTextField(
+            value = capability, onValueChange = { capability = it },
+            label = stringResource(Res.string.federation_optin_capability),
+        )
+    }
 }
 
 @Composable

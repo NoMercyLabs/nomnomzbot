@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.federation.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.AddPeerKeyBody
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -81,12 +82,9 @@ class FederationController(
 
     // ── Peer management ───────────────────────────────────────────────────────
 
-    suspend fun registerPeer(name: String, baseUrl: String) {
-        when (val result: ApiResult<FederatedPeer> = federationApi.registerPeer(RegisterPeerBody(name, baseUrl))) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
-    }
+    /** Register a peer. The failure goes back to the dialog that asked, which shows it in place. */
+    suspend fun registerPeer(name: String, baseUrl: String): ApiResult<Unit> =
+        afterDialogWrite(federationApi.registerPeer(RegisterPeerBody(name, baseUrl)).asUnit())
 
     suspend fun trustPeer(peerId: String) {
         when (val result: ApiResult<FederatedPeer> = federationApi.trustPeer(peerId)) {
@@ -95,12 +93,8 @@ class FederationController(
         }
     }
 
-    suspend fun revokePeer(peerId: String) {
-        when (val result: ApiResult<FederatedPeer> = federationApi.revokePeer(peerId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
-    }
+    /** Revoke a peer. The failure goes back to the confirm that asked, which shows it in place. */
+    suspend fun revokePeer(peerId: String): ApiResult<Unit> = afterDialogWrite(federationApi.revokePeer(peerId).asUnit())
 
     suspend fun addPeerKey(peerId: String, keyId: String, publicKey: String) {
         when (val result: ApiResult<bot.nomnomz.dashboard.core.network.FederatedPeerKey> =
@@ -120,21 +114,36 @@ class FederationController(
 
     // ── Opt-in management ─────────────────────────────────────────────────────
 
-    suspend fun upsertOptIn(peerId: String, capability: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
-        when (val result: ApiResult<FederatedOptIn> = federationApi.upsertOptIn(channel, UpsertOptInBody(peerId, capability, enabled))) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+    /** Add or update an opt-in. The failure goes back to the form that asked, which shows it in place. */
+    suspend fun upsertOptIn(peerId: String, capability: String, enabled: Boolean): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(federationApi.upsertOptIn(channel, UpsertOptInBody(peerId, capability, enabled)).asUnit())
     }
 
-    suspend fun removeOptIn(optInId: String) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
-        when (val result: ApiResult<Unit> = federationApi.removeOptIn(channel, optInId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+    /** Flip an opt-in from its row switch. No dialog is open, so a failure announces on the shell toast. */
+    suspend fun toggleOptIn(peerId: String, capability: String, enabled: Boolean) {
+        val result: ApiResult<Unit> = upsertOptIn(peerId, capability, enabled)
+        if (result is ApiResult.Failure) failWrite(result.error.message)
     }
+
+    /** Remove an opt-in. The failure goes back to the confirm that asked, which shows it in place. */
+    suspend fun removeOptIn(optInId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(federationApi.removeOptIn(channel, optInId))
+    }
+
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    private fun ApiResult<*>.asUnit(): ApiResult<Unit> =
+        when (this) {
+            is ApiResult.Ok -> ApiResult.Ok(Unit)
+            is ApiResult.Failure -> this
+        }
+
+    private fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, "NO_CHANNEL", "No active channel."))
 
     private fun failWrite(detail: String) {
         feedback.error(Res.string.federation_action_error, detail)
