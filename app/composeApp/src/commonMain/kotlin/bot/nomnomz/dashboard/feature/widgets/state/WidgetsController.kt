@@ -125,13 +125,16 @@ class WidgetsController(
     }
 
     /**
-     * Delete a widget, addressed by its [widgetId]. Reloads on success. Surfaces the error on failure.
+     * Delete a widget, addressed by its [widgetId]. Reloads on success and returns the server's answer; a failure
+     * raises no toast, because the confirm dialog stays open until this returns and shows the reason inline.
      * Destructive — the screen routes this through the confirm dialog before calling it (deleting the
      * overlay invalidates its browser-source URL).
      */
-    suspend fun deleteWidget(widgetId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(widgetsApi.delete(channel, widgetId))
+    suspend fun deleteWidget(widgetId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        val result: ApiResult<Unit> = widgetsApi.delete(channel, widgetId)
+        if (result is ApiResult.Ok) load()
+        return result
     }
 
     /**

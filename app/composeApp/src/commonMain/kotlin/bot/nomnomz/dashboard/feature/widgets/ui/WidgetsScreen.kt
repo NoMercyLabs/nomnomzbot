@@ -68,6 +68,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -343,10 +344,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             confirmLabel = stringResource(Res.string.widgets_delete_confirm),
             dismissLabel = stringResource(Res.string.widgets_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteWidget(target.id) }
-            },
+            action = { controller.deleteWidget(target.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }

@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -407,11 +408,7 @@ fun IntegrationsScreen(
                                 stringResource(Res.string.integrations_disconnect_confirm),
                             dismissLabel = stringResource(Res.string.integrations_disconnect_cancel),
                             blastRadius = blastRadius,
-                            onConfirm = {
-                                val target: String = provider
-                                pendingDisconnect = null
-                                scope.launch { controller.disconnect(target) }
-                            },
+                            action = { controller.disconnect(provider).toDialogResult() },
                             onDismiss = { pendingDisconnect = null },
                         )
                     }

@@ -45,16 +45,11 @@ import bot.nomnomz.dashboard.core.network.EventSubSubscription
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import bot.nomnomz.dashboard.core.feedback.Feedback
-import bot.nomnomz.dashboard.core.feedback.FeedbackAction
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
-import bot.nomnomz.dashboard.core.feedback.FeedbackMessage
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.feedback_action_retry
-import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -117,7 +112,7 @@ class IntegrationsControllerTest {
     }
 
     @Test
-    fun a_failed_disconnect_offers_retry_that_re_invokes_the_disconnect_exactly_once() = runTest {
+    fun a_failed_disconnect_returns_the_failure_without_a_toast_and_a_second_call_succeeds() = runTest {
         val integrations =
             FakeIntegrationsApi(status = listOf(IntegrationStatus("spotify", connected = true, accountName = "stoney")))
         val feedback = RecordingFeedback()
@@ -132,20 +127,19 @@ class IntegrationsControllerTest {
         controller.load()
         integrations.disconnectGenericFailure = ApiResult.Failure(ApiError(503, "DOWN", "Backend down."))
 
-        controller.disconnect("spotify")
+        val failed: ApiResult<Unit> = controller.disconnect("spotify")
 
-        val failed: FeedbackMessage = feedback.only
-        assertEquals(FeedbackKind.Error, failed.kind)
-        assertEquals(Res.string.feedback_disconnect_failed, failed.label)
+        // The confirm dialog shows the reason inline, so the controller raises no toast for a failure.
+        assertEquals("Backend down.", (failed as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
         assertEquals(1, integrations.disconnectGenericCalls)
-        val retry: FeedbackAction = assertNotNull(failed.action)
-        assertEquals(Res.string.feedback_action_retry, retry.label)
 
-        retry.handler()
+        val retried: ApiResult<Unit> = controller.disconnect("spotify")
 
+        assertTrue(retried is ApiResult.Ok)
         assertEquals(2, integrations.disconnectGenericCalls)
-        assertEquals(FeedbackKind.Success, feedback.messages.last().kind)
-        assertEquals(Res.string.feedback_disconnected, feedback.messages.last().label)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_disconnected, feedback.only.label)
     }
 
     @Test
@@ -915,9 +909,39 @@ class IntegrationsControllerTest {
 private fun List<ProviderConnection>.row(provider: String): ProviderConnection =
     first { it.provider.equals(provider, ignoreCase = true) }
 
+// Builds a controller the UI tests can drive: a pinned backend, the channel's bot served over [bot], no-op feedback.
+internal fun makeIntegrationsController(
+    channels: ChannelsApi,
+    bot: FakeBotAuthApi,
+    integrations: IntegrationsApi,
+    feedback: Feedback = NoOpFeedback,
+): IntegrationsController {
+    val session = SessionStore(FakeVault())
+    session.pin(
+        ConnectionProfile(
+            id = "test-profile",
+            displayName = "test",
+            baseUrl = "http://localhost:5080",
+            source = ProfileSource.Manual,
+        )
+    )
+    return IntegrationsController(
+        session,
+        ChannelBotOverChannels(channels, bot),
+        bot,
+        integrations,
+        FakeConnectLauncher(),
+        FakeTwitchDiagnosticsApi(),
+        FakeAuthApi(),
+        FakeSystemApi(twitchSecretConfigured = true),
+        isWeb = true,
+        feedback = feedback,
+    )
+}
+
 // ── Fakes ─────────────────────────────────────────────────────────────────────
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+internal class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -942,7 +966,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
  * was disconnected. The platform-wide [FakeBotAuthApi.status]/[FakeBotAuthApi.disconnect] record their own use,
  * so a test proves the screen never touches the deployment-wide bot.
  */
-private class ChannelBotOverChannels(
+internal class ChannelBotOverChannels(
     private val channels: ChannelsApi,
     private val bot: FakeBotAuthApi,
 ) : ChannelsApi by channels {
@@ -961,7 +985,7 @@ private class ChannelBotOverChannels(
     }
 }
 
-private class FakeBotAuthApi(
+internal class FakeBotAuthApi(
     var status: BotStatus,
     private val authorizeUrl: String = "https://id.twitch.tv/authorize?bot",
     // The device login the secret-free path drives: a started code, then the poll statuses to walk through.
@@ -1038,7 +1062,7 @@ private class FakeBotAuthApi(
 // client being registered through the right endpoint — can be asserted. A save flips the matching provider
 // check to ok (modeling the backend now reporting the client configured), so the post-save re-read proves the
 // registration via the status re-read, not an optimistic flip.
-private class FakeSystemApi(
+internal class FakeSystemApi(
     private val twitchSecretConfigured: Boolean,
     spotifyClientConfigured: Boolean = false,
     discordClientConfigured: Boolean = false,
@@ -1108,7 +1132,7 @@ private class FakeSystemApi(
     override suspend fun pronouns(): ApiResult<List<bot.nomnomz.dashboard.core.network.PronounOption>> = ApiResult.Ok(emptyList())
 }
 
-private class FakeIntegrationsApi(
+internal class FakeIntegrationsApi(
     status: List<IntegrationStatus>,
     private val authorizeUrl: String = "https://provider/authorize",
     // When set, status() returns this instead of the normal ok/statusAfter value — models a genuine
@@ -1163,7 +1187,13 @@ private class FakeIntegrationsApi(
         disconnectedGenericProvider = provider
         val failure: ApiResult<Unit>? = disconnectGenericFailure
         disconnectGenericFailure = null
-        return failure ?: ApiResult.Ok(Unit)
+        if (failure != null) return failure
+        // Like the backend: a successful disconnect leaves the provider disconnected for the next status read.
+        statusAfter =
+            (statusAfter ?: initial).map { row: IntegrationStatus ->
+                if (row.provider.equals(provider, ignoreCase = true)) row.copy(connected = false) else row
+            }
+        return ApiResult.Ok(Unit)
     }
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> {
@@ -1203,7 +1233,7 @@ private class FakeIntegrationsApi(
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and
 // records the URL it was asked to open, so a test can assert the exact URL the browser is sent to.
-private class FakeConnectLauncher : ConnectLauncher {
+internal class FakeConnectLauncher : ConnectLauncher {
     var openedUrl: String? = null
     var authorizeStreamerCalled: Boolean = false
 
@@ -1237,7 +1267,7 @@ private class FakeConnectLauncher : ConnectLauncher {
         }
 }
 
-private class FakeVault : bot.nomnomz.dashboard.core.connection.SessionTokenStore {
+internal class FakeVault : bot.nomnomz.dashboard.core.connection.SessionTokenStore {
     override suspend fun read(profileId: String): bot.nomnomz.dashboard.core.connection.SessionTokens? = null
 
     override suspend fun write(
@@ -1248,7 +1278,7 @@ private class FakeVault : bot.nomnomz.dashboard.core.connection.SessionTokenStor
     override suspend fun clear(profileId: String) = Unit
 }
 
-private class FakeTwitchDiagnosticsApi(
+internal class FakeTwitchDiagnosticsApi(
     private val missing: MissingScopes = MissingScopes(scopes = emptyList()),
     private val regrant: ScopeRegrantStart? = null,
     private val regrantFails: Boolean = false,
@@ -1273,7 +1303,7 @@ private class FakeTwitchDiagnosticsApi(
     override suspend fun reconcile(channelId: String) = error("stub")
 }
 
-private class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) : AuthApi {
+internal class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) : AuthApi {
     var polledDeviceCode: String? = null
     private var pollIndex: Int = 0
 

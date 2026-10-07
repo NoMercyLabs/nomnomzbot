@@ -481,16 +481,22 @@ class IntegrationsController(
         return integrationsApi.disconnectBlastRadius(id, provider)
     }
 
-    suspend fun disconnect(provider: String) {
-        val id: String = channelId ?: return
-        withBusy(
-            target = BusyTarget.Provider(provider),
-            successMessage = Res.string.feedback_disconnected,
-            failureMessage = Res.string.feedback_disconnect_failed,
-        ) {
+    /**
+     * Disconnect [provider] and return the server's answer. The confirm dialog stays open until this returns and
+     * shows a failure's reason inline, so a failure raises no toast here; success announces and re-reads status.
+     */
+    suspend fun disconnect(provider: String): ApiResult<Unit> {
+        val id: String =
+            channelId
+                ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel."))
+        val ready: IntegrationsState.Ready? = _state.value as? IntegrationsState.Ready
+        if (ready != null) _state.value = ready.copy(busy = BusyTarget.Provider(provider))
+        val result: ApiResult<Unit> =
             if (provider.equals("discord", ignoreCase = true)) integrationsApi.disconnectDiscord(id)
             else integrationsApi.disconnectGeneric(id, provider)
-        }
+        if (result is ApiResult.Ok) feedback.success(Res.string.feedback_disconnected)
+        refresh()
+        return result
     }
 
     /**
