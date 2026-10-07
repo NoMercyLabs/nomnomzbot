@@ -1,6 +1,6 @@
 # Benchmark: widget code editor
 
-Method: product docs fetched 2026-10-07 (one source URL per row). Ours = server/src/NomNomzBot.Api/Assets/editor/ (editor.js, preview.js, preview-sdk.js, index.html), read this run. Rows marked "Monaco default" rely on Monaco's built-in behaviour and were not exercised live (not checked live). Firebot docs pages did not load; its rows rest on the one search-listed GitHub issue and the docs URL below.
+Method: product docs fetched 2026-10-07 (one source URL per row). Ours = server/src/NomNomzBot.Api/Assets/editor/ (editor.js, preview.js, preview-sdk.js, index.html), read this run. Rows marked "Monaco default" rely on Monaco's built-in behaviour and were not exercised live (not checked live). Re-checked 2026-10-07 in a real browser (Chrome DevTools MCP): Firebot docs loaded live; the CodeSandbox live docs sit behind a Cloudflare challenge that never cleared, so they were read through web.archive.org copies. A CodeSandbox row whose page has no matching line has Source "not checked".
 
 ## Products
 
@@ -41,10 +41,10 @@ Method: product docs fetched 2026-10-07 (one source URL per row). Ours = server/
 | File tree with new, rename, delete | StackBlitz | https://developer.stackblitz.com/guides/user-guide/what-is-stackblitz | editor.js:386, 395, 408, tree 429-523 | have | |
 | Asset upload (images, sounds, fonts) | CodePen | https://blog.codepen.io/documentation/adding-external-resources/ | no upload or drop handler in editor.js, preview.js | missing | S-EDITOR-ASSETS |
 | External library by URL or search | CodePen | https://blog.codepen.io/documentation/adding-external-resources/ | fixed map only: react, vue (preview.js:28-33) | partial | S-EDITOR-EXTERNAL-LIBS |
-| npm dependencies panel | CodeSandbox | https://codesandbox.io/docs/learn/vm-sandboxes/preview | fixed esm.sh map, preview.js:28-33 | partial | S-EDITOR-EXTERNAL-LIBS |
+| npm dependencies panel | CodeSandbox | not checked (the archived Preview and overview pages carry no dependency text) | fixed esm.sh map, preview.js:28-33 | partial | S-EDITOR-EXTERNAL-LIBS |
 | Live preview updates as you type | CodePen | https://blog.codepen.io/documentation/ | editor.js:370 schedule() on content change | have | |
 | Preview in sandboxed iframe | StackBlitz | https://developer.stackblitz.com/guides/user-guide/what-is-stackblitz | index.html:184 sandbox allow-scripts | have | |
-| Preview error overlay with stack | CodeSandbox | https://codesandbox.io/docs/learn/vm-sandboxes/preview | index.html:186-193 previewError | have | |
+| Preview error overlay with stack | CodeSandbox | not checked (the archived Preview page does not mention an error overlay) | index.html:186-193 previewError | have | |
 | Preview size presets (phone, 1080p, custom) | StackBlitz | https://developer.stackblitz.com/guides/user-guide/what-is-stackblitz | none; preview pane only resizes by splitter (editor.js:729) | missing | S-EDITOR-PREVIEW-SIZES |
 | Preview background (transparent, stream frame, chroma) | StreamElements | https://docs.streamelements.com/overlays/custom-widget | none in index.html:178-196 | missing | S-EDITOR-PREVIEW-SIZES |
 | Hide or show preview, resizable panels | CodePen | https://blog.codepen.io/documentation/full-screen-editing/ | editor.js:720 setPreviewCollapsed, splitters 729, 1690 | have | |
@@ -56,13 +56,13 @@ Method: product docs fetched 2026-10-07 (one source URL per row). Ours = server/
 | Environments and variables for test data | REST Client | https://marketplace.visualstudio.com/items?itemName=humao.rest-client | WIDGET_SETTINGS only, preview.js:103 | partial | S-EDITOR-TEST-CASES |
 | Request history, re-run an earlier send | REST Client | https://marketplace.visualstudio.com/items?itemName=humao.rest-client | none; fire log keeps current run only, preview.js:436 | missing | S-EDITOR-RUN-TIMELINE |
 | Inspect variables of a run | Streamer.bot | https://docs.streamer.bot/guide/actions | test-run result panel, editor.js:1427-1440 | partial | S-EDITOR-RUN-TIMELINE |
-| Test effect list with the event's own metadata | Firebot | https://github.com/crowbartools/Firebot/issues/2786 | sample per event type, preview.js:302 | partial | S-EDITOR-REAL-SAMPLES |
+| Test effect list with the event's own metadata | Firebot | https://docs.firebot.app/v5/core/events (Simulate Event button; it fills placeholder data) | sample per event type, preview.js:302 | partial | S-EDITOR-REAL-SAMPLES |
 | Record what the widget would send to the bot | Streamer.bot | https://docs.streamer.bot/guide/actions | preview log kinds fired/action/claim, preview.js:420-434; actions recorded only | partial | S-EDITOR-REAL-ACTIONS |
 | Action history with status and duration | Streamer.bot | https://docs.streamer.bot/guide/actions | log has no duration or status, preview.js:436 | missing | S-EDITOR-RUN-TIMELINE |
 | Console capture with levels and time | CodePen | https://blog.codepen.io/documentation/console/ | preview.js:453-499, index.html:114-120 | have | |
 | Console clear button | CodePen | https://blog.codepen.io/documentation/console/ | preview.js:493-499 | have | |
 | Type code into the console (REPL) | CodePen | https://blog.codepen.io/documentation/console/ | read-only list, index.html:120 | missing | S-EDITOR-CONSOLE-REPL |
-| Console filter by level or text | CodeSandbox | https://codesandbox.io/docs/learn/vm-sandboxes/preview | none in index.html:114-120 | missing | S-EDITOR-CONSOLE-REPL |
+| Console filter by level or text | CodeSandbox | not checked (the archived overview says only: browser devtools are available, so you get the browser console inside the editor) | none in index.html:114-120 | missing | S-EDITOR-CONSOLE-REPL |
 | Logpoints (log without editing code) | VS Code | https://code.visualstudio.com/docs/debugtest/debugging | none | missing | S-EDITOR-CONSOLE-REPL |
 | Breakpoints, call stack, watch | VS Code | https://code.visualstudio.com/docs/debugtest/debugging | none | not-doing | Browser devtools already debug the sandboxed iframe; a debugger is a large build (proposed, Stoney to confirm) |
 | Test explorer with run icons in gutter | VS Code | https://code.visualstudio.com/docs/debugtest/testing | none | missing | S-EDITOR-RUN-CODELENS |
@@ -85,6 +85,7 @@ Method: product docs fetched 2026-10-07 (one source URL per row). Ours = server/
 | In-editor docs for the widget SDK and events | StreamElements | https://docs.streamelements.com/overlays/custom-widget-events | SDK types only, editor.js:603; no docs pane | partial | S-EDITOR-EVENT-CATALOG-VIEW |
 | Shortcut list for newcomers | VS Code | https://code.visualstudio.com/docs/editor/codebasics | shortcuts only in tooltips, editor.js:167-175 | partial | S-EDITOR-EDITOR-SETTINGS |
 | Workspace-level config file (per-project settings) | VS Code | https://code.visualstudio.com/docs/editor/workspaces | none | not-doing | A widget is one bundle; per-project config files add nothing the Fields tab will not cover |
+| Element inspector: click an element in the preview to open its source line | CodeSandbox | https://web.archive.org/web/2026/https://codesandbox.io/docs/learn/vm-sandboxes/preview (click an element on the preview to open the matching code in the editor) | no inspector in index.html or preview.js (grep inspect: no match) | missing | S-EDITOR-ELEMENT-INSPECTOR |
 
 ## Ranking
 

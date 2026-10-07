@@ -112,6 +112,9 @@ Ranked first (order of `benchmarks/code-editor.md` ## Ranking), then the rest.
   file or all. R6. Done-when: E2E diff shows the change; restore brings it back.
 - **S-EDITOR-SEARCH-REPLACE** Project-wide search with regex and replace; file outline. R20.
   Done-when: E2E replace across two files.
+- **S-EDITOR-ELEMENT-INSPECTOR** An inspector icon in the preview: click an element and the editor opens
+  the code line that made it (CodeSandbox). R13, R20. Done-when: E2E click an element and the matching
+  file and line are open.
 - **S-EDITOR-UX-GATES** One E2E suite that runs every rule check in `editor-ux-rules.md` against the
   editor; it runs in CI. R1–R25. Done-when: suite green; a rule without a check fails the suite.
 - 🔒 **S-SDK-NPM** Publish the widget SDK types as an npm package (publishing needs the owner's yes).
@@ -143,6 +146,18 @@ Ranked first (order of `benchmarks/pipeline-editor.md` ## Ranking), then the res
 - **S-PIPE-UNDO-DUPLICATE** Undo/redo, duplicate step and pipeline, drag to move or reorder (also into a
   group), copy/paste steps between pipelines. R6, R13. Done-when: UI test does each and undo restores the
   previous tree.
+- **S-PIPE-PLAY-BUTTON** A Play button on every pipeline row in the list, and on the trigger in the
+  editor, runs it by hand. R2, R13. Done-when: UI test clicks Play on a list row and a run record
+  appears.
+- **S-PIPE-DEBUG-PANEL** The run trace gets a filter by step, pause, and clear, in one panel. R14, R21.
+  Done-when: UI test filters a trace to one step and pauses new lines.
+- **S-PIPE-MACROS** Reusable variable expressions with arguments, defined once and used in any field.
+  R9, R13. Done-when: test defines a macro with one argument and two pipelines use it.
+- **S-PIPE-RUN-LOCKS** Runs of one type go one at a time by default, with cooldown scopes per group.
+  R13. Done-when: test fires two runs of one type and the second waits for the first.
+- **S-PIPE-SETUPS** Export chosen pipelines, events, queues and counters as one file with name,
+  Markdown description, and version; import restores them. R6, R13. Done-when: test exports a setup
+  with two pipelines and a counter, imports it, and all three exist.
 - **S-PIPE-STEP-TOGGLE** Switch a single step off to find a fault, without deleting it. R6, R14.
   Done-when: a test shows a disabled step is skipped in a run and shown dimmed.
 - **S-PIPE-RERUN** Re-run a past execution with its original data. R14. Done-when: test re-runs a stored
@@ -155,7 +170,7 @@ Ranked first (order of `benchmarks/pipeline-editor.md` ## Ranking), then the res
   it. R8, R14. Done-when: UI test shows a fix message on a step with a missing required field.
 - **S-PIPE-FOLDERS** Folders or groups to organise pipelines, plus a search for a step or pipeline. R20.
   Done-when: UI test moves a pipeline into a folder and finds a step by search.
-- **S-PIPE-QUEUES** Action queues with pause and resume. R13. Done-when: test pauses a queue, queues two
+- **S-PIPE-QUEUES** Action queues with pause and resume, and a priority item that jumps the queue. R13. Done-when: test pauses a queue, queues two
   runs, resumes, and they run in order.
 - **S-PIPE-EXPORT** Export and import a pipeline as a file, and browse a community gallery of shared
   pipelines. R6, R13. Done-when: test exports then imports into an identical pipeline.
