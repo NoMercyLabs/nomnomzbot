@@ -8,18 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-// The data of a test event, edited as a JSON tab (`events/<type>.json`) in the main editor. These tabs are
-// scratch: they are never part of the widget's files, so they are never saved and never count as unsaved edits.
+// The data of a test event, edited as a JSON tab (`events/<type>.json`) in the main editor. A tab is not one of the
+// code files: the editor saves its text separately, as the widget's sample for that event (event-sample-files.js).
 // The sample's own keys and value types become a JSON schema, so a wrong type or an unknown key is underlined.
 
-const EVENT_FOLDER = 'events/';
-const EVENT_EXTENSION = '.json';
+import { eventPathOf } from './event-sample-files.js';
+
 const SCHEMA_URI_ROOT = 'nnz://event-schema/';
 const JSON_INDENT = 2;
-
-export function eventPathOf(type) {
-    return `${EVENT_FOLDER}${type}${EVENT_EXTENSION}`;
-}
 
 function typeOfValue(value) {
     if (Array.isArray(value)) return 'array';

@@ -18,6 +18,7 @@
 // the API — the dashboard already holds the session, so this page needs no token of its own.
 
 import { createEventTabs } from './event-data-tabs.js';
+import { editedSample, joinSampleFiles, splitSampleFiles } from './event-sample-files.js';
 import { initPreview } from './preview.js';
 import { createVueScriptModels, isHiddenScriptResource } from './vue-script-model.js';
 
@@ -81,6 +82,7 @@ const dom = {
     eventTitle: document.getElementById('eventTitle'),
     eventFire: document.getElementById('eventFire'),
     eventClose: document.getElementById('eventClose'),
+    eventReset: document.getElementById('eventReset'),
     editorHost: document.getElementById('editorHost'),
     problems: document.getElementById('problems'),
     cursor: document.getElementById('cursor'),
@@ -150,6 +152,12 @@ const state = {
     // The files as the host last accepted them: what Close and Esc compare against before throwing edits away.
     savedFiles: new Map(),
     pendingSave: null,
+    // The author's edited event samples by type (what the project saves as events/<type>.json), the stock
+    // table they replace, and the table the fire bar reads: stock with the edited samples on top.
+    samples: {},
+    savedSamples: '{}',
+    stockSamples: {},
+    fireTable: {},
 };
 
 // ── Words ──────────────────────────────────────────────────────────────────
@@ -276,6 +284,8 @@ const DEFAULT_LABELS = Object.freeze({
     previewFireEdit: 'Edit',
     previewFireEditSample: 'Edit the data of {type}',
     previewFireEditing: 'Data for {type}',
+    eventSampleReset: 'Reset to default',
+    eventSampleInvalid: 'Save stopped: the data of {types} is not a JSON object. Fix it or reset it to default.',
     previewFireSamplesError:
         'The test events could not be loaded, so nothing can be fired. Close the editor and open it again.',
     previewLogAction: 'Would run {actionType} {params}',
@@ -395,15 +405,46 @@ function selectFile(path) {
     syncEventBar();
 }
 
-// A fire-bar Edit opens the sample as a JSON tab. Event tabs are not files: they never reach the save payload.
+// A fire-bar Edit opens the sample as a JSON tab. An event tab is not a code file: its text is saved apart, as the
+// widget's sample for that event, so it is the sample on every later open.
 function openEventTab(type, sample) {
     if (!state.eventTabs) return;
-    selectFile(state.eventTabs.open(type, sample));
+    selectFile(state.eventTabs.open(type, state.samples[type] ?? sample));
+}
+
+// Folds every open tab's text into the edited samples and the fire table. A text that is not a JSON object is
+// left out and reported by the caller: it keeps the sample the type had before.
+function collectSamples() {
+    const invalid = [];
+    const next = { ...state.samples };
+    for (const path of state.eventTabs?.paths() ?? []) {
+        const type = state.eventTabs.typeOf(path);
+        const edited = editedSample(state.eventTabs.modelFor(path).getValue(), state.stockSamples[type] ?? {});
+        if (edited === undefined) invalid.push(type);
+        else if (edited === null) delete next[type];
+        else next[type] = edited;
+    }
+    state.samples = next;
+    for (const type of new Set([...Object.keys(state.fireTable), ...Object.keys(next)])) {
+        if (type in next) state.fireTable[type] = next[type];
+        else if (type in state.stockSamples) state.fireTable[type] = state.stockSamples[type];
+        else delete state.fireTable[type];
+    }
+    return invalid;
+}
+
+function resetEventTab() {
+    const path = state.active;
+    if (!state.eventTabs?.has(path)) return;
+    const type = state.eventTabs.typeOf(path);
+    const stock = state.stockSamples[type] ?? state.stockSamples._default ?? {};
+    state.eventTabs.modelFor(path).setValue(JSON.stringify(stock, null, 2));
 }
 
 function closeEventTab() {
     const path = state.active;
     if (!state.eventTabs?.has(path)) return;
+    collectSamples();
     state.eventTabs.close(path);
     state.preview.setEditingType(null);
     selectFile(state.entry);
@@ -1228,8 +1269,14 @@ function requestSave() {
     dom.save.disabled = true;
     dom.save.textContent = t('compiling');
     dom.result.hidden = true;
+    const invalid = collectSamples();
+    if (invalid.length > 0) {
+        showCompileResult({ ok: false, message: t('eventSampleInvalid', { types: invalid.join(', ') }) });
+        return;
+    }
     state.pendingSave = new Map(state.files);
-    postToHost({ type: HOST_MESSAGE.save, files: Object.fromEntries(state.files) });
+    state.pendingSamples = JSON.stringify(state.samples);
+    postToHost({ type: HOST_MESSAGE.save, files: joinSampleFiles(Object.fromEntries(state.files), state.samples) });
 }
 
 const BUILD_MARKER_OWNER = 'nnz-build';
@@ -1269,7 +1316,10 @@ function showBuildErrors(errors) {
 function showCompileResult({ ok, message, errors }) {
     showBuildErrors(errors);
     // Only a save the host accepted makes its files the new baseline; a failed compile leaves them unsaved.
-    if (ok && state.pendingSave) state.savedFiles = state.pendingSave;
+    if (ok && state.pendingSave) {
+        state.savedFiles = state.pendingSave;
+        state.savedSamples = state.pendingSamples;
+    }
     state.pendingSave = null;
     dom.result.hidden = false;
     dom.result.dataset.ok = String(Boolean(ok));
@@ -1280,6 +1330,8 @@ function showCompileResult({ ok, message, errors }) {
 
 function hasUnsavedEdits() {
     flushActive();
+    collectSamples();
+    if (JSON.stringify(state.samples) !== state.savedSamples) return true;
     if (state.files.size !== state.savedFiles.size) return true;
     for (const [path, content] of state.files) {
         if (state.savedFiles.get(path) !== content) return true;
@@ -1548,7 +1600,12 @@ function showTestRunResult(data) {
 // ── Boot ───────────────────────────────────────────────────────────────────
 
 async function open(payload) {
-    state.files = new Map(Object.entries(payload.files ?? {}));
+    const split = splitSampleFiles(payload.files);
+    state.files = new Map(Object.entries(split.code));
+    state.samples = split.samples;
+    state.savedSamples = JSON.stringify(split.samples);
+    state.stockSamples = payload.fireSamples ?? {};
+    state.fireTable = { ...state.stockSamples, ...split.samples };
     state.entry = payload.entry ?? [...state.files.keys()][0] ?? 'index.ts';
     if (!state.files.has(state.entry)) state.files.set(state.entry, '');
     state.active = state.entry;
@@ -1583,7 +1640,7 @@ async function open(payload) {
             }),
         language: payload.language ?? '',
         entry: state.entry,
-        fireSamples: payload.fireSamples ?? {},
+        fireSamples: state.fireTable,
         fireSamplesFailed: Boolean(payload.fireSamplesError),
         declaredEvents: payload.eventSubscriptions ?? [],
         widget: payload.widget ?? {},
@@ -1621,6 +1678,7 @@ async function open(payload) {
     state.editor.onDidChangeModelContent(syncEventBar);
     dom.eventFire.addEventListener('click', fireEventTab);
     dom.eventClose.addEventListener('click', closeEventTab);
+    dom.eventReset.addEventListener('click', resetEventTab);
     state.editor.onDidChangeCursorPosition(syncStatus);
     state.editor.onDidChangeModel(syncStatus);
     monaco.editor.onDidChangeMarkers((uris) => {
