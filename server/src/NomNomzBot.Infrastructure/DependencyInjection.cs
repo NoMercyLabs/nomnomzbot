@@ -604,6 +604,10 @@ public static class DependencyInjection
             Application.CustomEvents.Services.ICustomDataIngestService,
             CustomEvents.CustomDataIngestService
         >();
+        services.AddScoped<
+            Application.Widgets.Services.IWidgetSeedProvider,
+            CustomEvents.CustomDataSeedProvider
+        >();
         // Poll ingress: the SSRF-gated fetcher + its short-scan hosted loop (custom-events.md §6). The attempt
         // tracker is a SINGLETON so the scoped fetcher's per-tick lifetime cannot forget it just attempted a
         // source — that cross-tick memory gates retries by PollIntervalSeconds instead of every scan tick.
