@@ -31,6 +31,9 @@ features and lack of explaination. so throw in the psychology of how humans inte
 it for once and for all. no more slacking, use multiple research agents and come up with a reliable plan
 to work on. i am tired of asking for the 20th time"
 
+Benchmarks (rule research-is-a-benchmark): `benchmarks/code-editor.md`, `benchmarks/pipeline-editor.md`.
+Every partial or missing row there is a slice below.
+
 Binding UX spec: `spec/editor-ux-rules.md` (25 rules, each with a check; **R#** below). Every slice
 names its rules and proves their checks. Two lanes run in parallel: **Editor** (server
 `Assets/editor/*.js` + `tests/NomNomzBot.E2E.Tests/Editor`) and **Pipeline** (Compose
@@ -38,6 +41,55 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Editor lane
 
+Ranked first (order of `benchmarks/code-editor.md` ## Ranking), then the rest.
+
+- **S-EDITOR-EVENT-TAB** The event sample opens in a Monaco tab (not a textarea) so a streamer edits the
+  JSON with completion before firing it. R10, R11. Done-when: E2E edit in the tab, fire, and the preview
+  receives the edited payload; `scripts/check-editor-inputs.py` passes.
+- **S-EDITOR-TEST-CASES** Save named test cases per widget, with variables for test data (user, amount),
+  and re-run one in a click; they survive reload. R2, R7. Done-when: E2E save a case, reload, run it, and
+  the stored payload fires.
+- **S-EDITOR-JSON-SCHEMA** The event JSON tab validates against a JSON schema built from the event types
+  and marks a bad field. R10, R11. Done-when: test shows a wrong-typed field gives a marker and a valid
+  sample gives zero.
+- **S-EDITOR-REAL-ACTIONS** A test run really sends the widget's chat, TTS, and overlay actions to a test
+  target instead of only recording them. R2, R14. Done-when: E2E widget that speaks TTS produces a real
+  TTS output the test can observe.
+- **S-EDITOR-FIELDS-TAB** A Fields tab defines the widget's settings (text, number, boolean, color) and
+  shows the generated form, wired live into the preview. R9, R13. Done-when: E2E change a field and the
+  preview reads the new `WIDGET_SETTINGS` value.
+- **S-EDITOR-PREVIEW-SIZES** Preview size presets (1080p, 720p, vertical, custom) and a background
+  toggle (transparent, stream frame, chroma). R13. Done-when: E2E switches presets and the iframe size
+  matches; the backdrop changes.
+- **S-EDITOR-REAL-SAMPLES** Every test event sample carries the exact fields Twitch sends for that event
+  type. R2, R19. Done-when: a test compares each sample's fields with the Twitch event reference table
+  and fails on a missing field.
+- **S-EDITOR-CONSOLE-REPL** The console takes typed code in the live widget context, filters by level or
+  text, and supports logpoints (log without editing code). R14, R20. Done-when: E2E type a call, see its
+  result; set a logpoint and see its line.
+- **S-EDITOR-RUN-TIMELINE** Each fire shows status and duration, keeps a history to re-run an earlier
+  send, and lets the streamer inspect the variables of a run. R14, R21. Done-when: E2E two fires show two
+  history rows with duration; re-run replays the first payload.
+- **S-EDITOR-ASSETS** Upload and pick images/sounds/fonts from the editor (AssetsController exists);
+  insert the URL at the cursor. R10, R13. Done-when: E2E upload → asset listed → inserted path loads in
+  the preview.
+- **S-EDITOR-SPLIT-VIEW** Two files open side by side in one editor. R15. Done-when: E2E open two files
+  in split view and edit both.
+- **S-EDITOR-CODE-NAV** Breadcrumbs, go to definition and references across files, rename and quick fix
+  that work in `.vue` files too. R20. Done-when: E2E rename a symbol used in two files, including a `.vue`
+  file, and both update.
+- **S-EDITOR-SNIPPETS** Built-in and user snippets, and Emmet expand in HTML/CSS. R18, R20. Done-when:
+  E2E type an abbreviation and the expansion appears.
+- **S-EDITOR-EXTERNAL-LIBS** Add an external library by URL or npm name, shown in a dependencies panel.
+  R10, R13. Done-when: E2E add a library and the widget imports it in the preview.
+- **S-EDITOR-RUN-CODELENS** A Run CodeLens and a gutter run icon fire the event a handler listens for.
+  R2, R20. Done-when: E2E click the lens above an `.on()` handler and the event fires.
+- **S-EDITOR-EDITOR-SETTINGS** Font size, tab size, custom keyboard shortcuts, and a shortcut list for
+  newcomers. R22. Done-when: E2E change font size and a shortcut, reload, and both persist; the list
+  opens.
+- **S-EDITOR-SHARE-FORK** Share a link to a widget, fork or duplicate one, and import and export a
+  widget file. R6, R13. Done-when: E2E export then import gives an identical widget; fork makes an
+  independent copy.
 - **S-EDITOR-SCRIPT-TEST-PANEL** A script test run shows every output it would cause: chat lines, TTS,
   OBS calls, overlay events — each in plain words. R2, R14, R21. Done-when: E2E run of a script that
   does all four shows four labelled outputs.
@@ -53,14 +105,9 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 - **S-EDITOR-DIALOGS-TABS** Replace `window.prompt`/`confirm` (`editor.js:361,371,384`) with in-page
   dialogs; tabs can close; split view editor|preview is resizable. R15, R22. Done-when: E2E rename,
   delete (with confirm), close tab, and drag the splitter.
-- **S-EDITOR-ASSETS** Upload and pick images/sounds from the editor (AssetsController exists); insert
-  the URL at the cursor. R10, R13. Done-when: E2E upload → asset listed → inserted path loads in the
-  preview.
 - **S-EDITOR-LAST-REAL-EVENT** "Fire the last real one": seed a sample from the event journal for this
   channel, with personal data redacted. R2, R19. Done-when: test proves redaction and that the payload
   fires.
-- **S-EDITOR-PREVIEW-SIZES** Preview size presets (1080p, 720p, vertical, custom) and a background
-  toggle. R13. Done-when: E2E switches presets and the iframe size matches.
 - **S-EDITOR-VERSION-DIFF** Compare any saved version with the current text in a diff view; restore one
   file or all. R6. Done-when: E2E diff shows the change; restore brings it back.
 - **S-EDITOR-SEARCH-REPLACE** Project-wide search with regex and replace; file outline. R20.
@@ -71,6 +118,47 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Pipeline lane
 
+Ranked first (order of `benchmarks/pipeline-editor.md` ## Ranking), then the rest.
+
+- **S-PIPE-TEST-STEP** Test one step alone and see what it did, before trusting the whole chain. R2, R14.
+  Done-when: UI test runs a single `send_chat` step and shows its output without running the others.
+- **S-PIPE-SENTENCE-SUMMARY** Every pipeline and condition reads as one plain sentence ("When someone
+  follows, then say hello"), with an outline of the order the steps run in. R8, R9. Done-when: a test
+  checks the sentence and the outline for a pipeline with a condition and two steps.
+- **S-PIPE-BLOCK-HELP** A help panel for each block says what it does with a plain example; a reference
+  list shows every variable and the text functions on them (lower, upper, length). R9, R10. Done-when: a
+  test fails for any block without help text and an example.
+- **S-PIPE-RECIPES-MORE** More ready-made starting recipes beyond the four that exist, covering the common
+  streamer goals. R1, R18. Done-when: each recipe creates a pipeline that saves and runs a test with zero
+  errors.
+- **S-PIPE-TEST-CASES** Save named sample events (in the Monaco event tab, not a textarea) and pin sample
+  data so later runs reuse it. R2, R7. Done-when: UI test saves a case, reloads, and runs the pipeline
+  with its payload.
+- **S-PIPE-SIMULATE-EVENT** One click fakes a real follow, raid, or subscription with the real Twitch
+  fields and runs the pipeline. R2, R19. Done-when: test fires a simulated raid and the run record holds
+  the raid fields.
+- **S-PIPE-STEP-IO** Each step shows the data it got and the data it made; variables and the argument
+  stack of a past run are inspectable, and a field can be mapped from a tested step's real output. R14,
+  R21. Done-when: UI test shows in/out for two steps of a run and maps a field from the first's output.
+- **S-PIPE-UNDO-DUPLICATE** Undo/redo, duplicate step and pipeline, drag to move or reorder (also into a
+  group), copy/paste steps between pipelines. R6, R13. Done-when: UI test does each and undo restores the
+  previous tree.
+- **S-PIPE-STEP-TOGGLE** Switch a single step off to find a fault, without deleting it. R6, R14.
+  Done-when: a test shows a disabled step is skipped in a run and shown dimmed.
+- **S-PIPE-RERUN** Re-run a past execution with its original data. R14. Done-when: test re-runs a stored
+  execution and the new run receives the same payload.
+- **S-PIPE-TRIGGER-PANEL** Several triggers on one pipeline are shown and edited in one panel. R9, R13.
+  Done-when: UI test adds two triggers to one pipeline and both fire it.
+- **S-PIPE-ERROR-ROUTE** Per-step error route: retry, ignore, or run a fallback step. R14. Done-when: a
+  test makes a step fail and the chosen route runs.
+- **S-PIPE-EDIT-ERRORS** A step with a problem shows a clear message while editing that says how to fix
+  it. R8, R14. Done-when: UI test shows a fix message on a step with a missing required field.
+- **S-PIPE-FOLDERS** Folders or groups to organise pipelines, plus a search for a step or pipeline. R20.
+  Done-when: UI test moves a pipeline into a folder and finds a step by search.
+- **S-PIPE-QUEUES** Action queues with pause and resume. R13. Done-when: test pauses a queue, queues two
+  runs, resumes, and they run in order.
+- **S-PIPE-EXPORT** Export and import a pipeline as a file, and browse a community gallery of shared
+  pipelines. R6, R13. Done-when: test exports then imports into an identical pipeline.
 - **S-PIPE-TYPED-FIELDS** Every action type has typed hints: 110 of 110 (34 still use the raw key/value
   editor, 22 of them `music_*`). R10, R11. Done-when: a test fails for any action without hints.
 - **S-PIPE-EXAMPLES** The field schema gets an `example` property; every field shows a one-line
