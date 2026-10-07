@@ -181,19 +181,16 @@ class ParticipantControllerTest {
     }
 
     @Test
-    fun a_failed_song_submit_keeps_the_queue_and_surfaces_the_reason() = runTest {
+    fun a_failed_song_submit_keeps_the_queue_and_returns_the_reason_to_the_field() = runTest {
         val api = FakeParticipantApi(songRequestResult = ApiResult.Failure(ApiError(503, "ERR", "no provider")))
-        val feedback = RecordingFeedback()
-        val controller =
-            controller(api = api, music = FakeMusicApi(ApiResult.Ok(MusicSnapshot())), feedback = feedback)
+        val controller = controller(api = api, music = FakeMusicApi(ApiResult.Ok(MusicSnapshot())))
         controller.loadNowPlaying()
 
-        controller.submitSongRequest("a song", null)
+        val result: ApiResult<Unit> = controller.submitSongRequest("a song", null)
 
-        // The queue is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The queue is kept (not blown away) and the failure goes back to the request field, which shows it inline.
         assertTrue(controller.nowPlaying.value is NowPlayingState.Ready)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("no provider"), feedback.only.formatArgs)
+        assertEquals("no provider", (result as ApiResult.Failure).error.message)
     }
 
     // ── Leaderboards ─────────────────────────────────────────────────────────

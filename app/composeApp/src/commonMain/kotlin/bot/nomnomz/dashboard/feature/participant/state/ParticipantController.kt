@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.participant.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.ChannelAppearance
@@ -178,18 +179,20 @@ class ParticipantController(
     }
 
     /**
-     * Submit a song-request [query] as the caller. On success reloads the queue so the new track appears; on
-     * failure surfaces the reason on the current Ready state without losing the rendered queue.
+     * Submit a song-request [query] as the caller. On success reloads the queue so the new track appears. The
+     * returned [ApiResult] tells the request field whether the server accepted it: the field clears on
+     * [ApiResult.Ok] only and keeps the typed text, with the reason inline, on [ApiResult.Failure]. A blank query
+     * sends nothing and reports [ApiResult.Ok].
      */
-    suspend fun submitSongRequest(query: String, requestedBy: String?) {
-        if (!hasContext() || query.isBlank()) return
-        when (
-            val result: ApiResult<Unit> =
-                participantApi.submitSongRequest(channelId, query.trim(), requestedBy)
-        ) {
-            is ApiResult.Ok -> loadNowPlaying()
-            is ApiResult.Failure -> feedback.error(Res.string.participant_action_error, result.error.message)
+    suspend fun submitSongRequest(query: String, requestedBy: String?): ApiResult<Unit> {
+        if (query.isBlank()) return ApiResult.Ok(Unit)
+        if (!hasContext()) {
+            val detail: String = getString(Res.string.participant_no_channel)
+            return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = detail))
         }
+        val result: ApiResult<Unit> = participantApi.submitSongRequest(channelId, query.trim(), requestedBy)
+        if (result is ApiResult.Ok) loadNowPlaying()
+        return result
     }
 
     // ── Leaderboards ─────────────────────────────────────────────────────────
