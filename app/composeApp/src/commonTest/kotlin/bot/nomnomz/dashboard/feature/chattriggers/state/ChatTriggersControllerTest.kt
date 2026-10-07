@@ -35,7 +35,6 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_deleted
-import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_saved
 
 // Proves the Chat Triggers page announces every write's outcome on the frame (the "consequence visibility"
@@ -83,7 +82,7 @@ class ChatTriggersControllerTest {
     }
 
     @Test
-    fun a_failed_write_announces_an_error_carrying_the_backend_detail_and_no_success() = runTest {
+    fun a_failed_create_hands_the_backend_reason_back_to_the_dialog_without_a_toast() = runTest {
         val feedback = RecordingFeedback()
         val api =
             FakeChatTriggersApi(
@@ -93,20 +92,21 @@ class ChatTriggersControllerTest {
         val controller = chatTriggersController(api = api, feedback = feedback)
         controller.load()
 
-        controller.createTrigger(
-            pattern = "(",
-            matchType = "regex",
-            caseSensitive = false,
-            isEnabled = true,
-            response = "boom",
-            pipelineId = null,
-            cooldownSeconds = 30,
-            minPermissionLevel = "Everyone",
-        )
+        val result: ApiResult<Unit> =
+            controller.createTrigger(
+                pattern = "(",
+                matchType = "regex",
+                caseSensitive = false,
+                isEnabled = true,
+                response = "boom",
+                pipelineId = null,
+                cooldownSeconds = 30,
+                minPermissionLevel = "Everyone",
+            )
 
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_chat_trigger_save_failed, feedback.only.label)
-        assertEquals(listOf<Any>("regex did not compile"), feedback.only.formatArgs)
+        // The create runs from a dialog that stays open: the reason comes back to it, with no toast on top.
+        assertEquals("regex did not compile", (result as ApiResult.Failure).error.message)
+        assertEquals(emptyList(), feedback.messages)
         // The list is kept intact (not blown away) — never a silent failure.
         val state: ChatTriggersState = controller.state.value
         assertTrue(state is ChatTriggersState.Empty)
