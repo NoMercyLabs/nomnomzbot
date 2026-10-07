@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.feature.setup.state.resumePendingSetupFinish
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import bot.nomnomz.dashboard.feature.shell.ui.ExitImpersonationButton
+import bot.nomnomz.dashboard.feature.shell.ui.ShellAccessFailedScreen
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.core.designsystem.icon.IconPreload
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
@@ -233,6 +234,8 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                         graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
                                     val access: ShellAccess by
                                         graph.shellAccessController.state.collectAsStateWithLifecycle()
+                                    val unreachable: Boolean by
+                                        graph.shellAccessController.unreachable.collectAsStateWithLifecycle()
                                     // Re-resolve the caller's role whenever the active channel changes. The resolve keeps
                                     // the previous channel's access until the new probe lands; ShellScreen renders a
                                     // neutral "switching" state on the channelId mismatch so the old (possibly higher)
@@ -269,7 +272,24 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                         // A blip, not a real answer — the same neutral splash as Loading (distinct from
                                         // the fail-closed viewer UI a definitive Resolved failure renders); [load] is
                                         // re-invoked above shortly after landing here.
-                                        ShellAccess.Retrying -> SplashScreen()
+                                        // After the second failed probe it becomes the "cannot reach the server" screen
+                                        // with a Retry-now button, so a long outage is never an endless splash.
+                                        ShellAccess.Retrying ->
+                                            if (unreachable) {
+                                                UnreachableScreen(
+                                                    onRetry = { scope.launch { graph.shellAccessController.load() } },
+                                                )
+                                            } else {
+                                                SplashScreen()
+                                            }
+                                        // A definitive failure reading the caller's own access: an error with Retry and
+                                        // Sign out — never the viewer surface, never a management one (fail-closed).
+                                        is ShellAccess.Failed ->
+                                            ShellAccessFailedScreen(
+                                                reason = resolved.reason,
+                                                onRetry = { scope.launch { graph.shellAccessController.load() } },
+                                                onSignOut = { scope.launch { graph.connectController.logout() } },
+                                            )
                                         is ShellAccess.Resolved ->
                                             ShellScreen(
                                                 graph = graph,

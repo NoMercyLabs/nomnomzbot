@@ -248,6 +248,9 @@
     <string name="shell_unreachable_title">Kan je bot niet bereiken</string>
     <string name="shell_unreachable_message">Je bent ingelogd, maar de backend reageert nu niet. Er wordt automatisch opnieuw geprobeerd — je sessie blijft behouden.</string>
     <string name="shell_unreachable_retry">Nu opnieuw proberen</string>
+    <string name="shell_access_failed_title">Je toegang kon niet worden geladen</string>
+    <string name="shell_access_failed_message">De server wilde niet zeggen wat je hier mag doen. Er is niets gewijzigd en er worden geen pagina's getoond. Probeer het opnieuw of meld je af.</string>
+    <string name="shell_access_failed_retry">Opnieuw proberen</string>
     <string name="shell_impersonation_exit">Imitatie beëindigen</string>
     <string name="shell_impersonation_revoke_failed">Je bent terug op je eigen account, maar de server heeft de sessie niet gesloten: %1$s</string>
     <string name="shell_impersonation_identity_failed">Het gekozen account kon niet worden geladen. Je bent terug op je eigen account.</string>

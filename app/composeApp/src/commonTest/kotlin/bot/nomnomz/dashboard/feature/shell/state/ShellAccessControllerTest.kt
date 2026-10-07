@@ -180,21 +180,64 @@ class ShellAccessControllerTest {
     }
 
     @Test
-    fun a_definitive_failed_effective_me_call_fails_closed_to_a_viewer() = runTest {
-        // 403 is a DEFINITIVE answer the backend actually computed (the caller is genuinely unauthorized) —
-        // this must still fail closed, never leak the broadcaster surface.
+    fun a_definitive_failed_effective_me_call_is_a_failed_state_not_a_role_less_viewer() = runTest {
+        // 403/404 on the caller's OWN access is a definitive answer, but it is a failed read, not "you are a
+        // viewer": the shell must show an error with Retry, never the viewer surface. Fail-closed still holds:
+        // Failed is not Resolved, so no surface (management or participant) renders from it.
+        for (status: Int in listOf(401, 403, 404)) {
+            val controller =
+                ShellAccessController(
+                    FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                    FakeRolesApi(access = ApiResult.Failure(ApiError(status, "ERR", "denied"))),
+                )
+
+            controller.load()
+
+            assertEquals(ShellAccess.Failed("ERR"), controller.state.value, "status $status")
+        }
+    }
+
+    @Test
+    fun a_failed_state_re_resolves_on_retry_and_unlocks_the_real_role() = runTest {
+        val roles = FakeRolesApi(access = ApiResult.Failure(ApiError(403, null, "denied")))
+        val controller = ShellAccessController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), roles)
+        controller.load()
+        assertEquals(ShellAccess.Failed("HTTP 403"), controller.state.value)
+
+        roles.access = ApiResult.Ok(resolvedAccess(role = WireRole.Editor, level = 30))
+        controller.load()
+
+        assertEquals(ManagementRole.Editor, (controller.state.value as ShellAccess.Resolved).role)
+    }
+
+    @Test
+    fun the_second_consecutive_transient_probe_marks_the_server_unreachable_and_a_real_answer_clears_it() = runTest {
+        val roles = FakeRolesApi(access = ApiResult.Failure(ApiError(503, "ERR", "down")))
+        val controller = ShellAccessController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), roles)
+
+        controller.load()
+        assertEquals(false, controller.unreachable.value, "one blip is still just a splash")
+
+        controller.load()
+        assertEquals(true, controller.unreachable.value)
+        assertEquals(ShellAccess.Retrying, controller.state.value)
+
+        roles.access = ApiResult.Ok(resolvedAccess(role = WireRole.Broadcaster, level = 40))
+        controller.load()
+        assertEquals(false, controller.unreachable.value)
+    }
+
+    @Test
+    fun a_definitive_channel_resolve_failure_other_than_no_channel_is_a_failed_state() = runTest {
         val controller =
             ShellAccessController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeRolesApi(access = ApiResult.Failure(ApiError(403, "ERR", "forbidden"))),
+                FakeChannelsApi(ApiResult.Failure(ApiError(403, "FORBIDDEN", "nope"))),
+                FakeRolesApi(access = ApiResult.Ok(resolvedAccess(role = WireRole.Broadcaster, level = 40))),
             )
 
         controller.load()
 
-        val resolved: ShellAccess.Resolved = controller.state.value as ShellAccess.Resolved
-        assertEquals(null, resolved.role)
-        // Fail closed carries NO held keys — the shell must never surface a management page off a failed resolve.
-        assertTrue(resolved.heldActionKeys.isEmpty())
+        assertEquals(ShellAccess.Failed("FORBIDDEN"), controller.state.value)
     }
 
     @Test
