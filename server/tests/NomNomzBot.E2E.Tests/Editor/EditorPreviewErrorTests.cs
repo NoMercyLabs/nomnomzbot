@@ -166,4 +166,35 @@ public sealed class EditorPreviewErrorTests : EditorPageTest
         await Expect(frame.Locator(".badge")).ToHaveTextAsync("live");
         await Expect(Page.Locator("#previewError")).ToBeHiddenAsync();
     }
+
+    // Every script shape a valid SFC can have. Vue's parser drops an empty <script setup>, so it counts as none.
+    public static TheoryData<string> EverySfcScriptShape() =>
+        new()
+        {
+            // no script
+            "<template><span class=\"logo\">nnz</span></template>\n<style scoped>.logo { color: red; }</style>",
+            // an empty script setup
+            "<script setup lang=\"ts\"></script>\n<template><span class=\"logo\">nnz</span></template>",
+            // an options script
+            "<script lang=\"ts\">\nexport default { data: () => ({ word: 'nnz' }) }\n</script>\n<template><span class=\"logo\">{{ word }}</span></template>",
+            // a script and a script setup
+            "<script lang=\"ts\">\nexport const word = 'nnz'\n</script>\n<script setup lang=\"ts\">\nconst shown = word\n</script>\n<template><span class=\"logo\">{{ shown }}</span></template>",
+        };
+
+    [E2ETheory]
+    [MemberData(nameof(EverySfcScriptShape))]
+    public async Task A_child_component_of_every_script_shape_renders_in_the_preview(string logo)
+    {
+        await OpenAsync(
+            "vue",
+            "index.vue",
+            "<script setup lang=\"ts\">\nimport Logo from './components/Logo.vue'\n</script>\n<template><Logo /></template>\n",
+            "",
+            extraFiles: new() { ["components/Logo.vue"] = logo }
+        );
+
+        await Expect(Page.FrameLocator("#previewFrame").Locator(".logo"))
+            .ToHaveTextAsync("nnz", new() { Timeout = 60_000 });
+        await Expect(Page.Locator("#previewError")).ToBeHiddenAsync();
+    }
 }

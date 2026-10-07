@@ -123,6 +123,40 @@ public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcComp
         mountModule.Should().Contain("./index.vue");
     }
 
+    // Vue's parser drops an empty <script setup>, so both shapes reach the compiler with no script at all.
+    [Theory]
+    [InlineData(
+        "<template><span class=\"logo\">nnz</span></template>\n<style scoped>.logo { color: red; }</style>"
+    )]
+    [InlineData(
+        "<script setup lang=\"ts\"></script>\n<template><span class=\"logo\">nnz</span></template>"
+    )]
+    public async Task A_template_only_sfc_compiles_to_a_component_with_its_render_function(
+        string sfc
+    )
+    {
+        string? materializedEntry = null;
+        IProcessRunner runner = Substitute.For<IProcessRunner>();
+        runner
+            .RunAsync(Arg.Any<ProcessRunRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                materializedEntry = File.ReadAllText(
+                    Path.Combine(ci.Arg<ProcessRunRequest>().WorkingDirectory!, "index.vue")
+                );
+                return new(true, 0, "(function(){})();", string.Empty);
+            });
+
+        Result<WidgetBuildOutput> result = await Build(runner)
+            .BuildAsync(WidgetBuildInput.SingleFile("vue", sfc));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        materializedEntry.Should().Contain("const __sfc_main__ = {};");
+        materializedEntry.Should().Contain("__sfc_main__.render = render;");
+        materializedEntry.Should().Contain("\"logo\"");
+        materializedEntry.Should().NotContain("<template>");
+    }
+
     [Fact]
     public async Task A_broken_vue_sfc_fails_the_compile_and_never_invokes_esbuild()
     {

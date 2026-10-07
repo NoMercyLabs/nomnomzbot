@@ -299,7 +299,6 @@ const DEFAULT_LABELS = Object.freeze({
     previewStarting: 'Starting preview…',
     previewUnavailable: 'Live preview unavailable (it could not load):',
     previewUnavailableHint: 'Save & Compile still builds on the server.',
-    previewSfcNoScript: 'The Vue file has no script block.',
     previewCannotResolve: 'Cannot resolve {path} from {importer}',
     previewErrorBuildTitle: 'The preview could not be built',
     previewErrorRunTitle: 'The widget stopped with an error',

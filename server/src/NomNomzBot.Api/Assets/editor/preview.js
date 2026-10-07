@@ -577,26 +577,15 @@ export function initPreview({
         }
 
         const descriptor = parsed.descriptor;
-        if (!descriptor.scriptSetup && !descriptor.script) throw new Error(t('previewSfcNoScript'));
 
         let hash = 0;
         for (let i = 0; i < path.length; i++) hash = ((hash << 5) - hash + path.charCodeAt(i)) | 0;
         const id = Math.abs(hash).toString(36);
 
         const scoped = descriptor.styles.some((style) => style.scoped);
-        const compiled = vueSfc.compileScript(descriptor, {
-            id,
-            inlineTemplate: true,
-            templateOptions: { scoped },
-            babelParserPlugins: ['typescript'],
-        });
-
-        // The compiled script's lines are not the author's: keep the map so a stack line can be taken back.
-        const scriptMap = createSourceMap(compiled.map);
-        if (scriptMap) pendingVueMaps.set(path, scriptMap);
-
-        // rewriteDefault re-parses the compiled script, which is still TS — it needs the plugin too.
-        let code = vueSfc.rewriteDefault(compiled.content, '__sfc_main', ['typescript']);
+        let code = descriptor.scriptSetup
+            ? compileVueSetupScript(path, descriptor, id, scoped)
+            : compileVueOptionsComponent(path, descriptor, id, scoped);
         if (scoped) code += `\n__sfc_main.__scopeId = "data-v-${id}";`;
 
         let css = '';
@@ -608,6 +597,57 @@ export function initPreview({
         }
 
         return `${code}\nexport default __sfc_main;`;
+    }
+
+    // <script setup> (with or without a plain <script> beside it) inlines the template into setup().
+    function compileVueSetupScript(path, descriptor, id, scoped) {
+        const compiled = vueSfc.compileScript(descriptor, {
+            id,
+            inlineTemplate: true,
+            templateOptions: { scoped },
+            babelParserPlugins: ['typescript'],
+        });
+        return boundScript(path, compiled);
+    }
+
+    // Only <script setup> can inline a template. A plain <script>, or none at all (Vue's parser also drops an
+    // empty <script setup>), gets its template compiled on its own and attached as the render function.
+    function compileVueOptionsComponent(path, descriptor, id, scoped) {
+        let code = 'const __sfc_main = {};';
+        let bindings;
+        if (descriptor.script) {
+            const compiled = vueSfc.compileScript(descriptor, { id, babelParserPlugins: ['typescript'] });
+            bindings = compiled.bindings;
+            code = boundScript(path, compiled);
+        }
+        if (!descriptor.template) return code;
+
+        const template = vueSfc.compileTemplate({
+            source: descriptor.template.content,
+            filename: path,
+            id,
+            scoped,
+            slotted: descriptor.slotted,
+            compilerOptions: { scopeId: scoped ? `data-v-${id}` : undefined, bindingMetadata: bindings },
+        });
+        if (template.errors?.length) {
+            const problem = template.errors[0];
+            throw Object.assign(new Error(problem.message ?? String(problem)), {
+                line: (problem.loc?.start?.line ?? 1) + descriptor.template.loc.start.line - 1,
+            });
+        }
+        const render = template.code.replace(/\bexport (?=function render\b)/, '');
+        return `${code}\n${render}\n__sfc_main.render = render;`;
+    }
+
+    // The compiled script rewritten so the component is bound to __sfc_main.
+    function boundScript(path, compiled) {
+        // The compiled script's lines are not the author's: keep the map so a stack line can be taken back.
+        const scriptMap = createSourceMap(compiled.map);
+        if (scriptMap) pendingVueMaps.set(path, scriptMap);
+
+        // rewriteDefault re-parses the compiled script, which is still TS — it needs the plugin too.
+        return vueSfc.rewriteDefault(compiled.content, '__sfc_main', ['typescript']);
     }
 
     function vueEntrySource() {
