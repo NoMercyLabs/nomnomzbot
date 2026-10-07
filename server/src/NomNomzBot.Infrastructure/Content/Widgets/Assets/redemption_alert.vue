@@ -76,7 +76,7 @@ function showNext(): void {
   requestAnimationFrame(() => { visible.value = true })
   timer = window.setTimeout(() => {
     visible.value = false
-    window.setTimeout(showNext, 400)
+    timer = window.setTimeout(showNext, 400)
   }, Math.max(1000, cfg.durationMs))
 }
 
