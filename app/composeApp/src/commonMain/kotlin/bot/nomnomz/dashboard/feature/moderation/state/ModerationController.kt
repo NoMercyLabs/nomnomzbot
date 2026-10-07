@@ -914,10 +914,19 @@ class ModerationController(
             is ApiResult.Failure -> null
         }
 
-    /** Block [term] in the user's own channel and every channel they moderate, then reload; keeps the outcome. */
-    suspend fun addBlockedTermEverywhere(term: String) {
-        val channel: String = channelId ?: return
-        afterSweep(term, added = true, moderationApi.addBlockedTermEverywhere(channel, term))
+    /**
+     * Block [term] in the user's own channel and every channel they moderate, then reload; keeps the outcome. A
+     * failure is handed back untouched so the confirm dialog shows the reason inline.
+     */
+    suspend fun addBlockedTermEverywhere(term: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return when (val result: ApiResult<NetworkBanResult> = moderationApi.addBlockedTermEverywhere(channel, term)) {
+            is ApiResult.Ok -> {
+                _termSweep.value = TermSweep(term = term, added = true, result = result.value)
+                afterDialogWrite(ApiResult.Ok(Unit))
+            }
+            is ApiResult.Failure -> result
+        }
     }
 
     /** Remove [term] from the user's own channel and every channel they moderate, then reload; keeps the outcome. */
@@ -1055,17 +1064,17 @@ class ModerationController(
         action: String,
         durationSeconds: Int? = null,
         reason: String? = null,
-    ) {
-        val channel: String = channelId ?: return
-        when (
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return when (
             val result: ApiResult<ModerationRule> =
                 moderationApi.createRule(
                     channel,
                     CreateModerationRuleBody(name, type, action, durationSeconds, reason),
                 )
         ) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> setActionError(result.error.message)
+            is ApiResult.Ok -> afterDialogWrite(ApiResult.Ok(Unit))
+            is ApiResult.Failure -> result
         }
     }
 
@@ -1093,9 +1102,9 @@ class ModerationController(
         pattern: String?,
         terms: List<String>?,
         timeoutSeconds: Int?,
-    ) {
-        val channel: String = channelId ?: return
-        when (
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return when (
             val result: ApiResult<ChatFilter> =
                 moderationApi.createChatFilter(
                     channel,
@@ -1109,8 +1118,8 @@ class ModerationController(
                     ),
                 )
         ) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> setActionError(result.error.message)
+            is ApiResult.Ok -> afterDialogWrite(ApiResult.Ok(Unit))
+            is ApiResult.Failure -> result
         }
     }
 

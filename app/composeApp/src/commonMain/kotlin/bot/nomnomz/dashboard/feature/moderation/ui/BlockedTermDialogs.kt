@@ -29,6 +29,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -83,7 +84,7 @@ private fun reachText(reach: SweepReach, known: @Composable (List<String>) -> St
 internal fun BlockEverywhereDialog(
     term: String,
     reach: SweepReach,
-    onConfirm: () -> Unit,
+    onConfirm: suspend () -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     ConfirmDialog(
@@ -98,8 +99,8 @@ internal fun BlockEverywhereDialog(
             },
         confirmLabel = stringResource(Res.string.moderation_terms_everywhere_confirm),
         dismissLabel = stringResource(Res.string.moderation_terms_cancel),
-        onConfirm = onConfirm,
         onDismiss = onDismiss,
+        action = onConfirm,
         confirmEnabled = reach != SweepReach.Loading,
     )
 }

@@ -1169,7 +1169,7 @@ class ModerationControllerTest {
     }
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+internal class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -1188,7 +1188,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-private class FakeCommunityApi(
+internal class FakeCommunityApi(
     private val searchResult: ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList()),
     private val lookupResult: ApiResult<PlatformViewer> = ApiResult.Failure(ApiError(404, "TWITCH_USER_NOT_FOUND", "none")),
 ) : CommunityApi {
@@ -1643,8 +1643,13 @@ internal class FakeModerationApi(
         return ApiResult.Ok(Unit)
     }
 
-    override suspend fun createRule(channelId: String, body: CreateModerationRuleBody): ApiResult<ModerationRule> =
-        ApiResult.Ok(ModerationRule(id = 999, name = body.name, isEnabled = true))
+    val createdRules: MutableList<CreateModerationRuleBody> = mutableListOf()
+    var createRuleResult: ApiResult<ModerationRule>? = null
+
+    override suspend fun createRule(channelId: String, body: CreateModerationRuleBody): ApiResult<ModerationRule> {
+        createdRules.add(body)
+        return createRuleResult ?: ApiResult.Ok(ModerationRule(id = 999, name = body.name, isEnabled = true))
+    }
 
     override suspend fun performAction(
         channelId: String,

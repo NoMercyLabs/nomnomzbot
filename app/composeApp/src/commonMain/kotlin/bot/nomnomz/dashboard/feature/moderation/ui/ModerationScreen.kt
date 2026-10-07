@@ -65,6 +65,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
@@ -723,14 +725,12 @@ fun ModerationScreen(
                     onToggleRule = { id, on -> scope.launch { controller.toggleRule(id, on) } },
                     onDeleteRule = { id -> controller.deleteRule(id) },
                     onCreateRule = { name, type, action, duration, reason ->
-                        scope.launch { controller.createRule(name, type, action, duration, reason) }
+                        controller.createRule(name, type, action, duration, reason)
                     },
                     onToggleChatFilter = { id, on -> scope.launch { controller.toggleChatFilter(id, on) } },
                     onDeleteChatFilter = { id -> controller.deleteChatFilter(id) },
                     onCreateChatFilter = { filterType, name, action, pattern, terms, duration ->
-                        scope.launch {
-                            controller.createChatFilter(filterType, name, action, pattern, terms, duration)
-                        }
+                        controller.createChatFilter(filterType, name, action, pattern, terms, duration)
                     },
                     onSendAnnouncement = { msg, color ->
                         scope.launch { controller.sendAnnouncement(msg, color) }
@@ -779,10 +779,7 @@ fun ModerationScreen(
         BlockEverywhereDialog(
             term = term,
             reach = sweepReach ?: SweepReach.Loading,
-            onConfirm = {
-                pendingBlockEverywhere = null
-                scope.launch { controller.addBlockedTermEverywhere(term) }
-            },
+            onConfirm = { controller.addBlockedTermEverywhere(term).toDialogResult() },
             onDismiss = { pendingBlockEverywhere = null },
         )
     }
@@ -900,17 +897,23 @@ internal fun BansList(
     onRemoveWhitelist: (String) -> Unit,
     onToggleRule: (Int, Boolean) -> Unit,
     onDeleteRule: suspend (Int) -> ApiResult<Unit>,
-    onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onCreateRule: suspend (
+        name: String,
+        type: String,
+        action: String,
+        durationSeconds: Int?,
+        reason: String?,
+    ) -> ApiResult<Unit>,
     onToggleChatFilter: (filterId: String, enabled: Boolean) -> Unit,
     onDeleteChatFilter: suspend (filterId: String) -> ApiResult<Unit>,
-    onCreateChatFilter: (
+    onCreateChatFilter: suspend (
         filterType: String,
         name: String,
         action: String,
         pattern: String?,
         terms: List<String>?,
         timeoutSeconds: Int?,
-    ) -> Unit,
+    ) -> ApiResult<Unit>,
     onSendAnnouncement: (message: String, color: String?) -> Unit,
     onSaveShoutoutTemplate: (String) -> Unit,
     onToggleAutoShoutout: (Boolean) -> Unit,
@@ -1850,8 +1853,7 @@ internal fun BansList(
     if (showCreateRuleDialog) {
         CreateRuleDialog(
             onConfirm = { name, type, action, duration, reason ->
-                onCreateRule(name, type, action, duration, reason)
-                showCreateRuleDialog = false
+                onCreateRule(name, type, action, duration, reason).toDialogResult()
             },
             onDismiss = { showCreateRuleDialog = false },
         )
@@ -1860,8 +1862,7 @@ internal fun BansList(
     if (showCreateChatFilterDialog) {
         CreateChatFilterDialog(
             onConfirm = { filterType, name, action, pattern, terms, duration ->
-                onCreateChatFilter(filterType, name, action, pattern, terms, duration)
-                showCreateChatFilterDialog = false
+                onCreateChatFilter(filterType, name, action, pattern, terms, duration).toDialogResult()
             },
             onDismiss = { showCreateChatFilterDialog = false },
         )
@@ -3779,7 +3780,13 @@ private fun datePart(timestamp: String): String = timestamp.substringBefore('T')
 // optional duration (for timeout action) and reason. The caller owns open/closed state.
 @Composable
 private fun CreateRuleDialog(
-    onConfirm: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onConfirm: suspend (
+        name: String,
+        type: String,
+        action: String,
+        durationSeconds: Int?,
+        reason: String?,
+    ) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3804,25 +3811,26 @@ private fun CreateRuleDialog(
     var selectedAction: String by remember { mutableStateOf(actions.first().first) }
     var durationInput: String by remember { mutableStateOf("600") }
     var reason: String by remember { mutableStateOf("") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.moderation_rules_create_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
+    FormDialog(
+        title = stringResource(Res.string.moderation_rules_create_title),
+        saveLabel = stringResource(Res.string.moderation_rules_create_confirm),
+        cancelLabel = stringResource(Res.string.moderation_rules_create_dismiss),
+        onDismiss = onDismiss,
+        save = {
+            val duration: Int? = if (selectedAction == "timeout") durationInput.trim().toIntOrNull() else null
+            onConfirm(name.trim(), selectedType, selectedAction, duration, reason.trim().takeIf { it.isNotBlank() })
         },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        dirty = name.isNotBlank() || reason.isNotBlank(),
+        valid = name.isNotBlank(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 AppTextField(
                     value = name,
-                    onValueChange = { name = it; nameError = false },
+                    onValueChange = { name = it },
                     label = stringResource(Res.string.moderation_rules_create_name),
-                    isError = nameError,
-                    errorText = if (nameError) stringResource(Res.string.moderation_rules_create_name_required) else null,
+                    isError = false,
+                    errorText = null,
                 )
                 Text(
                     text = stringResource(Res.string.moderation_rules_create_type),
@@ -3866,25 +3874,8 @@ private fun CreateRuleDialog(
                     isError = false,
                     errorText = null,
                 )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isBlank()) { nameError = true; return@Button }
-                    val duration: Int? = if (selectedAction == "timeout") durationInput.trim().toIntOrNull() else null
-                    onConfirm(name.trim(), selectedType, selectedAction, duration, reason.trim().takeIf { it.isNotBlank() })
-                },
-            ) {
-                Text(stringResource(Res.string.moderation_rules_create_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.moderation_rules_create_dismiss))
-            }
-        },
-    )
+        }
+    }
 }
 
 // Dialog to create a new chat filter (J.6, S066): a regex pattern or a literal word list, with an action.
@@ -3893,14 +3884,14 @@ private fun CreateRuleDialog(
 // above renders the name the backend returns.
 @Composable
 private fun CreateChatFilterDialog(
-    onConfirm: (
+    onConfirm: suspend (
         filterType: String,
         name: String,
         action: String,
         pattern: String?,
         terms: List<String>?,
         timeoutSeconds: Int?,
-    ) -> Unit,
+    ) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3925,28 +3916,36 @@ private fun CreateChatFilterDialog(
     var pattern: String by remember { mutableStateOf("") }
     var termsInput: String by remember { mutableStateOf("") }
     var durationInput: String by remember { mutableStateOf("600") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
-    var patternError: Boolean by remember { mutableStateOf(false) }
+    val terms: List<String> = termsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    val valid: Boolean =
+        name.isNotBlank() && if (selectedType == "Regex") pattern.isNotBlank() else terms.isNotEmpty()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.moderation_chat_filters_create_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
+    FormDialog(
+        title = stringResource(Res.string.moderation_chat_filters_create_title),
+        saveLabel = stringResource(Res.string.moderation_chat_filters_create_confirm),
+        cancelLabel = stringResource(Res.string.moderation_chat_filters_create_dismiss),
+        onDismiss = onDismiss,
+        save = {
+            val duration: Int? = if (selectedAction == "Timeout") durationInput.trim().toIntOrNull() else null
+            onConfirm(
+                selectedType,
+                name.trim(),
+                selectedAction,
+                pattern.trim().takeIf { selectedType == "Regex" },
+                terms.takeIf { selectedType == "Blocklist" },
+                duration,
             )
         },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        dirty = name.isNotBlank() || pattern.isNotBlank() || termsInput.isNotBlank(),
+        valid = valid,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 AppTextField(
                     value = name,
-                    onValueChange = { name = it; nameError = false },
+                    onValueChange = { name = it },
                     label = stringResource(Res.string.moderation_chat_filters_create_name),
-                    isError = nameError,
-                    errorText =
-                        if (nameError) stringResource(Res.string.moderation_chat_filters_create_name_required)
-                        else null,
+                    isError = false,
+                    errorText = null,
                 )
                 Text(
                     text = stringResource(Res.string.moderation_chat_filters_create_type),
@@ -3964,24 +3963,18 @@ private fun CreateChatFilterDialog(
                 if (selectedType == "Regex") {
                     AppTextField(
                         value = pattern,
-                        onValueChange = { pattern = it; patternError = false },
+                        onValueChange = { pattern = it },
                         label = stringResource(Res.string.moderation_chat_filters_create_pattern),
-                        isError = patternError,
-                        errorText =
-                            if (patternError)
-                                stringResource(Res.string.moderation_chat_filters_create_pattern_required)
-                            else null,
+                        isError = false,
+                        errorText = null,
                     )
                 } else {
                     AppTextField(
                         value = termsInput,
-                        onValueChange = { termsInput = it; patternError = false },
+                        onValueChange = { termsInput = it },
                         label = stringResource(Res.string.moderation_chat_filters_create_terms),
-                        isError = patternError,
-                        errorText =
-                            if (patternError)
-                                stringResource(Res.string.moderation_chat_filters_create_terms_required)
-                            else null,
+                        isError = false,
+                        errorText = null,
                     )
                 }
                 Text(
@@ -4007,36 +4000,7 @@ private fun CreateChatFilterDialog(
                     )
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isBlank()) { nameError = true; return@Button }
-                    val terms: List<String> =
-                        termsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                    if (selectedType == "Regex" && pattern.isBlank()) { patternError = true; return@Button }
-                    if (selectedType == "Blocklist" && terms.isEmpty()) { patternError = true; return@Button }
-                    val duration: Int? =
-                        if (selectedAction == "Timeout") durationInput.trim().toIntOrNull() else null
-                    onConfirm(
-                        selectedType,
-                        name.trim(),
-                        selectedAction,
-                        pattern.trim().takeIf { selectedType == "Regex" },
-                        terms.takeIf { selectedType == "Blocklist" },
-                        duration,
-                    )
-                },
-            ) {
-                Text(stringResource(Res.string.moderation_chat_filters_create_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.moderation_chat_filters_create_dismiss))
-            }
-        },
-    )
+    }
 }
 
 // Dialog to send a Twitch chat announcement with an optional color tint. The message is required; color
