@@ -58,9 +58,7 @@ public sealed class SubTrainSeedProviderTests
     private static int Total(IReadOnlyList<WidgetSeedFrame> frames) =>
         frames.Sum(f =>
             f.EventType == "gift"
-                ? ((JsonElement)JsonSerializer.SerializeToElement(f.Data))
-                    .GetProperty("count")
-                    .GetInt32()
+                ? JsonSerializer.SerializeToElement(f.Data).GetProperty("count").GetInt32()
                 : 1
         );
 
