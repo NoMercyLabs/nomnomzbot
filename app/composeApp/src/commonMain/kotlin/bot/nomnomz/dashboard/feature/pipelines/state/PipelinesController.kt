@@ -179,14 +179,18 @@ class PipelinesController(
 
     // ── List-level writes ────────────────────────────────────────────────────
 
-    /** Create a pipeline (empty starter chain), then reload the list so the new row appears. */
-    suspend fun createPipeline(name: String, description: String?) {
+    /**
+     * Create a pipeline, then reload the list so the new row appears. It starts from the [recipe]'s graph (texts in
+     * the user's language) or, with no recipe, from the empty starter chain.
+     */
+    suspend fun createPipeline(name: String, description: String?, recipe: PipelineRecipe? = null) {
         val channel: String = channelId ?: return failList(noChannelError())
+        val graph: PipelineGraph = if (recipe == null) PipelineGraph() else PipelineRecipes.graph(recipe)
         val body =
             CreatePipelineBody(
                 name = name,
                 description = description?.takeIf { it.isNotBlank() },
-                graph = PipelineGraph().toJson(),
+                graph = graph.toJson(),
             )
         afterListWrite(pipelinesApi.create(channel, body))
     }

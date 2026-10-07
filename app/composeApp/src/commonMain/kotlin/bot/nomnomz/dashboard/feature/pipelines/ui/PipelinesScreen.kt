@@ -124,6 +124,7 @@ import bot.nomnomz.dashboard.feature.pipelines.state.LoopConfigFields
 import bot.nomnomz.dashboard.feature.pipelines.state.PickerOption
 import bot.nomnomz.dashboard.feature.pipelines.state.decodeLoopConfig
 import bot.nomnomz.dashboard.feature.pipelines.state.encodeLoopConfig
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineRecipe
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -552,11 +553,11 @@ private fun ListContent(
         PipelineFormDialog(
             editor = open,
             onDismiss = { editor = null },
-            onSubmit = { name, description ->
+            onSubmit = { name, description, recipe ->
                 val target: PipelineEditor = open
                 editor = null
                 scope.launch {
-                    if (target.id == null) controller.createPipeline(name, description)
+                    if (target.id == null) controller.createPipeline(name, description, recipe)
                     else controller.renamePipeline(target.id, name, description)
                 }
             },
@@ -3312,16 +3313,17 @@ private fun RolePicker(selected: String, onSelect: (String) -> Unit) {
 // ── The create/rename pipeline dialog ─────────────────────────────────────────
 
 @Composable
-private fun PipelineFormDialog(
+internal fun PipelineFormDialog(
     editor: PipelineEditor,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, description: String?) -> Unit,
+    onSubmit: (name: String, description: String?, recipe: PipelineRecipe?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     var name: String by remember { mutableStateOf(editor.name) }
     var description: String by remember { mutableStateOf(editor.description) }
+    var recipe: PipelineRecipe? by remember { mutableStateOf(null) }
 
     val canSubmit: Boolean = name.isNotBlank()
     val title: String =
@@ -3346,10 +3348,13 @@ private fun PipelineFormDialog(
                     label = stringResource(Res.string.pipelines_dialog_description_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (editor.id == null) {
+                    PipelineRecipePicker(selected = recipe, onSelect = { recipe = it }, modifier = Modifier.fillMaxWidth())
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSubmit(name, description) }, enabled = canSubmit) {
+            TextButton(onClick = { onSubmit(name, description, recipe) }, enabled = canSubmit) {
                 Text(text = submitLabel, color = if (canSubmit) tokens.primary else tokens.mutedForeground)
             }
         },
@@ -3613,7 +3618,7 @@ private fun paramsFor(
     }
 
 // The create/rename dialog seed: a null [id] is a create (blank), an id is a rename of that pipeline.
-private data class PipelineEditor(val id: String?, val name: String, val description: String) {
+internal data class PipelineEditor(val id: String?, val name: String, val description: String) {
     companion object {
         fun create(): PipelineEditor = PipelineEditor(id = null, name = "", description = "")
 
