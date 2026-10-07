@@ -26,7 +26,7 @@ public sealed class EditorPreviewTests : PageTest
         <html><head></head><body><p id="out">waiting</p>
         <script>
         NomNomz.on('follow', function (d) {
-            document.getElementById('out').textContent = WIDGET_NAME + ' ' + NomNomz.settings.color + ' ' + d.user_name;
+            document.getElementById('out').textContent = NomNomz.widget.name + ' ' + NomNomz.settings.color + ' ' + d.user_name;
             NomNomz.actions.invoke('obs_switch_scene', { scene: 'BRB' });
         });
         NomNomz.on('cheer', function () { throw new Error('boom'); });

@@ -31,6 +31,9 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Overlay")]
 public class OverlayController : BaseController
 {
+    /// <summary>The header the overlay SDK sends its token in, so the token stays out of URLs and logs.</summary>
+    private const string TokenHeaderName = "X-Overlay-Token";
+
     private readonly IWidgetService _widgetService;
 
     public OverlayController(IWidgetService widgetService)
@@ -38,11 +41,21 @@ public class OverlayController : BaseController
         _widgetService = widgetService;
     }
 
+    /// <summary>
+    /// The overlay token of the request: the <c>?token=</c> query when present (older clients), else the
+    /// <c>X-Overlay-Token</c> header the SDK sends.
+    /// </summary>
+    private string? ResolveToken(string? queryToken) =>
+        string.IsNullOrWhiteSpace(queryToken)
+            ? Request.Headers[TokenHeaderName].ToString()
+            : queryToken;
+
     /// <summary>Resolve a channel's overlay manifest by its overlay token.</summary>
     [HttpGet("manifest")]
     [ProducesResponseType<StatusResponseDto<OverlayManifest>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetManifest([FromQuery] string? token, CancellationToken ct)
     {
+        token = ResolveToken(token);
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 
@@ -64,6 +77,7 @@ public class OverlayController : BaseController
         CancellationToken ct
     )
     {
+        token = ResolveToken(token);
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 
@@ -85,6 +99,7 @@ public class OverlayController : BaseController
         CancellationToken ct
     )
     {
+        token = ResolveToken(token);
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 
@@ -110,6 +125,7 @@ public class OverlayController : BaseController
         CancellationToken ct
     )
     {
+        token = ResolveToken(token);
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 
@@ -129,6 +145,7 @@ public class OverlayController : BaseController
         CancellationToken ct
     )
     {
+        token = ResolveToken(token);
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 
@@ -153,6 +170,7 @@ public class OverlayController : BaseController
         CancellationToken ct
     )
     {
+        token = ResolveToken(token);
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 

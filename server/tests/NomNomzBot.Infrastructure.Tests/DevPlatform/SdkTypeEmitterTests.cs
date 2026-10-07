@@ -404,9 +404,20 @@ public sealed class SdkTypeEmitterTests
                 "  reportYouTubePlayerState(videoId: string, state: string, positionMs: number): Promise<boolean>;"
             );
         ts.Should().Contain("  readonly settings: Record<string, unknown>;");
-        ts.Should().Contain("declare const WIDGET_ID: string;");
-        ts.Should().Contain("declare const WIDGET_TOKEN: string;");
-        ts.Should().Contain("declare const WIDGET_NAME: string;");
+        ts.Should().Contain("  readonly data: NnzOverlayData;");
+        ts.Should().Contain("  readonly spotify: NnzOverlaySpotify;");
+        ts.Should().Contain("  readonly widget: NnzOverlayWidget;");
+        ts.Should().Contain("  nowPlaying(): Promise<NnzWidgetEventMap['now_playing'] | null>;");
+        ts.Should().Contain("  queue(): Promise<NnzMusicQueueItem[]>;");
+        ts.Should().Contain("  storage(key: string): Promise<string | null>;");
+        ts.Should()
+            .Contain(
+                "  playbackToken(): Promise<{ token: string } | { error: 'blocked' | 'error' }>;"
+            );
+        // The widget's id, name and token belong to the SDK; widget code is never invited to read the token.
+        ts.Should().NotContain("WIDGET_TOKEN");
+        ts.Should().NotContain("declare const WIDGET_ID");
+        ts.Should().NotContain("declare const WIDGET_NAME");
         ts.Should().Contain("declare const WIDGET_SETTINGS: Record<string, unknown>;");
         ts.Should().Contain("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
 

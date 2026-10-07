@@ -50,9 +50,37 @@ public sealed class EditorPreviewSdkTests
         OverlaySdkRuntime live = OverlaySdkRuntime.Connected();
         Engine preview = Preview();
         const string surface =
-            "Object.keys(window.NomNomz).sort().join(',') + '|' + Object.keys(window.NomNomz.actions).sort().join(',')";
+            "Object.keys(window.NomNomz).sort().join(',') + '|' + ['actions', 'data', 'spotify', 'widget']"
+            + ".map(function (k) { return k + ':' + Object.keys(window.NomNomz[k]).sort().join(','); }).join('|')";
 
         Text(preview, surface).Should().Be(live.Text(surface));
+    }
+
+    [Fact]
+    public void A_data_read_in_the_preview_answers_a_sample_and_is_shown_to_the_author_and_never_fetches()
+    {
+        Engine preview = Preview();
+        preview.Execute(
+            """
+            var fetch = function () { throw new Error("the preview must not touch the network"); };
+            var track = null; var queue = null; var stored = "unset"; var spotify = null;
+            NomNomz.data.nowPlaying().then(function (d) { track = d.track; });
+            NomNomz.data.queue().then(function (q) { queue = q.length; });
+            NomNomz.data.storage("holder").then(function (v) { stored = v; });
+            NomNomz.spotify.playbackToken().then(function (r) { spotify = r.error; });
+            """
+        );
+
+        Text(preview, "track").Should().Be("Preview Track");
+        Text(preview, "queue").Should().Be("0");
+        Text(preview, "stored === null").Should().Be("true");
+        Text(preview, "spotify").Should().Be("error");
+        Text(
+                preview,
+                "__told.filter(function (t) { return t.kind === 'data'; }).map(function (t) { return t.what + (t.key ? ' ' + t.key : ''); }).join('|')"
+            )
+            .Should()
+            .Be("nowPlaying|queue|storage holder|spotify.playbackToken");
     }
 
     [Fact]

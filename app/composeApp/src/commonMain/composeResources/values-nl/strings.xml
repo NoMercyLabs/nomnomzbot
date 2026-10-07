@@ -6205,6 +6205,7 @@
     <string name="editor_preview_log_ran">{actionType} uitgevoerd {params}</string>
     <string name="editor_preview_log_ran_failed">{actionType} mislukt {params}: {code}</string>
     <string name="editor_preview_log_claim">{key} geclaimd</string>
+    <string name="editor_preview_log_data">{what} gelezen (voorbeeldgegevens)</string>
     <string name="editor_preview_log_error">Fout</string>
     <string name="editor_console_title">Console</string>
     <string name="editor_console_clear">Wissen</string>

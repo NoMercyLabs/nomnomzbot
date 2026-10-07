@@ -224,6 +224,89 @@ public sealed partial class OverlaySdkSurfaceDriftTests
                 "WIDGET_SETTINGS",
                 "WIDGET_TOKEN"
             );
-        declared.Should().Equal(injected);
+        // The id, name and token are the SDK's (NomNomz.widget and its own requests): widget code is not
+        // invited to read them, so only the config a widget really consumes is declared.
+        declared.Should().Equal("WIDGET_EVENT_SUBSCRIPTIONS", "WIDGET_SETTINGS");
     }
+
+    [Fact]
+    public void Widget_dts_declares_exactly_the_nested_members_the_served_overlay_sdk_exposes()
+    {
+        Dictionary<string, List<string>> runtime = RuntimeNestedMembers(ServedSdk());
+        Dictionary<string, List<string>> declared = DeclaredNestedMembers(WidgetDts());
+
+        runtime.Keys.Should().BeEquivalentTo("actions", "data", "spotify", "widget");
+        declared.Keys.Should().BeEquivalentTo(runtime.Keys);
+        foreach (string key in runtime.Keys)
+            declared[key]
+                .Should()
+                .BeEquivalentTo(
+                    runtime[key],
+                    $"NomNomz.{key} must declare exactly the members the runtime exposes"
+                );
+    }
+
+    /// <summary>Each nested literal of the SDK object (<c>actions: {</c>, <c>data: {</c> …) and its own members.</summary>
+    private static Dictionary<string, List<string>> RuntimeNestedMembers(string sdkJs)
+    {
+        Dictionary<string, List<string>> nested = [];
+        string? current = null;
+        bool inside = false;
+        int depth = 0;
+
+        foreach (string line in sdkJs.Split('\n').Select(l => l.TrimEnd('\r')))
+        {
+            if (!inside)
+            {
+                if (!ApiLiteralStart().IsMatch(line))
+                    continue;
+                inside = true;
+                depth = 1;
+                continue;
+            }
+
+            if (depth == 1)
+            {
+                Match opener = NestedLiteralStart().Match(line);
+                current = opener.Success ? opener.Groups[1].Value : null;
+                if (current is not null)
+                    nested[current] = [];
+            }
+            else if (depth == 2 && current is not null)
+            {
+                Match hit = JsMember().Match(line);
+                if (hit.Success)
+                    nested[current].Add(hit.Groups[1].Value);
+            }
+
+            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
+            if (depth <= 0)
+                break;
+        }
+        return nested;
+    }
+
+    /// <summary>The members of every interface the SDK interface points at (<c>readonly data: NnzOverlayData</c>).</summary>
+    private static Dictionary<string, List<string>> DeclaredNestedMembers(string dts)
+    {
+        Dictionary<string, List<string>> nested = [];
+        int open = dts.IndexOf("interface NnzOverlaySdk {", StringComparison.Ordinal);
+        int close = dts.IndexOf("\n}", open, StringComparison.Ordinal);
+        string sdkInterface = dts[open..close];
+        foreach (Match member in DeclaredNestedReference().Matches(sdkInterface))
+        {
+            Regex start = new($@"^interface {member.Groups[2].Value} \{{\s*$");
+            nested[member.Groups[1].Value] =
+            [
+                .. BlockMembers(dts, start, TsMember()).Distinct(StringComparer.Ordinal),
+            ];
+        }
+        return nested;
+    }
+
+    [GeneratedRegex(@"^\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*\{\s*$")]
+    private static partial Regex NestedLiteralStart();
+
+    [GeneratedRegex(@"^  readonly ([a-z][A-Za-z0-9]*): (Nnz[A-Za-z0-9]+);", RegexOptions.Multiline)]
+    private static partial Regex DeclaredNestedReference();
 }
