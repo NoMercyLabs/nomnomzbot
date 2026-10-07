@@ -100,15 +100,17 @@ class MyDataController(
      */
     suspend fun fetchErasurePreview(): ApiResult<ErasurePreview> = gdprApi.previewErasure()
 
-    /** Request erasure of the caller's data (default deployment scope) — reloads to show the new request. */
-    suspend fun requestErasure() {
-        afterWrite(gdprApi.requestErasure())
-    }
+    /**
+     * Request erasure of the caller's data (default deployment scope). Reloads on success; a failure is returned
+     * for the confirm dialog to show inline.
+     */
+    suspend fun requestErasure(): ApiResult<Unit> = afterDialogWrite(gdprApi.requestErasure())
 
-    /** Opt out of analytics/marketing without erasing the account — reloads to show the new request. */
-    suspend fun optOut() {
-        afterWrite(gdprApi.optOut())
-    }
+    /**
+     * Opt out of analytics/marketing without erasing the account. Reloads on success; a failure is returned for
+     * the confirm dialog to show inline.
+     */
+    suspend fun optOut(): ApiResult<Unit> = afterDialogWrite(gdprApi.optOut())
 
     /** Grant a consent for [consentType] under [lawfulBasis] (the caller is the subject) — reloads on success. */
     suspend fun grantConsent(consentType: String, lawfulBasis: String) {
@@ -124,12 +126,24 @@ class MyDataController(
         )
     }
 
-    /** Withdraw the consent of [consentType] (a tombstone — the record stays listed). Reloads on success. */
-    suspend fun withdrawConsent(consentType: String) {
-        afterWrite(gdprApi.withdrawConsent(consentType))
-    }
+    /**
+     * Withdraw the consent of [consentType] (a tombstone — the record stays listed). Reloads on success; a
+     * failure is returned for the confirm dialog to show inline.
+     */
+    suspend fun withdrawConsent(consentType: String): ApiResult<Unit> =
+        afterDialogWrite(gdprApi.withdrawConsent(consentType))
 
     // ── internals ────────────────────────────────────────────────────────────
+
+    // A dialog-owned write: the failure goes back to the open dialog (inline reason), never to the toast.
+    private suspend fun afterDialogWrite(result: ApiResult<*>): ApiResult<Unit> =
+        when (result) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
 
     private suspend fun afterWrite(result: ApiResult<*>) {
         when (result) {

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ErasurePreview
@@ -51,7 +52,7 @@ class ErasureConfirmDialogTest {
                                     "gdpr_erasure_category_keys" to 2,
                                 )
                             ),
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -75,7 +76,7 @@ class ErasureConfirmDialogTest {
                 NomNomzTheme {
                     ErasureConfirmDialog(
                         preview = ErasurePreviewLoadState.Loaded(ErasurePreview()),
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -94,7 +95,7 @@ class ErasureConfirmDialogTest {
                 NomNomzTheme {
                     ErasureConfirmDialog(
                         preview = ErasurePreviewLoadState.Failed,
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -117,7 +118,7 @@ class ErasureConfirmDialogTest {
                 NomNomzTheme {
                     ErasureConfirmDialog(
                         preview = ErasurePreviewLoadState.Loading,
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -140,7 +141,10 @@ class ErasureConfirmDialogTest {
                 NomNomzTheme {
                     ErasureConfirmDialog(
                         preview = ErasurePreviewLoadState.Failed,
-                        onConfirm = { confirmed = true },
+                        action = {
+                            confirmed = true
+                            DialogResult.Done
+                        },
                         onDismiss = {},
                     )
                 }

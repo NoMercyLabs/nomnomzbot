@@ -40,6 +40,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -156,11 +157,8 @@ fun MyDataScreen(controller: MyDataController) {
             message = stringResource(Res.string.mydata_optout_confirm_message),
             confirmLabel = stringResource(Res.string.mydata_optout_confirm),
             dismissLabel = stringResource(Res.string.mydata_cancel),
-            onConfirm = {
-                showOptOut = false
-                scope.launch { controller.optOut() }
-            },
             onDismiss = { showOptOut = false },
+            action = { controller.optOut().toDialogResult() },
         )
     }
 
@@ -177,11 +175,8 @@ fun MyDataScreen(controller: MyDataController) {
         }
         ErasureConfirmDialog(
             preview = preview,
-            onConfirm = {
-                showErase = false
-                scope.launch { controller.requestErasure() }
-            },
             onDismiss = { showErase = false },
+            action = { controller.requestErasure().toDialogResult() },
         )
     }
 
@@ -202,11 +197,8 @@ fun MyDataScreen(controller: MyDataController) {
             confirmLabel = stringResource(Res.string.mydata_withdraw_confirm),
             dismissLabel = stringResource(Res.string.mydata_cancel),
             destructive = true,
-            onConfirm = {
-                pendingWithdraw = null
-                scope.launch { controller.withdrawConsent(record.consentType) }
-            },
             onDismiss = { pendingWithdraw = null },
+            action = { controller.withdrawConsent(record.consentType).toDialogResult() },
         )
     }
 }

@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.mydata.ui
 
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.network.ErasurePreview
 import bot.nomnomz.dashboard.core.network.ErasurePreviewCategory
 import org.jetbrains.compose.resources.StringResource
@@ -70,7 +71,11 @@ sealed interface ErasurePreviewLoadState {
  * crypto-shreds keys, so proceeding on an unknown blast radius is not a trade the user should be offered.
  */
 @Composable
-fun ErasureConfirmDialog(preview: ErasurePreviewLoadState, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+fun ErasureConfirmDialog(
+    preview: ErasurePreviewLoadState,
+    onDismiss: () -> Unit,
+    action: suspend () -> DialogResult,
+) {
     val baseMessage: String = stringResource(Res.string.mydata_erase_confirm_message)
     val blastRadiusLine: String = blastRadiusMessage(preview)
 
@@ -81,8 +86,8 @@ fun ErasureConfirmDialog(preview: ErasurePreviewLoadState, onConfirm: () -> Unit
         dismissLabel = stringResource(Res.string.mydata_cancel),
         destructive = true,
         confirmEnabled = preview is ErasurePreviewLoadState.Loaded,
-        onConfirm = onConfirm,
         onDismiss = onDismiss,
+        action = action,
     )
 }
 
