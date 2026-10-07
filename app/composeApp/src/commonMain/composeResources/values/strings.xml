@@ -6220,6 +6220,7 @@
     <string name="editor_preview_log_fired">Fired {type}</string>
     <string name="editor_preview_fire_search">Search events</string>
     <string name="editor_preview_fire_no_match">No event matches your search.</string>
+    <string name="editor_preview_fire_no_events">This widget listens to no events yet. Add nnz.on('follow', …) to your code and the event shows up here.</string>
     <string name="editor_preview_fire_close">Close</string>
     <string name="editor_event_fire_shortcut">Ctrl+Enter fires it</string>
     <string name="editor_preview_fire_send">Fire with this data</string>
