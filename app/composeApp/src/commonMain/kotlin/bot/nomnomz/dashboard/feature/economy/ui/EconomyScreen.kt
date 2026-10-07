@@ -57,7 +57,10 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -450,12 +453,10 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onJarWithdraw = { jarId, request -> controller.withdraw(jarId, request) },
                     loadJarHistory = controller::jarHistory,
                     onAdjustAccount = { viewerUserId, amount, reason ->
-                        scope.launch { controller.adjustAccount(viewerUserId, amount, reason) }
+                        controller.adjustAccount(viewerUserId, amount, reason)
                     },
                     loadLedger = controller::loadLedger,
-                    onTransfer = { request ->
-                        scope.launch { controller.transfer(request) }
-                    },
+                    onTransfer = { request -> controller.transfer(request) },
                     searchViewers = { query -> controller.searchViewers(query) },
                     searchChannels = { query -> controller.searchChannels(query) },
                     onRefundPurchase = { purchaseId ->
@@ -516,9 +517,9 @@ private fun ReadyContent(
     onJarContribute: suspend (jarId: String, AdminJarContributeBody) -> Unit,
     onJarWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
     loadJarHistory: suspend (jarId: String) -> List<JarMovement>?,
-    onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    onAdjustAccount: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
-    onTransfer: (TransferBody) -> Unit,
+    onTransfer: suspend (TransferBody) -> ApiResult<Unit>,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
     onRefundPurchase: (purchaseId: Long) -> Unit,
@@ -1596,7 +1597,7 @@ private fun LeaderboardOptOutDialog(
 // the current balance, and a freeze / unfreeze action gated at the page's Editor floor. Balance adjustments are
 // a follow-up management surface.
 @Composable
-private fun AccountsSection(
+internal fun AccountsSection(
     accounts: List<CurrencyAccountSummary>,
     page: Int,
     hasMore: Boolean,
@@ -1604,9 +1605,9 @@ private fun AccountsSection(
     onNextPage: () -> Unit,
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
-    onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    onAdjust: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
-    onTransfer: (TransferBody) -> Unit,
+    onTransfer: suspend (TransferBody) -> ApiResult<Unit>,
     searchViewers: suspend (query: String) -> List<PickerOption>,
 ) {
     val tokens = LocalTokens.current
@@ -1686,7 +1687,7 @@ private fun AccountsSection(
     if (showTransfer) {
         TransferDialog(
             searchViewers = searchViewers,
-            onConfirm = { request -> showTransfer = false; onTransfer(request) },
+            onConfirm = onTransfer,
             onDismiss = { showTransfer = false },
         )
     }
@@ -1697,7 +1698,7 @@ private fun AccountRow(
     account: CurrencyAccountSummary,
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
-    onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    onAdjust: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
 ) {
@@ -1814,10 +1815,7 @@ private fun AccountRow(
             // the picker shows it with a "Change" affordance so the operator can retarget without leaving.
             initial = PickerRef(account.viewerUserId, account.viewerDisplayName),
             searchViewers = searchViewers,
-            onConfirm = { viewerUserId, amount, reason ->
-                showAdjust = false
-                onAdjust(viewerUserId, amount, reason)
-            },
+            onConfirm = onAdjust,
             onDismiss = { showAdjust = false },
         )
     }
@@ -1836,7 +1834,7 @@ private fun AccountRow(
 private fun AccountAdjustDialog(
     initial: PickerRef?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
-    onConfirm: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    onConfirm: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1852,48 +1850,44 @@ private fun AccountAdjustDialog(
     val amountValid: Boolean = amount != null
     val canConfirm: Boolean = amountValid && target != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.economy_account_adjust_title, target?.name.orEmpty()), style = typography.lg, color = tokens.cardForeground) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                SearchPickerField(
-                    search = searchViewers,
-                    selected = target,
-                    onSelect = { ref -> target = ref },
-                    onClear = { target = null },
-                )
-                AppTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it.filter { c -> c == '-' || c.isDigit() } },
-                    label = stringResource(Res.string.economy_account_adjust_amount),
-                    isError = amountText.isNotBlank() && !amountValid,
-                    errorText = if (amountText.isNotBlank() && !amountValid) stringResource(Res.string.economy_account_adjust_amount_invalid) else null,
-                )
-                AppTextField(
-                    value = reason,
-                    onValueChange = { reason = it },
-                    label = stringResource(Res.string.economy_account_adjust_reason),
-                    isError = false,
-                    errorText = null,
-                )
+    FormDialog(
+        title = stringResource(Res.string.economy_account_adjust_title, target?.name.orEmpty()),
+        saveLabel = stringResource(Res.string.economy_account_adjust_confirm),
+        cancelLabel = stringResource(Res.string.economy_account_adjust_cancel),
+        onDismiss = onDismiss,
+        dirty = amountText.isNotEmpty() || reason.isNotEmpty() || target != initial,
+        valid = canConfirm,
+        save = {
+            val picked: PickerRef? = target
+            val value: Long? = amount
+            if (picked == null || value == null) {
+                DialogResult.Failed()
+            } else {
+                onConfirm(picked.id, value, reason.trim().ifBlank { null }).toDialogResult()
             }
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val picked: PickerRef? = target
-                    if (canConfirm && picked != null) {
-                        onConfirm(picked.id, amount!!, reason.trim().ifBlank { null })
-                    }
-                },
-                enabled = canConfirm,
-            ) {
-                Text(stringResource(Res.string.economy_account_adjust_confirm))
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_account_adjust_cancel)) } },
-    )
+    ) {
+        SearchPickerField(
+            search = searchViewers,
+            selected = target,
+            onSelect = { ref -> target = ref },
+            onClear = { target = null },
+        )
+        AppTextField(
+            value = amountText,
+            onValueChange = { amountText = it.filter { c -> c == '-' || c.isDigit() } },
+            label = stringResource(Res.string.economy_account_adjust_amount),
+            isError = amountText.isNotBlank() && !amountValid,
+            errorText = if (amountText.isNotBlank() && !amountValid) stringResource(Res.string.economy_account_adjust_amount_invalid) else null,
+        )
+        AppTextField(
+            value = reason,
+            onValueChange = { reason = it },
+            label = stringResource(Res.string.economy_account_adjust_reason),
+            isError = false,
+            errorText = null,
+        )
+    }
 }
 
 @Composable
@@ -1977,7 +1971,7 @@ private fun LedgerDialog(
 @Composable
 private fun TransferDialog(
     searchViewers: suspend (query: String) -> List<PickerOption>,
-    onConfirm: (TransferBody) -> Unit,
+    onConfirm: suspend (TransferBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1995,77 +1989,67 @@ private fun TransferDialog(
     val sameAccount: Boolean = from != null && to != null && from?.id == to?.id
     val canConfirm: Boolean = from != null && to != null && !sameAccount && amount != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(Res.string.economy_transfer_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                SearchPickerField(
-                    search = searchViewers,
-                    selected = from,
-                    onSelect = { ref -> from = ref },
-                    onClear = { from = null },
-                    label = stringResource(Res.string.economy_transfer_from),
-                )
-                SearchPickerField(
-                    search = searchViewers,
-                    selected = to,
-                    onSelect = { ref -> to = ref },
-                    onClear = { to = null },
-                    label = stringResource(Res.string.economy_transfer_to),
-                )
-                if (sameAccount) {
-                    Text(
-                        text = stringResource(Res.string.economy_transfer_same_account),
-                        style = typography.xs,
-                        color = tokens.destructive,
+    FormDialog(
+        title = stringResource(Res.string.economy_transfer_title),
+        saveLabel = stringResource(Res.string.economy_transfer_confirm),
+        cancelLabel = stringResource(Res.string.economy_transfer_cancel),
+        onDismiss = onDismiss,
+        dirty = from != null || to != null || amountText.isNotEmpty() || reason.isNotEmpty(),
+        valid = canConfirm,
+        save = {
+            val fromRef: PickerRef? = from
+            val toRef: PickerRef? = to
+            val value: Long? = amount
+            if (fromRef == null || toRef == null || value == null) {
+                DialogResult.Failed()
+            } else {
+                onConfirm(
+                    TransferBody(
+                        fromViewerUserId = fromRef.id,
+                        toViewerUserId = toRef.id,
+                        amount = value,
+                        reason = reason.trim().ifBlank { null },
                     )
-                }
-                AppTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it.filter(Char::isDigit) },
-                    label = stringResource(Res.string.economy_transfer_amount),
-                    isError = amountText.isNotBlank() && amount == null,
-                    errorText = if (amountText.isNotBlank() && amount == null) stringResource(Res.string.economy_transfer_amount_invalid) else null,
-                )
-                AppTextField(
-                    value = reason,
-                    onValueChange = { reason = it },
-                    label = stringResource(Res.string.economy_transfer_reason),
-                    isError = false,
-                    errorText = null,
-                )
+                ).toDialogResult()
             }
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val fromRef: PickerRef? = from
-                    val toRef: PickerRef? = to
-                    if (canConfirm && fromRef != null && toRef != null) {
-                        onConfirm(
-                            TransferBody(
-                                fromViewerUserId = fromRef.id,
-                                toViewerUserId = toRef.id,
-                                amount = amount!!,
-                                reason = reason.trim().ifBlank { null },
-                            )
-                        )
-                    }
-                },
-                enabled = canConfirm,
-            ) {
-                Text(stringResource(Res.string.economy_transfer_confirm))
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_transfer_cancel)) } },
-    )
+    ) {
+        SearchPickerField(
+            search = searchViewers,
+            selected = from,
+            onSelect = { ref -> from = ref },
+            onClear = { from = null },
+            label = stringResource(Res.string.economy_transfer_from),
+        )
+        SearchPickerField(
+            search = searchViewers,
+            selected = to,
+            onSelect = { ref -> to = ref },
+            onClear = { to = null },
+            label = stringResource(Res.string.economy_transfer_to),
+        )
+        if (sameAccount) {
+            Text(
+                text = stringResource(Res.string.economy_transfer_same_account),
+                style = typography.xs,
+                color = tokens.destructive,
+            )
+        }
+        AppTextField(
+            value = amountText,
+            onValueChange = { amountText = it.filter(Char::isDigit) },
+            label = stringResource(Res.string.economy_transfer_amount),
+            isError = amountText.isNotBlank() && amount == null,
+            errorText = if (amountText.isNotBlank() && amount == null) stringResource(Res.string.economy_transfer_amount_invalid) else null,
+        )
+        AppTextField(
+            value = reason,
+            onValueChange = { reason = it },
+            label = stringResource(Res.string.economy_transfer_reason),
+            isError = false,
+            errorText = null,
+        )
+    }
 }
 
 // The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate. The

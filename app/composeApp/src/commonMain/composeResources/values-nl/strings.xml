@@ -2092,6 +2092,9 @@
     <string name="feedback_pipeline_deleted">Pijplijn verwijderd</string>
     <string name="feedback_pipeline_save_failed">Pijplijn opslaan mislukt: %1$s</string>
     <string name="feedback_giveaway_saved">Weggeefactie opgeslagen</string>
+    <string name="feedback_economy_adjusted">Saldo bijgewerkt</string>
+    <string name="feedback_economy_transferred">Punten overgedragen</string>
+    <string name="economy_no_channel_error">Geen actief kanaal. Verbind opnieuw en probeer het nog eens.</string>
     <string name="feedback_giveaway_deleted">Weggeefactie verwijderd</string>
     <string name="feedback_giveaway_opened">Weggeefactie geopend</string>
     <string name="feedback_giveaway_closed">Weggeefactie gesloten</string>

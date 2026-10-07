@@ -14,7 +14,15 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.economy_no_channel_error
+import nomnomzbot.composeapp.generated.resources.feedback_economy_adjusted
+import nomnomzbot.composeapp.generated.resources.feedback_economy_transferred
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -70,6 +78,7 @@ class EconomyController(
     // Feeds the catalog item dialog's effect (bound pipeline) picker. Nullable so the state-holder tests
     // construct the controller without it — a missing pipelines source just yields an empty picker list.
     private val pipelinesApi: PipelinesApi? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<EconomyState> = MutableStateFlow(EconomyState.Loading)
 
@@ -537,9 +546,12 @@ class EconomyController(
     }
 
     /** Admin-adjust a viewer's balance (positive = credit, negative = debit). Reloads on success. */
-    suspend fun adjustAccount(viewerUserId: String, amount: Long, reason: String?) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.adjustAccount(channel, viewerUserId, amount, reason))
+    suspend fun adjustAccount(viewerUserId: String, amount: Long, reason: String?): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.adjustAccount(channel, viewerUserId, amount, reason),
+            Res.string.feedback_economy_adjusted,
+        )
     }
 
     /** Refund a catalog purchase — credits the cost back to the buyer. Reloads on success. */
@@ -619,10 +631,23 @@ class EconomyController(
     }
 
     /** Transfer [amount] from one viewer to another. Reloads on success. */
-    suspend fun transfer(request: TransferBody) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.transfer(channel, request))
+    suspend fun transfer(request: TransferBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(economyApi.transfer(channel, request), Res.string.feedback_economy_transferred)
     }
+
+    // A write fired from a dialog that stays open until the server answers: success announces and reloads, a failure
+    // is handed back untouched so the dialog keeps what the operator typed and shows the reason inline.
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>, success: StringResource): ApiResult<Unit> {
+        if (result is ApiResult.Ok) {
+            feedback.success(success)
+            load()
+        }
+        return result
+    }
+
+    private suspend fun noChannel(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = getString(Res.string.economy_no_channel_error)))
 
     // Reload on success; on failure surface the message on the current Ready state without losing the loaded page.
     private suspend fun afterWrite(result: ApiResult<*>) {

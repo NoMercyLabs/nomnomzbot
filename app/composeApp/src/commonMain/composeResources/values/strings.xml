@@ -2097,6 +2097,9 @@
     <string name="feedback_pipeline_deleted">Pipeline deleted</string>
     <string name="feedback_pipeline_save_failed">Couldn't save the pipeline: %1$s</string>
     <string name="feedback_giveaway_saved">Giveaway saved</string>
+    <string name="feedback_economy_adjusted">Balance updated</string>
+    <string name="feedback_economy_transferred">Points transferred</string>
+    <string name="economy_no_channel_error">No active channel. Reconnect and try again.</string>
     <string name="feedback_giveaway_deleted">Giveaway deleted</string>
     <string name="feedback_giveaway_opened">Giveaway opened</string>
     <string name="feedback_giveaway_closed">Giveaway closed</string>
