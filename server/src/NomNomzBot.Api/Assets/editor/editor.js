@@ -955,6 +955,8 @@ const THEMES = Object.freeze([
 ]);
 
 const THEME_STORAGE_KEY = 'nnz.editor.theme';
+const WRAP_STORAGE_KEY = 'nnz.editor.wrap';
+const MINIMAP_STORAGE_KEY = 'nnz.editor.minimap';
 
 // Hand-authored monaco.editor.IStandaloneThemeData for well-known editor themes Monaco does not ship
 // built-in. Palettes are the real, publicly documented colors for each theme (not approximations).
@@ -1121,6 +1123,24 @@ function storedTheme() {
     }
 }
 
+// The view toggles are per-viewer conveniences like the theme: storage that is refused falls back to the default.
+function storeFlag(key, on) {
+    try {
+        localStorage.setItem(key, on ? 'on' : 'off');
+    } catch {
+        /* private mode / storage disabled */
+    }
+}
+
+function storedFlag(key, fallback) {
+    try {
+        const stored = localStorage.getItem(key);
+        return stored === null ? fallback : stored === 'on';
+    } catch {
+        return fallback;
+    }
+}
+
 // ── Command palette + quick open ───────────────────────────────────────────
 
 const VIEW_LABEL = Object.freeze({
@@ -1245,20 +1265,29 @@ function runSandbox() {
     state.preview?.rebuildNow();
 }
 
-function toggleWrap() {
-    state.wrap = !state.wrap;
-    state.editor?.updateOptions({ wordWrap: state.wrap ? 'on' : 'off' });
-    if (state.wrap) state.editor?.setScrollLeft(0);
-    dom.wrap.textContent = t(state.wrap ? 'wrapOn' : 'wrapOff');
+// The toggle's label key moves with its state, so a later relabel (the host's labels arriving) keeps it true.
+function setToggleLabel(button, labelId) {
+    button.dataset.i18n = labelId;
+    button.textContent = t(labelId);
 }
 
-function toggleMinimap() {
-    state.minimap = !state.minimap;
-    state.editor?.updateOptions({
-        minimap: { enabled: state.minimap, renderCharacters: false, maxColumn: 80 },
-    });
-    dom.minimap.textContent = t(state.minimap ? 'minimapOn' : 'minimapOff');
+function applyWrap(on) {
+    state.wrap = on;
+    state.editor?.updateOptions({ wordWrap: on ? 'on' : 'off' });
+    if (on) state.editor?.setScrollLeft(0);
+    setToggleLabel(dom.wrap, on ? 'wrapOn' : 'wrapOff');
+    storeFlag(WRAP_STORAGE_KEY, on);
 }
+
+function applyMinimap(on) {
+    state.minimap = on;
+    state.editor?.updateOptions({ minimap: { enabled: on, renderCharacters: false, maxColumn: 80 } });
+    setToggleLabel(dom.minimap, on ? 'minimapOn' : 'minimapOff');
+    storeFlag(MINIMAP_STORAGE_KEY, on);
+}
+
+const toggleWrap = () => applyWrap(!state.wrap);
+const toggleMinimap = () => applyMinimap(!state.minimap);
 
 // ── Save / close ───────────────────────────────────────────────────────────
 
@@ -1687,6 +1716,8 @@ async function open(payload) {
 
     defineCustomThemes(monaco);
     applyTheme(storedTheme());
+    applyWrap(storedFlag(WRAP_STORAGE_KEY, false));
+    applyMinimap(storedFlag(MINIMAP_STORAGE_KEY, true));
     renderFiles();
     renderTabs();
     syncStatus();
