@@ -45,6 +45,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -208,10 +209,7 @@ fun MediaShareScreen(
             confirmLabel = stringResource(Res.string.mediashare_reject_confirm),
             dismissLabel = stringResource(Res.string.mediashare_cancel),
             destructive = true,
-            onConfirm = {
-                pendingReject = null
-                scope.launch { controller.reject(request.id) }
-            },
+            action = { controller.reject(request.id).toDialogResult() },
             onDismiss = { pendingReject = null },
         )
     }
@@ -223,10 +221,7 @@ fun MediaShareScreen(
             confirmLabel = stringResource(Res.string.mediashare_skip_confirm),
             dismissLabel = stringResource(Res.string.mediashare_cancel),
             destructive = true,
-            onConfirm = {
-                pendingSkip = null
-                scope.launch { controller.skip(request.id) }
-            },
+            action = { controller.skip(request.id).toDialogResult() },
             onDismiss = { pendingSkip = null },
         )
     }

@@ -97,11 +97,11 @@ class MediaShareController(
     /** Approve a pending clip, then re-read the queue. */
     suspend fun approve(id: String) = afterWrite(mediaShareApi.approve(id))
 
-    /** Reject a clip, then re-read the queue. */
-    suspend fun reject(id: String) = afterWrite(mediaShareApi.reject(id))
+    /** Reject a clip, then re-read the queue. A failure is handed back so the confirm shows the reason inline. */
+    suspend fun reject(id: String): ApiResult<Unit> = afterDialogWrite(mediaShareApi.reject(id))
 
-    /** Skip a clip, then re-read the queue. */
-    suspend fun skip(id: String) = afterWrite(mediaShareApi.skip(id))
+    /** Skip a clip, then re-read the queue. A failure is handed back so the confirm shows the reason inline. */
+    suspend fun skip(id: String): ApiResult<Unit> = afterDialogWrite(mediaShareApi.skip(id))
 
     /** Mark a clip played, then re-read the queue. */
     suspend fun markPlayed(id: String) = afterWrite(mediaShareApi.played(id))
@@ -141,6 +141,17 @@ class MediaShareController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    // A write fired from a confirm that stays open until the server answers: success re-reads the queue, a failure
+    // is handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(result: ApiResult<MediaShareRequest>): ApiResult<Unit> =
+        when (result) {
+            is ApiResult.Ok -> {
+                refreshQueue()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
 
     private suspend fun refreshQueue() {
         val previous: MediaShareUiState.Ready = _state.value as? MediaShareUiState.Ready ?: return
