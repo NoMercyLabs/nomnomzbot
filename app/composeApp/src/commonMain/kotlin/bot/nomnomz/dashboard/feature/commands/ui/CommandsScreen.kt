@@ -16,13 +16,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,7 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Alert
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDescription
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AlertTitle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertVariant
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
@@ -60,7 +56,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.LimitedCreateAction
@@ -337,12 +335,10 @@ fun CommandsScreen(
                         }
                     },
             onDismiss = { editor = null },
+            // The dialog stays open until the write answers: it closes itself on success and shows the
+            // reason inline on failure (FormDialog).
             onSubmit = { input ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) controller.updateCommand(open.name, input)
-                    else controller.createCommand(input)
-                }
+                if (open.isEdit) controller.updateCommand(open.name, input) else controller.createCommand(input)
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onTestRunPipeline = { pipelineId, variables -> controller.testRunPipeline(pipelineId, variables) },
@@ -726,7 +722,7 @@ private fun CommandFormDialog(
     templateHelpersApi: TemplateHelpersApi,
     onResetToPreset: (() -> Unit)?,
     onDismiss: () -> Unit,
-    onSubmit: (CommandInput) -> Unit,
+    onSubmit: suspend (CommandInput) -> DialogResult,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
     onCreateCodeScript: suspend (name: String) -> CodeScriptSummary?,
@@ -761,6 +757,8 @@ private fun CommandFormDialog(
         remember { mutableStateListOf<String>().apply { addAll(editor.aliases) } }
     var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
     var selectedCodeScriptId: String? by remember { mutableStateOf(null) }
+    // A code command resolves its script after the dialog opens; that late fill is not a user edit.
+    var codeScriptResolved: Boolean by remember { mutableStateOf(editor.tier != "code") }
     var creatingCodeScript: Boolean by remember { mutableStateOf(false) }
     var newCodeScriptName: String by remember { mutableStateOf("") }
 
@@ -771,6 +769,7 @@ private fun CommandFormDialog(
         if (editor.tier == "code") {
             selectedCodeScriptId = editor.pipelineId?.let { onResolveCodeScriptId(it) }
         }
+        codeScriptResolved = true
     }
     var cooldown: String by remember { mutableStateOf(editor.cooldownSeconds.toString()) }
     var cooldownPerUser: Boolean by remember { mutableStateOf(editor.cooldownPerUser) }
@@ -827,371 +826,364 @@ private fun CommandFormDialog(
     val randomModeLabel: String = stringResource(Res.string.commands_dialog_random_mode_label)
     val perUserLabel: String = stringResource(Res.string.commands_dialog_cooldown_per_user_label)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = spacing.s24 * 5).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                val presetKey: String? = editor.presetKey
-                if (onResetToPreset != null && presetKey != null) {
-                    // A seeded fun command says where it came from, with the way back beside it. The dialog's own
-                    // Save stays the one primary; the reset is a quiet destructive sibling that confirms first.
-                    Alert(modifier = Modifier.fillMaxWidth()) {
-                        AlertTitle(text = stringResource(Res.string.commands_preset_title, presetKey))
-                        AlertDescription(text = stringResource(Res.string.commands_preset_description))
-                        Button(
-                            onClick = onResetToPreset,
-                            variant = ButtonVariant.DestructiveGhost,
-                            modifier = Modifier.testTag("command-preset-reset"),
-                        ) {
-                            Text(text = stringResource(Res.string.commands_preset_reset), maxLines = 1)
-                        }
-                    }
+    // A "code" command's reaction has no field of its own to send — it IS a single-step run_code
+    // pipeline (S046-code-tier-link), so submitting it first creates/repoints that wrapping pipeline
+    // (onBindCodeScript) and only then submits with the resulting pipelineId. Every other tier submits
+    // straight away with whatever pipelineId is already resolved.
+    fun buildInput(resolvedPipelineId: String?): CommandInput =
+        CommandInput(
+            name = name,
+            tier = tier,
+            minPermissionLevel = minLevel,
+            prefixMode = prefixMode,
+            customPrefix = if (prefixMode == "Custom") customPrefix else null,
+            matchMode = matchMode,
+            matchPattern = if (matchMode == "Regex") matchPattern else null,
+            templateResponse =
+                if (tier == "template" && !randomMode) response else null,
+            templateResponses =
+                if (tier == "template" && randomMode) responses.toList() else emptyList(),
+            pipelineId = resolvedPipelineId,
+            cooldownSeconds = cooldownValue ?: 0,
+            userCooldownSeconds = userCooldownValue ?: 0,
+            cooldownPerUser = cooldownPerUser,
+            description = description,
+            aliases = aliases.toList(),
+            isEnabled = enabled,
+        )
+
+    // A code command needs its wrapping pipeline bound first; every other tier submits straight away.
+    val save: suspend () -> DialogResult = {
+        val codeScriptId: String? = selectedCodeScriptId
+        if (tier == "code") {
+            val boundPipelineId: String? =
+                codeScriptId?.let { id -> onBindCodeScript(selectedPipelineId, id, name.trim()) }
+            if (boundPipelineId != null) onSubmit(buildInput(boundPipelineId)) else DialogResult.Failed()
+        } else {
+            onSubmit(buildInput(if (tier == "pipeline") selectedPipelineId else null))
+        }
+    }
+
+    // Dirty = any field differs from what the form opened with (re-baselined once a code script resolves).
+    val currentValues: List<Any?> =
+        listOf(
+            name, description, tier, minLevel, prefixMode, customPrefix, matchMode, matchPattern, randomMode,
+            response, responses.toList(), aliases.toList(), selectedPipelineId, selectedCodeScriptId, cooldown,
+            cooldownPerUser, userCooldown, enabled,
+        )
+    val baseline: List<Any?> = remember(codeScriptResolved) { currentValues }
+
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.commands_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = currentValues != baseline,
+        valid = canSubmit,
+        save = save,
+    ) {
+        val presetKey: String? = editor.presetKey
+        if (onResetToPreset != null && presetKey != null) {
+            // A seeded fun command says where it came from, with the way back beside it. The dialog's own
+            // Save stays the one primary; the reset is a quiet destructive sibling that confirms first.
+            Alert(modifier = Modifier.fillMaxWidth()) {
+                AlertTitle(text = stringResource(Res.string.commands_preset_title, presetKey))
+                AlertDescription(text = stringResource(Res.string.commands_preset_description))
+                Button(
+                    onClick = onResetToPreset,
+                    variant = ButtonVariant.DestructiveGhost,
+                    modifier = Modifier.testTag("command-preset-reset"),
+                ) {
+                    Text(text = stringResource(Res.string.commands_preset_reset), maxLines = 1)
                 }
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.commands_dialog_name_label),
-                    isError = name.isBlank(),
+            }
+        }
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.commands_dialog_name_label),
+            isError = name.isBlank(),
+        )
+
+        // Owner punch list §7 (editor-time warning): non-blocking (a deliberate override is a valid
+        // reason to shadow a built-in) but never silent — an explicit checkbox is required before
+        // [canSubmit] allows saving, so the streamer can never end up here by accident.
+        if (shadowedBuiltinKey != null) {
+            Alert(variant = AlertVariant.Destructive, modifier = Modifier.fillMaxWidth()) {
+                AlertTitle(stringResource(Res.string.commands_dialog_shadow_warning_title))
+                AlertDescription(
+                    stringResource(Res.string.commands_dialog_shadow_warning_body, shadowedBuiltinKey)
                 )
-
-                // Owner punch list §7 (editor-time warning): non-blocking (a deliberate override is a valid
-                // reason to shadow a built-in) but never silent — an explicit checkbox is required before
-                // [canSubmit] allows saving, so the streamer can never end up here by accident.
-                if (shadowedBuiltinKey != null) {
-                    Alert(variant = AlertVariant.Destructive, modifier = Modifier.fillMaxWidth()) {
-                        AlertTitle(stringResource(Res.string.commands_dialog_shadow_warning_title))
-                        AlertDescription(
-                            stringResource(Res.string.commands_dialog_shadow_warning_body, shadowedBuiltinKey)
-                        )
-                        SwitchRow(
-                            label = stringResource(Res.string.commands_dialog_shadow_acknowledge),
-                            checked = acknowledgedShadowKey == shadowedBuiltinKey,
-                            onCheckedChange = { checked ->
-                                acknowledgedShadowKey = if (checked) shadowedBuiltinKey else null
-                            },
-                        )
-                    }
-                }
-
-                AppTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.commands_dialog_description_label),
-                )
-
-                // Command type — the authoring tier. Drives which reaction editor shows below.
-                PickerField(
-                    label = stringResource(Res.string.commands_dialog_tier_label),
-                    value = tierLabel(tier),
-                    expanded = tierMenuOpen,
-                    onExpandedChange = { tierMenuOpen = it },
-                ) {
-                    Tiers.forEach { key ->
-                        DropdownMenuItem(
-                            text = { Text(tierLabel(key), color = tokens.cardForeground) },
-                            onClick = {
-                                tier = key
-                                tierMenuOpen = false
-                            },
-                        )
-                    }
-                }
-
-                // Reaction editor per tier.
-                when (tier) {
-                    "pipeline" -> {
-                        // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
-                        // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
-                        PipelineBindPicker(
-                            pipelines = pipelines,
-                            selectedId = selectedPipelineId,
-                            onSelect = { selectedPipelineId = it },
-                            onCreate = { name -> onCreatePipeline(name) },
-                            pickLabel = stringResource(Res.string.commands_dialog_pipeline_label),
-                            choosePlaceholder = stringResource(Res.string.commands_dialog_pipeline_choose),
-                            createNewLabel = stringResource(Res.string.commands_dialog_pipeline_create_new),
-                            newNameLabel = stringResource(Res.string.commands_dialog_pipeline_new_name),
-                            createLabel = stringResource(Res.string.commands_dialog_pipeline_create_confirm),
-                            cancelLabel = stringResource(Res.string.commands_dialog_cancel),
-                        )
-                        // S047-remaining: dry-run the bound pipeline from right here.
-                        PipelineTestAction(
-                            pipelineId = selectedPipelineId,
-                            onClick = { testRunController.reset(); testRunDialogOpen = true },
-                        )
-                    }
-                    "code" -> {
-                        Text(
-                            text = stringResource(Res.string.commands_tier_code_hint),
-                            color = tokens.mutedForeground,
-                        )
-                        if (creatingCodeScript) {
-                            AppTextField(
-                                value = newCodeScriptName,
-                                onValueChange = { newCodeScriptName = it },
-                                label = stringResource(Res.string.commands_dialog_code_script_new_name),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                TextButton(onClick = { creatingCodeScript = false; newCodeScriptName = "" }) {
-                                    Text(
-                                        text = stringResource(Res.string.commands_dialog_cancel),
-                                        color = tokens.mutedForeground,
-                                    )
-                                }
-                                TextButton(
-                                    onClick = {
-                                        val scriptName: String = newCodeScriptName.trim()
-                                        testRunScope.launch {
-                                            val created: CodeScriptSummary? = onCreateCodeScript(scriptName)
-                                            if (created != null) {
-                                                selectedCodeScriptId = created.id
-                                                creatingCodeScript = false
-                                                newCodeScriptName = ""
-                                            }
-                                        }
-                                    },
-                                    enabled = newCodeScriptName.isNotBlank(),
-                                ) {
-                                    Text(
-                                        text = stringResource(Res.string.commands_dialog_code_script_create_confirm),
-                                        color = tokens.primary,
-                                    )
-                                }
-                            }
-                        } else {
-                            EntityPickerField(
-                                items = codeScripts,
-                                selectedId = selectedCodeScriptId,
-                                onSelect = { selectedCodeScriptId = it },
-                                idOf = { it.id },
-                                labelOf = { it.name },
-                                label = stringResource(Res.string.commands_dialog_code_script_label),
-                                placeholder = stringResource(Res.string.commands_dialog_code_script_choose),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            TextButton(onClick = { creatingCodeScript = true }) {
-                                AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
-                                Text(
-                                    text = stringResource(Res.string.commands_dialog_code_script_create_new),
-                                    color = tokens.primary,
-                                )
-                            }
-                        }
-                    }
-                    else -> {
-                        // Single response ↔ random-response list.
-                        SwitchRow(
-                            label = randomModeLabel,
-                            checked = randomMode,
-                            onCheckedChange = { randomMode = it },
-                        )
-                        if (randomMode) {
-                            ListEditor(
-                                title = stringResource(Res.string.commands_dialog_responses_label),
-                                values = responses,
-                                addLabel = stringResource(Res.string.commands_dialog_response_add),
-                                removeLabelFor = { index ->
-                                    stringResource(Res.string.commands_dialog_response_remove, "${index + 1}")
-                                },
-                            )
-                        } else {
-                            AppTextField(
-                                value = response,
-                                onValueChange = { response = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = stringResource(Res.string.commands_dialog_response_label),
-                            )
-                            TemplateHelpersLink(
-                                context = TemplateHelperContext.Command,
-                                api = templateHelpersApi,
-                                onInsert = { token -> response += token },
-                            )
-                            // Insert a `{list.pick.<name>}` token — renders only when the channel has such lists.
-                            PickListInsertMenu(names = pickListNames, onInsert = { response += it })
-                        }
-                    }
-                }
-
-                // Minimum role that can use it — role NAMES only, never the numeric ladder value (house rule).
-                PickerField(
-                    label = stringResource(Res.string.commands_dialog_permission_label),
-                    value = stringResource(PermissionRungs.labelOf(minLevel)),
-                    expanded = permMenuOpen,
-                    onExpandedChange = { permMenuOpen = it },
-                ) {
-                    PermissionRungs.Ordered.forEach { (rung, res) ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(res), color = tokens.cardForeground) },
-                            onClick = {
-                                minLevel = rung
-                                permMenuOpen = false
-                            },
-                        )
-                    }
-                }
-
-                // Prefix mode (+ custom prefix when Custom).
-                PickerField(
-                    label = stringResource(Res.string.commands_dialog_prefix_mode_label),
-                    value = prefixModeLabel(prefixMode),
-                    expanded = prefixMenuOpen,
-                    onExpandedChange = { prefixMenuOpen = it },
-                ) {
-                    PrefixModes.forEach { key ->
-                        DropdownMenuItem(
-                            text = { Text(prefixModeLabel(key), color = tokens.cardForeground) },
-                            onClick = {
-                                prefixMode = key
-                                prefixMenuOpen = false
-                            },
-                        )
-                    }
-                }
-                if (prefixMode == "Custom") {
-                    AppTextField(
-                        value = customPrefix,
-                        onValueChange = { customPrefix = it },
-                        isError = !prefixValid,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.commands_dialog_custom_prefix_label),
-                    )
-                }
-
-                // Match mode (+ regex pattern when Regex).
-                PickerField(
-                    label = stringResource(Res.string.commands_dialog_match_mode_label),
-                    value = matchModeLabel(matchMode),
-                    expanded = matchMenuOpen,
-                    onExpandedChange = { matchMenuOpen = it },
-                ) {
-                    MatchModes.forEach { key ->
-                        DropdownMenuItem(
-                            text = { Text(matchModeLabel(key), color = tokens.cardForeground) },
-                            onClick = {
-                                matchMode = key
-                                matchMenuOpen = false
-                            },
-                        )
-                    }
-                }
-                if (matchMode == "Regex") {
-                    AppTextField(
-                        value = matchPattern,
-                        onValueChange = { matchPattern = it },
-                        isError = !patternValid,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.commands_dialog_match_pattern_label),
-                    )
-                }
-
-                // Aliases — alternate trigger names.
-                ListEditor(
-                    title = stringResource(Res.string.commands_dialog_aliases_label),
-                    values = aliases,
-                    addLabel = stringResource(Res.string.commands_dialog_alias_add),
-                    placeholder = stringResource(Res.string.commands_dialog_alias_placeholder),
-                    removeLabelFor = { index ->
-                        stringResource(Res.string.commands_dialog_alias_remove, "${index + 1}")
+                SwitchRow(
+                    label = stringResource(Res.string.commands_dialog_shadow_acknowledge),
+                    checked = acknowledgedShadowKey == shadowedBuiltinKey,
+                    onCheckedChange = { checked ->
+                        acknowledgedShadowKey = if (checked) shadowedBuiltinKey else null
                     },
                 )
+            }
+        }
 
-                // Cooldowns — global, plus an optional separate per-user window.
-                AppTextField(
-                    value = cooldown,
-                    onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
-                    isError = !cooldownValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.commands_dialog_cooldown_label),
-                )
-                SwitchRow(
-                    label = perUserLabel,
-                    checked = cooldownPerUser,
-                    onCheckedChange = { cooldownPerUser = it },
-                )
-                if (cooldownPerUser) {
-                    AppTextField(
-                        value = userCooldown,
-                        onValueChange = { input -> userCooldown = input.filter { it.isDigit() } },
-                        isError = !userCooldownValid,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.commands_dialog_user_cooldown_label),
-                    )
-                }
+        AppTextField(
+            value = description,
+            onValueChange = { description = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.commands_dialog_description_label),
+        )
 
-                SwitchRow(
-                    label = enabledLabel,
-                    checked = enabled,
-                    onCheckedChange = { enabled = it },
+        // Command type — the authoring tier. Drives which reaction editor shows below.
+        PickerField(
+            label = stringResource(Res.string.commands_dialog_tier_label),
+            value = tierLabel(tier),
+            expanded = tierMenuOpen,
+            onExpandedChange = { tierMenuOpen = it },
+        ) {
+            Tiers.forEach { key ->
+                DropdownMenuItem(
+                    text = { Text(tierLabel(key), color = tokens.cardForeground) },
+                    onClick = {
+                        tier = key
+                        tierMenuOpen = false
+                    },
                 )
             }
-        },
-        confirmButton = {
-            // A "code" command's reaction has no field of its own to send — it IS a single-step run_code
-            // pipeline (S046-code-tier-link), so submitting it first creates/repoints that wrapping pipeline
-            // (onBindCodeScript) and only then submits with the resulting pipelineId. Every other tier submits
-            // straight away with whatever pipelineId is already resolved.
-            fun buildInput(resolvedPipelineId: String?): CommandInput =
-                CommandInput(
-                    name = name,
-                    tier = tier,
-                    minPermissionLevel = minLevel,
-                    prefixMode = prefixMode,
-                    customPrefix = if (prefixMode == "Custom") customPrefix else null,
-                    matchMode = matchMode,
-                    matchPattern = if (matchMode == "Regex") matchPattern else null,
-                    templateResponse =
-                        if (tier == "template" && !randomMode) response else null,
-                    templateResponses =
-                        if (tier == "template" && randomMode) responses.toList() else emptyList(),
-                    pipelineId = resolvedPipelineId,
-                    cooldownSeconds = cooldownValue ?: 0,
-                    userCooldownSeconds = userCooldownValue ?: 0,
-                    cooldownPerUser = cooldownPerUser,
-                    description = description,
-                    aliases = aliases.toList(),
-                    isEnabled = enabled,
-                )
+        }
 
-            TextButton(
-                onClick = {
-                    val codeScriptId: String? = selectedCodeScriptId
-                    if (tier == "code" && codeScriptId != null) {
-                        testRunScope.launch {
-                            val boundPipelineId: String? =
-                                onBindCodeScript(selectedPipelineId, codeScriptId, name.trim())
-                            if (boundPipelineId != null) onSubmit(buildInput(boundPipelineId))
-                        }
-                    } else if (tier != "code") {
-                        onSubmit(buildInput(if (tier == "pipeline") selectedPipelineId else null))
-                    }
-                },
-                enabled = canSubmit,
-            ) {
+        // Reaction editor per tier.
+        when (tier) {
+            "pipeline" -> {
+                // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
+                // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
+                PipelineBindPicker(
+                    pipelines = pipelines,
+                    selectedId = selectedPipelineId,
+                    onSelect = { selectedPipelineId = it },
+                    onCreate = { name -> onCreatePipeline(name) },
+                    pickLabel = stringResource(Res.string.commands_dialog_pipeline_label),
+                    choosePlaceholder = stringResource(Res.string.commands_dialog_pipeline_choose),
+                    createNewLabel = stringResource(Res.string.commands_dialog_pipeline_create_new),
+                    newNameLabel = stringResource(Res.string.commands_dialog_pipeline_new_name),
+                    createLabel = stringResource(Res.string.commands_dialog_pipeline_create_confirm),
+                    cancelLabel = stringResource(Res.string.commands_dialog_cancel),
+                )
+                // S047-remaining: dry-run the bound pipeline from right here.
+                PipelineTestAction(
+                    pipelineId = selectedPipelineId,
+                    onClick = { testRunController.reset(); testRunDialogOpen = true },
+                )
+            }
+            "code" -> {
                 Text(
-                    text = submitLabel,
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                    text = stringResource(Res.string.commands_tier_code_hint),
+                    color = tokens.mutedForeground,
+                )
+                if (creatingCodeScript) {
+                    AppTextField(
+                        value = newCodeScriptName,
+                        onValueChange = { newCodeScriptName = it },
+                        label = stringResource(Res.string.commands_dialog_code_script_new_name),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { creatingCodeScript = false; newCodeScriptName = "" }) {
+                            Text(
+                                text = stringResource(Res.string.commands_dialog_cancel),
+                                color = tokens.mutedForeground,
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                val scriptName: String = newCodeScriptName.trim()
+                                testRunScope.launch {
+                                    val created: CodeScriptSummary? = onCreateCodeScript(scriptName)
+                                    if (created != null) {
+                                        selectedCodeScriptId = created.id
+                                        creatingCodeScript = false
+                                        newCodeScriptName = ""
+                                    }
+                                }
+                            },
+                            enabled = newCodeScriptName.isNotBlank(),
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.commands_dialog_code_script_create_confirm),
+                                color = tokens.primary,
+                            )
+                        }
+                    }
+                } else {
+                    EntityPickerField(
+                        items = codeScripts,
+                        selectedId = selectedCodeScriptId,
+                        onSelect = { selectedCodeScriptId = it },
+                        idOf = { it.id },
+                        labelOf = { it.name },
+                        label = stringResource(Res.string.commands_dialog_code_script_label),
+                        placeholder = stringResource(Res.string.commands_dialog_code_script_choose),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    TextButton(onClick = { creatingCodeScript = true }) {
+                        AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
+                        Text(
+                            text = stringResource(Res.string.commands_dialog_code_script_create_new),
+                            color = tokens.primary,
+                        )
+                    }
+                }
+            }
+            else -> {
+                // Single response ↔ random-response list.
+                SwitchRow(
+                    label = randomModeLabel,
+                    checked = randomMode,
+                    onCheckedChange = { randomMode = it },
+                )
+                if (randomMode) {
+                    ListEditor(
+                        title = stringResource(Res.string.commands_dialog_responses_label),
+                        values = responses,
+                        addLabel = stringResource(Res.string.commands_dialog_response_add),
+                        removeLabelFor = { index ->
+                            stringResource(Res.string.commands_dialog_response_remove, "${index + 1}")
+                        },
+                    )
+                } else {
+                    AppTextField(
+                        value = response,
+                        onValueChange = { response = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(Res.string.commands_dialog_response_label),
+                    )
+                    TemplateHelpersLink(
+                        context = TemplateHelperContext.Command,
+                        api = templateHelpersApi,
+                        onInsert = { token -> response += token },
+                    )
+                    // Insert a `{list.pick.<name>}` token — renders only when the channel has such lists.
+                    PickListInsertMenu(names = pickListNames, onInsert = { response += it })
+                }
+            }
+        }
+
+        // Minimum role that can use it — role NAMES only, never the numeric ladder value (house rule).
+        PickerField(
+            label = stringResource(Res.string.commands_dialog_permission_label),
+            value = stringResource(PermissionRungs.labelOf(minLevel)),
+            expanded = permMenuOpen,
+            onExpandedChange = { permMenuOpen = it },
+        ) {
+            PermissionRungs.Ordered.forEach { (rung, res) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(res), color = tokens.cardForeground) },
+                    onClick = {
+                        minLevel = rung
+                        permMenuOpen = false
+                    },
                 )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.commands_dialog_cancel), color = tokens.mutedForeground)
+        }
+
+        // Prefix mode (+ custom prefix when Custom).
+        PickerField(
+            label = stringResource(Res.string.commands_dialog_prefix_mode_label),
+            value = prefixModeLabel(prefixMode),
+            expanded = prefixMenuOpen,
+            onExpandedChange = { prefixMenuOpen = it },
+        ) {
+            PrefixModes.forEach { key ->
+                DropdownMenuItem(
+                    text = { Text(prefixModeLabel(key), color = tokens.cardForeground) },
+                    onClick = {
+                        prefixMode = key
+                        prefixMenuOpen = false
+                    },
+                )
             }
-        },
-    )
+        }
+        if (prefixMode == "Custom") {
+            AppTextField(
+                value = customPrefix,
+                onValueChange = { customPrefix = it },
+                isError = !prefixValid,
+                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(Res.string.commands_dialog_custom_prefix_label),
+            )
+        }
+
+        // Match mode (+ regex pattern when Regex).
+        PickerField(
+            label = stringResource(Res.string.commands_dialog_match_mode_label),
+            value = matchModeLabel(matchMode),
+            expanded = matchMenuOpen,
+            onExpandedChange = { matchMenuOpen = it },
+        ) {
+            MatchModes.forEach { key ->
+                DropdownMenuItem(
+                    text = { Text(matchModeLabel(key), color = tokens.cardForeground) },
+                    onClick = {
+                        matchMode = key
+                        matchMenuOpen = false
+                    },
+                )
+            }
+        }
+        if (matchMode == "Regex") {
+            AppTextField(
+                value = matchPattern,
+                onValueChange = { matchPattern = it },
+                isError = !patternValid,
+                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(Res.string.commands_dialog_match_pattern_label),
+            )
+        }
+
+        // Aliases — alternate trigger names.
+        ListEditor(
+            title = stringResource(Res.string.commands_dialog_aliases_label),
+            values = aliases,
+            addLabel = stringResource(Res.string.commands_dialog_alias_add),
+            placeholder = stringResource(Res.string.commands_dialog_alias_placeholder),
+            removeLabelFor = { index ->
+                stringResource(Res.string.commands_dialog_alias_remove, "${index + 1}")
+            },
+        )
+
+        // Cooldowns — global, plus an optional separate per-user window.
+        AppTextField(
+            value = cooldown,
+            onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
+            isError = !cooldownValid,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.commands_dialog_cooldown_label),
+        )
+        SwitchRow(
+            label = perUserLabel,
+            checked = cooldownPerUser,
+            onCheckedChange = { cooldownPerUser = it },
+        )
+        if (cooldownPerUser) {
+            AppTextField(
+                value = userCooldown,
+                onValueChange = { input -> userCooldown = input.filter { it.isDigit() } },
+                isError = !userCooldownValid,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(Res.string.commands_dialog_user_cooldown_label),
+            )
+        }
+
+        SwitchRow(
+            label = enabledLabel,
+            checked = enabled,
+            onCheckedChange = { enabled = it },
+        )
+    }
 
     if (testRunDialogOpen) {
         val boundPipelineId: String? = selectedPipelineId

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.timers.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.feedback.Feedback
@@ -268,8 +269,8 @@ class TimersController(
         enabled: Boolean,
         fireOnce: Boolean,
         pipelineId: String?,
-    ) {
-        val channelId: String = resolveChannelId() ?: return
+    ): DialogResult {
+        val channelId: String = resolveChannelId() ?: return DialogResult.Failed(_writeError.value)
         val request =
             CreateTimerRequest(
                 name = name,
@@ -280,7 +281,7 @@ class TimersController(
                 fireOnce = fireOnce,
                 pipelineId = pipelineId,
             )
-        runWrite { timersApi.create(channelId, request) }
+        return runWrite { timersApi.create(channelId, request) }
     }
 
     /** Update an existing timer with the dialog's fields, then reload the list on success. */
@@ -293,8 +294,8 @@ class TimersController(
         enabled: Boolean,
         fireOnce: Boolean,
         pipelineId: String?,
-    ) {
-        val channelId: String = resolveChannelId() ?: return
+    ): DialogResult {
+        val channelId: String = resolveChannelId() ?: return DialogResult.Failed(_writeError.value)
         val request =
             UpdateTimerRequest(
                 name = name,
@@ -307,7 +308,7 @@ class TimersController(
                 // timer needs the empty sentinel to actually unbind — the backend maps it to null.
                 pipelineId = pipelineId ?: EMPTY_PIPELINE_ID,
             )
-        runWrite { timersApi.update(channelId, id, request) }
+        return runWrite { timersApi.update(channelId, id, request) }
     }
 
     /** Delete a timer, then reload the list on success. */
@@ -365,19 +366,20 @@ class TimersController(
     private suspend fun runWrite(
         success: StringResource = Res.string.feedback_timer_saved,
         write: suspend () -> ApiResult<Unit>,
-    ) {
+    ): DialogResult =
         when (val result: ApiResult<Unit> = write()) {
             is ApiResult.Failure -> {
                 _writeError.value = result.error.message
                 feedback.error(Res.string.feedback_timer_save_failed, result.error.message)
+                DialogResult.Failed(result.error.message)
             }
             is ApiResult.Ok -> {
                 _writeError.value = null
                 feedback.success(success)
                 load()
+                DialogResult.Done
             }
         }
-    }
 }
 
 /** The Timers page render state. */

@@ -42,7 +42,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -254,32 +255,23 @@ fun TimersScreen(
             pickListNames = pickListNames,
             templateHelpersApi = templateHelpersApi,
             onDismiss = { editTarget = null },
+            // The dialog stays open until the write answers: it closes itself on success and shows the
+            // reason inline on failure (FormDialog).
             onConfirm = { name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId ->
-                editTarget = null
-                scope.launch {
-                    when (target) {
-                        is TimerEditTarget.New ->
-                            controller.createTimer(
-                                name,
-                                messages,
-                                interval,
-                                minChatActivity,
-                                enabled,
-                                fireOnce,
-                                pipelineId,
-                            )
-                        is TimerEditTarget.Edit ->
-                            controller.updateTimer(
-                                target.timer.id,
-                                name,
-                                messages,
-                                interval,
-                                minChatActivity,
-                                enabled,
-                                fireOnce,
-                                pipelineId,
-                            )
-                    }
+                when (target) {
+                    is TimerEditTarget.New ->
+                        controller.createTimer(name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId)
+                    is TimerEditTarget.Edit ->
+                        controller.updateTimer(
+                            target.timer.id,
+                            name,
+                            messages,
+                            interval,
+                            minChatActivity,
+                            enabled,
+                            fireOnce,
+                            pipelineId,
+                        )
                 }
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
@@ -590,7 +582,7 @@ private fun TimerEditDialog(
     pickListNames: List<String>,
     templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
-    onConfirm: (
+    onConfirm: suspend (
         name: String,
         messages: List<String>,
         intervalMinutes: Int,
@@ -598,7 +590,7 @@ private fun TimerEditDialog(
         enabled: Boolean,
         fireOnce: Boolean,
         pipelineId: String?,
-    ) -> Unit,
+    ) -> DialogResult,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
 ) {
@@ -643,200 +635,189 @@ private fun TimerEditDialog(
     val messageLabel: String = stringResource(Res.string.timers_dialog_message)
     val removeLabel: String = stringResource(Res.string.timers_dialog_message_remove)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(titleRes)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.timers_dialog_name),
-                )
+    // Dirty = any field differs from what the form was seeded with (re-baselined when the detail loads).
+    val currentValues: List<Any?> =
+        listOf(name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId)
+    val baseline: List<Any?> = remember(detail) { currentValues }
 
-                // Rotation list — each message fires in turn on successive intervals. Add / remove rows.
+    FormDialog(
+        title = stringResource(titleRes),
+        saveLabel = stringResource(confirmRes),
+        cancelLabel = stringResource(Res.string.timers_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = currentValues != baseline,
+        valid = canSubmit,
+        save = {
+            onConfirm(
+                name.trim(),
+                cleanedMessages,
+                intervalMinutes ?: DEFAULT_INTERVAL_MINUTES,
+                minChatActivity.toIntOrNull() ?: 0,
+                enabled,
+                fireOnce,
+                pipelineId,
+            )
+        },
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.timers_dialog_name),
+        )
+
+        // Rotation list — each message fires in turn on successive intervals. Add / remove rows.
+        Text(
+            text = stringResource(Res.string.timers_dialog_messages),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        messages.forEachIndexed { index, msg ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppTextField(
+                    value = msg,
+                    onValueChange = { updated ->
+                        messages = messages.toMutableList().also { it[index] = updated }
+                    },
+                    modifier = Modifier.weight(1f),
+                    label = messageLabel,
+                )
+                if (messages.size > 1) {
+                    GlyphButton(
+                        icon = TrashGlyph,
+                        label = removeLabel,
+                        onClick = { messages = messages.filterIndexed { i, _ -> i != index } },
+                        tint = tokens.destructive,
+                    )
+                }
+            }
+        }
+        TextButton(onClick = { messages = messages + "" }) {
+            Text(
+                text = stringResource(Res.string.timers_dialog_add_message),
+                color = tokens.primary,
+            )
+        }
+        TemplateHelpersLink(
+            context = TemplateHelperContext.Timer,
+            api = templateHelpersApi,
+            onInsert = { token ->
+                messages =
+                    messages.toMutableList().also { list ->
+                        val last: Int = list.lastIndex
+                        val current: String = list[last]
+                        list[last] = if (current.isBlank()) token else "$current $token"
+                    }
+            },
+        )
+        // Insert a random-response token (`{list.pick.<name>}`) into the last message row — renders only
+        // when the channel has random-response lists.
+        PickListInsertMenu(
+            names = pickListNames,
+            onInsert = { token ->
+                messages =
+                    messages.toMutableList().also { list ->
+                        val last: Int = list.lastIndex
+                        val current: String = list[last]
+                        list[last] = if (current.isBlank()) token else "$current $token"
+                    }
+            },
+        )
+
+        // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
+        // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.
+        if (pipelines.isNotEmpty() || pipelineId != null) {
+            // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
+            // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
+            PipelineBindPicker(
+                pipelines = pipelines,
+                selectedId = pipelineId,
+                onSelect = { pipelineId = it },
+                onCreate = { name -> onCreatePipeline(name) },
+                pickLabel = stringResource(Res.string.timers_dialog_pipeline),
+                choosePlaceholder = stringResource(Res.string.timers_dialog_pipeline_choose),
+                createNewLabel = stringResource(Res.string.timers_dialog_pipeline_create_new),
+                newNameLabel = stringResource(Res.string.timers_dialog_pipeline_new_name),
+                createLabel = stringResource(Res.string.timers_dialog_pipeline_create_confirm),
+                cancelLabel = stringResource(Res.string.timers_dialog_cancel),
+            )
+            // S047-remaining: dry-run the bound pipeline from right here.
+            PipelineTestAction(
+                pipelineId = pipelineId,
+                onClick = { testRunController.reset(); testRunDialogOpen = true },
+            )
+        }
+
+        AppTextField(
+            value = interval,
+            onValueChange = { interval = it.filter { ch -> ch.isDigit() } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.timers_dialog_interval),
+        )
+        // Quick-pick presets for the common cadences — the backend's IntervalMinutes floor is whole
+        // minutes (CreateTimerDto/UpdateTimerDto: Range(1, 1440)), so every preset is minute-granular;
+        // there is no sub-minute interval to offer. Clicking one just fills the field above — the raw
+        // value stays freely editable for anything in between.
+        IntervalPresetRow(
+            currentValue = interval,
+            onSelect = { minutes -> interval = TimerSchedule.presetFieldValue(minutes) },
+        )
+        // Schedule facts for an existing timer — a new timer has no fire history yet to show.
+        if (target is TimerEditTarget.Edit) {
+            TimerScheduleInfo(intervalMinutes = intervalMinutes, detail = detail)
+        }
+        // Anti-spam guard — the timer only fires once at least this many chat messages have arrived
+        // since the last fire. Blank/0 = fire regardless of chat activity. Digits only.
+        AppTextField(
+            value = minChatActivity,
+            onValueChange = { minChatActivity = it.filter { ch -> ch.isDigit() } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            supportingText = stringResource(Res.string.timers_dialog_min_chat_activity_hint),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.timers_dialog_min_chat_activity),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.timers_dialog_enabled),
+                color = tokens.cardForeground,
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = { enabled = it },
+            )
+        }
+        // One-shot: fire once at the interval, then the timer disables itself instead of looping.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.timers_dialog_messages),
+                    text = stringResource(Res.string.timers_dialog_fire_once),
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.timers_dialog_fire_once_hint),
                     style = typography.sm,
                     color = tokens.mutedForeground,
                 )
-                messages.forEachIndexed { index, msg ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AppTextField(
-                            value = msg,
-                            onValueChange = { updated ->
-                                messages = messages.toMutableList().also { it[index] = updated }
-                            },
-                            modifier = Modifier.weight(1f),
-                            label = messageLabel,
-                        )
-                        if (messages.size > 1) {
-                            GlyphButton(
-                                icon = TrashGlyph,
-                                label = removeLabel,
-                                onClick = { messages = messages.filterIndexed { i, _ -> i != index } },
-                                tint = tokens.destructive,
-                            )
-                        }
-                    }
-                }
-                TextButton(onClick = { messages = messages + "" }) {
-                    Text(
-                        text = stringResource(Res.string.timers_dialog_add_message),
-                        color = tokens.primary,
-                    )
-                }
-                TemplateHelpersLink(
-                    context = TemplateHelperContext.Timer,
-                    api = templateHelpersApi,
-                    onInsert = { token ->
-                        messages =
-                            messages.toMutableList().also { list ->
-                                val last: Int = list.lastIndex
-                                val current: String = list[last]
-                                list[last] = if (current.isBlank()) token else "$current $token"
-                            }
-                    },
-                )
-                // Insert a random-response token (`{list.pick.<name>}`) into the last message row — renders only
-                // when the channel has random-response lists.
-                PickListInsertMenu(
-                    names = pickListNames,
-                    onInsert = { token ->
-                        messages =
-                            messages.toMutableList().also { list ->
-                                val last: Int = list.lastIndex
-                                val current: String = list[last]
-                                list[last] = if (current.isBlank()) token else "$current $token"
-                            }
-                    },
-                )
-
-                // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
-                // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.
-                if (pipelines.isNotEmpty() || pipelineId != null) {
-                    // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
-                    // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
-                    PipelineBindPicker(
-                        pipelines = pipelines,
-                        selectedId = pipelineId,
-                        onSelect = { pipelineId = it },
-                        onCreate = { name -> onCreatePipeline(name) },
-                        pickLabel = stringResource(Res.string.timers_dialog_pipeline),
-                        choosePlaceholder = stringResource(Res.string.timers_dialog_pipeline_choose),
-                        createNewLabel = stringResource(Res.string.timers_dialog_pipeline_create_new),
-                        newNameLabel = stringResource(Res.string.timers_dialog_pipeline_new_name),
-                        createLabel = stringResource(Res.string.timers_dialog_pipeline_create_confirm),
-                        cancelLabel = stringResource(Res.string.timers_dialog_cancel),
-                    )
-                    // S047-remaining: dry-run the bound pipeline from right here.
-                    PipelineTestAction(
-                        pipelineId = pipelineId,
-                        onClick = { testRunController.reset(); testRunDialogOpen = true },
-                    )
-                }
-
-                AppTextField(
-                    value = interval,
-                    onValueChange = { interval = it.filter { ch -> ch.isDigit() } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.timers_dialog_interval),
-                )
-                // Quick-pick presets for the common cadences — the backend's IntervalMinutes floor is whole
-                // minutes (CreateTimerDto/UpdateTimerDto: Range(1, 1440)), so every preset is minute-granular;
-                // there is no sub-minute interval to offer. Clicking one just fills the field above — the raw
-                // value stays freely editable for anything in between.
-                IntervalPresetRow(
-                    currentValue = interval,
-                    onSelect = { minutes -> interval = TimerSchedule.presetFieldValue(minutes) },
-                )
-                // Schedule facts for an existing timer — a new timer has no fire history yet to show.
-                if (target is TimerEditTarget.Edit) {
-                    TimerScheduleInfo(intervalMinutes = intervalMinutes, detail = detail)
-                }
-                // Anti-spam guard — the timer only fires once at least this many chat messages have arrived
-                // since the last fire. Blank/0 = fire regardless of chat activity. Digits only.
-                AppTextField(
-                    value = minChatActivity,
-                    onValueChange = { minChatActivity = it.filter { ch -> ch.isDigit() } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    supportingText = stringResource(Res.string.timers_dialog_min_chat_activity_hint),
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.timers_dialog_min_chat_activity),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.timers_dialog_enabled),
-                        color = tokens.cardForeground,
-                    )
-                    Switch(
-                        checked = enabled,
-                        onCheckedChange = { enabled = it },
-                    )
-                }
-                // One-shot: fire once at the interval, then the timer disables itself instead of looping.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(Res.string.timers_dialog_fire_once),
-                            color = tokens.cardForeground,
-                        )
-                        Text(
-                            text = stringResource(Res.string.timers_dialog_fire_once_hint),
-                            style = typography.sm,
-                            color = tokens.mutedForeground,
-                        )
-                    }
-                    Switch(
-                        checked = fireOnce,
-                        onCheckedChange = { fireOnce = it },
-                    )
-                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    intervalMinutes?.let {
-                        onConfirm(
-                            name.trim(),
-                            cleanedMessages,
-                            it,
-                            minChatActivity.toIntOrNull() ?: 0,
-                            enabled,
-                            fireOnce,
-                            pipelineId,
-                        )
-                    }
-                },
-                enabled = canSubmit,
-            ) {
-                Text(
-                    text = stringResource(confirmRes),
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.timers_dialog_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+            Switch(
+                checked = fireOnce,
+                onCheckedChange = { fireOnce = it },
+            )
+        }
+    }
 
     if (testRunDialogOpen) {
         val boundPipelineId: String? = pipelineId

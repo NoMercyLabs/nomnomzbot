@@ -6296,4 +6296,8 @@
     <string name="pipelines_recipe_picker_label">Begin met</string>
     <string name="pipelines_recipe_empty_title">Leeg beginnen</string>
     <string name="pipelines_recipe_empty_desc">Een lege pipeline. Je voegt elke stap zelf toe.</string>
+    <string name="form_dialog_discard_title">Wijzigingen weggooien?</string>
+    <string name="form_dialog_discard_message">Je hebt wijzigingen die niet zijn opgeslagen. Als je dit nu sluit, gaan ze verloren.</string>
+    <string name="form_dialog_keep_editing">Verder bewerken</string>
+    <string name="form_dialog_discard">Weggooien</string>
 </resources>

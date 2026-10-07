@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.commands.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -179,9 +180,9 @@ class CommandsController(
      * backend supports is sent — the recognition config (prefix + match), the reaction (a single template, a
      * random-response list, or a pipeline), the permission floor, the cooldown pair, aliases, and the live flag.
      */
-    suspend fun createCommand(input: CommandInput) {
+    suspend fun createCommand(input: CommandInput): DialogResult {
         val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(commandsApi.create(channel, input.toCreateBody()))
+        return afterWrite(commandsApi.create(channel, input.toCreateBody()))
     }
 
     /**
@@ -312,32 +313,32 @@ class CommandsController(
      * Edit a command from the dialog's full [input], addressed by its current [name]. A full-form patch: every
      * editable field is sent so the backend applies exactly what the dialog shows. Reloads on success.
      */
-    suspend fun updateCommand(name: String, input: CommandInput) {
+    suspend fun updateCommand(name: String, input: CommandInput): DialogResult {
         val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(commandsApi.update(channel, name, input.toUpdateBody()))
+        return afterWrite(commandsApi.update(channel, name, input.toUpdateBody()))
     }
 
     /** Flip a command's enabled flag via the update endpoint (no dedicated toggle route). Reloads on success. */
     suspend fun toggleCommand(name: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return }
         afterWrite(commandsApi.update(channel, name, UpdateCommandBody(isEnabled = enabled)))
     }
 
     /** Delete a command, addressed by its [name]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteCommand(name: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return }
         afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
     }
 
     /** Put a seeded fun command, addressed by its current [name], back on its preset. Reloads on success. */
     suspend fun resetToPreset(name: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return }
         afterWrite(commandsApi.resetToPreset(channel, name))
     }
 
     /** Enable or disable a built-in command by its [builtinKey]. Reloads on success. */
     suspend fun toggleBuiltin(builtinKey: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
+        val channel: String = channelId ?: run { failWrite(noChannelError()); return }
         afterWrite(builtinsApi.setEnabled(channel, builtinKey, enabled))
     }
 
@@ -372,26 +373,27 @@ class CommandsController(
     private suspend fun afterWrite(
         result: ApiResult<Unit>,
         success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_command_saved,
-    ) {
+    ): DialogResult =
         when (result) {
             is ApiResult.Ok -> {
                 feedback.success(success)
                 load()
+                DialogResult.Done
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
-    }
 
     // The page is already showing content (Ready or Empty — the create dialog still works from Empty) —
     // announce on the shell-level feedback toast rather than a local banner. Only when the page has nothing to
     // show yet does a failure become the page's own Error state.
-    private fun failWrite(detail: String) {
+    private fun failWrite(detail: String): DialogResult.Failed {
         val current: CommandsState = _state.value
         if (current is CommandsState.Ready || current is CommandsState.Empty) {
             feedback.error(Res.string.feedback_command_save_failed, detail)
         } else {
             _state.value = CommandsState.Error(detail)
         }
+        return DialogResult.Failed(detail)
     }
 
     private companion object {

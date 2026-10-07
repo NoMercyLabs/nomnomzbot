@@ -6323,4 +6323,8 @@
     <string name="pipelines_recipe_picker_label">Start from</string>
     <string name="pipelines_recipe_empty_title">Start empty</string>
     <string name="pipelines_recipe_empty_desc">A blank pipeline. You add every step yourself.</string>
+    <string name="form_dialog_discard_title">Discard changes?</string>
+    <string name="form_dialog_discard_message">You have changes that are not saved. If you close this now, they are lost.</string>
+    <string name="form_dialog_keep_editing">Keep editing</string>
+    <string name="form_dialog_discard">Discard</string>
 </resources>
