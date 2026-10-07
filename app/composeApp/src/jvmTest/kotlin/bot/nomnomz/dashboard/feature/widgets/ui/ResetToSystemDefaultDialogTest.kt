@@ -16,6 +16,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -54,7 +55,10 @@ class ResetToSystemDefaultDialogTest {
                 ResetToSystemDefaultDialog(
                     widget = alerts,
                     loadVersions = { ApiResult.Ok(history) },
-                    onConfirm = { confirmed++ },
+                    action = {
+                        confirmed++
+                        DialogResult.Done
+                    },
                     onDismiss = { dismissed++ },
                 )
             }
@@ -81,7 +85,10 @@ class ResetToSystemDefaultDialogTest {
                 ResetToSystemDefaultDialog(
                     widget = alerts,
                     loadVersions = { pending.await() },
-                    onConfirm = { confirmed++ },
+                    action = {
+                        confirmed++
+                        DialogResult.Done
+                    },
                     onDismiss = {},
                 )
             }

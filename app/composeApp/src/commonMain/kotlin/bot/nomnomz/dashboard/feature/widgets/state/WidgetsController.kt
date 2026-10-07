@@ -56,7 +56,6 @@ import nomnomzbot.composeapp.generated.resources.editor_preview_fire_samples_err
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_no_channel_error
 import nomnomzbot.composeapp.generated.resources.widgets_review_action_error
-import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_error
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
 
@@ -152,13 +151,17 @@ class WidgetsController(
     /**
      * Mint a new overlay token for the channel. Every existing widget's browser-source URL stops resolving —
      * the screen confirms before calling this. Reloads on success so the list's [WidgetSummary.overlayUrl]s
-     * reflect the new token.
+     * reflect the new token. Returns the server's answer; a failure raises no toast, because the confirm dialog
+     * stays open until this returns and shows the reason inline.
      */
-    suspend fun rotateOverlayToken() {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<String> = widgetsApi.rotateOverlayToken(channel)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
+    suspend fun rotateOverlayToken(): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return when (val result: ApiResult<String> = widgetsApi.rotateOverlayToken(channel)) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 
@@ -166,16 +169,14 @@ class WidgetsController(
      * Mint a new overlay token for exactly this widget (audit B5) — every other widget's browser-source URL is
      * untouched. Returns the before/after URLs + grace expiry so the screen can show the operator what changed
      * and prompt them to re-copy the new URL into OBS; reloads the list on success so the row's
-     * [WidgetSummary.overlayUrl] reflects the new token immediately.
+     * [WidgetSummary.overlayUrl] reflects the new token immediately. A failure raises no toast, because the confirm
+     * dialog stays open until this returns and shows the reason inline.
      */
     suspend fun rotateWidgetToken(widgetId: String): ApiResult<WidgetTokenRotation> {
         val channel: String =
             channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
         val result: ApiResult<WidgetTokenRotation> = widgetsApi.rotateWidgetOverlayToken(channel, widgetId)
-        when (result) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> feedback.error(Res.string.widgets_rotate_widget_token_error, result.error.message)
-        }
+        if (result is ApiResult.Ok) load()
         return result
     }
 
@@ -243,12 +244,19 @@ class WidgetsController(
         openEditor(channel, widget.id, widget.name, widget.framework, project, previewWidgetOf(channel, widget), messages)
     }
 
-    /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
-    suspend fun rollbackVersion(widgetId: String, versionId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.rollback(channel, widgetId, versionId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
+    /**
+     * Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success and
+     * returns the server's answer; a failure raises no toast, because the confirm dialog stays open until this
+     * returns and shows the reason inline.
+     */
+    suspend fun rollbackVersion(widgetId: String, versionId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return when (val result: ApiResult<WidgetSummary> = widgetsApi.rollback(channel, widgetId, versionId)) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 
@@ -281,10 +289,22 @@ class WidgetsController(
      * action behind [WidgetSummary.galleryUpdateAvailable]. Reloads on success so the row's badge clears.
      */
     suspend fun updateFromGallery(widgetId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.updateFromGallery(channel, widgetId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
+        val result: ApiResult<Unit> = resetToSystemDefault(widgetId)
+        if (result is ApiResult.Failure) failWrite(result.error.message)
+    }
+
+    /**
+     * The same gallery pull as [updateFromGallery], for the reset-to-system-default confirm: returns the server's
+     * answer and raises no toast, because that dialog stays open until this returns and shows the reason inline.
+     */
+    suspend fun resetToSystemDefault(widgetId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return when (val result: ApiResult<WidgetSummary> = widgetsApi.updateFromGallery(channel, widgetId)) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 
@@ -298,12 +318,19 @@ class WidgetsController(
         return widgetsApi.testEvent(channel, eventType)
     }
 
-    /** Clone an installed widget into a fresh, independently-editable custom copy. Reloads on success. */
-    suspend fun cloneWidget(widgetId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, widgetId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
+    /**
+     * Clone an installed widget into a fresh, independently-editable custom copy. Reloads on success and returns
+     * the server's answer; a failure raises no toast, because the confirm dialog stays open until this returns and
+     * shows the reason inline.
+     */
+    suspend fun cloneWidget(widgetId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, widgetId)) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 

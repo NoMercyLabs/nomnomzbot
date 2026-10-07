@@ -68,6 +68,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -356,10 +357,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             confirmLabel = stringResource(Res.string.widgets_rotate_token_confirm),
             dismissLabel = stringResource(Res.string.widgets_delete_cancel),
             destructive = true,
-            onConfirm = {
-                showRotateTokenConfirm = false
-                scope.launch { controller.rotateOverlayToken() }
-            },
+            action = { controller.rotateOverlayToken().toDialogResult() },
             onDismiss = { showRotateTokenConfirm = false },
         )
     }
@@ -376,14 +374,10 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             confirmLabel = stringResource(Res.string.widgets_rotate_widget_token_confirm),
             dismissLabel = stringResource(Res.string.widgets_rotate_widget_token_dismiss),
             destructive = false,
-            onConfirm = {
-                pendingRotateWidgetToken = null
-                scope.launch {
-                    when (val result: ApiResult<WidgetTokenRotation> = controller.rotateWidgetToken(widget.id)) {
-                        is ApiResult.Ok -> rotatedWidgetToken = RotatedWidgetToken(widget.name, result.value)
-                        is ApiResult.Failure -> {} // the controller already surfaced this via Feedback
-                    }
-                }
+            action = {
+                val result: ApiResult<WidgetTokenRotation> = controller.rotateWidgetToken(widget.id)
+                if (result is ApiResult.Ok) rotatedWidgetToken = RotatedWidgetToken(widget.name, result.value)
+                result.toDialogResult()
             },
             onDismiss = { pendingRotateWidgetToken = null },
         )
@@ -411,10 +405,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             confirmLabel = stringResource(Res.string.widgets_clone_action_short),
             dismissLabel = stringResource(Res.string.widgets_clone_dismiss),
             destructive = false,
-            onConfirm = {
-                pendingClone = null
-                scope.launch { controller.cloneWidget(widget.id) }
-            },
+            action = { controller.cloneWidget(widget.id).toDialogResult() },
             onDismiss = { pendingClone = null },
         )
     }
@@ -439,10 +430,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             confirmLabel = stringResource(Res.string.widgets_rollback_confirm),
             dismissLabel = stringResource(Res.string.widgets_rollback_dismiss),
             destructive = false,
-            onConfirm = {
-                pendingRollback = null
-                scope.launch { controller.rollbackVersion(target.widgetId, target.version.id) }
-            },
+            action = { controller.rollbackVersion(target.widgetId, target.version.id).toDialogResult() },
             onDismiss = { pendingRollback = null },
         )
     }
@@ -451,10 +439,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         ResetToSystemDefaultDialog(
             widget = widget,
             loadVersions = { controller.listVersions(widget.id) },
-            onConfirm = {
-                pendingReset = null
-                scope.launch { controller.updateFromGallery(widget.id) }
-            },
+            action = { controller.resetToSystemDefault(widget.id).toDialogResult() },
             onDismiss = { pendingReset = null },
         )
     }
@@ -1421,7 +1406,7 @@ private fun RenameWidgetDialog(
 internal fun ResetToSystemDefaultDialog(
     widget: WidgetSummary,
     loadVersions: suspend () -> ApiResult<List<WidgetVersionSummary>>,
-    onConfirm: () -> Unit,
+    action: suspend () -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     var versions: ApiResult<List<WidgetVersionSummary>>? by remember(widget.id) { mutableStateOf(null) }
@@ -1446,7 +1431,7 @@ internal fun ResetToSystemDefaultDialog(
         message = message,
         confirmLabel = stringResource(Res.string.widgets_reset_confirm),
         dismissLabel = stringResource(Res.string.widgets_reset_dismiss),
-        onConfirm = onConfirm,
+        action = action,
         onDismiss = onDismiss,
         confirmEnabled = versions != null,
     )

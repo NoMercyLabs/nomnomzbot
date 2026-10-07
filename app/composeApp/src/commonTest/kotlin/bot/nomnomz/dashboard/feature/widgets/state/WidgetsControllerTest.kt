@@ -1141,6 +1141,7 @@ internal class RecordingWidgetsApi(
         versionId: String,
     ): ApiResult<WidgetSummary> {
         rolledBack += widgetId to versionId
+        if (writeResult is ApiResult.Failure) return writeResult
         return ApiResult.Ok(store.firstOrNull { it.id == widgetId } ?: WidgetSummary(id = widgetId))
     }
 
@@ -1148,6 +1149,7 @@ internal class RecordingWidgetsApi(
 
     override suspend fun clone(channelId: String, installedWidgetId: String): ApiResult<WidgetSummary> {
         clonedIds += installedWidgetId
+        if (writeResult is ApiResult.Failure) return writeResult
         return ApiResult.Ok(WidgetSummary(id = "cloned-widget", name = "clone", source = "custom"))
     }
 
@@ -1175,6 +1177,7 @@ internal class RecordingWidgetsApi(
 
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> {
         rotateCalled = true
+        if (writeResult is ApiResult.Failure) return writeResult
         return ApiResult.Ok("new-overlay-token")
     }
 
