@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -42,12 +43,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.MusicTrack
+import kotlinx.coroutines.CoroutineScope
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.feature.participant.state.NowPlayingState
 import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.participant_action_error
 import nomnomzbot.composeapp.generated.resources.participant_loading
 import nomnomzbot.composeapp.generated.resources.participant_sr_limit
 import nomnomzbot.composeapp.generated.resources.participant_sr_now_playing
@@ -81,14 +85,14 @@ fun NowPlayingScreen(controller: ParticipantController) {
             is NowPlayingState.Ready ->
                 Ready(
                     state = current,
-                    onSubmit = { query -> scope.launch { controller.submitSongRequest(query, null) } },
+                    onSubmit = { query -> controller.submitSongRequest(query, null) },
                 )
         }
     }
 }
 
 @Composable
-private fun Ready(state: NowPlayingState.Ready, onSubmit: (String) -> Unit) {
+private fun Ready(state: NowPlayingState.Ready, onSubmit: suspend (String) -> ApiResult<Unit>) {
     val spacing = LocalSpacing.current
 
     ScrollArea(modifier = Modifier.fillMaxSize()) {
@@ -133,14 +137,29 @@ private fun NowPlayingCard(track: NowPlaying?) {
 }
 
 @Composable
-private fun SubmitCard(pendingLimit: Int, subLaneUnlocked: Boolean, onSubmit: (String) -> Unit) {
+internal fun SubmitCard(pendingLimit: Int, subLaneUnlocked: Boolean, onSubmit: suspend (String) -> ApiResult<Unit>) {
     val spacing = LocalSpacing.current
+    val scope: CoroutineScope = rememberCoroutineScope()
     var query: String by remember { mutableStateOf("") }
+    var sending: Boolean by remember { mutableStateOf(false) }
+    var failure: String? by remember { mutableStateOf(null) }
 
     fun submit() {
-        if (query.isNotBlank()) {
-            onSubmit(query)
-            query = ""
+        val text: String = query
+        if (text.isBlank() || sending) return
+        sending = true
+        failure = null
+        scope.launch {
+            try {
+                // The text stays until the server confirms; a failure keeps it and shows the reason inline.
+                // Clear only if the field still holds what was sent.
+                when (val result: ApiResult<Unit> = onSubmit(text)) {
+                    is ApiResult.Ok -> if (query == text) query = ""
+                    is ApiResult.Failure -> failure = result.error.message
+                }
+            } finally {
+                sending = false
+            }
         }
     }
 
@@ -159,10 +178,11 @@ private fun SubmitCard(pendingLimit: Int, subLaneUnlocked: Boolean, onSubmit: (S
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { submit() }),
             )
-            TextButton(onClick = { submit() }, enabled = query.isNotBlank()) {
+            TextButton(onClick = { submit() }, enabled = query.isNotBlank(), loading = sending) {
                 Text(text = stringResource(Res.string.participant_sr_submit))
             }
         }
+        failure?.let { detail -> InlineError(message = stringResource(Res.string.participant_action_error, detail)) }
     }
 }
 
