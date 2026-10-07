@@ -14,6 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
@@ -45,7 +46,7 @@ class PipelineDeleteConfirmDialogTest {
                                     eventResponseCount = 0,
                                 )
                             ),
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -65,7 +66,7 @@ class PipelineDeleteConfirmDialogTest {
                     PipelineDeleteConfirmDialog(
                         pipelineName = "Unused pipeline",
                         blastRadius = BlastRadiusLoadState.Loaded(PipelineBlastRadiusSummary()),
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -85,7 +86,7 @@ class PipelineDeleteConfirmDialogTest {
                     PipelineDeleteConfirmDialog(
                         pipelineName = "Some pipeline",
                         blastRadius = BlastRadiusLoadState.Failed,
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
@@ -110,7 +111,7 @@ class PipelineDeleteConfirmDialogTest {
                     PipelineDeleteConfirmDialog(
                         pipelineName = "Some pipeline",
                         blastRadius = BlastRadiusLoadState.Loading,
-                        onConfirm = {},
+                        action = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }

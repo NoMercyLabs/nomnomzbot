@@ -46,6 +46,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AlertTitle
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import nomnomzbot.composeapp.generated.resources.form_dialog_discard
 import nomnomzbot.composeapp.generated.resources.form_dialog_discard_message
 import nomnomzbot.composeapp.generated.resources.form_dialog_discard_title
@@ -576,12 +579,10 @@ private fun ListContent(
             editor = open,
             onDismiss = { editor = null },
             onSubmit = { name, description, recipe ->
-                val target: PipelineEditor = open
-                editor = null
-                scope.launch {
-                    if (target.id == null) controller.createPipeline(name, description, recipe)
-                    else controller.renamePipeline(target.id, name, description)
-                }
+                val result: ApiResult<Unit> =
+                    if (open.id == null) controller.createPipeline(name, description, recipe)
+                    else controller.renamePipeline(open.id, name, description)
+                result.toDialogResult()
             },
         )
     }
@@ -615,10 +616,7 @@ private fun ListContent(
         PipelineDeleteConfirmDialog(
             pipelineName = resolveRowLabel(pipeline.name, typeLabel = "Pipeline", discriminatorSource = pipeline.id),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deletePipeline(pipeline.id) }
-            },
+            action = { controller.deletePipeline(pipeline.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -3439,54 +3437,47 @@ private fun RolePicker(selected: String, onSelect: (String) -> Unit) {
 internal fun PipelineFormDialog(
     editor: PipelineEditor,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, description: String?, recipe: PipelineRecipe?) -> Unit,
+    onSubmit: suspend (name: String, description: String?, recipe: PipelineRecipe?) -> DialogResult,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     var name: String by remember { mutableStateOf(editor.name) }
     var description: String by remember { mutableStateOf(editor.description) }
     var recipe: PipelineRecipe? by remember { mutableStateOf(null) }
 
-    val canSubmit: Boolean = name.isNotBlank()
-    val title: String =
-        stringResource(if (editor.id == null) Res.string.pipelines_dialog_create_title else Res.string.pipelines_dialog_edit_title)
-    val submitLabel: String =
-        stringResource(if (editor.id == null) Res.string.pipelines_dialog_create else Res.string.pipelines_dialog_save)
+    val dirty: Boolean = name != editor.name || description != editor.description || recipe != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = stringResource(Res.string.pipelines_dialog_name_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = stringResource(Res.string.pipelines_dialog_description_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (editor.id == null) {
-                    PipelineRecipePicker(selected = recipe, onSelect = { recipe = it }, modifier = Modifier.fillMaxWidth())
-                }
+    // The form stays open until the server answers: a failure keeps what was typed and shows the reason inline.
+    FormDialog(
+        title =
+            stringResource(
+                if (editor.id == null) Res.string.pipelines_dialog_create_title else Res.string.pipelines_dialog_edit_title
+            ),
+        saveLabel = stringResource(if (editor.id == null) Res.string.pipelines_dialog_create else Res.string.pipelines_dialog_save),
+        cancelLabel = stringResource(Res.string.pipelines_dialog_cancel),
+        onDismiss = onDismiss,
+        save = { onSubmit(name, description, recipe) },
+        dirty = dirty,
+        valid = name.isNotBlank(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            AppTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = stringResource(Res.string.pipelines_dialog_name_label),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            AppTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = stringResource(Res.string.pipelines_dialog_description_label),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (editor.id == null) {
+                PipelineRecipePicker(selected = recipe, onSelect = { recipe = it }, modifier = Modifier.fillMaxWidth())
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSubmit(name, description, recipe) }, enabled = canSubmit) {
-                Text(text = submitLabel, color = if (canSubmit) tokens.primary else tokens.mutedForeground)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+        }
+    }
 }
 
 // ── Shared bits ───────────────────────────────────────────────────────────────

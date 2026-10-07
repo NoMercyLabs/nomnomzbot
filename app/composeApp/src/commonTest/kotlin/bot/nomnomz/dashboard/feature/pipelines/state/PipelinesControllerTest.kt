@@ -245,15 +245,15 @@ class PipelinesControllerTest {
         val controller = pipelinesController(okChannel(), api, feedback)
         controller.load()
 
-        controller.deletePipeline(id = "00000001-0000-0000-0000-000000000001")
+        val result: ApiResult<Unit> = controller.deletePipeline(id = "00000001-0000-0000-0000-000000000001")
 
-        // The list is kept (not blown away) and the failure announces on the frame.
+        // The list is kept (not blown away). The failure goes back to the delete dialog, which shows the reason
+        // inline, so no toast is raised as well.
         val state: PipelinesState = controller.state.value
         assertTrue(state is PipelinesState.Ready)
         assertEquals(1, (state as PipelinesState.Ready).pipelines.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_pipeline_save_failed, feedback.only.label)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     // ── Chain editor ──────────────────────────────────────────────────────────

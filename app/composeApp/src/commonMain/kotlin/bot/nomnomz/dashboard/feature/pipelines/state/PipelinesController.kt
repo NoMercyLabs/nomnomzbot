@@ -226,8 +226,8 @@ class PipelinesController(
      * Create a pipeline, then reload the list so the new row appears. It starts from the [recipe]'s graph (texts in
      * the user's language) or, with no recipe, from the empty starter chain.
      */
-    suspend fun createPipeline(name: String, description: String?, recipe: PipelineRecipe? = null) {
-        val channel: String = channelId ?: return failList(noChannelError())
+    suspend fun createPipeline(name: String, description: String?, recipe: PipelineRecipe? = null): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
         val graph: PipelineGraph = if (recipe == null) PipelineGraph() else PipelineRecipes.graph(recipe)
         val body =
             CreatePipelineBody(
@@ -235,13 +235,13 @@ class PipelinesController(
                 description = description?.takeIf { it.isNotBlank() },
                 graph = graph.toJson(),
             )
-        afterListWrite(pipelinesApi.create(channel, body))
+        return afterDialogWrite(pipelinesApi.create(channel, body))
     }
 
     /** Rename / re-describe a pipeline, then reload the list. */
-    suspend fun renamePipeline(id: String, name: String, description: String?) {
-        val channel: String = channelId ?: return failList(noChannelError())
-        afterListWrite(
+    suspend fun renamePipeline(id: String, name: String, description: String?): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             pipelinesApi.update(
                 channel,
                 id,
@@ -257,9 +257,9 @@ class PipelinesController(
     }
 
     /** Delete a pipeline, then reload the list. */
-    suspend fun deletePipeline(id: String) {
-        val channel: String = channelId ?: return failList(noChannelError())
-        afterListWrite(pipelinesApi.delete(channel, id), success = Res.string.feedback_pipeline_deleted)
+    suspend fun deletePipeline(id: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(pipelinesApi.delete(channel, id), success = Res.string.feedback_pipeline_deleted)
     }
 
     /**
@@ -845,6 +845,22 @@ class PipelinesController(
             is ApiResult.Failure -> failList(result.error.message)
         }
     }
+
+    // A write fired from a dialog that stays open until the server answers: success announces and re-lists, a
+    // failure is handed back untouched so the dialog shows the reason inline (no toast, no page-level error).
+    private suspend fun afterDialogWrite(
+        result: ApiResult<Unit>,
+        success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_pipeline_saved,
+    ): ApiResult<Unit> {
+        if (result is ApiResult.Ok) {
+            feedback.success(success)
+            channelId?.let { loadList(it) }
+        }
+        return result
+    }
+
+    // Nothing was sent (no channel loaded): the dialog shows the reason.
+    private suspend fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, null, noChannelError()))
 
     // The list is already showing content (Ready or Empty — the create dialog still works from Empty) —
     // announce on the shell-level feedback toast rather than a local banner. Only when the list has nothing to
