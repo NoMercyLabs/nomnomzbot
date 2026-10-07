@@ -65,7 +65,7 @@ public sealed class EditorFireBarTests : EditorPageTest
         await EditButton("follow").ClickAsync();
 
         await Expect(EventTab("follow")).ToHaveAttributeAsync("aria-selected", "true");
-        Assert.Equal("json",await ActiveModelAsync("getLanguageId()"));
+        Assert.Equal("json", await ActiveModelAsync("getLanguageId()"));
         Assert.Equal("file:///events/follow.json", await ActiveModelAsync("uri.toString()"));
         Assert.Equal(
             "{\n  \"user_name\": \"kitte\",\n  \"total\": 3\n}",
