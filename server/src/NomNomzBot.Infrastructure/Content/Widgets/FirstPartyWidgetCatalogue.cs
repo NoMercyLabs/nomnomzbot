@@ -36,7 +36,7 @@ public sealed record FirstPartyWidgetDefinition(
 }
 
 /// <summary>
-/// The 21 first-party overlay widgets shipped in-repo (widgets-overlays.md). Each declares its <c>key</c>, display
+/// The 23 first-party overlay widgets shipped in-repo (widgets-overlays.md). Each declares its <c>key</c>, display
 /// metadata, the settings keys + defaults its Vue <c>cfg</c> honours, and the event topics it subscribes to by
 /// default. Kept as one static list so the seeder and the settings-schema provider share exactly one definition.
 /// </summary>
@@ -390,6 +390,19 @@ public static class FirstPartyWidgetCatalogue
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["cheer"]
+        ),
+        new(
+            Key: "lucky_feather",
+            Name: "Lucky Feather",
+            Description: "Shows who holds the Lucky Feather and announces every steal.",
+            DefaultSettings: new()
+            {
+                ["idleText"] = "The feather is hidden…",
+                ["stolenTemplate"] = "",
+                ["bannerDurationMs"] = 5000,
+                ["accentColor"] = "#f4b942",
+            },
+            DefaultEventSubscriptions: []
         ),
     ];
 }

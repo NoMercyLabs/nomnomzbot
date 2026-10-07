@@ -6082,6 +6082,8 @@
     <string name="widget_gallery_socials_description">Een rij met wisselende socials-handles die alleen uit instellingen bestaat — de socialmedia-accounts van de streamer lopen in een instelbaar interval in elkaar over. Geen eventstroom; de handles komen uit de widgetinstellingen.</string>
     <string name="widget_gallery_top_cheerers_name">Topcheerers</string>
     <string name="widget_gallery_top_cheerers_description">Een gerangschikt bord van de grootste cheerers van de sessie op bits — het volledige klassement waar de labels-widget met zijn ene topcheerer alleen naar hint, met instelbare diepte en titel.</string>
+    <string name="widget_gallery_lucky_feather_name">Lucky Feather</string>
+    <string name="widget_gallery_lucky_feather_description">Toont wie de Lucky Feather vasthoudt en kondigt elke diefstal aan.</string>
 
     <!-- Code editor page (editor.js DEFAULT_LABELS): the words of the served editor, sent in the open payload -->
     <string name="editor_html_lang">nl</string>

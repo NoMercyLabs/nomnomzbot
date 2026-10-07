@@ -51,7 +51,28 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "countdown_timer",
         "emote_wall",
         "custom_data",
+        "lucky_feather",
     ];
+
+    private const string AssetPrefix = "NomNomzBot.Infrastructure.Content.Widgets.Assets.";
+
+    [Fact]
+    public void Every_embedded_widget_source_has_a_catalogue_entry_and_back()
+    {
+        string[] assetKeys =
+        [
+            .. typeof(FirstPartyWidgetCatalogueSeeder)
+                .Assembly.GetManifestResourceNames()
+                .Where(name => name.StartsWith(AssetPrefix) && name.EndsWith(".vue"))
+                .Select(name => name[AssetPrefix.Length..^".vue".Length]),
+        ];
+
+        // A source with no catalogue entry is never seeded, so the gallery and the editor cannot open it.
+        FirstPartyWidgetCatalogue
+            .All.Select(definition => definition.Key)
+            .Should()
+            .BeEquivalentTo(assetKeys);
+    }
 
     private static async Task SeedAsync(WidgetSqliteTestDatabase database)
     {
