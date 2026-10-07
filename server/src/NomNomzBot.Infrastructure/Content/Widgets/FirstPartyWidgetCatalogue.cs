@@ -121,7 +121,16 @@ public static class FirstPartyWidgetCatalogue
                 ["formatString"] = "",
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: ["follow", "subscription", "resub", "gift", "cheer", "goal"]
+            DefaultEventSubscriptions:
+            [
+                "follow",
+                "subscription",
+                "resub",
+                "gift",
+                "cheer",
+                "goal",
+                "count",
+            ]
         ),
         new(
             Key: "drop_game",
