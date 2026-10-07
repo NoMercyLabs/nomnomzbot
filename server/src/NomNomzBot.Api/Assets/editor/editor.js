@@ -17,6 +17,7 @@
 // The host hands over the project and receives the edited files back over postMessage. Nothing here talks to
 // the API — the dashboard already holds the session, so this page needs no token of its own.
 
+import { createEventTabs } from './event-data-tabs.js';
 import { initPreview } from './preview.js';
 import { createVueScriptModels, isHiddenScriptResource } from './vue-script-model.js';
 
@@ -73,6 +74,10 @@ const dom = {
     result: document.getElementById('result'),
     fileList: document.getElementById('fileList'),
     tabs: document.getElementById('tabs'),
+    eventBar: document.getElementById('eventBar'),
+    eventTitle: document.getElementById('eventTitle'),
+    eventFire: document.getElementById('eventFire'),
+    eventClose: document.getElementById('eventClose'),
     editorHost: document.getElementById('editorHost'),
     problems: document.getElementById('problems'),
     cursor: document.getElementById('cursor'),
@@ -262,14 +267,13 @@ const DEFAULT_LABELS = Object.freeze({
     previewFireSearch: 'Search events',
     previewFireNoMatch: 'No event matches your search.',
     previewFireClose: 'Close',
-    previewFireJson: 'Event data as JSON',
+    eventFireShortcut: 'Ctrl+Enter fires it',
     previewFireSend: 'Fire with this data',
     previewFireEdit: 'Edit',
     previewFireEditSample: 'Edit the data of {type}',
     previewFireEditing: 'Data for {type}',
     previewFireSamplesError:
         'The test events could not be loaded, so nothing can be fired. Close the editor and open it again.',
-    previewFireJsonInvalid: 'This is not valid JSON: {message}',
     previewLogAction: 'Would run {actionType} {params}',
     previewLogClaim: 'Claimed {key}',
     previewLogError: 'Error',
@@ -374,13 +378,43 @@ function modelFor(path) {
 }
 
 function selectFile(path) {
-    if (!state.files.has(path)) return;
+    if (!state.files.has(path) && !state.eventTabs?.has(path)) return;
     flushActive();
     state.active = path;
-    state.editor.setModel(modelFor(path));
+    state.editor.setModel(state.eventTabs?.modelFor(path) ?? modelFor(path));
     state.editor.focus();
     renderFiles();
     renderTabs();
+    syncEventBar();
+}
+
+// A fire-bar Edit opens the sample as a JSON tab. Event tabs are not files: they never reach the save payload.
+function openEventTab(type, sample) {
+    if (!state.eventTabs) return;
+    selectFile(state.eventTabs.open(type, sample));
+}
+
+function closeEventTab() {
+    const path = state.active;
+    if (!state.eventTabs?.has(path)) return;
+    state.eventTabs.close(path);
+    state.preview.setEditingType(null);
+    selectFile(state.entry);
+}
+
+function fireEventTab() {
+    const parsed = state.eventTabs?.parse(state.active);
+    if (!parsed?.ok) return;
+    state.preview.fire(state.eventTabs.typeOf(state.active), parsed.value);
+}
+
+function syncEventBar() {
+    const isEvent = Boolean(state.eventTabs?.has(state.active));
+    dom.eventBar.hidden = !isEvent;
+    state.eventKey?.set(isEvent);
+    if (!isEvent) return;
+    dom.eventTitle.textContent = t('previewFireEditing', { type: state.eventTabs.typeOf(state.active) });
+    dom.eventFire.disabled = !state.eventTabs.parse(state.active).ok;
 }
 
 function addFile() {
@@ -532,7 +566,7 @@ function fileAction(label, onClick) {
 
 function renderTabs() {
     dom.tabs.replaceChildren(
-        ...[...state.files.keys()].sort().map((path) => {
+        ...[...state.files.keys(), ...(state.eventTabs?.paths() ?? [])].sort().map((path) => {
             const tab = document.createElement('button');
             tab.type = 'button';
             tab.role = 'tab';
@@ -666,7 +700,7 @@ function renderProblems(monaco) {
             row.type = 'button';
             row.className = 'problem';
             row.addEventListener('click', () => {
-                if (file && file !== state.active && state.files.has(file)) selectFile(file);
+                if (file && file !== state.active && (state.files.has(file) || state.eventTabs?.has(file))) selectFile(file);
                 state.editor.revealLineInCenter(marker.startLineNumber);
                 state.editor.setPosition({
                     lineNumber: marker.startLineNumber,
@@ -797,7 +831,7 @@ function renderProblemsSidebar() {
 }
 
 function revealMarker(file, marker) {
-    if (file && file !== state.active && state.files.has(file)) selectFile(file);
+    if (file && file !== state.active && (state.files.has(file) || state.eventTabs?.has(file))) selectFile(file);
     state.editor.revealLineInCenter(marker.startLineNumber);
     state.editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
     state.editor.focus();
@@ -1531,6 +1565,7 @@ async function open(payload) {
         noteText: payload.previewNote ?? '',
         t,
         snapshotFiles,
+        onEditSample: openEventTab,
     });
 
     // Nothing renders for a code script, so its preview pane would be dead width. The preview owns that
@@ -1555,6 +1590,12 @@ async function open(payload) {
 
     state.editor = createEditor(monaco);
     state.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, requestSave);
+    state.eventTabs = createEventTabs(monaco);
+    state.eventKey = state.editor.createContextKey('nnzEventTab', false);
+    state.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, fireEventTab, 'nnzEventTab');
+    state.editor.onDidChangeModelContent(syncEventBar);
+    dom.eventFire.addEventListener('click', fireEventTab);
+    dom.eventClose.addEventListener('click', closeEventTab);
     state.editor.onDidChangeCursorPosition(syncStatus);
     state.editor.onDidChangeModel(syncStatus);
     monaco.editor.onDidChangeMarkers((uris) => {

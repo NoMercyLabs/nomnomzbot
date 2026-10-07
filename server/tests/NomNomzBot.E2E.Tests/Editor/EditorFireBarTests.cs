@@ -55,42 +55,163 @@ public sealed class EditorFireBarTests : EditorPageTest
     }
 
     [E2EFact]
-    public async Task An_edited_sample_is_what_the_widget_receives()
+    public async Task Edit_opens_the_sample_as_a_formatted_json_tab_in_the_main_editor()
     {
         await OpenWidgetAsync(
-            new() { ["follow"] = new { user_name = "kitte" } },
+            new() { ["follow"] = new { user_name = "kitte", total = 3 } },
             declared: ["follow"]
         );
 
         await EditButton("follow").ClickAsync();
-        await Expect(Page.Locator("#fireJson"))
-            .ToHaveValueAsync(new Regex("\"user_name\":\\s*\"kitte\""));
-        await Page.Locator("#fireJson").FillAsync("{\"user_name\":\"edited\",\"extra\":7}");
-        await Page.Locator("#fireSend").ClickAsync();
 
-        await Expect(Received("follow")).ToHaveTextAsync("{\"user_name\":\"edited\",\"extra\":7}");
-        await Expect(Page.Locator("#previewLog li")).ToHaveTextAsync(["Fired follow"]);
+        await Expect(EventTab("follow")).ToHaveAttributeAsync("aria-selected", "true");
+        Assert.Equal("json",await ActiveModelAsync("getLanguageId()"));
+        Assert.Equal("file:///events/follow.json", await ActiveModelAsync("uri.toString()"));
+        Assert.Equal(
+            "{\n  \"user_name\": \"kitte\",\n  \"total\": 3\n}",
+            await ActiveModelAsync("getValue()")
+        );
     }
 
     [E2EFact]
-    public async Task Invalid_json_shows_an_error_and_disables_fire_until_it_is_fixed()
+    public async Task Fire_sends_the_edited_data_from_the_button_and_from_ctrl_enter()
     {
         await OpenWidgetAsync(
             new() { ["follow"] = new { user_name = "kitte" } },
             declared: ["follow"]
         );
-
         await EditButton("follow").ClickAsync();
-        await Page.Locator("#fireJson").FillAsync("{\"user_name\": ");
 
-        await Expect(Page.Locator("#fireJsonError")).ToBeVisibleAsync();
-        await Expect(Page.Locator("#fireSend")).ToBeDisabledAsync();
+        await SetActiveTextAsync("{\"user_name\":\"edited\",\"extra\":7}");
+        await Page.Locator("#eventFire").ClickAsync();
+
+        await Expect(Received("follow")).ToHaveTextAsync("{\"user_name\":\"edited\",\"extra\":7}");
+        await Expect(Page.Locator("#previewLog li")).ToHaveTextAsync(["Fired follow"]);
+
+        await SetActiveTextAsync("{\"user_name\":\"second\"}");
+        await Page.Locator("#editorHost .monaco-editor textarea").First.FocusAsync();
+        await Page.Keyboard.PressAsync("Control+Enter");
+
+        await Expect(Received("follow")).ToHaveCountAsync(2);
+        await Expect(Received("follow").Last).ToHaveTextAsync("{\"user_name\":\"second\"}");
+    }
+
+    [E2EFact]
+    public async Task Invalid_json_disables_fire_and_lands_in_the_problems_panel_until_it_is_fixed()
+    {
+        await OpenWidgetAsync(
+            new() { ["follow"] = new { user_name = "kitte" } },
+            declared: ["follow"]
+        );
+        await EditButton("follow").ClickAsync();
+
+        await SetActiveTextAsync("{\"user_name\": ");
+
+        await Expect(Page.Locator("#eventFire")).ToBeDisabledAsync();
+        await Expect(Page.Locator("#problems .problem").First)
+            .ToContainTextAsync("events/follow.json");
+        await Page.Locator("#editorHost .monaco-editor textarea").First.FocusAsync();
+        await Page.Keyboard.PressAsync("Control+Enter");
         await Expect(Received("follow")).ToHaveCountAsync(0);
 
-        await Page.Locator("#fireJson").FillAsync("{\"user_name\":\"fixed\"}");
+        await SetActiveTextAsync("{\"user_name\":\"fixed\"}");
 
-        await Expect(Page.Locator("#fireJsonError")).ToBeHiddenAsync();
-        await Expect(Page.Locator("#fireSend")).ToBeEnabledAsync();
+        await Expect(Page.Locator("#eventFire")).ToBeEnabledAsync();
+        await Expect(Page.Locator("#problems .problem")).ToHaveCountAsync(0);
+    }
+
+    [E2EFact]
+    public async Task A_wrong_type_or_an_unknown_key_is_underlined_from_the_samples_own_shape()
+    {
+        await OpenWidgetAsync(
+            new() { ["follow"] = new { user_name = "kitte", total = 3 } },
+            declared: ["follow"]
+        );
+        await EditButton("follow").ClickAsync();
+
+        await SetActiveTextAsync("{\"user_name\":5,\"total\":3,\"bogus\":1}");
+
+        await Expect(Page.Locator("#problems .problem")).ToHaveCountAsync(2);
+        await Expect(Page.Locator("#problems")).ToContainTextAsync("bogus");
+        await Expect(Page.Locator("#problems")).ToContainTextAsync("string");
+        // Schema problems are advice: the author may still fire data of another shape.
+        await Expect(Page.Locator("#eventFire")).ToBeEnabledAsync();
+    }
+
+    [E2EFact]
+    public async Task The_event_tab_never_reaches_the_save_payload_or_marks_the_widget_changed()
+    {
+        await OpenWidgetAsync(
+            new() { ["follow"] = new { user_name = "kitte" } },
+            declared: ["follow"]
+        );
+        await Page.EvaluateAsync(
+            """
+            () => {
+                window.__saves = [];
+                window.__closes = 0;
+                window.addEventListener('message', (event) => {
+                    if (event.data?.type === 'nnz:editor:save') window.__saves.push(Object.keys(event.data.files));
+                    if (event.data?.type === 'nnz:editor:close') window.__closes++;
+                });
+            }
+            """
+        );
+        await EditButton("follow").ClickAsync();
+        await SetActiveTextAsync("{\"user_name\":\"edited\"}");
+        await Page.Locator("#editorHost .monaco-editor textarea").First.FocusAsync();
+
+        await Page.Keyboard.PressAsync("Control+s");
+        await Page.WaitForTimeoutAsync(300);
+
+        string[][] saves = await Page.EvaluateAsync<string[][]>("() => window.__saves");
+        Assert.Single(saves);
+        Assert.Equal(["index.html"], saves[0]);
+
+        await Page.Locator("#eventClose").ClickAsync();
+        await Page.Keyboard.PressAsync("Escape");
+        await Page.WaitForTimeoutAsync(300);
+        await Expect(Page.Locator("#unsavedBackdrop")).ToBeHiddenAsync();
+        Assert.Equal(1, await Page.EvaluateAsync<int>("() => window.__closes"));
+    }
+
+    [Fact]
+    public void The_editor_never_uses_a_textarea_for_code_or_json()
+    {
+        string folder = EditorAssetsFolder();
+        foreach (string file in new[] { "index.html", "editor.js", "preview.js" })
+        {
+            string source = File.ReadAllText(Path.Combine(folder, file));
+            // The one plain-text field left: key=value lines of the test run, which is neither code nor JSON.
+            string withoutExempt = Regex.Replace(
+                source,
+                "<textarea[^>]*id=\"testRunVars\"[^>]*></textarea>",
+                string.Empty
+            );
+            Assert.DoesNotContain("<textarea", withoutExempt, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("createElement('textarea')", withoutExempt);
+            Assert.DoesNotContain(
+                "contenteditable",
+                withoutExempt,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+    }
+
+    private ILocator EventTab(string type) =>
+        Page.Locator($"#tabs .tab[title='events/{type}.json']");
+
+    private Task<string> ActiveModelAsync(string member) =>
+        Page.EvaluateAsync<string>($"() => monaco.editor.getEditors()[0].getModel().{member}");
+
+    private async Task SetActiveTextAsync(string text)
+    {
+        await Page.EvaluateAsync(
+            "(text) => monaco.editor.getEditors()[0].getModel().setValue(text)",
+            text
+        );
+        // Markers come from the JSON worker a moment after the text changes.
+        await Page.WaitForTimeoutAsync(800);
     }
 
     [E2EFact]

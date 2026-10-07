@@ -796,8 +796,7 @@ body {
 }
 
 .fire-bar[hidden],
-.fire-row[hidden],
-.fire-editor[hidden] {
+.fire-row[hidden] {
     display: none;
 }
 
@@ -844,27 +843,28 @@ body {
     color: var(--danger);
 }
 
-.fire-editor {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s2);
-}
-
-.fire-editor-head {
+.event-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: var(--s2);
+    padding: var(--s1) var(--s2);
+    background: var(--surface-sunken);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
-.fire-editor-title {
+.event-bar[hidden] {
+    display: none;
+}
+
+.event-bar-title {
+    flex: 0 0 auto;
+    font-size: 12px;
+}
+
+.event-bar-hint {
+    margin-right: auto;
     font-size: 11px;
     color: var(--text-muted);
-}
-
-.fire-json {
-    min-height: 120px;
-    font-family: var(--font-code);
-    resize: vertical;
 }
 
 .fire-label {

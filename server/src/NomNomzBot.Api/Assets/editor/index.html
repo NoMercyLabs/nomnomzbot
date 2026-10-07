@@ -98,15 +98,6 @@
                         <p class="fire-error" id="fireSamplesError" role="alert" hidden></p>
                         <div class="fire-list" id="fireList"></div>
                         <p class="fire-empty" id="fireEmpty" data-i18n="previewFireNoMatch" hidden>No event matches your search.</p>
-                        <div class="fire-editor" id="fireEditor" hidden>
-                            <div class="fire-editor-head">
-                                <span class="fire-editor-title" id="fireEditorTitle"></span>
-                                <button type="button" class="btn btn-quiet" id="fireClose" data-i18n="previewFireClose">Close</button>
-                            </div>
-                            <textarea class="field fire-json" id="fireJson" spellcheck="false" data-i18n-aria="previewFireJson" aria-label="Event data as JSON"></textarea>
-                            <p class="fire-error" id="fireJsonError" role="alert" hidden></p>
-                            <button type="button" class="btn" id="fireSend" data-i18n="previewFireSend">Fire with this data</button>
-                        </div>
                     </div>
                     <ol class="preview-log" id="previewLog" data-i18n-aria="whatWidgetDid" aria-label="What the widget did" aria-live="polite" hidden></ol>
 
@@ -168,6 +159,12 @@
         <main class="code">
             <p class="notice" id="sdkTypesNotice" data-i18n="sdkTypesNotice" role="status" hidden>SDK types could not load. Type checking is off until you reopen this file.</p>
             <div class="tabs" id="tabs" role="tablist"></div>
+            <div class="event-bar" id="eventBar" hidden>
+                <span class="event-bar-title" id="eventTitle"></span>
+                <span class="event-bar-hint" data-i18n="eventFireShortcut">Ctrl+Enter fires it</span>
+                <button type="button" class="btn btn-quiet" id="eventClose" data-i18n="previewFireClose">Close</button>
+                <button type="button" class="btn" id="eventFire" data-i18n="previewFireSend">Fire with this data</button>
+            </div>
             <div class="editor-host" id="editorHost"></div>
             <div class="panel-splitter" id="panelSplitter" role="separator" aria-orientation="horizontal" hidden></div>
             <section class="problems" id="problems" hidden data-i18n-aria="problems" aria-label="Problems"></section>
