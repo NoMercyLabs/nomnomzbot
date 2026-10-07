@@ -150,10 +150,13 @@ import nomnomzbot.composeapp.generated.resources.timers_empty
 import nomnomzbot.composeapp.generated.resources.timers_enabled
 import nomnomzbot.composeapp.generated.resources.timers_error
 import nomnomzbot.composeapp.generated.resources.timers_interval
-import nomnomzbot.composeapp.generated.resources.timers_loading
+import nomnomzbot.composeapp.generated.resources.timers_empty_description
+import bot.nomnomz.dashboard.core.designsystem.component.EmptyState
+import bot.nomnomz.dashboard.core.designsystem.component.LoadFailedState
+import bot.nomnomz.dashboard.core.designsystem.component.NoResultsState
+import bot.nomnomz.dashboard.core.designsystem.component.SkeletonList
 import nomnomzbot.composeapp.generated.resources.timers_message_count
 import nomnomzbot.composeapp.generated.resources.timers_new
-import nomnomzbot.composeapp.generated.resources.timers_retry
 import nomnomzbot.composeapp.generated.resources.timers_search_placeholder
 import nomnomzbot.composeapp.generated.resources.timers_toggle
 import nomnomzbot.composeapp.generated.resources.timers_write_error
@@ -202,9 +205,12 @@ fun TimersScreen(
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: TimersState = state) {
-            is TimersState.Loading -> CenteredMessage(stringResource(Res.string.timers_loading))
+            is TimersState.Loading -> SkeletonList()
             is TimersState.Error ->
-                ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+                LoadFailedState(
+                    message = stringResource(Res.string.timers_error, current.detail),
+                    onRetry = { scope.launch { controller.load() } },
+                )
             is TimersState.Empty ->
                 ManagedContent(
                     timers = emptyList(),
@@ -379,14 +385,32 @@ private fun ManagedContent(
         searchQuery.isBlank() || timer.name.contains(searchQuery, ignoreCase = true)
     }
 
+    // An empty list with no search typed is a never-used list; its one primary action lives in the empty state
+    // (not twice on the page). With a search typed, an empty list is a filtered-to-nothing list instead.
+    val neverUsed: Boolean = filteredTimers.isEmpty() && searchQuery.isBlank()
+
+    // S-BUDGETS-b3: at the safety limit the New button is disabled with its reason shown, never
+    // silently missing and never enabled-then-failing; approaching the limit shows the real remaining
+    // count. Both numbers come straight from the billing-limits report, never estimated client-side.
+    val newAction: @Composable () -> Unit = {
+        LimitedCreateAction(usage = timersUsage) { limitAllowed ->
+            ManageGate(decision = manage) { manageAllowed ->
+                Button(
+                    onClick = onNew,
+                    enabled = manageAllowed && limitAllowed,
+                    leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+                ) {
+                    Text(text = stringResource(Res.string.timers_new))
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_timers)) {
-            // S-BUDGETS-b3: at the safety limit the New button is disabled with its reason shown, never
-            // silently missing and never enabled-then-failing; approaching the limit shows the real remaining
-            // count. Both numbers come straight from the billing-limits report, never estimated client-side.
             LimitedCreateAction(usage = timersUsage) { limitAllowed ->
                 ManageGate(decision = manage) { manageAllowed ->
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
@@ -397,12 +421,14 @@ private fun ManagedContent(
                         ) {
                             Text(text = stringResource(Res.string.platform_templates_browse))
                         }
-                        Button(
-                            onClick = onNew,
-                            enabled = manageAllowed && limitAllowed,
-                            leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
-                        ) {
-                            Text(text = stringResource(Res.string.timers_new))
+                        if (!neverUsed) {
+                            Button(
+                                onClick = onNew,
+                                enabled = manageAllowed && limitAllowed,
+                                leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+                            ) {
+                                Text(text = stringResource(Res.string.timers_new))
+                            }
                         }
                     }
                 }
@@ -423,12 +449,14 @@ private fun ManagedContent(
         // Single card wrapping the entire table — rows are separated by dividers.
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (filteredTimers.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(Res.string.timers_empty),
-                        style = typography.base,
-                        color = tokens.mutedForeground,
+                if (neverUsed) {
+                    EmptyState(
+                        title = stringResource(Res.string.timers_empty),
+                        description = stringResource(Res.string.timers_empty_description),
+                        action = newAction,
                     )
+                } else {
+                    NoResultsState(query = searchQuery, onClearFilter = { searchQuery = "" })
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -952,38 +980,6 @@ private fun WriteErrorBanner(detail: String, onDismiss: () -> Unit) {
         TextButton(onClick = onDismiss) {
             Text(text = stringResource(Res.string.timers_dialog_cancel), color = tokens.mutedForeground)
         }
-    }
-}
-
-@Composable
-private fun ErrorContent(detail: String, onRetry: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Text(
-                text = stringResource(Res.string.timers_error, detail),
-                style = typography.base,
-                color = tokens.mutedForeground,
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.timers_retry)) }
-        }
-    }
-}
-
-@Composable
-private fun CenteredMessage(text: String) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
 }
 
