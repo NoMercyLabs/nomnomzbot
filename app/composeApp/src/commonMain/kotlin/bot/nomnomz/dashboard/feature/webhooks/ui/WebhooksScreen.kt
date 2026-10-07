@@ -465,14 +465,12 @@ fun WebhooksScreen(
             catalogue = catalogue,
             templateHelpersApi = templateHelpersApi,
             onConfirmCreate = { name, fqdn, path, events, bodyTemplate ->
-                showCreateOutbound = false
-                scope.launch {
-                    val created: OutboundWebhookCreated? =
-                        controller.createOutbound(name, fqdn, path, events, bodyTemplate)
-                    if (created != null) shownSecret = created.signingSecret
-                }
+                val created: ApiResult<OutboundWebhookCreated> =
+                    controller.createOutbound(name, fqdn, path, events, bodyTemplate)
+                if (created is ApiResult.Ok) shownSecret = created.value.signingSecret
+                created.toDialogResult()
             },
-            onConfirmEdit = { _, _, _, _ -> },
+            onConfirmEdit = { _, _, _, _ -> DialogResult.Done },
             onDismiss = { showCreateOutbound = false },
         )
     }
@@ -482,10 +480,9 @@ fun WebhooksScreen(
             existing = ep,
             catalogue = catalogue,
             templateHelpersApi = templateHelpersApi,
-            onConfirmCreate = { _, _, _, _, _ -> },
+            onConfirmCreate = { _, _, _, _, _ -> DialogResult.Done },
             onConfirmEdit = { name, events, enabled, bodyTemplate ->
-                pendingEditOutbound = null
-                scope.launch { controller.updateOutbound(ep.id, name, events, enabled, bodyTemplate) }
+                controller.updateOutbound(ep.id, name, events, enabled, bodyTemplate).toDialogResult()
             },
             onDismiss = { pendingEditOutbound = null },
         )
@@ -1097,8 +1094,8 @@ private fun OutboundDialog(
     existing: OutboundWebhook?,
     catalogue: List<OutboundEventCatalogueEntry>,
     templateHelpersApi: TemplateHelpersApi,
-    onConfirmCreate: (name: String, fqdn: String, path: String?, events: List<String>, bodyTemplate: String?) -> Unit,
-    onConfirmEdit: (name: String, events: List<String>, enabled: Boolean, bodyTemplate: String?) -> Unit,
+    onConfirmCreate: suspend (name: String, fqdn: String, path: String?, events: List<String>, bodyTemplate: String?) -> DialogResult,
+    onConfirmEdit: suspend (name: String, events: List<String>, enabled: Boolean, bodyTemplate: String?) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1111,124 +1108,114 @@ private fun OutboundDialog(
     var path: String by remember { mutableStateOf(existing?.path ?: "") }
     var enabled: Boolean by remember { mutableStateOf(existing?.isEnabled ?: true) }
     var bodyTemplate: String by remember { mutableStateOf(existing?.bodyTemplate ?: "") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
-    var fqdnError: Boolean by remember { mutableStateOf(false) }
-    var eventsError: Boolean by remember { mutableStateOf(false) }
+    var nameTouched: Boolean by remember { mutableStateOf(false) }
+    var fqdnTouched: Boolean by remember { mutableStateOf(false) }
+    var eventsTouched: Boolean by remember { mutableStateOf(false) }
 
-    var allEvents: Boolean by remember { mutableStateOf(existing?.subscribedEventTypes?.contains("*") ?: false) }
-    var selected: Set<String> by remember {
-        mutableStateOf(existing?.subscribedEventTypes?.filter { it != "*" }?.toSet() ?: emptySet())
-    }
+    val initialAllEvents: Boolean = existing?.subscribedEventTypes?.contains("*") ?: false
+    val initialSelected: Set<String> = existing?.subscribedEventTypes?.filter { it != "*" }?.toSet() ?: emptySet()
+    var allEvents: Boolean by remember { mutableStateOf(initialAllEvents) }
+    var selected: Set<String> by remember { mutableStateOf(initialSelected) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
+    // Save stays off until the form can be sent; the required-field errors below say why.
+    val eventsMissing: Boolean = !allEvents && selected.isEmpty()
+    val valid: Boolean = name.isNotBlank() && (isEdit || fqdn.isNotBlank()) && !eventsMissing
+    val dirty: Boolean =
+        name != (existing?.name ?: "") ||
+            fqdn != (existing?.fqdn ?: "") ||
+            path != (existing?.path ?: "") ||
+            enabled != (existing?.isEnabled ?: true) ||
+            bodyTemplate != (existing?.bodyTemplate ?: "") ||
+            allEvents != initialAllEvents ||
+            selected != initialSelected
+
+    FormDialog(
+        title = if (isEdit) stringResource(Res.string.webhooks_edit_outbound_title) else stringResource(Res.string.webhooks_create_outbound_title),
+        saveLabel = if (isEdit) stringResource(Res.string.webhooks_edit_confirm) else stringResource(Res.string.webhooks_create_outbound_confirm),
+        cancelLabel = if (isEdit) stringResource(Res.string.webhooks_edit_dismiss) else stringResource(Res.string.webhooks_create_outbound_dismiss),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = valid,
+        save = {
+            val events: List<String> = if (allEvents) listOf("*") else selected.toList()
+            val trimmedBodyTemplate: String? = bodyTemplate.trim().takeIf { it.isNotBlank() }
+            if (isEdit) {
+                onConfirmEdit(name.trim(), events, enabled, trimmedBodyTemplate)
+            } else {
+                onConfirmCreate(
+                    name.trim(),
+                    fqdn.trim(),
+                    path.trim().takeIf { it.isNotBlank() },
+                    events,
+                    trimmedBodyTemplate,
+                )
+            }
+        },
+    ) {
+        AppTextField(
+            value = name, onValueChange = { name = it; nameTouched = true },
+            label = stringResource(Res.string.webhooks_create_outbound_name),
+            isError = nameTouched && name.isBlank(),
+            errorText = if (nameTouched && name.isBlank()) stringResource(Res.string.webhooks_create_outbound_name_required) else null,
+        )
+        if (isEdit) {
+            // FQDN/path are fixed at create (egress-allowlist bound) — shown read-only for context.
             Text(
-                text = if (isEdit) stringResource(Res.string.webhooks_edit_outbound_title) else stringResource(Res.string.webhooks_create_outbound_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
+                text = stringResource(Res.string.webhooks_outbound_target_readonly, "${fqdn}${path}"),
+                style = typography.xs,
+                color = tokens.mutedForeground,
             )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 5).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                AppTextField(
-                    value = name, onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.webhooks_create_outbound_name),
-                    isError = nameError,
-                    errorText = if (nameError) stringResource(Res.string.webhooks_create_outbound_name_required) else null,
-                )
-                if (isEdit) {
-                    // FQDN/path are fixed at create (egress-allowlist bound) — shown read-only for context.
-                    Text(
-                        text = stringResource(Res.string.webhooks_outbound_target_readonly, "${fqdn}${path}"),
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                    )
-                } else {
-                    AppTextField(
-                        value = fqdn, onValueChange = { fqdn = it; fqdnError = false },
-                        label = stringResource(Res.string.webhooks_create_outbound_fqdn),
-                        isError = fqdnError,
-                        errorText = if (fqdnError) stringResource(Res.string.webhooks_create_outbound_fqdn_required) else null,
-                    )
-                    AppTextField(
-                        value = path, onValueChange = { path = it },
-                        label = stringResource(Res.string.webhooks_create_outbound_path),
-                    )
-                }
+        } else {
+            AppTextField(
+                value = fqdn, onValueChange = { fqdn = it; fqdnTouched = true },
+                label = stringResource(Res.string.webhooks_create_outbound_fqdn),
+                isError = fqdnTouched && fqdn.isBlank(),
+                errorText = if (fqdnTouched && fqdn.isBlank()) stringResource(Res.string.webhooks_create_outbound_fqdn_required) else null,
+            )
+            AppTextField(
+                value = path, onValueChange = { path = it },
+                label = stringResource(Res.string.webhooks_create_outbound_path),
+            )
+        }
 
-                EventChecklist(
-                    catalogue = catalogue,
-                    allEvents = allEvents,
-                    selected = selected,
-                    showError = eventsError,
-                    onToggleAll = { allEvents = it; eventsError = false },
-                    onToggleEvent = { type, on ->
-                        selected = if (on) selected + type else selected - type
-                        eventsError = false
-                    },
-                )
+        EventChecklist(
+            catalogue = catalogue,
+            allEvents = allEvents,
+            selected = selected,
+            showError = eventsTouched && eventsMissing,
+            onToggleAll = { allEvents = it; eventsTouched = true },
+            onToggleEvent = { type, on ->
+                selected = if (on) selected + type else selected - type
+                eventsTouched = true
+            },
+        )
 
-                // The outbound delivery body — a template rendered against TemplateHelperContext.Webhook
-                // (payload.*, webhook.*) instead of the hardcoded default JSON. The picker inserts a real
-                // helper key from the backend registry rather than a hand-typed guess (S-OWN16).
-                AppTextField(
-                    value = bodyTemplate,
-                    onValueChange = { bodyTemplate = it },
-                    label = if (isEdit) {
-                        stringResource(Res.string.webhooks_edit_body_template)
-                    } else {
-                        stringResource(Res.string.webhooks_create_outbound_body_template)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TemplateHelpersLink(
-                    context = TemplateHelperContext.Webhook,
-                    api = templateHelpersApi,
-                    onInsert = { token -> bodyTemplate = if (bodyTemplate.isEmpty()) token else "$bodyTemplate$token" },
-                )
+        // The outbound delivery body — a template rendered against TemplateHelperContext.Webhook
+        // (payload.*, webhook.*) instead of the hardcoded default JSON. The picker inserts a real
+        // helper key from the backend registry rather than a hand-typed guess (S-OWN16).
+        AppTextField(
+            value = bodyTemplate,
+            onValueChange = { bodyTemplate = it },
+            label = if (isEdit) {
+                stringResource(Res.string.webhooks_edit_body_template)
+            } else {
+                stringResource(Res.string.webhooks_create_outbound_body_template)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TemplateHelpersLink(
+            context = TemplateHelperContext.Webhook,
+            api = templateHelpersApi,
+            onInsert = { token -> bodyTemplate = if (bodyTemplate.isEmpty()) token else "$bodyTemplate$token" },
+        )
 
-                if (isEdit) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                        Switch(checked = enabled, onCheckedChange = { enabled = it })
-                        Text(text = stringResource(Res.string.webhooks_enabled_label), style = typography.sm, color = tokens.foreground)
-                    }
-                }
+        if (isEdit) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Switch(checked = enabled, onCheckedChange = { enabled = it })
+                Text(text = stringResource(Res.string.webhooks_enabled_label), style = typography.sm, color = tokens.foreground)
             }
-        },
-        confirmButton = {
-            Button(onClick = {
-                var valid: Boolean = true
-                if (name.isBlank()) { nameError = true; valid = false }
-                if (!isEdit && fqdn.isBlank()) { fqdnError = true; valid = false }
-                if (!allEvents && selected.isEmpty()) { eventsError = true; valid = false }
-                if (!valid) return@Button
-                val events: List<String> = if (allEvents) listOf("*") else selected.toList()
-                val trimmedBodyTemplate: String? = bodyTemplate.trim().takeIf { it.isNotBlank() }
-                if (isEdit) {
-                    onConfirmEdit(name.trim(), events, enabled, trimmedBodyTemplate)
-                } else {
-                    onConfirmCreate(
-                        name.trim(),
-                        fqdn.trim(),
-                        path.trim().takeIf { it.isNotBlank() },
-                        events,
-                        trimmedBodyTemplate,
-                    )
-                }
-            }) {
-                Text(if (isEdit) stringResource(Res.string.webhooks_edit_confirm) else stringResource(Res.string.webhooks_create_outbound_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (isEdit) stringResource(Res.string.webhooks_edit_dismiss) else stringResource(Res.string.webhooks_create_outbound_dismiss))
-            }
-        },
-    )
+        }
+    }
 }
 
 // The outbound event subscription checklist: a "subscribe to all" wildcard toggle, then the catalogue grouped

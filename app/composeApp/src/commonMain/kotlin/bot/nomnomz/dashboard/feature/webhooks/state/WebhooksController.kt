@@ -255,7 +255,8 @@ class WebhooksController(
     // ── Outbound ─────────────────────────────────────────────────────────────
 
     /**
-     * Create an outbound endpoint. Returns the signing secret (shown ONCE) on success, null on failure.
+     * Create an outbound endpoint. Ok carries the signing secret (shown ONCE). The result is handed back
+     * untouched: the form stays open until it arrives and shows a failure's reason inline (no failure toast).
      */
     suspend fun createOutbound(
         name: String,
@@ -263,8 +264,12 @@ class WebhooksController(
         path: String?,
         events: List<String>,
         bodyTemplate: String? = null,
-    ): OutboundWebhookCreated? {
-        val channel: String = channelId ?: run { failWrite("No active channel."); return null }
+    ): ApiResult<OutboundWebhookCreated> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
         val body =
             CreateOutboundBody(
                 name = name,
@@ -273,23 +278,25 @@ class WebhooksController(
                 subscribedEventTypes = events,
                 bodyTemplate = bodyTemplate?.takeIf { it.isNotBlank() },
             )
-        return when (
-            val result: ApiResult<OutboundWebhookCreated> = webhooksApi.createOutbound(channel, body)
-        ) {
-            is ApiResult.Ok -> { load(); result.value }
-            is ApiResult.Failure -> { failWrite(result.error.message); null }
+        val result: ApiResult<OutboundWebhookCreated> = webhooksApi.createOutbound(channel, body)
+        if (result is ApiResult.Ok) {
+            load()
         }
+        return result
     }
 
-    /** Full outbound edit — persists the name, the subscribed-event set, and the enabled flag in one PUT. */
+    /**
+     * Full outbound edit — persists the name, the subscribed-event set, and the enabled flag in one PUT. The result
+     * is handed back untouched: the form stays open until it arrives and shows a failure inline (no failure toast).
+     */
     suspend fun updateOutbound(
         endpointId: String,
         name: String,
         events: List<String>,
         isEnabled: Boolean,
         bodyTemplate: String? = null,
-    ) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
         val body =
             UpdateOutboundBody(
                 name = name,
@@ -297,10 +304,7 @@ class WebhooksController(
                 bodyTemplate = bodyTemplate?.takeIf { it.isNotBlank() },
                 isEnabled = isEnabled,
             )
-        when (val result: ApiResult<OutboundWebhook> = webhooksApi.updateOutbound(channel, endpointId, body)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+        return afterDialogWrite(webhooksApi.updateOutbound(channel, endpointId, body))
     }
 
     suspend fun toggleOutbound(endpointId: String, enabled: Boolean) {
