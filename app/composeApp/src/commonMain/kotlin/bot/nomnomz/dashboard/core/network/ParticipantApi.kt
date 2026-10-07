@@ -27,7 +27,8 @@ import kotlinx.serialization.Serializable
 //                                  POST economy/catalog/{itemId}/purchase (PurchaseRequest)            (economy:catalog:purchase)
 //   SavingsJarsController          GET  economy/jars                                    → StatusResponseDto<List<SavingsJarDto>> (economy:jars:read)
 //                                  POST economy/jars/{jarId}/contribute   (JarContributeRequest)       (economy:jars:contribute)
-//   EconomyLeaderboardsController  POST economy/leaderboards/opt-in/{viewerUserId}                     (economy:leaderboards:opt-in)
+//   EconomyLeaderboardsController  GET  economy/leaderboards/consent                    → StatusResponseDto<LeaderboardConsentDto> (economy:leaderboards:opt-in)
+//                                  POST economy/leaderboards/opt-in/{viewerUserId}                   (economy:leaderboards:opt-in)
 //                                  POST economy/leaderboards/opt-out/{viewerUserId}                    (economy:leaderboards:opt-out)
 //   GamesController                POST economy/games/{gameConfigId}/play (PlayGameRequest)            (economy:games:play)
 //                                  GET  economy/games/history                           → PaginatedResponse<GamePlayDto>         (economy:games:history:read)
@@ -56,6 +57,9 @@ interface ParticipantApi {
         amount: Long,
         reason: String?,
     ): ApiResult<Unit>
+
+    /** The caller's own leaderboard visibility on [channelId], as stored by the server (true unless opted out). */
+    suspend fun leaderboardConsent(channelId: String): ApiResult<LeaderboardConsent>
 
     /** Opt [viewerUserId] (the caller) IN to public leaderboards on [channelId]. */
     suspend fun leaderboardOptIn(channelId: String, viewerUserId: String): ApiResult<Unit>
@@ -146,6 +150,9 @@ class RestParticipantApi(private val client: ApiClient) : ParticipantApi {
             ),
         )
 
+    override suspend fun leaderboardConsent(channelId: String): ApiResult<LeaderboardConsent> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/leaderboards/consent")
+
     override suspend fun leaderboardOptIn(channelId: String, viewerUserId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/economy/leaderboards/opt-in/$viewerUserId")
 
@@ -224,6 +231,10 @@ data class CurrencyAccount(
     val isFrozen: Boolean = false,
     val lastActivityAt: String? = null,
 )
+
+/** The caller's leaderboard visibility (backend `LeaderboardConsentDto`): [optedIn] is false only after an opt-out. */
+@Serializable
+data class LeaderboardConsent(val optedIn: Boolean = true)
 
 /**
  * One purchasable store item (backend `CatalogItemDto`). The participant surface reads [name]/[description]/[cost]

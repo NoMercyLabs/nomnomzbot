@@ -115,6 +115,19 @@ public class EconomyLeaderboardsController(
         return ResultResponse(await leaderboards.GetRankingAsync(broadcasterId, configId, top, ct));
     }
 
+    /// <summary>Read the calling user's own leaderboard visibility on the channel (opted in unless they opted out).</summary>
+    [HttpGet("consent")]
+    [RequireAction("economy:leaderboards:opt-in")]
+    [ProducesResponseType<StatusResponseDto<LeaderboardConsentDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetConsent(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(currentUser.UserId, out Guid caller))
+            return UnauthorizedResponse();
+        return ResultResponse(await leaderboards.GetConsentAsync(broadcasterId, caller, ct));
+    }
+
     /// <summary>Opt a viewer out of the channel's leaderboards, hiding them from rankings.</summary>
     [HttpPost("opt-out/{viewerUserId:guid}")]
     [RequireAction("economy:leaderboards:opt-out")]

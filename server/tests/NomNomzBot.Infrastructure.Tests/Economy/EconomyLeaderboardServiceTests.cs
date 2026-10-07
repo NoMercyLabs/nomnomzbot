@@ -151,6 +151,21 @@ public sealed class EconomyLeaderboardServiceTests
     }
 
     [Fact]
+    public async Task GetConsent_reports_the_opt_state_the_toggles_stored()
+    {
+        (EconomyLeaderboardService sut, _) = Build();
+
+        (await sut.GetConsentAsync(Channel, V3)).Value.OptedIn.Should().BeTrue(); // never opted out
+
+        await sut.OptOutAsync(Channel, V3);
+        (await sut.GetConsentAsync(Channel, V3)).Value.OptedIn.Should().BeFalse();
+        (await sut.GetConsentAsync(Channel, V1)).Value.OptedIn.Should().BeTrue(); // other viewer untouched
+
+        await sut.OptInAsync(Channel, V3);
+        (await sut.GetConsentAsync(Channel, V3)).Value.OptedIn.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task CaptureSnapshot_freezes_the_standings()
     {
         (EconomyLeaderboardService sut, AuthDbContext db) = Build();

@@ -181,6 +181,11 @@ public sealed record LeaderboardEntryDto(
     long Value
 );
 
+/// <summary>
+/// A viewer's leaderboard visibility on a channel: <c>OptedIn</c> is true unless the viewer has an active opt-out.
+/// </summary>
+public sealed record LeaderboardConsentDto(bool OptedIn);
+
 /// <summary>A viewer's 18+ gambling consent state (economy.md §4).</summary>
 public sealed record AgeConsentDto(
     Guid ViewerUserId,

@@ -72,6 +72,32 @@ public sealed class EconomyLeaderboardsControllerTests
     }
 
     [Fact]
+    public async Task GetConsent_reads_the_calling_users_own_state()
+    {
+        (EconomyLeaderboardsController controller, IEconomyLeaderboardService service) = Build(
+            caller: Other
+        );
+        service
+            .GetConsentAsync(Channel, Other, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new LeaderboardConsentDto(false)));
+
+        IActionResult result = await controller.GetConsent(Channel.ToString(), default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await service.Received(1).GetConsentAsync(Channel, Other, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetConsent_rejects_a_malformed_channel_id()
+    {
+        (EconomyLeaderboardsController controller, _) = Build();
+
+        IActionResult result = await controller.GetConsent("not-a-guid", default);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task OptOut_toggles_the_route_viewer()
     {
         (EconomyLeaderboardsController controller, IEconomyLeaderboardService service) = Build();

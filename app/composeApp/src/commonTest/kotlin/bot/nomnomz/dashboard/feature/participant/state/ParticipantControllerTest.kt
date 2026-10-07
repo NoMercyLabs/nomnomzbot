@@ -43,6 +43,7 @@ import bot.nomnomz.dashboard.core.network.LeaderboardConfig
 import bot.nomnomz.dashboard.core.network.GamePlay
 import bot.nomnomz.dashboard.core.network.GamePlayResult
 import bot.nomnomz.dashboard.core.network.GameSummary
+import bot.nomnomz.dashboard.core.network.LeaderboardConsent
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.BlockTrackBody
 import bot.nomnomz.dashboard.core.network.BlockedTrack
@@ -233,8 +234,20 @@ class ParticipantControllerTest {
     }
 
     @Test
-    fun the_leaderboard_consent_is_unknown_until_the_server_confirms_a_choice() = runTest {
-        // The server has no read route for the caller's opt state, so a fresh load must not claim "opted in".
+    fun loading_the_leaderboards_shows_the_opt_state_the_server_stored() = runTest {
+        val optedOut = controller(api = FakeParticipantApi(consentResult = ApiResult.Ok(LeaderboardConsent(false))))
+        val optedIn = controller(api = FakeParticipantApi(consentResult = ApiResult.Ok(LeaderboardConsent(true))))
+
+        optedOut.loadLeaderboards()
+        optedIn.loadLeaderboards()
+
+        assertEquals(false, (optedOut.leaderboards.value as LeaderboardsState.Ready).optedIn)
+        assertEquals(true, (optedIn.leaderboards.value as LeaderboardsState.Ready).optedIn)
+    }
+
+    @Test
+    fun the_leaderboard_consent_is_unknown_when_the_server_read_fails() = runTest {
+        // A failed consent read must not claim "opted in": the state stays unknown (null).
         val controller = controller()
 
         controller.loadLeaderboards()
@@ -502,6 +515,8 @@ private class FakeParticipantApi(
     private val channels: List<ChannelAppearance> = emptyList(),
     private val songRequestResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val optOutResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val consentResult: ApiResult<LeaderboardConsent> =
+        ApiResult.Failure(ApiError(404, "NO_READ", "no consent read")),
 ) : ParticipantApi {
     val accountCalls: MutableList<String> = mutableListOf()
     val purchaseCalls: MutableList<Pair<String, String>> = mutableListOf()
@@ -545,6 +560,9 @@ private class FakeParticipantApi(
         transferCalls.add(TransferCall(channelId, fromViewerUserId, toViewerUserId, amount))
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun leaderboardConsent(channelId: String): ApiResult<LeaderboardConsent> =
+        consentResult
 
     override suspend fun leaderboardOptIn(channelId: String, viewerUserId: String): ApiResult<Unit> {
         optInCalls.add(channelId to viewerUserId)

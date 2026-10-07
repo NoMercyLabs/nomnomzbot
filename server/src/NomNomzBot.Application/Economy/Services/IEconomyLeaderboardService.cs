@@ -61,6 +61,13 @@ public interface IEconomyLeaderboardService
     /// <summary>Removes the opt-out (re-includes the viewer). Idempotent.</summary>
     Task<Result> OptInAsync(Guid broadcasterId, Guid viewerUserId, CancellationToken ct = default);
 
+    /// <summary>Reads whether the viewer is currently shown on this channel's rankings (no active opt-out).</summary>
+    Task<Result<LeaderboardConsentDto>> GetConsentAsync(
+        Guid broadcasterId,
+        Guid viewerUserId,
+        CancellationToken ct = default
+    );
+
     /// <summary>
     /// The real, counted blast radius of deleting this leaderboard configuration (S-CONSEQ).
     /// <c>LeaderboardSnapshot</c> carries <c>LeaderboardConfigId</c>, so the stored history it would orphan is
