@@ -40,6 +40,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -50,6 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomationScope
 import bot.nomnomz.dashboard.core.network.AutomationToken
 import bot.nomnomz.dashboard.core.network.IssuedAutomationToken
@@ -205,8 +209,10 @@ fun AutomationScreen(controller: AutomationController, role: ManagementRole?) {
             pipelines = pipelines,
             onDismiss = { showCreate = false },
             onCreate = { name, scopes, pipelineIds, expiresAt ->
-                showCreate = false
-                scope.launch { issued = controller.createToken(name, scopes, pipelineIds, expiresAt) }
+                val created: ApiResult<IssuedAutomationToken> =
+                    controller.createToken(name, scopes, pipelineIds, expiresAt)
+                if (created is ApiResult.Ok) issued = created.value
+                created.toDialogResult()
             },
         )
     }
@@ -236,9 +242,10 @@ fun AutomationScreen(controller: AutomationController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.automation_rotate_confirm),
             dismissLabel = stringResource(Res.string.automation_cancel),
             destructive = true,
-            onConfirm = {
-                pendingRotate = null
-                scope.launch { issued = controller.rotateToken(token.id) }
+            action = {
+                val rotated: ApiResult<IssuedAutomationToken> = controller.rotateToken(token.id)
+                if (rotated is ApiResult.Ok) issued = rotated.value
+                rotated.toDialogResult()
             },
             onDismiss = { pendingRotate = null },
         )
@@ -251,10 +258,7 @@ fun AutomationScreen(controller: AutomationController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.automation_revoke_confirm),
             dismissLabel = stringResource(Res.string.automation_cancel),
             destructive = true,
-            onConfirm = {
-                pendingRevoke = null
-                scope.launch { controller.revokeToken(token.id) }
-            },
+            action = { controller.revokeToken(token.id).toDialogResult() },
             onDismiss = { pendingRevoke = null },
         )
     }
@@ -353,7 +357,7 @@ private fun TokenRow(
 private fun CreateTokenDialog(
     pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onCreate: (name: String, scopes: List<String>, pipelineIds: List<String>, expiresAt: String?) -> Unit,
+    onCreate: suspend (name: String, scopes: List<String>, pipelineIds: List<String>, expiresAt: String?) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -366,94 +370,83 @@ private fun CreateTokenDialog(
 
     val canCreate: Boolean = name.isNotBlank() && selectedScopes.value.isNotEmpty()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(Res.string.automation_create_title)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = stringResource(Res.string.automation_name_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+    val dirty: Boolean =
+        name.isNotBlank() ||
+            selectedScopes.value != setOf(AutomationScope.Invoke) ||
+            selectedPipelines.value.isNotEmpty() ||
+            expiryDays != null
 
-                Text(text = stringResource(Res.string.automation_scopes_label), style = typography.sm, color = tokens.mutedForeground)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    AutomationScope.all.forEach { key ->
-                        val selected: Boolean = key in selectedScopes.value
-                        ToggleChip(
-                            label = stringResource(scopeLabel(key)),
-                            selected = selected,
-                            onClick = {
-                                selectedScopes.value =
-                                    if (selected) selectedScopes.value - key else selectedScopes.value + key
-                            },
+    FormDialog(
+        title = stringResource(Res.string.automation_create_title),
+        saveLabel = stringResource(Res.string.automation_create),
+        cancelLabel = stringResource(Res.string.automation_cancel),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = canCreate,
+        save = {
+            onCreate(
+                name.trim(),
+                selectedScopes.value.toList(),
+                selectedPipelines.value.toList(),
+                expiryDays?.let { Clock.System.now().plus(it.days).toString() },
+            )
+        },
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = stringResource(Res.string.automation_name_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Text(text = stringResource(Res.string.automation_scopes_label), style = typography.sm, color = tokens.mutedForeground)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            AutomationScope.all.forEach { key ->
+                val selected: Boolean = key in selectedScopes.value
+                ToggleChip(
+                    label = stringResource(scopeLabel(key)),
+                    selected = selected,
+                    onClick = {
+                        selectedScopes.value =
+                            if (selected) selectedScopes.value - key else selectedScopes.value + key
+                    },
+                )
+            }
+        }
+
+        if (pipelines.isNotEmpty()) {
+            Text(text = stringResource(Res.string.automation_pipelines_label), style = typography.sm, color = tokens.mutedForeground)
+            Text(text = stringResource(Res.string.automation_pipelines_hint), style = typography.xs, color = tokens.mutedForeground)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                pipelines.forEach { pipeline ->
+                    val selected: Boolean = pipeline.id in selectedPipelines.value
+                    val pipelineDisplayName: String =
+                        resolveRowLabel(
+                            primary = pipeline.name,
+                            typeLabel = stringResource(Res.string.automation_pipeline_row_type),
+                            discriminatorSource = pipeline.id,
                         )
-                    }
-                }
-
-                if (pipelines.isNotEmpty()) {
-                    Text(text = stringResource(Res.string.automation_pipelines_label), style = typography.sm, color = tokens.mutedForeground)
-                    Text(text = stringResource(Res.string.automation_pipelines_hint), style = typography.xs, color = tokens.mutedForeground)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        pipelines.forEach { pipeline ->
-                            val selected: Boolean = pipeline.id in selectedPipelines.value
-                            val pipelineDisplayName: String =
-                                resolveRowLabel(
-                                    primary = pipeline.name,
-                                    typeLabel = stringResource(Res.string.automation_pipeline_row_type),
-                                    discriminatorSource = pipeline.id,
-                                )
-                            ToggleChip(
-                                label = pipelineDisplayName,
-                                selected = selected,
-                                onClick = {
-                                    selectedPipelines.value =
-                                        if (selected) selectedPipelines.value - pipeline.id
-                                        else selectedPipelines.value + pipeline.id
-                                },
-                            )
-                        }
-                    }
-                }
-
-                Text(text = stringResource(Res.string.automation_expiry_label), style = typography.sm, color = tokens.mutedForeground)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    ToggleChip(label = stringResource(Res.string.automation_expiry_never), selected = expiryDays == null, onClick = { expiryDays = null })
-                    ToggleChip(label = stringResource(Res.string.automation_expiry_30d), selected = expiryDays == 30, onClick = { expiryDays = 30 })
-                    ToggleChip(label = stringResource(Res.string.automation_expiry_90d), selected = expiryDays == 90, onClick = { expiryDays = 90 })
-                    ToggleChip(label = stringResource(Res.string.automation_expiry_1y), selected = expiryDays == 365, onClick = { expiryDays = 365 })
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onCreate(
-                        name.trim(),
-                        selectedScopes.value.toList(),
-                        selectedPipelines.value.toList(),
-                        expiryDays?.let { Clock.System.now().plus(it.days).toString() },
+                    ToggleChip(
+                        label = pipelineDisplayName,
+                        selected = selected,
+                        onClick = {
+                            selectedPipelines.value =
+                                if (selected) selectedPipelines.value - pipeline.id
+                                else selectedPipelines.value + pipeline.id
+                        },
                     )
-                },
-                enabled = canCreate,
-            ) {
-                Text(
-                    text = stringResource(Res.string.automation_create),
-                    color = if (canCreate) tokens.primary else tokens.mutedForeground,
-                )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.automation_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+        }
+
+        Text(text = stringResource(Res.string.automation_expiry_label), style = typography.sm, color = tokens.mutedForeground)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            ToggleChip(label = stringResource(Res.string.automation_expiry_never), selected = expiryDays == null, onClick = { expiryDays = null })
+            ToggleChip(label = stringResource(Res.string.automation_expiry_30d), selected = expiryDays == 30, onClick = { expiryDays = 30 })
+            ToggleChip(label = stringResource(Res.string.automation_expiry_90d), selected = expiryDays == 90, onClick = { expiryDays = 90 })
+            ToggleChip(label = stringResource(Res.string.automation_expiry_1y), selected = expiryDays == 365, onClick = { expiryDays = 365 })
+        }
+    }
 }
 
 @Composable
