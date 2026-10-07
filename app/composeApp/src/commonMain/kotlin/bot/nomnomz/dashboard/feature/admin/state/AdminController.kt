@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
+import bot.nomnomz.dashboard.core.network.IamRoleAssignment
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
@@ -972,24 +973,30 @@ class AdminController(
     }
 
     /** Promote a user (employee) — [userId] set, [principalType] 0. The panel shows no key. */
-    suspend fun promoteUser(userId: String, displayName: String, roleIds: List<String>) {
+    suspend fun promoteUser(userId: String, displayName: String, roleIds: List<String>): ApiResult<IamPrincipal> {
         val body = CreatePrincipalBody(principalType = 0, userId = userId, displayName = displayName, roleIds = roleIds)
-        when (val result: ApiResult<IamPrincipal> = iamApi.createPrincipal(body)) {
-            is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+        val result: ApiResult<IamPrincipal> = iamApi.createPrincipal(body)
+        if (result is ApiResult.Ok) loadIam()
+        return result
     }
 
-    /** Create a service account — [principalType] 1. Its key is returned ONCE; stash it for the show-once dialog. */
-    suspend fun createServiceAccount(serviceAccountName: String, roleIds: List<String>) {
+    /**
+     * Create a service account — [principalType] 1. Its key is returned ONCE; stash it for the show-once dialog.
+     * The caller's dialog shows a failure inline, so no toast is raised here.
+     */
+    suspend fun createServiceAccount(serviceAccountName: String, roleIds: List<String>): ApiResult<IamPrincipal> {
         val body = CreatePrincipalBody(principalType = 1, displayName = serviceAccountName, roleIds = roleIds, serviceAccountName = serviceAccountName)
-        when (val result: ApiResult<IamPrincipal> = iamApi.createPrincipal(body)) {
-            is ApiResult.Ok -> {
-                _state.value = _state.value.copy(issuedServiceAccountKey = result.value.serviceAccountKey)
-                loadIam()
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
+        val result: ApiResult<IamPrincipal> = iamApi.createPrincipal(body)
+        if (result is ApiResult.Ok) {
+            _state.value = _state.value.copy(issuedServiceAccountKey = result.value.serviceAccountKey)
+            loadIam()
         }
+        return result
+    }
+
+    /** The failure toast for a write whose caller has no dialog to show the reason in. */
+    fun reportActionFailure(error: ApiError) {
+        feedback.error(Res.string.admin_action_error, error.message)
     }
 
     /** Clears the show-once service-account key once the operator has copied/dismissed it. */
@@ -1012,12 +1019,11 @@ class AdminController(
         }
     }
 
-    suspend fun assignRole(principalId: String, roleId: String, reason: String?) {
+    suspend fun assignRole(principalId: String, roleId: String, reason: String?): ApiResult<IamRoleAssignment> {
         val body = AssignRoleBody(principalId = principalId, roleId = roleId, reason = reason)
-        when (val result = iamApi.assignRole(body)) {
-            is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+        val result: ApiResult<IamRoleAssignment> = iamApi.assignRole(body)
+        if (result is ApiResult.Ok) loadIam()
+        return result
     }
 
     suspend fun revokeAssignment(assignmentId: String, reason: String?) {

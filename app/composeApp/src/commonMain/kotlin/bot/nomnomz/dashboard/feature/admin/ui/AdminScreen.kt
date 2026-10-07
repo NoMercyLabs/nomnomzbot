@@ -68,6 +68,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.network.ProviderCredential
 import bot.nomnomz.dashboard.core.network.AdminUser
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.network.AdminTier
@@ -912,11 +914,12 @@ internal fun UsersTab(state: AdminState, controller: AdminController, onOpenIam:
             onGrant = { roleId ->
                 grantTarget = null
                 scope.launch {
-                    controller.promoteUser(
+                    val result: ApiResult<IamPrincipal> = controller.promoteUser(
                         userId = user.id,
                         displayName = user.displayName.ifBlank { user.login },
                         roleIds = listOf(roleId),
                     )
+                    if (result is ApiResult.Failure) controller.reportActionFailure(result.error)
                 }
             },
         )

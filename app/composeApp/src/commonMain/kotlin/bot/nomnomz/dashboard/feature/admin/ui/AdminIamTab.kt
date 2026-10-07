@@ -39,6 +39,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
@@ -209,8 +212,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             state = state,
             onDismiss = { promoteOpen = false },
             onConfirm = { userId, displayName, roleId ->
-                scope.launch { controller.promoteUser(userId, displayName, listOfNotNull(roleId)) }
-                promoteOpen = false
+                controller.promoteUser(userId, displayName, listOfNotNull(roleId)).toDialogResult()
             },
         )
     }
@@ -220,8 +222,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             roles = state.roles,
             onDismiss = { serviceOpen = false },
             onConfirm = { name, roleId ->
-                scope.launch { controller.createServiceAccount(name, listOfNotNull(roleId)) }
-                serviceOpen = false
+                controller.createServiceAccount(name, listOfNotNull(roleId)).toDialogResult()
             },
         )
     }
@@ -231,8 +232,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             roles = state.roles,
             onDismiss = { assignFor = null },
             onConfirm = { roleId, reason ->
-                scope.launch { controller.assignRole(principal.id, roleId, reason.ifBlank { null }) }
-                assignFor = null
+                controller.assignRole(principal.id, roleId, reason.ifBlank { null }).toDialogResult()
             },
         )
     }
@@ -353,16 +353,22 @@ private fun PrincipalRow(
 private fun PromoteDialog(
     state: AdminState,
     onDismiss: () -> Unit,
-    onConfirm: (userId: String, displayName: String, roleId: String?) -> Unit,
+    onConfirm: suspend (userId: String, displayName: String, roleId: String?) -> DialogResult,
 ) {
-    val spacing = LocalSpacing.current
     var selectedUserId: String? by remember { mutableStateOf(null) }
     var selectedUserName: String by remember { mutableStateOf("") }
     var selectedRoleId: String? by remember { mutableStateOf(null) }
     var selectedRoleName: String by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_iam_promote_title))
+    FormDialog(
+        title = stringResource(Res.string.admin_iam_promote_title),
+        saveLabel = stringResource(Res.string.admin_iam_promote),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = { onConfirm(selectedUserId.orEmpty(), selectedUserName, selectedRoleId) },
+        valid = selectedUserId != null,
+        dirty = selectedUserId != null || selectedRoleId != null,
+    ) {
         DialogDescription(text = stringResource(Res.string.admin_iam_promote_desc))
 
         PickerField(
@@ -377,15 +383,6 @@ private fun PromoteDialog(
             options = state.roles.map { it.id to it.name },
             onSelect = { id, label -> selectedRoleId = id; selectedRoleName = label },
         )
-
-        Spacer(modifier = Modifier.height(spacing.s1))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(
-                onClick = { selectedUserId?.let { onConfirm(it, selectedUserName, selectedRoleId) } },
-                enabled = selectedUserId != null,
-            ) { Text(text = stringResource(Res.string.admin_iam_promote)) }
-        }
     }
 }
 
@@ -393,15 +390,21 @@ private fun PromoteDialog(
 private fun ServiceAccountDialog(
     roles: List<IamRole>,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, roleId: String?) -> Unit,
+    onConfirm: suspend (name: String, roleId: String?) -> DialogResult,
 ) {
-    val spacing = LocalSpacing.current
     var name: String by remember { mutableStateOf("") }
     var selectedRoleId: String? by remember { mutableStateOf(null) }
     var selectedRoleName: String by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_iam_create_service))
+    FormDialog(
+        title = stringResource(Res.string.admin_iam_create_service),
+        saveLabel = stringResource(Res.string.admin_save),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = { onConfirm(name, selectedRoleId) },
+        valid = name.isNotBlank(),
+        dirty = name.isNotBlank() || selectedRoleId != null,
+    ) {
         DialogDescription(text = stringResource(Res.string.admin_iam_service_desc))
 
         bot.nomnomz.dashboard.core.designsystem.component.AppTextField(
@@ -416,14 +419,6 @@ private fun ServiceAccountDialog(
             options = roles.map { it.id to it.name },
             onSelect = { id, label -> selectedRoleId = id; selectedRoleName = label },
         )
-
-        Spacer(modifier = Modifier.height(spacing.s1))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(onClick = { onConfirm(name, selectedRoleId) }, enabled = name.isNotBlank()) {
-                Text(text = stringResource(Res.string.admin_save))
-            }
-        }
     }
 }
 
@@ -431,16 +426,21 @@ private fun ServiceAccountDialog(
 private fun AssignRoleDialog(
     roles: List<IamRole>,
     onDismiss: () -> Unit,
-    onConfirm: (roleId: String, reason: String) -> Unit,
+    onConfirm: suspend (roleId: String, reason: String) -> DialogResult,
 ) {
-    val spacing = LocalSpacing.current
     var selectedRoleId: String? by remember { mutableStateOf(null) }
     var selectedRoleName: String by remember { mutableStateOf("") }
     var reason: String by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_iam_assign_role))
-
+    FormDialog(
+        title = stringResource(Res.string.admin_iam_assign_role),
+        saveLabel = stringResource(Res.string.admin_iam_assign_role),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = { onConfirm(selectedRoleId.orEmpty(), reason) },
+        valid = selectedRoleId != null,
+        dirty = selectedRoleId != null || reason.isNotBlank(),
+    ) {
         PickerField(
             label = stringResource(Res.string.admin_iam_role),
             selectedLabel = selectedRoleName,
@@ -453,15 +453,6 @@ private fun AssignRoleDialog(
             label = stringResource(Res.string.admin_iam_reason),
             modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(spacing.s1))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(
-                onClick = { selectedRoleId?.let { onConfirm(it, reason) } },
-                enabled = selectedRoleId != null,
-            ) { Text(text = stringResource(Res.string.admin_iam_assign_role)) }
-        }
     }
 }
 
