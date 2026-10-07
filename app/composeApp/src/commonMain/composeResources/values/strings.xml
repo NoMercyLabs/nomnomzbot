@@ -2490,6 +2490,7 @@
     <string name="giveaways_pool_add_label">Add codes (one per line — optionally "CODE | a label")</string>
     <string name="giveaways_pool_add_placeholder">PROMO-1234 | Steam key — Cyberpunk 2077</string>
     <string name="giveaways_pool_add_action">Add codes</string>
+    <string name="giveaways_pool_add_failed">Couldn't add the codes. They are still here, so you can try again. %1$s</string>
     <string name="giveaways_code_status_available">Available</string>
     <string name="giveaways_code_status_assigned">Assigned</string>
     <string name="giveaways_code_status_delivered">Delivered</string>

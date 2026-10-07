@@ -147,15 +147,16 @@ class GiveawaysController(
         }
     }
 
-    /** Create a giveaway, then reload so the new row appears. Surfaces the error on failure. */
-    suspend fun createGiveaway(body: UpsertGiveawayBody) {
-        afterWrite(giveawaysApi.create(body))
-    }
+    /**
+     * Create a giveaway, then reload so the new row appears. Returns the write's result so the open dialog can keep
+     * the operator's input and show a failure inline (no toast: the dialog is still on screen).
+     */
+    suspend fun createGiveaway(body: UpsertGiveawayBody): ApiResult<Unit> =
+        afterDialogWrite(giveawaysApi.create(body), Res.string.feedback_giveaway_saved) { load() }
 
-    /** Edit a draft/closed giveaway, addressed by its [id]. Reloads on success. Surfaces the error on failure. */
-    suspend fun updateGiveaway(id: String, body: UpsertGiveawayBody) {
-        afterWrite(giveawaysApi.update(id, body))
-    }
+    /** Edit a draft/closed giveaway, addressed by its [id]. Reloads on success; a failure is returned, not toasted. */
+    suspend fun updateGiveaway(id: String, body: UpsertGiveawayBody): ApiResult<Unit> =
+        afterDialogWrite(giveawaysApi.update(id, body), Res.string.feedback_giveaway_saved) { load() }
 
     /** Delete a giveaway, addressed by its [id]. Reloads on success. Surfaces the error on failure. */
     /**
@@ -295,11 +296,11 @@ class GiveawaysController(
     }
 
     /** Create a code pool, then reload the pool list. Surfaces the error on failure. */
-    suspend fun createCodePool(name: String, description: String?) {
-        afterPoolWrite(
+    suspend fun createCodePool(name: String, description: String?): ApiResult<Unit> =
+        afterDialogWrite(
             giveawaysApi.createCodePool(CreateCodePoolBody(name.trim(), description.orNullIfBlank())),
-        )
-    }
+            Res.string.feedback_codepool_saved,
+        ) { loadCodePools() }
 
     /** Delete a code pool, addressed by its [poolId]. Reloads the pool list. Surfaces the error on failure. */
     suspend fun deleteCodePool(poolId: String) {
@@ -322,7 +323,7 @@ class GiveawaysController(
      */
     // Each line is a code, optionally followed by "| a label" to identify it later without unmasking it
     // (giveaways.md D6 — the plaintext is masked everywhere once stored, so this is the only chance to name it).
-    suspend fun addCodes(poolId: String, codes: List<String>) {
+    suspend fun addCodes(poolId: String, codes: List<String>): ApiResult<Unit> {
         val inputs: List<CodeInput> =
             codes.mapNotNull { line ->
                 val trimmed: String = line.trim()
@@ -332,15 +333,14 @@ class GiveawaysController(
                 val label: String? = parts.getOrNull(1)?.trim()?.ifBlank { null }
                 code.takeIf(String::isNotBlank)?.let { CodeInput(it, label) }
             }
-        when (val result: ApiResult<Unit> = giveawaysApi.addCodes(poolId, AddCodesBody(inputs))) {
-            is ApiResult.Ok -> {
-                feedback.success(Res.string.feedback_codepool_codes_added)
-                loadCodePools()
-                if (_poolDetail.value.let { it is PoolDetailState.Ready && it.pool.id == poolId }) {
-                    loadPoolDetailInto(poolId)
-                }
+        return afterDialogWrite(
+            giveawaysApi.addCodes(poolId, AddCodesBody(inputs)),
+            Res.string.feedback_codepool_codes_added,
+        ) {
+            loadCodePools()
+            if (_poolDetail.value.let { it is PoolDetailState.Ready && it.pool.id == poolId }) {
+                loadPoolDetailInto(poolId)
             }
-            is ApiResult.Failure -> failPoolWrite(result.error.message)
         }
     }
 
@@ -399,6 +399,20 @@ class GiveawaysController(
         } else {
             _state.value = GiveawaysState.Error(detail)
         }
+    }
+
+    // A write fired from a dialog that stays open until the server answers: success announces and reloads, a failure
+    // is handed back untouched so the dialog keeps what the operator typed and shows the reason inline.
+    private suspend fun afterDialogWrite(
+        result: ApiResult<Unit>,
+        success: StringResource,
+        reload: suspend () -> Unit,
+    ): ApiResult<Unit> {
+        if (result is ApiResult.Ok) {
+            feedback.success(success)
+            reload()
+        }
+        return result
     }
 
     private suspend fun afterPoolWrite(

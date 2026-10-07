@@ -2485,6 +2485,7 @@
     <string name="giveaways_pool_add_label">Codes toevoegen (één per regel — optioneel "CODE | een label")</string>
     <string name="giveaways_pool_add_placeholder">PROMO-1234 | Steam-key — Cyberpunk 2077</string>
     <string name="giveaways_pool_add_action">Codes toevoegen</string>
+    <string name="giveaways_pool_add_failed">Codes toevoegen mislukt. Ze staan er nog, dus je kunt het opnieuw proberen. %1$s</string>
     <string name="giveaways_code_status_available">Beschikbaar</string>
     <string name="giveaways_code_status_assigned">Toegewezen</string>
     <string name="giveaways_code_status_delivered">Geleverd</string>
