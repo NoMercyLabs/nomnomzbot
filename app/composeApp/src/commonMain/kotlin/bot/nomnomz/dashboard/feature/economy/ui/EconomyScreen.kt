@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -467,9 +468,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onUpdateLeaderboardConfig = { request ->
                         scope.launch { controller.upsertLeaderboardConfig(request) }
                     },
-                    onDeleteLeaderboardConfig = { configId ->
-                        scope.launch { controller.deleteLeaderboardConfig(configId) }
-                    },
+                    onDeleteLeaderboardConfig = controller::deleteLeaderboardConfig,
                     onLeaderboardConfigBlastRadius = controller::leaderboardConfigBlastRadius,
                     onOptOutOfLeaderboards = { viewerUserId ->
                         scope.launch { controller.optOutOfLeaderboards(viewerUserId) }
@@ -524,7 +523,7 @@ private fun ReadyContent(
     onRefundPurchase: (purchaseId: Long) -> Unit,
     onCreateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
     onUpdateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
-    onDeleteLeaderboardConfig: (String) -> Unit,
+    onDeleteLeaderboardConfig: suspend (String) -> ApiResult<Unit>,
     onLeaderboardConfigBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
     onOptOutOfLeaderboards: (String) -> Unit,
     onOptInToLeaderboards: (String) -> Unit,
@@ -1105,7 +1104,7 @@ private fun LeaderboardConfigsSection(
     manage: ManageDecision,
     onCreate: (UpsertLeaderboardConfigBody) -> Unit,
     onUpdate: (UpsertLeaderboardConfigBody) -> Unit,
-    onDelete: (String) -> Unit,
+    onDelete: suspend (String) -> ApiResult<Unit>,
     onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     onOptOut: (String) -> Unit,
@@ -1220,10 +1219,7 @@ private fun LeaderboardConfigsSection(
             confirmLabel = stringResource(Res.string.economy_leaderboard_config_delete_confirm),
             dismissLabel = stringResource(Res.string.economy_leaderboard_config_delete_dismiss),
             blastRadius = blastRadius,
-            onConfirm = {
-                onDelete(cfg.id)
-                pendingDelete = null
-            },
+            action = { onDelete(cfg.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }

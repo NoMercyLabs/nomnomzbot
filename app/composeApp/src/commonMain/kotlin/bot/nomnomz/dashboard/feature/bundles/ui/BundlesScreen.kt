@@ -40,6 +40,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -222,7 +223,7 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
                             InstalledTab(
                                 installed = current.installed,
                                 manage = manage,
-                                onUninstall = { id -> scope.launch { controller.uninstall(id) } },
+                                onUninstall = controller::uninstall,
                                 onUninstallBlastRadius = controller::uninstallBlastRadius,
                             )
                         else ->
@@ -534,7 +535,7 @@ private fun ImportTab(
 private fun InstalledTab(
     installed: List<InstalledBundle>,
     manage: ManageDecision,
-    onUninstall: (id: String) -> Unit,
+    onUninstall: suspend (id: String) -> ApiResult<Unit>,
     // The real, counted blast radius of the uninstall (S-CONSEQ) — what it removes, rendered in the confirm.
     onUninstallBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
 ) {
@@ -577,10 +578,7 @@ private fun InstalledTab(
             confirmLabel = stringResource(Res.string.bundles_uninstall_confirm),
             dismissLabel = stringResource(Res.string.bundles_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingUninstall = null
-                onUninstall(bundle.id)
-            },
+            action = { onUninstall(bundle.id).toDialogResult() },
             onDismiss = { pendingUninstall = null },
         )
     }

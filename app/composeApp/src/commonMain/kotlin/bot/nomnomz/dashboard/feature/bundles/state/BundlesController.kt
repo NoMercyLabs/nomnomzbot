@@ -207,12 +207,21 @@ class BundlesController(
         return bundlesApi.uninstallBlastRadius(channel, id)
     }
 
-    suspend fun uninstall(id: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<Unit> = bundlesApi.uninstall(channel, id)) {
-            is ApiResult.Ok -> reloadInstalled()
-            is ApiResult.Failure -> failWrite(result.error.message)
+    /**
+     * Uninstall the bundle [id]. The result goes back to the confirm dialog, which stays open and shows the reason
+     * on a failure; success reloads the installed list.
+     */
+    suspend fun uninstall(id: String): ApiResult<Unit> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError())
+                )
+        val result: ApiResult<Unit> = bundlesApi.uninstall(channel, id)
+        if (result is ApiResult.Ok) {
+            reloadInstalled()
         }
+        return result
     }
 
     /**

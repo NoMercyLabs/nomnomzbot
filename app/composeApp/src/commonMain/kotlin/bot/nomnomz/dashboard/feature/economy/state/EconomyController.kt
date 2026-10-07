@@ -243,9 +243,17 @@ class EconomyController(
     }
 
     /** Delete a leaderboard config, then reload so it drops off the management list. Surfaces the error on failure. */
-    suspend fun deleteLeaderboardConfig(configId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.deleteLeaderboardConfig(channel, configId))
+    suspend fun deleteLeaderboardConfig(configId: String): ApiResult<Unit> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        val result: ApiResult<Unit> = economyApi.deleteLeaderboardConfig(channel, configId)
+        if (result is ApiResult.Ok) {
+            load()
+        }
+        return result
     }
 
     /**
