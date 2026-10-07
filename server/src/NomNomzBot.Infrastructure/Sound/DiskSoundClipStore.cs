@@ -117,7 +117,9 @@ internal sealed class DiskSoundClipStore : ISoundClipStore
             : ctx is not null ? ForwardedOrigin(ctx.Request)
             : "http://localhost:5080";
 
-        string url = $"{baseUrl}/api/v1/sound-clips/stream/{Uri.EscapeDataString(storageKey)}";
+        // Escape per segment: the stream route is a catch-all and never decodes %2F back into a path separator.
+        string escapedKey = string.Join('/', storageKey.Split('/').Select(Uri.EscapeDataString));
+        string url = $"{baseUrl}/api/v1/sound-clips/stream/{escapedKey}";
         return Task.FromResult(Result<string>.Success(url));
     }
 

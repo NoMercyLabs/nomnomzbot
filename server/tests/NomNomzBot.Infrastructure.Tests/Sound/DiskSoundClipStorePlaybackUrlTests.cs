@@ -68,6 +68,32 @@ public class DiskSoundClipStorePlaybackUrlTests
         result.Value.Should().StartWith("http://localhost:5080/api/v1/sound-clips/stream/");
     }
 
+    [Fact]
+    public async Task GetPlaybackUrlAsync_keeps_the_key_slash_a_real_path_separator_so_the_stream_route_matches()
+    {
+        // The stream route is a catch-all (stream/{*storageKey}); ASP.NET Core never decodes %2F back into a
+        // segment, so an escaped slash made every synthesized TTS clip answer 404 to its own playback URL.
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["App:BaseUrl"] = "https://x.test" }
+            )
+            .Build();
+        DiskSoundClipStore store = new(
+            new FakeHttpContextAccessor(new DefaultHttpContext()),
+            configuration
+        );
+
+        Result<string> result = await store.GetPlaybackUrlAsync(
+            "019f146e830371efb69818d1098d7d7e/my clip.mp3"
+        );
+
+        result
+            .Value.Should()
+            .Be(
+                "https://x.test/api/v1/sound-clips/stream/019f146e830371efb69818d1098d7d7e/my%20clip.mp3"
+            );
+    }
+
     private sealed class FakeHttpContextAccessor : IHttpContextAccessor
     {
         public FakeHttpContextAccessor(HttpContext httpContext) => HttpContext = httpContext;
