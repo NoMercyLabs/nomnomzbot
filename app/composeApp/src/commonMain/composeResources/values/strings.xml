@@ -2099,6 +2099,10 @@
     <string name="feedback_giveaway_saved">Giveaway saved</string>
     <string name="feedback_economy_adjusted">Balance updated</string>
     <string name="feedback_economy_transferred">Points transferred</string>
+    <string name="feedback_economy_jar_contributed">Contribution added to the jar</string>
+    <string name="feedback_economy_jar_withdrawn">Withdrawal made from the jar</string>
+    <string name="feedback_economy_jar_invited">Channel invited to the jar</string>
+    <string name="feedback_economy_jar_updated">Jar saved</string>
     <string name="economy_no_channel_error">No active channel. Reconnect and try again.</string>
     <string name="feedback_giveaway_deleted">Giveaway deleted</string>
     <string name="feedback_giveaway_opened">Giveaway opened</string>
