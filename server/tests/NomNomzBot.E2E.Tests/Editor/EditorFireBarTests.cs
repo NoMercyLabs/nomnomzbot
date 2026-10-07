@@ -139,7 +139,7 @@ public sealed class EditorFireBarTests : EditorPageTest
     }
 
     [E2EFact]
-    public async Task The_event_tab_never_reaches_the_save_payload_or_marks_the_widget_changed()
+    public async Task An_edited_event_sample_is_saved_with_the_widget_and_counts_as_an_unsaved_edit()
     {
         await OpenWidgetAsync(
             new() { ["follow"] = new { user_name = "kitte" } },
@@ -149,10 +149,8 @@ public sealed class EditorFireBarTests : EditorPageTest
             """
             () => {
                 window.__saves = [];
-                window.__closes = 0;
                 window.addEventListener('message', (event) => {
-                    if (event.data?.type === 'nnz:editor:save') window.__saves.push(Object.keys(event.data.files));
-                    if (event.data?.type === 'nnz:editor:close') window.__closes++;
+                    if (event.data?.type === 'nnz:editor:save') window.__saves.push(event.data.files);
                 });
             }
             """
@@ -164,15 +162,19 @@ public sealed class EditorFireBarTests : EditorPageTest
         await Page.Keyboard.PressAsync("Control+s");
         await Page.WaitForTimeoutAsync(300);
 
-        string[][] saves = await Page.EvaluateAsync<string[][]>("() => window.__saves");
-        Assert.Single(saves);
-        Assert.Equal(["index.html"], saves[0]);
+        string[] savedPaths = await Page.EvaluateAsync<string[]>(
+            "() => window.__saves.map((files) => Object.keys(files)).flat()"
+        );
+        Assert.Equal(["index.html", "events/follow.json"], savedPaths);
+        string sample = await Page.EvaluateAsync<string>(
+            "() => window.__saves[0]['events/follow.json']"
+        );
+        Assert.Contains("\"edited\"", sample);
 
+        // The host never confirmed the save, so closing still guards the edit.
         await Page.Locator("#eventClose").ClickAsync();
         await Page.Keyboard.PressAsync("Escape");
-        await Page.WaitForTimeoutAsync(300);
-        await Expect(Page.Locator("#unsavedBackdrop")).ToBeHiddenAsync();
-        Assert.Equal(1, await Page.EvaluateAsync<int>("() => window.__closes"));
+        await Expect(Page.Locator("#unsavedBackdrop")).ToBeVisibleAsync();
     }
 
     private ILocator EventTab(string type) =>
