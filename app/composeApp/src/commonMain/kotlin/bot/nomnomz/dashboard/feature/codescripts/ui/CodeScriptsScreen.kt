@@ -87,6 +87,7 @@ import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Code Scripts page. Opening a script goes STRAIGHT into the real Monaco editor (S-CODE-COLLAPSE) — there is
@@ -182,7 +183,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
             confirmLabel = stringResource(Res.string.scripts_delete_confirm),
             dismissLabel = stringResource(Res.string.scripts_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = { pendingDelete = null; scope.launch { controller.delete(script.id) } },
+            action = { controller.delete(script.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }

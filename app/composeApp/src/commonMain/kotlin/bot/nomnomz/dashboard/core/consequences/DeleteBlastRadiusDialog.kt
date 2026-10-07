@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.core.consequences
 
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusCategory
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import org.jetbrains.compose.resources.StringResource
@@ -135,6 +136,33 @@ fun DeleteBlastRadiusDialog(
         confirmEnabled = blastRadius !is BlastRadiusLoadState.Loading,
         onConfirm = onConfirm,
         onDismiss = onDismiss,
+    )
+}
+
+/**
+ * The stay-open form (psychology spec X1): the dialog stays open while [action] runs, shows progress in the
+ * confirm button with both buttons locked, keeps the failure reason inline, and closes through [onDismiss] only
+ * when [action] returns [DialogResult.Done].
+ */
+@Composable
+fun DeleteBlastRadiusDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    dismissLabel: String,
+    blastRadius: BlastRadiusLoadState,
+    action: suspend () -> DialogResult,
+    onDismiss: () -> Unit,
+) {
+    ConfirmDialog(
+        title = title,
+        message = "$message\n\n${blastRadiusMessage(blastRadius)}",
+        confirmLabel = confirmLabel,
+        dismissLabel = dismissLabel,
+        onDismiss = onDismiss,
+        action = action,
+        destructive = true,
+        confirmEnabled = blastRadius !is BlastRadiusLoadState.Loading,
     )
 }
 

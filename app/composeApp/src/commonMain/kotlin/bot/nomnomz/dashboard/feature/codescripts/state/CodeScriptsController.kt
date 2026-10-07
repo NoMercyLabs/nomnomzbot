@@ -493,12 +493,14 @@ class CodeScriptsController(
     suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
         api.blastRadius(id)
 
-    suspend fun delete(id: String) {
-
-        when (val result: ApiResult<Unit> = api.delete(id)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+    /**
+     * Deletes the script and, on success, reloads the list. The result is handed back untouched: the delete confirm
+     * stays open until it arrives and shows a failure's reason inline, so no toast fires here.
+     */
+    suspend fun delete(id: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = api.delete(id)
+        if (result is ApiResult.Ok) load()
+        return result
     }
 
     // Save the edited project (files + the preserved manifest) and map the outcome to inline editor feedback. The
