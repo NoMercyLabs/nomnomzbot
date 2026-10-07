@@ -181,49 +181,51 @@ class WidgetsController(
     }
 
     /**
-     * Create a new widget ({ [name], [framework] }), then open the multi-file project editor seeded with a one-file
-     * project ({ entry → [seedSource] }, a chosen template's source or blank) so the operator authors + compiles
-     * the first version right away. Reloads when the editor closes; surfaces the error if the create call fails.
+     * Create a new widget ({ [name], [framework] }) and return the server's answer; the create dialog stays open
+     * until this returns and shows a failure inline, so no toast is raised. The editor opens afterwards through
+     * [editNewWidget], so the dialog does not stay open for the whole editing session.
      */
-    suspend fun createWidget(
+    suspend fun createWidget(name: String, framework: String): ApiResult<WidgetSummary> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return widgetsApi.create(channel, CreateWidgetBody(name, framework))
+    }
+
+    /**
+     * Open the multi-file project editor on a widget [createWidget] just made, seeded with a one-file project
+     * ({ entry -> [seedSource] }, a chosen template's source or blank) so the operator authors + compiles the
+     * first version right away. Reloads when the editor closes.
+     */
+    suspend fun editNewWidget(
+        created: WidgetSummary,
         name: String,
         framework: String,
         seedSource: String,
         messages: WidgetEditorMessages,
     ) {
         val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, framework))) {
-            is ApiResult.Ok -> {
-                val seeded: ProjectDto = seedProject(framework, seedSource)
-                // A brand-new widget has no declared subscriptions yet — the fire bar falls back to scanning
-                // the seeded source until the operator saves one.
-                openEditor(
-                    channel,
-                    result.value.id,
-                    name,
-                    framework,
-                    seeded,
-                    previewWidgetOf(channel, result.value),
-                    messages,
-                )
-            }
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+        val seeded: ProjectDto = seedProject(framework, seedSource)
+        // A brand-new widget has no declared subscriptions yet — the fire bar falls back to scanning
+        // the seeded source until the operator saves one.
+        openEditor(channel, created.id, name, framework, seeded, previewWidgetOf(channel, created), messages)
     }
 
-    /** Rename a widget ([widgetId]) to [newName] via a partial PUT. Reloads on success. */
-    suspend fun renameWidget(widgetId: String, newName: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(widgetsApi.rename(channel, widgetId, newName))
+    /**
+     * Rename a widget ([widgetId]) to [newName] via a partial PUT. Reloads on success and returns the server's
+     * answer; a failure raises no toast, because the rename dialog stays open until this returns.
+     */
+    suspend fun renameWidget(widgetId: String, newName: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return reloadAfter(widgetsApi.rename(channel, widgetId, newName))
     }
 
     /**
      * Persist a widget's runtime [settings] (the typed per-widget-type settings form's output) via a partial PUT.
-     * Reloads on success so the row reflects the saved config; surfaces the error on failure.
+     * Reloads on success so the row reflects the saved config and returns the server's answer; a failure raises no
+     * toast, because the settings dialog stays open until this returns and keeps the operator's input.
      */
-    suspend fun saveSettings(widgetId: String, settings: JsonObject) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(widgetsApi.updateSettings(channel, widgetId, settings))
+    suspend fun saveSettings(widgetId: String, settings: JsonObject): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return reloadAfter(widgetsApi.updateSettings(channel, widgetId, settings))
     }
 
     /**
@@ -400,27 +402,28 @@ class WidgetsController(
 
     /**
      * Install a gallery item into the active channel (compiled + live), then reload so the new overlay appears in
-     * the list. Surfaces the error on failure.
+     * the list. Returns the server's answer; a failure raises no toast, because the gallery dialog stays open and
+     * shows the reason inline.
      */
-    suspend fun installFromGallery(galleryItemId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.install(channel, galleryItemId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
+    suspend fun installFromGallery(galleryItemId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return when (val result: ApiResult<WidgetSummary> = widgetsApi.install(channel, galleryItemId)) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 
     /**
-     * Clone a gallery item into a fresh, independently-editable custom widget, then open the compile-on-save
-     * editor on the new copy (seeded with its source) so the operator can adapt it right away. The editor close
-     * reloads the list (via [editWidgetCode]); surfaces the error if the clone call itself fails.
+     * Clone a gallery item into a fresh, independently-editable custom widget and return it, so the screen can open
+     * the compile-on-save editor on the copy through [editWidgetCode]. A failure raises no toast, because the
+     * gallery dialog stays open and shows the reason inline.
      */
-    suspend fun cloneFromGallery(galleryItemId: String, messages: WidgetEditorMessages) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.cloneFromGallery(channel, galleryItemId)) {
-            is ApiResult.Ok -> editWidgetCode(result.value, messages)
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+    suspend fun cloneFromGallery(galleryItemId: String): ApiResult<WidgetSummary> {
+        val channel: String = channelId ?: return ApiResult.Failure(noChannelApiError())
+        return widgetsApi.cloneFromGallery(channel, galleryItemId)
     }
 
     // Open the multi-file project editor, wiring each save to a project PUT (server re-build → new active
@@ -526,6 +529,12 @@ class WidgetsController(
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
+    }
+
+    // Like afterWrite, but hands the server's answer back for a dialog that shows a failure inline (no toast).
+    private suspend fun reloadAfter(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
     }
 
     // Every failWrite call site is a write/control outcome (a toggle, a delete, a rename, a compile...), never

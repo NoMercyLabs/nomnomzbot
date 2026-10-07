@@ -707,7 +707,14 @@ class WidgetsControllerTest {
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
 
-        controller.createWidget(name = "My Timer", framework = "vue", seedSource = "<template/>", messages = messages)
+        val created: ApiResult<WidgetSummary> = controller.createWidget(name = "My Timer", framework = "vue")
+        controller.editNewWidget(
+            created = (created as ApiResult.Ok).value,
+            name = "My Timer",
+            framework = "vue",
+            seedSource = "<template/>",
+            messages = messages,
+        )
 
         // Create posts the framework (renamed from `type`), not a legacy type.
         assertEquals(listOf(CreateWidgetBody(name = "My Timer", framework = "vue")), widgetsApi.created)
@@ -876,7 +883,8 @@ class WidgetsControllerTest {
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
 
-        controller.cloneFromGallery(galleryItemId = "g-1", messages = messages)
+        val cloned: ApiResult<WidgetSummary> = controller.cloneFromGallery(galleryItemId = "g-1")
+        controller.editWidgetCode((cloned as ApiResult.Ok).value, messages)
 
         // Clone hit the real clone endpoint with the GALLERY item id (not an installed-widget id).
         assertEquals(listOf("g-1"), widgetsApi.clonedFromGalleryIds)
@@ -1059,11 +1067,16 @@ internal class RecordingWidgetsApi(
 
     override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> {
         created += body
+        if (writeResult is ApiResult.Failure) return writeResult
         return ApiResult.Ok(WidgetSummary(id = "new-widget", framework = body.framework, name = body.name))
     }
 
-    override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    val renamed: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> {
+        renamed += widgetId to name
+        return writeResult
+    }
 
     override suspend fun updateSettings(
         channelId: String,
@@ -1071,7 +1084,7 @@ internal class RecordingWidgetsApi(
         settings: kotlinx.serialization.json.JsonObject,
     ): ApiResult<Unit> {
         savedSettings += (widgetId to settings)
-        return ApiResult.Ok(Unit)
+        return writeResult
     }
 
     // Records which widget's schema the settings dialog requested and returns the configured schema.
@@ -1158,6 +1171,7 @@ internal class RecordingWidgetsApi(
     override suspend fun install(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> {
         installed += galleryItemId
         installedChannelId = channelId
+        if (writeResult is ApiResult.Failure) return writeResult
         val widget =
             WidgetSummary(id = "installed-$galleryItemId", name = "Gallery Widget", source = "verified_gallery")
         store += widget
@@ -1168,6 +1182,7 @@ internal class RecordingWidgetsApi(
     // editor seeded with its source; the gallery item id is recorded to prove the fork source.
     override suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> {
         clonedFromGalleryIds += galleryItemId
+        if (writeResult is ApiResult.Failure) return writeResult
         return ApiResult.Ok(
             WidgetSummary(id = "gallery-clone", name = "clone", source = "custom", activeVersionId = "v-1")
         )
