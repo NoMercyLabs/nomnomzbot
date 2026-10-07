@@ -75,9 +75,6 @@ names its rules and proves their checks. Two lanes run in parallel: **Editor** (
 
 ### Pipeline lane
 
-- **S-PIPE-RECIPES** A new pipeline never starts empty: recipes for common goals ("every Nth redemption
-  per viewer", "chance to chain", "random reply from a list", "count and remember per viewer"). R1, R2,
-  R18. Done-when: each recipe saves and passes its own test run.
 - **S-PIPE-TYPED-FIELDS** Every action type has typed hints: 110 of 110 (34 still use the raw key/value
   editor, 22 of them `music_*`). R10, R11. Done-when: a test fails for any action without hints.
 - **S-PIPE-EXAMPLES** The field schema gets an `example` property; every field shows a one-line
