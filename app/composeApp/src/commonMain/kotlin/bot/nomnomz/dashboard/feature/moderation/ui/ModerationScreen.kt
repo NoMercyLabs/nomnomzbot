@@ -65,6 +65,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -679,7 +681,7 @@ fun ModerationScreen(
                     onNextHistoryPage = { scope.launch { controller.nextHistoryPage() } },
                     onPrevHistoryPage = { scope.launch { controller.prevHistoryPage() } },
                     onResolveUnban = { requestId, approve, note ->
-                        scope.launch { controller.resolveUnbanRequest(requestId, approve, note) }
+                        controller.resolveUnbanRequest(requestId, approve, note)
                     },
                     onResolveReport = { reportId, action ->
                         scope.launch { controller.resolveReport(reportId, action) }
@@ -687,10 +689,8 @@ fun ModerationScreen(
                     onResolveAutomodQueueItem = { queueItemId, action ->
                         scope.launch { controller.resolveAutomodQueueItem(queueItemId, action) }
                     },
-                    onUnban = { userId -> scope.launch { controller.unban(userId) } },
-                    onNetworkUnban = { userId ->
-                        scope.launch { controller.networkUnban(userId, "all_moderated") }
-                    },
+                    onUnban = { userId -> controller.unban(userId) },
+                    onNetworkUnban = { userId -> controller.networkUnban(userId, "all_moderated") },
                     onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
                     searchViewers = { query -> controller.searchViewers(query) },
                     searchBanTargets = { query -> controller.searchBanTargets(query) },
@@ -721,12 +721,12 @@ fun ModerationScreen(
                     onAddWhitelist = { d -> scope.launch { controller.addLinkWhitelist(d) } },
                     onRemoveWhitelist = { d -> scope.launch { controller.removeLinkWhitelist(d) } },
                     onToggleRule = { id, on -> scope.launch { controller.toggleRule(id, on) } },
-                    onDeleteRule = { id -> scope.launch { controller.deleteRule(id) } },
+                    onDeleteRule = { id -> controller.deleteRule(id) },
                     onCreateRule = { name, type, action, duration, reason ->
                         scope.launch { controller.createRule(name, type, action, duration, reason) }
                     },
                     onToggleChatFilter = { id, on -> scope.launch { controller.toggleChatFilter(id, on) } },
-                    onDeleteChatFilter = { id -> scope.launch { controller.deleteChatFilter(id) } },
+                    onDeleteChatFilter = { id -> controller.deleteChatFilter(id) },
                     onCreateChatFilter = { filterType, name, action, pattern, terms, duration ->
                         scope.launch {
                             controller.createChatFilter(filterType, name, action, pattern, terms, duration)
@@ -873,11 +873,11 @@ internal fun BansList(
     onHistoryActionTypeChanged: (actionType: String?) -> Unit,
     onNextHistoryPage: () -> Unit,
     onPrevHistoryPage: () -> Unit,
-    onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
+    onResolveUnban: suspend (requestId: String, approve: Boolean, note: String?) -> ApiResult<Unit>,
     onResolveReport: (reportId: String, action: String) -> Unit,
     onResolveAutomodQueueItem: (queueItemId: String, action: String) -> Unit,
-    onUnban: (userId: String) -> Unit,
-    onNetworkUnban: (userId: String) -> Unit,
+    onUnban: suspend (userId: String) -> ApiResult<Unit>,
+    onNetworkUnban: suspend (userId: String) -> ApiResult<Unit>,
     onViewContext: (userId: String) -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchBanTargets: suspend (query: String) -> BanTargetSearch,
@@ -899,10 +899,10 @@ internal fun BansList(
     onAddWhitelist: (String) -> Unit,
     onRemoveWhitelist: (String) -> Unit,
     onToggleRule: (Int, Boolean) -> Unit,
-    onDeleteRule: (Int) -> Unit,
+    onDeleteRule: suspend (Int) -> ApiResult<Unit>,
     onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleChatFilter: (filterId: String, enabled: Boolean) -> Unit,
-    onDeleteChatFilter: (filterId: String) -> Unit,
+    onDeleteChatFilter: suspend (filterId: String) -> ApiResult<Unit>,
     onCreateChatFilter: (
         filterType: String,
         name: String,
@@ -918,6 +918,8 @@ internal fun BansList(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    // The approve button has no dialog, so its write runs here; the deny and delete confirms run in their dialog.
+    val approveScope = rememberCoroutineScope()
 
     // Which job group is showing on the Rules page (see [RulesGroup]). Irrelevant on the other three pages.
     var selectedRulesGroup: RulesGroup by remember { mutableStateOf(RulesGroup.ContentFilters) }
@@ -1089,7 +1091,7 @@ internal fun BansList(
                             UnbanRequestRow(
                                 request = request,
                                 manage = suspiciousManage,
-                                onApprove = { onResolveUnban(request.id, true, null) },
+                                onApprove = { approveScope.launch { onResolveUnban(request.id, true, null) } },
                                 onDeny = { pendingDeny = request },
                             )
                             if (index < unbanRequests.lastIndex) {
@@ -1746,10 +1748,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_unban_confirm),
             dismissLabel = stringResource(Res.string.moderation_unban_dismiss),
             destructive = true,
-            onConfirm = {
-                onUnban(ban.id)
-                pendingUnban = null
-            },
+            action = { onUnban(ban.id).toDialogResult() },
             onDismiss = { pendingUnban = null },
         )
     }
@@ -1762,10 +1761,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_unban_deny),
             dismissLabel = stringResource(Res.string.moderation_unban_dismiss),
             destructive = true,
-            onConfirm = {
-                onResolveUnban(request.id, false, null)
-                pendingDeny = null
-            },
+            action = { onResolveUnban(request.id, false, null).toDialogResult() },
             onDismiss = { pendingDeny = null },
         )
     }
@@ -1778,10 +1774,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_unban_everywhere_confirm),
             dismissLabel = stringResource(Res.string.moderation_unban_dismiss),
             destructive = true,
-            onConfirm = {
-                onNetworkUnban(ban.id)
-                pendingNetworkUnban = null
-            },
+            action = { onNetworkUnban(ban.id).toDialogResult() },
             onDismiss = { pendingNetworkUnban = null },
         )
     }
@@ -1802,10 +1795,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_rules_delete_confirm),
             dismissLabel = stringResource(Res.string.moderation_rules_delete_dismiss),
             destructive = true,
-            onConfirm = {
-                onDeleteRule(rule.id)
-                pendingDeleteRule = null
-            },
+            action = { onDeleteRule(rule.id).toDialogResult() },
             onDismiss = { pendingDeleteRule = null },
         )
     }
@@ -1817,10 +1807,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_chat_filters_delete_confirm),
             dismissLabel = stringResource(Res.string.moderation_chat_filters_delete_dismiss),
             destructive = true,
-            onConfirm = {
-                onDeleteChatFilter(filter.id)
-                pendingDeleteChatFilter = null
-            },
+            action = { onDeleteChatFilter(filter.id).toDialogResult() },
             onDismiss = { pendingDeleteChatFilter = null },
         )
     }

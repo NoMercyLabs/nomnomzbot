@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
@@ -75,7 +76,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_action_applied
 import nomnomzbot.composeapp.generated.resources.feedback_action_failed
-import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
 
@@ -509,19 +509,16 @@ class ModerationController(
 
     /**
      * Lift the ban on [userId] (a [BannedUser.id]). On success the list is reloaded so the unbanned viewer
-     * drops off; on failure the current list stays put and the error surfaces on the [ModerationState.Ready]
-     * state. The screen gates this behind a confirmation, so it only runs on an explicit, confirmed click.
+     * drops off and the frame announces it. The outcome is handed back untouched: the confirm dialog stays open
+     * until it arrives and shows a failure inline, so no failure toast is raised here. The screen gates this
+     * behind a confirmation, so it only runs on an explicit, confirmed click.
      */
-    suspend fun unban(userId: String) {
-        val channel: String = channelId ?: return
+    suspend fun unban(userId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
 
-        when (val result: ApiResult<Unit> = moderationApi.unban(channel, userId)) {
-            is ApiResult.Ok -> {
-                feedback.success(Res.string.feedback_unbanned)
-                load()
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.feedback_unban_failed, result.error.message)
-        }
+        val result: ApiResult<Unit> = moderationApi.unban(channel, userId)
+        if (result is ApiResult.Ok) feedback.success(Res.string.feedback_unbanned)
+        return afterDialogWrite(result)
     }
 
     /**
@@ -629,9 +626,9 @@ class ModerationController(
      * queue), else it is denied with an optional [note]. Reloads the page on success so the queue + bans
      * reflect it; surfaces the error on the current list on failure. No-ops when no channel is loaded.
      */
-    suspend fun resolveUnbanRequest(requestId: String, approve: Boolean, note: String?) {
-        val channel: String = channelId ?: return
-        afterWrite(moderationApi.resolveUnbanRequest(channel, requestId, approve, note))
+    suspend fun resolveUnbanRequest(requestId: String, approve: Boolean, note: String?): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(moderationApi.resolveUnbanRequest(channel, requestId, approve, note))
     }
 
     /**
@@ -670,11 +667,11 @@ class ModerationController(
      * or across every channel the operator moderates ([scope] = "all_moderated"). Reloads on success so the
      * unbanned viewer drops off; surfaces the error on the current list on failure. No-ops with no channel.
      */
-    suspend fun networkUnban(userId: String, scope: String) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<NetworkBanResult> = moderationApi.networkUnban(channel, userId, scope)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> setActionError(result.error.message)
+    suspend fun networkUnban(userId: String, scope: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return when (val result: ApiResult<NetworkBanResult> = moderationApi.networkUnban(channel, userId, scope)) {
+            is ApiResult.Ok -> afterDialogWrite(ApiResult.Ok(Unit))
+            is ApiResult.Failure -> result
         }
     }
 
@@ -1079,9 +1076,9 @@ class ModerationController(
     }
 
     /** Delete a filter rule, then reload so it drops off the list. Surfaces the error on failure. */
-    suspend fun deleteRule(ruleId: Int) {
-        val channel: String = channelId ?: return
-        afterWrite(moderationApi.deleteRule(channel, ruleId))
+    suspend fun deleteRule(ruleId: Int): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(moderationApi.deleteRule(channel, ruleId))
     }
 
     /**
@@ -1130,9 +1127,9 @@ class ModerationController(
     }
 
     /** Delete a chat filter, then reload so it drops off the list. Surfaces the error on failure. */
-    suspend fun deleteChatFilter(filterId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(moderationApi.deleteChatFilter(channel, filterId))
+    suspend fun deleteChatFilter(filterId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(moderationApi.deleteChatFilter(channel, filterId))
     }
 
     /**
@@ -1404,6 +1401,16 @@ class ModerationController(
             is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
+
+    // A write fired from a confirm dialog that stays open until the server answers: success reloads the page, a
+    // failure is handed back untouched so the dialog shows the reason inline (no toast, no page-level error).
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    // No channel is loaded, so nothing was written. The blank message makes the dialog show its generic line.
+    private fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(status = 0, code = "no_channel", message = ""))
 
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
