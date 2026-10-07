@@ -78,7 +78,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -661,7 +660,7 @@ class ModerationControllerTest {
     }
 
     @Test
-    fun a_failed_unban_announces_an_error_carrying_the_backend_detail() = runTest {
+    fun a_failed_unban_hands_the_failure_back_to_the_dialog_and_raises_no_toast() = runTest {
         val trolly = BannedUser(id = "u1", username = "trolly", displayName = "Trolly", reason = "Spam")
         val feedback = RecordingFeedback()
         val controller =
@@ -676,12 +675,11 @@ class ModerationControllerTest {
             )
 
         controller.load()
-        controller.unban("u1")
+        val result: ApiResult<Unit> = controller.unban("u1")
 
-        // It announced an ERROR (not a success), carrying the backend's message as the detail arg.
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_unban_failed, feedback.only.label)
-        assertEquals(listOf<Any>("Missing scope."), feedback.only.formatArgs)
+        // The confirm dialog shows the failure inline, so the controller returns it and raises no toast.
+        assertEquals("Missing scope.", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test
