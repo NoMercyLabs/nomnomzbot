@@ -452,10 +452,13 @@
     <string name="community_directory_search_hint">Showing everyone, most recently active first.</string>
     <string name="community_open_profile">Open profile</string>
     <string name="community_no_internal_id">Hasn't connected yet</string>
-    <string name="commands_loading">Loading commands…</string>
+    <string name="state_load_failed_title">Couldn't load this page</string>
+    <string name="state_retry">Retry</string>
+    <string name="state_no_results">No results for “%1$s”</string>
+    <string name="state_clear_filter">Clear filter</string>
     <string name="commands_empty">No commands yet</string>
+    <string name="commands_empty_description">Commands are what viewers type in chat to make the bot reply or act.</string>
     <string name="commands_error">Could not load commands: %1$s</string>
-    <string name="commands_retry">Retry</string>
     <string name="commands_badge_enabled">Enabled</string>
     <string name="commands_badge_disabled">Disabled</string>
     <string name="commands_no_description">No description</string>
@@ -501,10 +504,9 @@
     <string name="builtin_detail_reset_message">%1$s goes back to its defaults: on in chat, not read out by TTS, a %2$d second cooldown, usable by %3$s. %4$d reworded replies go back to their default text.</string>
     <string name="builtin_detail_reset_confirm">Reset</string>
     <string name="builtin_detail_customized">Changed</string>
-    <string name="timers_loading">Loading your timers…</string>
     <string name="timers_empty">No timers yet</string>
+    <string name="timers_empty_description">Timers post a message in chat on a schedule while you are live.</string>
     <string name="timers_error">Could not load timers: %1$s</string>
-    <string name="timers_retry">Retry</string>
     <string name="timers_interval">every %1$dm</string>
     <string name="timers_message_count">%1$d messages</string>
     <string name="timers_enabled">On</string>
@@ -2202,14 +2204,12 @@
 
     <!-- Quotes page. -->
     <string name="quotes_title">Quotes</string>
-    <string name="quotes_loading">Loading quotes…</string>
-    <string name="quotes_empty">No quotes yet. Add the first one.</string>
+    <string name="quotes_empty">No quotes yet</string>
+    <string name="quotes_empty_description">Quotes keep the best moments from chat so viewers can call them up later.</string>
     <string name="quotes_error">Couldn't load quotes: %1$s</string>
-    <string name="quotes_retry">Retry</string>
     <string name="quotes_action_error">%1$s</string>
     <string name="quotes_search_label">Search quotes</string>
     <string name="quotes_search_placeholder">Search text or attribution…</string>
-    <string name="quotes_search_empty">No quotes match your search.</string>
     <string name="quotes_pager_prev">Previous</string>
     <string name="quotes_pager_next">Next</string>
     <string name="quotes_page_indicator">Page %1$d</string>

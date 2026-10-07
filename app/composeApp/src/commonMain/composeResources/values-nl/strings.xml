@@ -449,10 +449,13 @@
     <string name="community_directory_search_hint">Iedereen wordt getoond, meest recent actief eerst.</string>
     <string name="community_open_profile">Profiel openen</string>
     <string name="community_no_internal_id">Nog niet verbonden</string>
-    <string name="commands_loading">Commando's laden…</string>
+    <string name="state_load_failed_title">Deze pagina kon niet worden geladen</string>
+    <string name="state_retry">Opnieuw proberen</string>
+    <string name="state_no_results">Geen resultaten voor “%1$s”</string>
+    <string name="state_clear_filter">Filter wissen</string>
     <string name="commands_empty">Nog geen commando's</string>
+    <string name="commands_empty_description">Commando's typen kijkers in de chat om de bot te laten antwoorden of iets te laten doen.</string>
     <string name="commands_error">Commando's konden niet worden geladen: %1$s</string>
-    <string name="commands_retry">Opnieuw</string>
     <string name="commands_badge_enabled">Ingeschakeld</string>
     <string name="commands_badge_disabled">Uitgeschakeld</string>
     <string name="commands_no_description">Geen beschrijving</string>
@@ -498,10 +501,9 @@
     <string name="builtin_detail_reset_message">%1$s gaat terug naar de standaard: aan in de chat, niet voorgelezen met TTS, %2$d seconden wachttijd, te gebruiken door %3$s. %4$d aangepaste antwoorden krijgen weer hun standaardtekst.</string>
     <string name="builtin_detail_reset_confirm">Herstellen</string>
     <string name="builtin_detail_customized">Aangepast</string>
-    <string name="timers_loading">Je timers laden…</string>
     <string name="timers_empty">Nog geen timers</string>
+    <string name="timers_empty_description">Timers plaatsen op een schema een bericht in de chat terwijl je live bent.</string>
     <string name="timers_error">Kon timers niet laden: %1$s</string>
-    <string name="timers_retry">Opnieuw proberen</string>
     <string name="timers_interval">elke %1$dm</string>
     <string name="timers_message_count">%1$d berichten</string>
     <string name="timers_enabled">Aan</string>
@@ -2197,14 +2199,12 @@
 
     <!-- Quotes page. -->
     <string name="quotes_title">Quotes</string>
-    <string name="quotes_loading">Quotes laden…</string>
-    <string name="quotes_empty">Nog geen quotes. Voeg de eerste toe.</string>
+    <string name="quotes_empty">Nog geen quotes</string>
+    <string name="quotes_empty_description">Quotes bewaren de beste momenten uit de chat, zodat kijkers ze later kunnen oproepen.</string>
     <string name="quotes_error">Quotes laden mislukt: %1$s</string>
-    <string name="quotes_retry">Opnieuw</string>
     <string name="quotes_action_error">%1$s</string>
     <string name="quotes_search_label">Zoek quotes</string>
     <string name="quotes_search_placeholder">Zoek tekst of bron…</string>
-    <string name="quotes_search_empty">Geen quotes komen overeen met je zoekopdracht.</string>
     <string name="quotes_pager_prev">Vorige</string>
     <string name="quotes_pager_next">Volgende</string>
     <string name="quotes_page_indicator">Pagina %1$d</string>

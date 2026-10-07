@@ -171,7 +171,11 @@ import nomnomzbot.composeapp.generated.resources.commands_error
 import nomnomzbot.composeapp.generated.resources.commands_filter_all
 import nomnomzbot.composeapp.generated.resources.commands_filter_builtin
 import nomnomzbot.composeapp.generated.resources.commands_filter_custom
-import nomnomzbot.composeapp.generated.resources.commands_loading
+import nomnomzbot.composeapp.generated.resources.commands_empty_description
+import bot.nomnomz.dashboard.core.designsystem.component.EmptyState
+import bot.nomnomz.dashboard.core.designsystem.component.LoadFailedState
+import bot.nomnomz.dashboard.core.designsystem.component.NoResultsState
+import bot.nomnomz.dashboard.core.designsystem.component.SkeletonList
 import nomnomzbot.composeapp.generated.resources.commands_match_contains
 import nomnomzbot.composeapp.generated.resources.commands_match_exact
 import nomnomzbot.composeapp.generated.resources.commands_match_regex
@@ -191,7 +195,6 @@ import nomnomzbot.composeapp.generated.resources.commands_tier_code_hint
 import nomnomzbot.composeapp.generated.resources.commands_tier_pipeline
 import nomnomzbot.composeapp.generated.resources.commands_tier_template
 import nomnomzbot.composeapp.generated.resources.commands_no_description
-import nomnomzbot.composeapp.generated.resources.commands_retry
 import nomnomzbot.composeapp.generated.resources.commands_search_placeholder
 import nomnomzbot.composeapp.generated.resources.commands_title
 import nomnomzbot.composeapp.generated.resources.commands_toggle_action
@@ -234,9 +237,12 @@ fun CommandsScreen(
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: CommandsState = state) {
-            is CommandsState.Loading -> CenteredMessage(stringResource(Res.string.commands_loading))
+            is CommandsState.Loading -> SkeletonList()
             is CommandsState.Error ->
-                ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+                LoadFailedState(
+                    message = stringResource(Res.string.commands_error, current.detail),
+                    onRetry = { scope.launch { controller.load() } },
+                )
             is CommandsState.Empty ->
                 ManagedContent(
                     commands = emptyList(),
@@ -434,6 +440,27 @@ private fun ManagedContent(
         builtins.map { it.builtinKey.normalizedTriggerName() }.toSet()
     }
 
+    // An empty list with no search typed is a never-used list; its one primary action lives in the empty state
+    // (not twice on the page). With a search typed, an empty list is a filtered-to-nothing list instead.
+    val neverUsed: Boolean = filteredCommands.isEmpty() && filteredBuiltins.isEmpty() && searchQuery.isBlank()
+
+    // S-BUDGETS-b3: at the safety limit the New button is disabled with its reason shown, never
+    // silently missing and never enabled-then-failing; approaching the limit shows the real remaining
+    // count. Both numbers come straight from the billing-limits report, never estimated client-side.
+    val newAction: @Composable () -> Unit = {
+        LimitedCreateAction(usage = customCommandsUsage) { limitAllowed ->
+            ManageGate(decision = manage) { manageAllowed ->
+                Button(
+                    onClick = onNew,
+                    enabled = manageAllowed && limitAllowed,
+                    leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+                ) {
+                    Text(text = stringResource(Res.string.commands_new_action))
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
@@ -450,20 +477,7 @@ private fun ManagedContent(
                     Text(text = stringResource(Res.string.commands_bot_replies_open), maxLines = 1)
                 }
             }
-            // S-BUDGETS-b3: at the safety limit the New button is disabled with its reason shown, never
-            // silently missing and never enabled-then-failing; approaching the limit shows the real remaining
-            // count. Both numbers come straight from the billing-limits report, never estimated client-side.
-            LimitedCreateAction(usage = customCommandsUsage) { limitAllowed ->
-                ManageGate(decision = manage) { manageAllowed ->
-                    Button(
-                        onClick = onNew,
-                        enabled = manageAllowed && limitAllowed,
-                        leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
-                    ) {
-                        Text(text = stringResource(Res.string.commands_new_action))
-                    }
-                }
-            }
+            if (!neverUsed) newAction()
         }
 
         // Search bar — filters both custom commands and built-ins by name/description.
@@ -495,12 +509,14 @@ private fun ManagedContent(
         // Single card wrapping the entire table — rows are divided by hairlines, not individual cards.
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (filteredCommands.isEmpty() && filteredBuiltins.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(Res.string.commands_empty),
-                        style = typography.base,
-                        color = tokens.mutedForeground,
+                if (neverUsed) {
+                    EmptyState(
+                        title = stringResource(Res.string.commands_empty),
+                        description = stringResource(Res.string.commands_empty_description),
+                        action = newAction,
                     )
+                } else {
+                    NoResultsState(query = searchQuery, onClearFilter = { searchQuery = "" })
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -1312,38 +1328,6 @@ private fun matchModeLabel(mode: String): String =
             else -> Res.string.commands_match_starts_with
         }
     )
-
-@Composable
-private fun ErrorContent(detail: String, onRetry: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Text(
-                text = stringResource(Res.string.commands_error, detail),
-                style = typography.base,
-                color = tokens.mutedForeground,
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.commands_retry)) }
-        }
-    }
-}
-
-@Composable
-private fun CenteredMessage(text: String) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(text = text, style = typography.base, color = tokens.mutedForeground)
-    }
-}
 
 // The create/edit dialog's seed: an empty editor opens a blank create form (with backend defaults); one seeded
 // from a command opens a pre-filled edit form carrying every field. [isEdit] decides create-vs-update on submit;

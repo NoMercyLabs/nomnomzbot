@@ -81,8 +81,12 @@ import nomnomzbot.composeapp.generated.resources.quotes_dialog_save
 import nomnomzbot.composeapp.generated.resources.quotes_dialog_text_label
 import nomnomzbot.composeapp.generated.resources.quotes_edit_action
 import nomnomzbot.composeapp.generated.resources.quotes_empty
+import nomnomzbot.composeapp.generated.resources.quotes_empty_description
 import nomnomzbot.composeapp.generated.resources.quotes_error
-import nomnomzbot.composeapp.generated.resources.quotes_loading
+import bot.nomnomz.dashboard.core.designsystem.component.EmptyState
+import bot.nomnomz.dashboard.core.designsystem.component.LoadFailedState
+import bot.nomnomz.dashboard.core.designsystem.component.NoResultsState
+import bot.nomnomz.dashboard.core.designsystem.component.SkeletonList
 import nomnomzbot.composeapp.generated.resources.quotes_new_action
 import nomnomzbot.composeapp.generated.resources.quotes_number
 import nomnomzbot.composeapp.generated.resources.quotes_page_indicator
@@ -91,8 +95,6 @@ import nomnomzbot.composeapp.generated.resources.quotes_pager_next
 import nomnomzbot.composeapp.generated.resources.quotes_pager_prev
 import nomnomzbot.composeapp.generated.resources.quotes_requires_delete
 import nomnomzbot.composeapp.generated.resources.quotes_requires_write
-import nomnomzbot.composeapp.generated.resources.quotes_retry
-import nomnomzbot.composeapp.generated.resources.quotes_search_empty
 import nomnomzbot.composeapp.generated.resources.quotes_search_label
 import nomnomzbot.composeapp.generated.resources.quotes_search_placeholder
 import nomnomzbot.composeapp.generated.resources.quotes_title
@@ -140,9 +142,12 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubE
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: QuotesState = state) {
-            is QuotesState.Loading -> CenteredMessage(stringResource(Res.string.quotes_loading))
+            is QuotesState.Loading -> SkeletonList()
             is QuotesState.Error ->
-                ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+                LoadFailedState(
+                    message = stringResource(Res.string.quotes_error, current.detail),
+                    onRetry = { scope.launch { controller.load() } },
+                )
             is QuotesState.Empty ->
                 ManagedContent(
                     quotes = emptyList(),
@@ -242,7 +247,9 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(writeManage = writeManage, onNew = onNew)
+        // A channel that never added a quote gets its one primary action inside the empty state, not twice.
+        val neverUsed: Boolean = quotes.isEmpty() && search.isBlank()
+        Header(writeManage = writeManage, onNew = onNew, showNew = !neverUsed)
         // Write failures announce on the shell-level feedback toast (QuotesController.failWrite).
 
         AppTextField(
@@ -257,13 +264,25 @@ private fun ManagedContent(
 
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (quotes.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text =
-                            if (search.isBlank()) stringResource(Res.string.quotes_empty)
-                            else stringResource(Res.string.quotes_search_empty),
-                        style = typography.base,
-                        color = tokens.mutedForeground,
+                if (neverUsed) {
+                    EmptyState(
+                        title = stringResource(Res.string.quotes_empty),
+                        description = stringResource(Res.string.quotes_empty_description),
+                        action = {
+                            ManageGate(decision = writeManage) { enabled ->
+                                Button(onClick = onNew, enabled = enabled) {
+                                    Text(text = stringResource(Res.string.quotes_new_action))
+                                }
+                            }
+                        },
+                    )
+                } else {
+                    NoResultsState(
+                        query = search,
+                        onClearFilter = {
+                            query = ""
+                            onSearch("")
+                        },
                     )
                 }
             } else {
@@ -342,18 +361,19 @@ private fun Pager(
 }
 
 @Composable
-private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
-    val tokens = LocalTokens.current
+private fun Header(writeManage: ManageDecision, onNew: () -> Unit, showNew: Boolean) {
     val newLabel: String = stringResource(Res.string.quotes_new_action)
 
     PageHeader(title = stringResource(Res.string.shell_nav_quotes)) {
-        ManageGate(decision = writeManage) { enabled ->
-            GlyphButton(
-                icon = AddGlyph,
-                label = newLabel,
-                onClick = onNew,
-                enabled = enabled,
-            )
+        if (showNew) {
+            ManageGate(decision = writeManage) { enabled ->
+                GlyphButton(
+                    icon = AddGlyph,
+                    label = newLabel,
+                    onClick = onNew,
+                    enabled = enabled,
+                )
+            }
         }
     }
 }
@@ -511,38 +531,6 @@ private fun QuoteFormDialog(
             }
         },
     )
-}
-
-@Composable
-private fun ErrorContent(detail: String, onRetry: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Text(
-                text = stringResource(Res.string.quotes_error, detail),
-                style = typography.base,
-                color = tokens.mutedForeground,
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.quotes_retry)) }
-        }
-    }
-}
-
-@Composable
-private fun CenteredMessage(text: String) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(text = text, style = typography.base, color = tokens.mutedForeground)
-    }
 }
 
 // The create/edit dialog's seed: an empty editor opens a blank create form; one seeded from a quote opens a
