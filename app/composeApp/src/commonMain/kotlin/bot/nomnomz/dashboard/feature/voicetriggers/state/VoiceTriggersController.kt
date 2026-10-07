@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.voicetriggers.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssetsApi
 import bot.nomnomz.dashboard.core.network.ChannelAsset
@@ -86,9 +87,9 @@ class VoiceTriggersController(
         cooldownSeconds: Int,
         isEnabled: Boolean,
         stickerAssetId: String?,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             voiceTriggersApi.create(
                 channel,
                 CreateVoiceTriggerBody(
@@ -109,9 +110,9 @@ class VoiceTriggersController(
         cooldownSeconds: Int,
         isEnabled: Boolean,
         stickerAssetId: String?,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             voiceTriggersApi.update(
                 channel,
                 triggerId,
@@ -132,18 +133,37 @@ class VoiceTriggersController(
     }
 
     /** Delete a trigger, addressed by its [triggerId]. Reloads on success. */
-    suspend fun deleteTrigger(triggerId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(voiceTriggersApi.delete(channel, triggerId), success = Res.string.feedback_voice_trigger_deleted)
+    suspend fun deleteTrigger(triggerId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            voiceTriggersApi.delete(channel, triggerId),
+            success = Res.string.feedback_voice_trigger_deleted,
+        )
     }
 
-    private suspend fun afterWrite(
+    // A write fired from a dialog that stays open until the server answers: success announces and reloads, a
+    // failure is handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(
         result: ApiResult<Unit>,
         success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_voice_trigger_saved,
-    ) {
+    ): ApiResult<Unit> =
         when (result) {
             is ApiResult.Ok -> {
                 feedback.success(success)
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
+
+    // Nothing was sent (no channel): the dialog shows the reason.
+    private suspend fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, null, noChannelError()))
+
+    // The inline toggle has no dialog to hold a failure, so it keeps the frame-level error.
+    private suspend fun afterWrite(result: ApiResult<Unit>) {
+        when (result) {
+            is ApiResult.Ok -> {
+                feedback.success(Res.string.feedback_voice_trigger_saved)
                 load()
             }
             is ApiResult.Failure -> failWrite(result.error.message)

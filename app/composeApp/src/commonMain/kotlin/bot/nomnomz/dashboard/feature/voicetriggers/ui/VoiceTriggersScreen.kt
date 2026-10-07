@@ -16,13 +16,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,14 +37,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -55,6 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -150,25 +149,26 @@ fun VoiceTriggersScreen(controller: VoiceTriggersController, role: ManagementRol
             assets = assets,
             onDismiss = { editor = null },
             onSubmit = { form ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) {
-                        controller.updateTrigger(
+                if (open.isEdit) {
+                    controller
+                        .updateTrigger(
                             triggerId = open.id,
                             word = form.word,
                             cooldownSeconds = form.cooldownSeconds,
                             isEnabled = form.isEnabled,
                             stickerAssetId = form.stickerAssetId,
                         )
-                    } else {
-                        controller.createTrigger(
+                        .toDialogResult()
+                } else {
+                    controller
+                        .createTrigger(
                             word = form.word,
                             startingCount = form.startingCount,
                             cooldownSeconds = form.cooldownSeconds,
                             isEnabled = form.isEnabled,
                             stickerAssetId = form.stickerAssetId,
                         )
-                    }
+                        .toDialogResult()
                 }
             },
         )
@@ -181,10 +181,7 @@ fun VoiceTriggersScreen(controller: VoiceTriggersController, role: ManagementRol
             confirmLabel = stringResource(Res.string.voicetriggers_delete_confirm),
             dismissLabel = stringResource(Res.string.voicetriggers_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteTrigger(trigger.id) }
-            },
+            action = { controller.deleteTrigger(trigger.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -375,7 +372,7 @@ private fun TriggerFormDialog(
     editor: TriggerEditor,
     assets: List<ChannelAsset>,
     onDismiss: () -> Unit,
-    onSubmit: (TriggerForm) -> Unit,
+    onSubmit: suspend (TriggerForm) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -405,106 +402,101 @@ private fun TriggerFormDialog(
     val selectedAssetLabel: String =
         assets.firstOrNull { it.id == stickerAssetId }?.displayName ?: stickerNoneLabel
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = spacing.s24 * 4).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                AppTextField(
-                    value = word,
-                    onValueChange = { word = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.voicetriggers_dialog_word_label),
+    val dirty: Boolean =
+        word != editor.word ||
+            startingCount != editor.startingCount.toString() ||
+            cooldown != editor.cooldownSeconds.toString() ||
+            isEnabled != editor.isEnabled ||
+            stickerAssetId != editor.stickerAssetId
+
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.voicetriggers_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = canSubmit,
+        save = {
+            onSubmit(
+                TriggerForm(
+                    word = word,
+                    startingCount = startingCountValue ?: 0,
+                    cooldownSeconds = cooldownValue ?: 0,
+                    isEnabled = isEnabled,
+                    stickerAssetId = stickerAssetId,
                 )
+            )
+        },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            AppTextField(
+                value = word,
+                onValueChange = { word = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(Res.string.voicetriggers_dialog_word_label),
+            )
 
-                if (!editor.isEdit) {
-                    AppTextField(
-                        value = startingCount,
-                        onValueChange = { input -> startingCount = input.filter { it.isDigit() } },
-                        isError = !startingCountValid,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.voicetriggers_dialog_starting_count_label),
-                        supportingText = stringResource(Res.string.voicetriggers_dialog_starting_count_help),
-                    )
-                }
-
+            if (!editor.isEdit) {
                 AppTextField(
-                    value = cooldown,
-                    onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
-                    isError = !cooldownValid,
+                    value = startingCount,
+                    onValueChange = { input -> startingCount = input.filter { it.isDigit() } },
+                    isError = !startingCountValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.voicetriggers_dialog_cooldown_label),
+                    label = stringResource(Res.string.voicetriggers_dialog_starting_count_label),
+                    supportingText = stringResource(Res.string.voicetriggers_dialog_starting_count_help),
                 )
+            }
 
-                AppSelectField(
-                    label = stringResource(Res.string.voicetriggers_dialog_sticker_label),
-                    value = selectedAssetLabel,
-                    expanded = stickerMenuOpen,
-                    onExpandedChange = { stickerMenuOpen = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    menu = {
+            AppTextField(
+                value = cooldown,
+                onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
+                isError = !cooldownValid,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(Res.string.voicetriggers_dialog_cooldown_label),
+            )
+
+            AppSelectField(
+                label = stringResource(Res.string.voicetriggers_dialog_sticker_label),
+                value = selectedAssetLabel,
+                expanded = stickerMenuOpen,
+                onExpandedChange = { stickerMenuOpen = it },
+                modifier = Modifier.fillMaxWidth(),
+                menu = {
+                    DropdownMenuItem(
+                        text = { Text(stickerNoneLabel, color = tokens.cardForeground) },
+                        onClick = {
+                            stickerAssetId = EMPTY_STICKER_ASSET_ID
+                            stickerMenuOpen = false
+                        },
+                    )
+                    assets.forEach { asset ->
                         DropdownMenuItem(
-                            text = { Text(stickerNoneLabel, color = tokens.cardForeground) },
+                            text = { Text(asset.displayName, color = tokens.cardForeground) },
                             onClick = {
-                                stickerAssetId = EMPTY_STICKER_ASSET_ID
+                                stickerAssetId = asset.id
                                 stickerMenuOpen = false
                             },
                         )
-                        assets.forEach { asset ->
-                            DropdownMenuItem(
-                                text = { Text(asset.displayName, color = tokens.cardForeground) },
-                                onClick = {
-                                    stickerAssetId = asset.id
-                                    stickerMenuOpen = false
-                                },
-                            )
-                        }
-                    },
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(text = enabledLabel, color = tokens.cardForeground)
-                    Switch(
-                        checked = isEnabled,
-                        onCheckedChange = { isEnabled = it },
-                        modifier = Modifier.semantics { contentDescription = enabledLabel },
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onSubmit(
-                        TriggerForm(
-                            word = word,
-                            startingCount = startingCountValue ?: 0,
-                            cooldownSeconds = cooldownValue ?: 0,
-                            isEnabled = isEnabled,
-                            stickerAssetId = stickerAssetId,
-                        )
-                    )
+                    }
                 },
-                enabled = canSubmit,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(text = submitLabel, color = if (canSubmit) tokens.primary else tokens.mutedForeground)
+                Text(text = enabledLabel, color = tokens.cardForeground)
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = { isEnabled = it },
+                    modifier = Modifier.semantics { contentDescription = enabledLabel },
+                )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.voicetriggers_dialog_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable
