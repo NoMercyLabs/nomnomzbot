@@ -114586,9 +114586,10 @@
             "additionalProperties": {
               "type": "string"
             }
-          }
+          },
+          "step": { }
         },
-        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied."
+        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional: one action object ({\"type\":\"send_message\", ...params}); when set, only that action runs, through the same capture engine, instead of the saved pipeline's graph."
       },
       "PipelineValidationResult": {
         "type": "object",

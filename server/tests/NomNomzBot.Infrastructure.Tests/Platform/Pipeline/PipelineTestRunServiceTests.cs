@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -197,6 +198,77 @@ public sealed class PipelineTestRunServiceTests
     }
 
     [Fact]
+    public async Task A_single_step_run_executes_only_that_step_and_returns_its_output()
+    {
+        // The saved pipeline holds a chat step AND a TTS step. Testing the chat step alone must run only it:
+        // the TTS step is never captured, and the chat text resolves exactly as in a whole run.
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedPipelineAsync(
+            db,
+            Step(0, "send_message", """{"type":"send_message","message":"hi {who}"}"""),
+            Step(1, "play_tts", """{"type":"play_tts","text":"speak up"}""")
+        );
+        JsonElement step = JsonDocument
+            .Parse("""{"type":"send_message","message":"only me {who}"}""")
+            .RootElement.Clone();
+
+        TestRunResultDto result = (
+            await h.Sut.RunAsync(
+                PipelineId,
+                new(new Dictionary<string, string> { ["who"] = "1" }, step)
+            )
+        ).Value;
+
+        result.Success.Should().BeTrue();
+        result
+            .CapturedEffects.Select(e => e.Name)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("send_message");
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("only me 1");
+        result.Log.Should().ContainSingle();
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+    }
+
+    [Fact]
+    public async Task A_single_step_run_for_a_missing_pipeline_is_not_found()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        JsonElement step = JsonDocument
+            .Parse("""{"type":"send_message","message":"x"}""")
+            .RootElement.Clone();
+
+        Result<TestRunResultDto> result = await h.Sut.RunAsync(
+            Guid.NewGuid(),
+            new(new Dictionary<string, string>(), step)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task A_single_step_with_no_action_type_is_rejected_not_run()
+    {
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedPipelineAsync(db);
+        JsonElement step = JsonDocument.Parse("""{"message":"no type"}""").RootElement.Clone();
+
+        Result<TestRunResultDto> result = await h.Sut.RunAsync(
+            PipelineId,
+            new(new Dictionary<string, string>(), step)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("INVALID_STEP");
+    }
+
+    [Fact]
     public async Task Captures_chat_and_tts_without_firing_either_seam()
     {
         PipelineTestRunDbContext db = NewDb();
@@ -213,8 +285,8 @@ public sealed class PipelineTestRunServiceTests
 
         result.Success.Should().BeTrue();
         // Neither outward seam was touched.
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
         // Both side-effecting actions were captured; the chat template resolved to its real text.
         result
             .CapturedEffects.Select(e => e.Name)
@@ -284,7 +356,7 @@ public sealed class PipelineTestRunServiceTests
         TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
 
         result.Success.Should().BeTrue();
-        await h.Chat.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!);
         result
             .CapturedEffects.Select(e => e.Name)
             .Should()

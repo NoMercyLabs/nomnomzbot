@@ -127,7 +127,11 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
 
 /** Test-run body — sample variables for a pipeline dry-run (backend `PipelineTestRunRequest`). */
 @Serializable
-data class PipelineTestRunBody(val variables: Map<String, String> = emptyMap())
+data class PipelineTestRunBody(
+    val variables: Map<String, String> = emptyMap(),
+    /** Optional single action object (`{"type":"send_message", ...}`); when set, only this step runs. */
+    val step: JsonObject? = null,
+)
 
 // ── Action-catalogue DTOs (the backend-sourced palette — mirror the backend) ──
 

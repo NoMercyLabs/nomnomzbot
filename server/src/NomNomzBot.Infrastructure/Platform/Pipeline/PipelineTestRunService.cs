@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -76,6 +77,24 @@ public sealed class PipelineTestRunService(
             ? "{}"
             : found.GraphJsonCache;
 
+        Guid? runPipelineId = pipelineId;
+        if (request.Step is { } step)
+        {
+            if (
+                step.ValueKind != JsonValueKind.Object
+                || !step.TryGetProperty("type", out JsonElement type)
+                || type.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(type.GetString())
+            )
+                return Result.Failure<TestRunResultDto>(
+                    "A step needs an action type.",
+                    "INVALID_STEP"
+                );
+            // One step, no step rows: PipelineId null makes the engine read this graph instead.
+            graphJson = $$"""{"steps":[{"action":{{step.GetRawText()}}}]}""";
+            runPipelineId = null;
+        }
+
         CaptureSink sink = new();
         List<ICommandAction> captureActions =
         [
@@ -104,7 +123,7 @@ public sealed class PipelineTestRunService(
         PipelineRequest pipelineRequest = new()
         {
             BroadcasterId = broadcasterId,
-            PipelineId = pipelineId,
+            PipelineId = runPipelineId,
             PipelineJson = graphJson,
             TriggeredByUserId = broadcasterId.ToString(),
             TriggeredByDisplayName = "Test Run",

@@ -8,13 +8,21 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 
 namespace NomNomzBot.Application.Commands.Services;
 
-/// <summary>Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied.</summary>
-public sealed record PipelineTestRunRequest(IReadOnlyDictionary<string, string> Variables);
+/// <summary>
+/// Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. <paramref name="Step"/> is optional:
+/// one action object (<c>{"type":"send_message", ...params}</c>); when set, only that action runs, through the
+/// same capture engine, instead of the saved pipeline's graph.
+/// </summary>
+public sealed record PipelineTestRunRequest(
+    IReadOnlyDictionary<string, string> Variables,
+    JsonElement? Step = null
+);
 
 /// <summary>
 /// Executes a saved pipeline through the real engine in CAPTURE mode (commands-pipelines.md): reads, conditions,
