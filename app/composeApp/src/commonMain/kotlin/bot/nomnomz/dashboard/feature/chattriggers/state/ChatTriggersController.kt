@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.chattriggers.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -104,9 +105,9 @@ class ChatTriggersController(
         pipelineId: String?,
         cooldownSeconds: Int,
         minPermissionLevel: String,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             chatTriggersApi.create(
                 channel,
                 CreateChatTriggerBody(
@@ -139,9 +140,9 @@ class ChatTriggersController(
         pipelineId: String?,
         cooldownSeconds: Int,
         minPermissionLevel: String,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             chatTriggersApi.update(
                 channel,
                 triggerId,
@@ -193,10 +194,31 @@ class ChatTriggersController(
     }
 
     /** Delete a trigger, addressed by its [triggerId]. Reloads on success. Surfaces the error on failure. */
-    suspend fun deleteTrigger(triggerId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(chatTriggersApi.delete(channel, triggerId), success = Res.string.feedback_chat_trigger_deleted)
+    suspend fun deleteTrigger(triggerId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            chatTriggersApi.delete(channel, triggerId),
+            success = Res.string.feedback_chat_trigger_deleted,
+        )
     }
+
+    // A write fired from a dialog that stays open until the server answers: success announces and reloads, a
+    // failure is handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(
+        result: ApiResult<Unit>,
+        success: StringResource = Res.string.feedback_chat_trigger_saved,
+    ): ApiResult<Unit> =
+        when (result) {
+            is ApiResult.Ok -> {
+                feedback.success(success)
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
+
+    // Nothing was sent (no channel): the dialog shows the reason.
+    private suspend fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, null, noChannelError()))
 
     // A write either reloads the list AND announces success on the frame (success), or surfaces its error over
     // the current Ready list without losing it (failure) — so a failed create/edit leaves the page intact with

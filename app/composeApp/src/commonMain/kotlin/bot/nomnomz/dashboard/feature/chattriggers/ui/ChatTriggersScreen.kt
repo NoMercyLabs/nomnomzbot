@@ -16,13 +16,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,14 +37,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -57,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -196,10 +195,9 @@ fun ChatTriggersScreen(
             onDismiss = { editor = null },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onSubmit = { form ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) {
-                        controller.updateTrigger(
+                if (open.isEdit) {
+                    controller
+                        .updateTrigger(
                             triggerId = open.id,
                             pattern = form.pattern,
                             matchType = form.matchType,
@@ -211,8 +209,10 @@ fun ChatTriggersScreen(
                             cooldownSeconds = form.cooldownSeconds,
                             minPermissionLevel = form.minPermissionLevel,
                         )
-                    } else {
-                        controller.createTrigger(
+                        .toDialogResult()
+                } else {
+                    controller
+                        .createTrigger(
                             pattern = form.pattern,
                             matchType = form.matchType,
                             caseSensitive = form.caseSensitive,
@@ -222,7 +222,7 @@ fun ChatTriggersScreen(
                             cooldownSeconds = form.cooldownSeconds,
                             minPermissionLevel = form.minPermissionLevel,
                         )
-                    }
+                        .toDialogResult()
                 }
             },
         )
@@ -235,10 +235,7 @@ fun ChatTriggersScreen(
             confirmLabel = stringResource(Res.string.chattriggers_delete_confirm),
             dismissLabel = stringResource(Res.string.chattriggers_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteTrigger(trigger.id) }
-            },
+            action = { controller.deleteTrigger(trigger.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -404,7 +401,7 @@ private fun TriggerFormDialog(
     templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
-    onSubmit: (TriggerForm) -> Unit,
+    onSubmit: suspend (TriggerForm) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -454,14 +451,41 @@ private fun TriggerFormDialog(
     val enabledLabel: String = stringResource(Res.string.chattriggers_dialog_enabled_label)
     val usePipelineLabel: String = stringResource(Res.string.chattriggers_dialog_use_pipeline_label)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = spacing.s24 * 4).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
+    val dirty: Boolean =
+        pattern != editor.pattern ||
+            matchType != editor.matchType ||
+            caseSensitive != editor.caseSensitive ||
+            isEnabled != editor.isEnabled ||
+            usePipeline != editor.usePipeline ||
+            response != editor.response ||
+            selectedPipelineId != editor.pipelineId ||
+            cooldown != editor.cooldownSeconds.toString() ||
+            minLevel != editor.minPermissionLevel
+
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.chattriggers_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = canSubmit,
+        save = {
+            onSubmit(
+                TriggerForm(
+                    pattern = pattern,
+                    matchType = matchType,
+                    caseSensitive = caseSensitive,
+                    isEnabled = isEnabled,
+                    usePipeline = usePipeline,
+                    response = response,
+                    pipelineId = selectedPipelineId,
+                    cooldownSeconds = cooldownValue ?: 0,
+                    minPermissionLevel = minLevel,
+                )
+            )
+        },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 AppTextField(
                     value = pattern,
                     onValueChange = { pattern = it },
@@ -587,39 +611,8 @@ private fun TriggerFormDialog(
                         modifier = Modifier.semantics { contentDescription = enabledLabel },
                     )
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onSubmit(
-                        TriggerForm(
-                            pattern = pattern,
-                            matchType = matchType,
-                            caseSensitive = caseSensitive,
-                            isEnabled = isEnabled,
-                            usePipeline = usePipeline,
-                            response = response,
-                            pipelineId = selectedPipelineId,
-                            cooldownSeconds = cooldownValue ?: 0,
-                            minPermissionLevel = minLevel,
-                        )
-                    )
-                },
-                enabled = canSubmit,
-            ) {
-                Text(text = submitLabel, color = if (canSubmit) tokens.primary else tokens.mutedForeground)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.chattriggers_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
-            }
-        },
-    )
+        }
+    }
 }
 
 // A read-only field that opens a themed dropdown when clicked (the shared select pattern: an AppTextField shows
