@@ -2918,6 +2918,9 @@
     <string name="pipelines_dialog_cancel">Cancel</string>
     <string name="pipelines_editor_back">Back</string>
     <string name="pipelines_editor_save">Save chain</string>
+    <string name="pipelines_editor_unsaved">Unsaved changes</string>
+    <string name="pipelines_editor_changed_elsewhere">This pipeline changed elsewhere</string>
+    <string name="pipelines_editor_reload">Reload</string>
     <string name="pipelines_chain_empty">No steps yet. Add the first one.</string>
     <string name="pipelines_step_count">%1$d steps</string>
     <string name="pipelines_step_add">Add step</string>
