@@ -64,6 +64,20 @@ try {
         try { [xml](Get-Content -Raw -LiteralPath $xmlFile) | Out-Null }
         catch { $failures.Add("$xmlFile is not valid XML after merge: $_") }
     }
+    # A builder's "csharpier passes" is a claim; CI fails master on it, so the merge checks it.
+    $csFiles = @($changed | Where-Object { $_ -like 'server/*.cs' -and (Test-Path -LiteralPath $_) } |
+        ForEach-Object { $_.Substring('server/'.Length) })
+    if ($csFiles.Count -gt 0) {
+        # csharpier reports on stderr; under 'Stop' that throws before the exit code is read.
+        $ErrorActionPreference = 'Continue'
+        Push-Location server
+        try {
+            $csOut = dotnet csharpier check @csFiles 2>&1 | Out-String
+            $csExit = $LASTEXITCODE
+        }
+        finally { Pop-Location; $ErrorActionPreference = 'Stop' }
+        if ($csExit -ne 0) { $failures.Add("csharpier check failed:`n$csOut") }
+    }
 
     if ($failures.Count -gt 0) {
         Write-Host "SANITY CHECK FAILED - do not push:" -ForegroundColor Red
