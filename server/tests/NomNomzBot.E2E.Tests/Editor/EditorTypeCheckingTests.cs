@@ -32,7 +32,7 @@ public sealed class EditorTypeCheckingTests : EditorPageTest
             "script",
             "index.ts",
             """
-            const first = bot.args[0];
+            const first = bot.args.find(arg => arg.startsWith("@"));
             first.length;
             function shout(text) { return text; }
             document.title;
@@ -42,7 +42,7 @@ public sealed class EditorTypeCheckingTests : EditorPageTest
 
         IReadOnlyList<string> codes = await DiagnosticCodesAsync("index.ts", expected: 3);
 
-        // An argument the trigger did not pass is undefined.
+        // A search can find nothing, so its result may be undefined.
         Assert.Contains("18048", codes);
         // A parameter without a type is an implicit any.
         Assert.Contains("7006", codes);
