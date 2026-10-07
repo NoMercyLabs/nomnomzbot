@@ -1235,6 +1235,8 @@
     "widget.goal_bar.resetCadence.help",
     "widget.goal_bar.resetCadence.label",
     "widget.goal_bar.start.label",
+    "widget.goal_bar.startDate.help",
+    "widget.goal_bar.startDate.label",
     "widget.goal_bar.target.label",
     "widget.group.appearance",
     "widget.group.behaviour",
