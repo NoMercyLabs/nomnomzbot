@@ -968,7 +968,9 @@ public static class EventSamplePayloads
                 "user_name": "Cool_User",
                 "broadcaster_user_id": "broadcaster-99",
                 "message": "cheer100 nice stream",
-                "bits": 100
+                "bits": 100,
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -989,10 +991,25 @@ public static class EventSamplePayloads
                 "message": {
                     "text": "Cheer100 take my bits!",
                     "fragments": [
-                        { "type": "cheermote", "text": "Cheer100", "cheermote": { "prefix": "Cheer", "bits": 100, "tier": 1 }, "emote": null },
-                        { "type": "text", "text": " take my bits!", "cheermote": null, "emote": null }
+                        {
+                            "type": "cheermote",
+                            "text": "Cheer100",
+                            "cheermote": {
+                                "prefix": "Cheer",
+                                "bits": 100,
+                                "tier": 1
+                            },
+                            "emote": null
+                        },
+                        {
+                            "type": "text",
+                            "text": " take my bits!",
+                            "cheermote": null,
+                            "emote": null
+                        }
                     ]
-                }
+                },
+                "custom_power_up": null
             }
             """,
 
@@ -1014,7 +1031,9 @@ public static class EventSamplePayloads
                     "cost": 100,
                     "prompt": "reward prompt"
                 },
-                "redeemed_at": "2020-07-15T17:16:03.17106713Z"
+                "redeemed_at": "2020-07-15T17:16:03.17106713Z",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1036,7 +1055,9 @@ public static class EventSamplePayloads
                     "cost": 100,
                     "prompt": "reward prompt"
                 },
-                "redeemed_at": "2020-07-15T17:16:03.17106713Z"
+                "redeemed_at": "2020-07-15T17:16:03.17106713Z",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1054,7 +1075,34 @@ public static class EventSamplePayloads
                 "is_in_stock": true,
                 "title": "Cool Reward",
                 "cost": 100,
-                "prompt": "reward prompt"
+                "prompt": "reward prompt",
+                "background_color": "#FA1ED2",
+                "cooldown_expires_at": null,
+                "default_image": {
+                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
+                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
+                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png"
+                },
+                "image": {
+                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/image-1.png",
+                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/image-2.png",
+                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/image-4.png"
+                },
+                "global_cooldown": {
+                    "is_enabled": true,
+                    "seconds": 300
+                },
+                "is_user_input_required": false,
+                "max_per_stream": {
+                    "is_enabled": true,
+                    "value": 100
+                },
+                "max_per_user_per_stream": {
+                    "is_enabled": true,
+                    "value": 1
+                },
+                "redemptions_redeemed_current_stream": null,
+                "should_redemptions_skip_request_queue": false
             }
             """,
 
@@ -1067,7 +1115,39 @@ public static class EventSamplePayloads
                 "is_enabled": false,
                 "title": "Renamed Reward",
                 "cost": 250,
-                "prompt": "p"
+                "prompt": "p",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "background_color": "#FA1ED2",
+                "cooldown_expires_at": null,
+                "default_image": {
+                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
+                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
+                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png"
+                },
+                "image": {
+                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/image-1.png",
+                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/image-2.png",
+                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/image-4.png"
+                },
+                "global_cooldown": {
+                    "is_enabled": true,
+                    "seconds": 300
+                },
+                "is_in_stock": true,
+                "is_paused": false,
+                "is_user_input_required": false,
+                "max_per_stream": {
+                    "is_enabled": true,
+                    "value": 100
+                },
+                "max_per_user_per_stream": {
+                    "is_enabled": true,
+                    "value": 1
+                },
+                "redemptions_redeemed_current_stream": null,
+                "should_redemptions_skip_request_queue": false
             }
             """,
 
@@ -1080,7 +1160,39 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "1337",
                 "is_enabled": true,
                 "title": "Cool Reward",
-                "cost": 100
+                "cost": 100,
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "background_color": "#FA1ED2",
+                "cooldown_expires_at": null,
+                "default_image": {
+                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
+                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
+                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png"
+                },
+                "image": {
+                    "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/image-1.png",
+                    "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/image-2.png",
+                    "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/image-4.png"
+                },
+                "global_cooldown": {
+                    "is_enabled": true,
+                    "seconds": 300
+                },
+                "is_in_stock": true,
+                "is_paused": false,
+                "is_user_input_required": false,
+                "max_per_stream": {
+                    "is_enabled": true,
+                    "value": 100
+                },
+                "max_per_user_per_stream": {
+                    "is_enabled": true,
+                    "value": 1
+                },
+                "prompt": "reward prompt",
+                "redemptions_redeemed_current_stream": null,
+                "should_redemptions_skip_request_queue": false
             }
             """,
 
@@ -1145,11 +1257,33 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "1337",
                 "title": "Pineapple on pizza?",
                 "choices": [
-                    { "id": "c1", "title": "Yes", "bits_votes": 0, "channel_points_votes": 10, "votes": 10 },
-                    { "id": "c2", "title": "No", "bits_votes": 0, "channel_points_votes": 0, "votes": 0 }
+                    {
+                        "id": "c1",
+                        "title": "Yes",
+                        "bits_votes": 0,
+                        "channel_points_votes": 10,
+                        "votes": 10
+                    },
+                    {
+                        "id": "c2",
+                        "title": "No",
+                        "bits_votes": 0,
+                        "channel_points_votes": 0,
+                        "votes": 0
+                    }
                 ],
                 "started_at": "2026-06-20T11:30:00Z",
-                "ends_at": "2026-06-20T11:32:00Z"
+                "ends_at": "2026-06-20T11:32:00Z",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "bits_voting": {
+                    "is_enabled": true,
+                    "amount_per_vote": 10
+                },
+                "channel_points_voting": {
+                    "is_enabled": true,
+                    "amount_per_vote": 100
+                }
             }
             """,
 
@@ -1161,10 +1295,34 @@ public static class EventSamplePayloads
                 "id": "poll-1",
                 "title": "Pineapple on pizza?",
                 "choices": [
-                    { "id": "c1", "title": "Yes", "channel_points_votes": 25, "votes": 30 },
-                    { "id": "c2", "title": "No", "channel_points_votes": 5, "votes": 12 }
+                    {
+                        "id": "c1",
+                        "title": "Yes",
+                        "channel_points_votes": 25,
+                        "votes": 30,
+                        "bits_votes": 0
+                    },
+                    {
+                        "id": "c2",
+                        "title": "No",
+                        "channel_points_votes": 5,
+                        "votes": 12,
+                        "bits_votes": 0
+                    }
                 ],
-                "ends_at": "2026-06-20T11:32:00Z"
+                "ends_at": "2026-06-20T11:32:00Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "bits_voting": {
+                    "is_enabled": true,
+                    "amount_per_vote": 10
+                },
+                "channel_points_voting": {
+                    "is_enabled": true,
+                    "amount_per_vote": 100
+                },
+                "started_at": "2026-06-20T11:30:00Z"
             }
             """,
 
@@ -1177,9 +1335,34 @@ public static class EventSamplePayloads
                 "title": "Pineapple on pizza?",
                 "status": "completed",
                 "choices": [
-                    { "id": "c1", "title": "Yes", "channel_points_votes": 25, "votes": 30 },
-                    { "id": "c2", "title": "No", "channel_points_votes": 5, "votes": 42 }
-                ]
+                    {
+                        "id": "c1",
+                        "title": "Yes",
+                        "channel_points_votes": 25,
+                        "votes": 30,
+                        "bits_votes": 0
+                    },
+                    {
+                        "id": "c2",
+                        "title": "No",
+                        "channel_points_votes": 5,
+                        "votes": 42,
+                        "bits_votes": 0
+                    }
+                ],
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "bits_voting": {
+                    "is_enabled": true,
+                    "amount_per_vote": 10
+                },
+                "channel_points_voting": {
+                    "is_enabled": true,
+                    "amount_per_vote": 100
+                },
+                "started_at": "2026-06-20T11:30:00Z",
+                "ended_at": "2026-06-20T11:32:00Z"
             }
             """,
 
@@ -1191,11 +1374,26 @@ public static class EventSamplePayloads
                 "id": "pred-1",
                 "title": "Will we win?",
                 "outcomes": [
-                    { "id": "o1", "title": "Yes", "color": "blue", "users": 0, "channel_points": 0 },
-                    { "id": "o2", "title": "No", "color": "pink", "users": 0, "channel_points": 0 }
+                    {
+                        "id": "o1",
+                        "title": "Yes",
+                        "color": "blue",
+                        "users": 0,
+                        "channel_points": 0
+                    },
+                    {
+                        "id": "o2",
+                        "title": "No",
+                        "color": "pink",
+                        "users": 0,
+                        "channel_points": 0
+                    }
                 ],
                 "started_at": "2026-06-20T11:30:00Z",
-                "locks_at": "2026-06-20T11:31:30Z"
+                "locks_at": "2026-06-20T11:31:30Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1207,10 +1405,44 @@ public static class EventSamplePayloads
                 "id": "pred-1",
                 "title": "Will we win?",
                 "outcomes": [
-                    { "id": "o1", "title": "Yes", "color": "blue", "users": 12, "channel_points": 5000 },
-                    { "id": "o2", "title": "No", "color": "pink", "users": 3, "channel_points": 800 }
+                    {
+                        "id": "o1",
+                        "title": "Yes",
+                        "color": "blue",
+                        "users": 12,
+                        "channel_points": 5000,
+                        "top_predictors": [
+                            {
+                                "user_name": "Cool_User",
+                                "user_login": "cool_user",
+                                "user_id": "u1",
+                                "channel_points_won": null,
+                                "channel_points_used": 100
+                            }
+                        ]
+                    },
+                    {
+                        "id": "o2",
+                        "title": "No",
+                        "color": "pink",
+                        "users": 3,
+                        "channel_points": 800,
+                        "top_predictors": [
+                            {
+                                "user_name": "Cool_User",
+                                "user_login": "cool_user",
+                                "user_id": "u1",
+                                "channel_points_won": null,
+                                "channel_points_used": 100
+                            }
+                        ]
+                    }
                 ],
-                "locks_at": "2026-06-20T11:31:30Z"
+                "locks_at": "2026-06-20T11:31:30Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "started_at": "2026-06-20T11:30:00Z"
             }
             """,
 
@@ -1222,8 +1454,28 @@ public static class EventSamplePayloads
                 "id": "pred-1",
                 "title": "Will we win?",
                 "outcomes": [
-                    { "id": "o1", "title": "Yes", "color": "blue", "users": 12, "channel_points": 5000 }
-                ]
+                    {
+                        "id": "o1",
+                        "title": "Yes",
+                        "color": "blue",
+                        "users": 12,
+                        "channel_points": 5000,
+                        "top_predictors": [
+                            {
+                                "user_name": "Cool_User",
+                                "user_login": "cool_user",
+                                "user_id": "u1",
+                                "channel_points_won": null,
+                                "channel_points_used": 100
+                            }
+                        ]
+                    }
+                ],
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "started_at": "2026-06-20T11:30:00Z",
+                "locked_at": "2026-06-20T11:31:30Z"
             }
             """,
 
@@ -1237,11 +1489,44 @@ public static class EventSamplePayloads
                 "winning_outcome_id": "o1",
                 "status": "resolved",
                 "outcomes": [
-                    { "id": "o1", "title": "Yes", "color": "blue", "users": 12, "channel_points": 5000 },
-                    { "id": "o2", "title": "No", "color": "pink", "users": 3, "channel_points": 800 }
+                    {
+                        "id": "o1",
+                        "title": "Yes",
+                        "color": "blue",
+                        "users": 12,
+                        "channel_points": 5000,
+                        "top_predictors": [
+                            {
+                                "user_name": "Cool_User",
+                                "user_login": "cool_user",
+                                "user_id": "u1",
+                                "channel_points_won": 300,
+                                "channel_points_used": 100
+                            }
+                        ]
+                    },
+                    {
+                        "id": "o2",
+                        "title": "No",
+                        "color": "pink",
+                        "users": 3,
+                        "channel_points": 800,
+                        "top_predictors": [
+                            {
+                                "user_name": "Cool_User",
+                                "user_login": "cool_user",
+                                "user_id": "u1",
+                                "channel_points_won": 300,
+                                "channel_points_used": 100
+                            }
+                        ]
+                    }
                 ],
                 "started_at": "2026-06-20T11:30:00Z",
-                "ended_at": "2026-06-20T11:35:00Z"
+                "ended_at": "2026-06-20T11:35:00Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1257,11 +1542,30 @@ public static class EventSamplePayloads
                 "progress": 200,
                 "goal": 1000,
                 "top_contributions": [
-                    { "user_id": "u1", "user_login": "alice", "user_name": "Alice", "type": "bits", "total": 500 },
-                    { "user_id": "u2", "user_login": "bob", "user_name": "Bob", "type": "subscription", "total": 200 }
+                    {
+                        "user_id": "u1",
+                        "user_login": "alice",
+                        "user_name": "Alice",
+                        "type": "bits",
+                        "total": 500
+                    },
+                    {
+                        "user_id": "u2",
+                        "user_login": "bob",
+                        "user_name": "Bob",
+                        "type": "subscription",
+                        "total": 200
+                    }
                 ],
                 "started_at": "2026-06-20T11:30:00Z",
-                "expires_at": "2026-06-20T11:35:00Z"
+                "expires_at": "2026-06-20T11:35:00Z",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "is_shared_train": false,
+                "shared_train_participants": [],
+                "type": "regular",
+                "all_time_high_level": 4,
+                "all_time_high_total": 2800
             }
             """,
 
@@ -1276,9 +1580,22 @@ public static class EventSamplePayloads
                 "progress": 200,
                 "goal": 1500,
                 "top_contributions": [
-                    { "user_id": "u1", "user_login": "alice", "user_name": "Alice", "type": "bits", "total": 900 }
+                    {
+                        "user_id": "u1",
+                        "user_login": "alice",
+                        "user_name": "Alice",
+                        "type": "bits",
+                        "total": 900
+                    }
                 ],
-                "expires_at": "2026-06-20T11:36:00Z"
+                "expires_at": "2026-06-20T11:36:00Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "is_shared_train": false,
+                "shared_train_participants": [],
+                "type": "regular",
+                "started_at": "2026-06-20T11:30:00Z"
             }
             """,
 
@@ -1291,10 +1608,23 @@ public static class EventSamplePayloads
                 "level": 5,
                 "total": 3500,
                 "top_contributions": [
-                    { "user_id": "u1", "user_login": "alice", "user_name": "Alice", "type": "bits", "total": 2000 }
+                    {
+                        "user_id": "u1",
+                        "user_login": "alice",
+                        "user_name": "Alice",
+                        "type": "bits",
+                        "total": 2000
+                    }
                 ],
                 "started_at": "2026-06-20T11:30:00Z",
-                "ended_at": "2026-06-20T11:40:00Z"
+                "ended_at": "2026-06-20T11:40:00Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "is_shared_train": false,
+                "shared_train_participants": [],
+                "type": "regular",
+                "cooldown_ends_at": "2026-06-20T13:40:00Z"
             }
             """,
 
@@ -1309,7 +1639,9 @@ public static class EventSamplePayloads
                 "description": "Road to 1k followers",
                 "current_amount": 850,
                 "target_amount": 1000,
-                "started_at": "2026-06-20T11:00:00Z"
+                "started_at": "2026-06-20T11:00:00Z",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1323,7 +1655,10 @@ public static class EventSamplePayloads
                 "description": "Sub goal",
                 "current_amount": 920,
                 "target_amount": 1000,
-                "started_at": "2026-06-20T11:00:00Z"
+                "started_at": "2026-06-20T11:00:00Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1339,7 +1674,10 @@ public static class EventSamplePayloads
                 "current_amount": 1000,
                 "target_amount": 1000,
                 "started_at": "2026-06-20T11:00:00Z",
-                "ended_at": "2026-06-20T11:50:00Z"
+                "ended_at": "2026-06-20T11:50:00Z",
+                "broadcaster_user_id": "1337",
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User"
             }
             """,
 
@@ -1354,9 +1692,20 @@ public static class EventSamplePayloads
                 "charity_description": "Helping cats everywhere",
                 "charity_logo": "https://abc/logo.png",
                 "charity_website": "https://savethecats.example",
-                "current_amount": { "value": 150000, "decimal_places": 2, "currency": "USD" },
-                "target_amount": { "value": 1500000, "decimal_places": 2, "currency": "USD" },
-                "started_at": "2026-06-20T11:00:00Z"
+                "current_amount": {
+                    "value": 150000,
+                    "decimal_places": 2,
+                    "currency": "USD"
+                },
+                "target_amount": {
+                    "value": 1500000,
+                    "decimal_places": 2,
+                    "currency": "USD"
+                },
+                "started_at": "2026-06-20T11:00:00Z",
+                "broadcaster_id": "1337",
+                "broadcaster_login": "cool_user",
+                "broadcaster_name": "Cool_User"
             }
             """,
 
@@ -1367,8 +1716,22 @@ public static class EventSamplePayloads
             {
                 "id": "camp-1",
                 "charity_name": "Save the Cats",
-                "current_amount": { "value": 260000, "decimal_places": 2, "currency": "USD" },
-                "target_amount": { "value": 1500000, "decimal_places": 2, "currency": "USD" }
+                "current_amount": {
+                    "value": 260000,
+                    "decimal_places": 2,
+                    "currency": "USD"
+                },
+                "target_amount": {
+                    "value": 1500000,
+                    "decimal_places": 2,
+                    "currency": "USD"
+                },
+                "broadcaster_id": "1337",
+                "broadcaster_login": "cool_user",
+                "broadcaster_name": "Cool_User",
+                "charity_description": "Helping cats everywhere",
+                "charity_logo": "https://abc/logo.png",
+                "charity_website": "https://savethecats.example"
             }
             """,
 
@@ -1384,7 +1747,16 @@ public static class EventSamplePayloads
                 "user_login": "generous_gary",
                 "user_name": "Generous_Gary",
                 "charity_name": "Save the Cats",
-                "amount": { "value": 5000, "decimal_places": 2, "currency": "EUR" }
+                "amount": {
+                    "value": 5000,
+                    "decimal_places": 2,
+                    "currency": "EUR"
+                },
+                "broadcaster_user_login": "cool_user",
+                "broadcaster_user_name": "Cool_User",
+                "charity_description": "Helping cats everywhere",
+                "charity_logo": "https://abc/logo.png",
+                "charity_website": "https://savethecats.example"
             }
             """,
 
@@ -1395,9 +1767,23 @@ public static class EventSamplePayloads
             {
                 "id": "camp-1",
                 "charity_name": "Save the Cats",
-                "current_amount": { "value": 1500000, "decimal_places": 2, "currency": "USD" },
-                "target_amount": { "value": 1500000, "decimal_places": 2, "currency": "USD" },
-                "stopped_at": "2026-06-20T12:00:00Z"
+                "current_amount": {
+                    "value": 1500000,
+                    "decimal_places": 2,
+                    "currency": "USD"
+                },
+                "target_amount": {
+                    "value": 1500000,
+                    "decimal_places": 2,
+                    "currency": "USD"
+                },
+                "stopped_at": "2026-06-20T12:00:00Z",
+                "broadcaster_id": "1337",
+                "broadcaster_login": "cool_user",
+                "broadcaster_name": "Cool_User",
+                "charity_description": "Helping cats everywhere",
+                "charity_logo": "https://abc/logo.png",
+                "charity_website": "https://savethecats.example"
             }
             """,
 
@@ -1453,7 +1839,8 @@ public static class EventSamplePayloads
             {
                 "broadcaster_user_id": "broadcaster-99",
                 "broadcaster_user_login": "streamer",
-                "broadcaster_user_name": "Streamer"
+                "broadcaster_user_name": "Streamer",
+                "id": "9001"
             }
             """,
 
@@ -1489,7 +1876,9 @@ public static class EventSamplePayloads
                 "viewer_count": 860,
                 "started_at": "2026-06-20T11:29:00Z",
                 "cooldown_ends_at": "2026-06-20T11:31:00Z",
-                "target_cooldown_ends_at": "2026-06-20T12:30:00Z"
+                "target_cooldown_ends_at": "2026-06-20T12:30:00Z",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -1503,7 +1892,9 @@ public static class EventSamplePayloads
                 "from_broadcaster_user_login": "big_streamer",
                 "from_broadcaster_user_name": "Big_Streamer",
                 "viewer_count": 3500,
-                "started_at": "2026-06-20T11:29:00Z"
+                "started_at": "2026-06-20T11:29:00Z",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -1516,7 +1907,10 @@ public static class EventSamplePayloads
                 "broadcaster_user_login": "streamer",
                 "broadcaster_user_name": "Streamer",
                 "session_id": "session-2KFRQbFtpmfyD3IevNRnCzOzhg1",
-                "started_at": "2026-06-20T11:28:00Z"
+                "started_at": "2026-06-20T11:28:00Z",
+                "moderator_user_id": "mod-1",
+                "moderator_user_login": "mod_user",
+                "moderator_user_name": "Mod_User"
             }
             """,
 
@@ -1528,7 +1922,12 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "broadcaster-99",
                 "session_id": "session-abc",
                 "started_at": "2026-06-20T11:28:00Z",
-                "ended_at": "2026-06-20T11:55:00Z"
+                "ended_at": "2026-06-20T11:55:00Z",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_id": "mod-1",
+                "moderator_user_login": "mod_user",
+                "moderator_user_name": "Mod_User"
             }
             """,
 
@@ -1549,7 +1948,9 @@ public static class EventSamplePayloads
                 "state": "live",
                 "host_video_enabled": true,
                 "host_audio_enabled": true,
-                "host_volume": 100
+                "host_volume": 100,
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -1562,7 +1963,9 @@ public static class EventSamplePayloads
                 "is_moderator_send_live_enabled": true,
                 "slot_count": 5,
                 "is_browser_source_audio_enabled": false,
-                "group_layout": "tiled"
+                "group_layout": "tiled",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
