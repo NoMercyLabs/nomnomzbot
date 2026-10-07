@@ -436,7 +436,7 @@ class RewardsControllerTest {
     }
 
     @Test
-    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+    fun a_failed_delete_returns_the_failure_over_the_kept_list_without_a_toast() = runTest {
         val rewardsApi =
             RecordingRewardsApi(
                 ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!", isEnabled = true))),
@@ -447,14 +447,14 @@ class RewardsControllerTest {
             makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi, feedback)
         controller.load()
 
-        controller.deleteReward(rewardId = "r1")
+        val result: ApiResult<Unit> = controller.deleteReward(rewardId = "r1")
 
-        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The delete confirm shows the reason inline from the returned failure, so no toast fires; the list is kept.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
         val state: RewardsState = controller.state.value
         assertTrue(state is RewardsState.Ready)
         assertEquals(1, (state as RewardsState.Ready).rewards.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test
@@ -608,7 +608,7 @@ class RewardsControllerTest {
     }
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+internal class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -632,7 +632,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 // flipped flag, a removed row) — not merely that a call happened. [writeResult] forces every write to fail
 // (the store is left untouched) to exercise the error path. A list-level failure is modelled by passing a
 // Failure as the initial result.
-private class RecordingRewardsApi(
+internal class RecordingRewardsApi(
     initial: ApiResult<List<RewardSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val redemptionQueue: List<RedemptionSummary> = emptyList(),
@@ -770,7 +770,7 @@ private class RecordingRewardsApi(
 
 // Builds a controller with a stub pipelines API so the reward tests (which don't exercise the pipeline picker)
 // stay unchanged after the picker was added to RewardsController.
-private fun makeRewardsController(
+internal fun makeRewardsController(
     channelsApi: ChannelsApi,
     rewardsApi: RewardsApi,
     feedback: Feedback = NoOpFeedback,
@@ -778,7 +778,7 @@ private fun makeRewardsController(
 ): RewardsController =
     RewardsController(channelsApi, rewardsApi, StubRewardPipelinesApi, platformTemplatesApi, feedback)
 
-private class RecordingRewardTemplatesApi(
+internal class RecordingRewardTemplatesApi(
     private val installResult: ApiResult<InstalledPlatformTemplate> =
         ApiResult.Ok(InstalledPlatformTemplate(kind = "reward", entityId = "r9", name = "Hydrate")),
 ) : PlatformTemplatesApi {
@@ -810,7 +810,7 @@ private val HydrateRewardTemplate: PlatformTemplate =
         payloadJson = """{"title":"Hydrate","cost":500}""",
     )
 
-private object StubRewardPipelinesApi : bot.nomnomz.dashboard.core.network.PipelinesApi {
+internal object StubRewardPipelinesApi : bot.nomnomz.dashboard.core.network.PipelinesApi {
     override suspend fun list(
         channelId: String
     ): ApiResult<List<bot.nomnomz.dashboard.core.network.PipelineSummary>> = ApiResult.Ok(emptyList())

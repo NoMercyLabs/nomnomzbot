@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ColorField
 import bot.nomnomz.dashboard.core.designsystem.component.parseHexColor
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
@@ -371,10 +372,7 @@ fun RewardsScreen(
             confirmLabel = stringResource(Res.string.rewards_delete_confirm),
             dismissLabel = stringResource(Res.string.rewards_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteReward(reward.id) }
-            },
+            action = { controller.deleteReward(reward.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }

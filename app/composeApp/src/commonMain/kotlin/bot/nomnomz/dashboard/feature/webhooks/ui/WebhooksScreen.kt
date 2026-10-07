@@ -44,6 +44,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
@@ -375,7 +376,7 @@ fun WebhooksScreen(
             confirmLabel = stringResource(Res.string.webhooks_delete_confirm),
             dismissLabel = stringResource(Res.string.webhooks_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = { pendingDeleteInbound = null; scope.launch { controller.deleteInbound(ep.id) } },
+            action = { controller.deleteInbound(ep.id).toDialogResult() },
             onDismiss = { pendingDeleteInbound = null },
         )
     }

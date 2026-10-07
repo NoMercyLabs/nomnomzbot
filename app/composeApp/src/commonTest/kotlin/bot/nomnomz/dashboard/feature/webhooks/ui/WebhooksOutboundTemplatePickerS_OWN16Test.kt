@@ -155,7 +155,7 @@ class WebhooksOutboundTemplatePickerS_OWN16Test {
 }
 
 @androidx.compose.runtime.Composable
-private fun withLifecycle(content: @androidx.compose.runtime.Composable () -> Unit) {
+internal fun withLifecycle(content: @androidx.compose.runtime.Composable () -> Unit) {
     val owner: LifecycleOwner =
         object : LifecycleOwner {
             override val lifecycle: Lifecycle = LifecycleRegistry.createUnsafe(this)
@@ -169,12 +169,12 @@ private fun withLifecycle(content: @androidx.compose.runtime.Composable () -> Un
 }
 
 // Answers with one real helper key — proves the picker inserts the ACTUAL selected token, not a placeholder.
-private class FakeWebhookTemplateHelpersApi : TemplateHelpersApi {
+internal class FakeWebhookTemplateHelpersApi : TemplateHelpersApi {
     override suspend fun helpers(context: TemplateHelperContext, eventType: String?): ApiResult<List<TemplateHelperDto>> =
         ApiResult.Ok(listOf(TemplateHelperDto(key = "payload.name", descriptionKey = "helper.payload.name")))
 }
 
-private class FakeChannelsApi : ChannelsApi {
+internal class FakeChannelsApi : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = ApiResult.Ok(ChannelSummary(id = "ch1"))
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
     override suspend fun join(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
@@ -188,7 +188,7 @@ private class FakeChannelsApi : ChannelsApi {
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-private class FakePipelinesApi : PipelinesApi {
+internal class FakePipelinesApi : PipelinesApi {
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
     override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
         ApiResult.Ok(PipelineCatalogueRemote())
@@ -206,8 +206,15 @@ private class FakePipelinesApi : PipelinesApi {
         ApiResult.Ok(TestRunResult(success = true))
 }
 
-private class FakeWebhooksApi(private val outbound: List<OutboundWebhook>) : WebhooksApi {
-    override suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>> = ApiResult.Ok(emptyList())
+internal class FakeWebhooksApi(
+    private val outbound: List<OutboundWebhook> = emptyList(),
+    private val inbound: List<InboundWebhook> = emptyList(),
+    private val deleteInboundResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : WebhooksApi {
+    val deletedInbound: MutableList<String> = mutableListOf()
+
+    override suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>> =
+        ApiResult.Ok(inbound.filterNot { it.id in deletedInbound })
     override suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook> =
         error("stub")
     override suspend fun updateInbound(channelId: String, endpointId: String, body: UpdateInboundBody): ApiResult<InboundWebhook> =
@@ -215,7 +222,10 @@ private class FakeWebhooksApi(private val outbound: List<OutboundWebhook>) : Web
     override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<InboundWebhook> = error("stub")
-    override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> {
+        if (deleteInboundResult is ApiResult.Ok) deletedInbound.add(endpointId)
+        return deleteInboundResult
+    }
     override suspend fun inboundBlastRadius(channelId: String, endpointId: String): ApiResult<BlastRadiusSummary> =
         ApiResult.Ok(BlastRadiusSummary())
 

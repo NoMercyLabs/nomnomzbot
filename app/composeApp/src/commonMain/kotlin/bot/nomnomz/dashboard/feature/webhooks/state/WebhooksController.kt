@@ -238,9 +238,21 @@ class WebhooksController(
         return webhooksApi.inboundBlastRadius(channel, endpointId)
     }
 
-    suspend fun deleteInbound(endpointId: String) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
-        afterUnit(webhooksApi.deleteInbound(channel, endpointId))
+    /**
+     * Deletes the inbound endpoint and reloads on success. The result is handed back untouched: the delete confirm
+     * stays open until it arrives and shows a failure's reason inline, so no failure toast fires here.
+     */
+    suspend fun deleteInbound(endpointId: String): ApiResult<Unit> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        val result: ApiResult<Unit> = webhooksApi.deleteInbound(channel, endpointId)
+        if (result is ApiResult.Ok) {
+            load()
+        }
+        return result
     }
 
     // ── Outbound ─────────────────────────────────────────────────────────────

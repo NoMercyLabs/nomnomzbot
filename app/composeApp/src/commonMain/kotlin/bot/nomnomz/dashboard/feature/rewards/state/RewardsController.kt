@@ -291,10 +291,17 @@ class RewardsController(
         afterWrite(rewardsApi.update(channel, rewardId, UpdateRewardBody(isEnabled = enabled)))
     }
 
-    /** Delete a reward, addressed by its [rewardId]. Reloads on success. Surfaces the error on failure. */
-    suspend fun deleteReward(rewardId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(rewardsApi.delete(channel, rewardId))
+    /**
+     * Delete a reward, addressed by its [rewardId]. Reloads on success. The result is handed back untouched: the
+     * delete confirm stays open until it arrives and shows a failure's reason inline, so no failure toast fires.
+     */
+    suspend fun deleteReward(rewardId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = rewardsApi.delete(channel, rewardId)
+        if (result is ApiResult.Ok) {
+            load()
+        }
+        return result
     }
 
     /**
