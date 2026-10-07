@@ -3257,6 +3257,9 @@
     <string name="participant_lb_empty">No holders yet.</string>
     <string name="participant_lb_row_description">#%1$d, %2$s, %3$d points</string>
     <string name="participant_lb_consent_label">Show me on public leaderboards</string>
+    <string name="participant_lb_consent_unknown">Your current choice cannot be read yet, so no switch is shown. Pick one to set it.</string>
+    <string name="participant_lb_consent_hide_me">Hide me from leaderboards</string>
+    <string name="participant_lb_consent_show_me">Show me on leaderboards</string>
     <!-- My Points &amp; Store. -->
     <string name="participant_store_balance">Balance: %1$d</string>
     <string name="participant_store_lifetime">Earned %1$d · spent %2$d all-time</string>

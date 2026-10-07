@@ -226,10 +226,36 @@ class ParticipantControllerTest {
         controller.optOutOfLeaderboards()
 
         val ready: LeaderboardsState.Ready = controller.leaderboards.value as LeaderboardsState.Ready
-        assertFalse(ready.optedIn)
+        assertEquals(false, ready.optedIn)
         // The opt-out addressed the caller's own id on the channel.
         assertEquals(listOf(channelId to callerId), api.optOutCalls)
         assertTrue(api.optInCalls.isEmpty())
+    }
+
+    @Test
+    fun the_leaderboard_consent_is_unknown_until_the_server_confirms_a_choice() = runTest {
+        // The server has no read route for the caller's opt state, so a fresh load must not claim "opted in".
+        val controller = controller()
+
+        controller.loadLeaderboards()
+
+        val ready: LeaderboardsState.Ready = controller.leaderboards.value as LeaderboardsState.Ready
+        assertNull(ready.optedIn)
+    }
+
+    @Test
+    fun a_failed_opt_out_leaves_the_consent_unchanged_and_announces_the_error() = runTest {
+        val feedback = RecordingFeedback()
+        val api = FakeParticipantApi(optOutResult = ApiResult.Failure(ApiError(500, "ERR", "boom")))
+        val controller = controller(api = api, feedback = feedback)
+        controller.loadLeaderboards()
+        controller.optInToLeaderboards()
+
+        controller.optOutOfLeaderboards()
+
+        val ready: LeaderboardsState.Ready = controller.leaderboards.value as LeaderboardsState.Ready
+        assertEquals(true, ready.optedIn)
+        assertEquals(listOf<Any>("boom"), feedback.only.formatArgs)
     }
 
     @Test
@@ -475,6 +501,7 @@ private class FakeParticipantApi(
     private val activity: UserActivity = UserActivity(messageCount = 42, watchHours = 1.5, commandsUsed = 3),
     private val channels: List<ChannelAppearance> = emptyList(),
     private val songRequestResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val optOutResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : ParticipantApi {
     val accountCalls: MutableList<String> = mutableListOf()
     val purchaseCalls: MutableList<Pair<String, String>> = mutableListOf()
@@ -526,7 +553,7 @@ private class FakeParticipantApi(
 
     override suspend fun leaderboardOptOut(channelId: String, viewerUserId: String): ApiResult<Unit> {
         optOutCalls.add(channelId to viewerUserId)
-        return ApiResult.Ok(Unit)
+        return optOutResult
     }
 
     override suspend fun games(channelId: String): ApiResult<List<GameSummary>> = ApiResult.Ok(games)
