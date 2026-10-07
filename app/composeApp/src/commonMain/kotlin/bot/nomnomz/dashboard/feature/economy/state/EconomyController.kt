@@ -26,6 +26,8 @@ import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_contribute
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_created
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_invited
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_updated
+import nomnomzbot.composeapp.generated.resources.feedback_economy_leaderboard_created
+import nomnomzbot.composeapp.generated.resources.feedback_economy_leaderboard_saved
 import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_withdrawn
 import nomnomzbot.composeapp.generated.resources.feedback_economy_earning_rule_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_economy_purchase_refunded
@@ -252,12 +254,24 @@ class EconomyController(
     }
 
     /**
-     * Create or update a leaderboard config ([request.id] null = create). Reloads on success so the management
-     * list reflects the saved config; surfaces the error on the Ready state on failure.
+     * Create a leaderboard config from [request] (its id is null). Reloads on success so the management list
+     * reflects it; the failure goes back to the open form, not to a toast.
      */
-    suspend fun upsertLeaderboardConfig(request: UpsertLeaderboardConfigBody) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.upsertLeaderboardConfig(channel, request))
+    suspend fun createLeaderboardConfig(request: UpsertLeaderboardConfigBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.upsertLeaderboardConfig(channel, request).asUnit(),
+            Res.string.feedback_economy_leaderboard_created,
+        )
+    }
+
+    /** Save [request] over the leaderboard config it names by id. Same outcome rules as the create. */
+    suspend fun updateLeaderboardConfig(request: UpsertLeaderboardConfigBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            economyApi.upsertLeaderboardConfig(channel, request).asUnit(),
+            Res.string.feedback_economy_leaderboard_saved,
+        )
     }
 
     /** Delete a leaderboard config, then reload so it drops off the management list. Surfaces the error on failure. */

@@ -480,7 +480,7 @@ class EconomyControllerTest {
             EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
-        controller.upsertLeaderboardConfig(
+        val outcome: ApiResult<Unit> = controller.updateLeaderboardConfig(
             UpsertLeaderboardConfigBody(
                 id = "cfg1",
                 metric = "earned",
@@ -492,6 +492,7 @@ class EconomyControllerTest {
             )
         )
 
+        assertEquals(ApiResult.Ok(Unit), outcome)
         val request: UpsertLeaderboardConfigBody = economyApi.lastLeaderboardConfigUpsert!!
         assertEquals("cfg1", request.id)
         assertEquals("earned", request.metric)
