@@ -168,10 +168,10 @@ class DiscordController(
         afterWrite(discordApi.updateConfig(channel, configId, current.toUpdateBody(enabled = enabled)))
     }
 
-    /** Delete the rule [configId]. Reloads on success; surfaces the error on failure. */
-    suspend fun deleteConfig(configId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(discordApi.deleteConfig(channel, configId))
+    /** Delete the rule [configId]. Reloads on success; a failure is returned for the confirm dialog to show inline. */
+    suspend fun deleteConfig(configId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(discordApi.deleteConfig(channel, configId))
     }
 
     /**
@@ -196,16 +196,16 @@ class DiscordController(
         return discordApi.roles(channel, connectionId)
     }
 
-    /** Create a new notification role for [connectionId]. Reloads on success; surfaces the error on failure. */
+    /** Create a new notification role for [connectionId]. Reloads on success; a failure is returned for the form to show inline. */
     suspend fun createRole(
         connectionId: String,
         discordRoleId: String,
         roleName: String?,
         selfAssign: Boolean,
         dmEnabled: Boolean,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             discordApi.createRole(
                 channel,
                 connectionId,
@@ -221,11 +221,11 @@ class DiscordController(
 
     /**
      * Edit an existing notification role [roleId]'s display name, self-assign flag and DM-on-live flag.
-     * Reloads on success; surfaces the error on failure.
+     * Reloads on success; a failure is returned for the form to show inline.
      */
-    suspend fun updateRole(roleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    suspend fun updateRole(roleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             discordApi.updateRole(
                 channel,
                 roleId,
@@ -265,10 +265,10 @@ class DiscordController(
         return discordApi.guildChannels(channel, connectionId)
     }
 
-    /** Delete the notification role [roleId]. Reloads on success; surfaces the error on failure. */
-    suspend fun deleteRole(roleId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(discordApi.deleteRole(channel, roleId))
+    /** Delete the notification role [roleId]. Reloads on success; a failure is returned for the confirm dialog to show inline. */
+    suspend fun deleteRole(roleId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(discordApi.deleteRole(channel, roleId))
     }
 
     /** Post the opt-in button for [roleId] to [buttonChannelId]. Reloads on success; surfaces the error. */
@@ -283,10 +283,10 @@ class DiscordController(
         afterWrite(discordApi.approveServerConsent(channel, connectionId, approvedByDiscordUserId))
     }
 
-    /** Revoke server consent for [connectionId]. Reloads on success; surfaces the error on failure. */
-    suspend fun revokeServerConsent(connectionId: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(discordApi.revokeServerConsent(channel, connectionId))
+    /** Revoke server consent for [connectionId]. Reloads on success; a failure is returned for the confirm dialog to show inline. */
+    suspend fun revokeServerConsent(connectionId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(discordApi.revokeServerConsent(channel, connectionId))
     }
 
     /** Fetch the dispatch log for [connectionId]. Returns it directly (caller stores in UI state). */
@@ -315,6 +315,20 @@ class DiscordController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    // A write fired from a dialog that stays open until the server answers: success reloads the page, a failure is
+    // handed back untouched so the dialog shows the reason inline (no toast, no page-level error).
+    private suspend fun afterDialogWrite(result: ApiResult<*>): ApiResult<Unit> =
+        when (result) {
+            is ApiResult.Ok -> {
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
+
+    // Nothing was sent (no channel): the dialog shows the reason.
+    private suspend fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, null, noChannelError()))
 
     private fun failWrite(detail: String) {
         val current: DiscordState = _state.value
