@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.chat.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ChannelBanOutcome
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -206,21 +207,19 @@ class MultiChatController(
      * success the line is dropped from the local feed immediately (the backend delete is not itself echoed back
      * over the hub); a failure announces on the shell-level [feedback] toast.
      */
-    suspend fun deleteMessage(channelId: String, messageId: String) {
+    suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit> =
         runModerationCall(
             call = { chatApi.deleteMessage(channelId, messageId) },
             onSuccess = { ready, _ -> ready.copy(messages = ready.messages.filterNot { it.id == messageId }) },
         )
-    }
 
     /**
      * Timeout [userId] in [channelId] for [durationSeconds] (the same `POST .../moderation/actions` call the
      * single-channel Chat page uses — [ChatApi.timeout]) — an inline moderation quick-action from the merged feed.
      * A failure announces on the shell-level [feedback] toast.
      */
-    suspend fun timeoutUser(channelId: String, userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
+    suspend fun timeoutUser(channelId: String, userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS): ApiResult<Unit> =
         runModerationCall { chatApi.timeout(channelId, userId, durationSeconds) }
-    }
 
     /**
      * Ban [userId] from [channelId] only ("this_channel" scope, the same `POST .../moderation/actions/ban` call
@@ -228,17 +227,16 @@ class MultiChatController(
      * feed. A failure (network or a per-channel rejection reported inside the result) announces on the
      * shell-level [feedback] toast.
      */
-    suspend fun banUser(channelId: String, userId: String) {
-        runModerationCall(
-            call = { chatApi.banUser(channelId, userId, scope = "this_channel") },
-            onSuccess = { ready, banResult ->
-                val outcome: ChannelBanOutcome? = banResult.channels.firstOrNull()
-                if (outcome != null && !outcome.succeeded) {
-                    feedback.error(Res.string.multichat_action_error, outcome.error.orEmpty())
-                }
-                ready
-            },
-        )
+    suspend fun banUser(channelId: String, userId: String): ApiResult<Unit> {
+        val result: ApiResult<NetworkBanResult> = runModerationCall { chatApi.banUser(channelId, userId, scope = "this_channel") }
+        if (result is ApiResult.Failure) return ApiResult.Failure(result.error)
+        val outcome: ChannelBanOutcome? = (result as ApiResult.Ok).value.channels.firstOrNull()
+        if (outcome != null && !outcome.succeeded) {
+            val detail: String = outcome.error.orEmpty()
+            feedback.error(Res.string.multichat_action_error, detail)
+            return ApiResult.Failure(ApiError(status = 0, code = "BAN_REJECTED", message = detail))
+        }
+        return ApiResult.Ok(Unit)
     }
 
     // The one place a chat mutation's [ApiResult] turns into a state update: on [ApiResult.Failure] it announces
@@ -249,14 +247,16 @@ class MultiChatController(
     private suspend fun <T> runModerationCall(
         onSuccess: (MultiChatState.Ready, T) -> MultiChatState.Ready = { ready, _ -> ready },
         call: suspend () -> ApiResult<T>,
-    ) {
-        when (val result: ApiResult<T> = call()) {
+    ): ApiResult<T> {
+        val result: ApiResult<T> = call()
+        when (result) {
             is ApiResult.Failure -> feedback.error(Res.string.multichat_action_error, result.error.message)
             is ApiResult.Ok -> {
-                val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
-                _state.value = onSuccess(current, result.value)
+                val current: MultiChatState.Ready? = _state.value as? MultiChatState.Ready
+                if (current != null) _state.value = onSuccess(current, result.value)
             }
         }
+        return result
     }
 
     /**

@@ -70,6 +70,14 @@ import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionConfirm
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -275,13 +283,13 @@ fun ChatScreen(
                         lineMarks = current.lineMarks,
                         actionError = current.actionError,
                         manage = manage,
-                        onDelete = { id -> scope.launch { controller.deleteMessage(id) } },
-                        onTimeout = { userId -> scope.launch { controller.timeout(userId) } },
+                        onDelete = { id -> controller.deleteMessage(id).toDialogResult() },
+                        onTimeout = { userId -> controller.timeout(userId).toDialogResult() },
                         onBan = { userId, banScope, reason ->
-                            scope.launch { controller.ban(userId, banScope, reason) }
+                            controller.ban(userId, banScope, reason).toDialogResult()
                         },
                         onReport = { userId, userName, displayName, reason ->
-                            scope.launch { controller.report(userId, userName, displayName, reason) }
+                            controller.report(userId, userName, displayName, reason).toDialogResult()
                         },
                         onReply = { message -> controller.startReply(message) },
                     )
@@ -301,10 +309,7 @@ fun ChatScreen(
     if (showAnnounce) {
         AnnounceDialog(
             onDismiss = { showAnnounce = false },
-            onSend = { message, color ->
-                showAnnounce = false
-                scope.launch { controller.announce(message, color) }
-            },
+            onSend = { message, color -> controller.announce(message, color).toDialogResult() },
         )
     }
 }
@@ -315,10 +320,10 @@ private fun MessageFeed(
     lineMarks: LineMarks,
     actionError: String?,
     manage: ManageDecision,
-    onDelete: (messageId: String) -> Unit,
-    onTimeout: (userId: String) -> Unit,
-    onBan: (userId: String, scope: String, reason: String?) -> Unit,
-    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
+    onDelete: suspend (messageId: String) -> DialogResult,
+    onTimeout: suspend (userId: String) -> DialogResult,
+    onBan: suspend (userId: String, scope: String, reason: String?) -> DialogResult,
+    onReport: suspend (userId: String, userName: String, displayName: String, reason: String) -> DialogResult,
     onReply: (message: ChatMessage) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -360,10 +365,10 @@ private fun MessageRow(
     message: ChatMessage,
     mark: LineMark?,
     manage: ManageDecision,
-    onDelete: (messageId: String) -> Unit,
-    onTimeout: (userId: String) -> Unit,
-    onBan: (userId: String, scope: String, reason: String?) -> Unit,
-    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
+    onDelete: suspend (messageId: String) -> DialogResult,
+    onTimeout: suspend (userId: String) -> DialogResult,
+    onBan: suspend (userId: String, scope: String, reason: String?) -> DialogResult,
+    onReport: suspend (userId: String, userName: String, displayName: String, reason: String) -> DialogResult,
     onReply: (message: ChatMessage) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -613,10 +618,10 @@ private fun MessageActions(
     message: ChatMessage,
     name: String,
     manage: ManageDecision,
-    onDelete: (messageId: String) -> Unit,
-    onTimeout: (userId: String) -> Unit,
-    onBan: (userId: String, scope: String, reason: String?) -> Unit,
-    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
+    onDelete: suspend (messageId: String) -> DialogResult,
+    onTimeout: suspend (userId: String) -> DialogResult,
+    onBan: suspend (userId: String, scope: String, reason: String?) -> DialogResult,
+    onReport: suspend (userId: String, userName: String, displayName: String, reason: String) -> DialogResult,
     onReply: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -654,10 +659,10 @@ private fun ModerationMenu(
     message: ChatMessage,
     name: String,
     manage: ManageDecision,
-    onDelete: (messageId: String) -> Unit,
-    onTimeout: (userId: String) -> Unit,
-    onBan: (userId: String, scope: String, reason: String?) -> Unit,
-    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
+    onDelete: suspend (messageId: String) -> DialogResult,
+    onTimeout: suspend (userId: String) -> DialogResult,
+    onBan: suspend (userId: String, scope: String, reason: String?) -> DialogResult,
+    onReport: suspend (userId: String, userName: String, displayName: String, reason: String) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -770,10 +775,7 @@ private fun ModerationMenu(
             confirmLabel = stringResource(Res.string.chat_delete_confirm),
             dismissLabel = stringResource(Res.string.chat_delete_dismiss),
             destructive = true,
-            onConfirm = {
-                onDelete(message.id)
-                confirmDelete = false
-            },
+            action = { onDelete(message.id) },
             onDismiss = { confirmDelete = false },
         )
     }
@@ -785,10 +787,7 @@ private fun ModerationMenu(
             confirmLabel = stringResource(Res.string.chat_timeout_confirm),
             dismissLabel = stringResource(Res.string.chat_timeout_dismiss),
             destructive = true,
-            onConfirm = {
-                onTimeout(message.userId)
-                confirmTimeout = false
-            },
+            action = { onTimeout(message.userId) },
             onDismiss = { confirmTimeout = false },
         )
     }
@@ -797,10 +796,7 @@ private fun ModerationMenu(
         BanDialog(
             name = name,
             onDismiss = { showBan = false },
-            onConfirm = { banScope, reason ->
-                onBan(message.userId, banScope, reason)
-                showBan = false
-            },
+            onConfirm = { banScope, reason -> onBan(message.userId, banScope, reason) },
         )
     }
 
@@ -808,10 +804,7 @@ private fun ModerationMenu(
         ReportDialog(
             name = name,
             onDismiss = { showReport = false },
-            onConfirm = { reason ->
-                onReport(message.userId, message.username, message.displayName, reason)
-                showReport = false
-            },
+            onConfirm = { reason -> onReport(message.userId, message.username, message.displayName, reason) },
         )
     }
 }
@@ -822,7 +815,7 @@ private fun ModerationMenu(
 private fun ReportDialog(
     name: String,
     onDismiss: () -> Unit,
-    onConfirm: (reason: String) -> Unit,
+    onConfirm: suspend (reason: String) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -831,41 +824,29 @@ private fun ReportDialog(
     var reason: String by remember { mutableStateOf("") }
     val canSubmit: Boolean = reason.isNotBlank()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.chat_report_title, name)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-                Text(
-                    text = stringResource(Res.string.chat_report_description),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
-                Textarea(
-                    value = reason,
-                    onValueChange = { reason = it },
-                    label = stringResource(Res.string.chat_report_reason_label),
-                    minLines = 2,
-                    maxLines = 4,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (canSubmit) onConfirm(reason.trim()) },
-                enabled = canSubmit,
-            ) {
-                Text(
-                    text = stringResource(Res.string.chat_report_confirm),
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.chat_report_dismiss)) }
-        },
-    )
+    FormDialog(
+        title = stringResource(Res.string.chat_report_title, name),
+        saveLabel = stringResource(Res.string.chat_report_confirm),
+        cancelLabel = stringResource(Res.string.chat_report_dismiss),
+        onDismiss = onDismiss,
+        save = { onConfirm(reason.trim()) },
+        dirty = canSubmit,
+        valid = canSubmit,
+    ) {
+        Text(
+            text = stringResource(Res.string.chat_report_description),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Textarea(
+            value = reason,
+            onValueChange = { reason = it },
+            label = stringResource(Res.string.chat_report_reason_label),
+            minLines = 2,
+            maxLines = 4,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 // The ban dialog (chat-client.md §3.5): choose the scope — this channel only, or every channel the operator
@@ -874,7 +855,7 @@ private fun ReportDialog(
 private fun BanDialog(
     name: String,
     onDismiss: () -> Unit,
-    onConfirm: (scope: String, reason: String?) -> Unit,
+    onConfirm: suspend (scope: String, reason: String?) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -882,9 +863,12 @@ private fun BanDialog(
 
     var scope: String by remember { mutableStateOf("this_channel") }
     var reason: String by remember { mutableStateOf("") }
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!state.pending) onDismiss() },
+        dismissOnBackPress = !state.pending,
+        dismissOnClickOutside = !state.pending,
         title = { Text(stringResource(Res.string.chat_ban_title, name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
@@ -915,15 +899,20 @@ private fun BanDialog(
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(scope, reason.trim().ifBlank { null }) }) {
-                Text(stringResource(Res.string.chat_ban_confirm), color = tokens.destructive)
-            }
+            DialogActionConfirm(
+                state = state,
+                label = stringResource(Res.string.chat_ban_confirm),
+                enabled = true,
+                action = { onConfirm(scope, reason.trim().ifBlank { null }) },
+                destructive = true,
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.chat_ban_dismiss)) }
+            DialogActionDismiss(state = state, label = stringResource(Res.string.chat_ban_dismiss), onDismiss = onDismiss)
         },
     )
 }
@@ -1400,7 +1389,7 @@ private val AnnounceColors: List<Pair<String, Color>> = listOf(
 )
 
 @Composable
-private fun AnnounceDialog(onDismiss: () -> Unit, onSend: (message: String, color: String) -> Unit) {
+internal fun AnnounceDialog(onDismiss: () -> Unit, onSend: suspend (message: String, color: String) -> DialogResult) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1416,61 +1405,53 @@ private fun AnnounceDialog(onDismiss: () -> Unit, onSend: (message: String, colo
         "orange" to stringResource(Res.string.moderation_announce_color_orange),
     )
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.moderation_announce_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-                Textarea(
-                    value = message,
-                    onValueChange = { message = it },
-                    label = stringResource(Res.string.moderation_announce_message_label),
-                    isError = !hasMessage && message.isNotEmpty(),
-                    errorText = stringResource(Res.string.moderation_announce_message_required),
-                    minLines = 2,
-                    maxLines = 4,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = stringResource(Res.string.moderation_announce_color_label),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    AnnounceColors.forEach { (key, swatch) ->
-                        val isSelected: Boolean = selectedColor == key
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(RoundedCornerShape(4.dp))
+    FormDialog(
+        title = stringResource(Res.string.moderation_announce_title),
+        saveLabel = stringResource(Res.string.moderation_announce_send),
+        cancelLabel = stringResource(Res.string.moderation_announce_dismiss),
+        onDismiss = onDismiss,
+        save = { onSend(message.trim(), selectedColor) },
+        dirty = hasMessage,
+        valid = hasMessage,
+    ) {
+        Textarea(
+            value = message,
+            onValueChange = { message = it },
+            label = stringResource(Res.string.moderation_announce_message_label),
+            isError = !hasMessage && message.isNotEmpty(),
+            errorText = stringResource(Res.string.moderation_announce_message_required),
+            minLines = 2,
+            maxLines = 4,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = stringResource(Res.string.moderation_announce_color_label),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            AnnounceColors.forEach { (key, swatch) ->
+                val isSelected: Boolean = selectedColor == key
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(swatch)
+                        .then(
+                            if (isSelected) Modifier.padding(2.dp)
+                                .clip(RoundedCornerShape(2.dp))
                                 .background(swatch)
-                                .then(
-                                    if (isSelected) Modifier.padding(2.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(swatch)
-                                    else Modifier
-                                )
-                                .clickable { selectedColor = key }
-                                .semantics {
-                                    contentDescription = colorLabels[key] ?: key
-                                    role = Role.RadioButton
-                                },
+                            else Modifier
                         )
-                    }
-                }
+                        .clickable { selectedColor = key }
+                        .semantics {
+                            contentDescription = colorLabels[key] ?: key
+                            role = Role.RadioButton
+                        },
+                )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { if (hasMessage) onSend(message.trim(), selectedColor) }, enabled = hasMessage) {
-                Text(stringResource(Res.string.moderation_announce_send))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.moderation_announce_dismiss))
-            }
-        },
-    )
+        }
+    }
 }
 
 /** How often the feed re-polls the backend for fresh chat (a window concern, not a design-system token). */
