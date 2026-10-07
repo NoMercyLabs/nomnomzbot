@@ -6230,6 +6230,8 @@
     <string name="editor_preview_fire_no_events">This widget listens to no events yet. Add nnz.on('follow', …) to your code and the event shows up here.</string>
     <string name="editor_preview_fire_close">Close</string>
     <string name="editor_event_fire_shortcut">Ctrl+Enter fires it</string>
+    <string name="editor_event_sample_reset">Reset to default</string>
+    <string name="editor_event_sample_invalid">Save stopped: the data of {types} is not a JSON object. Fix it or reset it to default.</string>
     <string name="editor_preview_fire_send">Fire with this data</string>
     <string name="editor_preview_fire_edit">Edit</string>
     <string name="editor_preview_fire_edit_sample">Edit the data of {type}</string>
@@ -6260,7 +6262,6 @@
     <string name="editor_preview_starting">Starting preview…</string>
     <string name="editor_preview_unavailable">Live preview unavailable (it could not load):</string>
     <string name="editor_preview_unavailable_hint">Save &amp; Compile still builds on the server.</string>
-    <string name="editor_preview_sfc_no_script">The Vue file has no script block.</string>
     <string name="editor_preview_cannot_resolve">Cannot resolve {path} from {importer}</string>
     <string name="editor_preview_missing_file">Missing file {path}</string>
     <string name="editor_preview_vue_compile">Vue compile ({path}): {message}</string>

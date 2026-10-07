@@ -6203,6 +6203,8 @@
     <string name="editor_preview_fire_no_events">Deze widget luistert nog naar geen enkele gebeurtenis. Voeg nnz.on('follow', …) toe aan je code en de gebeurtenis verschijnt hier.</string>
     <string name="editor_preview_fire_close">Sluiten</string>
     <string name="editor_event_fire_shortcut">Ctrl+Enter vuurt af</string>
+    <string name="editor_event_sample_reset">Standaard terugzetten</string>
+    <string name="editor_event_sample_invalid">Opslaan gestopt: de gegevens van {types} zijn geen JSON-object. Herstel ze of zet ze terug naar standaard.</string>
     <string name="editor_preview_fire_send">Afvuren met deze data</string>
     <string name="editor_preview_fire_edit">Bewerken</string>
     <string name="editor_preview_fire_edit_sample">Bewerk de data van {type}</string>
@@ -6233,7 +6235,6 @@
     <string name="editor_preview_starting">Voorbeeld starten…</string>
     <string name="editor_preview_unavailable">Live voorbeeld niet beschikbaar (het kon niet laden):</string>
     <string name="editor_preview_unavailable_hint">Opslaan &amp; compileren bouwt nog steeds op de server.</string>
-    <string name="editor_preview_sfc_no_script">Het Vue-bestand heeft geen scriptblok.</string>
     <string name="editor_preview_cannot_resolve">{path} is niet te vinden vanuit {importer}</string>
     <string name="editor_preview_missing_file">Bestand {path} ontbreekt</string>
     <string name="editor_preview_vue_compile">Vue-compilatie ({path}): {message}</string>
