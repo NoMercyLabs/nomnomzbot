@@ -75,6 +75,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_automation_rules_on
 import nomnomzbot.composeapp.generated.resources.moderation_automation_twitch_categories
 import nomnomzbot.composeapp.generated.resources.moderation_automation_twitch_off
 import nomnomzbot.composeapp.generated.resources.moderation_automation_twitch_overall
+import nomnomzbot.composeapp.generated.resources.moderation_automation_local_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_automation_twitch_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_trust_ban_penalty_explain
 import nomnomzbot.composeapp.generated.resources.moderation_trust_ban_penalty_title
@@ -233,6 +234,8 @@ private fun automationLineText(line: AutomationLine): String =
     when (line) {
         is AutomationLine.TwitchAutoModUnavailable ->
             stringResource(Res.string.moderation_automation_twitch_unavailable)
+        is AutomationLine.LocalAutomodUnavailable ->
+            stringResource(Res.string.moderation_automation_local_unavailable)
         is AutomationLine.TwitchAutoModOverall ->
             stringResource(Res.string.moderation_automation_twitch_overall, line.level)
         is AutomationLine.TwitchAutoModPerCategory ->

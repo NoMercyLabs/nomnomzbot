@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.Text
+import androidx.compose.ui.platform.testTag
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -175,7 +176,9 @@ import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases
 import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases_add
 import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases_empty
+import nomnomzbot.composeapp.generated.resources.moderation_automod_load_failed
 import nomnomzbot.composeapp.generated.resources.moderation_automod_title
+import nomnomzbot.composeapp.generated.resources.state_retry
 import nomnomzbot.composeapp.generated.resources.moderation_automod_whitelist_add
 import nomnomzbot.composeapp.generated.resources.moderation_automod_whitelist_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_automod_whitelist_empty
@@ -657,6 +660,7 @@ fun ModerationScreen(
                     suspiciousManage = suspiciousManage,
                     onSaveEscalation = { policy -> scope.launch { controller.saveEscalationPolicy(policy) } },
                     onSaveHeatThreshold = { v -> scope.launch { controller.setHeatTimeoutThreshold(v) } },
+                    onRetryAutomod = { scope.launch { controller.retryAutomod() } },
                     onSaveSharedBans = { accept, share ->
                         scope.launch { controller.saveSharedBanSettings(accept, share) }
                     },
@@ -817,7 +821,7 @@ internal fun BansList(
     modLog: List<ModLogEntry>,
     shieldEnabled: Boolean,
     blockedTerms: List<String>,
-    automod: AutomodConfig,
+    automod: AutomodConfig?,
     rules: List<ModerationRule>,
     moderators: List<Moderator>,
     chatFilters: List<ChatFilter>,
@@ -859,6 +863,7 @@ internal fun BansList(
     suspiciousManage: ManageDecision,
     onSaveEscalation: (UpsertEscalationPolicyBody) -> Unit,
     onSaveHeatThreshold: (Int) -> Unit,
+    onRetryAutomod: () -> Unit,
     onSaveSharedBans: (accept: Boolean, share: Boolean) -> Unit,
     onAddTrusted: (trustedChannelId: String) -> Unit,
     onRemoveTrusted: (trustedChannelId: String) -> Unit,
@@ -1241,6 +1246,10 @@ internal fun BansList(
             )
         }
         rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "automod-card") {
+            if (automod == null) {
+                AutomodLoadFailedCard(onRetry = onRetryAutomod)
+                return@rulesSectionItem
+            }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     AutomodRow(
@@ -1384,6 +1393,10 @@ internal fun BansList(
             )
         }
         rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "heat-card") {
+            if (automod == null) {
+                AutomodLoadFailedCard(onRetry = onRetryAutomod)
+                return@rulesSectionItem
+            }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     HeatThresholdRow(
@@ -3090,6 +3103,29 @@ private fun ChatFilterRow(
                     maxLines = 1,
                 )
             }
+        }
+    }
+}
+
+// The AutoMod config read failed: say so and offer Retry in place of the form. The form is never rendered over
+// defaults, because every edit re-sends the whole config and would overwrite the real one.
+@Composable
+private fun AutomodLoadFailedCard(onRetry: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth().testTag("automod-load-failed")) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.moderation_automod_load_failed),
+                style = typography.sm,
+                color = tokens.destructive,
+            )
+            Button(onClick = onRetry) { Text(text = stringResource(Res.string.state_retry)) }
         }
     }
 }

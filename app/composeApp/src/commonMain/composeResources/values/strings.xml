@@ -5842,6 +5842,8 @@
     <string name="moderation_automation_panel_explain">This list is computed from your current settings. It shows exactly what the bot does without asking a human.</string>
     <string name="moderation_automation_can_ban_note">Nothing on this channel auto-bans unless it is listed here.</string>
     <string name="moderation_automation_twitch_unavailable">Twitch AutoMod levels could not be read here, so their state is unknown.</string>
+    <string name="moderation_automation_local_unavailable">The AutoMod filter and heat settings could not be read, so their state is unknown.</string>
+    <string name="moderation_automod_load_failed">The AutoMod settings could not be loaded. Nothing was changed. Retry to see and edit them.</string>
     <string name="moderation_automation_twitch_overall">Twitch AutoMod holds messages in every category at level %1$d.</string>
     <string name="moderation_automation_twitch_categories">Twitch AutoMod holds messages in %1$d categories. The strictest is level %2$d.</string>
     <string name="moderation_automation_twitch_off">Twitch AutoMod holds nothing. Every level is 0.</string>

@@ -138,6 +138,7 @@ class ModerationRulesGroupingRenderTest {
             suspiciousManage = ManageDecision.Allowed,
             onSaveEscalation = {},
             onSaveHeatThreshold = {},
+            onRetryAutomod = {},
             onSaveSharedBans = { _, _ -> },
             onAddTrusted = {},
             onRemoveTrusted = {},

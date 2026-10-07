@@ -266,17 +266,19 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // The AutoMod filter config (resilient — a failure leaves the filters reported off/default).
-        val automod: AutomodConfig =
+        // The AutoMod filter config. A failed read is null (not loaded) — NEVER the defaults: every AutoMod edit
+        // re-sends the whole config, so defaults standing in for the real one would overwrite it on the next save.
+        val automod: AutomodConfig? =
             when (val result: ApiResult<AutomodConfig> = moderationApi.automod(channel.id)) {
-                is ApiResult.Failure -> AutomodConfig()
+                is ApiResult.Failure -> null
                 is ApiResult.Ok -> result.value
             }
         val anyAutomodEnabled: Boolean =
-            automod.linkFilter.enabled ||
-                automod.capsFilter.enabled ||
-                automod.bannedPhrases.enabled ||
-                automod.emoteSpam.enabled
+            automod != null &&
+                (automod.linkFilter.enabled ||
+                    automod.capsFilter.enabled ||
+                    automod.bannedPhrases.enabled ||
+                    automod.emoteSpam.enabled)
 
         // Filter rules (custom moderation rules). Resilient — a failure degrades to an empty list.
         val rules: List<ModerationRule> =
@@ -460,6 +462,8 @@ class ModerationController(
                     trustPolicy == null &&
                     !shieldEnabled &&
                     !anyAutomodEnabled &&
+                    // An unreadable AutoMod config must show its failed-load card, never the empty page.
+                    automod != null &&
                     shoutoutTemplate.isNullOrBlank() &&
                     !autoShoutoutEnabled &&
                     bansAvailable &&
@@ -702,13 +706,8 @@ class ModerationController(
      * Set the heat score [threshold] (0–100) at which the ladder auto-times-out a viewer, re-sending the whole
      * AutoMod config (the backend POST takes the full config). Reloads on success; no-ops off a Ready state.
      */
-    suspend fun setHeatTimeoutThreshold(threshold: Int) {
-        val channel: String = channelId ?: return
-        val current: ModerationState = _state.value
-        if (current !is ModerationState.Ready) return
-        val updated: AutomodConfig = current.automod.copy(heatTimeoutThreshold = threshold)
-        afterWrite(moderationApi.saveAutomod(channel, updated))
-    }
+    suspend fun setHeatTimeoutThreshold(threshold: Int) =
+        saveAutomod { it.copy(heatTimeoutThreshold = threshold) }
 
     /**
      * Fan-out ban [targetTwitchUserId] across every channel the operator holds SuperMod+ on (the network nuke,
@@ -965,11 +964,7 @@ class ModerationController(
      * config; the other filters' settings ride along unchanged), then reload. No-ops off a Ready state.
      */
     suspend fun toggleAutomodFilter(filter: AutomodFilter) {
-        val channel: String = channelId ?: return
-        val current: ModerationState = _state.value
-        if (current !is ModerationState.Ready) return
-        val c: AutomodConfig = current.automod
-        val updated: AutomodConfig =
+        saveAutomod { c ->
             when (filter) {
                 AutomodFilter.Link ->
                     c.copy(linkFilter = c.linkFilter.copy(enabled = !c.linkFilter.enabled))
@@ -980,7 +975,7 @@ class ModerationController(
                 AutomodFilter.Emotes ->
                     c.copy(emoteSpam = c.emoteSpam.copy(enabled = !c.emoteSpam.enabled))
             }
-        afterWrite(moderationApi.saveAutomod(channel, updated))
+        }
     }
 
     /**
@@ -1030,12 +1025,27 @@ class ModerationController(
         }
 
     // Apply [transform] to the current AutoMod config and persist the whole thing (the backend POST takes the
-    // full config; unchanged filters ride along). No-ops off a Ready state. Shared by every automod sub-edit.
+    // full config; unchanged filters ride along). No-ops off a Ready state, and refuses to write when the real
+    // config never loaded (Ready.automod == null): sending defaults would overwrite the stored config.
+    // Shared by every automod sub-edit.
     private suspend fun saveAutomod(transform: (AutomodConfig) -> AutomodConfig) {
         val channel: String = channelId ?: return
         val current: ModerationState = _state.value
         if (current !is ModerationState.Ready) return
-        afterWrite(moderationApi.saveAutomod(channel, transform(current.automod)))
+        val loaded: AutomodConfig = current.automod ?: return
+        afterWrite(moderationApi.saveAutomod(channel, transform(loaded)))
+    }
+
+    /**
+     * Re-read the AutoMod config alone after a failed read (the card's Retry). On success the config replaces the
+     * null on the Ready state, so the form and its edits come back; on failure it stays null. No-ops off Ready.
+     */
+    suspend fun retryAutomod() {
+        val channel: String = channelId ?: return
+        val result: ApiResult<AutomodConfig> = moderationApi.automod(channel)
+        val latest: ModerationState = _state.value
+        if (latest !is ModerationState.Ready) return
+        if (result is ApiResult.Ok) _state.value = latest.copy(automod = result.value)
     }
 
     /**
@@ -1436,7 +1446,8 @@ sealed interface ModerationState {
         val modLog: List<ModLogEntry> = emptyList(),
         val shieldEnabled: Boolean = false,
         val blockedTerms: List<String> = emptyList(),
-        val automod: AutomodConfig = AutomodConfig(),
+        // null = the AutoMod read failed (not loaded). Never defaults: edits re-send the whole config.
+        val automod: AutomodConfig? = null,
         val rules: List<ModerationRule> = emptyList(),
         // The channel's current Twitch moderators (S066-mod-actions) — see load().
         val moderators: List<Moderator> = emptyList(),

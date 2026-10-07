@@ -361,8 +361,41 @@ class ModerationControllerTest {
 
         // No bans/log/terms, but an enabled AutoMod filter keeps the page Ready so the config shows.
         val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
-        assertTrue(ready.automod.capsFilter.enabled)
-        assertEquals(75, ready.automod.capsFilter.threshold)
+        assertTrue(ready.automod!!.capsFilter.enabled)
+        assertEquals(75, ready.automod!!.capsFilter.threshold)
+    }
+
+    @Test
+    fun retrying_a_failed_automod_read_restores_the_real_config_and_edits_write_it_back() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll")))),
+                automodResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "AutoMod read failed.")),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+                FakeCommunityApi(),
+            )
+        controller.load()
+        assertNull((controller.state.value as ModerationState.Ready).automod)
+
+        // A retry that fails again keeps the form locked.
+        controller.retryAutomod()
+        assertNull((controller.state.value as ModerationState.Ready).automod)
+
+        moderationApi.automodResult =
+            ApiResult.Ok(AutomodConfig(capsFilter = AutomodCapsFilter(enabled = false, threshold = 61)))
+        controller.retryAutomod()
+        assertEquals(61, (controller.state.value as ModerationState.Ready).automod?.capsFilter?.threshold)
+
+        controller.toggleAutomodFilter(AutomodFilter.Caps)
+
+        // The saved body carries the REAL threshold, not a default.
+        assertEquals(1, moderationApi.automodSaveCount)
+        assertEquals(61, moderationApi.lastSavedAutomod?.capsFilter?.threshold)
+        assertTrue(moderationApi.lastSavedAutomod?.capsFilter?.enabled == true)
     }
 
     @Test
@@ -392,6 +425,59 @@ class ModerationControllerTest {
         val saved: AutomodConfig = moderationApi.lastSavedAutomod!!
         assertTrue(saved.capsFilter.enabled)
         assertEquals(80, saved.capsFilter.threshold)
+    }
+
+    @Test
+    fun a_failed_automod_read_is_exposed_as_not_loaded_and_every_edit_refuses_to_write() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll")))),
+                automodResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "AutoMod read failed.")),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+                FakeCommunityApi(),
+            )
+        controller.load()
+
+        // The rest of the page still loads; only the AutoMod config is reported as not loaded.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertNull(ready.automod)
+
+        // Every edit path that rides on the whole AutoMod config must refuse, not send defaults.
+        controller.toggleAutomodFilter(AutomodFilter.Caps)
+        controller.setCapsThreshold(50)
+        controller.setEmoteMaxEmotes(3)
+        controller.addBannedPhrase("badword")
+        controller.removeBannedPhrase("badword")
+        controller.addLinkWhitelist("example.com")
+        controller.removeLinkWhitelist("example.com")
+        controller.setAutoTimeoutOnHeat(true)
+        controller.setHeatTimeoutSeconds(120)
+        controller.setHeatTimeoutThreshold(60)
+
+        assertEquals(0, moderationApi.automodSaveCount)
+        assertNull(moderationApi.lastSavedAutomod)
+    }
+
+    @Test
+    fun a_failed_automod_read_never_makes_an_otherwise_empty_page_read_as_empty() = runTest {
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeModerationApi(
+                    bansResults = listOf(ApiResult.Ok(emptyList())),
+                    automodResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "AutoMod read failed.")),
+                ),
+                FakeCommunityApi(),
+            )
+
+        controller.load()
+
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertNull(ready.automod)
     }
 
     @Test
@@ -1218,7 +1304,7 @@ internal class FakeModerationApi(
     private val modLogResult: ApiResult<List<ModLogEntry>> = ApiResult.Ok(emptyList()),
     private val shieldResult: ApiResult<ShieldStatus> = ApiResult.Ok(ShieldStatus(false)),
     private val blockedTermsResult: ApiResult<List<String>> = ApiResult.Ok(emptyList()),
-    private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
+    var automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
     private val rulesResult: ApiResult<List<ModerationRule>> = ApiResult.Ok(emptyList()),
 ) : ModerationApi {
     var chatFiltersResult: ApiResult<List<ChatFilter>> = ApiResult.Ok(emptyList())
@@ -1529,7 +1615,11 @@ internal class FakeModerationApi(
     var lastSavedAutomod: AutomodConfig? = null
         private set
 
+    var automodSaveCount: Int = 0
+        private set
+
     override suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit> {
+        automodSaveCount++
         lastSavedAutomod = config
         return ApiResult.Ok(Unit)
     }

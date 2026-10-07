@@ -5817,6 +5817,8 @@
     <string name="moderation_automation_panel_explain">Deze lijst wordt berekend uit je huidige instellingen. Hij toont precies wat de bot doet zonder een mens te vragen.</string>
     <string name="moderation_automation_can_ban_note">Niets op dit kanaal geeft automatisch een ban, behalve wat hier staat.</string>
     <string name="moderation_automation_twitch_unavailable">De Twitch AutoMod-niveaus konden hier niet gelezen worden. De stand is onbekend.</string>
+    <string name="moderation_automation_local_unavailable">De AutoMod-filter- en heat-instellingen konden niet gelezen worden. De stand is onbekend.</string>
+    <string name="moderation_automod_load_failed">De AutoMod-instellingen konden niet geladen worden. Er is niets gewijzigd. Probeer opnieuw om ze te zien en te bewerken.</string>
     <string name="moderation_automation_twitch_overall">Twitch AutoMod houdt berichten in elke categorie tegen op niveau %1$d.</string>
     <string name="moderation_automation_twitch_categories">Twitch AutoMod houdt berichten tegen in %1$d categorieën. De strengste staat op niveau %2$d.</string>
     <string name="moderation_automation_twitch_off">Twitch AutoMod houdt niets tegen. Elk niveau staat op 0.</string>

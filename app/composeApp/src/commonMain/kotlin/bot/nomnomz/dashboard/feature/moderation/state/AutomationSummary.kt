@@ -39,6 +39,9 @@ sealed interface AutomationLine {
     /** Twitch's AutoMod levels could not be read here (missing scope / no broadcaster token) — state is unknown. */
     data object TwitchAutoModUnavailable : AutomationLine
 
+    /** The local AutoMod config (filters + heat) could not be read — its state is unknown, never "off". */
+    data object LocalAutomodUnavailable : AutomationLine
+
     /** Twitch AutoMod runs on one overall dial at [level] (1–4). */
     data class TwitchAutoModOverall(val level: Int) : AutomationLine
 
@@ -108,7 +111,7 @@ sealed interface AutoBanSource {
  * never be reported as an inactive one). Every other input is the object the screen already loaded.
  */
 fun deriveAutomationLines(
-    automod: AutomodConfig,
+    automod: AutomodConfig?,
     twitchAutoMod: TwitchAutoModSettings?,
     chatFilters: List<ChatFilter>,
     rules: List<ModerationRule>,
@@ -117,7 +120,8 @@ fun deriveAutomationLines(
     val lines: MutableList<AutomationLine> = mutableListOf()
 
     lines.add(twitchAutoModLine(twitchAutoMod))
-    lines.addAll(localFilterLines(automod))
+    if (automod == null) lines.add(AutomationLine.LocalAutomodUnavailable)
+    else lines.addAll(localFilterLines(automod))
 
     val enabledFilters: List<ChatFilter> = chatFilters.filter { it.isEnabled }
     val banningFilters: List<ChatFilter> =
@@ -137,13 +141,15 @@ fun deriveAutomationLines(
 
     // The heat line is the one this slice turned honest: the auto-timeout is opt-in, so it may only claim a
     // timeout when the channel actually switched it on. Off, a crossing just flags the viewer for a human.
-    lines.add(
-        if (automod.autoTimeoutOnHeat) {
-            AutomationLine.HeatAutoTimeoutOn(automod.heatTimeoutThreshold, automod.heatTimeoutSeconds)
-        } else {
-            AutomationLine.HeatAutoTimeoutOff(automod.heatTimeoutThreshold)
-        }
-    )
+    if (automod != null) {
+        lines.add(
+            if (automod.autoTimeoutOnHeat) {
+                AutomationLine.HeatAutoTimeoutOn(automod.heatTimeoutThreshold, automod.heatTimeoutSeconds)
+            } else {
+                AutomationLine.HeatAutoTimeoutOff(automod.heatTimeoutThreshold)
+            }
+        )
+    }
 
     val ladder: EscalationPolicy? = escalationPolicy?.takeIf { it.isEnabled }
     if (ladder == null) {
