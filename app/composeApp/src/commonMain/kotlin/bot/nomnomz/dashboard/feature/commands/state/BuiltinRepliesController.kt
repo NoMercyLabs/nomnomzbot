@@ -80,11 +80,15 @@ class BuiltinRepliesController(
     }
 
     /** Puts one slot back on its default. */
-    suspend fun reset(reply: BuiltinReply) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<BuiltinReply> = builtinsApi.resetReply(channel, reply.builtinKey, reply.slot)) {
-            is ApiResult.Ok -> _state.value = _state.value.copy(groups = replace(result.value), editing = null)
-            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+    suspend fun reset(reply: BuiltinReply): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Ok(Unit)
+        return when (val result: ApiResult<BuiltinReply> = builtinsApi.resetReply(channel, reply.builtinKey, reply.slot)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(groups = replace(result.value), editing = null)
+                ApiResult.Ok(Unit)
+            }
+            // The confirm dialog shows the reason inline, so the page behind it gets no second copy.
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 

@@ -50,6 +50,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.BuiltinReplyGroup
 import bot.nomnomz.dashboard.feature.commands.state.BuiltinDetailController
@@ -97,7 +99,6 @@ fun BuiltinDetailDialog(
     val openKey: String = detail.openKey ?: return
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
-    val scope = rememberCoroutineScope()
     var confirmReset: Boolean by remember { mutableStateOf(false) }
     val close: () -> Unit = {
         detailController.close()
@@ -160,12 +161,12 @@ fun BuiltinDetailDialog(
             confirmLabel = stringResource(Res.string.builtin_detail_reset_confirm),
             dismissLabel = stringResource(Res.string.builtin_replies_cancel),
             destructive = true,
-            onConfirm = {
-                confirmReset = false
-                scope.launch {
-                    detailController.reset()
+            action = {
+                val result: ApiResult<Unit> = detailController.reset()
+                if (result is ApiResult.Ok) {
                     repliesController.open(builtin.replyGroup.ifBlank { builtin.builtinKey })
                 }
+                result.toDialogResult()
             },
             onDismiss = { confirmReset = false },
         )

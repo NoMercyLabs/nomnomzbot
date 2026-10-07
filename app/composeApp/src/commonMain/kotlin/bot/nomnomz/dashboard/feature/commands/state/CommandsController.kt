@@ -324,16 +324,16 @@ class CommandsController(
         afterWrite(commandsApi.update(channel, name, UpdateCommandBody(isEnabled = enabled)))
     }
 
-    /** Delete a command, addressed by its [name]. Reloads on success. Surfaces the error on failure. */
-    suspend fun deleteCommand(name: String) {
-        val channel: String = channelId ?: run { failWrite(noChannelError()); return }
-        afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
+    /** Delete a command, addressed by its [name]. Reloads on success. The outcome keeps the confirm open on failure. */
+    suspend fun deleteCommand(name: String): DialogResult {
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        return afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
     }
 
     /** Put a seeded fun command, addressed by its current [name], back on its preset. Reloads on success. */
-    suspend fun resetToPreset(name: String) {
-        val channel: String = channelId ?: run { failWrite(noChannelError()); return }
-        afterWrite(commandsApi.resetToPreset(channel, name))
+    suspend fun resetToPreset(name: String): DialogResult {
+        val channel: String = channelId ?: return failWrite(noChannelError())
+        return afterWrite(commandsApi.resetToPreset(channel, name))
     }
 
     /** Enable or disable a built-in command by its [builtinKey]. Reloads on success. */
