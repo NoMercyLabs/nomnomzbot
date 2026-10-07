@@ -20,14 +20,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +42,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
-import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -111,7 +111,7 @@ internal fun WidgetSettingsDialog(
     widget: WidgetSummary,
     loadSchema: suspend () -> ApiResult<WidgetSettingsSchemaDto>,
     onDismiss: () -> Unit,
-    onSave: (JsonObject) -> Unit,
+    onSave: suspend (JsonObject) -> DialogResult,
 ) {
     var result: ApiResult<WidgetSettingsSchemaDto>? by remember(widget.id) { mutableStateOf(null) }
     LaunchedEffect(widget.id) { result = loadSchema() }
@@ -172,7 +172,7 @@ private fun LoadedSettingsDialog(
     widget: WidgetSummary,
     schema: WidgetSettingsSchemaDto,
     onDismiss: () -> Unit,
-    onSave: (JsonObject) -> Unit,
+    onSave: suspend (JsonObject) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
@@ -201,23 +201,29 @@ private fun LoadedSettingsDialog(
                 }
         }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = stringResource(Res.string.widgets_settings_title, widget.name), style = typography.lg)
+    FormDialog(
+        title = stringResource(Res.string.widgets_settings_title, widget.name),
+        saveLabel = stringResource(Res.string.widgets_settings_save),
+        cancelLabel = stringResource(Res.string.widgets_settings_cancel),
+        onDismiss = onDismiss,
+        save = {
+            if (!validateJsonFields(schema, state)) {
+                DialogResult.Failed(invalidJson)
+            } else {
+                onSave(buildSettings(schema, state, settings))
+            }
         },
-        text = {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-                // Fields, grouped in their authored order (groupBy keeps first-seen order).
-                schema.fields.groupBy { it.group }.forEach { (group, fields) ->
-                    item(key = "group:${group.key}:${group.text}") {
-                        Text(
-                            text = resolveSchemaString(fields.first().group),
-                            style = typography.sm,
-                            color = tokens.mutedForeground,
-                        )
-                    }
-                    items(items = fields, key = { it.key }) { field ->
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+            // Fields, grouped in their authored order (groupBy keeps first-seen order).
+            schema.fields.groupBy { it.group }.forEach { (group, fields) ->
+                Text(
+                    text = resolveSchemaString(fields.first().group),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                fields.forEach { field ->
+                    key(field.key) {
                         FieldControl(
                             field = field,
                             rawValue = state.raw[field.key].orEmpty(),
@@ -239,28 +245,13 @@ private fun LoadedSettingsDialog(
                         )
                     }
                 }
-                // The widget's event wiring — read-only reference (intrinsic to the widget, not user config).
-                if (schema.eventSubscriptions.isNotEmpty()) {
-                    item(key = "event-subs") { EventSubscriptionsInfo(schema.eventSubscriptions) }
-                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (!validateJsonFields(schema, state)) return@Button
-                    onSave(buildSettings(schema, state, settings))
-                },
-            ) {
-                Text(stringResource(Res.string.widgets_settings_save))
+            // The widget's event wiring — read-only reference (intrinsic to the widget, not user config).
+            if (schema.eventSubscriptions.isNotEmpty()) {
+                EventSubscriptionsInfo(schema.eventSubscriptions)
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.widgets_settings_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+        }
+    }
 }
 
 // One field, rendered by its schema type. Unused callbacks/params for a given type are ignored.

@@ -68,7 +68,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -321,10 +325,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             widget = widget,
             loadSchema = { controller.loadSettingsSchema(widget.id) },
             onDismiss = { pendingSettings = null },
-            onSave = { settings ->
-                pendingSettings = null
-                scope.launch { controller.saveSettings(widget.id, settings) }
-            },
+            onSave = { settings -> controller.saveSettings(widget.id, settings).toDialogResult() },
         )
     }
 
@@ -390,10 +391,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     pendingRename?.let { widget ->
         RenameWidgetDialog(
             currentName = widget.name,
-            onConfirm = { newName ->
-                pendingRename = null
-                scope.launch { controller.renameWidget(widget.id, newName) }
-            },
+            onConfirm = { newName -> controller.renameWidget(widget.id, newName).toDialogResult() },
             onDismiss = { pendingRename = null },
         )
     }
@@ -448,8 +446,16 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         CreateWidgetDialog(
             loadTemplates = { controller.listTemplates() },
             onConfirm = { name, framework, seedSource ->
-                showCreateDialog = false
-                scope.launch { controller.createWidget(name, framework, seedSource, editorMessages) }
+                when (val created: ApiResult<WidgetSummary> = controller.createWidget(name, framework)) {
+                    is ApiResult.Ok -> {
+                        // The dialog closes on Done; the editor session runs on after it, not inside it.
+                        scope.launch {
+                            controller.editNewWidget(created.value, name, framework, seedSource, editorMessages)
+                        }
+                        DialogResult.Done
+                    }
+                    is ApiResult.Failure -> DialogResult.Failed(created.error.message)
+                }
             },
             onDismiss = { showCreateDialog = false },
         )
@@ -459,13 +465,15 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         GalleryBrowseDialog(
             manage = manage,
             loadGallery = { request -> controller.listGallery(request) },
-            onInstall = { item ->
-                showGalleryDialog = false
-                scope.launch { controller.installFromGallery(item.id) }
-            },
+            onInstall = { item -> controller.installFromGallery(item.id).toDialogResult() },
             onClone = { item ->
-                showGalleryDialog = false
-                scope.launch { controller.cloneFromGallery(item.id, editorMessages) }
+                when (val cloned: ApiResult<WidgetSummary> = controller.cloneFromGallery(item.id)) {
+                    is ApiResult.Ok -> {
+                        scope.launch { controller.editWidgetCode(cloned.value, editorMessages) }
+                        DialogResult.Done
+                    }
+                    is ApiResult.Failure -> DialogResult.Failed(cloned.error.message)
+                }
             },
             onDismiss = { showGalleryDialog = false },
         )
@@ -1226,15 +1234,13 @@ private fun WidgetTokenRotationResultDialog(outcome: RotatedWidgetToken, onDismi
 @Composable
 private fun CreateWidgetDialog(
     loadTemplates: suspend () -> ApiResult<List<WidgetTemplate>>,
-    onConfirm: (name: String, framework: String, seedSource: String) -> Unit,
+    onConfirm: suspend (name: String, framework: String, seedSource: String) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     var name: String by remember { mutableStateOf("") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
     var selectedFramework: String by remember { mutableStateOf(WIDGET_FRAMEWORKS.first()) }
     var selectedTemplateKey: String? by remember { mutableStateOf(null) }
     var templatesResult: ApiResult<List<WidgetTemplate>>? by remember { mutableStateOf(null) }
@@ -1244,81 +1250,63 @@ private fun CreateWidgetDialog(
     val templates: List<WidgetTemplate> =
         (templatesResult as? ApiResult.Ok)?.value ?: emptyList()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
+    FormDialog(
+        title = stringResource(Res.string.widgets_create_title),
+        saveLabel = stringResource(Res.string.widgets_create_confirm),
+        cancelLabel = stringResource(Res.string.widgets_create_dismiss),
+        onDismiss = onDismiss,
+        dirty = name.isNotBlank(),
+        valid = name.isNotBlank(),
+        save = {
+            val seedSource: String = templates.firstOrNull { it.key == selectedTemplateKey }?.source.orEmpty()
+            onConfirm(name.trim(), selectedFramework, seedSource)
+        },
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = stringResource(Res.string.widgets_create_name),
+        )
+
+        Text(
+            text = stringResource(Res.string.widgets_create_framework),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        BadgeRow(
+            options = WIDGET_FRAMEWORKS,
+            label = { it },
+            isSelected = { it == selectedFramework },
+            onSelect = { framework ->
+                selectedFramework = framework
+                // Picking a framework directly clears any template — the editor opens blank.
+                selectedTemplateKey = null
+            },
+        )
+
+        Text(
+            text = stringResource(Res.string.widgets_create_template),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        if (templatesResult == null) {
             Text(
-                text = stringResource(Res.string.widgets_create_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
+                text = stringResource(Res.string.widgets_create_template_loading),
+                style = typography.xs,
+                color = tokens.mutedForeground,
             )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.widgets_create_name),
-                    isError = nameError,
-                    errorText = if (nameError) stringResource(Res.string.widgets_create_name_required) else null,
-                )
-
-                Text(
-                    text = stringResource(Res.string.widgets_create_framework),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
-                BadgeRow(
-                    options = WIDGET_FRAMEWORKS,
-                    label = { it },
-                    isSelected = { it == selectedFramework },
-                    onSelect = { framework ->
-                        selectedFramework = framework
-                        // Picking a framework directly clears any template — the editor opens blank.
-                        selectedTemplateKey = null
-                    },
-                )
-
-                Text(
-                    text = stringResource(Res.string.widgets_create_template),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
-                if (templatesResult == null) {
-                    Text(
-                        text = stringResource(Res.string.widgets_create_template_loading),
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                    )
-                }
-                val blankLabel: String = stringResource(Res.string.widgets_create_template_blank)
-                BadgeRow(
-                    options = listOf<WidgetTemplate?>(null) + templates,
-                    label = { it?.name ?: blankLabel },
-                    isSelected = { it?.key == selectedTemplateKey },
-                    onSelect = { template ->
-                        selectedTemplateKey = template?.key
-                        if (template != null) selectedFramework = template.framework
-                    },
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isBlank()) { nameError = true; return@Button }
-                    val seedSource: String =
-                        templates.firstOrNull { it.key == selectedTemplateKey }?.source.orEmpty()
-                    onConfirm(name.trim(), selectedFramework, seedSource)
-                },
-            ) {
-                Text(stringResource(Res.string.widgets_create_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_create_dismiss)) }
-        },
-    )
+        }
+        val blankLabel: String = stringResource(Res.string.widgets_create_template_blank)
+        BadgeRow(
+            options = listOf<WidgetTemplate?>(null) + templates,
+            label = { it?.name ?: blankLabel },
+            isSelected = { it?.key == selectedTemplateKey },
+            onSelect = { template ->
+                selectedTemplateKey = template?.key
+                if (template != null) selectedFramework = template.framework
+            },
+        )
+    }
 }
 
 // A wrapped row of selectable badges (3 per line) over a homogeneous option list — the framework picker and the
@@ -1351,48 +1339,26 @@ private fun <T> BadgeRow(
 @Composable
 private fun RenameWidgetDialog(
     currentName: String,
-    onConfirm: (newName: String) -> Unit,
+    onConfirm: suspend (newName: String) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
     var name: String by remember { mutableStateOf(currentName) }
-    var nameError: Boolean by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.widgets_rename_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
-        },
-        text = {
-            AppTextField(
-                value = name,
-                onValueChange = { name = it; nameError = false },
-                label = stringResource(Res.string.widgets_rename_name),
-                isError = nameError,
-                errorText = if (nameError) stringResource(Res.string.widgets_create_name_required) else null,
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isBlank()) { nameError = true; return@Button }
-                    onConfirm(name.trim())
-                },
-            ) {
-                Text(stringResource(Res.string.widgets_rename_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_rename_dismiss)) }
-        },
-    )
+    FormDialog(
+        title = stringResource(Res.string.widgets_rename_title),
+        saveLabel = stringResource(Res.string.widgets_rename_confirm),
+        cancelLabel = stringResource(Res.string.widgets_rename_dismiss),
+        onDismiss = onDismiss,
+        dirty = name.trim() != currentName,
+        valid = name.isNotBlank(),
+        save = { onConfirm(name.trim()) },
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = stringResource(Res.string.widgets_rename_name),
+        )
+    }
 }
 
 // Dialog listing a widget's version history (newest first) with a per-version roll-back control. Fetches its own
@@ -1574,13 +1540,17 @@ private fun WidgetVersionRow(
 internal fun GalleryBrowseDialog(
     manage: ManageDecision,
     loadGallery: suspend (GalleryListRequest) -> ApiResult<GalleryPage>,
-    onInstall: (GalleryItemSummary) -> Unit,
-    onClone: (GalleryItemSummary) -> Unit,
+    onInstall: suspend (GalleryItemSummary) -> DialogResult,
+    onClone: suspend (GalleryItemSummary) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // Install / Clone stay on this dialog until the server answers: it closes on success, and on a failure the
+    // reason shows inline while the browse state (search, filter, pages) is kept.
+    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
     var selectedFramework: String? by remember { mutableStateOf(null) }
     var searchText: String by remember { mutableStateOf("") }
@@ -1634,6 +1604,8 @@ internal fun GalleryBrowseDialog(
                         onSelect = { selectedFramework = it },
                     )
 
+                    action.failure?.let { failure -> DialogActionError(failure) }
+
                     when (val current: ApiResult<GalleryPage>? = page) {
                         null ->
                             Text(
@@ -1659,8 +1631,9 @@ internal fun GalleryBrowseDialog(
                                     GalleryItemCard(
                                         item = item,
                                         manage = manage,
-                                        onInstall = { onInstall(item) },
-                                        onClone = { onClone(item) },
+                                        busy = action.pending,
+                                        onInstall = { action.run { onInstall(item) } },
+                                        onClone = { action.run { onClone(item) } },
                                     )
                                 }
                                 val nextPage: Int? = current.value.nextPage.takeIf { current.value.hasMore }
@@ -1726,6 +1699,7 @@ internal fun GalleryBrowseDialog(
 private fun GalleryItemCard(
     item: GalleryItemSummary,
     manage: ManageDecision,
+    busy: Boolean,
     onInstall: () -> Unit,
     onClone: () -> Unit,
 ) {
@@ -1783,7 +1757,7 @@ private fun GalleryItemCard(
                 ManageGate(decision = manage) { enabled ->
                     Button(
                         onClick = onInstall,
-                        enabled = enabled,
+                        enabled = enabled && !busy,
                         modifier = Modifier.semantics { contentDescription = installLabel },
                     ) {
                         Text(stringResource(Res.string.widgets_gallery_install_action_short))
@@ -1793,7 +1767,7 @@ private fun GalleryItemCard(
                     Button(
                         onClick = onClone,
                         variant = ButtonVariant.Outline,
-                        enabled = enabled,
+                        enabled = enabled && !busy,
                         modifier = Modifier.semantics { contentDescription = cloneLabel },
                     ) {
                         Text(stringResource(Res.string.widgets_gallery_clone_action_short))

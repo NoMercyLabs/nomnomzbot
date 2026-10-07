@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -47,8 +48,8 @@ class GalleryBrowseDialogTest {
                     GalleryBrowseDialog(
                         manage = ManageDecision.Allowed,
                         loadGallery = loadGallery,
-                        onInstall = {},
-                        onClone = {},
+                        onInstall = { DialogResult.Done },
+                        onClone = { DialogResult.Done },
                         onDismiss = {},
                     )
                 }
