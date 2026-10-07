@@ -384,6 +384,55 @@
    "covers": [
     "feedback-parity-values-are-channel-data.md"
    ]
+  },
+  {
+   "id": "research-is-a-benchmark",
+   "paths": [
+    "**/.claude/docs/design/benchmarks/**",
+    "**/.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md"
+   ],
+   "brief": [
+    "[Rr]esearch",
+    "[Bb]enchmark",
+    "like [Vv][Ss] ?[Cc]ode",
+    "[Cc]ode[Pp]en",
+    "\\bUX\\b",
+    "[Ee]ditor",
+    "[Ee]nhanc",
+    "[Ii]mprove"
+   ],
+   "text": "Research for a screen or feature = a benchmark at .claude/docs/design/benchmarks/<topic>.md: at least 3 real products, each with a source URL (the products Stoney names, plus the best in the category); a feature table Feature | Seen in | Source | Ours | Status | Slice with at least 25 rows; status is have / partial / missing / not-doing; every partial or missing row is a plan slice; every not-doing row has a reason. Literature can rank the work, but it never replaces the benchmark. The plan's OWNER REQUEST section links the benchmark.",
+   "source": "Stoney 2026-10-07: \"teach it what it means to research a topic and don't make me ask for enhancement of user experience more than once\" (the 10-06 editor research read UX literature and compared no real editor)",
+   "check": {
+    "match": [
+     "**/.claude/docs/design/benchmarks/**",
+     "**/.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-benchmark-ledger.py"
+   },
+   "covers": [
+    "feedback-research-is-a-benchmark.md"
+   ]
+  },
+  {
+   "id": "ux-ask-once",
+   "paths": [
+    "**/server/src/NomNomzBot.Api/Assets/editor/**"
+   ],
+   "brief": [
+    "\\bUX\\b",
+    "[Uu]ser experience",
+    "[Ee]ditor",
+    "[Tt]extarea",
+    "Run & Test",
+    "[Ff]ire bar"
+   ],
+   "text": "When Stoney asks for a UX change, build the best version the benchmark shows. Apply it to every sibling surface in the same pass, and report N of M. Any code, JSON or data input inside the code editor is a Monaco model, never a textarea: a tab or a split pane, with a JSON schema from the event types, completion, validation, format and saved named test cases. The same UX ask twice is a process defect: fix the rule that let it happen. Gate: python scripts/check-editor-inputs.py.",
+   "source": "Stoney 2026-10-07: \"a json action editor in a manual block instead of utilizing the full features of a vscode style editor\"; and \"what is this impossible json editor? we have a full editor right next to it\"",
+   "covers": [
+    "feedback-ux-ask-once.md"
+   ]
   }
  ],
  "dispatch": [
