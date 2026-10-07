@@ -334,14 +334,14 @@ class DiscordControllerTest {
             DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback)
         controller.load()
 
-        controller.deleteConfig(configId = "c1")
+        val result: ApiResult<Unit> = controller.deleteConfig(configId = "c1")
 
-        // The guilds are kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The guilds are kept (not blown away); the dialog shows the failure, so no toast fires.
         val state: DiscordState = controller.state.value
         assertTrue(state is DiscordState.Ready)
         assertEquals(1, (state as DiscordState.Ready).guilds.first().configs.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test

@@ -49,8 +49,10 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -59,6 +61,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -418,10 +421,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
             confirmLabel = stringResource(Res.string.discord_delete_confirm),
             dismissLabel = stringResource(Res.string.discord_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteConfig(target.configId) }
-            },
+            action = { controller.deleteConfig(target.configId).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -443,10 +443,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
             confirmLabel = stringResource(Res.string.discord_consent_revoke_confirm),
             dismissLabel = stringResource(Res.string.discord_consent_revoke_dismiss),
             destructive = true,
-            onConfirm = {
-                pendingConsentRevoke = null
-                scope.launch { controller.revokeServerConsent(connectionId) }
-            },
+            action = { controller.revokeServerConsent(connectionId).toDialogResult() },
             onDismiss = { pendingConsentRevoke = null },
         )
     }
@@ -457,11 +454,9 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
             loadRoles = { cid -> controller.guildRoles(cid) },
             onDismiss = { pendingRoleCreate = null },
             onCreate = { discordRoleId, roleName, selfAssign, dmEnabled ->
-                pendingRoleCreate = null
-                scope.launch {
-                    controller.createRole(connectionId, discordRoleId, roleName, selfAssign, dmEnabled)
-                    rolesVersion++
-                }
+                controller.createRole(connectionId, discordRoleId, roleName, selfAssign, dmEnabled)
+                    .also { result: ApiResult<Unit> -> if (result is ApiResult.Ok) rolesVersion++ }
+                    .toDialogResult()
             },
         )
     }
@@ -471,11 +466,9 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
             role = role,
             onDismiss = { pendingRoleEdit = null },
             onSave = { roleName, selfAssign, dmEnabled ->
-                pendingRoleEdit = null
-                scope.launch {
-                    controller.updateRole(role.id, roleName, selfAssign, dmEnabled)
-                    rolesVersion++
-                }
+                controller.updateRole(role.id, roleName, selfAssign, dmEnabled)
+                    .also { result: ApiResult<Unit> -> if (result is ApiResult.Ok) rolesVersion++ }
+                    .toDialogResult()
             },
         )
     }
@@ -487,12 +480,10 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
             confirmLabel = stringResource(Res.string.discord_roles_delete_confirm),
             dismissLabel = stringResource(Res.string.discord_roles_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingRoleDelete = null
-                scope.launch {
-                    controller.deleteRole(target.roleId)
-                    rolesVersion++
-                }
+            action = {
+                controller.deleteRole(target.roleId)
+                    .also { result: ApiResult<Unit> -> if (result is ApiResult.Ok) rolesVersion++ }
+                    .toDialogResult()
             },
             onDismiss = { pendingRoleDelete = null },
         )
@@ -1570,7 +1561,7 @@ private fun CreateRoleDialog(
     connectionId: String,
     loadRoles: suspend (connectionId: String) -> ApiResult<List<DiscordGuildRole>>,
     onDismiss: () -> Unit,
-    onCreate: (discordRoleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) -> Unit,
+    onCreate: suspend (discordRoleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1592,86 +1583,72 @@ private fun CreateRoleDialog(
     LaunchedEffect(connectionId) { reload() }
     val scope = rememberCoroutineScope()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.discord_roles_create_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                when (val state = rolesState) {
-                    is PickerState.Loading -> CenteredMessage(stringResource(Res.string.discord_picker_loading))
-                    is PickerState.Error ->
-                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                            Text(
-                                text = stringResource(Res.string.discord_error, state.detail),
-                                style = LocalTypography.current.sm,
-                                color = tokens.mutedForeground,
-                            )
-                            TextButton(onClick = { scope.launch { reload() } }) {
-                                Text(text = stringResource(Res.string.discord_retry))
-                            }
-                        }
-                    is PickerState.Loaded -> {
-                        val assignableRoles: List<DiscordGuildRole> = state.value.filter { !it.managed }
-                        if (assignableRoles.isEmpty()) {
-                            Text(
-                                text = stringResource(Res.string.discord_picker_empty_roles),
-                                style = LocalTypography.current.sm,
-                                color = tokens.mutedForeground,
-                            )
-                        } else {
-                            GuildPickerField(
-                                label = stringResource(Res.string.discord_roles_role_picker),
-                                options = assignableRoles.map { it.id to it.name },
-                                selectedId = discordRoleId,
-                                onSelect = { id ->
-                                    discordRoleId = id
-                                    // Seed the display name from the picked role unless the operator already typed one.
-                                    if (roleName.isBlank()) {
-                                        roleName = assignableRoles.firstOrNull { it.id == id }?.name.orEmpty()
-                                    }
-                                },
-                            )
-                        }
+    FormDialog(
+        title = stringResource(Res.string.discord_roles_create_title),
+        saveLabel = stringResource(Res.string.discord_roles_create),
+        cancelLabel = stringResource(Res.string.discord_roles_cancel),
+        onDismiss = onDismiss,
+        save = { onCreate(discordRoleId, roleName.ifBlank { null }, selfAssign, dmEnabled) },
+        dirty = discordRoleId.isNotBlank() || roleName.isNotBlank() || selfAssign || dmEnabled,
+        valid = discordRoleId.isNotBlank(),
+    ) {
+        when (val state = rolesState) {
+            is PickerState.Loading -> CenteredMessage(stringResource(Res.string.discord_picker_loading))
+            is PickerState.Error ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Text(
+                        text = stringResource(Res.string.discord_error, state.detail),
+                        style = LocalTypography.current.sm,
+                        color = tokens.mutedForeground,
+                    )
+                    TextButton(onClick = { scope.launch { reload() } }) {
+                        Text(text = stringResource(Res.string.discord_retry))
                     }
                 }
-                AppTextField(
-                    value = roleName,
-                    onValueChange = { roleName = it },
-                    label = stringResource(Res.string.discord_roles_role_name),
-                    isError = false,
-                    errorText = null,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                RoleToggleRow(
-                    label = stringResource(Res.string.discord_roles_self_assign),
-                    checked = selfAssign,
-                    onCheckedChange = { selfAssign = it },
-                )
-                RoleToggleRow(
-                    label = stringResource(Res.string.discord_roles_dm_label),
-                    hint = stringResource(Res.string.discord_roles_dm_hint),
-                    checked = dmEnabled,
-                    onCheckedChange = { dmEnabled = it },
-                )
+            is PickerState.Loaded -> {
+                val assignableRoles: List<DiscordGuildRole> = state.value.filter { !it.managed }
+                if (assignableRoles.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.discord_picker_empty_roles),
+                        style = LocalTypography.current.sm,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    GuildPickerField(
+                        label = stringResource(Res.string.discord_roles_role_picker),
+                        options = assignableRoles.map { it.id to it.name },
+                        selectedId = discordRoleId,
+                        onSelect = { id ->
+                            discordRoleId = id
+                            // Seed the display name from the picked role unless the operator already typed one.
+                            if (roleName.isBlank()) {
+                                roleName = assignableRoles.firstOrNull { it.id == id }?.name.orEmpty()
+                            }
+                        },
+                    )
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onCreate(discordRoleId, roleName.ifBlank { null }, selfAssign, dmEnabled) },
-                enabled = discordRoleId.isNotBlank(),
-            ) {
-                Text(
-                    text = stringResource(Res.string.discord_roles_create),
-                    color = if (discordRoleId.isNotBlank()) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.discord_roles_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+        }
+        AppTextField(
+            value = roleName,
+            onValueChange = { roleName = it },
+            label = stringResource(Res.string.discord_roles_role_name),
+            isError = false,
+            errorText = null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        RoleToggleRow(
+            label = stringResource(Res.string.discord_roles_self_assign),
+            checked = selfAssign,
+            onCheckedChange = { selfAssign = it },
+        )
+        RoleToggleRow(
+            label = stringResource(Res.string.discord_roles_dm_label),
+            hint = stringResource(Res.string.discord_roles_dm_hint),
+            checked = dmEnabled,
+            onCheckedChange = { dmEnabled = it },
+        )
+    }
 }
 
 // A labelled switch row used inside the role dialogs, with an optional hint line under the label.
@@ -1704,52 +1681,41 @@ private fun RoleToggleRow(
 private fun EditRoleDialog(
     role: DiscordNotificationRole,
     onDismiss: () -> Unit,
-    onSave: (roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) -> Unit,
+    onSave: suspend (roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) -> DialogResult,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-
     var roleName: String by remember(role.id) { mutableStateOf(role.roleName.orEmpty()) }
     var selfAssign: Boolean by remember(role.id) { mutableStateOf(role.selfAssignEnabled) }
     var dmEnabled: Boolean by remember(role.id) { mutableStateOf(role.dmEnabled) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.discord_roles_edit_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = roleName,
-                    onValueChange = { roleName = it },
-                    label = stringResource(Res.string.discord_roles_role_name),
-                    isError = false,
-                    errorText = null,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                RoleToggleRow(
-                    label = stringResource(Res.string.discord_roles_self_assign),
-                    checked = selfAssign,
-                    onCheckedChange = { selfAssign = it },
-                )
-                RoleToggleRow(
-                    label = stringResource(Res.string.discord_roles_dm_label),
-                    hint = stringResource(Res.string.discord_roles_dm_hint),
-                    checked = dmEnabled,
-                    onCheckedChange = { dmEnabled = it },
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(roleName.ifBlank { null }, selfAssign, dmEnabled) }) {
-                Text(text = stringResource(Res.string.discord_roles_save), color = tokens.primary)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.discord_roles_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+    FormDialog(
+        title = stringResource(Res.string.discord_roles_edit_title),
+        saveLabel = stringResource(Res.string.discord_roles_save),
+        cancelLabel = stringResource(Res.string.discord_roles_cancel),
+        onDismiss = onDismiss,
+        save = { onSave(roleName.ifBlank { null }, selfAssign, dmEnabled) },
+        dirty =
+            roleName != role.roleName.orEmpty() || selfAssign != role.selfAssignEnabled || dmEnabled != role.dmEnabled,
+    ) {
+        AppTextField(
+            value = roleName,
+            onValueChange = { roleName = it },
+            label = stringResource(Res.string.discord_roles_role_name),
+            isError = false,
+            errorText = null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        RoleToggleRow(
+            label = stringResource(Res.string.discord_roles_self_assign),
+            checked = selfAssign,
+            onCheckedChange = { selfAssign = it },
+        )
+        RoleToggleRow(
+            label = stringResource(Res.string.discord_roles_dm_label),
+            hint = stringResource(Res.string.discord_roles_dm_hint),
+            checked = dmEnabled,
+            onCheckedChange = { dmEnabled = it },
+        )
+    }
 }
 
 @Composable
