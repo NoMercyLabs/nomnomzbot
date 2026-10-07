@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +37,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -50,6 +51,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TimezonePickerField
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -164,8 +166,7 @@ fun ScheduleScreen(
             onSearchCategories = controller::searchCategories,
             onDismiss = { showAdd = false },
             onSave = { start, tz, duration, title, category, recurring ->
-                showAdd = false
-                scope.launch { controller.addSegment(start, tz, duration, recurring, title, category) }
+                controller.addSegment(start, tz, duration, recurring, title, category).toDialogResult()
             },
         )
     }
@@ -177,8 +178,7 @@ fun ScheduleScreen(
             onSearchCategories = controller::searchCategories,
             onDismiss = { editorTarget = null },
             onSave = { start, tz, duration, title, category, _ ->
-                editorTarget = null
-                scope.launch { controller.editSegment(segment.id, start, duration, tz, title, category) }
+                controller.editSegment(segment.id, start, duration, tz, title, category).toDialogResult()
             },
         )
     }
@@ -199,10 +199,7 @@ fun ScheduleScreen(
             confirmLabel = stringResource(Res.string.schedule_delete),
             dismissLabel = stringResource(Res.string.schedule_dialog_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteSegment(segment.id) }
-            },
+            action = { controller.deleteSegment(segment.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -436,7 +433,7 @@ private fun SegmentDialog(
     savedZone: String?,
     onSearchCategories: suspend (String) -> List<PickerOption>,
     onDismiss: () -> Unit,
-    onSave: (start: String, timezone: String, duration: String, title: String?, categoryId: String?, recurring: Boolean) -> Unit,
+    onSave: suspend (start: String, timezone: String, duration: String, title: String?, categoryId: String?, recurring: Boolean) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -463,90 +460,83 @@ private fun SegmentDialog(
             start.isNotBlank() && ScheduleTimes.isValidZone(timezone)
         }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text =
-                    if (existing == null) {
-                        stringResource(Res.string.schedule_new_title)
-                    } else {
-                        stringResource(Res.string.schedule_edit_title)
-                    }
+    val dirty: Boolean =
+        start != (existing?.startTime ?: "") ||
+            duration.isNotBlank() ||
+            title != (existing?.title ?: "") ||
+            selectedCategory?.id != existing?.category?.id ||
+            recurring != (existing?.isRecurring ?: false)
+
+    FormDialog(
+        title =
+            if (existing == null) {
+                stringResource(Res.string.schedule_new_title)
+            } else {
+                stringResource(Res.string.schedule_edit_title)
+            },
+        saveLabel = stringResource(Res.string.schedule_dialog_save),
+        cancelLabel = stringResource(Res.string.schedule_dialog_cancel),
+        onDismiss = onDismiss,
+        save = {
+            onSave(start.trim(), timezone.orEmpty(), duration.trim(), title.ifBlank { null }, selectedCategory?.id, recurring)
+        },
+        dirty = dirty,
+        valid = canSave,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            AppTextField(
+                value = start,
+                onValueChange = { start = it },
+                label = stringResource(Res.string.schedule_start_label),
+                supportingText = stringResource(Res.string.schedule_time_hint),
+                modifier = Modifier.fillMaxWidth(),
             )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = start,
-                    onValueChange = { start = it },
-                    label = stringResource(Res.string.schedule_start_label),
-                    supportingText = stringResource(Res.string.schedule_time_hint),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TimezonePickerField(
-                    zone = timezone,
-                    onZoneChange = { timezone = it },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (timezone == null) {
-                    Text(
-                        text = stringResource(Res.string.schedule_timezone_required),
-                        style = LocalTypography.current.xs,
-                        color = tokens.mutedForeground,
-                    )
-                }
-                AppTextField(
-                    value = duration,
-                    onValueChange = { duration = it.filter { c -> c.isDigit() } },
-                    label = stringResource(Res.string.schedule_duration_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = stringResource(Res.string.schedule_title_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                SearchPickerField(
-                    search = onSearchCategories,
-                    selected = selectedCategory,
-                    onSelect = { selectedCategory = it },
-                    onClear = { selectedCategory = null },
-                    label = stringResource(Res.string.category_picker_label),
-                    placeholder = stringResource(Res.string.category_picker_placeholder),
-                    emptyText = stringResource(Res.string.category_picker_empty),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (existing == null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(stringResource(Res.string.schedule_recurring), color = tokens.cardForeground)
-                        Switch(checked = recurring, onCheckedChange = { recurring = it })
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(start.trim(), timezone.orEmpty(), duration.trim(), title.ifBlank { null }, selectedCategory?.id, recurring) },
-                enabled = canSave,
-            ) {
+            TimezonePickerField(
+                zone = timezone,
+                onZoneChange = { timezone = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (timezone == null) {
                 Text(
-                    text = stringResource(Res.string.schedule_dialog_save),
-                    color = if (canSave) tokens.primary else tokens.mutedForeground,
+                    text = stringResource(Res.string.schedule_timezone_required),
+                    style = LocalTypography.current.xs,
+                    color = tokens.mutedForeground,
                 )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.schedule_dialog_cancel), color = tokens.mutedForeground)
+            AppTextField(
+                value = duration,
+                onValueChange = { duration = it.filter { c -> c.isDigit() } },
+                label = stringResource(Res.string.schedule_duration_label),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            AppTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = stringResource(Res.string.schedule_title_label),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SearchPickerField(
+                search = onSearchCategories,
+                selected = selectedCategory,
+                onSelect = { selectedCategory = it },
+                onClear = { selectedCategory = null },
+                label = stringResource(Res.string.category_picker_label),
+                placeholder = stringResource(Res.string.category_picker_placeholder),
+                emptyText = stringResource(Res.string.category_picker_empty),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (existing == null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(stringResource(Res.string.schedule_recurring), color = tokens.cardForeground)
+                    Switch(checked = recurring, onCheckedChange = { recurring = it })
+                }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable
