@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
@@ -57,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.LinkedIdentity
 import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
@@ -378,10 +380,7 @@ private fun ProfileContent(
             confirmLabel = stringResource(Res.string.community_ban_confirm),
             dismissLabel = stringResource(Res.string.community_ban_dismiss),
             destructive = true,
-            onConfirm = {
-                scope.launch { controller.ban(banReason) }
-                pendingBan = false
-            },
+            action = { controller.ban(banReason).toDialogResult() },
             onDismiss = { pendingBan = false },
         )
     }
@@ -392,10 +391,7 @@ private fun ProfileContent(
             confirmLabel = stringResource(Res.string.community_unban_confirm),
             dismissLabel = stringResource(Res.string.community_unban_dismiss),
             destructive = true,
-            onConfirm = {
-                scope.launch { controller.unban() }
-                pendingUnban = false
-            },
+            action = { controller.unban().toDialogResult() },
             onDismiss = { pendingUnban = false },
         )
     }
@@ -406,10 +402,7 @@ private fun ProfileContent(
             confirmLabel = stringResource(Res.string.community_gdpr_export_confirm),
             dismissLabel = stringResource(Res.string.community_stats_close),
             destructive = false,
-            onConfirm = {
-                scope.launch { controller.exportUserData() }
-                pendingExport = false
-            },
+            action = { controller.exportUserData().toDialogResult() },
             onDismiss = { pendingExport = false },
         )
     }
@@ -420,10 +413,7 @@ private fun ProfileContent(
             confirmLabel = stringResource(Res.string.community_gdpr_erase_confirm),
             dismissLabel = stringResource(Res.string.community_stats_close),
             destructive = true,
-            onConfirm = {
-                scope.launch { controller.eraseUserData() }
-                pendingErase = false
-            },
+            action = { controller.eraseUserData().toDialogResult() },
             onDismiss = { pendingErase = false },
         )
     }
@@ -1031,13 +1021,13 @@ private fun FreeFormDataSection(
             confirmLabel = stringResource(Res.string.community_data_delete_confirm),
             dismissLabel = stringResource(Res.string.community_stats_close),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch {
-                    val err: String? = controller.deleteViewerDatum(key)
-                    saveError = err
-                    if (err == null) data = data - key
+            action = {
+                val result: ApiResult<Unit> = controller.deleteViewerDatum(key)
+                if (result is ApiResult.Ok) {
+                    saveError = null
+                    data = data - key
                 }
+                result.toDialogResult()
             },
             onDismiss = { pendingDelete = null },
         )
