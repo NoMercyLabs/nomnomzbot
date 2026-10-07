@@ -569,12 +569,11 @@ class ModerationController(
     }
 
     /** Delete note [noteId] from [userId]'s panel, then reload. Surfaces the error on failure. */
-    suspend fun deleteNote(userId: String, noteId: String) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<Unit> = moderationApi.deleteNote(channel, noteId)) {
-            is ApiResult.Ok -> openUserContext(userId)
-            is ApiResult.Failure -> setActionError(result.error.message)
-        }
+    suspend fun deleteNote(userId: String, noteId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = moderationApi.deleteNote(channel, noteId)
+        if (result is ApiResult.Ok) openUserContext(userId)
+        return result
     }
 
     /** Close the per-user moderation panel. */
@@ -604,12 +603,13 @@ class ModerationController(
      * Flag [userId] as suspicious ([status] = `active_monitoring` or `restricted`), then reload their rap sheet.
      * Surfaces the error on failure; no-ops when no channel is loaded.
      */
-    suspend fun setSuspicious(userId: String, status: String) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<Unit> = moderationApi.setSuspicious(channel, userId, status)) {
-            is ApiResult.Ok -> openUserContext(userId)
-            is ApiResult.Failure -> setActionError(result.error.message)
-        }
+    suspend fun setSuspicious(userId: String, status: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = moderationApi.setSuspicious(channel, userId, status)
+        if (result is ApiResult.Ok) openUserContext(userId)
+        // Only the restrict confirm has a dialog to show a failure inline; the monitor click has none.
+        if (result is ApiResult.Failure && status != "restricted") setActionError(result.error.message)
+        return result
     }
 
     /** Clear the suspicious flag on [userId], then reload their rap sheet. Surfaces the error on failure. */
@@ -727,11 +727,11 @@ class ModerationController(
     }
 
     /** Revert nuke batch [batchId] — lift every leg — then reload so its status flips to reverted. */
-    suspend fun revertNuke(batchId: String) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<NetworkNukeBatch> = moderationApi.revertNuke(channel, batchId)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> setActionError(result.error.message)
+    suspend fun revertNuke(batchId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return when (val result: ApiResult<NetworkNukeBatch> = moderationApi.revertNuke(channel, batchId)) {
+            is ApiResult.Ok -> afterDialogWrite(ApiResult.Ok(Unit))
+            is ApiResult.Failure -> result
         }
     }
 
@@ -1170,9 +1170,9 @@ class ModerationController(
      * on the current Ready state on failure. No-ops when no channel is loaded. The screen gates this
      * behind a confirmation before calling.
      */
-    suspend fun removeModerator(userId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(moderationApi.removeModerator(channel, userId))
+    suspend fun removeModerator(userId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(moderationApi.removeModerator(channel, userId))
     }
 
     /**
@@ -1181,12 +1181,9 @@ class ModerationController(
      * the error on the current Ready state on failure. The screen gates this behind a confirmation before
      * calling. No-ops when no channel is loaded.
      */
-    suspend fun clearChat() {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<Unit> = moderationApi.clearChat(channel)) {
-            is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> setActionError(result.error.message)
-        }
+    suspend fun clearChat(): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return moderationApi.clearChat(channel)
     }
 
     /**
