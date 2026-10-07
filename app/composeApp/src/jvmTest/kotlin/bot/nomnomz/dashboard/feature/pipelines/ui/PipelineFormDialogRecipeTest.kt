@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelineRecipe
@@ -39,7 +40,7 @@ class PipelineFormDialogRecipeTest {
                     PipelineFormDialog(
                         editor = PipelineEditor(id = null, name = "Mine", description = ""),
                         onDismiss = {},
-                        onSubmit = { _, _, _ -> },
+                        onSubmit = { _, _, _ -> DialogResult.Done },
                     )
                 }
             }
@@ -58,7 +59,10 @@ class PipelineFormDialogRecipeTest {
                     PipelineFormDialog(
                         editor = PipelineEditor(id = null, name = "Mine", description = ""),
                         onDismiss = {},
-                        onSubmit = { name, _, recipe -> submits += Submit(name, recipe) },
+                        onSubmit = { name, _, recipe ->
+                            submits += Submit(name, recipe)
+                            DialogResult.Done
+                        },
                     )
                 }
             }
@@ -80,7 +84,10 @@ class PipelineFormDialogRecipeTest {
                     PipelineFormDialog(
                         editor = PipelineEditor(id = null, name = "Mine", description = ""),
                         onDismiss = {},
-                        onSubmit = { name, _, recipe -> submits += Submit(name, recipe) },
+                        onSubmit = { name, _, recipe ->
+                            submits += Submit(name, recipe)
+                            DialogResult.Done
+                        },
                     )
                 }
             }
@@ -98,7 +105,7 @@ class PipelineFormDialogRecipeTest {
                     PipelineFormDialog(
                         editor = PipelineEditor(id = "p1", name = "Mine", description = ""),
                         onDismiss = {},
-                        onSubmit = { _, _, _ -> },
+                        onSubmit = { _, _, _ -> DialogResult.Done },
                     )
                 }
             }

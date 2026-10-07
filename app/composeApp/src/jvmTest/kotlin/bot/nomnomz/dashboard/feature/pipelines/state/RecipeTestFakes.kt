@@ -58,6 +58,12 @@ internal class RecordingPipelinesApiForRecipeTest : PipelinesApi {
     /** What the server currently stores for pipeline `p1` (the editor tests open it); null = no such pipeline. */
     var stored: PipelineDetail? = null
     val updated: MutableList<UpdatePipelineBody> = mutableListOf()
+    val deleted: MutableList<String> = mutableListOf()
+
+    /** What each write answers; a test sets a failure to prove the dialog that fired it stays open. */
+    var createResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    var updateResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    var deleteResult: ApiResult<Unit> = NotImplementedForRecipeTest
 
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> =
         ApiResult.Ok(listOfNotNull(stored?.let { PipelineSummary(id = it.id, name = it.name) }))
@@ -70,7 +76,7 @@ internal class RecordingPipelinesApiForRecipeTest : PipelinesApi {
 
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> {
         created += body
-        return ApiResult.Ok(Unit)
+        return createResult
     }
 
     override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
@@ -78,11 +84,18 @@ internal class RecordingPipelinesApiForRecipeTest : PipelinesApi {
 
     override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> {
         updated += body
-        body.graph?.let { graph -> stored = stored?.copy(graph = graph) }
-        return ApiResult.Ok(Unit)
+        if (updateResult is ApiResult.Ok) {
+            body.graph?.let { graph -> stored = stored?.copy(graph = graph) }
+            body.name?.let { name -> stored = stored?.copy(name = name) }
+        }
+        return updateResult
     }
 
-    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = NotImplementedForRecipeTest
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> {
+        deleted += id
+        if (deleteResult is ApiResult.Ok) stored = null
+        return deleteResult
+    }
 
     override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
         NotImplementedForRecipeTest

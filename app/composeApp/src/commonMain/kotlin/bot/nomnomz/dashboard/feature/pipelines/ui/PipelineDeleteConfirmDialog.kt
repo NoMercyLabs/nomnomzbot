@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.pipelines.ui
 
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -61,7 +62,7 @@ sealed interface BlastRadiusLoadState {
 fun PipelineDeleteConfirmDialog(
     pipelineName: String,
     blastRadius: BlastRadiusLoadState,
-    onConfirm: () -> Unit,
+    action: suspend () -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val baseMessage: String = stringResource(Res.string.pipelines_delete_message, pipelineName)
@@ -77,7 +78,7 @@ fun PipelineDeleteConfirmDialog(
         // still allows confirming (with its own distinct warning line) so a telemetry outage can't block a
         // delete the operator still wants to make.
         confirmEnabled = blastRadius !is BlastRadiusLoadState.Loading,
-        onConfirm = onConfirm,
+        action = action,
         onDismiss = onDismiss,
     )
 }
