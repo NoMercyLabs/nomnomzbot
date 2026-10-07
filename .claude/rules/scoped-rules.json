@@ -432,7 +432,14 @@
    "source": "Stoney 2026-10-07: \"a json action editor in a manual block instead of utilizing the full features of a vscode style editor\"; and \"what is this impossible json editor? we have a full editor right next to it\"",
    "covers": [
     "feedback-ux-ask-once.md"
-   ]
+   ],
+   "check": {
+    "match": [
+     "**/server/src/NomNomzBot.Api/Assets/editor/**"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-editor-inputs.py"
+   }
   }
  ],
  "dispatch": [
