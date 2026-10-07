@@ -668,7 +668,7 @@ fun ModerationScreen(
                     },
                     onAddTrusted = { id -> scope.launch { controller.addTrustedChannel(id) } },
                     onRemoveTrusted = { id -> scope.launch { controller.removeTrustedChannel(id) } },
-                    onRevertNuke = { batchId -> scope.launch { controller.revertNuke(batchId) } },
+                    onRevertNuke = { batchId -> controller.revertNuke(batchId) },
                     onHistorySubjectSelected = { twitchUserId ->
                         scope.launch { controller.setHistorySubjectFilter(twitchUserId) }
                     },
@@ -700,8 +700,8 @@ fun ModerationScreen(
                     },
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
                     onAddModerator = { id -> scope.launch { controller.addModerator(id) } },
-                    onRemoveModerator = { id -> scope.launch { controller.removeModerator(id) } },
-                    onClearChat = { scope.launch { controller.clearChat() } },
+                    onRemoveModerator = { id -> controller.removeModerator(id) },
+                    onClearChat = { controller.clearChat() },
                     onAddTerm = { term, everywhere ->
                         if (everywhere) {
                             pendingBlockEverywhere = term
@@ -752,7 +752,7 @@ fun ModerationScreen(
             manage = manage,
             suspiciousManage = suspiciousManage,
             onWarn = { userId, reason -> scope.launch { controller.warn(userId, reason) } },
-            onSuspicious = { userId, status -> scope.launch { controller.setSuspicious(userId, status) } },
+            onSuspicious = { userId, status -> controller.setSuspicious(userId, status) },
             onClearSuspicious = { userId -> scope.launch { controller.clearSuspicious(userId) } },
             onForgive = { userId -> scope.launch { controller.forgiveUser(userId) } },
             onNetworkNuke = { userId, reason, matchTerm ->
@@ -770,7 +770,7 @@ fun ModerationScreen(
             onEditNote = { userId, noteId, content, pinned ->
                 scope.launch { controller.editNote(userId, noteId, content, pinned) }
             },
-            onDeleteNote = { userId, noteId -> scope.launch { controller.deleteNote(userId, noteId) } },
+            onDeleteNote = { userId, noteId -> controller.deleteNote(userId, noteId) },
             onDismiss = { controller.closeUserContext() },
         )
     }
@@ -867,7 +867,7 @@ internal fun BansList(
     onSaveSharedBans: (accept: Boolean, share: Boolean) -> Unit,
     onAddTrusted: (trustedChannelId: String) -> Unit,
     onRemoveTrusted: (trustedChannelId: String) -> Unit,
-    onRevertNuke: (batchId: String) -> Unit,
+    onRevertNuke: suspend (batchId: String) -> ApiResult<Unit>,
     onHistorySubjectSelected: (twitchUserId: String?) -> Unit,
     onHistoryDateRangeChanged: (fromUtc: String?, toUtc: String?) -> Unit,
     onHistoryActionTypeChanged: (actionType: String?) -> Unit,
@@ -885,8 +885,8 @@ internal fun BansList(
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
     onAddModerator: (targetTwitchUserId: String) -> Unit,
-    onRemoveModerator: (userId: String) -> Unit,
-    onClearChat: () -> Unit,
+    onRemoveModerator: suspend (userId: String) -> ApiResult<Unit>,
+    onClearChat: suspend () -> ApiResult<Unit>,
     onAddTerm: (term: String, everywhere: Boolean) -> Unit,
     onRemoveTerm: (String) -> Unit,
     termSweep: TermSweep?,
@@ -1819,10 +1819,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_moderators_remove_confirm),
             dismissLabel = stringResource(Res.string.moderation_moderators_remove_dismiss),
             destructive = true,
-            onConfirm = {
-                onRemoveModerator(moderator.userId)
-                pendingRemoveModerator = null
-            },
+            action = { onRemoveModerator(moderator.userId).toDialogResult() },
             onDismiss = { pendingRemoveModerator = null },
         )
     }
@@ -1834,10 +1831,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_clear_chat_confirm),
             dismissLabel = stringResource(Res.string.moderation_clear_chat_dismiss),
             destructive = true,
-            onConfirm = {
-                onClearChat()
-                showClearChatConfirm = false
-            },
+            action = { onClearChat().toDialogResult() },
             onDismiss = { showClearChatConfirm = false },
         )
     }
@@ -1902,10 +1896,7 @@ internal fun BansList(
             confirmLabel = stringResource(Res.string.moderation_nuke_revert),
             dismissLabel = stringResource(Res.string.moderation_nuke_dismiss),
             destructive = true,
-            onConfirm = {
-                onRevertNuke(batch.id)
-                pendingRevert = null
-            },
+            action = { onRevertNuke(batch.id).toDialogResult() },
             onDismiss = { pendingRevert = null },
         )
     }
@@ -2372,13 +2363,13 @@ private fun AutomodQueueRow(
 // shows the viewer's rap sheet — the bot's OWN recorded ban/timeout/warn/unban history, explicitly NOT the full
 // Twitch record (the disclaimer says so). Read-only; the mod then acts via the existing ban/timeout/unban tools.
 @Composable
-private fun UserModerationContextDialog(
+internal fun UserModerationContextDialog(
     state: UserContextState,
     heatThreshold: Int,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onWarn: (userId: String, reason: String) -> Unit,
-    onSuspicious: (userId: String, status: String) -> Unit,
+    onSuspicious: suspend (userId: String, status: String) -> ApiResult<Unit>,
     onClearSuspicious: (userId: String) -> Unit,
     onForgive: (userId: String) -> Unit,
     onNetworkNuke: (userId: String, reason: String, matchTerm: String) -> Unit,
@@ -2386,7 +2377,7 @@ private fun UserModerationContextDialog(
     onClearStanding: (userId: String, provider: String) -> Unit,
     onAddNote: (userId: String, content: String, pinned: Boolean) -> Unit,
     onEditNote: (userId: String, noteId: String, content: String?, pinned: Boolean?) -> Unit,
-    onDeleteNote: (userId: String, noteId: String) -> Unit,
+    onDeleteNote: suspend (userId: String, noteId: String) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -2468,7 +2459,7 @@ private fun UserModerationActions(
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onWarn: (userId: String, reason: String) -> Unit,
-    onSuspicious: (userId: String, status: String) -> Unit,
+    onSuspicious: suspend (userId: String, status: String) -> ApiResult<Unit>,
     onClearSuspicious: (userId: String) -> Unit,
     onForgive: (userId: String) -> Unit,
     onNetworkNuke: (userId: String, reason: String, matchTerm: String) -> Unit,
@@ -2481,6 +2472,8 @@ private fun UserModerationActions(
 
     var reason: String by remember(userId) { mutableStateOf("") }
     var confirmRestrict: Boolean by remember(userId) { mutableStateOf(false) }
+    // The monitor button has no dialog, so its write runs here; the restrict confirm runs in its dialog.
+    val monitorScope = rememberCoroutineScope()
     var confirmNuke: Boolean by remember(userId) { mutableStateOf(false) }
     // S013b — the nuke fan-out bans across every channel the moderator leads; Reason and MatchTerm are both
     // REQUIRED before it can submit, so a batch can always be reviewed and reverted precisely afterward.
@@ -2520,7 +2513,7 @@ private fun UserModerationActions(
     )
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
         ManageGate(decision = suspiciousManage) { enabled ->
-            TextButton(onClick = { onSuspicious(userId, "active_monitoring") }, enabled = enabled) {
+            TextButton(onClick = { monitorScope.launch { onSuspicious(userId, "active_monitoring") } }, enabled = enabled) {
                 Text(
                     text = stringResource(Res.string.moderation_suspicious_monitor),
                     color = if (enabled) tokens.primary else tokens.mutedForeground,
@@ -2581,10 +2574,7 @@ private fun UserModerationActions(
             confirmLabel = stringResource(Res.string.moderation_suspicious_restrict),
             dismissLabel = stringResource(Res.string.moderation_context_close),
             destructive = true,
-            onConfirm = {
-                confirmRestrict = false
-                onSuspicious(userId, "restricted")
-            },
+            action = { onSuspicious(userId, "restricted").toDialogResult() },
             onDismiss = { confirmRestrict = false },
         )
     }
@@ -2657,7 +2647,7 @@ private fun UserModerationNotes(
     manage: ManageDecision,
     onAddNote: (userId: String, content: String, pinned: Boolean) -> Unit,
     onEditNote: (userId: String, noteId: String, content: String?, pinned: Boolean?) -> Unit,
-    onDeleteNote: (userId: String, noteId: String) -> Unit,
+    onDeleteNote: suspend (userId: String, noteId: String) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -2814,10 +2804,7 @@ private fun UserModerationNotes(
             confirmLabel = stringResource(Res.string.moderation_notes_delete),
             dismissLabel = stringResource(Res.string.moderation_notes_cancel),
             destructive = true,
-            onConfirm = {
-                onDeleteNote(userId, note.id.toString())
-                pendingDelete = null
-            },
+            action = { onDeleteNote(userId, note.id.toString()).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
