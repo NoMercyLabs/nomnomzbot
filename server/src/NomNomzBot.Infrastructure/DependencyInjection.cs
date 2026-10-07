@@ -477,6 +477,11 @@ public static class DependencyInjection
             Application.Widgets.Services.IWidgetSettingsSchemaProvider,
             Content.Widgets.WidgetSettingsSchemaProvider
         >();
+        // Seed providers rebuild a widget's state from its true source when an overlay joins (one per gallery widget).
+        services.AddScoped<
+            Application.Widgets.Services.IWidgetSeedProvider,
+            Widgets.GoalSeedProvider
+        >();
         // The real overlay-attachment tracker lives in NomNomzBot.Api next to the SignalR hub that owns its
         // writes, so it cannot be registered here — TryAdd only fills the gap for an Infrastructure-only DI
         // container (this project's own composition tests); the API host's own registration (after

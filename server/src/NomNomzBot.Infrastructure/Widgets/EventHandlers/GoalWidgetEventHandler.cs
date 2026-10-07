@@ -90,7 +90,7 @@ public sealed class GoalWidgetEventHandler
         if (broadcasterId == Guid.Empty)
             return;
 
-        string? metric = MapMetric(twitchGoalType);
+        string? metric = GoalMetrics.FromTwitchGoalType(twitchGoalType);
         if (metric is null)
             return;
 
@@ -118,21 +118,4 @@ public sealed class GoalWidgetEventHandler
             );
         }
     }
-
-    /// <summary>
-    /// Twitch's creator-goal <c>type</c> field (<c>channel.goal.*</c>) to the widget library's `metric` vocabulary
-    /// (`goal_bar.vue`/`labels.vue`: <c>followers</c>/<c>subs</c>). Twitch has no bits-denominated goal type, so
-    /// the widgets' speculative `bits` metric option never has a live event source — an unmapped/unknown Twitch
-    /// goal type intentionally routes to nothing rather than guessing.
-    /// </summary>
-    private static string? MapMetric(string twitchGoalType) =>
-        twitchGoalType switch
-        {
-            "follower" or "followers" => "followers",
-            "subscription"
-            or "subscription_count"
-            or "new_subscription"
-            or "new_subscription_count" => "subs",
-            _ => null,
-        };
 }
