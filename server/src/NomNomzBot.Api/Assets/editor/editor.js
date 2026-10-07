@@ -586,7 +586,6 @@ function configureLanguageServices(monaco, sdkTypes, context, framework) {
         strict: true,
         noImplicitReturns: true,
         noFallthroughCasesInSwitch: true,
-        noUncheckedIndexedAccess: true,
         // The server builds with esbuild, one file at a time: flag what a per-file transpile cannot do.
         isolatedModules: true,
         esModuleInterop: true,
