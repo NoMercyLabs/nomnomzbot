@@ -14,6 +14,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -284,6 +285,8 @@ internal static class WidgetTestSamples
         },
         // goal_bar defaults to the followers metric.
         ["goal"] = _ => new GoalWidgetEventPayload("followers", 72, 100),
+        // labels defaults to a latest-follower label; the count seed sets an absolute total.
+        ["count"] = _ => new CountWidgetEventPayload("followers", 1234),
         ["supporter.tip"] = _ =>
             Supporter("tip", "TestTipper", 2500, null, null, "Keep it up!", false),
         ["supporter.membership"] = _ =>

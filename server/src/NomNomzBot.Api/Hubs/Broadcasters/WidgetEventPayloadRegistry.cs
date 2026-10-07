@@ -12,6 +12,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -86,6 +87,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("track_saved_changed", typeof(TrackSavedWidgetPayload)),
         new("tts_speak", typeof(TtsSpeakWidgetPayload)),
         new("goal", typeof(GoalWidgetEventPayload)),
+        new("count", typeof(CountWidgetEventPayload)),
         new("supporter.tip", typeof(SupporterAlertPayload)),
         new("supporter.membership", typeof(SupporterAlertPayload)),
         new("supporter.merch", typeof(SupporterAlertPayload)),

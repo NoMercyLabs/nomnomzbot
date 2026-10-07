@@ -66,6 +66,19 @@ function onGoal(d: NnzWidgetEventMap['goal']): void {
   }
 }
 
+// A count event carries the absolute total (the seed after an overlay reload); it is not a goal.
+function onCount(d: NnzWidgetEventMap['count']): void {
+  if (!d || !isFinite(Number(d.value))) return
+  if (cfg.label === 'follower_count' && d.metric === 'followers') {
+    followCount = Number(d.value)
+    raw.value = String(followCount)
+  }
+  if (cfg.label === 'sub_count' && d.metric === 'subs') {
+    subCount = Number(d.value)
+    raw.value = String(subCount)
+  }
+}
+
 onMounted(() => {
   if (typeof NomNomz === 'undefined') return
   NomNomz.onSettings((s: NnzWidgetSettings) => {
@@ -80,6 +93,7 @@ onMounted(() => {
   NomNomz.on('gift', onGift)
   NomNomz.on('cheer', onCheer)
   NomNomz.on('goal', onGoal)
+  NomNomz.on('count', onCount)
 })
 
 onUnmounted(() => {
@@ -90,6 +104,7 @@ onUnmounted(() => {
   NomNomz.off('gift', onGift)
   NomNomz.off('cheer', onCheer)
   NomNomz.off('goal', onGoal)
+  NomNomz.off('count', onCount)
 })
 </script>
 
