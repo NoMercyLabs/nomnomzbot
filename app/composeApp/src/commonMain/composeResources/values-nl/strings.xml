@@ -2913,6 +2913,9 @@
     <string name="pipelines_dialog_cancel">Annuleren</string>
     <string name="pipelines_editor_back">Terug</string>
     <string name="pipelines_editor_save">Keten opslaan</string>
+    <string name="pipelines_editor_unsaved">Niet-opgeslagen wijzigingen</string>
+    <string name="pipelines_editor_changed_elsewhere">Deze pipeline is elders gewijzigd</string>
+    <string name="pipelines_editor_reload">Opnieuw laden</string>
     <string name="pipelines_chain_empty">Nog geen stappen. Voeg de eerste toe.</string>
     <string name="pipelines_step_count">%1$d stappen</string>
     <string name="pipelines_step_add">Stap toevoegen</string>

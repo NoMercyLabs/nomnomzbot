@@ -128,6 +128,10 @@ class PipelinesController(
     // The channel every read/write targets — resolved by [load] and reused so a mutation never re-resolves it.
     private var channelId: String? = null
 
+    // The open pipeline's chain exactly as the server last sent it (before local ids are filled in), so a live
+    // update can tell "changed elsewhere" from "the echo of my own save".
+    private var serverSteps: List<PipelineStep> = emptyList()
+
     // The sample variables the last full test run used — a single-step test reuses them (same sample event).
     private var lastTestVariables: Map<String, String> = emptyMap()
 
@@ -142,7 +146,43 @@ class PipelinesController(
      * the page opened. Without it the only way to see a change was a manual reload.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
-        hubEvents.onConfigChange("pipelines") { load() }
+        hubEvents.onConfigChange("pipelines") { onPipelinesChanged() }
+    }
+
+    // A live update while the editor is open never replaces the editor (that threw away unsaved steps). The open
+    // pipeline is re-read and compared with what the editor last saw: the echo of our own save changes nothing, a
+    // clean editor refreshes in place, and a dirty editor only raises [PipelinesState.Editing.changedElsewhere].
+    private suspend fun onPipelinesChanged() {
+        val editing: PipelinesState.Editing? = _state.value as? PipelinesState.Editing
+        if (editing == null) {
+            load()
+            return
+        }
+        val channel: String = channelId ?: return
+        val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, editing.pipelineId)
+        if (result !is ApiResult.Ok) return
+        val raw: List<PipelineStep> = result.value.chain.steps
+        updateEditing(editing.pipelineId) { current ->
+            when {
+                raw == serverSteps -> current
+                current.dirty -> {
+                    serverSteps = raw
+                    current.copy(changedElsewhere = true)
+                }
+                else -> {
+                    serverSteps = raw
+                    val fresh: List<PipelineStep> = backfillIds(raw)
+                    current.copy(steps = fresh, savedSteps = fresh, stepTests = emptyMap())
+                }
+            }
+        }
+    }
+
+    /** Throw away the open editor's unsaved steps and show what the server holds now ("Reload" on the notice). */
+    suspend fun reloadFromServer() {
+        val channel: String = channelId ?: return
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
+        refetchEditing(channel, editing.pipelineId)
     }
 
     suspend fun load() {
@@ -259,16 +299,22 @@ class PipelinesController(
         val options: EditorOptions = loadEditorOptions(channel)
         when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, pipeline.id)) {
             is ApiResult.Failure -> _state.value = PipelinesState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    PipelinesState.Editing(
-                        pipelineId = result.value.id,
-                        name = result.value.name,
-                        steps = backfillIds(result.value.chain.steps),
-                        palette = palette,
-                        options = options,
-                    )
+            is ApiResult.Ok -> _state.value = editingFrom(result.value, options)
         }
+    }
+
+    // A fresh editor state for [detail]: the chain is the saved chain, so nothing is unsaved yet.
+    private fun editingFrom(detail: PipelineDetail, options: EditorOptions): PipelinesState.Editing {
+        serverSteps = detail.chain.steps
+        val steps: List<PipelineStep> = backfillIds(serverSteps)
+        return PipelinesState.Editing(
+            pipelineId = detail.id,
+            name = detail.name,
+            steps = steps,
+            savedSteps = steps,
+            palette = palette,
+            options = options,
+        )
     }
 
     // The editor's cross-feature dropdown options: the channel's outbound webhook endpoints (for the
@@ -358,8 +404,18 @@ class PipelinesController(
         )
     }
 
-    /** Leave the editor and return to the list (discarding any unsaved chain changes). */
+    /**
+     * Leave the editor and return to the list. A chain with unsaved steps stays open: the screen asks first and
+     * calls [discardAndClose] on a yes, so Back can never silently drop work.
+     */
     suspend fun closeEditor() {
+        val editing: PipelinesState.Editing? = _state.value as? PipelinesState.Editing
+        if (editing?.dirty == true) return
+        discardAndClose()
+    }
+
+    /** Leave the editor and return to the list, dropping any unsaved steps (after the user confirmed). */
+    suspend fun discardAndClose() {
         val channel: String = channelId ?: return
         loadList(channel)
     }
@@ -757,15 +813,7 @@ class PipelinesController(
         val options: EditorOptions = current?.options ?: EditorOptions()
         when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, id)) {
             is ApiResult.Failure -> failEdit(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    PipelinesState.Editing(
-                        pipelineId = result.value.id,
-                        name = result.value.name,
-                        steps = backfillIds(result.value.chain.steps),
-                        palette = palette,
-                        options = options,
-                    )
+            is ApiResult.Ok -> _state.value = editingFrom(result.value, options)
         }
     }
 
@@ -852,7 +900,14 @@ sealed interface PipelinesState {
         val testResult: TestRunResult? = null,
         val testError: String? = null,
         val stepTests: Map<String, StepTestState> = emptyMap(),
-    ) : PipelinesState
+        /** The chain as last saved (or loaded) — [steps] is compared with it to know what is unsaved. */
+        val savedSteps: List<PipelineStep> = steps,
+        /** The pipeline changed on the server while [dirty]: the screen offers "Reload" instead of replacing it. */
+        val changedElsewhere: Boolean = false,
+    ) : PipelinesState {
+        /** True when [steps] differ from the last saved chain. */
+        val dirty: Boolean get() = steps != savedSteps
+    }
 
     data class Error(val detail: String) : PipelinesState
 }

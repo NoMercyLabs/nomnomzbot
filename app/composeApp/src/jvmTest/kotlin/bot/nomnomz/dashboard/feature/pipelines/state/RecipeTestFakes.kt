@@ -55,12 +55,18 @@ internal fun recipeTestController(pipelines: RecordingPipelinesApiForRecipeTest)
 internal class RecordingPipelinesApiForRecipeTest : PipelinesApi {
     val created: MutableList<CreatePipelineBody> = mutableListOf()
 
-    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
+    /** What the server currently stores for pipeline `p1` (the editor tests open it); null = no such pipeline. */
+    var stored: PipelineDetail? = null
+    val updated: MutableList<UpdatePipelineBody> = mutableListOf()
+
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> =
+        ApiResult.Ok(listOfNotNull(stored?.let { PipelineSummary(id = it.id, name = it.name) }))
 
     override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
         ApiResult.Ok(PipelineCatalogueRemote())
 
-    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> = NotImplementedForRecipeTest
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
+        stored?.let { ApiResult.Ok(it) } ?: NotImplementedForRecipeTest
 
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> {
         created += body
@@ -70,8 +76,11 @@ internal class RecordingPipelinesApiForRecipeTest : PipelinesApi {
     override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
         NotImplementedForRecipeTest
 
-    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
-        NotImplementedForRecipeTest
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> {
+        updated += body
+        body.graph?.let { graph -> stored = stored?.copy(graph = graph) }
+        return ApiResult.Ok(Unit)
+    }
 
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = NotImplementedForRecipeTest
 

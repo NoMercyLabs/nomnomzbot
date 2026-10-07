@@ -41,7 +41,18 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
+import bot.nomnomz.dashboard.core.designsystem.component.Alert
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AlertTitle
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import nomnomzbot.composeapp.generated.resources.form_dialog_discard
+import nomnomzbot.composeapp.generated.resources.form_dialog_discard_message
+import nomnomzbot.composeapp.generated.resources.form_dialog_discard_title
+import nomnomzbot.composeapp.generated.resources.form_dialog_keep_editing
+import nomnomzbot.composeapp.generated.resources.pipelines_editor_changed_elsewhere
+import nomnomzbot.composeapp.generated.resources.pipelines_editor_reload
+import nomnomzbot.composeapp.generated.resources.pipelines_editor_unsaved
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.ResourcePickerField
@@ -779,6 +790,8 @@ private fun ChainEditorBody(
 
     // null = no step dialog; a value = the add/edit step dialog. A null index is an add, an index an edit.
     var stepDialog: StepDialogTarget? by remember { mutableStateOf(null) }
+    // Whether Back is asking "Discard changes?" because the chain has unsaved steps.
+    var confirmingDiscard: Boolean by remember { mutableStateOf(false) }
     // Whether the S047 dry-run dialog is open — its own transient state (variables text) lives inside the dialog.
     var showTestRun: Boolean by remember { mutableStateOf(false) }
 
@@ -840,7 +853,7 @@ private fun ChainEditorBody(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             TextButton(
-                onClick = { scope.launch { controller.closeEditor() } },
+                onClick = { if (editing.dirty) confirmingDiscard = true else scope.launch { controller.closeEditor() } },
                 modifier = Modifier.semantics { contentDescription = backLabel },
             ) {
                 Text(text = backLabel, color = tokens.primary, maxLines = 1)
@@ -862,6 +875,14 @@ private fun ChainEditorBody(
             ) {
                 Text(text = testLabel, color = tokens.primary, maxLines = 1)
             }
+            if (editing.dirty) {
+                Text(
+                    text = stringResource(Res.string.pipelines_editor_unsaved),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
             ManageGate(decision = manage) { enabled ->
                 Button(
                     onClick = { scope.launch { controller.saveChain() } },
@@ -874,6 +895,40 @@ private fun ChainEditorBody(
         }
 
         // A save failure announces on the shell-level feedback toast (PipelinesController.failEdit).
+
+        // The pipeline changed on the server while this chain has unsaved steps: say so, never replace it.
+        if (editing.changedElsewhere) {
+            Alert(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                ) {
+                    AlertTitle(text = stringResource(Res.string.pipelines_editor_changed_elsewhere), modifier = Modifier.weight(1f))
+                    Button(
+                        onClick = { scope.launch { controller.reloadFromServer() } },
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(text = stringResource(Res.string.pipelines_editor_reload))
+                    }
+                }
+            }
+        }
+
+        if (confirmingDiscard) {
+            ConfirmDialog(
+                title = stringResource(Res.string.form_dialog_discard_title),
+                message = stringResource(Res.string.form_dialog_discard_message),
+                confirmLabel = stringResource(Res.string.form_dialog_discard),
+                dismissLabel = stringResource(Res.string.form_dialog_keep_editing),
+                onConfirm = {
+                    confirmingDiscard = false
+                    scope.launch { controller.discardAndClose() }
+                },
+                onDismiss = { confirmingDiscard = false },
+                destructive = true,
+            )
+        }
 
         Text(
             text = stringResource(Res.string.pipelines_step_count, editing.steps.size),
