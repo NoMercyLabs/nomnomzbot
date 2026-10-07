@@ -309,6 +309,23 @@ class GiveawaysControllerTest {
     }
 
     @Test
+    fun a_failed_close_is_returned_to_the_confirm_and_neither_toasts_nor_reloads() = runTest {
+        val feedback = RecordingFeedback()
+        val api =
+            RecordingGiveawaysApi(
+                ApiResult.Ok(listOf(draft("g1").copy(status = GiveawayStatus.Open))),
+                writeResult = ApiResult.Failure(ApiError(409, "CONFLICT", "already closed")),
+            )
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi(), feedback)
+        controller.load()
+
+        val result: ApiResult<Unit> = controller.closeGiveaway("g1")
+
+        assertEquals("already closed", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty(),"the confirm shows the reason inline, so no toast")
+    }
+
+    @Test
     fun code_pools_load_create_and_delete_reflect_the_store() = runTest {
         val api = RecordingGiveawaysApi(ApiResult.Ok(emptyList()), poolsInitial = ApiResult.Ok(emptyList()))
         val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())

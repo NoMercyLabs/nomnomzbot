@@ -175,27 +175,29 @@ class GiveawaysController(
         afterWrite(giveawaysApi.open(id), success = Res.string.feedback_giveaway_opened)
     }
 
-    /** Stop accepting entries (the giveaway stays drawable). Reloads on success. Surfaces the error on failure. */
-    suspend fun closeGiveaway(id: String) {
-        afterWrite(giveawaysApi.close(id), success = Res.string.feedback_giveaway_closed)
-    }
+    /**
+     * Stop accepting entries (the giveaway stays drawable). Reloads on success. Returns the write's result so the
+     * confirm can stay open and show a failure inline (no toast: the dialog is still on screen).
+     */
+    suspend fun closeGiveaway(id: String): ApiResult<Unit> =
+        afterDialogWrite(giveawaysApi.close(id), success = Res.string.feedback_giveaway_closed, reload = ::load)
 
     /**
      * Draw the winners for [giveaway], announce the outcome, reload the list (its status flips to drawn), and open
-     * the winner panel on the freshly-drawn winners so the operator sees them immediately. Surfaces the error on
-     * failure without opening the panel.
+     * the winner panel on the freshly-drawn winners so the operator sees them immediately. A failure is returned
+     * (the panel stays shut) for the confirm to show inline.
      */
-    suspend fun drawGiveaway(giveaway: Giveaway) {
+    suspend fun drawGiveaway(giveaway: Giveaway): ApiResult<Unit> =
         when (val result: ApiResult<List<GiveawayWinner>> = giveawaysApi.draw(giveaway.id)) {
             is ApiResult.Ok -> {
                 feedback.success(Res.string.feedback_giveaway_drawn)
                 load()
                 _winners.value =
                     WinnersState.Ready(giveaway.copy(status = GiveawayStatus.Drawn), result.value)
+                ApiResult.Ok(Unit)
             }
-            is ApiResult.Failure -> failWrite(result.error.message)
+            is ApiResult.Failure -> result
         }
-    }
 
     // ── Winner panel ─────────────────────────────────────────────────────────────
 
@@ -212,17 +214,16 @@ class GiveawaysController(
 
     /**
      * Replace one winner (forfeit / no-show) with a fresh draw, then reload the panel AND the list. A failure
-     * announces on the shell-level [feedback] toast, keeping the panel intact.
+     * is returned for the confirm to show inline, keeping the panel intact.
      */
-    suspend fun redrawWinner(giveaway: Giveaway, winnerId: String) {
-        when (val result: ApiResult<Unit> = giveawaysApi.redraw(giveaway.id, winnerId)) {
-            is ApiResult.Ok -> {
-                feedback.success(Res.string.feedback_giveaway_saved)
-                loadWinnersInto(giveaway)
-                load()
-            }
-            is ApiResult.Failure -> winnersActionError(result.error.message)
+    suspend fun redrawWinner(giveaway: Giveaway, winnerId: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = giveawaysApi.redraw(giveaway.id, winnerId)
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_giveaway_saved)
+            loadWinnersInto(giveaway)
+            load()
         }
+        return result
     }
 
     /**

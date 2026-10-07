@@ -428,13 +428,11 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
                 stringResource(if (isClose) Res.string.giveaways_close_confirm else Res.string.giveaways_draw_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
             destructive = true,
-            onConfirm = {
-                val target: LifecycleConfirm = confirm
-                pendingLifecycle = null
-                scope.launch {
-                    if (isClose) controller.closeGiveaway(target.giveaway.id)
-                    else controller.drawGiveaway(target.giveaway)
-                }
+            action = {
+                val result: ApiResult<Unit> =
+                    if (isClose) controller.closeGiveaway(confirm.giveaway.id)
+                    else controller.drawGiveaway(confirm.giveaway)
+                result.toDialogResult()
             },
             onDismiss = { pendingLifecycle = null },
         )
@@ -488,11 +486,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
             confirmLabel = stringResource(Res.string.giveaways_winner_redraw_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
             destructive = true,
-            onConfirm = {
-                val target: RedrawConfirm = confirm
-                pendingRedraw = null
-                scope.launch { controller.redrawWinner(target.giveaway, target.winner.id) }
-            },
+            action = { controller.redrawWinner(confirm.giveaway, confirm.winner.id).toDialogResult() },
             onDismiss = { pendingRedraw = null },
         )
     }
