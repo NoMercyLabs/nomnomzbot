@@ -6295,4 +6295,7 @@
     <string name="pipelines_recipe_count_remember_title">Count and remember</string>
     <string name="pipelines_recipe_count_remember_desc">Remembers how often each viewer did this and says the count.</string>
     <string name="pipelines_recipe_count_remember_reply_1">{user}, that is time number {viewer.data.redeem_count} for you.</string>
+    <string name="pipelines_recipe_picker_label">Start from</string>
+    <string name="pipelines_recipe_empty_title">Start empty</string>
+    <string name="pipelines_recipe_empty_desc">A blank pipeline. You add every step yourself.</string>
 </resources>

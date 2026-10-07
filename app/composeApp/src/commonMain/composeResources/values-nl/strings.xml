@@ -6268,4 +6268,7 @@
     <string name="pipelines_recipe_count_remember_title">Tellen en onthouden</string>
     <string name="pipelines_recipe_count_remember_desc">Onthoudt hoe vaak elke kijker dit deed en noemt het aantal.</string>
     <string name="pipelines_recipe_count_remember_reply_1">{user}, dit is de {viewer.data.redeem_count}e keer voor je.</string>
+    <string name="pipelines_recipe_picker_label">Begin met</string>
+    <string name="pipelines_recipe_empty_title">Leeg beginnen</string>
+    <string name="pipelines_recipe_empty_desc">Een lege pipeline. Je voegt elke stap zelf toe.</string>
 </resources>
