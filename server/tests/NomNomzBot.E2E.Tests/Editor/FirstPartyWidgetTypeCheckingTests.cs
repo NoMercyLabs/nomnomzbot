@@ -23,30 +23,55 @@ namespace NomNomzBot.E2E.Tests.Editor;
 /// </summary>
 public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
 {
-    // Natural key (the .vue file name) and the catalogue's gallery name (FirstPartyWidgetCatalogue.cs).
+    // Natural key (the .vue file name) to the catalogue's gallery name (FirstPartyWidgetCatalogue.cs).
+    private static readonly Dictionary<string, string> GalleryNames = new()
+    {
+        ["tts_audio"] = "Audio Source",
+        ["tts_caption"] = "TTS Caption",
+        ["countdown_timer"] = "Countdown / Timer",
+        ["alerts"] = "Alerts",
+        ["chat_box"] = "Chat Box",
+        ["crash"] = "Crash",
+        ["drop_game"] = "Drop Game",
+        ["event_ticker"] = "Event Ticker",
+        ["goal_bar"] = "Goal Bar",
+        ["heist"] = "Heist",
+        ["labels"] = "Labels",
+        ["lucky_feather"] = "Lucky Feather",
+        ["now_playing"] = "Now Playing",
+        ["poll_prediction"] = "Poll / Prediction",
+        ["custom_data"] = "Custom Data",
+        ["emote_wall"] = "Emote Wall",
+        ["raffle"] = "Raffle",
+        ["recent_followers"] = "Recent Followers",
+        ["redemption_alert"] = "Redemption Alert",
+        ["socials"] = "Socials",
+        ["sr_queue"] = "SR Queue",
+        ["sub_train"] = "Sub Train",
+        ["top_cheerers"] = "Top Cheerers",
+    };
+
+    // Every shipped .vue file is a row, so a new widget without a gallery name fails here instead of going untested.
+    public static TheoryData<string, string> EveryShippedWidget()
+    {
+        TheoryData<string, string> rows = [];
+        foreach (string file in Directory.GetFiles(AssetsDirectory(), "*.vue").Order())
+        {
+            string naturalKey = Path.GetFileNameWithoutExtension(file);
+            rows.Add(
+                naturalKey,
+                GalleryNames.TryGetValue(naturalKey, out string? galleryName)
+                    ? galleryName
+                    : throw new InvalidOperationException(
+                        $"{naturalKey}.vue has no gallery name in {nameof(GalleryNames)}."
+                    )
+            );
+        }
+        return rows;
+    }
+
     [E2ETheory]
-    [InlineData("tts_audio", "Audio Source")]
-    [InlineData("tts_caption", "TTS Caption")]
-    [InlineData("countdown_timer", "Countdown / Timer")]
-    [InlineData("alerts", "Alerts")]
-    [InlineData("chat_box", "Chat Box")]
-    [InlineData("crash", "Crash")]
-    [InlineData("drop_game", "Drop Game")]
-    [InlineData("event_ticker", "Event Ticker")]
-    [InlineData("goal_bar", "Goal Bar")]
-    [InlineData("heist", "Heist")]
-    [InlineData("labels", "Labels")]
-    [InlineData("now_playing", "Now Playing")]
-    [InlineData("poll_prediction", "Poll / Prediction")]
-    [InlineData("custom_data", "Custom Data")]
-    [InlineData("emote_wall", "Emote Wall")]
-    [InlineData("raffle", "Raffle")]
-    [InlineData("recent_followers", "Recent Followers")]
-    [InlineData("redemption_alert", "Redemption Alert")]
-    [InlineData("socials", "Socials")]
-    [InlineData("sr_queue", "SR Queue")]
-    [InlineData("sub_train", "Sub Train")]
-    [InlineData("top_cheerers", "Top Cheerers")]
+    [MemberData(nameof(EveryShippedWidget))]
     public async Task A_converted_widget_has_no_type_problems(string naturalKey, string galleryName)
     {
         string? installedId = await InstalledWidgetIdAsync(galleryName);
@@ -54,7 +79,9 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
         try
         {
             string sdkTypes = await WidgetTypesAsync(widgetId);
-            string source = await File.ReadAllTextAsync(WidgetSourcePath(naturalKey));
+            string source = await File.ReadAllTextAsync(
+                Path.Combine(AssetsDirectory(), $"{naturalKey}.vue")
+            );
 
             await OpenAsync("vue", "App.vue", source, sdkTypes);
 
@@ -152,7 +179,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
         return await types.TextAsync();
     }
 
-    private static string WidgetSourcePath(string naturalKey)
+    private static string AssetsDirectory()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (
@@ -172,8 +199,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
                 "NomNomzBot.Infrastructure",
                 "Content",
                 "Widgets",
-                "Assets",
-                $"{naturalKey}.vue"
+                "Assets"
             );
     }
 }
