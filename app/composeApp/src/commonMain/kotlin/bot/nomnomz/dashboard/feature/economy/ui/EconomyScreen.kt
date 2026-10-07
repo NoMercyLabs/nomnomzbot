@@ -427,9 +427,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onUpdateCatalogItem = { itemId, request ->
                         scope.launch { controller.updateCatalogItem(itemId, request) }
                     },
-                    onDeleteCatalogItem = { itemId ->
-                        scope.launch { controller.deleteCatalogItem(itemId) }
-                    },
+                    onDeleteCatalogItem = controller::deleteCatalogItem,
                     onCatalogItemBlastRadius = controller::catalogItemBlastRadius,
                     onToggleEarningRule = { source, enabled ->
                         scope.launch { controller.toggleEarningRule(source, enabled) }
@@ -444,7 +442,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                         scope.launch { controller.createSavingsJar(request) }
                     },
                     onUpdateJar = { jarId, request -> controller.updateJar(jarId, request) },
-                    onDeleteJar = { jarId -> controller.deleteJar(jarId) },
+                    onDeleteJar = controller::deleteJar,
                     onJarBlastRadius = controller::jarBlastRadius,
                     loadJarDetail = controller::getJar,
                     onJarInvite = { jarId, request -> controller.inviteChannel(jarId, request) },
@@ -494,7 +492,7 @@ private fun ReadyContent(
     onToggleCatalog: (String, Boolean) -> Unit,
     onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
     onUpdateCatalogItem: (String, UpdateCatalogItemBody) -> Unit,
-    onDeleteCatalogItem: (String) -> Unit,
+    onDeleteCatalogItem: suspend (String) -> ApiResult<Unit>,
     // The real, backend-counted blast radius of deleting a catalog item (S-CONSEQ) — rendered in the confirm
     // before the destructive save; never counted in the UI.
     onCatalogItemBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
@@ -503,7 +501,7 @@ private fun ReadyContent(
     onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     onUpdateJar: suspend (jarId: String, UpdateSavingsJarBody) -> Unit,
-    onDeleteJar: suspend (jarId: String) -> Unit,
+    onDeleteJar: suspend (jarId: String) -> ApiResult<Unit>,
     // The real, backend-counted blast radius of deleting a jar (S-CONSEQ) — rendered in the confirm before the
     // destructive delete; never counted in the UI.
     onJarBlastRadius: suspend (jarId: String) -> ApiResult<BlastRadiusSummary>,
@@ -2502,7 +2500,7 @@ private fun CatalogSection(
     onToggle: (String, Boolean) -> Unit,
     onCreate: (CreateCatalogItemBody) -> Unit,
     onUpdate: (String, UpdateCatalogItemBody) -> Unit,
-    onDelete: (String) -> Unit,
+    onDelete: suspend (String) -> ApiResult<Unit>,
     onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
 ) {
     val tokens = LocalTokens.current
@@ -2626,10 +2624,7 @@ private fun CatalogSection(
             confirmLabel = stringResource(Res.string.economy_catalog_delete_confirm),
             dismissLabel = stringResource(Res.string.economy_catalog_delete_dismiss),
             blastRadius = blastRadius,
-            onConfirm = {
-                onDelete(item.id)
-                pendingDelete = null
-            },
+            action = { onDelete(item.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -2979,7 +2974,7 @@ private fun SavingsJarsSection(
     manage: ManageDecision,
     onCreate: (CreateSavingsJarBody) -> Unit,
     onUpdate: suspend (jarId: String, UpdateSavingsJarBody) -> Unit,
-    onDelete: suspend (jarId: String) -> Unit,
+    onDelete: suspend (jarId: String) -> ApiResult<Unit>,
     onBlastRadius: suspend (jarId: String) -> ApiResult<BlastRadiusSummary>,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
     onInvite: suspend (jarId: String, InviteChannelBody) -> Unit,
@@ -3158,7 +3153,7 @@ private fun JarManageDialog(
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
     onUpdate: suspend (UpdateSavingsJarBody) -> Unit,
-    onDelete: suspend () -> Unit,
+    onDelete: suspend () -> ApiResult<Unit>,
     onBlastRadius: suspend () -> ApiResult<BlastRadiusSummary>,
     onDismiss: () -> Unit,
 ) {
@@ -3383,10 +3378,13 @@ private fun JarManageDialog(
             confirmLabel = stringResource(Res.string.economy_jars_delete_confirm),
             dismissLabel = stringResource(Res.string.economy_jars_delete_dismiss),
             blastRadius = blastRadius,
-            onConfirm = {
-                scope.launch { onDelete() }
-                pendingDelete = false
-                onDismiss()
+            action = {
+                val result: ApiResult<Unit> = onDelete()
+                if (result is ApiResult.Ok) {
+                    pendingDelete = false
+                    onDismiss()
+                }
+                result.toDialogResult()
             },
             onDismiss = { pendingDelete = false },
         )

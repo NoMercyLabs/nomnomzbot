@@ -16,6 +16,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.BlastRadiusCategory
@@ -40,7 +41,7 @@ class DeleteBlastRadiusDialogTest {
                     confirmLabel = "Delete",
                     dismissLabel = "Cancel",
                     blastRadius = state,
-                    onConfirm = {},
+                    action = { DialogResult.Done },
                     onDismiss = {},
                 )
             }

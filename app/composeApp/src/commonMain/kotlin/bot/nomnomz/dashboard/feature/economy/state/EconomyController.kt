@@ -444,9 +444,8 @@ class EconomyController(
         return economyApi.catalogItemBlastRadius(channel, itemId)
     }
 
-    suspend fun deleteCatalogItem(itemId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.deleteCatalogItem(channel, itemId))
+    suspend fun deleteCatalogItem(itemId: String): ApiResult<Unit> = deleteThenReload { channel: String ->
+        economyApi.deleteCatalogItem(channel, itemId)
     }
 
     /**
@@ -475,9 +474,23 @@ class EconomyController(
     }
 
     /** Owner-only permanent delete of [jarId] (soft delete). Reloads on success. */
-    suspend fun deleteJar(jarId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.deleteJar(channel, jarId))
+    suspend fun deleteJar(jarId: String): ApiResult<Unit> = deleteThenReload { channel: String ->
+        economyApi.deleteJar(channel, jarId)
+    }
+
+    /**
+     * Run a delete and hand its result back to the confirm dialog, which stays open and shows the reason on a
+     * failure. Success reloads the page; a failure never raises the page-level error banner.
+     */
+    private suspend fun deleteThenReload(delete: suspend (channel: String) -> ApiResult<Unit>): ApiResult<Unit> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel."))
+        val result: ApiResult<Unit> = delete(channel)
+        if (result is ApiResult.Ok) {
+            load()
+        }
+        return result
     }
 
     /**
