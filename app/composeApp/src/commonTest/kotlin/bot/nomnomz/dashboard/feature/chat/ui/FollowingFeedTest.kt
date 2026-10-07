@@ -128,6 +128,38 @@ class FollowingFeedTest {
         waitUntilAtLeastOneExists(pill, 5_000)
     }
 
+    // Audit C7a1-28: ChatController appends blank-id lines on purpose, and a replayed line can repeat an id. The feed
+    // itself must keep every line, never crash the page on a duplicate LazyColumn key.
+    @Test
+    fun lines_with_blank_ids_are_all_shown_and_do_not_crash() = runComposeUiTest {
+        setContent {
+            NomNomzTheme {
+                FollowingFeed(
+                    items = listOf("line a", "line b", "line c"),
+                    key = { _, _ -> "" },
+                    modifier = Modifier.height(200.dp),
+                ) { line -> Text(line) }
+            }
+        }
+        waitForIdle()
+        assertEquals(listOf("line a", "line b", "line c"), visibleLines())
+    }
+
+    @Test
+    fun lines_with_equal_ids_are_all_shown_and_do_not_crash() = runComposeUiTest {
+        setContent {
+            NomNomzTheme {
+                FollowingFeed(
+                    items = listOf("line a", "line b", "line c"),
+                    key = { _, line -> if (line == "line c") "c" else "same" },
+                    modifier = Modifier.height(200.dp),
+                ) { line -> Text(line) }
+            }
+        }
+        waitForIdle()
+        assertEquals(listOf("line a", "line b", "line c"), visibleLines())
+    }
+
     // The pill is the feed's only clickable node. Matched by its count, not its words, so the test is locale-proof
     // (the test JVM's locale picks en or nl): "27 new messages" / "27 nieuwe berichten".
     private val pill: SemanticsMatcher = hasClickAction() and hasText("27", substring = true)

@@ -439,7 +439,7 @@ private fun MergedFeed(
         // up, or a line menu is open (see FollowingFeed).
         FollowingFeed(
             items = messages,
-            key = { index, msg -> if (msg.id.isNotEmpty()) msg.id else "idx-$index" },
+            key = { _, msg -> msg.id },
             modifier = Modifier.fillMaxSize().padding(vertical = spacing.s2),
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) { msg ->
