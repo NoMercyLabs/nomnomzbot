@@ -89,7 +89,6 @@ internal sealed class EventTickerSeedProvider(IApplicationDbContext db) : IWidge
     {
         if (
             settings.TryGetValue("count", out object? raw)
-            && raw is not null
             && int.TryParse(
                 Convert.ToString(raw, CultureInfo.InvariantCulture),
                 NumberStyles.Integer,
