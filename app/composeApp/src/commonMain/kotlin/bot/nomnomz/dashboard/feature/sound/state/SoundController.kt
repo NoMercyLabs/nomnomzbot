@@ -129,8 +129,13 @@ class SoundController(
         )
     }
 
-    suspend fun deleteClip(id: String) {
-        afterWrite(soundApi.delete(id), success = Res.string.feedback_sound_clip_deleted)
+    suspend fun deleteClip(id: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = soundApi.delete(id)
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_sound_clip_deleted)
+            load()
+        }
+        return result
     }
 
     /**

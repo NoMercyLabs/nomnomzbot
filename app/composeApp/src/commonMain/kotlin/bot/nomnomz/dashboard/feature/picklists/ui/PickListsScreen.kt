@@ -113,6 +113,7 @@ import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Pick Lists page (frontend-ia.md §3, Chat group): the channel's named pick-lists — the generic primitive
@@ -275,10 +276,7 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
             confirmLabel = stringResource(Res.string.picklists_delete_confirm),
             dismissLabel = stringResource(Res.string.picklists_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deletePickList(list.id) }
-            },
+            action = { controller.deletePickList(list.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }

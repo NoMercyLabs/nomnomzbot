@@ -143,9 +143,13 @@ class PickListsController(
     suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
         pickListsApi.blastRadius(id)
 
-    suspend fun deletePickList(id: String) {
-
-        afterWrite(pickListsApi.delete(id), success = Res.string.feedback_picklist_deleted)
+    suspend fun deletePickList(id: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = pickListsApi.delete(id)
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_picklist_deleted)
+            load()
+        }
+        return result
     }
 
     /**

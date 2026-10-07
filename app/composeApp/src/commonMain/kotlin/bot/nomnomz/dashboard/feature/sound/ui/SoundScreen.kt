@@ -114,6 +114,7 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_volume_pct
 import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
@@ -211,10 +212,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.sound_clips_delete_confirm),
             dismissLabel = stringResource(Res.string.sound_clips_delete_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                scope.launch { controller.deleteClip(clip.id) }
-                deleteTarget = null
-            },
+            action = { controller.deleteClip(clip.id).toDialogResult() },
             onDismiss = { deleteTarget = null },
         )
     }

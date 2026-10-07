@@ -240,6 +240,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
@@ -403,10 +404,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
             confirmLabel = stringResource(Res.string.giveaways_delete_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteGiveaway(giveaway.id) }
-            },
+            action = { controller.deleteGiveaway(giveaway.id).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -478,10 +476,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
             confirmLabel = stringResource(Res.string.giveaways_delete_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
             blastRadius = blastRadius,
-            onConfirm = {
-                pendingPoolDelete = null
-                scope.launch { controller.deleteCodePool(pool.id) }
-            },
+            action = { controller.deleteCodePool(pool.id).toDialogResult() },
             onDismiss = { pendingPoolDelete = null },
         )
     }
