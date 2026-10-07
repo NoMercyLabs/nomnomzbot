@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import androidx.compose.material3.Text
@@ -47,6 +46,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -190,11 +192,8 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubE
             editor = open,
             onDismiss = { editor = null },
             onSubmit = { text, name, game ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) controller.updateQuote(open.number, text, name, game)
-                    else controller.createQuote(text, name, game)
-                }
+                if (open.isEdit) controller.updateQuote(open.number, text, name, game).toDialogResult()
+                else controller.createQuote(text, name, game).toDialogResult()
             },
         )
     }
@@ -206,10 +205,7 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubE
             confirmLabel = stringResource(Res.string.quotes_delete_confirm),
             dismissLabel = stringResource(Res.string.quotes_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteQuote(quote.number) }
-            },
+            action = { controller.deleteQuote(quote.number).toDialogResult() },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -469,11 +465,8 @@ private fun attributionLine(name: String?, game: String?): String? {
 private fun QuoteFormDialog(
     editor: QuoteEditor,
     onDismiss: () -> Unit,
-    onSubmit: (text: String, name: String, game: String) -> Unit,
+    onSubmit: suspend (text: String, name: String, game: String) -> DialogResult,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-
     var text: String by remember { mutableStateOf(editor.text) }
     var name: String by remember { mutableStateOf(editor.quotedDisplayName) }
     var game: String by remember { mutableStateOf(editor.contextGame) }
@@ -489,48 +482,34 @@ private fun QuoteFormDialog(
             if (editor.isEdit) Res.string.quotes_dialog_save else Res.string.quotes_dialog_create
         )
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.quotes_dialog_text_label),
-                )
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.quotes_dialog_name_label),
-                )
-                AppTextField(
-                    value = game,
-                    onValueChange = { game = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.quotes_dialog_game_label),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSubmit(text, name, game) }, enabled = canSubmit) {
-                Text(
-                    text = submitLabel,
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.quotes_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
-            }
-        },
-    )
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.quotes_dialog_cancel),
+        onDismiss = onDismiss,
+        save = { onSubmit(text, name, game) },
+        dirty = text != editor.text || name != editor.quotedDisplayName || game != editor.contextGame,
+        valid = canSubmit,
+    ) {
+        AppTextField(
+            value = text,
+            onValueChange = { text = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.quotes_dialog_text_label),
+        )
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.quotes_dialog_name_label),
+        )
+        AppTextField(
+            value = game,
+            onValueChange = { game = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.quotes_dialog_game_label),
+        )
+    }
 }
 
 // The create/edit dialog's seed: an empty editor opens a blank create form; one seeded from a quote opens a
