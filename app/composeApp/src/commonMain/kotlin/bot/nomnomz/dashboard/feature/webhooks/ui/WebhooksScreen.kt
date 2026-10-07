@@ -47,6 +47,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
@@ -388,7 +390,7 @@ fun WebhooksScreen(
             confirmLabel = stringResource(Res.string.webhooks_delete_confirm),
             dismissLabel = stringResource(Res.string.webhooks_delete_cancel),
             destructive = true,
-            onConfirm = { pendingDeleteOutbound = null; scope.launch { controller.deleteOutbound(ep.id) } },
+            action = { controller.deleteOutbound(ep.id).toDialogResult() },
             onDismiss = { pendingDeleteOutbound = null },
         )
     }
@@ -400,7 +402,7 @@ fun WebhooksScreen(
             confirmLabel = stringResource(Res.string.webhooks_reenable_confirm),
             dismissLabel = stringResource(Res.string.webhooks_reenable_cancel),
             destructive = false,
-            onConfirm = { pendingReenable = null; scope.launch { controller.reenableOutbound(ep.id) } },
+            action = { controller.reenableOutbound(ep.id).toDialogResult() },
             onDismiss = { pendingReenable = null },
         )
     }
@@ -437,10 +439,9 @@ fun WebhooksScreen(
             existing = null,
             pipelines = pipelines,
             onConfirmCreate = { name, adapter, secret, targetPipelineId, targetEventType, genericConfig ->
-                showCreateInbound = false
-                scope.launch { controller.createInbound(name, adapter, secret, targetPipelineId, targetEventType, genericConfig) }
+                controller.createInbound(name, adapter, secret, targetPipelineId, targetEventType, genericConfig).toDialogResult()
             },
-            onConfirmEdit = { _, _, _, _, _, _, _ -> },
+            onConfirmEdit = { _, _, _, _, _, _, _ -> DialogResult.Done },
             onDismiss = { showCreateInbound = false },
         )
     }
@@ -450,10 +451,9 @@ fun WebhooksScreen(
         InboundDialog(
             existing = ep,
             pipelines = pipelines,
-            onConfirmCreate = { _, _, _, _, _, _ -> },
+            onConfirmCreate = { _, _, _, _, _, _ -> DialogResult.Done },
             onConfirmEdit = { name, _, secret, targetPipelineId, targetEventType, genericConfig, enabled ->
-                pendingEditInbound = null
-                scope.launch { controller.updateInbound(ep.id, name, secret, targetPipelineId, targetEventType, genericConfig, enabled) }
+                controller.updateInbound(ep.id, name, secret, targetPipelineId, targetEventType, genericConfig, enabled).toDialogResult()
             },
             onDismiss = { pendingEditInbound = null },
         )
@@ -903,8 +903,8 @@ private fun GenericConfigFields(input: GenericConfigInput, showError: Boolean) {
 private fun InboundDialog(
     existing: InboundWebhook?,
     pipelines: List<PipelineSummary>,
-    onConfirmCreate: (name: String, adapter: String, secret: String, targetPipelineId: String?, targetEventType: String?, genericConfig: GenericInboundConfig?) -> Unit,
-    onConfirmEdit: (name: String, adapter: String, secret: String?, targetPipelineId: String?, targetEventType: String?, genericConfig: GenericInboundConfig?, enabled: Boolean) -> Unit,
+    onConfirmCreate: suspend (name: String, adapter: String, secret: String, targetPipelineId: String?, targetEventType: String?, genericConfig: GenericInboundConfig?) -> DialogResult,
+    onConfirmEdit: suspend (name: String, adapter: String, secret: String?, targetPipelineId: String?, targetEventType: String?, genericConfig: GenericInboundConfig?, enabled: Boolean) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -913,11 +913,11 @@ private fun InboundDialog(
     val isEdit: Boolean = existing != null
 
     var name: String by remember { mutableStateOf(existing?.name ?: "") }
-    var adapter: String by remember { mutableStateOf(existing?.adapter?.replaceFirstChar { it.uppercase() } ?: "Generic") }
+    val initialAdapter: String = existing?.adapter?.replaceFirstChar { it.uppercase() } ?: "Generic"
+    var adapter: String by remember { mutableStateOf(initialAdapter) }
     var secret: String by remember { mutableStateOf("") }
     var enabled: Boolean by remember { mutableStateOf(existing?.isEnabled ?: true) }
-    var nameError: Boolean by remember { mutableStateOf(false) }
-    var showGenericError: Boolean by remember { mutableStateOf(false) }
+    var nameTouched: Boolean by remember { mutableStateOf(false) }
 
     val genericInput: GenericConfigInput = remember(existing?.id) { GenericConfigInput(existing?.genericConfig) }
 
@@ -931,109 +931,101 @@ private fun InboundDialog(
     var pipelineId: String by remember { mutableStateOf(existing?.targetPipelineId ?: "") }
     var eventType: String by remember { mutableStateOf(existing?.targetEventType ?: "") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
+    // Save stays off until the form can be sent; the required-field errors below say why.
+    val valid: Boolean = name.isNotBlank() && (!isGenericAdapter(adapter) || genericInput.isValid)
+    val dirty: Boolean =
+        name != (existing?.name ?: "") ||
+            adapter != initialAdapter ||
+            secret.isNotEmpty() ||
+            routing != initialRouting ||
+            pipelineId != (existing?.targetPipelineId ?: "") ||
+            eventType != (existing?.targetEventType ?: "") ||
+            enabled != (existing?.isEnabled ?: true)
+
+    FormDialog(
+        title = if (isEdit) stringResource(Res.string.webhooks_edit_inbound_title) else stringResource(Res.string.webhooks_create_inbound_title),
+        saveLabel = if (isEdit) stringResource(Res.string.webhooks_edit_confirm) else stringResource(Res.string.webhooks_create_inbound_confirm),
+        cancelLabel = if (isEdit) stringResource(Res.string.webhooks_edit_dismiss) else stringResource(Res.string.webhooks_create_inbound_dismiss),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = valid,
+        save = {
+            val targetPipeline: String? = pipelineId.trim().takeIf { routing == InboundRouting.Pipeline && it.isNotBlank() }
+            val targetEvent: String? = eventType.trim().takeIf { routing == InboundRouting.Event && it.isNotBlank() }
+            val config: GenericInboundConfig? = if (isGenericAdapter(adapter)) genericInput.toConfig() else null
+            if (isEdit) {
+                onConfirmEdit(name.trim(), adapter, secret.trim().ifBlank { null }, targetPipeline, targetEvent, config, enabled)
+            } else {
+                onConfirmCreate(name.trim(), adapter, secret.trim(), targetPipeline, targetEvent, config)
+            }
+        },
+    ) {
+        AppTextField(
+            value = name, onValueChange = { name = it; nameTouched = true },
+            label = stringResource(Res.string.webhooks_create_inbound_name),
+            isError = nameTouched && name.isBlank(),
+            errorText = if (nameTouched && name.isBlank()) stringResource(Res.string.webhooks_create_inbound_name_required) else null,
+        )
+
+        // The adapter is chosen once, at create. On edit it is fixed (the verification model is bound to it).
+        if (isEdit) {
             Text(
-                text = if (isEdit) stringResource(Res.string.webhooks_edit_inbound_title) else stringResource(Res.string.webhooks_create_inbound_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
+                text = "${stringResource(Res.string.webhooks_adapter_label)}: ${adapterLabel(adapter)}",
+                style = typography.sm,
+                color = tokens.mutedForeground,
             )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 5).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                AppTextField(
-                    value = name, onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.webhooks_create_inbound_name),
-                    isError = nameError,
-                    errorText = if (nameError) stringResource(Res.string.webhooks_create_inbound_name_required) else null,
+        } else {
+            AdapterPicker(selected = adapter, onSelect = { adapter = it })
+        }
+
+        AppTextField(
+            value = secret, onValueChange = { secret = it },
+            label = if (isEdit) stringResource(Res.string.webhooks_edit_secret_optional) else stringResource(Res.string.webhooks_create_inbound_secret),
+        )
+
+        if (isGenericAdapter(adapter)) {
+            GenericConfigFields(input = genericInput, showError = true)
+        }
+
+        // Routing choice: on a verified receive, run a pipeline OR trigger an event (or nothing yet).
+        RoutingPicker(selected = routing, onSelect = { routing = it })
+        when (routing) {
+            InboundRouting.Pipeline ->
+                // A reference to another table (the channel's pipelines) → the shared search dropdown;
+                // its own empty state replaces the old paste-an-id fallback.
+                EntityPickerField(
+                    items = pipelines,
+                    selectedId = pipelineId.ifBlank { null },
+                    onSelect = { pipelineId = it ?: "" },
+                    idOf = { it.id },
+                    labelOf = { it.name },
+                    label = stringResource(Res.string.webhooks_inbound_routing_pipeline_label),
+                    placeholder = stringResource(Res.string.webhooks_inbound_routing_choose_pipeline),
+                    emptyText = stringResource(Res.string.pipelines_empty),
                 )
-
-                // The adapter is chosen once, at create. On edit it is fixed (the verification model is bound to it).
-                if (isEdit) {
-                    Text(
-                        text = "${stringResource(Res.string.webhooks_adapter_label)}: ${adapterLabel(adapter)}",
-                        style = typography.sm,
-                        color = tokens.mutedForeground,
-                    )
-                } else {
-                    AdapterPicker(selected = adapter, onSelect = { adapter = it })
-                }
-
+            InboundRouting.Event ->
                 AppTextField(
-                    value = secret, onValueChange = { secret = it },
-                    label = if (isEdit) stringResource(Res.string.webhooks_edit_secret_optional) else stringResource(Res.string.webhooks_create_inbound_secret),
+                    value = eventType, onValueChange = { eventType = it },
+                    label = stringResource(Res.string.webhooks_inbound_routing_event_label),
+                    placeholder = stringResource(Res.string.webhooks_inbound_routing_event_hint),
                 )
+            InboundRouting.None -> Unit
+        }
+        if (routing != InboundRouting.None) {
+            Text(
+                text = stringResource(Res.string.webhooks_inbound_routing_help),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
 
-                if (isGenericAdapter(adapter)) {
-                    GenericConfigFields(input = genericInput, showError = showGenericError)
-                }
-
-                // Routing choice: on a verified receive, run a pipeline OR trigger an event (or nothing yet).
-                RoutingPicker(selected = routing, onSelect = { routing = it })
-                when (routing) {
-                    InboundRouting.Pipeline ->
-                        // A reference to another table (the channel's pipelines) → the shared search dropdown;
-                        // its own empty state replaces the old paste-an-id fallback.
-                        EntityPickerField(
-                            items = pipelines,
-                            selectedId = pipelineId.ifBlank { null },
-                            onSelect = { pipelineId = it ?: "" },
-                            idOf = { it.id },
-                            labelOf = { it.name },
-                            label = stringResource(Res.string.webhooks_inbound_routing_pipeline_label),
-                            placeholder = stringResource(Res.string.webhooks_inbound_routing_choose_pipeline),
-                            emptyText = stringResource(Res.string.pipelines_empty),
-                        )
-                    InboundRouting.Event ->
-                        AppTextField(
-                            value = eventType, onValueChange = { eventType = it },
-                            label = stringResource(Res.string.webhooks_inbound_routing_event_label),
-                            placeholder = stringResource(Res.string.webhooks_inbound_routing_event_hint),
-                        )
-                    InboundRouting.None -> Unit
-                }
-                if (routing != InboundRouting.None) {
-                    Text(
-                        text = stringResource(Res.string.webhooks_inbound_routing_help),
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                    )
-                }
-
-                if (isEdit) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                        Switch(checked = enabled, onCheckedChange = { enabled = it })
-                        Text(text = stringResource(Res.string.webhooks_enabled_label), style = typography.sm, color = tokens.foreground)
-                    }
-                }
+        if (isEdit) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Switch(checked = enabled, onCheckedChange = { enabled = it })
+                Text(text = stringResource(Res.string.webhooks_enabled_label), style = typography.sm, color = tokens.foreground)
             }
-        },
-        confirmButton = {
-            Button(onClick = {
-                if (name.isBlank()) { nameError = true; return@Button }
-                if (isGenericAdapter(adapter) && !genericInput.isValid) { showGenericError = true; return@Button }
-                val targetPipeline: String? = pipelineId.trim().takeIf { routing == InboundRouting.Pipeline && it.isNotBlank() }
-                val targetEvent: String? = eventType.trim().takeIf { routing == InboundRouting.Event && it.isNotBlank() }
-                val config: GenericInboundConfig? = if (isGenericAdapter(adapter)) genericInput.toConfig() else null
-                if (isEdit) {
-                    onConfirmEdit(name.trim(), adapter, secret.trim().ifBlank { null }, targetPipeline, targetEvent, config, enabled)
-                } else {
-                    onConfirmCreate(name.trim(), adapter, secret.trim(), targetPipeline, targetEvent, config)
-                }
-            }) {
-                Text(if (isEdit) stringResource(Res.string.webhooks_edit_confirm) else stringResource(Res.string.webhooks_create_inbound_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (isEdit) stringResource(Res.string.webhooks_edit_dismiss) else stringResource(Res.string.webhooks_create_inbound_dismiss))
-            }
-        },
-    )
+        }
+    }
 }
 
 // Labelled dropdown for the inbound adapter kind.

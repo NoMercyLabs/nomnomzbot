@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -210,15 +211,28 @@ internal class FakeWebhooksApi(
     private val outbound: List<OutboundWebhook> = emptyList(),
     private val inbound: List<InboundWebhook> = emptyList(),
     private val deleteInboundResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val deleteOutboundResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val reenableOutboundResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val inboundWriteError: ApiError? = null,
 ) : WebhooksApi {
     val deletedInbound: MutableList<String> = mutableListOf()
+    val deletedOutbound: MutableList<String> = mutableListOf()
+    val reenabledOutbound: MutableList<String> = mutableListOf()
+    val createdInbound: MutableList<CreateInboundBody> = mutableListOf()
+    val updatedInbound: MutableList<UpdateInboundBody> = mutableListOf()
 
     override suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>> =
         ApiResult.Ok(inbound.filterNot { it.id in deletedInbound })
-    override suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook> =
-        error("stub")
-    override suspend fun updateInbound(channelId: String, endpointId: String, body: UpdateInboundBody): ApiResult<InboundWebhook> =
-        error("stub")
+    override suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook> {
+        if (inboundWriteError != null) return ApiResult.Failure(inboundWriteError)
+        createdInbound.add(body)
+        return ApiResult.Ok(InboundWebhook(id = "in-new", name = body.name, adapter = body.adapter))
+    }
+    override suspend fun updateInbound(channelId: String, endpointId: String, body: UpdateInboundBody): ApiResult<InboundWebhook> {
+        if (inboundWriteError != null) return ApiResult.Failure(inboundWriteError)
+        updatedInbound.add(body)
+        return ApiResult.Ok(InboundWebhook(id = endpointId, name = body.name.orEmpty()))
+    }
     override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<InboundWebhook> = error("stub")
@@ -231,14 +245,17 @@ internal class FakeWebhooksApi(
 
     override suspend fun outboundEventCatalogue(channelId: String): ApiResult<List<OutboundEventCatalogueEntry>> =
         ApiResult.Ok(emptyList())
-    override suspend fun listOutbound(channelId: String): ApiResult<List<OutboundWebhook>> = ApiResult.Ok(outbound)
+    override suspend fun listOutbound(channelId: String): ApiResult<List<OutboundWebhook>> = ApiResult.Ok(outbound.filterNot { it.id in deletedOutbound })
     override suspend fun createOutbound(channelId: String, body: CreateOutboundBody): ApiResult<OutboundWebhookCreated> =
         error("stub")
     override suspend fun updateOutbound(channelId: String, endpointId: String, body: UpdateOutboundBody): ApiResult<OutboundWebhook> =
         ApiResult.Ok(outbound.first { it.id == endpointId })
     override suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
-    override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> {
+        if (reenableOutboundResult is ApiResult.Ok) reenabledOutbound.add(endpointId)
+        return reenableOutboundResult
+    }
     override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<OutboundWebhookCreated> =
         error("stub")
     override suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult> =
@@ -247,5 +264,8 @@ internal class FakeWebhooksApi(
         ApiResult.Ok(emptyList())
     override suspend fun retryOutboundDelivery(channelId: String, endpointId: String, deliveryId: Long): ApiResult<OutboundDelivery> =
         error("stub")
-    override suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit> {
+        if (deleteOutboundResult is ApiResult.Ok) deletedOutbound.add(endpointId)
+        return deleteOutboundResult
+    }
 }
