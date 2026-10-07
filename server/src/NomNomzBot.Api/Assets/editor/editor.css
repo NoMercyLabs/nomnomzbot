@@ -776,6 +776,16 @@ body {
     flex: 0 0 5px;
     background: var(--border);
     cursor: col-resize;
+    touch-action: none;
+}
+
+body[data-dragging] {
+    cursor: col-resize;
+    user-select: none;
+}
+
+body[data-dragging] iframe {
+    pointer-events: none;
 }
 
 .preview {

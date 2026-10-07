@@ -43,7 +43,7 @@ public sealed class EditorFireBarTests : EditorPageTest
             type => type,
             type => (object)new { marker = "sample-of-" + type }
         );
-        await OpenWidgetAsync(samples, declared: []);
+        await OpenWidgetAsync(samples, declared: [.. types]);
 
         foreach (string type in types)
         {
@@ -209,8 +209,14 @@ public sealed class EditorFireBarTests : EditorPageTest
         await Expect(Page.Locator("#previewLog li")).ToHaveCountAsync(0);
     }
 
+    private const string RaidWidget = """
+        <!doctype html>
+        <html><head></head><body><p id="ready">ready</p>
+        <script>NomNomz.on('raid', function () {});</script></body></html>
+        """;
+
     [E2EFact]
-    public async Task Search_narrows_the_list_and_declared_events_come_first()
+    public async Task The_list_holds_only_the_events_the_widget_listens_to_and_search_narrows_it()
     {
         await OpenWidgetAsync(
             new()
@@ -218,18 +224,34 @@ public sealed class EditorFireBarTests : EditorPageTest
                 ["cheer"] = new { bits = 1 },
                 ["follow"] = new { user_name = "a" },
                 ["raid"] = new { viewers = 3 },
-                ["zzz_declared"] = new { },
+                ["reward_redeemed"] = new { rewardId = "r" },
                 ["_default"] = new { },
             },
-            declared: ["zzz_declared"]
+            declared: ["reward_redeemed"],
+            source: RaidWidget
         );
 
+        // Saved subscriptions plus the nnz.on('raid') in the code: the live overlay delivers nothing else.
         await Expect(Page.Locator("#fireBar .fire-btn"))
-            .ToHaveTextAsync(["zzz_declared", "cheer", "follow", "raid"]);
+            .ToHaveTextAsync(["raid", "reward_redeemed"]);
+        await Expect(Page.Locator("#fireNone")).ToBeHiddenAsync();
 
         await Page.Locator("#fireSearch").FillAsync("rai");
 
         await Expect(Page.Locator("#fireBar .fire-btn:visible")).ToHaveTextAsync(["raid"]);
+    }
+
+    [E2EFact]
+    public async Task A_widget_that_listens_to_nothing_says_how_to_listen_instead_of_listing_events()
+    {
+        await OpenWidgetAsync(
+            new() { ["follow"] = new { user_name = "a" }, ["raid"] = new { viewers = 3 } },
+            declared: []
+        );
+
+        await Expect(Page.Locator("#fireBar .fire-btn")).ToHaveCountAsync(0);
+        await Expect(Page.Locator("#fireNone")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#fireEmpty")).ToBeHiddenAsync();
     }
 
     private const string FilteringWidget = """

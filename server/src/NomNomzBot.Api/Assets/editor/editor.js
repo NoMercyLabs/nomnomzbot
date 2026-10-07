@@ -269,6 +269,7 @@ const DEFAULT_LABELS = Object.freeze({
     previewLogFired: 'Fired {type}',
     previewFireSearch: 'Search events',
     previewFireNoMatch: 'No event matches your search.',
+    previewFireNoEvents: "This widget listens to no events yet. Add nnz.on('follow', …) to your code and the event shows up here.",
     previewFireClose: 'Close',
     eventFireShortcut: 'Ctrl+Enter fires it',
     previewFireSend: 'Fire with this data',
@@ -767,21 +768,32 @@ function installSplitter() {
     const preview = document.getElementById('preview');
     const body = document.querySelector('.body');
 
-    splitter.addEventListener('mousedown', (down) => {
+    dragSplitter(splitter, (move) => {
+        const rect = body.getBoundingClientRect();
+        const max = rect.width - 420;
+        const next = Math.min(Math.max(rect.right - move.clientX, 260), Math.max(max, 260));
+        preview.style.flexBasis = `${next}px`;
+        state.editor?.layout();
+    });
+}
+
+// Captures the pointer on the handle for the whole drag. Without it the preview iframe swallows the
+// move and release events once the cursor crosses it, and the drag sticks.
+function dragSplitter(handle, onMove) {
+    handle.addEventListener('pointerdown', (down) => {
+        if (down.button !== 0) return;
         down.preventDefault();
-        const onMove = (move) => {
-            const rect = body.getBoundingClientRect();
-            const max = rect.width - 420;
-            const next = Math.min(Math.max(rect.right - move.clientX, 260), Math.max(max, 260));
-            preview.style.flexBasis = `${next}px`;
-            state.editor?.layout();
+        handle.setPointerCapture(down.pointerId);
+        document.body.dataset.dragging = 'true';
+        const onEnd = () => {
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onEnd);
+            handle.removeEventListener('pointercancel', onEnd);
+            delete document.body.dataset.dragging;
         };
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onEnd);
+        handle.addEventListener('pointercancel', onEnd);
     });
 }
 
@@ -1739,19 +1751,10 @@ function wireChrome() {
 }
 
 function installSidebarSplitter() {
-    dom.sidebarSplitter.addEventListener('mousedown', (down) => {
-        down.preventDefault();
-        const onMove = (move) => {
-            const left = dom.sidebar.getBoundingClientRect().left;
-            dom.sidebar.style.flexBasis = `${Math.min(Math.max(move.clientX - left, 180), 480)}px`;
-            state.editor?.layout();
-        };
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+    dragSplitter(dom.sidebarSplitter, (move) => {
+        const left = dom.sidebar.getBoundingClientRect().left;
+        dom.sidebar.style.flexBasis = `${Math.min(Math.max(move.clientX - left, 180), 480)}px`;
+        state.editor?.layout();
     });
 }
 

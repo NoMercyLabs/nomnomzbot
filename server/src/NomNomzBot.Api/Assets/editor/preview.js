@@ -264,15 +264,11 @@ export function initPreview({
 
     // ── Fire bar ───────────────────────────────────────────────────────────
 
-    // The widget's PERSISTED EventSubscriptions is the same list the overlay manifest reads at runtime — the
-    // authoritative source, never able to drift the way scanning source text can (a computed event name, a
-    // destructured `on`, or an unrelated `.on(...)` call from another library all confuse the scan). Prefer it
-    // whenever it is non-empty; fall back to the source scan only for a widget with no declared subscriptions
-    // yet (a brand-new custom widget — S062 tracks making this list itself editable in the dashboard).
+    // The same list the live overlay routes by: the widget's saved EventSubscriptions, plus every nnz.on('...')
+    // in the code, which the server adds on the next build (WidgetEventSubscriptions.Including). So a handler
+    // typed a moment ago is fireable before the save.
     function subscribedEvents(files) {
-        if (declaredEvents.length > 0) return [...declaredEvents];
-
-        const events = new Set();
+        const events = new Set(declaredEvents);
         for (const source of Object.values(files)) {
             SUBSCRIPTION_PATTERN.lastIndex = 0;
             let match;
@@ -290,8 +286,10 @@ export function initPreview({
     const fireSearch = fireBar.querySelector('#fireSearch');
     const fireList = fireBar.querySelector('#fireList');
     const fireEmpty = fireBar.querySelector('#fireEmpty');
+    const fireNone = fireBar.querySelector('#fireNone');
     const fireSamplesError = fireBar.querySelector('#fireSamplesError');
-    let listedKey = '';
+    // null, never '': an empty list must render once too, so its empty note shows.
+    let listedKey = null;
     let editingType = null;
 
     // rewardId, reward_id and RewardId name the same thing.
@@ -328,13 +326,9 @@ export function initPreview({
         postFire(type, sampleFor(type));
     }
 
-    // The widget's own events first (what it listens to), then every other event the server can send.
+    // Only what the widget listens to: the live overlay never delivers any other event to it.
     function listedEventTypes(files) {
-        const own = subscribedEvents(files);
-        const rest = Object.keys(fireSamples)
-            .filter((type) => type !== '_default' && !own.includes(type))
-            .sort((a, b) => a.localeCompare(b));
-        return [...own, ...rest];
+        return subscribedEvents(files).sort((a, b) => a.localeCompare(b));
     }
 
     function applyFireSearch() {
@@ -345,7 +339,8 @@ export function initPreview({
             row.hidden = !match;
             if (match) shown += 1;
         }
-        fireEmpty.hidden = shown > 0;
+        fireNone.hidden = fireList.children.length > 0;
+        fireEmpty.hidden = shown > 0 || fireList.children.length === 0;
     }
 
     function markEditingRow() {
