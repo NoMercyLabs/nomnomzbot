@@ -42,6 +42,7 @@ public sealed class LiveGameEngine(
     ILiveGameCatalog catalog,
     ILiveGameOverlayResolver overlayResolver,
     LiveGameSessionRegistry registry,
+    LiveGameFrameStore frameStore,
     IGameRandomizer randomizer,
     IEventBus eventBus,
     TimeProvider clock,
@@ -604,8 +605,6 @@ public sealed class LiveGameEngine(
         CancellationToken ct
     )
     {
-        if (runtime.OverlayWidgetId is not { } widgetId)
-            return;
         string phase = runtime.Terminal
             ? "resolved"
             : runtime.Phase switch
@@ -614,13 +613,17 @@ public sealed class LiveGameEngine(
                 LiveGamePhase.Running => "running",
                 _ => "resolved",
             };
-        await overlay.SendWidgetEventAsync(
+        string eventType = $"game.{phase}";
+        frameStore.Record(
             runtime.BroadcasterId,
-            widgetId,
-            $"game.{phase}",
-            payload,
-            ct
+            runtime.SessionId,
+            runtime.Game.GameKey,
+            new(eventType, payload, clock.GetUtcNow()),
+            runtime.Terminal
         );
+        if (runtime.OverlayWidgetId is not { } widgetId)
+            return;
+        await overlay.SendWidgetEventAsync(runtime.BroadcasterId, widgetId, eventType, payload, ct);
     }
 
     private LiveGameState BuildState(LiveGameSessionRuntime runtime) =>

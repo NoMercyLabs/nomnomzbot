@@ -316,6 +316,7 @@ public sealed class CrashGameTests
             new LiveGameCatalog([new CrashGame()]),
             new FixedOverlayResolver(),
             registry,
+            new LiveGameFrameStore(),
             engineRandom,
             bus,
             clock,
