@@ -103,6 +103,7 @@ public static class FirstPartyWidgetCatalogue
                 ["metric"] = "followers",
                 ["target"] = 100,
                 ["start"] = 0,
+                ["startDate"] = "",
                 ["resetCadence"] = "",
                 ["colors"] = new Dictionary<string, object>(),
                 ["labels"] = new Dictionary<string, object>(),

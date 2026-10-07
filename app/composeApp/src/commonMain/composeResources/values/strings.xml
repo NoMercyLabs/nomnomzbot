@@ -5031,6 +5031,8 @@
     <string name="widget_goal_bar_metric_label">Metric</string>
     <string name="widget_goal_bar_target_label">Target</string>
     <string name="widget_goal_bar_start_label">Starting value</string>
+    <string name="widget_goal_bar_startDate_label">Goal start date</string>
+    <string name="widget_goal_bar_startDate_help">A bits goal counts the cheers stored for this channel from this date (for example 2026-10-01). Leave it empty and the bar shows no bits total.</string>
     <string name="widget_goal_bar_resetCadence_label">Reset cadence label</string>
     <string name="widget_goal_bar_resetCadence_help">Shown beside the bar, e.g. &quot;this month&quot;.</string>
     <string name="widget_goal_bar_colors_label">Colours</string>

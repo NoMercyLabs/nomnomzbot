@@ -112,6 +112,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 SelectField(d, "metric", Content, Opts(d, "metric", "followers", "subs", "bits")),
                 NumberField(d, "target", Content, min: 0),
                 NumberField(d, "start", Content, min: 0),
+                Text(d, "startDate", Content, help: true),
                 Text(d, "resetCadence", Content, help: true),
                 JsonField(d, "colors", Appearance, help: true),
                 JsonField(d, "labels", Appearance, help: true),

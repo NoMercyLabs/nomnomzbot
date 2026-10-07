@@ -5015,6 +5015,8 @@
     <string name="widget_goal_bar_metric_label">Metriek</string>
     <string name="widget_goal_bar_target_label">Doel</string>
     <string name="widget_goal_bar_start_label">Startwaarde</string>
+    <string name="widget_goal_bar_startDate_label">Startdatum van het doel</string>
+    <string name="widget_goal_bar_startDate_help">Een bitsdoel telt de opgeslagen cheers van dit kanaal vanaf deze datum (bijvoorbeeld 2026-10-01). Laat je dit leeg, dan toont de balk geen bitstotaal.</string>
     <string name="widget_goal_bar_resetCadence_label">Label voor resetinterval</string>
     <string name="widget_goal_bar_resetCadence_help">Wordt naast de balk getoond, bijv. &quot;deze maand&quot;.</string>
     <string name="widget_goal_bar_colors_label">Kleuren</string>
