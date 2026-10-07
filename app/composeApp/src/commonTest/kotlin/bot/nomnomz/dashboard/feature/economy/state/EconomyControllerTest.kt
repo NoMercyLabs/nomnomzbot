@@ -685,7 +685,7 @@ class EconomyControllerTest {
     }
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+internal class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -704,7 +704,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-private class FakeUsersApi(
+internal class FakeUsersApi(
     private val searchResult: ApiResult<List<UserSearchResult>> = ApiResult.Ok(emptyList()),
 ) : UsersApi {
     override suspend fun search(query: String, limit: Int): ApiResult<List<UserSearchResult>> =
@@ -714,7 +714,7 @@ private class FakeUsersApi(
     override suspend fun erase(userId: String) = error("stub")
 }
 
-private class FakeEconomyApi(
+internal class FakeEconomyApi(
     private val configResult: ApiResult<CurrencyConfig?>,
     private val leaderboardResult: ApiResult<List<LeaderboardEntry>>,
     private val updateResult: ApiResult<CurrencyConfig> = ApiResult.Ok(CurrencyConfig()),
