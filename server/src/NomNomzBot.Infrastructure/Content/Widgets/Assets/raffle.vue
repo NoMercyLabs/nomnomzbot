@@ -40,11 +40,14 @@ function onFrame(d: GameFrame): void {
     return
   }
   if (d.kind === 'join') {
+    visible.value = true
+    phase.value = 'lobby'
     pot.value = d.pot || pot.value
     entrants.value = d.entrants ?? entrants.value
     return
   }
   if (d.kind === 'results') {
+    visible.value = true
     phase.value = 'resolved'
     pot.value = d.pot || pot.value
     winner.value = d.winner ?? ''

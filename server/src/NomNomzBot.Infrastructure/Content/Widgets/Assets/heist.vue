@@ -41,17 +41,21 @@ function onFrame(d: GameFrame): void {
     return
   }
   if (d.kind === 'join') {
+    visible.value = true
+    phase.value = 'lobby'
     successChance.value = d.successChance || successChance.value
     crew.value = d.crew ?? crew.value
     return
   }
   if (d.kind === 'cancelled') {
+    visible.value = true
     phase.value = 'cancelled'
     cancelReason.value = d.reason
     scheduleHide()
     return
   }
   if (d.kind === 'results') {
+    visible.value = true
     phase.value = 'resolved'
     successChance.value = d.successChance || successChance.value
     results.value = d.results.map((r): HeistResult => ({

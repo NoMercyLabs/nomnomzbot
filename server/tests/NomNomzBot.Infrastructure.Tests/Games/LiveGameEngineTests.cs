@@ -21,14 +21,17 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Games.Dtos;
 using NomNomzBot.Application.Games.Services;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
+using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Games;
+using NomNomzBot.Infrastructure.Games.Catalog;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -292,7 +295,8 @@ public sealed class LiveGameEngineTests
         RecordingNotifier Overlay,
         LiveGameSessionRegistry Registry,
         FakeTimeProvider Clock,
-        RecordingChatProvider Chat
+        RecordingChatProvider Chat,
+        LiveGameFrameStore Frames
     );
 
     private static Harness New(SqliteTestDatabase database, params ILiveGame[] games)
@@ -327,6 +331,7 @@ public sealed class LiveGameEngineTests
 
         RecordingNotifier overlay = new();
         LiveGameSessionRegistry registry = new();
+        LiveGameFrameStore frames = new();
         RecordingChatProvider chat = new();
         LiveGameEngine engine = new(
             db,
@@ -336,12 +341,13 @@ public sealed class LiveGameEngineTests
             new LiveGameCatalog(games),
             new FixedOverlayResolver(WidgetId),
             registry,
+            frames,
             new FixedRandomizer(),
             bus,
             clock,
             NullLogger<LiveGameEngine>.Instance
         );
-        return new(engine, db, gameService, bus, overlay, registry, clock, chat);
+        return new(engine, db, gameService, bus, overlay, registry, clock, chat, frames);
     }
 
     private static Guid SeedConfig(
@@ -609,6 +615,7 @@ public sealed class LiveGameEngineTests
             new LiveGameCatalog([new FakeGame()]),
             new FixedOverlayResolver(WidgetId),
             h.Registry,
+            h.Frames,
             new FixedRandomizer(),
             h.Bus,
             h.Clock,
@@ -700,6 +707,7 @@ public sealed class LiveGameEngineTests
         services.AddSingleton<ILiveGameCatalog>(new LiveGameCatalog([new ThrowingTickGame()]));
         services.AddSingleton<ILiveGameOverlayResolver>(new FixedOverlayResolver(WidgetId));
         services.AddSingleton(h.Registry);
+        services.AddSingleton(h.Frames);
         services.AddSingleton<IGameRandomizer>(new FixedRandomizer());
         services.AddSingleton<TimeProvider>(h.Clock);
         services.AddSingleton<IChatProvider>(h.Chat);
@@ -739,5 +747,83 @@ public sealed class LiveGameEngineTests
         h.Bus.Published.OfType<LiveGameCancelledEvent>()
             .Should()
             .ContainSingle(e => e.Reason == "runner_stuck");
+    }
+
+    private static LiveGameSeedProvider RaffleSeed(Harness h) => new("raffle", h.Frames, h.Clock);
+
+    private static Widget RaffleWidget(Dictionary<string, object> settings) =>
+        new() { BroadcasterId = Channel, Settings = settings };
+
+    private static Dictionary<string, object?> AsPayload(WidgetSeedFrame frame) =>
+        frame.Data.Should().BeAssignableTo<Dictionary<string, object?>>().Subject;
+
+    [Fact]
+    public async Task A_reloaded_raffle_overlay_is_seeded_with_the_open_frame_and_the_newest_join_frame()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new RaffleGame());
+        SeedConfig(h.Db, "raffle");
+        (await h.Engine.StartAsync(Channel, new("raffle", PlayerA))).IsSuccess.Should().BeTrue();
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!raffle 40");
+        await h.Engine.HandleChatInputAsync(Channel, PlayerB, "Bob", "!raffle 25");
+
+        IReadOnlyList<WidgetSeedFrame> seed = await RaffleSeed(h)
+            .SeedAsync(Channel, RaffleWidget([]), CancellationToken.None);
+
+        seed.Select(f => AsPayload(f)["kind"]).Should().Equal("round_open", "join");
+        seed.Should().OnlyContain(f => f.EventType == "game.lobby");
+        Dictionary<string, object?> join = AsPayload(seed[1]);
+        join["pot"].Should().Be(65L, "the pot is the sum of both stakes");
+        join["entrants"]
+            .Should()
+            .BeAssignableTo<List<Dictionary<string, object?>>>()
+            .Which.Select(e => e["player"])
+            .Should()
+            .BeEquivalentTo(new List<object?> { "Alice", "Bob" });
+        h.Overlay.Sent.Last()
+            .Data.Should()
+            .BeSameAs(seed[1].Data, "the frame is replayed exactly as pushed");
+    }
+
+    [Fact]
+    public async Task A_settled_raffle_seeds_its_results_only_while_the_widget_would_still_show_them()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new RaffleGame());
+        SeedConfig(h.Db, "raffle");
+        await h.Engine.StartAsync(Channel, new("raffle", PlayerA));
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!raffle 40");
+        await h.Engine.HandleChatInputAsync(Channel, PlayerB, "Bob", "!raffle 25");
+        h.Clock.Advance(TimeSpan.FromSeconds(91));
+        await h.Engine.AdvanceClockAsync(Channel);
+        Widget widget = RaffleWidget(new() { ["hideAfterMs"] = 10000 });
+
+        IReadOnlyList<WidgetSeedFrame> within = await RaffleSeed(h)
+            .SeedAsync(Channel, widget, CancellationToken.None);
+        within.Select(f => AsPayload(f)["kind"]).Should().Equal("round_open", "results");
+        within.Last().EventType.Should().Be("game.resolved");
+        AsPayload(within.Last())["pot"].Should().Be(65L);
+
+        h.Clock.Advance(TimeSpan.FromSeconds(11));
+        (await RaffleSeed(h).SeedAsync(Channel, widget, CancellationToken.None))
+            .Should()
+            .BeEmpty("the widget has already hidden the round");
+    }
+
+    [Fact]
+    public async Task No_raffle_session_and_another_games_session_give_no_seed_frames()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new FakeGame());
+        SeedConfig(h.Db);
+
+        (await RaffleSeed(h).SeedAsync(Channel, RaffleWidget([]), CancellationToken.None))
+            .Should()
+            .BeEmpty("nothing ever ran");
+
+        await h.Engine.StartAsync(Channel, new("fake_game", PlayerA));
+        (await RaffleSeed(h).SeedAsync(Channel, RaffleWidget([]), CancellationToken.None))
+            .Should()
+            .BeEmpty("the running session is not a raffle");
     }
 }

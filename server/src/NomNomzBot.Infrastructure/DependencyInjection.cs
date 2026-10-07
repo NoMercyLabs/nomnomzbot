@@ -490,6 +490,15 @@ public static class DependencyInjection
             Application.Widgets.Services.IWidgetSeedProvider,
             Widgets.SubTrainSeedProvider
         >();
+        // One seed provider class serves both live-game overlays; each registration is keyed by its widget natural key.
+        foreach (string gameWidgetKey in new[] { "raffle", "heist" })
+            services.AddScoped<Application.Widgets.Services.IWidgetSeedProvider>(
+                sp => new Games.LiveGameSeedProvider(
+                    gameWidgetKey,
+                    sp.GetRequiredService<Games.LiveGameFrameStore>(),
+                    sp.GetRequiredService<TimeProvider>()
+                )
+            );
         // The real overlay-attachment tracker lives in NomNomzBot.Api next to the SignalR hub that owns its
         // writes, so it cannot be registered here — TryAdd only fills the gap for an Infrastructure-only DI
         // container (this project's own composition tests); the API host's own registration (after
@@ -1386,6 +1395,7 @@ public static class DependencyInjection
         );
         services.AddSingleton<Application.Games.Services.ILiveGameCatalog, Games.LiveGameCatalog>();
         services.AddSingleton<Games.LiveGameSessionRegistry>();
+        services.AddSingleton<Games.LiveGameFrameStore>();
         services.AddScoped<
             Application.Games.Services.ILiveGameOverlayResolver,
             Games.LiveGameOverlayResolver
