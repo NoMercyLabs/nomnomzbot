@@ -77,9 +77,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new PlatformContentDefinitionConfiguration());
         modelBuilder.ApplyConfiguration(new PlatformContentVersionConfiguration());
 
-        modelBuilder.ApplyConfiguration(
-            new NomNomzBot.Infrastructure.Widgets.Persistence.RenderedAlertCaptureConfiguration()
-        );
+        modelBuilder.ApplyConfiguration(new RenderedAlertCaptureConfiguration());
 
         // The REAL AlertQueueEntry config too — S059's presence-honesty tests write/read through it.
         modelBuilder.ApplyConfiguration(
