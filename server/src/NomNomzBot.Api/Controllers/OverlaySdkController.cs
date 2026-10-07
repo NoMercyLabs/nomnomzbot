@@ -43,7 +43,11 @@ public sealed class OverlaySdkController : ControllerBase
            which runs one pipeline action as the channel owner. It rejects only when the socket is not connected.
            actions.claim(key) -> Promise<boolean> is true only for the first open copy of the widget to claim key.
            reportYouTubePlayerState(videoId, state, positionMs) -> Promise<boolean> tells the bot what a YouTube player
-           page plays (state PLAYING, PAUSED or ENDED); true when the bot accepted the report. */
+           page plays (state PLAYING, PAUSED or ENDED); true when the bot accepted the report.
+           data.nowPlaying() / data.queue() / data.storage(key) -> Promise: the channel's current snapshots, read
+           with the SDK's own token (header X-Overlay-Token); they reject when the request fails.
+           spotify.playbackToken() -> Promise<{ token } | { error: "blocked" | "error" }>, never rejects.
+           widget.id / widget.name: who this page is. The widget never holds or parses the token. */
         (function () {
           "use strict";
           var RS = String.fromCharCode(30); // SignalR JSON hub-protocol record separator (0x1e)
@@ -476,13 +480,57 @@ public sealed class OverlaySdkController : ControllerBase
           window.addEventListener("error", function (e) { report((e && e.message) || "script error"); });
           window.addEventListener("unhandledrejection", function (e) { report((e && e.reason && e.reason.message) || "unhandled rejection"); });
 
+          // ── Data reads: the widget's own snapshots over REST. The SDK sends the token in a header, so the
+          // widget never holds or parses it. A failed read rejects; spotify.playbackToken never rejects.
+          function readData(path) {
+            return fetch("/api/v1/overlay/" + path, { headers: { "X-Overlay-Token": token || "" } })
+              .then(function (r) {
+                if (!r.ok) {
+                  var err = new Error("overlay data request failed: " + r.status);
+                  err.status = r.status;
+                  throw err;
+                }
+                return r.json();
+              })
+              .then(function (body) { return body ? body.data : null; });
+          }
+
+          function nowPlaying() { return readData("now-playing").then(function (d) { return d == null ? null : d; }); }
+          function queue() { return readData("queue").then(function (d) { return d || []; }); }
+          function storage(key) {
+            return readData("storage/" + encodeURIComponent(String(key))).then(function (d) { return d == null ? null : d; });
+          }
+
+          // A short-lived Spotify token for the Web Playback SDK. 401/403 is "blocked" (not allowed to play),
+          // anything else that fails is "error"; the widget picks its own message for each.
+          function playbackToken() {
+            return readData("spotify-token")
+              .then(function (t) { return t ? { token: String(t) } : { error: "error" }; })
+              .catch(function (e) { return { error: e && (e.status === 401 || e.status === 403) ? "blocked" : "error" }; });
+          }
+
           var api = {
             on: on,
             off: off,
             onAny: onAny,
             onSettings: onSettings,
             reportError: report,
-            actions: { invoke: invokeAction, claim: claim },
+            actions: {
+              invoke: invokeAction,
+              claim: claim,
+            },
+            data: {
+              nowPlaying: nowPlaying,
+              queue: queue,
+              storage: storage,
+            },
+            spotify: {
+              playbackToken: playbackToken,
+            },
+            widget: {
+              get id() { return widgetId || ""; },
+              get name() { return window.WIDGET_NAME || ""; },
+            },
             reportYouTubePlayerState: reportYouTubePlayerState,
             get settings() { return currentSettings; },
           };

@@ -158,6 +158,10 @@ let ytPendingSeekSeconds: number | null = null
 // IFrame API state codes: 0 ended, 1 playing, 2 paused.
 const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED' }
 
+function currentYouTubePlayer(): YouTubePlayerHandle | null {
+  return ytPlayer
+}
+
 function loadYouTubeApi(): Promise<void> {
   if (ytApiPromise) return ytApiPromise
   ytApiPromise = new Promise((resolve, reject) => {
@@ -199,7 +203,9 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
     console.error('[now_playing]', e)
     return
   }
-  if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
+  // Another play event may have created the player while the API loaded; read it fresh (TS narrowed it to null).
+  const created: YouTubePlayerHandle | null = currentYouTubePlayer()
+  if (created) { created.loadVideoById(videoId); return }
   if (!ytMount.value) return
   ytPlayer = new YT.Player(ytMount.value, {
     width: '100%',
@@ -268,13 +274,9 @@ function onNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): v
 // Fetch the real current state on mount instead of showing nothing until the next playback change —
 // every overlay reload otherwise sat blank until the streamer's next skip/pause/resume.
 async function fetchCurrentState(): Promise<void> {
-  const token = widgetToken()
-  if (!token) return
   try {
-    const res = await fetch(`/api/v1/overlay/now-playing?token=${encodeURIComponent(token)}`)
-    if (!res.ok) return
-    const body: { data?: NnzWidgetEventMap['now_playing'] } | null = await res.json()
-    if (body?.data) onNowPlaying(body.data)
+    const current: NnzWidgetEventMap['now_playing'] | null = await NomNomz.data.nowPlaying()
+    if (current) onNowPlaying(current)
   } catch {
     // Best-effort seed only — the next now_playing hub event still arrives normally.
   }
@@ -349,26 +351,11 @@ const overlayWindow: OverlayWindow = window
 let spotifyPlayer: SpotifyPlayer | null = null
 let sdkLoadPromise: Promise<void> | null = null
 
-function widgetToken(): string {
-  const params = new URLSearchParams(location.search)
-  return (typeof WIDGET_TOKEN === 'string' ? WIDGET_TOKEN : '') || params.get('token') || ''
-}
-
 async function fetchPlaybackToken(): Promise<string | null> {
-  const token = widgetToken()
-  if (!token) return null
-  try {
-    const res = await fetch(`/api/v1/overlay/spotify-token?token=${encodeURIComponent(token)}`)
-    if (!res.ok) {
-      spotifyStatus.value = res.status === 403 || res.status === 401 ? 'blocked' : 'error'
-      return null
-    }
-    const body = await res.json()
-    return body?.data || null
-  } catch {
-    spotifyStatus.value = 'error'
-    return null
-  }
+  const answer = await NomNomz.spotify.playbackToken()
+  if ('token' in answer) return answer.token
+  spotifyStatus.value = answer.error
+  return null
 }
 
 function loadSpotifySdk(): Promise<void> {
@@ -400,7 +387,7 @@ async function connectSpotify(): Promise<void> {
 
   const Spotify: SpotifyNamespace | undefined = overlayWindow.Spotify
   if (!Spotify) { spotifyStatus.value = 'error'; return }
-  const widgetName: string = typeof WIDGET_NAME === 'string' ? WIDGET_NAME : ''
+  const widgetName: string = NomNomz.widget.name
   const player: SpotifyPlayer = new Spotify.Player({
     name: widgetName ? `NomNomzBot — ${widgetName}` : 'NomNomzBot Overlay',
     getOAuthToken: (cb: (token: string) => void) => {

@@ -6239,6 +6239,7 @@
     <string name="editor_preview_log_ran">Ran {actionType} {params}</string>
     <string name="editor_preview_log_ran_failed">Failed {actionType} {params}: {code}</string>
     <string name="editor_preview_log_claim">Claimed {key}</string>
+    <string name="editor_preview_log_data">Read {what} (preview sample)</string>
     <string name="editor_preview_log_error">Error</string>
     <string name="editor_console_title">Console</string>
     <string name="editor_console_clear">Clear</string>

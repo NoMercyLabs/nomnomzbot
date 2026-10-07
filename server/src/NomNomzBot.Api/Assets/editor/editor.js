@@ -282,6 +282,7 @@ const DEFAULT_LABELS = Object.freeze({
     previewLogRan: 'Ran {actionType} {params}',
     previewLogRanFailed: 'Failed {actionType} {params}: {code}',
     previewLogClaim: 'Claimed {key}',
+    previewLogData: 'Read {what} (preview sample)',
     previewLogError: 'Error',
     consoleTitle: 'Console',
     consoleClear: 'Clear',

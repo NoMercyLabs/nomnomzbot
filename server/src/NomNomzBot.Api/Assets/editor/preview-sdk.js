@@ -148,6 +148,32 @@
     }
   });
 
+  // Data reads answer with fixtures and never touch the network. Each call is shown to the author like an action.
+  var FIXTURE_NOW_PLAYING = {
+    provider: "spotify",
+    track: "Preview Track",
+    artist: "Preview Artist",
+    artUrl: "",
+    trackUri: "",
+    requestedBy: "",
+    durationMs: 200000,
+    progressMs: 60000,
+    isPlaying: true,
+  };
+
+  function readData(what, key, answer) {
+    tell({ kind: "data", what: what, key: key == null ? null : String(key) });
+    return Promise.resolve(answer);
+  }
+
+  function nowPlaying() { return readData("nowPlaying", null, FIXTURE_NOW_PLAYING); }
+  function queue() { return readData("queue", null, []); }
+  function storage(key) { return readData("storage", key, null); }
+  function playbackToken() {
+    tell({ kind: "data", what: "spotify.playbackToken", key: null });
+    return Promise.resolve({ error: "error" });
+  }
+
   var api = {
     on: on,
     off: off,
@@ -155,7 +181,22 @@
     onSettings: onSettings,
     reportError: report,
     reportYouTubePlayerState: reportYouTubePlayerState,
-    actions: { invoke: invokeAction, claim: claim },
+    actions: {
+      invoke: invokeAction,
+      claim: claim,
+    },
+    data: {
+      nowPlaying: nowPlaying,
+      queue: queue,
+      storage: storage,
+    },
+    spotify: {
+      playbackToken: playbackToken,
+    },
+    widget: {
+      get id() { return window.WIDGET_ID || "preview"; },
+      get name() { return window.WIDGET_NAME || ""; },
+    },
     get settings() { return currentSettings; },
   };
   window.NomNomz = api;

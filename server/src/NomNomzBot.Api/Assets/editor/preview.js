@@ -425,6 +425,8 @@ export function initPreview({
                 return describeAction(entry);
             case 'claim':
                 return t('previewLogClaim', { key: entry.key });
+            case 'data':
+                return t('previewLogData', { what: entry.key ? `${entry.what} ${entry.key}` : entry.what });
             default:
                 return entry.message ?? t('previewLogError');
         }

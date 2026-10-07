@@ -254,7 +254,9 @@ internal static class SdkRuntimeSurface
 
     /// <summary>
     /// Every global a widget page actually has: <c>window.NomNomz</c> (the overlay SDK) and the five
-    /// <c>WIDGET_*</c> values the host page injects before the bundle runs. A widget has no capability broker, so
+    /// <c>WIDGET_SETTINGS</c> and <c>WIDGET_EVENT_SUBSCRIPTIONS</c> values the host page injects before the bundle
+    /// runs. The widget's id, name and token are the SDK's: <c>NomNomz.widget</c> and the SDK's own requests, so
+    /// the token is never declared to widget code. A widget has no capability broker, so
     /// none of the <c>nnz</c> batteries or <c>nnz.api.*</c> wrappers exist here.
     /// </summary>
     public static string WidgetGlobals(
@@ -294,6 +296,57 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine($"  readonly settings: {settingsType};");
         sb.AppendLine("  readonly actions: NnzOverlayActions;");
+        sb.AppendLine(
+            "  /** Snapshots of the channel's state. The SDK sends the overlay token itself. */"
+        );
+        sb.AppendLine("  readonly data: NnzOverlayData;");
+        sb.AppendLine("  readonly spotify: NnzOverlaySpotify;");
+        sb.AppendLine("  /** Who this page is. */");
+        sb.AppendLine("  readonly widget: NnzOverlayWidget;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzMusicQueueItem {");
+        sb.AppendLine("  trackName: string;");
+        sb.AppendLine("  artist: string;");
+        sb.AppendLine("  imageUrl: string | null;");
+        sb.AppendLine("  durationMs: number;");
+        sb.AppendLine("  requestedBy: string | null;");
+        sb.AppendLine("  cost: number;");
+        sb.AppendLine("  code: string;");
+        sb.AppendLine("  inFlight: boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** Reads of the channel's current state. Each rejects when the request fails. */"
+        );
+        sb.AppendLine("interface NnzOverlayData {");
+        sb.AppendLine(
+            "  /** The track playing now, or null when nothing plays. Use it on mount, before the next now_playing event. */"
+        );
+        sb.AppendLine("  nowPlaying(): Promise<NnzWidgetEventMap['now_playing'] | null>;");
+        sb.AppendLine("  /** The playback queue, without the track playing now. */");
+        sb.AppendLine("  queue(): Promise<NnzMusicQueueItem[]>;");
+        sb.AppendLine(
+            "  /** One value from the channel's script storage, or null when the key has no value. */"
+        );
+        sb.AppendLine("  storage(key: string): Promise<string | null>;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzOverlaySpotify {");
+        sb.AppendLine(
+            "  /** A short-lived Spotify token for the Web Playback SDK. Never rejects: 'blocked' means the bot may not play"
+        );
+        sb.AppendLine(
+            "   *  here (401/403), 'error' means the request failed. Ask again whenever the Spotify player wants a token. */"
+        );
+        sb.AppendLine(
+            "  playbackToken(): Promise<{ token: string } | { error: 'blocked' | 'error' }>;"
+        );
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzOverlayWidget {");
+        sb.AppendLine("  readonly id: string;");
+        sb.AppendLine("  readonly name: string;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(
@@ -357,9 +410,6 @@ internal static class SdkRuntimeSurface
         sb.AppendLine();
         sb.AppendLine("declare const NomNomz: NnzOverlaySdk;");
         sb.AppendLine();
-        sb.AppendLine("declare const WIDGET_ID: string;");
-        sb.AppendLine("declare const WIDGET_TOKEN: string;");
-        sb.AppendLine("declare const WIDGET_NAME: string;");
         sb.AppendLine($"declare const WIDGET_SETTINGS: {settingsType};");
         sb.Append("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
         return sb.ToString();
