@@ -572,6 +572,21 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
     }
 
     [Fact]
+    public async Task A_stop_that_comes_before_the_shard_recheck_loop_has_run_still_stops_cleanly()
+    {
+        // CI run 37558658402: a stop right after start cancelled the loop before it ever ran, and the stop threw.
+        for (int i = 0; i < 200; i++)
+        {
+            (TwitchEventSubHostedService instance, _) = NewInstance($"quick-{i}");
+            await instance.StartAsync(CancellationToken.None);
+
+            Func<Task> stop = () => instance.StopAsync(CancellationToken.None);
+
+            await stop.Should().NotThrowAsync($"stop #{i} came right after start");
+        }
+    }
+
+    [Fact]
     public async Task A_successful_handover_is_not_announced_because_the_successor_is_seen()
     {
         (TwitchEventSubHostedService blue, _) = NewInstance("blue");
