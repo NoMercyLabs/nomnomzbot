@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.automation.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomationApi
 import bot.nomnomz.dashboard.core.network.AutomationToken
@@ -93,58 +94,40 @@ class AutomationController(
     }
 
     /**
-     * Issue a new token. Returns the [IssuedAutomationToken] (the secret shown once) on success, then re-lists so
-     * the row shows only its prefix; null on failure (the error is surfaced on the Ready state).
+     * Issue a new token from a dialog that stays open until the server answers. Ok carries the
+     * [IssuedAutomationToken] (the secret shown once) and the list is re-read so the row shows only its prefix;
+     * a Failure is handed back untouched so the dialog shows the reason inline (no toast).
      */
     suspend fun createToken(
         name: String,
         scopes: List<String>,
         allowedPipelineIds: List<String>,
         expiresAt: String?,
-    ): IssuedAutomationToken? {
-        val id: String = channelId ?: run { failWrite(noChannelError()); return null }
-        return when (
-            val result: ApiResult<IssuedAutomationToken> =
-                automationApi.createToken(
-                    id,
-                    CreateAutomationTokenBody(
-                        name = name,
-                        scopes = scopes,
-                        allowedPipelineIds = allowedPipelineIds.ifEmpty { null },
-                        expiresAt = expiresAt,
-                    ),
-                )
-        ) {
-            is ApiResult.Ok -> {
-                refresh()
-                result.value
-            }
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                null
-            }
-        }
+    ): ApiResult<IssuedAutomationToken> {
+        val id: String = channelId ?: return noChannel()
+        return afterDialogWrite(
+            automationApi.createToken(
+                id,
+                CreateAutomationTokenBody(
+                    name = name,
+                    scopes = scopes,
+                    allowedPipelineIds = allowedPipelineIds.ifEmpty { null },
+                    expiresAt = expiresAt,
+                ),
+            ),
+        )
     }
 
     /** Rotate token [tokenId]: invalidates the old secret and returns the fresh one (shown once). */
-    suspend fun rotateToken(tokenId: String): IssuedAutomationToken? {
-        val id: String = channelId ?: run { failWrite(noChannelError()); return null }
-        return when (val result: ApiResult<IssuedAutomationToken> = automationApi.rotateToken(id, tokenId)) {
-            is ApiResult.Ok -> {
-                refresh()
-                result.value
-            }
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                null
-            }
-        }
+    suspend fun rotateToken(tokenId: String): ApiResult<IssuedAutomationToken> {
+        val id: String = channelId ?: return noChannel()
+        return afterDialogWrite(automationApi.rotateToken(id, tokenId))
     }
 
     /** Revoke token [tokenId] (a tombstone — the row stays listed). Reloads on success. */
-    suspend fun revokeToken(tokenId: String) {
-        val id: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(automationApi.revokeToken(id, tokenId))
+    suspend fun revokeToken(tokenId: String): ApiResult<Unit> {
+        val id: String = channelId ?: return noChannel()
+        return afterDialogWrite(automationApi.revokeToken(id, tokenId))
     }
 
     /**
@@ -167,12 +150,16 @@ class AutomationController(
 
     // ── internals ────────────────────────────────────────────────────────────
 
-    private suspend fun afterWrite(result: ApiResult<*>) {
-        when (result) {
-            is ApiResult.Ok -> refresh()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+    // A write fired from a dialog that stays open until the server answers: success re-reads the list, a failure
+    // is handed back untouched so the dialog shows the reason inline (no toast, no page-level error).
+    private suspend fun <T> afterDialogWrite(result: ApiResult<T>): ApiResult<T> {
+        if (result is ApiResult.Ok) refresh()
+        return result
     }
+
+    // Nothing was sent (no channel loaded): the dialog shows the reason.
+    private suspend fun noChannel(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(0, null, noChannelError()))
 
     // The page is already showing content — announce on the shell-level feedback toast rather than a local
     // banner. Only when the page has nothing to show yet does a failure become the page's own Error state.
