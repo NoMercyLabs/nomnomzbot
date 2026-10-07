@@ -78,7 +78,7 @@ fun <T> FollowingFeed(
     val spacing = LocalSpacing.current
     val listState: LazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val keys: List<String> = items.mapIndexed(key)
+    val keys: List<String> = uniqueKeys(items.mapIndexed(key))
     val tailKey: String? = keys.lastOrNull()
     val following: Boolean = followState.isFollowing
 
@@ -153,6 +153,26 @@ fun <T> FollowingFeed(
                     Text(pluralStringResource(Res.plurals.chat_new_messages, newLines, newLines))
                 }
             }
+        }
+    }
+}
+
+/**
+ * Make every key unique so a blank or repeated line id can never crash the LazyColumn. The first holder of a key
+ * keeps it; later holders get a suffix counting their repeat (stable while earlier lines stay in the buffer).
+ */
+internal fun uniqueKeys(raw: List<String>): List<String> {
+    val seen: MutableMap<String, Int> = HashMap()
+    val taken: MutableSet<String> = raw.toHashSet()
+    return raw.map { id ->
+        val count: Int = seen.getOrElse(id) { 0 }
+        seen[id] = count + 1
+        if (count == 0) {
+            id
+        } else {
+            var n: Int = count
+            while (!taken.add("$id#$n")) n++
+            "$id#$n"
         }
     }
 }
