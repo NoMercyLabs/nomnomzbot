@@ -6109,6 +6109,8 @@
     <string name="widget_gallery_socials_description">A config-only rotating handles bar — the streamer’s social accounts cross-faded through at a configurable interval. No event feed; the handles come from the widget settings.</string>
     <string name="widget_gallery_top_cheerers_name">Top Cheerers</string>
     <string name="widget_gallery_top_cheerers_description">A ranked board of the session’s biggest cheerers by bits — the full leaderboard the labels widget only hints at with its single top cheerer, with a configurable depth and title.</string>
+    <string name="widget_gallery_lucky_feather_name">Lucky Feather</string>
+    <string name="widget_gallery_lucky_feather_description">Shows who holds the Lucky Feather and announces every steal.</string>
 
     <!-- Code editor page (editor.js DEFAULT_LABELS): the words of the served editor, sent in the open payload -->
     <string name="editor_html_lang">en</string>

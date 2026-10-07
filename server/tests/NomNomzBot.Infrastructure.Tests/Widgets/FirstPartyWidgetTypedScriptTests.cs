@@ -25,8 +25,8 @@ public sealed class FirstPartyWidgetTypedScriptTests
     private const string AssetPrefix = "NomNomzBot.Infrastructure.Content.Widgets.Assets.";
 
     /// <summary>
-    /// Every shipped first-party widget source. Read from the embedded assets, not from the catalogue: a widget
-    /// that ships as a marketplace bundle (lucky_feather) has a source and no catalogue entry.
+    /// Every shipped first-party widget source. Read from the embedded assets; the seeder tests prove each one
+    /// has a catalogue entry.
     /// </summary>
     private static IReadOnlyList<string> AssetKeys { get; } =
     [

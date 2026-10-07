@@ -253,6 +253,13 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Text(d, "title", Content),
                 Accent(d),
             ],
+            "lucky_feather" =>
+            [
+                Text(d, "idleText", Content),
+                Text(d, "stolenTemplate", Content, help: true),
+                NumberField(d, "bannerDurationMs", Behaviour, min: 0, step: 100),
+                Accent(d),
+            ],
             _ => throw new InvalidOperationException(
                 $"No settings schema authored for first-party widget '{d.Key}'."
             ),
