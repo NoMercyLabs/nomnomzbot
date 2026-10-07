@@ -164,8 +164,8 @@ class WebhooksController(
         targetPipelineId: String?,
         targetEventType: String?,
         genericConfig: GenericInboundConfig?,
-    ) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
         val body =
             CreateInboundBody(
                 name = name,
@@ -175,13 +175,13 @@ class WebhooksController(
                 targetEventType = targetEventType?.takeIf { it.isNotBlank() },
                 genericConfig = genericConfig,
             )
-        when (val result: ApiResult<InboundWebhook> = webhooksApi.createInbound(channel, body)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+        return afterDialogWrite(webhooksApi.createInbound(channel, body))
     }
 
-    /** Full inbound edit — persists name, routing, custom-adapter config and (optionally) a rotated secret. */
+    /**
+     * Full inbound edit — persists name, routing, custom-adapter config and (optionally) a rotated secret.
+     * The result is handed back untouched: the form stays open until it arrives and shows a failure inline.
+     */
     suspend fun updateInbound(
         endpointId: String,
         name: String,
@@ -190,8 +190,8 @@ class WebhooksController(
         targetEventType: String?,
         genericConfig: GenericInboundConfig?,
         isEnabled: Boolean,
-    ) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
         val body =
             UpdateInboundBody(
                 name = name,
@@ -201,10 +201,7 @@ class WebhooksController(
                 genericConfig = genericConfig,
                 isEnabled = isEnabled,
             )
-        when (val result: ApiResult<InboundWebhook> = webhooksApi.updateInbound(channel, endpointId, body)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+        return afterDialogWrite(webhooksApi.updateInbound(channel, endpointId, body))
     }
 
     suspend fun toggleInbound(endpointId: String, enabled: Boolean) {
@@ -311,9 +308,10 @@ class WebhooksController(
         afterUnit(webhooksApi.toggleOutbound(channel, endpointId, enabled))
     }
 
-    suspend fun reenableOutbound(endpointId: String) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
-        afterUnit(webhooksApi.reenableOutbound(channel, endpointId))
+    /** Re-enables a disabled outbound endpoint; the confirm stays open until the result arrives (no failure toast). */
+    suspend fun reenableOutbound(endpointId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(webhooksApi.reenableOutbound(channel, endpointId))
     }
 
     /**
@@ -338,9 +336,10 @@ class WebhooksController(
         }
     }
 
-    suspend fun deleteOutbound(endpointId: String) {
-        val channel: String = channelId ?: return failWrite("No active channel.")
-        afterUnit(webhooksApi.deleteOutbound(channel, endpointId))
+    /** Deletes an outbound endpoint; the confirm stays open until the result arrives (no failure toast). */
+    suspend fun deleteOutbound(endpointId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(webhooksApi.deleteOutbound(channel, endpointId))
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -351,6 +350,16 @@ class WebhooksController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    // A dialog write: reload on success, hand the result back so the dialog shows a failure's reason inline.
+    private suspend fun afterDialogWrite(result: ApiResult<*>): ApiResult<Unit> =
+        when (result) {
+            is ApiResult.Ok -> { load(); ApiResult.Ok(Unit) }
+            is ApiResult.Failure -> result
+        }
+
+    private fun noChannel(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel."))
 
     private fun failWrite(detail: String) {
         feedback.error(Res.string.webhooks_action_error, detail)
