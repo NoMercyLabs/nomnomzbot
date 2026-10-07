@@ -68,15 +68,47 @@ public static class EventSamplePayloads
                 "message": {
                     "text": "hello world Kappa",
                     "fragments": [
-                        { "type": "text", "text": "hello world " },
+                        {
+                            "type": "text",
+                            "text": "hello world ",
+                            "cheermote": null,
+                            "emote": null,
+                            "mention": null
+                        },
                         {
                             "type": "emote",
                             "text": "Kappa",
-                            "emote": { "id": "25", "emote_set_id": "0", "owner_id": "twitch", "format": ["static", "animated"] }
+                            "emote": {
+                                "id": "25",
+                                "emote_set_id": "0",
+                                "owner_id": "twitch",
+                                "format": [
+                                    "static",
+                                    "animated"
+                                ]
+                            },
+                            "cheermote": null,
+                            "mention": null
                         }
                     ]
                 },
-                "badges": []
+                "badges": [
+                    {
+                        "set_id": "subscriber",
+                        "id": "12",
+                        "info": "36"
+                    }
+                ],
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "channel_points_custom_reward_id": null,
+                "cheer": null,
+                "reply": null,
+                "source_badges": null,
+                "source_broadcaster_user_id": null,
+                "source_broadcaster_user_login": null,
+                "source_broadcaster_user_name": null,
+                "source_message_id": null
             }
             """,
 
@@ -89,7 +121,9 @@ public static class EventSamplePayloads
                 "target_user_id": "321",
                 "target_user_name": "Naughty",
                 "target_user_login": "naughty",
-                "message_id": "del-1"
+                "message_id": "del-1",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -108,7 +142,9 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "broadcaster-99",
                 "target_user_id": "777",
                 "target_user_name": "Spammer",
-                "target_user_login": "spammer"
+                "target_user_login": "spammer",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -127,8 +163,59 @@ public static class EventSamplePayloads
                 "message_id": "notif-1",
                 "message": {
                     "text": "love this stream",
-                    "fragments": [ { "type": "text", "text": "love this stream" } ]
-                }
+                    "fragments": [
+                        {
+                            "type": "text",
+                            "text": "love this stream"
+                        }
+                    ]
+                },
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "badges": [],
+                "color": "#00FF7F",
+                "announcement": null,
+                "bits_badge_tier": null,
+                "charity_donation": null,
+                "community_sub_gift": null,
+                "gift_paid_upgrade": null,
+                "gifted_drops_summary": null,
+                "is_source_only": null,
+                "modiversary": null,
+                "pay_it_forward": null,
+                "prime_paid_upgrade": null,
+                "raid": null,
+                "resub": {
+                    "cumulative_months": 12,
+                    "duration_months": 1,
+                    "streak_months": null,
+                    "sub_plan": "1000",
+                    "is_gift": false,
+                    "gifter_is_anonymous": null,
+                    "gifter_user_id": null,
+                    "gifter_user_login": null,
+                    "gifter_user_name": null
+                },
+                "shared_chat_announcement": null,
+                "shared_chat_community_sub_gift": null,
+                "shared_chat_gift_paid_upgrade": null,
+                "shared_chat_gifted_drops_summary": null,
+                "shared_chat_modiversary": null,
+                "shared_chat_pay_it_forward": null,
+                "shared_chat_prime_paid_upgrade": null,
+                "shared_chat_raid": null,
+                "shared_chat_resub": null,
+                "shared_chat_sub": null,
+                "shared_chat_sub_gift": null,
+                "source_badges": null,
+                "source_broadcaster_user_id": null,
+                "source_broadcaster_user_login": null,
+                "source_broadcaster_user_name": null,
+                "source_message_id": null,
+                "sub": null,
+                "sub_gift": null,
+                "unraid": null,
+                "watch_streak": null
             }
             """,
 
@@ -144,7 +231,9 @@ public static class EventSamplePayloads
                 "slow_mode": true,
                 "slow_mode_wait_time_seconds": 10,
                 "subscriber_mode": false,
-                "unique_chat_mode": true
+                "unique_chat_mode": true,
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -158,7 +247,20 @@ public static class EventSamplePayloads
                 "user_login": "held_user",
                 "user_name": "Held_User",
                 "message_id": "hold-1",
-                "message": { "text": "suspicious text", "fragments": [ { "type": "text", "text": "suspicious text" } ] }
+                "message": {
+                    "text": "suspicious text",
+                    "fragments": [
+                        {
+                            "type": "text",
+                            "text": "suspicious text",
+                            "cheermote": null,
+                            "emote": null,
+                            "mention": null
+                        }
+                    ]
+                },
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -173,7 +275,20 @@ public static class EventSamplePayloads
                 "user_name": "Held_User",
                 "status": "approved",
                 "message_id": "hold-1",
-                "message": { "text": "suspicious text", "fragments": [ { "type": "text", "text": "suspicious text" } ] }
+                "message": {
+                    "text": "suspicious text",
+                    "fragments": [
+                        {
+                            "type": "text",
+                            "text": "suspicious text",
+                            "cheermote": null,
+                            "emote": null,
+                            "mention": null
+                        }
+                    ]
+                },
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -189,10 +304,51 @@ public static class EventSamplePayloads
                 "chatter_user_name": "Cool_User",
                 "chatter_is_anonymous": false,
                 "message_id": "n-1",
-                "message": { "text": "", "fragments": [] },
+                "message": {
+                    "text": "",
+                    "fragments": []
+                },
                 "notice_type": "watch_streak",
                 "system_message": "Cool_User watched 12 streams in a row!",
-                "watch_streak": { "streak_count": 12, "channel_points_awarded": 350 }
+                "watch_streak": {
+                    "streak_count": 12,
+                    "channel_points_awarded": 350
+                },
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "badges": [],
+                "color": "#00FF7F",
+                "announcement": null,
+                "bits_badge_tier": null,
+                "charity_donation": null,
+                "community_sub_gift": null,
+                "gift_paid_upgrade": null,
+                "gifted_drops_summary": null,
+                "is_source_only": null,
+                "modiversary": null,
+                "pay_it_forward": null,
+                "prime_paid_upgrade": null,
+                "raid": null,
+                "resub": null,
+                "shared_chat_announcement": null,
+                "shared_chat_community_sub_gift": null,
+                "shared_chat_gift_paid_upgrade": null,
+                "shared_chat_gifted_drops_summary": null,
+                "shared_chat_modiversary": null,
+                "shared_chat_pay_it_forward": null,
+                "shared_chat_prime_paid_upgrade": null,
+                "shared_chat_raid": null,
+                "shared_chat_resub": null,
+                "shared_chat_sub": null,
+                "shared_chat_sub_gift": null,
+                "source_badges": null,
+                "source_broadcaster_user_id": null,
+                "source_broadcaster_user_login": null,
+                "source_broadcaster_user_name": null,
+                "source_message_id": null,
+                "sub": null,
+                "sub_gift": null,
+                "unraid": null
             }
             """,
 
@@ -225,10 +381,25 @@ public static class EventSamplePayloads
                 "host_broadcaster_user_login": "host_streamer",
                 "host_broadcaster_user_name": "Host_Streamer",
                 "participants": [
-                    { "broadcaster_user_id": "host-1" },
-                    { "broadcaster_user_id": "guest-2" },
-                    { "broadcaster_user_id": "guest-3" }
-                ]
+                    {
+                        "broadcaster_user_id": "host-1",
+                        "broadcaster_user_login": "host_streamer",
+                        "broadcaster_user_name": "Host_Streamer"
+                    },
+                    {
+                        "broadcaster_user_id": "guest-2",
+                        "broadcaster_user_login": "guest_2_streamer",
+                        "broadcaster_user_name": "Guest_2_Streamer"
+                    },
+                    {
+                        "broadcaster_user_id": "guest-3",
+                        "broadcaster_user_login": "guest_3_streamer",
+                        "broadcaster_user_name": "Guest_3_Streamer"
+                    }
+                ],
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -241,7 +412,9 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "broadcaster-99",
                 "host_broadcaster_user_id": "host-1",
                 "host_broadcaster_user_login": "host_streamer",
-                "host_broadcaster_user_name": "Host_Streamer"
+                "host_broadcaster_user_name": "Host_Streamer",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -306,9 +479,33 @@ public static class EventSamplePayloads
                 "user_login": "rude_user",
                 "user_name": "Rude_User",
                 "message_id": "held-msg-1",
-                "message": { "text": "you are such a problem", "fragments": [] },
+                "message": {
+                    "text": "you are such a problem",
+                    "fragments": []
+                },
                 "status": "denied",
-                "held_at": "2026-06-20T11:29:30Z"
+                "held_at": "2026-06-20T11:29:30Z",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "category": "aggressive",
+                "level": 1,
+                "fragments": {
+                    "emotes": [
+                        {
+                            "text": "Kappa",
+                            "id": "25",
+                            "set-id": "0"
+                        }
+                    ],
+                    "cheermotes": [
+                        {
+                            "text": "cheer100",
+                            "amount": 100,
+                            "prefix": "cheer",
+                            "tier": 1
+                        }
+                    ]
+                }
             }
             """,
 
@@ -331,7 +528,26 @@ public static class EventSamplePayloads
                 "bullying": 5,
                 "swearing": 0,
                 "race_ethnicity_or_religion": 6,
-                "sex_based_terms": 7
+                "sex_based_terms": 7,
+                "data": [
+                    {
+                        "broadcaster_user_id": "broadcaster-99",
+                        "broadcaster_user_login": "streamer",
+                        "broadcaster_user_name": "Streamer",
+                        "moderator_user_id": "mod-7",
+                        "moderator_user_login": "cool_mod",
+                        "moderator_user_name": "Cool_Mod",
+                        "overall_level": null,
+                        "disability": 1,
+                        "aggression": 2,
+                        "sexuality_sex_or_gender": 3,
+                        "misogyny": 4,
+                        "bullying": 5,
+                        "swearing": 0,
+                        "race_ethnicity_or_religion": 6,
+                        "sex_based_terms": 7
+                    }
+                ]
             }
             """,
 
@@ -359,7 +575,10 @@ public static class EventSamplePayloads
             {
                 "user_id": "141981764",
                 "user_login": "twitchdev",
-                "user_name": "TwitchDev"
+                "user_name": "TwitchDev",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -374,7 +593,14 @@ public static class EventSamplePayloads
                 "user_login": "twitchdev",
                 "user_name": "TwitchDev",
                 "reason": "cut it out",
-                "chat_rules_cited": ["No spam", "Be kind"]
+                "chat_rules_cited": [
+                    "No spam",
+                    "Be kind"
+                ],
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "quotrok"
             }
             """,
 
@@ -388,14 +614,28 @@ public static class EventSamplePayloads
                 "user_login": "4a46e2cf2e2f4d6a9e6",
                 "user_name": "4a46e2cf2e2f4d6a9e6",
                 "low_trust_status": "active_monitoring",
-                "shared_ban_channel_ids": ["100", "200"],
-                "types": ["ban_evader"],
+                "shared_ban_channel_ids": [
+                    "100",
+                    "200"
+                ],
+                "types": [
+                    "ban_evader"
+                ],
                 "ban_evasion_evaluation": "likely",
                 "message": {
                     "message_id": "101010",
                     "text": "bad stuff pogchamp",
-                    "fragments": []
-                }
+                    "fragments": [
+                        {
+                            "type": "text",
+                            "text": "bad stuff pogchamp",
+                            "cheermote": null,
+                            "emote": null
+                        }
+                    ]
+                },
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -410,7 +650,10 @@ public static class EventSamplePayloads
                 "user_id": "1050263437",
                 "user_login": "06fbcc75952245c5a87",
                 "user_name": "06fbcc75952245c5a87",
-                "low_trust_status": "restricted"
+                "low_trust_status": "restricted",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "29087e59dfc441968f6"
             }
             """,
 
@@ -422,7 +665,10 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "12345",
                 "moderator_user_id": "98765",
                 "moderator_user_name": "ParticularlyParticular123",
-                "started_at": "2026-06-20T11:00:03Z"
+                "started_at": "2026-06-20T11:00:03Z",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "particularlyparticular123"
             }
             """,
 
@@ -434,7 +680,10 @@ public static class EventSamplePayloads
                 "broadcaster_user_id": "12345",
                 "moderator_user_id": "98765",
                 "moderator_user_name": "ParticularlyParticular123",
-                "ended_at": "2026-06-20T11:30:23Z"
+                "ended_at": "2026-06-20T11:30:23Z",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "particularlyparticular123"
             }
             """,
 
@@ -452,7 +701,10 @@ public static class EventSamplePayloads
                 "reason": "spamming",
                 "banned_at": "2026-06-20T11:29:00Z",
                 "ends_at": null,
-                "is_permanent": true
+                "is_permanent": true,
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "mod_one"
             }
             """,
 
@@ -468,7 +720,12 @@ public static class EventSamplePayloads
                 "reason": "cool down",
                 "banned_at": "2026-06-20T11:00:00Z",
                 "ends_at": "2026-06-20T11:10:00Z",
-                "is_permanent": false
+                "is_permanent": false,
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "mod_one",
+                "moderator_user_name": "Mod_One"
             }
             """,
 
@@ -481,7 +738,11 @@ public static class EventSamplePayloads
                 "user_login": "cool_user",
                 "user_name": "Cool_User",
                 "moderator_user_id": "mod-1",
-                "moderator_user_name": "Mod_One"
+                "moderator_user_name": "Mod_One",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "mod_one"
             }
             """,
 
@@ -495,7 +756,10 @@ public static class EventSamplePayloads
                 "user_login": "not_cool_user",
                 "user_name": "Not_Cool_User",
                 "text": "unban me",
-                "created_at": "2026-06-20T11:00:00Z"
+                "created_at": "2026-06-20T11:00:00Z",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -511,7 +775,11 @@ public static class EventSamplePayloads
                 "moderator_user_id": "1337",
                 "moderator_user_name": "Cool_User",
                 "resolution_text": "no",
-                "status": "denied"
+                "status": "denied",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "moderator_user_login": "cool_user"
             }
             """,
 
@@ -522,7 +790,10 @@ public static class EventSamplePayloads
             {
                 "user_id": "141981764",
                 "user_login": "twitchdev",
-                "user_name": "TwitchDev"
+                "user_name": "TwitchDev",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -533,7 +804,10 @@ public static class EventSamplePayloads
             {
                 "user_id": "141981764",
                 "user_login": "twitchdev",
-                "user_name": "TwitchDev"
+                "user_name": "TwitchDev",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -544,7 +818,10 @@ public static class EventSamplePayloads
             {
                 "user_id": "1234",
                 "user_login": "mod_user",
-                "user_name": "Mod_User"
+                "user_name": "Mod_User",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -555,7 +832,10 @@ public static class EventSamplePayloads
             {
                 "user_id": "1234",
                 "user_login": "mod_user",
-                "user_name": "Mod_User"
+                "user_name": "Mod_User",
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -577,7 +857,25 @@ public static class EventSamplePayloads
                     "reason": "rule violation"
                 },
                 "timeout": null,
-                "delete": null
+                "delete": null,
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer",
+                "automod_terms": null,
+                "mod": null,
+                "raid": null,
+                "shared_chat_ban": null,
+                "shared_chat_delete": null,
+                "shared_chat_timeout": null,
+                "shared_chat_unban": null,
+                "shared_chat_untimeout": null,
+                "slow": null,
+                "unban": null,
+                "unban_request": null,
+                "unmod": null,
+                "unraid": null,
+                "untimeout": null,
+                "unvip": null,
+                "vip": null
             }
             """,
 
@@ -591,7 +889,9 @@ public static class EventSamplePayloads
                 "user_name": "Cool_User",
                 "broadcaster_user_id": "broadcaster-99",
                 "tier": "1000",
-                "is_gift": false
+                "is_gift": false,
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -607,7 +907,19 @@ public static class EventSamplePayloads
                 "cumulative_months": 15,
                 "streak_months": 3,
                 "duration_months": 6,
-                "message": { "text": "Love the stream!", "emotes": [] }
+                "message": {
+                    "text": "Love the stream! Kappa",
+                    "emotes": [
+                        {
+                            "begin": 17,
+                            "end": 21,
+                            "id": "25"
+                        }
+                    ]
+                },
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -622,7 +934,10 @@ public static class EventSamplePayloads
                 "tier": "1000",
                 "total": 5,
                 "cumulative_total": 50,
-                "is_anonymous": false
+                "is_anonymous": false,
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
@@ -635,7 +950,10 @@ public static class EventSamplePayloads
                 "user_login": "cool_user",
                 "user_name": "Cool_User",
                 "tier": "3000",
-                "is_gift": true
+                "is_gift": true,
+                "broadcaster_user_id": "broadcaster-99",
+                "broadcaster_user_login": "streamer",
+                "broadcaster_user_name": "Streamer"
             }
             """,
 
