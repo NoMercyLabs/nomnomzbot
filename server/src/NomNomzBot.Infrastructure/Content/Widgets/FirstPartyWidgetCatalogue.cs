@@ -388,6 +388,8 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["count"] = 5,
                 ["title"] = "Top cheerers",
+                ["range"] = "stream",
+                ["resetAt"] = "",
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["cheer"]

@@ -5121,6 +5121,11 @@
     <string name="widget_socials_accentColor_label">Accentkleur</string>
     <string name="widget_top_cheerers_count_label">Aantal getoonde cheerers</string>
     <string name="widget_top_cheerers_title_label">Titel</string>
+    <string name="widget_top_cheerers_range_label">Getelde cheers</string>
+    <string name="widget_top_cheerers_range_option_stream">Deze stream</string>
+    <string name="widget_top_cheerers_range_option_sinceReset">Sinds de laatste reset</string>
+    <string name="widget_top_cheerers_resetAt_label">Laatste reset</string>
+    <string name="widget_top_cheerers_resetAt_help">Het bord telt de opgeslagen cheers van dit kanaal vanaf deze datum en tijd (bijvoorbeeld 2026-10-01). Wordt gebruikt bij &quot;Sinds de laatste reset&quot;. Laat je dit leeg, dan telt alles mee.</string>
     <string name="widget_top_cheerers_accentColor_label">Accentkleur</string>
     <string name="pipeline_send_message_message_help">Het chatbericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
     <string name="pipeline_send_message_sender_help">Namens wie dit bericht wordt geplaatst. Bot (standaard) gebruikt de identiteit die voor dit kanaal is ingesteld. Broadcaster stuurt altijd als de streamer zelf, ook als er een apart botaccount is gekoppeld — gebruik dit voor content die alleen de streamer kan plaatsen, zoals een alleen-abonnee-emote waarop het botaccount niet is geabonneerd.</string>

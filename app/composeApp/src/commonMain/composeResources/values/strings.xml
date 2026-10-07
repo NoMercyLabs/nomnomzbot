@@ -5137,6 +5137,11 @@
     <string name="widget_socials_accentColor_label">Accent colour</string>
     <string name="widget_top_cheerers_count_label">Cheerers shown</string>
     <string name="widget_top_cheerers_title_label">Title</string>
+    <string name="widget_top_cheerers_range_label">Cheers counted</string>
+    <string name="widget_top_cheerers_range_option_stream">This stream</string>
+    <string name="widget_top_cheerers_range_option_sinceReset">Since the last reset</string>
+    <string name="widget_top_cheerers_resetAt_label">Last reset</string>
+    <string name="widget_top_cheerers_resetAt_help">The board counts the cheers stored for this channel from this date and time (for example 2026-10-01). Used by &quot;Since the last reset&quot;. Leave it empty to count all time.</string>
     <string name="widget_top_cheerers_accentColor_label">Accent colour</string>
     <string name="pipeline_send_message_message_help">The chat message to send. Supports template variables (e.g. {user.name}).</string>
     <string name="pipeline_send_message_sender_help">Who this message is posted as. Bot (default) uses whichever identity the channel is already configured with. Broadcaster always sends as the streamer, even when a separate bot account is connected — use it for content only the streamer can post, like a subscriber-only emote the bot account is not subscribed to.</string>

@@ -252,6 +252,8 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             [
                 NumberField(d, "count", Content, min: 1, max: 50, step: 1),
                 Text(d, "title", Content),
+                SelectField(d, "range", Content, Opts(d, "range", "stream", "sinceReset")),
+                Text(d, "resetAt", Content, help: true),
                 Accent(d),
             ],
             "lucky_feather" =>
