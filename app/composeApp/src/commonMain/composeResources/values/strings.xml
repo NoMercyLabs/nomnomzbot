@@ -5047,6 +5047,11 @@
     <string name="widget_raffle_accentColor_label">Accent colour</string>
     <string name="widget_heist_hideAfterMs_label">Hide after (ms)</string>
     <string name="widget_heist_accentColor_label">Accent colour</string>
+    <string name="widget_lucky_feather_idleText_label">Text while nobody holds it</string>
+    <string name="widget_lucky_feather_stolenTemplate_label">Steal banner text</string>
+    <string name="widget_lucky_feather_stolenTemplate_help">Use {thief} and {victim}. Blank uses the built-in text.</string>
+    <string name="widget_lucky_feather_bannerDurationMs_label">Banner time (ms)</string>
+    <string name="widget_lucky_feather_accentColor_label">Accent colour</string>
     <string name="widget_crash_hideAfterMs_label">Hide after (ms)</string>
     <string name="widget_crash_accentColor_label">Accent colour</string>
     <string name="widget_event_ticker_events_label">Event types</string>
