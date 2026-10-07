@@ -975,6 +975,10 @@ public class WidgetService : IWidgetService
                 );
         }
 
+        Result samples = WidgetEventSampleFiles.Validate(project.Files);
+        if (samples.IsFailure)
+            return Result.Failure<WidgetVersionDetail>(samples.ErrorMessage, samples.ErrorCode);
+
         ProjectManifest manifest = project.Manifest.ToManifest();
 
         // The trust boundary (dev-platform.md §4.2): re-build the submitted project server-side rather than trust any

@@ -66,7 +66,9 @@ public class EditorAssetContractTests
             .Match(script, @"type:\s*HOST_MESSAGE\.save,\s*(?<files>files:[^}]+)\}")
             .Groups["files"]
             .Value.Trim();
-        saveFiles.Should().Be("files: Object.fromEntries(state.files)");
+        // A save also carries the edited event samples as events/<type>.json; the code files in it are the same map.
+        const string codeFiles = "Object.fromEntries(state.files)";
+        saveFiles.Should().Be($"files: joinSampleFiles({codeFiles}, state.samples)");
 
         int from = script.IndexOf("function requestTestRun()", StringComparison.Ordinal);
         from.Should().BeGreaterThan(-1, "editor.js must declare requestTestRun");
@@ -81,7 +83,7 @@ public class EditorAssetContractTests
         message
             .Groups["fields"]
             .Value.Should()
-            .Contain(saveFiles, "the test run sends the same files map a save sends");
+            .Contain($"files: {codeFiles}", "the test run sends the same code files a save sends");
     }
 
     [Fact]
