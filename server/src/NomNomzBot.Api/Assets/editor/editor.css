@@ -763,6 +763,65 @@ body {
     color: var(--danger);
 }
 
+/* ── Inline name field (new / rename) ──────────────────────────────────── */
+
+.tree-input {
+    width: 100%;
+    padding: 4px var(--s2);
+    background: var(--surface-sunken);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font: 400 12px var(--font-code);
+}
+
+.tree-input:focus {
+    outline: none;
+}
+
+.tree-input[aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+.tree-error {
+    margin: var(--s1) 0 0;
+    font-size: 11px;
+    color: var(--danger);
+}
+
+/* ── Undo toast ────────────────────────────────────────────────────────── */
+
+.toast {
+    position: fixed;
+    left: var(--s4);
+    bottom: calc(var(--s4) + 24px);
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    max-width: min(420px, 90vw);
+    padding: var(--s2) var(--s2) var(--s2) var(--s3);
+    background: var(--surface-raised);
+    border: 1px solid #3a3a3a;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+    font-size: 12px;
+    z-index: 40;
+}
+
+.toast[hidden] {
+    display: none;
+}
+
+.toast-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* The toast's 8px padding equals its 8px radius, so the button takes the smaller radius. */
+.toast .btn {
+    border-radius: var(--radius-sm);
+}
+
 .panel-splitter {
     height: 5px;
     flex: 0 0 5px;
