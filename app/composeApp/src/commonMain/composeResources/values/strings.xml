@@ -6281,4 +6281,18 @@
     <string name="chat_mark_duration_minutes">%1$d m</string>
     <string name="chat_mark_duration_hours">%1$d h</string>
     <string name="chat_mark_duration_days">%1$d d</string>
+    <string name="pipelines_recipe_every_nth_title">Every 5th redemption</string>
+    <string name="pipelines_recipe_every_nth_desc">Counts each viewer's redemptions and rewards every 5th one.</string>
+    <string name="pipelines_recipe_every_nth_reply_1">That is your 5th redemption, {user}. Thank you!</string>
+    <string name="pipelines_recipe_chance_chain_title">Chance to chain</string>
+    <string name="pipelines_recipe_chance_chain_desc">Adds a 25 percent chance of an extra reply.</string>
+    <string name="pipelines_recipe_chance_chain_reply_1">Lucky one, {user}! Bonus reply unlocked.</string>
+    <string name="pipelines_recipe_random_reply_title">Random reply</string>
+    <string name="pipelines_recipe_random_reply_desc">Picks one reply at random from a list of three.</string>
+    <string name="pipelines_recipe_random_reply_reply_1">Thanks, {user}!</string>
+    <string name="pipelines_recipe_random_reply_reply_2">Nice one, {user}!</string>
+    <string name="pipelines_recipe_random_reply_reply_3">Great to see you, {user}!</string>
+    <string name="pipelines_recipe_count_remember_title">Count and remember</string>
+    <string name="pipelines_recipe_count_remember_desc">Remembers how often each viewer did this and says the count.</string>
+    <string name="pipelines_recipe_count_remember_reply_1">{user}, that is time number {viewer.data.redeem_count} for you.</string>
 </resources>

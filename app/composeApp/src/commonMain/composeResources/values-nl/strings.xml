@@ -6254,4 +6254,18 @@
     <string name="chat_mark_duration_minutes">%1$d min</string>
     <string name="chat_mark_duration_hours">%1$d u</string>
     <string name="chat_mark_duration_days">%1$d d</string>
+    <string name="pipelines_recipe_every_nth_title">Elke 5e inwisseling</string>
+    <string name="pipelines_recipe_every_nth_desc">Telt de inwisselingen van elke kijker en beloont elke 5e.</string>
+    <string name="pipelines_recipe_every_nth_reply_1">Dat is je 5e inwisseling, {user}. Bedankt!</string>
+    <string name="pipelines_recipe_chance_chain_title">Kans op een vervolg</string>
+    <string name="pipelines_recipe_chance_chain_desc">Geeft 25 procent kans op een extra antwoord.</string>
+    <string name="pipelines_recipe_chance_chain_reply_1">Geluksvogel, {user}! Bonusantwoord ontgrendeld.</string>
+    <string name="pipelines_recipe_random_reply_title">Willekeurig antwoord</string>
+    <string name="pipelines_recipe_random_reply_desc">Kiest willekeurig een antwoord uit een lijst van drie.</string>
+    <string name="pipelines_recipe_random_reply_reply_1">Bedankt, {user}!</string>
+    <string name="pipelines_recipe_random_reply_reply_2">Mooi zo, {user}!</string>
+    <string name="pipelines_recipe_random_reply_reply_3">Leuk je te zien, {user}!</string>
+    <string name="pipelines_recipe_count_remember_title">Tellen en onthouden</string>
+    <string name="pipelines_recipe_count_remember_desc">Onthoudt hoe vaak elke kijker dit deed en noemt het aantal.</string>
+    <string name="pipelines_recipe_count_remember_reply_1">{user}, dit is de {viewer.data.redeem_count}e keer voor je.</string>
 </resources>
