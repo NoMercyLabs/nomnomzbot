@@ -73,6 +73,74 @@ public sealed class WidgetAlertCaptureTests
     }
 
     [Fact]
+    public async Task Standing_state_pushes_never_push_real_alerts_out_of_the_capture_store()
+    {
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Everything",
+                IsEnabled = true,
+                EventSubscriptions = ["follow", "custom.heartrate", "sr_queue", "now_playing"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        for (int i = 0; i < 3; i++)
+            await WidgetAlertDispatch.RouteAsync(
+                db,
+                widgets,
+                channel,
+                "follow",
+                new { user = $"follower{i}" },
+                excludeWidgetId: null,
+                channelEventId: null,
+                CancellationToken.None
+            );
+        for (int i = 0; i < 50; i++)
+            await WidgetAlertDispatch.RouteAsync(
+                db,
+                widgets,
+                channel,
+                "custom.heartrate",
+                new { bpm = 60 + i },
+                excludeWidgetId: null,
+                channelEventId: null,
+                CancellationToken.None
+            );
+        await WidgetAlertDispatch.RouteAsync(
+            db,
+            widgets,
+            channel,
+            "sr_queue",
+            new { count = 2 },
+            excludeWidgetId: null,
+            channelEventId: null,
+            CancellationToken.None
+        );
+        await WidgetAlertDispatch.RouteAsync(
+            db,
+            widgets,
+            channel,
+            "now_playing",
+            new { track = "x" },
+            excludeWidgetId: null,
+            channelEventId: null,
+            CancellationToken.None
+        );
+
+        List<string> types = await db
+            .RenderedAlertCaptures.Where(c => c.BroadcasterId == channel)
+            .Select(c => c.EventType)
+            .ToListAsync();
+        types.Should().Equal("follow", "follow", "follow");
+    }
+
+    [Fact]
     public async Task Dispatch_with_no_subscribing_widget_captures_nothing()
     {
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
@@ -223,9 +291,9 @@ public sealed class WidgetAlertCaptureTests
             {
                 Id = Guid.NewGuid(),
                 BroadcasterId = channel,
-                Name = "Now Playing",
+                Name = "Alert box",
                 IsEnabled = true,
-                EventSubscriptions = ["now_playing"],
+                EventSubscriptions = ["follow"],
             }
         );
         await db.SaveChangesAsync();
@@ -253,8 +321,8 @@ public sealed class WidgetAlertCaptureTests
             db,
             widgets,
             channel,
-            "now_playing",
-            new { track = "Test Track", isPlaying = true },
+            "follow",
+            new { user = "PogChamp42" },
             excludeWidgetId: null,
             channelEventId: null,
             CancellationToken.None

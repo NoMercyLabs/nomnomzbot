@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using FluentAssertions;
 using NomNomzBot.Application.Alerts.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -208,6 +210,48 @@ public sealed class SupporterWidgetEventHandlerTests
                 Arg.Is<object?>(p => IsExpectedKindPayload(p, kind)),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_supporter_push_lands_in_the_capture_store_with_the_wire_payload()
+    {
+        using WidgetSqliteTestDatabase db = WidgetSqliteTestDatabase.Open();
+        await SeedChannelAsync(db, Broadcaster);
+        using (WidgetTestDbContext ctx = db.NewContext())
+        {
+            ctx.Widgets.Add(NewWidget(Broadcaster, true, "supporter.tip"));
+            await ctx.SaveChangesAsync();
+        }
+
+        using WidgetTestDbContext readCtx = db.NewContext();
+        SupporterWidgetEventHandler handler = new(readCtx, _overlay, _alertQueue, _widgetService);
+
+        await handler.HandleAsync(TipEvent(Broadcaster));
+
+        using WidgetTestDbContext verify = db.NewContext();
+        List<RenderedAlertCapture> captures = verify
+            .RenderedAlertCaptures.Where(c => c.BroadcasterId == Broadcaster)
+            .ToList();
+        RenderedAlertCapture capture = captures.Should().ContainSingle().Subject;
+        capture.EventType.Should().Be("supporter.tip");
+        JsonElement payload = JsonSerializer.Deserialize<JsonElement>(capture.Payload);
+        payload.GetProperty("user").GetString().Should().Be("GenerousGoat");
+        payload.GetProperty("amountMinor").GetInt64().Should().Be(500);
+    }
+
+    [Fact]
+    public async Task A_supporter_push_with_no_subscribing_widget_captures_nothing()
+    {
+        using WidgetSqliteTestDatabase db = WidgetSqliteTestDatabase.Open();
+        await SeedChannelAsync(db, Broadcaster);
+
+        using WidgetTestDbContext readCtx = db.NewContext();
+        SupporterWidgetEventHandler handler = new(readCtx, _overlay, _alertQueue, _widgetService);
+
+        await handler.HandleAsync(TipEvent(Broadcaster));
+
+        using WidgetTestDbContext verify = db.NewContext();
+        verify.RenderedAlertCaptures.Count(c => c.BroadcasterId == Broadcaster).Should().Be(0);
     }
 
     private static bool IsExpectedKindPayload(object? payload, string kind) =>

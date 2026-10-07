@@ -8,13 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Widgets;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
@@ -35,10 +35,6 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// </summary>
 internal static class WidgetAlertDispatch
 {
-    // Same recency window the dashboard activity feed surfaces (DashboardController.GetActivity) — captures
-    // beyond it can never be replayed from the feed, so keeping them would only grow the table unbounded.
-    private const int MaxCapturesPerBroadcaster = 40;
-
     public static async Task RouteAsync(
         IApplicationDbContext db,
         IWidgetNotifier notifier,
@@ -95,8 +91,14 @@ internal static class WidgetAlertDispatch
         // before (including a null channelEventId — e.g. a free chat-command TTS utterance is still logged,
         // just never reachable by ReplayActivity's exact-id lookup); chat alone is excluded, since it is the
         // one type that both fires at chat volume AND carries a real (never matchable) correlating id.
-        if (subscribers.Count > 0 && eventType != "ChatMessage")
-            await CaptureAsync(
+        // Standing state (custom.*, sr_queue, now_playing) is excluded for the same reason, to the same effect:
+        // a re-pushed value would evict the real alerts and replay nothing worth replaying.
+        if (
+            subscribers.Count > 0
+            && eventType != "ChatMessage"
+            && !RenderedAlertCaptureLog.IsStandingState(eventType)
+        )
+            await RenderedAlertCaptureLog.AppendAsync(
                 db,
                 broadcasterId,
                 eventType,
@@ -162,54 +164,6 @@ internal static class WidgetAlertDispatch
         }
 
         return pushed;
-    }
-
-    /// <summary>
-    /// Records the exact <paramref name="data"/> object pushed for <paramref name="eventType"/>, then prunes
-    /// this broadcaster's captures back down to <see cref="MaxCapturesPerBroadcaster"/> — a simple
-    /// prune-on-write rather than a background job, since there is no precedent for one over a bounded log
-    /// this small in this codebase.
-    /// </summary>
-    private static async Task CaptureAsync(
-        IApplicationDbContext db,
-        Guid broadcasterId,
-        string eventType,
-        object data,
-        string? channelEventId,
-        CancellationToken cancellationToken
-    )
-    {
-        db.RenderedAlertCaptures.Add(
-            new()
-            {
-                BroadcasterId = broadcasterId,
-                EventType = eventType,
-                // The hub's own wire form: a replay re-sends this text verbatim, so it must carry the names the live
-                // push carried (`user`, not `User`).
-                Payload = JsonSerializer.Serialize(data, OverlayWireJson.Options),
-                ChannelEventId = channelEventId,
-            }
-        );
-        await db.SaveChangesAsync(cancellationToken);
-
-        // CreatedAt is stamped by AuditableEntityInterceptor at SaveChanges time and can tie between rows
-        // written in the same tick (test fakes with no interceptor tie on every row); Id (MonotonicGuid, which
-        // rises with every capture made in this process) breaks the tie toward "insertion order", so the
-        // oldest row is always the one pruned.
-        List<Guid> staleIds = await db
-            .RenderedAlertCaptures.Where(c => c.BroadcasterId == broadcasterId)
-            .OrderByDescending(c => c.CreatedAt)
-            .ThenByDescending(c => c.Id)
-            .Skip(MaxCapturesPerBroadcaster)
-            .Select(c => c.Id)
-            .ToListAsync(cancellationToken);
-
-        if (staleIds.Count == 0)
-            return;
-
-        await db
-            .RenderedAlertCaptures.Where(c => staleIds.Contains(c.Id))
-            .ExecuteDeleteAsync(cancellationToken);
     }
 }
 

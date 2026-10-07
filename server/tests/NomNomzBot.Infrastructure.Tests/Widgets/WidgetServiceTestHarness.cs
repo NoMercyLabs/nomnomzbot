@@ -77,6 +77,10 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new PlatformContentDefinitionConfiguration());
         modelBuilder.ApplyConfiguration(new PlatformContentVersionConfiguration());
 
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Widgets.Persistence.RenderedAlertCaptureConfiguration()
+        );
+
         // The REAL AlertQueueEntry config too — S059's presence-honesty tests write/read through it.
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.Alerts.Persistence.AlertQueueEntryConfiguration()
@@ -119,6 +123,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(PlatformContentDefinition)
                 && t != typeof(PlatformContentVersion)
                 && t != typeof(AlertQueueEntry)
+                && t != typeof(RenderedAlertCapture)
             ),
     ];
 
@@ -218,7 +223,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
-    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
     public DbSet<AlertQueueEntry> AlertQueueEntries => Set<AlertQueueEntry>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();

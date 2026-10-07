@@ -135,11 +135,11 @@ public sealed class SupporterWidgetEventHandler : IEventHandler<SupporterEventRe
             .Where(w => w.BroadcasterId == @event.BroadcasterId && w.IsEnabled)
             .ToListAsync(cancellationToken);
 
-        foreach (
-            Widget widget in candidates.Where(w =>
-                w.Id != alertsSurfaceId && w.EventSubscriptions.Contains(eventType)
-            )
-        )
+        List<Widget> subscribers = candidates
+            .Where(w => w.EventSubscriptions.Contains(eventType))
+            .ToList();
+
+        foreach (Widget widget in subscribers.Where(w => w.Id != alertsSurfaceId))
         {
             await _overlay.SendWidgetEventAsync(
                 @event.BroadcasterId,
@@ -149,5 +149,17 @@ public sealed class SupporterWidgetEventHandler : IEventHandler<SupporterEventRe
                 cancellationToken
             );
         }
+
+        // Recorded for the dashboard's Replay, like every other alert; the alerts surface counts as a subscriber
+        // here because its own delivery ran in EnqueueAsync above.
+        if (subscribers.Count > 0)
+            await RenderedAlertCaptureLog.AppendAsync(
+                _db,
+                @event.BroadcasterId,
+                eventType,
+                payload,
+                null,
+                cancellationToken
+            );
     }
 }
