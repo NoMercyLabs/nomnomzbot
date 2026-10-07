@@ -31,6 +31,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -42,7 +44,10 @@ import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.economy_participant_row_type
+import nomnomzbot.composeapp.generated.resources.participant_lb_consent_hide_me
 import nomnomzbot.composeapp.generated.resources.participant_lb_consent_label
+import nomnomzbot.composeapp.generated.resources.participant_lb_consent_show_me
+import nomnomzbot.composeapp.generated.resources.participant_lb_consent_unknown
 import nomnomzbot.composeapp.generated.resources.participant_lb_empty
 import nomnomzbot.composeapp.generated.resources.participant_lb_row_description
 import nomnomzbot.composeapp.generated.resources.participant_lb_sub_board
@@ -91,7 +96,7 @@ private fun Ready(state: LeaderboardsState.Ready, onToggleConsent: (Boolean) -> 
 }
 
 @Composable
-private fun ConsentCard(optedIn: Boolean, onToggle: (Boolean) -> Unit) {
+private fun ConsentCard(optedIn: Boolean?, onToggle: (Boolean) -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -99,17 +104,36 @@ private fun ConsentCard(optedIn: Boolean, onToggle: (Boolean) -> Unit) {
     val label: String = stringResource(Res.string.participant_lb_consent_label)
 
     SectionCard(title = label) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(text = label, style = typography.sm, color = tokens.mutedForeground)
-            Switch(
-                checked = optedIn,
-                onCheckedChange = onToggle,
-                modifier = Modifier.semantics { contentDescription = label },
-            )
+        if (optedIn == null) {
+            // The server cannot tell us the current choice, so no switch position is shown: it would be a guess.
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(Res.string.participant_lb_consent_unknown),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Button(onClick = { onToggle(false) }, variant = ButtonVariant.Outline) {
+                        Text(stringResource(Res.string.participant_lb_consent_hide_me))
+                    }
+                    Button(onClick = { onToggle(true) }, variant = ButtonVariant.Outline) {
+                        Text(stringResource(Res.string.participant_lb_consent_show_me))
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+                Switch(
+                    checked = optedIn,
+                    onCheckedChange = onToggle,
+                    modifier = Modifier.semantics { contentDescription = label },
+                )
+            }
         }
     }
 }

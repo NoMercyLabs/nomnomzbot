@@ -68,14 +68,15 @@ sealed interface LeaderboardsState {
     data object Loading : LeaderboardsState
 
     /**
-     * [optedIn] is the caller's current leaderboard visibility (toggled by opt-in/opt-out). [subscriberBoardUnlocked]
-     * flags whether the sub-only leaderboard is shown. A failed toggle announces on the shell-level feedback toast
-     * rather than a field here — see [ParticipantController.afterLeaderboardToggle].
+     * [optedIn] is the caller's leaderboard visibility as CONFIRMED by the server, or null while unknown. The server
+     * has no read route for it, so it stays null until the caller's own opt-in/opt-out succeeds; consent is never
+     * guessed. [subscriberBoardUnlocked] flags whether the sub-only leaderboard is shown. A failed toggle announces
+     * on the shell-level feedback toast rather than a field here — see [ParticipantController.afterLeaderboardToggle].
      */
     data class Ready(
         val ranking: List<LeaderboardEntry>,
         val subscriberBoardUnlocked: Boolean,
-        val optedIn: Boolean = true,
+        val optedIn: Boolean? = null,
     ) : LeaderboardsState
 
     data class Error(val detail: String) : LeaderboardsState

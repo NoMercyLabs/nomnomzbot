@@ -3246,6 +3246,9 @@
     <string name="participant_lb_empty">Nog geen bezitters.</string>
     <string name="participant_lb_row_description">#%1$d, %2$s, %3$d punten</string>
     <string name="participant_lb_consent_label">Toon mij op openbare ranglijsten</string>
+    <string name="participant_lb_consent_unknown">Je huidige keuze kan nog niet worden gelezen, dus er is geen schakelaar. Kies er een om hem in te stellen.</string>
+    <string name="participant_lb_consent_hide_me">Verberg mij op ranglijsten</string>
+    <string name="participant_lb_consent_show_me">Toon mij op ranglijsten</string>
     <string name="participant_store_balance">Saldo: %1$d</string>
     <string name="participant_store_lifetime">Verdiend %1$d · uitgegeven %2$d totaal</string>
     <string name="participant_store_frozen">Je account is bevroren — uitgeven is gepauzeerd.</string>
