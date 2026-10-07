@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_quote_deleted
-import nomnomzbot.composeapp.generated.resources.feedback_quote_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_quote_saved
 
 // The Quotes page's state-holder (frontend-ia.md §3 — the Chat group). Lists the channel's real numbered
@@ -104,56 +103,45 @@ class QuotesController(
         load()
     }
 
-    /** Create a quote, then reload so the new row appears. Surfaces the error on failure. */
-    suspend fun createQuote(text: String, quotedDisplayName: String?, contextGame: String?) {
-        afterWrite(quotesApi.create(AddQuoteBody(text, quotedDisplayName.orNullIfBlank(), contextGame.orNullIfBlank())))
-    }
+    /** Create a quote, then reload so the new row appears. A failure is handed back to the form dialog. */
+    suspend fun createQuote(text: String, quotedDisplayName: String?, contextGame: String?): ApiResult<Unit> =
+        afterDialogWrite(
+            quotesApi.create(AddQuoteBody(text, quotedDisplayName.orNullIfBlank(), contextGame.orNullIfBlank()))
+        )
 
     /**
-     * Edit a quote's text/attribution, addressed by its immutable [number]. Reloads on success. Surfaces the
-     * error on failure.
+     * Edit a quote's text/attribution, addressed by its immutable [number]. Reloads on success. A failure is
+     * handed back to the form dialog.
      */
-    suspend fun updateQuote(number: Int, text: String, quotedDisplayName: String?, contextGame: String?) {
-        afterWrite(
+    suspend fun updateQuote(
+        number: Int,
+        text: String,
+        quotedDisplayName: String?,
+        contextGame: String?,
+    ): ApiResult<Unit> =
+        afterDialogWrite(
             quotesApi.update(
                 number,
                 EditQuoteBody(text, quotedDisplayName.orNullIfBlank(), contextGame.orNullIfBlank()),
             )
         )
-    }
 
-    /** Delete a quote, addressed by its [number]. Reloads on success. Surfaces the error on failure. */
-    suspend fun deleteQuote(number: Int) {
-        afterWrite(quotesApi.delete(number), success = Res.string.feedback_quote_deleted)
-    }
+    /** Delete a quote, addressed by its [number]. Reloads on success. A failure is handed back to the confirm. */
+    suspend fun deleteQuote(number: Int): ApiResult<Unit> =
+        afterDialogWrite(quotesApi.delete(number), success = Res.string.feedback_quote_deleted)
 
-    // A write either reloads the list AND announces success on the frame, or surfaces its error over the
-    // current Ready list without losing it (failure) — so a failed edit/delete leaves the page intact with a
-    // visible reason AND a frame-level error message. [success] lets a delete say "Deleted" while the rest
-    // default to "Saved".
-    private suspend fun afterWrite(
+    // A write fired from a dialog that stays open until the server answers: success announces on the frame and
+    // reloads the list; a failure is handed back untouched so the dialog shows the reason inline (no toast on
+    // top of it). [success] lets a delete say "Deleted" while the rest default to "Saved".
+    private suspend fun afterDialogWrite(
         result: ApiResult<Unit>,
         success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_quote_saved,
-    ) {
-        when (result) {
-            is ApiResult.Ok -> {
-                feedback.success(success)
-                load()
-            }
-            is ApiResult.Failure -> failWrite(result.error.message)
+    ): ApiResult<Unit> {
+        if (result is ApiResult.Ok) {
+            feedback.success(success)
+            load()
         }
-    }
-
-    // The page is already showing content (Ready or Empty) — announce on the shell-level feedback toast rather
-    // than a local banner. Only when the page has nothing to show yet does a failure become the page's own
-    // Error state.
-    private fun failWrite(detail: String) {
-        val current: QuotesState = _state.value
-        if (current is QuotesState.Ready || current is QuotesState.Empty) {
-            feedback.error(Res.string.feedback_quote_save_failed, detail)
-        } else {
-            _state.value = QuotesState.Error(detail)
-        }
+        return result
     }
 
     // Optional attribution fields are sent as null (omitted from the wire body) when the operator leaves them

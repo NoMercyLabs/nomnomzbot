@@ -26,7 +26,6 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_quote_deleted
-import nomnomzbot.composeapp.generated.resources.feedback_quote_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_quote_saved
 
 // Proves the Quotes page state machine the screen renders: surface the channel's real quotes — empty when
@@ -178,7 +177,7 @@ class QuotesControllerTest {
     }
 
     @Test
-    fun a_failed_write_keeps_the_list_and_announces_on_the_feedback_toast() = runTest {
+    fun a_failed_write_keeps_the_list_and_hands_the_failure_back_without_a_toast() = runTest {
         val quotesApi =
             RecordingQuotesApi(
                 ApiResult.Ok(listOf(Quote(id = "q1", number = 1, text = "keep me"))),
@@ -188,15 +187,15 @@ class QuotesControllerTest {
         val controller = QuotesController(quotesApi, feedback)
         controller.load()
 
-        controller.deleteQuote(number = 1)
+        val result: ApiResult<Unit> = controller.deleteQuote(number = 1)
 
-        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The list is kept (not blown away); the failure goes back to the dialog, not onto a toast.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
         val state: QuotesState = controller.state.value
         assertTrue(state is QuotesState.Ready)
         assertEquals(1, (state as QuotesState.Ready).quotes.size)
         assertEquals("keep me", state.quotes.first().text)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf("no permission"), feedback.only.formatArgs)
+        assertEquals(emptyList(), feedback.messages)
     }
 
     @Test
@@ -234,7 +233,7 @@ class QuotesControllerTest {
     }
 
     @Test
-    fun a_failed_write_announces_an_error_carrying_the_backend_detail() = runTest {
+    fun a_failed_write_returns_the_backend_detail_and_announces_nothing() = runTest {
         val feedback = RecordingFeedback()
         val controller =
             QuotesController(
@@ -246,12 +245,11 @@ class QuotesControllerTest {
             )
         controller.load()
 
-        controller.deleteQuote(number = 7)
+        val result: ApiResult<Unit> = controller.deleteQuote(number = 7)
 
-        // The failure path emits an ERROR (never a success), carrying the backend message as the detail arg.
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_quote_save_failed, feedback.only.label)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        // The failure is handed back carrying the backend message; no success and no error toast is emitted.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertEquals(emptyList(), feedback.messages)
     }
 
     @Test
