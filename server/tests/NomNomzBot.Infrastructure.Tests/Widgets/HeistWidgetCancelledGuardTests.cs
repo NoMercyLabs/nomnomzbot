@@ -8,57 +8,98 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Reflection;
 using FluentAssertions;
-using NomNomzBot.Infrastructure.Content.Widgets;
+using Jint;
 
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
 /// The live-game engine sends a <c>cancelled</c> frame (as <c>game.resolved</c>) when a round is cancelled
-/// (<c>LiveGameEngine.CancelInternalAsync</c>). The heist widget had no branch for it, so the lobby panel stayed
-/// on screen forever. A SOURCE-TEXT guard: the widget is browser JavaScript and this suite cannot run it.
+/// (<c>LiveGameEngine.CancelInternalAsync</c>). The heist widget must leave the lobby, show the reason, and hide
+/// after <c>hideAfterMs</c>. The real <c>onFrame</c>, <c>reset</c> and <c>scheduleHide</c> run in Jint.
 /// </summary>
 public sealed class HeistWidgetCancelledGuardTests
 {
-    private static string Source()
+    private static Engine CreateWidget()
     {
-        const string resourceName = "NomNomzBot.Infrastructure.Content.Widgets.Assets.heist.vue";
-        using System.IO.Stream? stream = typeof(FirstPartyWidgetCatalogue)
-            .GetTypeInfo()
-            .Assembly.GetManifestResourceStream(resourceName);
-        stream.Should().NotBeNull("the heist widget must ship as an embedded asset");
+        string source = WidgetAssetSource.Load("heist.vue");
+        string reset = WidgetAssetSource
+            .ExtractBlock(source, @"function\s+reset\s*\(")
+            .Replace("function reset(): void {", "function reset() {");
+        string onFrame = WidgetAssetSource
+            .ExtractBlock(source, @"function\s+onFrame\s*\(")
+            .Replace("function onFrame(d: GameFrame): void {", "function onFrame(d) {")
+            .Replace("(r): HeistResult =>", "(r) =>");
+        string scheduleHide = WidgetAssetSource
+            .ExtractBlock(source, @"function\s+scheduleHide\s*\(")
+            .Replace("function scheduleHide(): void {", "function scheduleHide() {");
 
-        using StreamReader reader = new(stream);
-        return reader.ReadToEnd();
+        Engine engine = new();
+        engine.Execute(WidgetAssetSource.FakeClock);
+        engine.Execute(
+            """
+            var cfg = { accentColor: '#9146ff', hideAfterMs: 12000 };
+            var visible = { value: false };
+            var phase = { value: 'lobby' };
+            var successChance = { value: 0 };
+            var crew = { value: [] };
+            var results = { value: [] };
+            var cancelReason = { value: '' };
+            var hideTimer = undefined;
+            """
+        );
+        engine.Execute(reset);
+        engine.Execute(onFrame);
+        engine.Execute(scheduleHide);
+        engine.Execute(
+            """
+            onFrame({ kind: 'round_open', successChance: 40 });
+            onFrame({ kind: 'join', successChance: 40, crew: [{ player: 'a', stake: 100 }] });
+            """
+        );
+        return engine;
     }
 
     [Fact]
-    public void A_cancelled_frame_sets_the_cancelled_phase_keeps_the_reason_and_schedules_the_hide()
+    public void A_cancelled_round_shows_its_reason_and_then_hides()
     {
-        string source = Source();
+        Engine engine = CreateWidget();
 
-        source
+        engine.Execute(
+            "onFrame({ kind: 'cancelled', cancelled: true, reason: 'Not enough crew' });"
+        );
+
+        engine.Evaluate("phase.value").AsString().Should().Be("cancelled");
+        engine.Evaluate("cancelReason.value").AsString().Should().Be("Not enough crew");
+        engine.Evaluate("visible.value").AsBoolean().Should().BeTrue("the reason shows first");
+
+        engine.Execute("advance(12000);");
+
+        engine
+            .Evaluate("visible.value")
+            .AsBoolean()
             .Should()
-            .MatchRegex(
-                @"if \(d\.kind === 'cancelled'\) \{\s*phase\.value = 'cancelled'\s*cancelReason\.value = d\.reason\s*scheduleHide\(\)",
-                "a cancelled round must leave the lobby phase and hide the panel after hideAfterMs"
-            );
-        source
-            .Should()
-            .Contain(
-                "ref<'lobby' | 'resolved' | 'cancelled'>",
-                "the phase type must admit the cancelled phase"
-            );
+            .BeFalse("a cancelled heist must not stay on screen");
     }
 
     [Fact]
-    public void The_cancelled_phase_shows_its_own_title_and_reason_instead_of_the_lobby_text()
+    public void A_new_round_after_a_cancel_starts_a_clean_lobby()
     {
-        string source = Source();
+        Engine engine = CreateWidget();
+        engine.Execute(
+            """
+            onFrame({ kind: 'cancelled', cancelled: true, reason: 'Not enough crew' });
+            onFrame({ kind: 'round_open', successChance: 55 });
+            advance(20000);
+            """
+        );
 
-        source.Should().Contain("phase === 'cancelled'");
-        source.Should().Contain("Heist — cancelled");
-        source.Should().Contain("cancelReason");
+        engine.Evaluate("phase.value").AsString().Should().Be("lobby");
+        engine.Evaluate("cancelReason.value").AsString().Should().BeEmpty();
+        engine
+            .Evaluate("visible.value")
+            .AsBoolean()
+            .Should()
+            .BeTrue("the old hide timer was cleared by the new round");
     }
 }
