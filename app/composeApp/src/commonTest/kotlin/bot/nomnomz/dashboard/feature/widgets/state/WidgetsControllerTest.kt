@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorPreviewActionResult
 import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
@@ -34,6 +35,8 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
+import bot.nomnomz.dashboard.core.network.PreviewActionBody
+import bot.nomnomz.dashboard.core.network.PreviewActionResponse
 import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
 import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
@@ -336,13 +339,87 @@ class WidgetsControllerTest {
                 eventSubscriptions = listOf("follow", "cheer"),
                 fireSamples = widgetsApi.testEventSamplesResult.let { (it as ApiResult.Ok).value },
             ),
-            editor.openedPreviewWidget,
+            editor.openedPreviewWidget?.copy(runAction = null),
         )
+        assertTrue(editor.openedPreviewWidget?.runAction != null, "the preview can run real actions")
         // "Save & Compile" PUT exactly the edited project for that widget — a real server build, not a no-op.
         assertEquals(listOf("w-1" to mapOf("index.html" to "<new>hi</new>")), widgetsApi.savedProjects)
         // The build outcome was reported inline as success.
         assertEquals(listOf(CompileFeedback(ok = true, message = "compiled-ok")), editor.feedbacks)
     }
+
+    @Test
+    fun preview_run_action_posts_the_channel_action_type_and_variables_and_carries_the_audio_url() = runTest {
+        val widgetsApi: RecordingWidgetsApi = previewWidgetsApi()
+        widgetsApi.previewActionResponse =
+            ApiResult.Ok(
+                PreviewActionResponse(
+                    success = true,
+                    output = "spoken",
+                    variables = mapOf("tts.audioUrl" to "https://cdn.example/a.mp3"),
+                )
+            )
+        val editor = FakeProjectEditor(toSave = listOf("<new/>"))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
+        )
+
+        val params: JsonObject = JsonObject(mapOf("text" to JsonPrimitive("hello")))
+        val reply: EditorPreviewActionResult =
+            editor.openedPreviewWidget!!.runAction!!("tts_synthesize", params, mapOf("user" to "bob"))
+
+        assertEquals(listOf("ch1" to PreviewActionBody("tts_synthesize", params, mapOf("user" to "bob"))), widgetsApi.previewActionCalls)
+        assertEquals(true, reply.success)
+        assertEquals("spoken", reply.output)
+        assertEquals("https://cdn.example/a.mp3", reply.variables["tts.audioUrl"])
+    }
+
+    @Test
+    fun preview_run_action_failure_carries_the_server_error_code_not_an_empty_result() = runTest {
+        val widgetsApi: RecordingWidgetsApi = previewWidgetsApi()
+        widgetsApi.previewActionResponse = ApiResult.Failure(ApiError(422, "TTS_NOT_CONFIGURED", "no voice"))
+        val editor = FakeProjectEditor(toSave = listOf("<new/>"))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
+        )
+
+        val reply: EditorPreviewActionResult = editor.openedPreviewWidget!!.runAction!!("tts_synthesize", null, emptyMap())
+
+        assertFalse(reply.success)
+        assertEquals("TTS_NOT_CONFIGURED", reply.errorCode)
+        assertEquals("no voice", reply.error)
+        assertTrue(reply.variables.isEmpty())
+    }
+
+    @Test
+    fun preview_action_result_maps_a_code_less_failure_to_its_http_status() {
+        val reply: EditorPreviewActionResult =
+            previewActionResult(ApiResult.Failure(ApiError(503, null, "down")))
+
+        assertFalse(reply.success)
+        assertEquals("HTTP_503", reply.errorCode)
+    }
+
+    private fun previewWidgetsApi(): RecordingWidgetsApi =
+        RecordingWidgetsApi(
+            ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"))),
+            projectResult =
+                ApiResult.Ok(
+                    ProjectDto(
+                        files = mapOf("index.html" to "<old/>"),
+                        manifest = ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                    )
+                ),
+            putProjectResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
+        )
 
     @Test
     fun edit_widget_code_flags_the_preview_when_the_event_samples_could_not_be_fetched() = runTest {
@@ -1150,6 +1227,14 @@ private class RecordingWidgetsApi(
         ApiResult.Ok(JsonObject(mapOf("follow" to JsonObject(mapOf("login" to JsonPrimitive("server-login"))))))
 
     override suspend fun testEventSamples(channelId: String): ApiResult<JsonObject> = testEventSamplesResult
+
+    val previewActionCalls: MutableList<Pair<String, PreviewActionBody>> = mutableListOf()
+    var previewActionResponse: ApiResult<PreviewActionResponse> = ApiResult.Ok(PreviewActionResponse(success = true))
+
+    override suspend fun previewAction(channelId: String, body: PreviewActionBody): ApiResult<PreviewActionResponse> {
+        previewActionCalls += channelId to body
+        return previewActionResponse
+    }
 }
 
 // A recording fake gallery catalogue: returns the preset [listResult] / [detail] and records every browse

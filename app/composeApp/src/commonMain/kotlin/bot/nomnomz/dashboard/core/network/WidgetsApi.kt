@@ -166,6 +166,12 @@ interface WidgetsApi {
      * exactly what [testEvent] sends.
      */
     suspend fun testEventSamples(channelId: String): ApiResult<JsonObject>
+
+    /**
+     * Run one real action for the editor preview (backend `WidgetPreviewActionController`; only `tts_synthesize`).
+     * A failed run is an Ok with `success = false` and an error code, the same shape the overlay hub answers.
+     */
+    suspend fun previewAction(channelId: String, body: PreviewActionBody): ApiResult<PreviewActionResponse>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -312,7 +318,28 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
 
     override suspend fun testEventSamples(channelId: String): ApiResult<JsonObject> =
         client.getEnvelope("api/v1/channels/$channelId/widgets/test-event/samples")
+
+    override suspend fun previewAction(channelId: String, body: PreviewActionBody): ApiResult<PreviewActionResponse> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets/preview-action", body)
 }
+
+/** The preview-action request body (backend `WidgetPreviewActionRequest`). */
+@Serializable
+data class PreviewActionBody(
+    val actionType: String,
+    val parameters: JsonObject? = null,
+    val variables: Map<String, String>? = null,
+)
+
+/** The preview-action answer (backend `WidgetPreviewActionResponse`). */
+@Serializable
+data class PreviewActionResponse(
+    val success: Boolean,
+    val output: String? = null,
+    val error: String? = null,
+    val errorCode: String? = null,
+    val variables: Map<String, String> = emptyMap(),
+)
 
 /** The test-fire request body (backend `WidgetTestEventRequest`). [data] is always omitted — a sample is used. */
 @Serializable

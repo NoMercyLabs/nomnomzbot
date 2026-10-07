@@ -101,6 +101,21 @@ data class EditorPreviewWidget(
     val eventSubscriptions: List<String>,
     val fireSamples: JsonObject,
     val fireSamplesError: String? = null,
+    /**
+     * Runs one real action for the preview (the server allows only `tts_synthesize`): the action type, its
+     * parameters and the variables that seed it. Null when the caller offers none; the page then gets a visible
+     * failure instead of a silent empty result.
+     */
+    val runAction: (suspend (actionType: String, params: JsonObject?, variables: Map<String, String>) -> EditorPreviewActionResult)? = null,
+)
+
+/** What one preview action did; the same fields the server answers, with a failure carried as [errorCode]. */
+data class EditorPreviewActionResult(
+    val success: Boolean,
+    val output: String?,
+    val error: String?,
+    val errorCode: String?,
+    val variables: Map<String, String>,
 )
 
 /** The outcome of a compile the editor renders inline — green on success, red with the real build error. */

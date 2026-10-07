@@ -119,6 +119,7 @@ export function initPreview({
     errorBox,
     onReveal,
     onEditSample,
+    onHostAction,
     fireBar,
     refresh,
     language,
@@ -293,8 +294,25 @@ export function initPreview({
     let listedKey = '';
     let editingType = null;
 
+    // rewardId, reward_id and RewardId name the same thing.
+    const idKeyOf = (key) => String(key).replace(/[_\-\s]/g, '').toLowerCase();
+
+    // A widget that filters on one of its own settings (rewardId, ...) would ignore a sample carrying a made-up id,
+    // so an id field of the sample takes the value of the setting that names the same id.
     function sampleFor(type) {
-        return fireSamples[type] ?? fireSamples._default ?? {};
+        const sample = fireSamples[type] ?? fireSamples._default ?? {};
+        const settings = widget.settings ?? {};
+        const settingIds = new Map(
+            Object.entries(settings)
+                .filter(([key, value]) => idKeyOf(key).endsWith('id') && ['string', 'number'].includes(typeof value) && value !== '')
+                .map(([key, value]) => [idKeyOf(key), value]),
+        );
+        if (settingIds.size === 0 || typeof sample !== 'object' || sample === null || Array.isArray(sample)) return sample;
+        const merged = { ...sample };
+        for (const field of Object.keys(sample)) {
+            if (settingIds.has(idKeyOf(field))) merged[field] = settingIds.get(idKeyOf(field));
+        }
+        return merged;
     }
 
     function postFire(type, data) {
@@ -483,6 +501,10 @@ export function initPreview({
         const entry = event.data?.__nnzPreview;
         if (entry?.kind === 'console') {
             showConsoleEntry(entry);
+            return;
+        }
+        if (entry?.kind === 'previewAction') {
+            onHostAction?.(entry);
             return;
         }
         if (entry && typeof entry === 'object') {
@@ -763,5 +785,10 @@ export function initPreview({
             });
     }
 
-    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole, fire: postFire, setEditingType };
+    // The host's answer to a previewAction goes back down into the frame that asked ('*': opaque sandbox origin).
+    function replyHostAction(result) {
+        frame.contentWindow?.postMessage({ __nnzPreviewActionResult: result }, '*');
+    }
+
+    return { mode, schedule, rebuildNow, addConsoleRow, clearConsole, fire: postFire, setEditingType, replyHostAction };
 }

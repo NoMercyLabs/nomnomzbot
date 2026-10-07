@@ -46,6 +46,11 @@ public sealed class SpokenNameFormatterTests
     [InlineData("L33T", "LEET")]
     [InlineData("H4X0R", "HAXOR")]
     [InlineData("h4x0r", "haxor")]
+    [InlineData("5p3c7r4l_HH", "spectral HH")]
+    [InlineData("4ng3l", "angel")]
+    [InlineData("1Gamer", "1 Gamer")]
+    [InlineData("3D4rk", "3 Dark")]
+    [InlineData("1gamer", "1 gamer")]
     public void Format_GivesTheSpokenForm(string name, string expected) =>
         _sut.Format(name).Should().Be(expected);
 

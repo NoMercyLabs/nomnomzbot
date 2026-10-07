@@ -55,7 +55,57 @@
   // continues the way it would live.
   function invokeAction(actionType, params, variables) {
     tell({ kind: "action", actionType: String(actionType), params: params || null, variables: variables || null });
+    if (String(actionType).toLowerCase() === REAL_ACTION) return runRealAction(String(actionType), params, variables);
     return Promise.resolve({ success: true, output: null, error: null, errorCode: null, variables: {} });
+  }
+
+  // The one action a preview really runs: speech, through the editor's host bridge. The host answers by request id.
+  var REAL_ACTION = "tts_synthesize";
+  var ACTION_TIMEOUT_MS = 20000;
+  var pendingActions = {};
+  var nextActionId = 0;
+
+  function failure(code, error) {
+    return { success: false, output: null, error: error || code, errorCode: code, variables: {} };
+  }
+
+  function runRealAction(actionType, params, variables) {
+    return new Promise(function (resolve) {
+      var requestId = "pa-" + (++nextActionId);
+      var wait = window.__nnzPreviewActionTimeoutMs > 0 ? window.__nnzPreviewActionTimeoutMs : ACTION_TIMEOUT_MS;
+      var timer = setTimeout(function () {
+        delete pendingActions[requestId];
+        finish(failure("PREVIEW_ACTION_TIMEOUT"));
+      }, wait);
+      function finish(result) {
+        clearTimeout(timer);
+        if (!result.success) console.error(actionType + " " + result.errorCode + (result.error && result.error !== result.errorCode ? ": " + result.error : ""));
+        resolve(result);
+      }
+      pendingActions[requestId] = function (reply) {
+        var result = {
+          success: reply.success === true,
+          output: reply.output == null ? null : reply.output,
+          error: reply.error == null ? null : reply.error,
+          errorCode: reply.errorCode == null ? null : reply.errorCode,
+          variables: reply.variables && typeof reply.variables === "object" ? reply.variables : {},
+        };
+        if (result.success) {
+          clearTimeout(timer);
+          speak(result.variables["tts.audioUrl"]);
+          resolve(result);
+        } else finish(result);
+      };
+      tell({ kind: "previewAction", requestId: requestId, actionType: actionType, params: params || null, variables: variables || null });
+    });
+  }
+
+  function speak(url) {
+    if (typeof url !== "string" || !url) return;
+    try {
+      var played = new Audio(url).play();
+      if (played && typeof played.catch === "function") played.catch(function (e) { console.error("tts " + describe(e)); });
+    } catch (e) { console.error("tts " + describe(e)); }
   }
 
   // One preview is the only open copy, so it always wins the claim.
@@ -103,6 +153,10 @@
     if (!m) return;
     if (m.__nnzFire) emit(m.__nnzFire.type, m.__nnzFire.data == null ? {} : m.__nnzFire.data);
     else if (m.__nnzSettings) applySettings(m.__nnzSettings);
+    else if (m.__nnzPreviewActionResult) {
+      var answer = pendingActions[m.__nnzPreviewActionResult.requestId];
+      if (answer) { delete pendingActions[m.__nnzPreviewActionResult.requestId]; answer(m.__nnzPreviewActionResult); }
+    }
   });
 
   var api = {

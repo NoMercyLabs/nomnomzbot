@@ -139,8 +139,12 @@ private fun editorMessageJson(origin: String, data: JsAny?): String =
             var files = (type === 'nnz:editor:save' && data.files) ? data.files : {};
             var versionId = (type === 'nnz:editor:historyRollback' || type === 'nnz:editor:historyDelete')
                 ? String(data.versionId || '') : '';
-            var variables = (type === 'nnz:editor:testRun' && data.variables) ? data.variables : {};
+            var isPreview = type === 'nnz:editor:previewAction';
+            var variables = ((type === 'nnz:editor:testRun' || isPreview) && data.variables) ? data.variables : {};
+            var requestId = isPreview ? String(data.requestId || '') : '';
+            var actionType = isPreview ? String(data.actionType || '') : '';
+            var params = (isPreview && data.params && typeof data.params === 'object') ? data.params : null;
             var args = (type === 'nnz:editor:testRun' && Array.isArray(data.args)) ? data.args : [];
-            return JSON.stringify({ type: type, files: files, versionId: versionId, variables: variables, args: args });
+            return JSON.stringify({ type: type, files: files, versionId: versionId, variables: variables, args: args, requestId: requestId, actionType: actionType, params: params });
         }"""
     )

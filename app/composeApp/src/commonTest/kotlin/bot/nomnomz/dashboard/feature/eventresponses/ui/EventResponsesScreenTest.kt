@@ -680,6 +680,11 @@ private class FakeWidgetsApi : WidgetsApi {
 
     override suspend fun testEventSamples(channelId: String): ApiResult<kotlinx.serialization.json.JsonObject> =
         error("stub")
+
+    override suspend fun previewAction(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.PreviewActionBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PreviewActionResponse> = error("stub")
 }
 
 private class FakePickListsApi : PickListsApi {

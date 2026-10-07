@@ -39,6 +39,9 @@ const HOST_MESSAGE = Object.freeze({
     historyError: 'nnz:editor:historyError',
     testRun: 'nnz:editor:testRun',
     testRunResult: 'nnz:editor:testRunResult',
+    // The widget preview wants its one real action (tts_synthesize) run; the host answers by request id.
+    previewAction: 'nnz:editor:previewAction',
+    previewActionResult: 'nnz:editor:previewActionResult',
 });
 
 // Pinned, and single-sourced: the AMD loader, the module root and the stylesheet must never drift apart.
@@ -1555,6 +1558,14 @@ async function open(payload) {
         log: dom.previewLog,
         consolePanel: { list: dom.consoleList, empty: dom.consoleEmpty, clear: dom.consoleClear },
         refresh: dom.refresh,
+        onHostAction: (entry) =>
+            postToHost({
+                type: HOST_MESSAGE.previewAction,
+                requestId: entry.requestId,
+                actionType: entry.actionType,
+                params: entry.params,
+                variables: entry.variables ?? {},
+            }),
         language: payload.language ?? '',
         entry: state.entry,
         fireSamples: payload.fireSamples ?? {},
@@ -1764,6 +1775,15 @@ window.addEventListener('message', (event) => {
         showHistoryError(data.message);
     } else if (data?.type === HOST_MESSAGE.testRunResult) {
         showTestRunResult(data);
+    } else if (data?.type === HOST_MESSAGE.previewActionResult) {
+        state.preview?.replyHostAction({
+            requestId: data.requestId,
+            success: data.success,
+            output: data.output,
+            error: data.error,
+            errorCode: data.errorCode,
+            variables: data.variables,
+        });
     }
 });
 

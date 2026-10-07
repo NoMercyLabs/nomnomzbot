@@ -235,7 +235,7 @@ public class EditorAssetContractTests
     }
 
     [Fact]
-    public void The_preview_labels_are_all_used_by_the_preview_script_or_page()
+    public void The_preview_labels_are_all_used_by_an_editor_script_or_page()
     {
         Dictionary<string, string> defaults = ReadDefaultLabels();
         string script = Read("preview.js");
@@ -248,6 +248,12 @@ public class EditorAssetContractTests
         scriptIds.Should().NotBeEmpty("preview.js must read its words through t()");
 
         HashSet<string> ids = new(scriptIds, StringComparer.Ordinal);
+        // The event tab lives in the main editor, so editor.js reads some preview labels too.
+        ids.UnionWith(
+            Regex
+                .Matches(Read("editor.js"), @"\bt\('(?<id>\w+)'")
+                .Select(match => match.Groups["id"].Value)
+        );
         ids.UnionWith(
             Regex
                 .Matches(page, "data-i18n(?:-placeholder|-aria|-title)?=\"(?<id>\\w+)\"")
@@ -259,6 +265,25 @@ public class EditorAssetContractTests
             .Where(id => !ids.Contains(id))
             .Should()
             .BeEmpty("a preview label nothing reads is dead weight");
+    }
+
+    [Fact]
+    public void The_editor_never_uses_a_textarea_for_code_or_json()
+    {
+        foreach (string file in new[] { "index.html", "editor.js", "preview.js" })
+        {
+            // The one plain-text field left: key=value lines of the test run, which is neither code nor JSON.
+            string withoutExempt = Regex.Replace(
+                Read(file),
+                "<textarea[^>]*id=\"testRunVars\"[^>]*></textarea>",
+                string.Empty
+            );
+            withoutExempt
+                .Should()
+                .NotContainEquivalentOf("<textarea", $"{file} edits code or JSON");
+            withoutExempt.Should().NotContain("createElement('textarea')", file);
+            withoutExempt.Should().NotContainEquivalentOf("contenteditable", file);
+        }
     }
 
     private static Dictionary<string, string> ReadDefaultLabels()

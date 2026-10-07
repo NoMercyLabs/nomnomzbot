@@ -400,7 +400,12 @@ public sealed class TwitchEventSubHostedService
         _conduitMode = true;
         _logger.LogInformation("EventSub: conduit mode on (conduit {ConduitId}).", conduit.Value);
         CancellationToken lifetime = _lifetime.Token;
-        _shardRecheckLoop = Task.Run(() => RecheckShardsPeriodicallyAsync(lifetime), lifetime);
+        // Not lifetime: a stop before the loop starts would cancel the Task itself, and StopAsync would throw.
+        // The loop ends on the token by itself.
+        _shardRecheckLoop = Task.Run(
+            () => RecheckShardsPeriodicallyAsync(lifetime),
+            CancellationToken.None
+        );
     }
 
     /// <summary>

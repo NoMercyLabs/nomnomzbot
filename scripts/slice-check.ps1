@@ -68,6 +68,22 @@ else {
     $server = Join-Path $repo 'server'
 }
 
+# The script and widget tests run the real esbuild binary. CI installs it; a machine without it fails
+# 53 tests with "Script failed validation", which reads like a code break. Fetch the CI-pinned version.
+if (-not $env:Widgets__EsbuildPath -and -not (Get-Command esbuild -ErrorAction SilentlyContinue)) {
+    [string]$esbuildVersion = ((Select-String -Path (Join-Path $repo '.github/workflows/ci.yml') -Pattern "ESBUILD_VERSION: '([^']+)'").Matches[0].Groups[1].Value)
+    [string]$esbuildDir = Join-Path $repo ".scratch/esbuild-$esbuildVersion"
+    [string]$esbuildExe = Join-Path $esbuildDir 'package/esbuild.exe'
+    if (-not (Test-Path -LiteralPath $esbuildExe)) {
+        New-Item -ItemType Directory -Force -Path $esbuildDir | Out-Null
+        [string]$tgz = Join-Path $esbuildDir 'esbuild.tgz'
+        Invoke-WebRequest -UseBasicParsing -Uri "https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-$esbuildVersion.tgz" -OutFile $tgz
+        # Windows tar by full path: Git's tar comes first on PATH under bash and reads "C:" as a remote host.
+        Invoke-Native 'could not unpack esbuild' { & "$env:SystemRoot/System32/tar.exe" -xzf $tgz -C $esbuildDir package/esbuild.exe }
+    }
+    $env:Widgets__EsbuildPath = $esbuildExe
+}
+
 # A stray testhost, a running API, or a lingering VBCSCompiler holds the output DLLs, and the build
 # then reports CS2012 file-lock errors that read exactly like real compile errors. verify-tree.ps1
 # has always killed these first; this gate did not, and the false red sends the slice hunting a

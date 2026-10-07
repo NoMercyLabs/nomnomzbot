@@ -54,6 +54,12 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         RegexTimeout
     );
 
+    private static readonly Regex LeadingLeetRun = new(
+        @"^[0134578@$]+(?=\p{Ll})",
+        RegexOptions.CultureInvariant,
+        RegexTimeout
+    );
+
     private static readonly Regex WordSplit = new(
         @"(?<=\p{Ll})(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}\p{Ll})|(?<=\p{L})(?=\d)|(?<=\d)(?=\p{L})",
         RegexOptions.CultureInvariant,
@@ -155,8 +161,17 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
             tokens.RemoveAt(index);
     }
 
-    private static string DecodeLeet(string token) =>
-        LeetRun.Replace(token, run => DecodeRun(token, run));
+    // A leading digit is a number ("1Gamer") unless the rest of the name is already leetspeak and it opens a
+    // lowercase word: "5p3c7r4l" is "spectral", not "5 pectral".
+    private static string DecodeLeet(string token)
+    {
+        string decoded = LeetRun.Replace(token, run => DecodeRun(token, run));
+        if (decoded == token)
+            return decoded;
+
+        Match leading = LeadingLeetRun.Match(decoded);
+        return leading.Success ? Decode(leading.Value) + decoded[leading.Length..] : decoded;
+    }
 
     // "Player1Gamer": a lowercase letter before the run and a capital after it is a word break, not
     // leetspeak. A run between two capitals ("L33T") decodes in capitals.
