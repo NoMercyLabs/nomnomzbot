@@ -96013,6 +96013,124 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/widgets/preview-action": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Run tts_synthesize for this channel and return the variables it set (tts.audioUrl, tts.durationMs). A failed run is a 200 with success: false and an error code, the same shape the overlay hub's invoke answers, so the preview SDK passes it through unchanged.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetPreviewActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets/test-event": {
       "post": {
         "tags": [
@@ -120921,6 +121039,43 @@
           }
         }
       },
+      "StatusResponseDtoOfWidgetPreviewActionResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WidgetPreviewActionResponse"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfDiscordGuildConnectionDto": {
         "type": "object",
         "properties": {
@@ -138794,6 +138949,76 @@
           }
         },
         "description": "A starter widget template the editor offers when creating a new custom widget — a working, SDK-using starting\npoint (never a blank editor). string WidgetTemplate.Source is the authored source to seed into the editor + compile."
+      },
+      "WidgetPreviewActionRequest": {
+        "required": [
+          "actionType",
+          "parameters",
+          "variables"
+        ],
+        "type": "object",
+        "properties": {
+          "actionType": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
+          },
+          "variables": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A preview action request: the action type, its parameters and the variables that seed its context."
+      },
+      "WidgetPreviewActionResponse": {
+        "required": [
+          "success",
+          "output",
+          "error",
+          "errorCode",
+          "variables"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "What the preview action did; the same fields the overlay hub's invoke returns."
       },
       "WidgetTestEventRequest": {
         "required": [

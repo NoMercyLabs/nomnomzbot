@@ -32,6 +32,7 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Interfaces;
@@ -72,13 +73,15 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         IHost host,
         SqliteConnection connection,
         IEventBus eventBus,
-        ITwitchModeratorsApi moderators
+        ITwitchModeratorsApi moderators,
+        IOwnerActionService ownerActions
     )
     {
         _host = host;
         _connection = connection;
         EventBus = eventBus;
         Moderators = moderators;
+        OwnerActions = ownerActions;
     }
 
     public TestServer Server => _host.GetTestServer();
@@ -87,6 +90,9 @@ internal sealed class ActAsTestHost : IAsyncDisposable
 
     /// <summary>Twitch's "channels I moderate" answer. Offline (a failure) unless a test says otherwise.</summary>
     public ITwitchModeratorsApi Moderators { get; }
+
+    /// <summary>The owner-action executor the widget preview endpoint calls; a substitute, so a test sees what reached it.</summary>
+    public IOwnerActionService OwnerActions { get; }
 
     /// <summary>The IAM principal the admin operator acts through.</summary>
     public static readonly Guid AdminPrincipalId = Guid.Parse(
@@ -111,6 +117,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         IEventBus eventBus = Substitute.For<IEventBus>();
         IAuthService authService = Substitute.For<IAuthService>();
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        IOwnerActionService ownerActions = Substitute.For<IOwnerActionService>();
         moderators
             .GetModeratedChannelsAsync(
                 Arg.Any<Guid>(),
@@ -125,6 +132,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
                 {
                     Register(services, config, jwt, eventBus, authService, adminUserId, connection);
                     services.AddSingleton(moderators);
+                    services.AddSingleton(ownerActions);
                 })
                 .Configure(Pipeline)
         );
@@ -137,7 +145,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
                 .ServiceProvider.GetRequiredService<AppDbContext>()
                 .Database.EnsureCreatedAsync();
 
-        ActAsTestHost testHost = new(host, connection, eventBus, moderators);
+        ActAsTestHost testHost = new(host, connection, eventBus, moderators, ownerActions);
         testHost.Client = host.GetTestClient();
         return testHost;
     }
