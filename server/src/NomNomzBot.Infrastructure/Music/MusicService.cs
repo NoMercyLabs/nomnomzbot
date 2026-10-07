@@ -2020,7 +2020,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             cancellationToken
         );
 
-    private IReadOnlyList<SongRequestQueueSnapshotItem> SnapshotQueue(string broadcasterId)
+    /// <inheritdoc />
+    public IReadOnlyList<SongRequestQueueSnapshotItem> SnapshotQueue(string broadcasterId)
     {
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
         return queue is null

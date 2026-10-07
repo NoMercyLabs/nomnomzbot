@@ -1250,6 +1250,9 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public IReadOnlyList<SongRequestQueueSnapshotItem> SnapshotQueue(string broadcasterId) =>
+            throw new NotSupportedException();
+
         public Task<MusicQueue> GetQueueAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default

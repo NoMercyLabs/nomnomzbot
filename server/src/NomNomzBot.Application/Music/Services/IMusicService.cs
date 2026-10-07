@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Application.Music.Services;
@@ -50,6 +51,13 @@ public interface IMusicService
 
     /// <summary>Provider previous-track. Gated on <c>Previous</c>; fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
     Task<Result> PreviousAsync(string broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The top of the channel's song-request queue in the exact shape the <c>sr_queue</c> overlay widget renders,
+    /// first-up first. Empty when nothing is queued. One builder for the live queue-changed event and the
+    /// widget's join seed.
+    /// </summary>
+    IReadOnlyList<SongRequestQueueSnapshotItem> SnapshotQueue(string broadcasterId);
 
     /// <summary>Get the current playback queue for a channel.</summary>
     Task<MusicQueue> GetQueueAsync(
