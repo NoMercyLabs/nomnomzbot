@@ -3188,6 +3188,12 @@
     <string name="pipelines_testrun_trace_not_set">(not set)</string>
     <string name="pipelines_testrun_trace_output">Output: %1$s</string>
     <string name="pipelines_testrun_trace_error">Error: %1$s</string>
+    <string name="pipelines_step_test">Test this step</string>
+    <string name="pipelines_step_test_running">Testing…</string>
+    <string name="pipelines_step_test_chat_heading">It would send in chat</string>
+    <string name="pipelines_step_test_chat_empty">This step sends nothing to chat.</string>
+    <string name="pipelines_step_test_log_heading">What it did</string>
+    <string name="pipelines_step_test_error">This step could not be tested: %1$s</string>
     <string name="pipelines_effect_row_type">Effect</string>
     <string name="pipeline_test_action">Test pipeline</string>
     <string name="pipeline_test_disabled_reason">Bind a pipeline first to test it</string>

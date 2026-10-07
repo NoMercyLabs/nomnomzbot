@@ -128,6 +128,9 @@ class PipelinesController(
     // The channel every read/write targets — resolved by [load] and reused so a mutation never re-resolves it.
     private var channelId: String? = null
 
+    // The sample variables the last full test run used — a single-step test reuses them (same sample event).
+    private var lastTestVariables: Map<String, String> = emptyMap()
+
     // The builder palette, fetched from the backend registry once per load and reused by every editor open so
     // the block list can never drift. Falls back to the locally-known blocks if the fetch fails.
     private var palette: RuntimePalette = PipelineCatalogue.fallbackPalette()
@@ -698,6 +701,7 @@ class PipelinesController(
      * failure reason. Only applies while the editor is open.
      */
     suspend fun testRun(variables: Map<String, String>) {
+        lastTestVariables = variables
         val channel: String = channelId ?: return failEdit(noChannelError())
         val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
         val pipelineId: String = editing.pipelineId
@@ -709,6 +713,30 @@ class PipelinesController(
         ) {
             is ApiResult.Ok -> updateEditing(pipelineId) { it.copy(testRunning = false, testResult = result.value, testError = null) }
             is ApiResult.Failure -> updateEditing(pipelineId) { it.copy(testRunning = false, testError = result.error.message) }
+        }
+    }
+
+    /**
+     * Dry-run just the step [stepId] of the open pipeline with the same sample variables the last full test run
+     * used. The backend runs only that step's action (the request's `step`) and answers its chat output and log,
+     * or an error such as INVALID_STEP; the outcome is stored under [stepId] only, so no other step shows a result.
+     */
+    suspend fun testStep(stepId: String) {
+        val channel: String = channelId ?: return failEdit(noChannelError())
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
+        val step: PipelineStep = editing.steps.firstOrNull { it.id == stepId } ?: return
+        val pipelineId: String = editing.pipelineId
+        _state.value = editing.copy(stepTests = editing.stepTests + (stepId to StepTestState(running = true)))
+
+        val body = PipelineTestRunBody(variables = lastTestVariables, step = step.action.toJson())
+        val outcome: StepTestState =
+            when (val result: ApiResult<TestRunResult> = pipelinesApi.testRun(channel, pipelineId, body)) {
+                is ApiResult.Ok -> StepTestState(result = result.value)
+                is ApiResult.Failure -> StepTestState(error = result.error.message)
+            }
+        updateEditing(pipelineId) { current ->
+            // Dropped while running (the step was edited or removed): the outcome no longer describes it.
+            if (stepId in current.stepTests) current.copy(stepTests = current.stepTests + (stepId to outcome)) else current
         }
     }
 
@@ -744,7 +772,15 @@ class PipelinesController(
     // Apply an in-memory chain transform while editing; a no-op outside the editor.
     private fun mutateChain(transform: (List<PipelineStep>) -> List<PipelineStep>) {
         val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
-        _state.value = editing.copy(steps = transform(editing.steps))
+        val next: List<PipelineStep> = transform(editing.steps)
+        // A step test describes the action as it was run: keep it only while that step still has the same action.
+        val keptTests: Map<String, StepTestState> =
+            editing.stepTests.filter { (id, _) ->
+                val before: PipelineStep? = editing.steps.firstOrNull { it.id == id }
+                val after: PipelineStep? = next.firstOrNull { it.id == id }
+                before != null && after != null && before.action == after.action
+            }
+        _state.value = editing.copy(steps = next, stepTests = keptTests)
     }
 
     // A list write either re-lists AND announces success, or surfaces its error over the current list without
@@ -815,10 +851,22 @@ sealed interface PipelinesState {
         val testRunning: Boolean = false,
         val testResult: TestRunResult? = null,
         val testError: String? = null,
+        val stepTests: Map<String, StepTestState> = emptyMap(),
     ) : PipelinesState
 
     data class Error(val detail: String) : PipelinesState
 }
+
+/**
+ * What testing ONE step alone has shown so far: [running] while the backend call is in flight, then the captured
+ * [result] or the [error] reading. Kept per step id on [PipelinesState.Editing.stepTests]; it clears when that
+ * step's action is edited or the step is removed (see [PipelinesController.testStep]).
+ */
+data class StepTestState(
+    val running: Boolean = false,
+    val result: TestRunResult? = null,
+    val error: String? = null,
+)
 
 /** One entry in a builder dropdown: the [value] written into the param, and the [label] shown to the user. */
 data class PickerOption(val value: String, val label: String)

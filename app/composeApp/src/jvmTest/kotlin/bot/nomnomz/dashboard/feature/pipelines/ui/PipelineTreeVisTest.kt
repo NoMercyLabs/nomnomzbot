@@ -267,16 +267,16 @@ class PipelineListNameWrapTest {
 }
 
 @Composable
-private fun EnglishThemedContent(content: @Composable () -> Unit) {
+internal fun EnglishThemedContent(content: @Composable () -> Unit) {
     AppEnvironment(tag = "en") {
         NomNomzTheme { content() }
     }
 }
 
-private val NotImplementedInTest: ApiResult<Nothing> =
+internal val NotImplementedInTest: ApiResult<Nothing> =
     ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "not implemented in this test fake"))
 
-private class FakeChannelsApiForTreeVisTest(private val channel: ChannelSummary) : ChannelsApi {
+internal class FakeChannelsApiForTreeVisTest(private val channel: ChannelSummary) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = ApiResult.Ok(channel)
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = NotImplementedInTest
@@ -326,7 +326,7 @@ private class FakePipelinesApiForTreeVisTest(private val detail: PipelineDetail)
         NotImplementedInTest
 }
 
-private class FakeWebhooksApiForTreeVisTest : WebhooksApi {
+internal class FakeWebhooksApiForTreeVisTest : WebhooksApi {
     override suspend fun listInbound(channelId: String) = NotImplementedInTest
     override suspend fun createInbound(channelId: String, body: CreateInboundBody) = NotImplementedInTest
     override suspend fun updateInbound(channelId: String, endpointId: String, body: UpdateInboundBody) = NotImplementedInTest
@@ -348,7 +348,7 @@ private class FakeWebhooksApiForTreeVisTest : WebhooksApi {
     override suspend fun deleteOutbound(channelId: String, endpointId: String) = NotImplementedInTest
 }
 
-private class FakePickListsApiForTreeVisTest : PickListsApi {
+internal class FakePickListsApiForTreeVisTest : PickListsApi {
     override suspend fun list(): ApiResult<List<PickList>> = NotImplementedInTest
     override suspend fun get(id: String): ApiResult<PickList> = NotImplementedInTest
     override suspend fun create(body: CreatePickListBody): ApiResult<Unit> = NotImplementedInTest
@@ -358,7 +358,7 @@ private class FakePickListsApiForTreeVisTest : PickListsApi {
     override suspend fun pick(id: String): ApiResult<PickListPreview> = NotImplementedInTest
 }
 
-private class FakeTemplateHelpersApiForTreeVisTest : TemplateHelpersApi {
+internal class FakeTemplateHelpersApiForTreeVisTest : TemplateHelpersApi {
     override suspend fun helpers(context: TemplateHelperContext, eventType: String?): ApiResult<List<TemplateHelperDto>> =
         NotImplementedInTest
 }

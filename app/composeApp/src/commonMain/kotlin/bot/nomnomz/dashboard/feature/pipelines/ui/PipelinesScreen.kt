@@ -127,6 +127,17 @@ import bot.nomnomz.dashboard.feature.pipelines.state.encodeLoopConfig
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelineRecipe
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesState
+import bot.nomnomz.dashboard.feature.pipelines.state.StepTestState
+import bot.nomnomz.dashboard.core.network.TestRunResult
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
+import nomnomzbot.composeapp.generated.resources.pipelines_step_test
+import nomnomzbot.composeapp.generated.resources.pipelines_step_test_chat_empty
+import nomnomzbot.composeapp.generated.resources.pipelines_step_test_chat_heading
+import nomnomzbot.composeapp.generated.resources.pipelines_step_test_error
+import nomnomzbot.composeapp.generated.resources.pipelines_step_test_log_heading
+import nomnomzbot.composeapp.generated.resources.pipelines_step_test_running
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -735,8 +746,26 @@ internal fun PipelineRow(
 
 // ── The chain editor surface ──────────────────────────────────────────────────
 
+// The per-step "Test this step" outcomes (step id -> state) for the open editor, provided once by [ChainEditor] so
+// every step card at any nesting depth reads its own result without threading it through each block card.
+private val LocalStepTests = staticCompositionLocalOf<Map<String, StepTestState>> { emptyMap() }
+
 @Composable
 internal fun ChainEditor(
+    editing: PipelinesState.Editing,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    scope: kotlinx.coroutines.CoroutineScope,
+    templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
+) {
+    CompositionLocalProvider(LocalStepTests provides editing.stepTests) {
+        ChainEditorBody(editing, manage, controller, scope, templateHelpersApi, onOpenCodeScript)
+    }
+}
+
+@Composable
+private fun ChainEditorBody(
     editing: PipelinesState.Editing,
     manage: ManageDecision,
     controller: PipelinesController,
@@ -1265,10 +1294,12 @@ private fun StepCard(
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
+    onTest: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val stepTest: StepTestState? = step.id?.let { LocalStepTests.current[it] }
 
     val actionName: String = blockDisplayName(palette.action(step.action.type), step.action.type)
     val conditionText: String =
@@ -1321,6 +1352,41 @@ private fun StepCard(
             ManageGate(decision = manage) { enabled ->
                 DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = onRemove, enabled = enabled)
             }
+            // A test only reads: the backend captures what the step would do and performs none of it, so it stays
+            // enabled below the manage floor like the editor-wide Test action. Ghost, never the primary action.
+            TextButton(onClick = onTest, enabled = stepTest?.running != true) {
+                Text(
+                    text =
+                        if (stepTest?.running == true) stringResource(Res.string.pipelines_step_test_running)
+                        else stringResource(Res.string.pipelines_step_test),
+                    maxLines = 1,
+                )
+            }
+        }
+        stepTest?.let { StepTestResultView(it) }
+    }
+}
+
+// What testing one step alone showed: the chat lines it would send and its log, or the readable failure.
+@Composable
+private fun StepTestResultView(test: StepTestState) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    test.error?.let { InlineError(message = stringResource(Res.string.pipelines_step_test_error, it)) }
+    val result: TestRunResult = test.result ?: return
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        result.error?.takeIf { it.isNotBlank() }?.let { InlineError(message = stringResource(Res.string.pipelines_step_test_error, it)) }
+        Text(text = stringResource(Res.string.pipelines_step_test_chat_heading), style = typography.sm, color = tokens.cardForeground)
+        if (result.chatOutput.isEmpty()) {
+            Text(text = stringResource(Res.string.pipelines_step_test_chat_empty), style = typography.xs, color = tokens.mutedForeground)
+        } else {
+            result.chatOutput.forEach { line -> Text(text = line, style = typography.sm, color = tokens.foreground) }
+        }
+        if (result.log.isNotEmpty()) {
+            Text(text = stringResource(Res.string.pipelines_step_test_log_heading), style = typography.sm, color = tokens.cardForeground)
+            result.log.forEach { line -> Text(text = line, style = typography.xs, color = tokens.mutedForeground) }
         }
     }
 }
@@ -1626,6 +1692,7 @@ private fun PipelineTreeRow(
         "try" -> TryBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs, depth = depth)
         else -> {
             val stepId: String? = step.id
+            val testScope: kotlinx.coroutines.CoroutineScope = rememberCoroutineScope()
             StepCard(
                 index = index,
                 total = total,
@@ -1637,6 +1704,7 @@ private fun PipelineTreeRow(
                 onRemove = { stepId?.let { controller.removeBranchStep(it) } },
                 onMoveUp = { stepId?.let { controller.moveBranchStepUp(it) } },
                 onMoveDown = { stepId?.let { controller.moveBranchStepDown(it) } },
+                onTest = { stepId?.let { testScope.launch { controller.testStep(it) } } },
             )
         }
     }

@@ -3183,6 +3183,12 @@
     <string name="pipelines_testrun_trace_not_set">(niet ingesteld)</string>
     <string name="pipelines_testrun_trace_output">Uitvoer: %1$s</string>
     <string name="pipelines_testrun_trace_error">Fout: %1$s</string>
+    <string name="pipelines_step_test">Test deze stap</string>
+    <string name="pipelines_step_test_running">Bezig met testen…</string>
+    <string name="pipelines_step_test_chat_heading">Dit zou in de chat komen</string>
+    <string name="pipelines_step_test_chat_empty">Deze stap stuurt niets naar de chat.</string>
+    <string name="pipelines_step_test_log_heading">Wat de stap deed</string>
+    <string name="pipelines_step_test_error">Deze stap kon niet worden getest: %1$s</string>
     <string name="pipelines_effect_row_type">Effect</string>
     <string name="pipeline_test_action">Pipeline testen</string>
     <string name="pipeline_test_disabled_reason">Koppel eerst een pipeline om te testen</string>

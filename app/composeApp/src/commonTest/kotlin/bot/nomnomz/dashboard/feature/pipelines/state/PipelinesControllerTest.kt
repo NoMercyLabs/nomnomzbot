@@ -1220,6 +1220,68 @@ class PipelinesControllerTest {
         assertTrue(api.updated.none { it.first == pipelineId })
     }
 
+    @Test
+    fun test_step_sends_only_that_steps_action_and_stores_the_result_under_that_step_only() = runTest {
+        val pipelineId = "0000000c-0000-0000-0000-00000000000c"
+        val steps: List<PipelineStep> =
+            listOf(
+                PipelineStep(PipelineNode("send_chat", mapOf("message" to "hello"))),
+                PipelineStep(PipelineNode("send_chat", mapOf("message" to "second"))),
+            )
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = pipelineId, name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf(pipelineId to PipelineGraph(steps).toJson()),
+                testRunResult = ApiResult.Ok(TestRunResult(success = true, chatOutput = listOf("hello"), log = listOf("sent"))),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = pipelineId, name = "Greeter"))
+        controller.testRun(mapOf("user" to "viewer1"))
+        api.testRunRequests.clear()
+        val secondId: String = (controller.state.value as PipelinesState.Editing).steps[1].id!!
+
+        controller.testStep(secondId)
+
+        val (sentId, body) = api.testRunRequests.single()
+        assertEquals(pipelineId, sentId)
+        assertEquals(mapOf("user" to "viewer1"), body.variables, "the same sample event as the full test run")
+        assertEquals(
+            PipelineNode("send_chat", mapOf("message" to "second")).toJson(),
+            body.step,
+            "only the tested step's own action is sent",
+        )
+        val editing = controller.state.value as PipelinesState.Editing
+        assertEquals(setOf(secondId), editing.stepTests.keys)
+        val stored: StepTestState = editing.stepTests.getValue(secondId)
+        assertFalse(stored.running)
+        assertEquals(listOf("hello"), stored.result!!.chatOutput)
+        assertEquals(listOf("sent"), stored.result!!.log)
+    }
+
+    @Test
+    fun test_step_keeps_a_backend_error_on_that_step_and_clears_when_the_step_is_edited() = runTest {
+        val pipelineId = "0000000d-0000-0000-0000-00000000000d"
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = pipelineId, name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf(pipelineId to PipelineGraph(listOf(PipelineStep(PipelineNode("send_chat")))).toJson()),
+                testRunResult = ApiResult.Failure(ApiError(400, "INVALID_STEP", "A step needs an action type.")),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = pipelineId, name = "Greeter"))
+        val stepId: String = (controller.state.value as PipelinesState.Editing).steps.single().id!!
+
+        controller.testStep(stepId)
+
+        assertEquals("A step needs an action type.", (controller.state.value as PipelinesState.Editing).stepTests.getValue(stepId).error)
+
+        controller.updateStepById(stepId, PipelineStep(PipelineNode("send_chat", mapOf("message" to "changed"))))
+
+        assertTrue((controller.state.value as PipelinesState.Editing).stepTests.isEmpty(), "editing the step clears its result")
+    }
+
     // "Restore default" on a seeded pipeline (the raid flows): the preview and the restore both go to the
     // loaded channel's pipelines route for the exact row, and nothing is offered before a channel is known.
     @Test
