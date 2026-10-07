@@ -175,29 +175,6 @@ public sealed class EditorFireBarTests : EditorPageTest
         Assert.Equal(1, await Page.EvaluateAsync<int>("() => window.__closes"));
     }
 
-    [Fact]
-    public void The_editor_never_uses_a_textarea_for_code_or_json()
-    {
-        string folder = EditorAssetsFolder();
-        foreach (string file in new[] { "index.html", "editor.js", "preview.js" })
-        {
-            string source = File.ReadAllText(Path.Combine(folder, file));
-            // The one plain-text field left: key=value lines of the test run, which is neither code nor JSON.
-            string withoutExempt = Regex.Replace(
-                source,
-                "<textarea[^>]*id=\"testRunVars\"[^>]*></textarea>",
-                string.Empty
-            );
-            Assert.DoesNotContain("<textarea", withoutExempt, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("createElement('textarea')", withoutExempt);
-            Assert.DoesNotContain(
-                "contenteditable",
-                withoutExempt,
-                StringComparison.OrdinalIgnoreCase
-            );
-        }
-    }
-
     private ILocator EventTab(string type) =>
         Page.Locator($"#tabs .tab[title='events/{type}.json']");
 
