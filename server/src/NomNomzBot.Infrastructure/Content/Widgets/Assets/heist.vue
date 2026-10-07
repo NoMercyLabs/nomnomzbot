@@ -16,20 +16,22 @@ type GameFrame =
 const cfg = reactive({ accentColor: '#9146ff', hideAfterMs: 12000 })
 
 const visible = ref<boolean>(false)
-const phase = ref<'lobby' | 'resolved'>('lobby')
+const phase = ref<'lobby' | 'resolved' | 'cancelled'>('lobby')
 const successChance = ref<number>(0)
 const crew = ref<CrewMember[]>([])
 const results = ref<HeistResult[]>([])
+const cancelReason = ref<string>('')
 let hideTimer: number | undefined
 
 function reset(): void {
   successChance.value = 0
   crew.value = []
   results.value = []
+  cancelReason.value = ''
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = undefined }
 }
 
-// The payload's `kind` narrows the typed frame union; a heist sends round_open, join and results.
+// The payload's `kind` narrows the typed frame union; a heist sends round_open, join, cancelled and results.
 function onFrame(d: GameFrame): void {
   if (d.kind === 'round_open') {
     reset()
@@ -41,6 +43,12 @@ function onFrame(d: GameFrame): void {
   if (d.kind === 'join') {
     successChance.value = d.successChance || successChance.value
     crew.value = d.crew ?? crew.value
+    return
+  }
+  if (d.kind === 'cancelled') {
+    phase.value = 'cancelled'
+    cancelReason.value = d.reason
+    scheduleHide()
     return
   }
   if (d.kind === 'results') {
@@ -86,10 +94,14 @@ onUnmounted(() => {
   <div v-if="visible" class="nnz-heist" :style="{ '--accent': cfg.accentColor }">
     <div class="head">
       <span v-if="phase === 'lobby'" class="title">Heist — type <b>!heist</b> to join the crew</span>
+      <span v-else-if="phase === 'cancelled'" class="title">Heist — cancelled</span>
       <span v-else class="title">Heist — the getaway</span>
-      <span class="odds">{{ Math.round(successChance) }}% escape</span>
+      <span v-if="phase !== 'cancelled'" class="odds">{{ Math.round(successChance) }}% escape</span>
     </div>
-    <div class="roster">
+    <div v-if="phase === 'cancelled'" class="roster">
+      <span v-if="cancelReason" class="chip">{{ cancelReason }}</span>
+    </div>
+    <div v-else class="roster">
       <template v-if="phase === 'lobby'">
         <span v-for="m in crew" :key="m.player" class="chip">{{ m.player }} · {{ m.stake }}</span>
       </template>
