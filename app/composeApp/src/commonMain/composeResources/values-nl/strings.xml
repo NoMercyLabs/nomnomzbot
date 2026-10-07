@@ -2094,6 +2094,10 @@
     <string name="feedback_giveaway_saved">Weggeefactie opgeslagen</string>
     <string name="feedback_economy_adjusted">Saldo bijgewerkt</string>
     <string name="feedback_economy_transferred">Punten overgedragen</string>
+    <string name="feedback_economy_jar_contributed">Bijdrage aan de pot toegevoegd</string>
+    <string name="feedback_economy_jar_withdrawn">Opname uit de pot gedaan</string>
+    <string name="feedback_economy_jar_invited">Kanaal uitgenodigd voor de pot</string>
+    <string name="feedback_economy_jar_updated">Pot opgeslagen</string>
     <string name="economy_no_channel_error">Geen actief kanaal. Verbind opnieuw en probeer het nog eens.</string>
     <string name="feedback_giveaway_deleted">Weggeefactie verwijderd</string>
     <string name="feedback_giveaway_opened">Weggeefactie geopend</string>

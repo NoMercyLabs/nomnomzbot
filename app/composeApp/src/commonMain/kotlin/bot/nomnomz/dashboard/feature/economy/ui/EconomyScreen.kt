@@ -503,7 +503,7 @@ private fun ReadyContent(
     onUpsertEarningRule: (UpsertEarningRuleBody) -> Unit,
     onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
-    onUpdateJar: suspend (jarId: String, UpdateSavingsJarBody) -> Unit,
+    onUpdateJar: suspend (jarId: String, UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDeleteJar: suspend (jarId: String) -> Unit,
     // The real, backend-counted blast radius of deleting a jar (S-CONSEQ) — rendered in the confirm before the
     // destructive delete; never counted in the UI.
@@ -511,11 +511,11 @@ private fun ReadyContent(
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
     // The jar-detail mutations are suspend so the manage dialog can await them and reload its own detail — a
     // fire-and-forget write left the dialog's membership list / balance stale until it was reopened.
-    onJarInvite: suspend (jarId: String, InviteChannelBody) -> Unit,
+    onJarInvite: suspend (jarId: String, InviteChannelBody) -> ApiResult<Unit>,
     onJarAcceptMembership: suspend (membershipId: String) -> Unit,
     onJarRemoveMembership: suspend (membershipId: String) -> Unit,
-    onJarContribute: suspend (jarId: String, AdminJarContributeBody) -> Unit,
-    onJarWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
+    onJarContribute: suspend (jarId: String, AdminJarContributeBody) -> ApiResult<Unit>,
+    onJarWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> ApiResult<Unit>,
     loadJarHistory: suspend (jarId: String) -> List<JarMovement>?,
     onAdjustAccount: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
@@ -2982,15 +2982,15 @@ private fun SavingsJarsSection(
     jars: List<SavingsJar>,
     manage: ManageDecision,
     onCreate: (CreateSavingsJarBody) -> Unit,
-    onUpdate: suspend (jarId: String, UpdateSavingsJarBody) -> Unit,
+    onUpdate: suspend (jarId: String, UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDelete: suspend (jarId: String) -> Unit,
     onBlastRadius: suspend (jarId: String) -> ApiResult<BlastRadiusSummary>,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
-    onInvite: suspend (jarId: String, InviteChannelBody) -> Unit,
+    onInvite: suspend (jarId: String, InviteChannelBody) -> ApiResult<Unit>,
     onAcceptMembership: suspend (membershipId: String) -> Unit,
     onRemoveMembership: suspend (membershipId: String) -> Unit,
-    onContribute: suspend (jarId: String, AdminJarContributeBody) -> Unit,
-    onWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
+    onContribute: suspend (jarId: String, AdminJarContributeBody) -> ApiResult<Unit>,
+    onWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> ApiResult<Unit>,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
@@ -3149,19 +3149,19 @@ private fun SavingsJarRow(
 // Full-management dialog for a savings jar: shows detail + memberships, and provides
 // Contribute / Withdraw / Invite / History actions.
 @Composable
-private fun JarManageDialog(
+internal fun JarManageDialog(
     jar: SavingsJar,
     manage: ManageDecision,
     loadDetail: suspend (jarId: String) -> SavingsJarDetail?,
-    onInvite: suspend (InviteChannelBody) -> Unit,
+    onInvite: suspend (InviteChannelBody) -> ApiResult<Unit>,
     onAcceptMembership: suspend (membershipId: String) -> Unit,
     onRemoveMembership: suspend (membershipId: String) -> Unit,
-    onContribute: suspend (AdminJarContributeBody) -> Unit,
-    onWithdraw: suspend (AdminJarWithdrawBody) -> Unit,
+    onContribute: suspend (AdminJarContributeBody) -> ApiResult<Unit>,
+    onWithdraw: suspend (AdminJarWithdrawBody) -> ApiResult<Unit>,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
-    onUpdate: suspend (UpdateSavingsJarBody) -> Unit,
+    onUpdate: suspend (UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDelete: suspend () -> Unit,
     onBlastRadius: suspend () -> ApiResult<BlastRadiusSummary>,
     onDismiss: () -> Unit,
@@ -3188,6 +3188,14 @@ private fun JarManageDialog(
             action()
             detail = loadDetail(jar.id)
         }
+    }
+
+    // A write from a dialog that stays open until the server answers: the detail reloads on success only, a
+    // failure goes back to the dialog untouched so it can show the reason.
+    suspend fun writeThenReload(action: suspend () -> ApiResult<Unit>): ApiResult<Unit> {
+        val result: ApiResult<Unit> = action()
+        if (result is ApiResult.Ok) detail = loadDetail(jar.id)
+        return result
     }
 
     val jarDisplayName: String =
@@ -3311,30 +3319,21 @@ private fun JarManageDialog(
     if (showInvite) {
         JarInviteDialog(
             searchChannels = searchChannels,
-            onConfirm = { request ->
-                mutateThenReload { onInvite(request) }
-                showInvite = false
-            },
+            onConfirm = { request -> writeThenReload { onInvite(request) } },
             onDismiss = { showInvite = false },
         )
     }
     if (showContribute) {
         JarContributeDialog(
             searchViewers = searchViewers,
-            onConfirm = { request ->
-                mutateThenReload { onContribute(request) }
-                showContribute = false
-            },
+            onConfirm = { request -> writeThenReload { onContribute(request) } },
             onDismiss = { showContribute = false },
         )
     }
     if (showWithdraw) {
         JarWithdrawDialog(
             searchViewers = searchViewers,
-            onConfirm = { request ->
-                mutateThenReload { onWithdraw(request) }
-                showWithdraw = false
-            },
+            onConfirm = { request -> writeThenReload { onWithdraw(request) } },
             onDismiss = { showWithdraw = false },
         )
     }
@@ -3362,10 +3361,7 @@ private fun JarManageDialog(
                 )
         JarEditDialog(
             jar = editSeed,
-            onConfirm = { request ->
-                mutateThenReload { onUpdate(request) }
-                showEdit = false
-            },
+            onConfirm = { request -> writeThenReload { onUpdate(request) } },
             onDismiss = { showEdit = false },
         )
     }
@@ -3400,7 +3396,7 @@ private fun JarManageDialog(
 @Composable
 private fun JarInviteDialog(
     searchChannels: suspend (query: String) -> List<PickerOption>,
-    onConfirm: (InviteChannelBody) -> Unit,
+    onConfirm: suspend (InviteChannelBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3413,60 +3409,56 @@ private fun JarInviteDialog(
     var roleMenuOpen: Boolean by remember { mutableStateOf(false) }
     val isValid: Boolean = picked != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.economy_jars_invite_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                SearchPickerField(
-                    search = searchChannels,
-                    selected = picked,
-                    onSelect = { picked = it },
-                    onClear = { picked = null },
-                    label = stringResource(Res.string.economy_jars_invite_broadcaster),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                EconomyPickerField(
-                    label = stringResource(Res.string.economy_jars_invite_role),
-                    value =
-                        stringResource(
-                            if (role == "Viewer") Res.string.economy_jars_invite_role_viewer
-                            else Res.string.economy_jars_invite_role_partner
-                        ),
-                    expanded = roleMenuOpen,
-                    onExpandedChange = { roleMenuOpen = it },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.economy_jars_invite_role_partner), color = tokens.cardForeground) },
-                        onClick = { role = "Partner"; roleMenuOpen = false },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.economy_jars_invite_role_viewer), color = tokens.cardForeground) },
-                        onClick = { role = "Viewer"; roleMenuOpen = false },
-                    )
-                }
+    FormDialog(
+        title = stringResource(Res.string.economy_jars_invite_title),
+        saveLabel = stringResource(Res.string.economy_jars_invite_confirm),
+        cancelLabel = stringResource(Res.string.economy_jars_invite_cancel),
+        onDismiss = onDismiss,
+        dirty = picked != null || role != "Partner",
+        valid = isValid,
+        save = {
+            val target: PickerRef? = picked
+            if (target == null) {
+                DialogResult.Failed()
+            } else {
+                onConfirm(InviteChannelBody(invitedBroadcasterId = target.id, role = role)).toDialogResult()
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = { picked?.let { p -> onConfirm(InviteChannelBody(invitedBroadcasterId = p.id, role = role)) } },
-                enabled = isValid,
-            ) {
-                Text(stringResource(Res.string.economy_jars_invite_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_jars_invite_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+    ) {
+        SearchPickerField(
+            search = searchChannels,
+            selected = picked,
+            onSelect = { picked = it },
+            onClear = { picked = null },
+            label = stringResource(Res.string.economy_jars_invite_broadcaster),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        EconomyPickerField(
+            label = stringResource(Res.string.economy_jars_invite_role),
+            value =
+                stringResource(
+                    if (role == "Viewer") Res.string.economy_jars_invite_role_viewer
+                    else Res.string.economy_jars_invite_role_partner
+                ),
+            expanded = roleMenuOpen,
+            onExpandedChange = { roleMenuOpen = it },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.economy_jars_invite_role_partner), color = tokens.cardForeground) },
+                onClick = { role = "Partner"; roleMenuOpen = false },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.economy_jars_invite_role_viewer), color = tokens.cardForeground) },
+                onClick = { role = "Viewer"; roleMenuOpen = false },
+            )
+        }
+    }
 }
 
 @Composable
 private fun JarContributeDialog(
     searchViewers: suspend (query: String) -> List<PickerOption>,
-    onConfirm: (AdminJarContributeBody) -> Unit,
+    onConfirm: suspend (AdminJarContributeBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3477,49 +3469,46 @@ private fun JarContributeDialog(
     val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
     val isValid: Boolean = picked != null && amount != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.economy_jars_contribute_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                SearchPickerField(
-                    search = searchViewers,
-                    selected = picked,
-                    onSelect = { picked = it },
-                    onClear = { picked = null },
-                    label = stringResource(Res.string.economy_jars_contribute_viewer),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = stringResource(Res.string.economy_jars_contribute_amount),
-                    isError = amountText.isNotEmpty() && amount == null,
-                    errorText = stringResource(Res.string.economy_jars_contribute_amount_invalid),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+    FormDialog(
+        title = stringResource(Res.string.economy_jars_contribute_title),
+        saveLabel = stringResource(Res.string.economy_jars_contribute_confirm),
+        cancelLabel = stringResource(Res.string.economy_jars_contribute_cancel),
+        onDismiss = onDismiss,
+        dirty = picked != null || amountText.isNotEmpty(),
+        valid = isValid,
+        save = {
+            val target: PickerRef? = picked
+            val value: Long? = amount
+            if (target == null || value == null) {
+                DialogResult.Failed()
+            } else {
+                onConfirm(AdminJarContributeBody(contributorUserId = target.id, amount = value)).toDialogResult()
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = { picked?.let { p -> amount?.let { onConfirm(AdminJarContributeBody(contributorUserId = p.id, amount = it)) } } },
-                enabled = isValid,
-            ) {
-                Text(stringResource(Res.string.economy_jars_contribute_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_jars_contribute_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+    ) {
+        SearchPickerField(
+            search = searchViewers,
+            selected = picked,
+            onSelect = { picked = it },
+            onClear = { picked = null },
+            label = stringResource(Res.string.economy_jars_contribute_viewer),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = amountText,
+            onValueChange = { amountText = it },
+            label = stringResource(Res.string.economy_jars_contribute_amount),
+            isError = amountText.isNotEmpty() && amount == null,
+            errorText = stringResource(Res.string.economy_jars_contribute_amount_invalid),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
 private fun JarWithdrawDialog(
     searchViewers: suspend (query: String) -> List<PickerOption>,
-    onConfirm: (AdminJarWithdrawBody) -> Unit,
+    onConfirm: suspend (AdminJarWithdrawBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3530,43 +3519,40 @@ private fun JarWithdrawDialog(
     val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
     val isValid: Boolean = picked != null && amount != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.economy_jars_withdraw_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                SearchPickerField(
-                    search = searchViewers,
-                    selected = picked,
-                    onSelect = { picked = it },
-                    onClear = { picked = null },
-                    label = stringResource(Res.string.economy_jars_withdraw_viewer),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = stringResource(Res.string.economy_jars_withdraw_amount),
-                    isError = amountText.isNotEmpty() && amount == null,
-                    errorText = stringResource(Res.string.economy_jars_withdraw_amount_invalid),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+    FormDialog(
+        title = stringResource(Res.string.economy_jars_withdraw_title),
+        saveLabel = stringResource(Res.string.economy_jars_withdraw_confirm),
+        cancelLabel = stringResource(Res.string.economy_jars_withdraw_cancel),
+        onDismiss = onDismiss,
+        dirty = picked != null || amountText.isNotEmpty(),
+        valid = isValid,
+        save = {
+            val target: PickerRef? = picked
+            val value: Long? = amount
+            if (target == null || value == null) {
+                DialogResult.Failed()
+            } else {
+                onConfirm(AdminJarWithdrawBody(targetViewerUserId = target.id, amount = value)).toDialogResult()
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = { picked?.let { p -> amount?.let { onConfirm(AdminJarWithdrawBody(targetViewerUserId = p.id, amount = it)) } } },
-                enabled = isValid,
-            ) {
-                Text(stringResource(Res.string.economy_jars_withdraw_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_jars_withdraw_cancel), color = tokens.mutedForeground)
-            }
-        },
-    )
+    ) {
+        SearchPickerField(
+            search = searchViewers,
+            selected = picked,
+            onSelect = { picked = it },
+            onClear = { picked = null },
+            label = stringResource(Res.string.economy_jars_withdraw_viewer),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = amountText,
+            onValueChange = { amountText = it },
+            label = stringResource(Res.string.economy_jars_withdraw_amount),
+            isError = amountText.isNotEmpty() && amount == null,
+            errorText = stringResource(Res.string.economy_jars_withdraw_amount_invalid),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
@@ -3632,7 +3618,7 @@ private fun JarHistoryDialog(
 @Composable
 private fun JarEditDialog(
     jar: SavingsJarDetail,
-    onConfirm: (UpdateSavingsJarBody) -> Unit,
+    onConfirm: suspend (UpdateSavingsJarBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3644,78 +3630,65 @@ private fun JarEditDialog(
     var goalText: String by remember { mutableStateOf(jar.goalAmount?.toString().orEmpty()) }
     var maxWithdrawalText: String by remember { mutableStateOf(jar.maxWithdrawalPerChannel?.toString().orEmpty()) }
     var isOpen: Boolean by remember { mutableStateOf(jar.isOpen) }
-    var nameError: Boolean by remember { mutableStateOf(false) }
+    val nameBlank: Boolean = name.isNotEmpty() && name.isBlank()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.economy_jars_edit_title, jar.name),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
+    FormDialog(
+        title = stringResource(Res.string.economy_jars_edit_title, jar.name),
+        saveLabel = stringResource(Res.string.economy_jars_edit_save),
+        cancelLabel = stringResource(Res.string.economy_jars_edit_cancel),
+        onDismiss = onDismiss,
+        dirty =
+            name != jar.name ||
+                description != jar.description.orEmpty() ||
+                goalText != jar.goalAmount?.toString().orEmpty() ||
+                maxWithdrawalText != jar.maxWithdrawalPerChannel?.toString().orEmpty() ||
+                isOpen != jar.isOpen,
+        valid = name.isNotBlank(),
+        save = {
+            onConfirm(
+                UpdateSavingsJarBody(
+                    name = name.trim(),
+                    description = description.trim().ifEmpty { null },
+                    goalAmount = goalText.trim().toLongOrNull(),
+                    isOpen = isOpen,
+                    maxWithdrawalPerChannel = maxWithdrawalText.trim().toLongOrNull(),
+                )
+            ).toDialogResult()
         },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.economy_jars_name),
-                    isError = nameError,
-                    errorText = stringResource(Res.string.economy_jars_name_required),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = stringResource(Res.string.economy_jars_description),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = goalText,
-                    onValueChange = { goalText = it },
-                    label = stringResource(Res.string.economy_jars_goal),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = maxWithdrawalText,
-                    onValueChange = { maxWithdrawalText = it },
-                    label = stringResource(Res.string.economy_jars_max_withdrawal),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                SwitchRow(
-                    label = stringResource(Res.string.economy_jars_is_open),
-                    checked = isOpen,
-                    onCheckedChange = { isOpen = it },
-                    enabled = true,
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val trimmedName: String = name.trim()
-                nameError = trimmedName.isEmpty()
-                if (!nameError) {
-                    onConfirm(
-                        UpdateSavingsJarBody(
-                            name = trimmedName,
-                            description = description.trim().ifEmpty { null },
-                            goalAmount = goalText.trim().toLongOrNull(),
-                            isOpen = isOpen,
-                            maxWithdrawalPerChannel = maxWithdrawalText.trim().toLongOrNull(),
-                        )
-                    )
-                }
-            }) {
-                Text(stringResource(Res.string.economy_jars_edit_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_jars_edit_cancel))
-            }
-        },
-    )
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = stringResource(Res.string.economy_jars_name),
+            isError = nameBlank,
+            errorText = stringResource(Res.string.economy_jars_name_required),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = description,
+            onValueChange = { description = it },
+            label = stringResource(Res.string.economy_jars_description),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = goalText,
+            onValueChange = { goalText = it },
+            label = stringResource(Res.string.economy_jars_goal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = maxWithdrawalText,
+            onValueChange = { maxWithdrawalText = it },
+            label = stringResource(Res.string.economy_jars_max_withdrawal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        SwitchRow(
+            label = stringResource(Res.string.economy_jars_is_open),
+            checked = isOpen,
+            onCheckedChange = { isOpen = it },
+            enabled = true,
+        )
+    }
 }
 
 @Composable

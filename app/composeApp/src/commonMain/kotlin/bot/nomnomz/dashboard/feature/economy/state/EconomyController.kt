@@ -20,6 +20,10 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.economy_no_channel_error
 import nomnomzbot.composeapp.generated.resources.feedback_economy_adjusted
+import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_contributed
+import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_invited
+import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_updated
+import nomnomzbot.composeapp.generated.resources.feedback_economy_jar_withdrawn
 import nomnomzbot.composeapp.generated.resources.feedback_economy_transferred
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
@@ -461,9 +465,9 @@ class EconomyController(
      * Owner-only partial edit of [jarId] with [request]. Reloads on success; surfaces the error on the Ready state
      * on failure.
      */
-    suspend fun updateJar(jarId: String, request: UpdateSavingsJarBody) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.updateJar(channel, jarId, request))
+    suspend fun updateJar(jarId: String, request: UpdateSavingsJarBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(economyApi.updateJar(channel, jarId, request).asUnit(), Res.string.feedback_economy_jar_updated)
     }
 
     /** Owner-only permanent delete of [jarId] (soft delete). Reloads on success. */
@@ -495,15 +499,9 @@ class EconomyController(
     }
 
     /** Invite a broadcaster channel to join [jarId]. Reloads on success. */
-    suspend fun inviteChannel(jarId: String, request: InviteChannelBody) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<SavingsJarMembership> = economyApi.inviteChannel(channel, jarId, request)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: EconomyState = _state.value
-                if (current is EconomyState.Ready) _state.value = current.copy(saveError = result.error.message)
-            }
-        }
+    suspend fun inviteChannel(jarId: String, request: InviteChannelBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(economyApi.inviteChannel(channel, jarId, request).asUnit(), Res.string.feedback_economy_jar_invited)
     }
 
     /** Accept the pending jar membership invitation [membershipId]. Reloads on success. */
@@ -525,15 +523,15 @@ class EconomyController(
     }
 
     /** Contribute [amount] from a viewer's account into [jarId]. Reloads on success. */
-    suspend fun contribute(jarId: String, request: AdminJarContributeBody) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.contribute(channel, jarId, request))
+    suspend fun contribute(jarId: String, request: AdminJarContributeBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(economyApi.contribute(channel, jarId, request), Res.string.feedback_economy_jar_contributed)
     }
 
     /** Withdraw [amount] from [jarId] to a viewer's account. Reloads on success. */
-    suspend fun withdraw(jarId: String, request: AdminJarWithdrawBody) {
-        val channel: String = channelId ?: return
-        afterWrite(economyApi.withdraw(channel, jarId, request))
+    suspend fun withdraw(jarId: String, request: AdminJarWithdrawBody): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(economyApi.withdraw(channel, jarId, request), Res.string.feedback_economy_jar_withdrawn)
     }
 
     /** Load movement history for [jarId] — first 50 entries. Returns null on failure. */
@@ -645,6 +643,12 @@ class EconomyController(
         }
         return result
     }
+
+    private fun ApiResult<*>.asUnit(): ApiResult<Unit> =
+        when (this) {
+            is ApiResult.Ok -> ApiResult.Ok(Unit)
+            is ApiResult.Failure -> this
+        }
 
     private suspend fun noChannel(): ApiResult<Unit> =
         ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = getString(Res.string.economy_no_channel_error)))
