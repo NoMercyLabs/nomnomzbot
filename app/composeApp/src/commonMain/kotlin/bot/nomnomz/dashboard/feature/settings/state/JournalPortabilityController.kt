@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.settings.state
 
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.io.PickedFile
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -75,38 +76,44 @@ class JournalPortabilityController(
      * without a call; an empty file is rejected before the upload. On success the import summary is surfaced.
      * The caller is responsible for confirming first (the import mutates the journal).
      */
-    suspend fun import() {
-        if (_state.value.busy) return
+    suspend fun import(): ApiResult<Unit> {
+        if (_state.value.busy) return busyRefusal()
         _state.value = JournalPortabilityState(busy = true)
 
         val target: String =
             when (val resolved: ApiResult<String> = resolveChannel()) {
                 is ApiResult.Failure -> {
                     _state.value = JournalPortabilityState(error = resolved.error.message)
-                    return
+                    return ApiResult.Failure(resolved.error)
                 }
                 is ApiResult.Ok -> resolved.value
             }
 
         val picked: PickedFile? = fileBridge.pickFile()
         if (picked == null) {
-            // User cancelled the file picker — return to idle, no call made.
+            // User cancelled the file picker — return to idle, no call made; nothing failed.
             _state.value = JournalPortabilityState()
-            return
+            return ApiResult.Ok(Unit)
         }
         if (picked.bytes.isEmpty()) {
-            _state.value = JournalPortabilityState(error = "The selected file is empty.")
-            return
+            val message: String = "The selected file is empty."
+            _state.value = JournalPortabilityState(error = message)
+            return ApiResult.Failure(ApiError(status = 0, code = "EMPTY_FILE", message = message))
         }
 
         _state.value = JournalPortabilityState(busy = true)
-        when (
+        return when (
             val result: ApiResult<EventJournalImportSummary> =
                 eventStoreApi.importJournal(target, picked.name, picked.bytes)
         ) {
-            is ApiResult.Failure ->
+            is ApiResult.Failure -> {
                 _state.value = JournalPortabilityState(error = result.error.message)
-            is ApiResult.Ok -> _state.value = JournalPortabilityState(imported = result.value)
+                ApiResult.Failure(result.error)
+            }
+            is ApiResult.Ok -> {
+                _state.value = JournalPortabilityState(imported = result.value)
+                ApiResult.Ok(Unit)
+            }
         }
     }
 
@@ -114,24 +121,33 @@ class JournalPortabilityController(
      * Run a full projection rebuild for the channel to completion (synchronous — the backend replays the whole
      * journal before responding). This is a Danger-zone action — the caller must confirm first.
      */
-    suspend fun rebuildProjections() {
-        if (_state.value.busy) return
+    suspend fun rebuildProjections(): ApiResult<Unit> {
+        if (_state.value.busy) return busyRefusal()
         _state.value = JournalPortabilityState(busy = true)
 
         val target: String =
             when (val resolved: ApiResult<String> = resolveChannel()) {
                 is ApiResult.Failure -> {
                     _state.value = JournalPortabilityState(error = resolved.error.message)
-                    return
+                    return ApiResult.Failure(resolved.error)
                 }
                 is ApiResult.Ok -> resolved.value
             }
 
-        when (val result: ApiResult<List<ProjectionRebuildResult>> = eventStoreApi.rebuildProjections(target)) {
-            is ApiResult.Failure -> _state.value = JournalPortabilityState(error = result.error.message)
-            is ApiResult.Ok -> _state.value = JournalPortabilityState(rebuildResults = result.value)
+        return when (val result: ApiResult<List<ProjectionRebuildResult>> = eventStoreApi.rebuildProjections(target)) {
+            is ApiResult.Failure -> {
+                _state.value = JournalPortabilityState(error = result.error.message)
+                ApiResult.Failure(result.error)
+            }
+            is ApiResult.Ok -> {
+                _state.value = JournalPortabilityState(rebuildResults = result.value)
+                ApiResult.Ok(Unit)
+            }
         }
     }
+
+    private fun busyRefusal(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(status = 0, code = "BUSY", message = "Another ledger action is still running."))
 
     /** Clear a surfaced result/error back to idle (after the user has seen it). */
     fun dismiss() {

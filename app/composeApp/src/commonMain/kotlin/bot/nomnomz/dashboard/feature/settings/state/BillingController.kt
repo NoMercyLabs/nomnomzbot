@@ -179,19 +179,19 @@ class BillingController(
         }
     }
 
-    /** Redeem an invite code and reload billing state to reflect the new tier/badge. */
-    suspend fun redeemInvite(code: String): InviteRedeemResult? {
-        val target: String = channelId ?: return null
-        return when (val result: ApiResult<InviteRedeemResult> = billingApi.redeemInvite(target, code)) {
-            is ApiResult.Failure -> {
-                applyActionError(result.error.message)
-                null
-            }
-            is ApiResult.Ok -> {
-                load()
-                result.value
-            }
-        }
+    /**
+     * Redeem an invite code and reload billing state to reflect the new tier/badge. The result goes back to
+     * the confirm dialog, which stays open and shows a failure inline (no page-level error line).
+     */
+    suspend fun redeemInvite(code: String): ApiResult<InviteRedeemResult> {
+        val target: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NOT_READY", message = "The channel is not loaded yet."),
+                )
+        val result: ApiResult<InviteRedeemResult> = billingApi.redeemInvite(target, code)
+        if (result is ApiResult.Ok) load()
+        return result
     }
 
     /** Cancel the active subscription at period end, then reload. */

@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.RadioButton
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
@@ -1653,10 +1654,7 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
             confirmLabel = stringResource(Res.string.journal_import_confirm_ok),
             dismissLabel = stringResource(Res.string.journal_import_confirm_cancel),
             destructive = true,
-            onConfirm = {
-                confirmImport = false
-                scope.launch { controller.import() }
-            },
+            action = { controller.import().toDialogResult() },
             onDismiss = { confirmImport = false },
         )
     }
@@ -1668,10 +1666,7 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
             confirmLabel = stringResource(Res.string.journal_rebuild_confirm_ok),
             dismissLabel = stringResource(Res.string.journal_rebuild_confirm_cancel),
             destructive = true,
-            onConfirm = {
-                confirmRebuild = false
-                scope.launch { controller.rebuildProjections() }
-            },
+            action = { controller.rebuildProjections().toDialogResult() },
             onDismiss = { confirmRebuild = false },
         )
     }
@@ -1892,7 +1887,7 @@ private fun BillingSection(controller: BillingController, manage: ManageDecision
                     },
                     onResume = { scope.launch { controller.resume() } },
                     onCancel = { scope.launch { controller.cancel() } },
-                    onRedeemInvite = { code -> scope.launch { controller.redeemInvite(code) } },
+                    onRedeemInvite = { code -> controller.redeemInvite(code).toDialogResult() },
                     onCheckout = { tierKey ->
                         scope.launch {
                             val url: String? = controller.startCheckout(tierKey)
@@ -1920,7 +1915,7 @@ private fun BillingReadyContent(
     onManage: () -> Unit,
     onResume: () -> Unit,
     onCancel: () -> Unit,
-    onRedeemInvite: (String) -> Unit,
+    onRedeemInvite: suspend (String) -> DialogResult,
     onCheckout: (String) -> Unit,
     onChangeTier: (String) -> Unit,
 ) {
@@ -2255,11 +2250,10 @@ private fun InvoiceRow(invoice: BillingInvoice, onView: (String) -> Unit) {
 }
 
 @Composable
-private fun BillingInviteSection(onRedeem: (String) -> Unit) {
+private fun BillingInviteSection(onRedeem: suspend (String) -> DialogResult) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val spacing = LocalSpacing.current
-    val scope = rememberCoroutineScope()
     var code: String by remember { mutableStateOf("") }
     var validationLabel: String? by remember { mutableStateOf(null) }
     var pendingRedeem: Boolean by remember { mutableStateOf(false) }
@@ -2308,9 +2302,10 @@ private fun BillingInviteSection(onRedeem: (String) -> Unit) {
             confirmLabel = stringResource(Res.string.settings_billing_invite_redeem),
             dismissLabel = stringResource(Res.string.settings_billing_cancel_dismiss),
             destructive = false,
-            onConfirm = {
-                pendingRedeem = false
-                scope.launch { onRedeem(code); code = "" }
+            action = {
+                val result: DialogResult = onRedeem(code)
+                if (result is DialogResult.Done) code = ""
+                result
             },
             onDismiss = { pendingRedeem = false },
         )
