@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.commands.ui
 
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.network.CommandPreset
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.feature.commands.state.PresetResetField
@@ -41,7 +42,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun PresetResetDialog(
     command: CommandSummary,
     preset: CommandPreset,
-    onConfirm: () -> Unit,
+    action: suspend () -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val changes: List<PresetResetField> = presetResetChanges(command, preset)
@@ -58,7 +59,7 @@ internal fun PresetResetDialog(
         dismissLabel = stringResource(Res.string.commands_delete_cancel),
         destructive = true,
         confirmEnabled = changes.isNotEmpty(),
-        onConfirm = onConfirm,
+        action = action,
         onDismiss = onDismiss,
     )
 }

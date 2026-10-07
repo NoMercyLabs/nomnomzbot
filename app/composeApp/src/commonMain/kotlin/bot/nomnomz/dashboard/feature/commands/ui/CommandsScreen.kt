@@ -370,10 +370,7 @@ fun CommandsScreen(
             confirmLabel = stringResource(Res.string.commands_delete_confirm),
             dismissLabel = stringResource(Res.string.commands_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                scope.launch { controller.deleteCommand(command.name) }
-            },
+            action = { controller.deleteCommand(command.name) },
             onDismiss = { pendingDelete = null },
         )
     }
@@ -383,10 +380,7 @@ fun CommandsScreen(
         PresetResetDialog(
             command = command,
             preset = preset,
-            onConfirm = {
-                pendingPresetReset = null
-                scope.launch { controller.resetToPreset(command.name) }
-            },
+            action = { controller.resetToPreset(command.name) },
             onDismiss = { pendingPresetReset = null },
         )
     }

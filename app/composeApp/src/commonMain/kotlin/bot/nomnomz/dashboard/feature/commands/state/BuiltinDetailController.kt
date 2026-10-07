@@ -100,11 +100,21 @@ class BuiltinDetailController(
     }
 
     /** Puts the command back on every default: on, no TTS, default cooldown and permission, default replies. */
-    suspend fun reset() {
-        val channel: String = channelId ?: return
-        val builtin: BuiltinCommand = _state.value.builtin ?: return
+    suspend fun reset(): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Ok(Unit)
+        val builtin: BuiltinCommand = _state.value.builtin ?: return ApiResult.Ok(Unit)
         _state.value = _state.value.copy(saving = true, error = null)
-        write(builtinsApi.reset(channel, builtin.builtinKey))
+        return when (val result: ApiResult<BuiltinCommand> = builtinsApi.reset(channel, builtin.builtinKey)) {
+            is ApiResult.Ok -> {
+                write(result)
+                ApiResult.Ok(Unit)
+            }
+            // The confirm dialog shows the reason inline, so the form behind it gets no second copy.
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(saving = false)
+                ApiResult.Failure(result.error)
+            }
+        }
     }
 
     private suspend fun writeThenReload(call: suspend (channel: String, key: String) -> ApiResult<Unit>) {

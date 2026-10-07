@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.network.BuiltinReply
 import bot.nomnomz.dashboard.core.network.BuiltinReplyGroup
 import bot.nomnomz.dashboard.feature.commands.state.BOT_REPLIES_GROUP
@@ -139,17 +140,13 @@ fun BuiltinReplyList(state: BuiltinRepliesState, controller: BuiltinRepliesContr
     }
 
     pendingReset?.let { reply ->
-        val scope = rememberCoroutineScope()
         ConfirmDialog(
             title = stringResource(Res.string.builtin_replies_reset_title),
             message = stringResource(Res.string.builtin_replies_reset_message, reply.defaultTemplate),
             confirmLabel = stringResource(Res.string.builtin_replies_reset_confirm),
             dismissLabel = stringResource(Res.string.builtin_replies_cancel),
             destructive = true,
-            onConfirm = {
-                pendingReset = null
-                scope.launch { controller.reset(reply) }
-            },
+            action = { controller.reset(reply).toDialogResult() },
             onDismiss = { pendingReset = null },
         )
     }
