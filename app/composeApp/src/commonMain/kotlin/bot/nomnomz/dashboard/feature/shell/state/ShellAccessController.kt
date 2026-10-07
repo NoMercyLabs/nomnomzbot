@@ -41,6 +41,16 @@ class ShellAccessController(
     /** The shell's role state: loading until the first resolve, then the caller's effective management role. */
     val state: StateFlow<ShellAccess> = _state.asStateFlow()
 
+    private val _unreachable: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    /**
+     * True once [UNREACHABLE_AFTER_PROBES] consecutive probes failed transiently: the shell then swaps the plain
+     * splash for the "cannot reach the server, retrying" screen with a Retry-now button. Any definitive answer resets it.
+     */
+    val unreachable: StateFlow<Boolean> = _unreachable.asStateFlow()
+
+    private var failedProbes: Int = 0
+
     /**
      * Resolve the active channel, then the caller's own effective access. Fails closed to a participant.
      *
@@ -61,14 +71,13 @@ class ShellAccessController(
                 // was already showing on screen — the caller (App.kt) re-invokes [load] shortly after.
                 is ApiResult.Failure ->
                     if (result.error.isTransient()) {
-                        _state.value = ShellAccess.Retrying
+                        markTransientFailure()
                         return
-                    } else {
-                        // A definitive answer (no channel onboarded / caller genuinely unauthorized): fail closed
-                        // to a role-less participant at the lowest standing with no channel context — the shell
-                        // renders the participant rung, whose screens surface the "no channel" error rather than
-                        // ever flashing a management surface.
-                        _state.value =
+                    } else if (result.error.isNoChannel()) {
+                        // The one definitive answer that IS "you are a viewer": the account has no onboarded
+                        // channel. Role-less participant at the lowest standing with no channel context — the
+                        // participant rung surfaces the "no channel" state, never a management surface.
+                        settle(
                             ShellAccess.Resolved(
                                 channelId = "",
                                 userId = null,
@@ -77,32 +86,30 @@ class ShellAccessController(
                                 capabilities = emptyList(),
                                 heldActionKeys = emptySet(),
                             )
+                        )
+                        return
+                    } else {
+                        // Any other definitive failure (401/403/…) is a failed READ, not a viewer verdict: the
+                        // shell shows an error with Retry. Still fail-closed — Failed unlocks no surface.
+                        settle(ShellAccess.Failed(result.error.reason()))
                         return
                     }
                 is ApiResult.Ok -> result.value
             }
 
-        _state.value =
-            when (val result: ApiResult<ResolvedAccess> = rolesApi.effectiveMe(channel.id)) {
-                is ApiResult.Failure ->
-                    if (result.error.isTransient()) {
-                        // Same distinction as above, once the channel itself is known: a blip fetching the
-                        // caller's OWN effective role must not masquerade as "you are just a viewer here".
-                        ShellAccess.Retrying
-                    } else {
-                        // A definitive failed resolve fails closed to a participant at the LOWEST standing
-                        // (Everyone): the base participation surface, never an over-granted management or
-                        // sub-only view.
-                        ShellAccess.Resolved(
-                            channelId = channel.id,
-                            userId = null,
-                            role = null,
-                            standing = ParticipantStanding.Everyone,
-                            capabilities = emptyList(),
-                            heldActionKeys = emptySet(),
-                        )
-                    }
-                is ApiResult.Ok ->
+        when (val result: ApiResult<ResolvedAccess> = rolesApi.effectiveMe(channel.id)) {
+            is ApiResult.Failure ->
+                if (result.error.isTransient()) {
+                    // Same distinction as above, once the channel itself is known: a blip fetching the
+                    // caller's OWN effective role must not masquerade as "you are just a viewer here".
+                    markTransientFailure()
+                } else {
+                    // A definitive failed resolve of the caller's own access is an error the user must see and
+                    // can retry — never silently downgraded to a viewer. Failed unlocks no surface (fail-closed).
+                    settle(ShellAccess.Failed(result.error.reason()))
+                }
+            is ApiResult.Ok ->
+                settle(
                     ShellAccess.Resolved(
                         channelId = channel.id,
                         userId = result.value.userId,
@@ -111,7 +118,21 @@ class ShellAccessController(
                         capabilities = result.value.permitCapabilities,
                         heldActionKeys = result.value.heldActionKeys.toSet(),
                     )
-            }
+                )
+        }
+    }
+
+    // A definitive answer (resolved or failed) ends the retry streak.
+    private fun settle(next: ShellAccess) {
+        failedProbes = 0
+        _unreachable.value = false
+        _state.value = next
+    }
+
+    private fun markTransientFailure() {
+        failedProbes += 1
+        _unreachable.value = failedProbes >= UNREACHABLE_AFTER_PROBES
+        _state.value = ShellAccess.Retrying
     }
 
     /**
@@ -134,6 +155,15 @@ class ShellAccessController(
 // hammered while still picking it up within half a minute of its return.
 private const val RETRY_FIRST_DELAY_MS: Long = 2_000L
 private const val RETRY_MAX_DELAY_MS: Long = 30_000L
+private const val UNREACHABLE_AFTER_PROBES: Int = 2
+
+private const val NO_CHANNEL_CODE: String = "NO_CHANNEL"
+
+// "No onboarded channel" is the backend's genuine viewer answer; every other 4xx is a failed read.
+private fun ApiError.isNoChannel(): Boolean = status == 404 && code == NO_CHANNEL_CODE
+
+// A short technical reason for the error screen: the backend's error code, else the HTTP status.
+private fun ApiError.reason(): String = code ?: "HTTP $status"
 
 /**
  * A network/backend blip (no response at all, or the backend's own 5xx) versus a definitive answer
@@ -154,6 +184,13 @@ sealed interface ShellAccess {
      * UI for what might just be a blip.
      */
     data object Retrying : ShellAccess
+
+    /**
+     * A DEFINITIVE failure (401/403/404/…) reading the caller's own access. Not a viewer verdict: the shell shows
+     * an error with a primary Retry and a secondary Sign out, and renders no management or participant surface
+     * from it (fail-closed). [reason] is the backend error code, else the HTTP status.
+     */
+    data class Failed(val reason: String) : ShellAccess
 
     /**
      * The caller's resolved access on [channelId]. The shell gates the MANAGEMENT rung on [role] (null = a

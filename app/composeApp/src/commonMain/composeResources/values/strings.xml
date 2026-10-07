@@ -251,6 +251,9 @@
     <string name="shell_unreachable_title">Cannot reach your bot</string>
     <string name="shell_unreachable_message">You are signed in, but the backend is not answering right now. Retrying automatically — your session is kept.</string>
     <string name="shell_unreachable_retry">Retry now</string>
+    <string name="shell_access_failed_title">Could not load your access</string>
+    <string name="shell_access_failed_message">The server refused to say what you can do here. Nothing was changed and no pages are shown. Try again, or sign out.</string>
+    <string name="shell_access_failed_retry">Retry</string>
     <string name="shell_impersonation_exit">Exit impersonation</string>
     <string name="shell_impersonation_revoke_failed">You are back on your own account, but the server did not close the act-as session: %1$s</string>
     <string name="shell_impersonation_identity_failed">The account you chose could not be loaded. You are back on your own account.</string>
