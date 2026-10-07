@@ -167,9 +167,8 @@ class GiveawaysController(
     suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
         giveawaysApi.blastRadius(id)
 
-    suspend fun deleteGiveaway(id: String) {
-        afterWrite(giveawaysApi.delete(id), success = Res.string.feedback_giveaway_deleted)
-    }
+    suspend fun deleteGiveaway(id: String): ApiResult<Unit> =
+        afterDialogWrite(giveawaysApi.delete(id), success = Res.string.feedback_giveaway_deleted, reload = ::load)
 
     /** Open a giveaway for entries. Reloads on success. Surfaces the error on failure. */
     suspend fun openGiveaway(id: String) {
@@ -303,9 +302,12 @@ class GiveawaysController(
         ) { loadCodePools() }
 
     /** Delete a code pool, addressed by its [poolId]. Reloads the pool list. Surfaces the error on failure. */
-    suspend fun deleteCodePool(poolId: String) {
-        afterPoolWrite(giveawaysApi.deleteCodePool(poolId), success = Res.string.feedback_codepool_deleted)
-    }
+    suspend fun deleteCodePool(poolId: String): ApiResult<Unit> =
+        afterDialogWrite(
+            giveawaysApi.deleteCodePool(poolId),
+            success = Res.string.feedback_codepool_deleted,
+            reload = ::loadCodePools,
+        )
 
     /**
      * The real, backend-counted blast radius of deleting the code pool [poolId] — the delete confirm calls this and renders the

@@ -258,15 +258,15 @@ class PickListsControllerTest {
         val controller = pickListsController(api, feedback)
         controller.load()
 
-        controller.deletePickList(id = "pl1")
+        val result: ApiResult<Unit> = controller.deletePickList(id = "pl1")
 
-        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The list is kept (not blown away) and the failure is returned to the dialog, not toasted.
         val state: PickListsState = controller.state.value
         assertTrue(state is PickListsState.Ready)
         assertEquals(1, (state as PickListsState.Ready).lists.size)
         assertEquals("keep_me", state.lists.first().name)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf("no permission"), feedback.only.formatArgs)
+        assertTrue(result is ApiResult.Failure)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test
@@ -316,12 +316,11 @@ class PickListsControllerTest {
             )
         controller.load()
 
-        controller.deletePickList(id = "pl7")
+        val result: ApiResult<Unit> = controller.deletePickList(id = "pl7")
 
-        // The failure path emits an ERROR (never a success), carrying the backend message as the detail arg.
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_picklist_save_failed, feedback.only.label)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        // A failed delete is returned to the dialog (which shows it inline); the controller toasts nothing.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     // ── Template updates: the badge + Update action over GET …/updates and POST …/copies/{rowId}/update ──
