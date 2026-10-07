@@ -401,8 +401,8 @@
     "[Ee]nhanc",
     "[Ii]mprove"
    ],
-   "text": "Research for a screen or feature = a benchmark at .claude/docs/design/benchmarks/<topic>.md: at least 3 real products, each with a source URL (the products Stoney names, plus the best in the category); a feature table Feature | Seen in | Source | Ours | Status | Slice with at least 25 rows; status is have / partial / missing / not-doing; every partial or missing row is a plan slice; every not-doing row has a reason. Literature can rank the work, but it never replaces the benchmark. The plan's OWNER REQUEST section links the benchmark.",
-   "source": "Stoney 2026-10-07: \"teach it what it means to research a topic and don't make me ask for enhancement of user experience more than once\" (the 10-06 editor research read UX literature and compared no real editor)",
+   "text": "Research for a screen or feature = a benchmark at .claude/docs/design/benchmarks/<topic>.md: at least 3 real products, each with a source URL (the products Stoney names, plus the best in the category); a feature table Feature | Seen in | Source | Ours | Status | Slice with at least 25 rows; status is have / partial / missing / not-doing; every partial or missing row is a plan slice; every not-doing row has a reason. Literature can rank the work, but it never replaces the benchmark. The plan's OWNER REQUEST section links the benchmark. A source site that refuses a plain fetch (403, blank, JS-only) is opened in a real browser (the Chrome DevTools MCP tools: new_page, navigate_page, take_snapshot); a row is never sourced from a search snippet or a page summary.",
+   "source": "Stoney 2026-10-07: \"teach it what it means to research a topic and don't make me ask for enhancement of user experience more than once\" (the 10-06 editor research read UX literature and compared no real editor); Stoney 2026-10-07: \"use a real browser for sites that refuse\"",
    "check": {
     "match": [
      "**/.claude/docs/design/benchmarks/**",
