@@ -351,7 +351,7 @@ private fun AppTextFieldFrame(
 }
 
 @Composable
-internal fun InputFieldAction(label: String, onClick: (() -> Unit)?, enabled: Boolean) {
+internal fun InputFieldAction(label: String, onClick: (() -> Unit)?, enabled: Boolean, loading: Boolean = false) {
     val typography = LocalTypography.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered: Boolean by interactionSource.collectIsHoveredAsState()
@@ -381,17 +381,23 @@ internal fun InputFieldAction(label: String, onClick: (() -> Unit)?, enabled: Bo
                 .padding(horizontal = 22.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            style =
-                typography.base.copy(
-                    color = content,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    lineHeight = 21.sp,
-                    letterSpacing = 0.48.sp,
-                ),
-            maxLines = 1,
-        )
+        // While the action is in flight the label gives way to a spinner; the click is already inert (enabled is
+        // false for the caller), so a second press cannot fire.
+        if (loading) {
+            Spinner(size = SpinnerSize.Sm, color = content)
+        } else {
+            Text(
+                text = label,
+                style =
+                    typography.base.copy(
+                        color = content,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        lineHeight = 21.sp,
+                        letterSpacing = 0.48.sp,
+                    ),
+                maxLines = 1,
+            )
+        }
     }
 }
