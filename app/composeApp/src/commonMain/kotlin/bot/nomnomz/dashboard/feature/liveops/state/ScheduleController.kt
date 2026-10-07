@@ -27,6 +27,10 @@ import bot.nomnomz.dashboard.core.network.UpdateScheduleSettingsBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.schedule_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The stream-schedule page's state-holder: resolves the active channel, reads its real Twitch schedule (segments
 // + vacation window), and persists edits back — add / edit / cancel / delete a segment and set the vacation
@@ -93,9 +97,9 @@ class ScheduleController(
         isRecurring: Boolean,
         title: String?,
         categoryId: String?,
-    ) {
-        val channel: String = channelId ?: return
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             liveOpsApi.createScheduleSegment(
                 channel,
                 CreateScheduleSegmentBody(
@@ -118,9 +122,9 @@ class ScheduleController(
         timezone: String?,
         title: String?,
         categoryId: String?,
-    ) {
-        val channel: String = channelId ?: return
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             liveOpsApi.updateScheduleSegment(
                 channel,
                 segmentId,
@@ -143,10 +147,10 @@ class ScheduleController(
         )
     }
 
-    /** Delete segment [segmentId] from the schedule. Reloads on success; surfaces the error on failure. */
-    suspend fun deleteSegment(segmentId: String) {
-        val channel: String = channelId ?: return
-        afterWrite(liveOpsApi.deleteScheduleSegment(channel, segmentId))
+    /** Delete segment [segmentId] from the schedule. Reloads on success; a failure goes back to the confirm dialog. */
+    suspend fun deleteSegment(segmentId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(liveOpsApi.deleteScheduleSegment(channel, segmentId))
     }
 
     /**
@@ -206,6 +210,18 @@ class ScheduleController(
     }
 
     // Reload on success; on failure surface the message on the current Ready state without losing the schedule.
+    // A write fired from a dialog that stays open until the server answers: success reloads the page, a failure is
+    // handed back untouched so the dialog shows the reason inline (no toast, no page-level error).
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    // Nothing was sent (no channel loaded): the dialog shows the reason.
+    @OptIn(ExperimentalResourceApi::class)
+    private suspend fun noChannel(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(0, null, getString(Res.string.schedule_no_channel_error)))
+
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
             is ApiResult.Ok -> load()

@@ -208,6 +208,7 @@
     <string name="schedule_recurring">Repeat weekly</string>
     <string name="schedule_dialog_save">Save</string>
     <string name="schedule_dialog_cancel">Cancel</string>
+    <string name="schedule_no_channel_error">No active channel — reconnect and try again.</string>
     <string name="schedule_delete_title">Delete this stream?</string>
     <string name="schedule_delete_message">Remove "%1$s" from your schedule?</string>
     <string name="schedule_vacation_title">Vacation mode</string>

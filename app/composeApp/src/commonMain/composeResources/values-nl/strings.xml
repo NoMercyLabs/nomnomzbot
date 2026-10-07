@@ -205,6 +205,7 @@
     <string name="schedule_recurring">Wekelijks herhalen</string>
     <string name="schedule_dialog_save">Opslaan</string>
     <string name="schedule_dialog_cancel">Annuleren</string>
+    <string name="schedule_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="schedule_delete_title">Deze stream verwijderen?</string>
     <string name="schedule_delete_message">"%1$s" uit je schema verwijderen?</string>
     <string name="schedule_vacation_title">Vakantiemodus</string>
