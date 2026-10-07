@@ -452,12 +452,8 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     searchViewers = { query -> controller.searchViewers(query) },
                     searchChannels = { query -> controller.searchChannels(query) },
                     onRefundPurchase = { purchaseId -> controller.refundPurchase(purchaseId) },
-                    onCreateLeaderboardConfig = { request ->
-                        scope.launch { controller.upsertLeaderboardConfig(request) }
-                    },
-                    onUpdateLeaderboardConfig = { request ->
-                        scope.launch { controller.upsertLeaderboardConfig(request) }
-                    },
+                    onCreateLeaderboardConfig = { request -> controller.createLeaderboardConfig(request) },
+                    onUpdateLeaderboardConfig = { request -> controller.updateLeaderboardConfig(request) },
                     onDeleteLeaderboardConfig = controller::deleteLeaderboardConfig,
                     onLeaderboardConfigBlastRadius = controller::leaderboardConfigBlastRadius,
                     onOptOutOfLeaderboards = { viewerUserId ->
@@ -513,8 +509,8 @@ private fun ReadyContent(
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
     onRefundPurchase: suspend (purchaseId: Long) -> ApiResult<Unit>,
-    onCreateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
-    onUpdateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
+    onCreateLeaderboardConfig: suspend (UpsertLeaderboardConfigBody) -> ApiResult<Unit>,
+    onUpdateLeaderboardConfig: suspend (UpsertLeaderboardConfigBody) -> ApiResult<Unit>,
     onDeleteLeaderboardConfig: suspend (String) -> ApiResult<Unit>,
     onLeaderboardConfigBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
     onOptOutOfLeaderboards: (String) -> Unit,
@@ -1087,12 +1083,12 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
 // (EconomyLeaderboardsController) well before the dashboard had any client for it; the ranking card above
 // stays the read-only "what viewers see" projection, this section is where an operator actually shapes it.
 @Composable
-private fun LeaderboardConfigsSection(
+internal fun LeaderboardConfigsSection(
     configs: List<LeaderboardConfig>,
     jars: List<SavingsJar>,
     manage: ManageDecision,
-    onCreate: (UpsertLeaderboardConfigBody) -> Unit,
-    onUpdate: (UpsertLeaderboardConfigBody) -> Unit,
+    onCreate: suspend (UpsertLeaderboardConfigBody) -> ApiResult<Unit>,
+    onUpdate: suspend (UpsertLeaderboardConfigBody) -> ApiResult<Unit>,
     onDelete: suspend (String) -> ApiResult<Unit>,
     onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
     searchViewers: suspend (query: String) -> List<PickerOption>,
@@ -1172,10 +1168,7 @@ private fun LeaderboardConfigsSection(
         LeaderboardConfigDialog(
             existing = null,
             jars = jars,
-            onConfirm = { request ->
-                onCreate(request)
-                showCreateDialog = false
-            },
+            onConfirm = onCreate,
             onDismiss = { showCreateDialog = false },
         )
     }
@@ -1184,10 +1177,7 @@ private fun LeaderboardConfigsSection(
         LeaderboardConfigDialog(
             existing = cfg,
             jars = jars,
-            onConfirm = { request ->
-                onUpdate(request)
-                editing = null
-            },
+            onConfirm = onUpdate,
             onDismiss = { editing = null },
         )
     }
@@ -1362,49 +1352,70 @@ private fun leaderboardPeriodLabel(token: String): String =
 private fun LeaderboardConfigDialog(
     existing: LeaderboardConfig?,
     jars: List<SavingsJar>,
-    onConfirm: (UpsertLeaderboardConfigBody) -> Unit,
+    onConfirm: suspend (UpsertLeaderboardConfigBody) -> ApiResult<Unit>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
-    var metric: String by remember { mutableStateOf(existing?.metric?.ifBlank { "balance" } ?: "balance") }
+    val initialMetric: String = existing?.metric?.ifBlank { "balance" } ?: "balance"
+    val initialScope: String = existing?.scope?.ifBlank { "channel" } ?: "channel"
+    val initialPeriod: String = existing?.period?.ifBlank { "alltime" } ?: "alltime"
+    val initialPublic: Boolean = existing?.isPublic ?: true
+    val initialTopN: String = (existing?.topN ?: 10).toString()
+
+    var metric: String by remember { mutableStateOf(initialMetric) }
     var metricMenuOpen: Boolean by remember { mutableStateOf(false) }
-    var scope: String by remember { mutableStateOf(existing?.scope?.ifBlank { "channel" } ?: "channel") }
+    var scope: String by remember { mutableStateOf(initialScope) }
     var scopeMenuOpen: Boolean by remember { mutableStateOf(false) }
     var jarId: String? by remember { mutableStateOf(existing?.jarId) }
     var jarMenuOpen: Boolean by remember { mutableStateOf(false) }
-    var period: String by remember { mutableStateOf(existing?.period?.ifBlank { "alltime" } ?: "alltime") }
+    var period: String by remember { mutableStateOf(initialPeriod) }
     var periodMenuOpen: Boolean by remember { mutableStateOf(false) }
-    var isPublic: Boolean by remember { mutableStateOf(existing?.isPublic ?: true) }
-    var topNText: String by remember { mutableStateOf((existing?.topN ?: 10).toString()) }
-    var topNError: Boolean by remember { mutableStateOf(false) }
+    var isPublic: Boolean by remember { mutableStateOf(initialPublic) }
+    var topNText: String by remember { mutableStateOf(initialTopN) }
 
     val isJarScope: Boolean = scope.equals("jar", ignoreCase = true)
+    val topN: Int? = topNText.trim().toIntOrNull()?.takeIf { it > 0 }
     val selectedJarLabel: String =
         jars.firstOrNull { it.id == jarId }?.name
             ?: jars.firstOrNull()?.name
             ?: stringResource(Res.string.economy_leaderboard_config_jar_none)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text =
-                    stringResource(
-                        if (existing == null) Res.string.economy_leaderboard_config_create_title
-                        else Res.string.economy_leaderboard_config_edit_title
-                    ),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
+    FormDialog(
+        title =
+            stringResource(
+                if (existing == null) Res.string.economy_leaderboard_config_create_title
+                else Res.string.economy_leaderboard_config_edit_title
+            ),
+        saveLabel =
+            stringResource(
+                if (existing == null) Res.string.economy_leaderboard_config_create
+                else Res.string.economy_leaderboard_config_save
+            ),
+        cancelLabel = stringResource(Res.string.economy_leaderboard_config_cancel),
+        onDismiss = onDismiss,
+        dirty =
+            metric != initialMetric ||
+                scope != initialScope ||
+                jarId != existing?.jarId ||
+                period != initialPeriod ||
+                isPublic != initialPublic ||
+                topNText != initialTopN,
+        valid = topN != null,
+        save = {
+            onConfirm(
+                UpsertLeaderboardConfigBody(
+                    id = existing?.id,
+                    metric = metric,
+                    scope = scope,
+                    period = period,
+                    isPublic = isPublic,
+                    topN = topN!!,
+                    jarId = if (isJarScope) jarId else null,
+                )
+            ).toDialogResult()
         },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
+    ) {
                 EconomyPickerField(
                     label = stringResource(Res.string.economy_leaderboard_config_metric_label),
                     value = leaderboardMetricLabel(metric),
@@ -1477,47 +1488,14 @@ private fun LeaderboardConfigDialog(
                 )
                 AppTextField(
                     value = topNText,
-                    onValueChange = { topNText = it; topNError = false },
+                    onValueChange = { topNText = it },
                     label = stringResource(Res.string.economy_leaderboard_config_top_n_label),
-                    isError = topNError,
+                    isError = topN == null,
                     errorText = stringResource(Res.string.economy_leaderboard_config_top_n_invalid),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val topN: Int? = topNText.trim().toIntOrNull()?.takeIf { it > 0 }
-                topNError = topN == null
-                if (!topNError) {
-                    onConfirm(
-                        UpsertLeaderboardConfigBody(
-                            id = existing?.id,
-                            metric = metric,
-                            scope = scope,
-                            period = period,
-                            isPublic = isPublic,
-                            topN = topN!!,
-                            jarId = if (isJarScope) jarId else null,
-                        )
-                    )
-                }
-            }) {
-                Text(
-                    stringResource(
-                        if (existing == null) Res.string.economy_leaderboard_config_create
-                        else Res.string.economy_leaderboard_config_save
-                    )
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.economy_leaderboard_config_cancel))
-            }
-        },
-    )
+    }
 }
 
 /**

@@ -2102,6 +2102,8 @@
     <string name="feedback_economy_jar_created">Pot aangemaakt</string>
     <string name="feedback_economy_catalog_item_created">Winkelitem aangemaakt</string>
     <string name="feedback_economy_catalog_item_saved">Winkelitem opgeslagen</string>
+    <string name="feedback_economy_leaderboard_created">Ranglijst aangemaakt</string>
+    <string name="feedback_economy_leaderboard_saved">Ranglijst opgeslagen</string>
     <string name="economy_no_channel_error">Geen actief kanaal. Verbind opnieuw en probeer het nog eens.</string>
     <string name="feedback_giveaway_deleted">Weggeefactie verwijderd</string>
     <string name="feedback_giveaway_opened">Weggeefactie geopend</string>
