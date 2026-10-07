@@ -185,6 +185,7 @@ public sealed class OverlayTokenSweeperTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IActionRequiredChangeNotifier>(),
             Substitute.For<IEventBus>(),
+            [],
             NullLogger<OverlayHub>.Instance
         )
         {

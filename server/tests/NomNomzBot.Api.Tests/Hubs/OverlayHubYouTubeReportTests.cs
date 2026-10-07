@@ -71,6 +71,7 @@ public sealed class OverlayHubYouTubeReportTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IActionRequiredChangeNotifier>(),
             Substitute.For<IEventBus>(),
+            [],
             NullLogger<OverlayHub>.Instance
         )
         {

@@ -135,11 +135,11 @@ public sealed partial class SdkWidgetEventTypesTests
 
         dts.Should()
             .Contain(
-                "on<K extends keyof NnzWidgetEventMap>(eventType: K, handler: (data: NnzWidgetEventMap[K], eventType: K) => void): NnzOverlaySdk;"
+                "on<K extends keyof NnzWidgetEventMap>(eventType: K, handler: (data: NnzWidgetEventMap[K], eventType: K, meta?: NnzEventMeta) => void): NnzOverlaySdk;"
             );
         dts.Should()
             .Contain(
-                "off<K extends keyof NnzWidgetEventMap>(eventType: K, handler: (data: NnzWidgetEventMap[K], eventType: K) => void): NnzOverlaySdk;"
+                "off<K extends keyof NnzWidgetEventMap>(eventType: K, handler: (data: NnzWidgetEventMap[K], eventType: K, meta?: NnzEventMeta) => void): NnzOverlaySdk;"
             );
     }
 
@@ -159,7 +159,7 @@ public sealed partial class SdkWidgetEventTypesTests
 
         dts.Should()
             .Contain(
-                "on(eventType: string, handler: (data: unknown, eventType: string) => void): NnzOverlaySdk;"
+                "on(eventType: string, handler: (data: unknown, eventType: string, meta?: NnzEventMeta) => void): NnzOverlaySdk;"
             );
     }
 

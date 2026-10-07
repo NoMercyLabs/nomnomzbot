@@ -42,6 +42,7 @@ public class OverlayHub : Hub<IOverlayClient>
     private readonly IChannelRegistry _registry;
     private readonly IActionRequiredChangeNotifier _inbox;
     private readonly IEventBus _eventBus;
+    private readonly IReadOnlyList<IWidgetSeedProvider> _seedProviders;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
@@ -52,9 +53,11 @@ public class OverlayHub : Hub<IOverlayClient>
         IChannelRegistry registry,
         IActionRequiredChangeNotifier inbox,
         IEventBus eventBus,
+        IEnumerable<IWidgetSeedProvider> seedProviders,
         ILogger<OverlayHub> logger
     )
     {
+        _seedProviders = seedProviders.ToList();
         _db = db;
         _widgetService = widgetService;
         _tickets = tickets;
@@ -181,7 +184,8 @@ public class OverlayHub : Hub<IOverlayClient>
                 )
             : null;
 
-        if (await IsAudioSourceAsync(widget))
+        string? naturalKey = await NaturalKeyAsync(widget);
+        if (naturalKey == OverlayPresenceRegistry.AudioSourceNaturalKey)
         {
             _presence.MarkAudioSource(Context.ConnectionId);
             _inbox.NotifyChanged(broadcasterId);
@@ -198,7 +202,42 @@ public class OverlayHub : Hub<IOverlayClient>
         if (widget?.IsEnabled == true && widget.EventSubscriptions.Contains(NowPlayingEventKey))
             _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
 
-        return new(true, null, await EffectiveSettingsAsync(widget, broadcasterId));
+        return new(
+            true,
+            null,
+            await EffectiveSettingsAsync(widget, broadcasterId),
+            await SeedFramesAsync(widget, naturalKey, broadcasterId)
+        );
+    }
+
+    // Runs on every join, so a reconnect heals too. A provider that fails costs the widget its seed, never the join.
+    private async Task<IReadOnlyList<WidgetSeedFrame>> SeedFramesAsync(
+        Widget? widget,
+        string? naturalKey,
+        Guid broadcasterId
+    )
+    {
+        if (widget is null || naturalKey is null)
+            return [];
+        IWidgetSeedProvider? provider = _seedProviders.FirstOrDefault(p =>
+            p.NaturalKey == naturalKey
+        );
+        if (provider is null)
+            return [];
+        try
+        {
+            return await provider.SeedAsync(broadcasterId, widget, Context.ConnectionAborted);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(
+                ex,
+                "Seed provider {Key} failed for widget {W}",
+                naturalKey,
+                widget.Id
+            );
+            return [];
+        }
     }
 
     // What the page receives is the saved bag plus the defaults its settings.json declares; if the lookup fails
@@ -216,16 +255,15 @@ public class OverlayHub : Hub<IOverlayClient>
         return effective.IsSuccess ? effective.Value : widget.Settings;
     }
 
-    private async Task<bool> IsAudioSourceAsync(Widget? widget)
+    private async Task<string?> NaturalKeyAsync(Widget? widget)
     {
         if (widget?.GalleryItemId is not Guid galleryItemId)
-            return false;
-        string? naturalKey = await _db
+            return null;
+        return await _db
             .WidgetGalleryItems.AsNoTracking()
             .Where(i => i.Id == galleryItemId)
             .Select(i => i.NaturalKey)
             .FirstOrDefaultAsync();
-        return naturalKey == OverlayPresenceRegistry.AudioSourceNaturalKey;
     }
 
     /// <summary>

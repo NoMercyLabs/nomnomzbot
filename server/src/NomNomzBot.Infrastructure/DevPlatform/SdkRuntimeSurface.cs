@@ -275,6 +275,20 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine(" * Every registration returns the SDK, so calls chain.");
         sb.AppendLine(" */");
+        sb.AppendLine(
+            "/** Says whether an event is a live one or a replay of a remembered one sent on join. */"
+        );
+        sb.AppendLine("interface NnzEventMeta {");
+        sb.AppendLine(
+            "  /** True for a seed frame the bot replays on join; false for a live event. */"
+        );
+        sb.AppendLine("  replay: boolean;");
+        sb.AppendLine(
+            "  /** ISO time the replayed event really happened. Set only when replay is true. */"
+        );
+        sb.AppendLine("  occurredAt?: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("interface NnzOverlaySdk {");
         AppendEventMethods(sb, customPayloadName);
         sb.AppendLine(
@@ -420,7 +434,7 @@ internal static class SdkRuntimeSurface
     // handler `unknown`, never `any`.
     private static void AppendEventMethods(StringBuilder sb, string? customPayloadName)
     {
-        const string Handler = "(data: unknown, eventType: string) => void";
+        const string Handler = "(data: unknown, eventType: string, meta?: NnzEventMeta) => void";
         if (customPayloadName is null)
         {
             sb.AppendLine($"  on(eventType: string, handler: {Handler}): NnzOverlaySdk;");
@@ -429,13 +443,15 @@ internal static class SdkRuntimeSurface
             );
             sb.AppendLine($"  off(eventType: string, handler: {Handler}): NnzOverlaySdk;");
             sb.AppendLine(
-                "  onAny(handler: (eventType: string, data: unknown) => void): NnzOverlaySdk;"
+                "  onAny(handler: (eventType: string, data: unknown, meta?: NnzEventMeta) => void): NnzOverlaySdk;"
             );
             return;
         }
 
-        const string TypedHandler = "(data: NnzWidgetEventMap[K], eventType: K) => void";
-        string customHandler = $"(data: {customPayloadName}, eventType: string) => void";
+        const string TypedHandler =
+            "(data: NnzWidgetEventMap[K], eventType: K, meta?: NnzEventMeta) => void";
+        string customHandler =
+            $"(data: {customPayloadName}, eventType: string, meta?: NnzEventMeta) => void";
         sb.AppendLine(
             $"  on<K extends keyof NnzWidgetEventMap>(eventType: K, handler: {TypedHandler}): NnzOverlaySdk;"
         );

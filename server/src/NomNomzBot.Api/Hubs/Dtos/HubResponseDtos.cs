@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Widgets.Dtos;
+
 namespace NomNomzBot.Api.Hubs.Dtos;
 
 // ─── Stream / music state ─────────────────────────────────────────────────────
@@ -215,7 +217,16 @@ public record SendMessageResponse(bool Success, string? Error, string? MessageId
 
 public record ActionResponse(bool Success, string? Error);
 
-public record JoinWidgetResponse(bool Success, string? Error, object? InitialState);
+/// <summary>
+/// The answer to a widget's join. <paramref name="Seed"/> holds the frames the widget's seed provider rebuilt from
+/// the true source, oldest first; an SDK that predates it ignores the field.
+/// </summary>
+public record JoinWidgetResponse(
+    bool Success,
+    string? Error,
+    object? InitialState,
+    IReadOnlyList<WidgetSeedFrame>? Seed = null
+);
 
 /// <summary>
 /// The answer to a widget's <c>InvokeAction</c>. <paramref name="ErrorCode"/> is set when the bot refused to run

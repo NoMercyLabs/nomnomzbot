@@ -28,8 +28,8 @@
   }
 
   // A throwing handler never stops the others, and the editor shows where it threw.
-  function run(where, fn, a, b) {
-    try { fn(a, b); } catch (e) { tell({ kind: "error", message: where + ": " + describe(e), stack: (e && e.stack) ? String(e.stack) : "" }); }
+  function run(where, fn, a, b, c) {
+    try { fn(a, b, c); } catch (e) { tell({ kind: "error", message: where + ": " + describe(e), stack: (e && e.stack) ? String(e.stack) : "" }); }
   }
 
   function on(type, fn) { if (typeof fn === "function") (handlers[type] = handlers[type] || []).push(fn); return api; }
@@ -40,9 +40,11 @@
     return api;
   }
 
+  // The preview has no bot, so it sends no seed frames: every event it emits is a live one.
   function emit(type, data) {
-    (handlers[type] || []).forEach(function (fn) { run("on('" + type + "') handler", fn, data, type); });
-    anyHandlers.forEach(function (fn) { run("onAny handler", fn, type, data); });
+    var meta = { replay: false };
+    (handlers[type] || []).forEach(function (fn) { run("on('" + type + "') handler", fn, data, type, meta); });
+    anyHandlers.forEach(function (fn) { run("onAny handler", fn, type, data, meta); });
   }
 
   function applySettings(s) {
