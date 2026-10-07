@@ -6183,6 +6183,15 @@
     <string name="editor_wrap_off">Wrap: off</string>
     <string name="editor_minimap_on">Minimap: on</string>
     <string name="editor_minimap_off">Minimap: off</string>
+    <string name="editor_new_file_path">New file path, for example lib/helper.ts</string>
+    <string name="editor_rename_file_path">New name for {path}</string>
+    <string name="editor_file_exists">{path} already exists.</string>
+    <string name="editor_file_deleted">Deleted {path}</string>
+    <string name="editor_undo">Undo</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_delete_version_title">Delete this saved version?</string>
+    <string name="editor_delete_version_body">This cannot be undone.</string>
+    <string name="editor_delete_version_action">Delete version</string>
     <string name="editor_command_palette">Command palette</string>
     <string name="editor_loading_editor">Loading editor…</string>
     <string name="editor_editor_start_failed">The editor could not start: {message}</string>

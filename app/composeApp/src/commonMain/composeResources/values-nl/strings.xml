@@ -6156,6 +6156,15 @@
     <string name="editor_wrap_off">Regelterugloop: uit</string>
     <string name="editor_minimap_on">Minimap: aan</string>
     <string name="editor_minimap_off">Minimap: uit</string>
+    <string name="editor_new_file_path">Pad van het nieuwe bestand, bijvoorbeeld lib/helper.ts</string>
+    <string name="editor_rename_file_path">Nieuwe naam voor {path}</string>
+    <string name="editor_file_exists">{path} bestaat al.</string>
+    <string name="editor_file_deleted">{path} verwijderd</string>
+    <string name="editor_undo">Ongedaan maken</string>
+    <string name="editor_cancel">Annuleren</string>
+    <string name="editor_delete_version_title">Deze opgeslagen versie verwijderen?</string>
+    <string name="editor_delete_version_body">Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="editor_delete_version_action">Versie verwijderen</string>
     <string name="editor_command_palette">Opdrachtenpalet</string>
     <string name="editor_loading_editor">Editor laden…</string>
     <string name="editor_editor_start_failed">De editor kon niet starten: {message}</string>
