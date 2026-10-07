@@ -123,11 +123,13 @@ class ViewerProfileControllerTest {
         val controller = controller(communityApi = communityApi, feedback = feedback)
         controller.load("u1")
 
-        controller.ban("reason")
+        val result: ApiResult<Unit> = controller.ban("reason")
 
         assertTrue(communityApi.banCalls.isEmpty())
         assertEquals(1, communityApi.profileCallCount) // no reload — the write never reached the backend
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        // The reason goes back to the confirm dialog (inline), not to a toast.
+        assertTrue(result is ApiResult.Failure)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test
@@ -242,27 +244,27 @@ class ViewerProfileControllerTest {
         val controller = controller(communityApi = communityApi, gdprApi = gdprApi, fileBridge = bridge)
         controller.load("u1")
 
-        val error: String? = controller.exportUserData()
+        val result: ApiResult<Unit> = controller.exportUserData()
 
-        assertNull(error)
+        assertEquals(ApiResult.Ok(Unit), result)
         assertEquals(listOf<Pair<String, String?>>("u1" to "ch1"), gdprApi.exportSubjectCalls)
         assertEquals("{\"subject\":\"u1\"}", bridge.savedBytes?.decodeToString())
     }
 
     @Test
-    fun erase_user_data_calls_users_api_and_surfaces_a_failure_on_the_banner() = runTest {
+    fun erase_user_data_calls_users_api_and_hands_the_failure_to_the_dialog_without_a_toast() = runTest {
         val usersApi = VPCFakeUsersApi(eraseResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "compliance:erasure required.")))
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
         val feedback = RecordingFeedback()
         val controller = controller(communityApi = communityApi, usersApi = usersApi, feedback = feedback)
         controller.load("u1")
 
-        val error: String? = controller.eraseUserData()
+        val result: ApiResult<Unit> = controller.eraseUserData()
 
-        assertEquals("compliance:erasure required.", error)
+        assertEquals("compliance:erasure required.", (result as ApiResult.Failure).error.message)
         assertEquals(listOf("u1"), usersApi.eraseCalls)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("compliance:erasure required."), feedback.only.formatArgs)
+        // The confirm dialog shows the reason inline, so no second toast.
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test

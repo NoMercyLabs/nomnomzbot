@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.community.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.io.JournalFileIO
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -347,13 +348,10 @@ class ViewerProfileController(
         }
     }
 
-    /** Delete one custom-data [key]. Returns null on success, or the backend's error message. */
-    suspend fun deleteViewerDatum(key: String): String? {
-        val person: String = userId ?: return noChannelError()
-        return when (val result = viewerDataApi.deleteDatum(person, key)) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> result.error.message
-        }
+    /** Delete one custom-data [key]. A failure is handed back untouched so the confirm dialog shows its reason. */
+    suspend fun deleteViewerDatum(key: String): ApiResult<Unit> {
+        val person: String = userId ?: return rejected(noChannelError())
+        return viewerDataApi.deleteDatum(person, key)
     }
 
     /** Set this person's community trust level (the legacy per-channel trust config), then reload. */
@@ -363,18 +361,18 @@ class ViewerProfileController(
         afterWrite(communityApi.setTrust(channel, target, level))
     }
 
-    /** Ban this person from the channel via Twitch, then reload. */
-    suspend fun ban(reason: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
-        afterWrite(communityApi.ban(channel, target, reason))
+    /** Ban this person from the channel via Twitch, then reload on success; a failure goes back to the confirm dialog. */
+    suspend fun ban(reason: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return rejected(noChannelError())
+        val target: String = requireTwitchId() ?: return rejected(NoTwitchIdError)
+        return afterDialogWrite(communityApi.ban(channel, target, reason))
     }
 
-    /** Lift this person's ban, then reload. */
-    suspend fun unban() {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
-        afterWrite(communityApi.unban(channel, target))
+    /** Lift this person's ban, then reload on success; a failure goes back to the confirm dialog. */
+    suspend fun unban(): ApiResult<Unit> {
+        val channel: String = channelId ?: return rejected(noChannelError())
+        val target: String = requireTwitchId() ?: return rejected(NoTwitchIdError)
+        return afterDialogWrite(communityApi.unban(channel, target))
     }
 
     /** Grant this person VIP status on Twitch, then reload. */
@@ -403,44 +401,41 @@ class ViewerProfileController(
 
     /**
      * Fulfil a right-of-access request for this person and hand the document to the OS (broadcaster-only,
-     * mirrors the export the old Community stats dialog offered). Returns null on success, an error on failure.
+     * mirrors the export the old Community stats dialog offered). A failure goes back to the confirm dialog.
      */
-    suspend fun exportUserData(): String? {
-        val person: String = userId ?: return noChannelError()
+    suspend fun exportUserData(): ApiResult<Unit> {
+        val person: String = userId ?: return rejected(noChannelError())
         return when (val result: ApiResult<DataExport> = gdprApi.exportSubject(person, channelId)) {
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                result.error.message
+            is ApiResult.Failure -> result
+            is ApiResult.Ok -> {
+                // A closed save dialog is not a failure: nothing went wrong, nothing was delivered.
+                fileBridge.saveFile(
+                    suggestedName = "nomnomz-subject-$person.json",
+                    bytes = result.value.document.encodeToByteArray(),
+                )
+                ApiResult.Ok(Unit)
             }
-            is ApiResult.Ok ->
-                if (
-                    fileBridge.saveFile(
-                        suggestedName = "nomnomz-subject-$person.json",
-                        bytes = result.value.document.encodeToByteArray(),
-                    )
-                ) {
-                    null
-                } else {
-                    // The user closed the save dialog — nothing failed, nothing was delivered.
-                    null
-                }
         }
     }
 
-    /** Permanently erase this person's data (GDPR erasure, broadcaster-only, irreversible). */
-    suspend fun eraseUserData(): String? {
-        val person: String = userId ?: return noChannelError()
-        return when (val result: ApiResult<Unit> = usersApi.erase(person)) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                result.error.message
-            }
-        }
+    /** Permanently erase this person's data (GDPR erasure, broadcaster-only, irreversible). A failure goes back to the confirm dialog. */
+    suspend fun eraseUserData(): ApiResult<Unit> {
+        val person: String = userId ?: return rejected(noChannelError())
+        return usersApi.erase(person)
     }
 
     private fun requireTwitchId(): String? =
         (_state.value as? ViewerProfileState.Ready)?.profile?.identity?.twitchUserId
+
+    // A write fired from a confirm dialog that stays open until the server answers: success reloads the profile, a
+    // failure is handed back untouched so the dialog shows the reason inline (no toast, no page-level error).
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) refresh(isInitial = false)
+        return result
+    }
+
+    // Nothing was sent (no channel, no Twitch id): the dialog shows [message] as the reason.
+    private fun rejected(message: String): ApiResult<Unit> = ApiResult.Failure(ApiError(status = 0, code = "REJECTED", message = message))
 
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
