@@ -90,6 +90,7 @@ import bot.nomnomz.dashboard.core.media.EmojiCatalog
 import bot.nomnomz.dashboard.core.media.EmojiEntry
 import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.media.searchEmoji
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.feature.chat.state.LineMark
@@ -101,6 +102,7 @@ import bot.nomnomz.dashboard.feature.chat.state.ChatState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
@@ -292,7 +294,7 @@ fun ChatScreen(
             emotes = composerEmotes,
             replyTarget = replyTarget,
             onCancelReply = { controller.cancelReply() },
-            onSend = { text, identity -> scope.launch { controller.send(text, identity) } },
+            onSend = { text, identity -> controller.send(text, identity) },
         )
     }
 
@@ -932,15 +934,17 @@ private fun BanDialog(
 // and standard emoji, Tab inserts the top hit, Enter sends. Empty / blank input is ignored, matching the backend's
 // empty-message rejection.
 @Composable
-private fun SendBox(
+internal fun SendBox(
     manage: ManageDecision,
     emotes: List<ChatEmoteCatalogue>,
     replyTarget: ChatMessage?,
     onCancelReply: () -> Unit,
-    onSend: (message: String, senderIdentity: String) -> Unit,
+    onSend: suspend (message: String, senderIdentity: String) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val sendScope: CoroutineScope = rememberCoroutineScope()
+    var sending: Boolean by remember { mutableStateOf(false) }
 
     // A TextFieldValue (not a bare String) so the caret is explicit: a programmatic insert (Tab / pick) parks it at
     // the end, which the String field overload cannot do — the fix for the mid-string garble the live client showed.
@@ -978,9 +982,20 @@ private fun SendBox(
     fun submit() {
         // The manage floor gates every send path — the visible button AND the Enter key — so a caller below the
         // Chat write floor can neither click nor type-send.
-        if (canSend && manage.isAllowed) {
-            onSend(draft.text, identity)
-            draft = TextFieldValue("")
+        if (canSend && manage.isAllowed && !sending) {
+            val text: String = draft.text
+            val sentAs: String = identity
+            sending = true
+            sendScope.launch {
+                try {
+                    // The draft stays until the server confirms; a failure keeps the text (the controller already
+                    // announced why on the toast). Clear only if the field still holds what was sent.
+                    val result: ApiResult<Unit> = onSend(text, sentAs)
+                    if (result is ApiResult.Ok && draft.text == text) draft = TextFieldValue("")
+                } finally {
+                    sending = false
+                }
+            }
         }
     }
 
@@ -1050,7 +1065,8 @@ private fun SendBox(
                 onPreviewKey = onPreviewKey,
                 actionLabel = sendLabel,
                 actionDecision = manage,
-                actionEnabled = canSend,
+                actionEnabled = canSend && !sending,
+                actionLoading = sending,
                 onActionClick = { submit() },
                 // Clear-all lives INSIDE the field, next to Send — wipes the whole draft in one tap. Only
                 // shown while there's something to clear. Not gated: clearing your own unsent text needs no

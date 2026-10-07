@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.chat.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -292,22 +293,29 @@ class ChatController(
      * "bot" (the channel's bot identity), per chat-client.md §3.1. Does NOT reload the feed: the sent line comes
      * straight back over the live hub (EventSub echoes it), so reloading here would race persistence and clobber
      * the hub-appended line — the "one message late" bug. On failure, surface the error over the current feed
-     * without disturbing it.
+     * without disturbing it. The returned [ApiResult] tells the composer whether the line landed, so it clears the
+     * draft on [ApiResult.Ok] only and keeps the typed text on [ApiResult.Failure]. A blank draft sends nothing and
+     * reports [ApiResult.Ok].
      */
-    suspend fun send(message: String, senderIdentity: String = "you") {
+    suspend fun send(message: String, senderIdentity: String = "you"): ApiResult<Unit> {
         val trimmed: String = message.trim()
-        if (trimmed.isEmpty()) return
-        val channel: String = channelId ?: return failAction(noChannelError())
+        if (trimmed.isEmpty()) return ApiResult.Ok(Unit)
+        val channel: String? = channelId
+        if (channel == null) {
+            val detail: String = noChannelError()
+            failAction(detail)
+            return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = detail))
+        }
         // In reply mode, thread the parent message id so the backend posts a Twitch reply; a normal send is null.
         val replyToMessageId: String? = _replyTarget.value?.id
-        when (
-            val result: ApiResult<Unit> = chatApi.send(channel, trimmed, senderIdentity, replyToMessageId)
-        ) {
+        val result: ApiResult<Unit> = chatApi.send(channel, trimmed, senderIdentity, replyToMessageId)
+        when (result) {
             // Leave reply mode only once the reply actually lands — a failed send keeps the target so the operator
             // can retry without re-selecting the message.
             is ApiResult.Ok -> _replyTarget.value = null
             is ApiResult.Failure -> failAction(result.error.message)
         }
+        return result
     }
 
     /** Enter reply mode: the next [send] threads [message]'s id as the reply parent. The composer shows a banner. */

@@ -189,11 +189,15 @@ class MultiChatController(
      * Send [message] to [channelId]'s chat as the bot (the same `POST .../chat/messages` call the single-channel
      * Chat page uses — [ChatApi.send]). The composer lets a mod reply into any ONE of the currently watched
      * channels without leaving the merged feed. The sent line arrives back through the live hub push like any
-     * other message; a failure announces on the shell-level [feedback] toast.
+     * other message; a failure announces on the shell-level [feedback] toast. The returned [ApiResult] tells the
+     * composer whether the line landed, so it clears the draft on success only. A blank message sends nothing and
+     * reports [ApiResult.Ok].
      */
-    suspend fun sendMessage(channelId: String, message: String) {
-        if (message.isBlank()) return
-        runModerationCall { chatApi.send(channelId, message) }
+    suspend fun sendMessage(channelId: String, message: String): ApiResult<Unit> {
+        if (message.isBlank()) return ApiResult.Ok(Unit)
+        val result: ApiResult<Unit> = chatApi.send(channelId, message)
+        if (result is ApiResult.Failure) feedback.error(Res.string.multichat_action_error, result.error.message)
+        return result
     }
 
     /**

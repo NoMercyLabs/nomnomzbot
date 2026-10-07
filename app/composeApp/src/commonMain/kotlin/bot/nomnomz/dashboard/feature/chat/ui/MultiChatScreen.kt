@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import bot.nomnomz.dashboard.core.network.ApiResult
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +71,7 @@ import bot.nomnomz.dashboard.feature.chat.state.MultiChatState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -147,7 +149,7 @@ fun MultiChatScreen(
                         if (current.watched.any { it.id == channel.id }) controller.removeChannel(channel.id)
                         else scope.launch { controller.addChannel(channel.id) }
                     },
-                    onSend = { channelId, message -> scope.launch { controller.sendMessage(channelId, message) } },
+                    onSend = { channelId, message -> controller.sendMessage(channelId, message) },
                     onDelete = { channelId, messageId -> scope.launch { controller.deleteMessage(channelId, messageId) } },
                     onTimeout = { channelId, userId -> scope.launch { controller.timeoutUser(channelId, userId) } },
                     onBan = { channelId, userId -> scope.launch { controller.banUser(channelId, userId) } },
@@ -162,7 +164,7 @@ private fun ReadyContent(
     ready: MultiChatState.Ready,
     manage: ManageDecision,
     onToggle: (ChannelSummary) -> Unit,
-    onSend: (channelId: String, message: String) -> Unit,
+    onSend: suspend (channelId: String, message: String) -> ApiResult<Unit>,
     onDelete: (channelId: String, messageId: String) -> Unit,
     onTimeout: (channelId: String, userId: String) -> Unit,
     onBan: (channelId: String, userId: String) -> Unit,
@@ -231,8 +233,14 @@ private fun ReadyContent(
 // inline moderation actions — a caller below the page's floor never reaches this surface at all (the route's
 // own read floor already keeps them off the page), so this only guards a genuinely denied state.
 @Composable
-private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSend: (channelId: String, message: String) -> Unit) {
+internal fun Composer(
+    watched: List<ChannelSummary>,
+    manage: ManageDecision,
+    onSend: suspend (channelId: String, message: String) -> ApiResult<Unit>,
+) {
     val spacing = LocalSpacing.current
+    val scope: CoroutineScope = rememberCoroutineScope()
+    var sending: Boolean by remember { mutableStateOf(false) }
     var targetChannelId: String by remember(watched.firstOrNull()?.id) { mutableStateOf(watched.first().id) }
     var draft: String by remember { mutableStateOf("") }
     var channelPickerExpanded: Boolean by remember { mutableStateOf(false) }
@@ -240,9 +248,18 @@ private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSe
 
     fun submit() {
         val text: String = draft.trim()
-        if (text.isEmpty()) return
-        onSend(target.id, text)
-        draft = ""
+        if (text.isEmpty() || sending) return
+        sending = true
+        scope.launch {
+            try {
+                // The draft stays until the server confirms; a failure keeps the text (the controller already
+                // announced why on the toast). Clear only if the field still holds what was sent.
+                val result: ApiResult<Unit> = onSend(target.id, text)
+                if (result is ApiResult.Ok && draft.trim() == text) draft = ""
+            } finally {
+                sending = false
+            }
+        }
     }
 
     ManageGate(decision = manage) { enabled ->
@@ -289,7 +306,7 @@ private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSe
                     enabled = enabled,
                     modifier = Modifier.weight(1f),
                 )
-                Button(onClick = ::submit, enabled = enabled && draft.isNotBlank()) {
+                Button(onClick = ::submit, enabled = enabled && draft.isNotBlank(), loading = sending) {
                     Text(text = stringResource(Res.string.multichat_composer_send))
                 }
             }

@@ -87,6 +87,7 @@ internal fun EmoteComposerField(
     modifier: Modifier = Modifier,
     clearLabel: String? = null,
     onClear: (() -> Unit)? = null,
+    actionLoading: Boolean = false,
 ) {
     val typography = LocalTypography.current
     val density = LocalDensity.current
@@ -236,6 +237,7 @@ internal fun EmoteComposerField(
                         label = actionLabel,
                         onClick = onActionClick,
                         enabled = permissionEnabled && actionEnabled,
+                        loading = actionLoading,
                     )
                 }
             }
