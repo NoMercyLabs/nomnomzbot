@@ -94,6 +94,63 @@ public sealed class OverlaySdkSeedFramesTests
         sdk.Text("log.join('|')").Should().Be("f:1:true:2026-10-07T12:01:00Z|f:2:false:undefined");
     }
 
+    // The join is sent when the SDK loads, so a widget whose code mounts later still has to get its seed.
+    [Fact]
+    public void A_handler_registered_after_the_join_answer_still_gets_its_seed_frames()
+    {
+        OverlaySdkRuntime sdk = OverlaySdkRuntime.Connected();
+        sdk.Evaluate(Record + " NomNomz.on('follow', rec('early'));");
+
+        sdk.Complete(
+            "join",
+            Join(
+                Frame("goal_progress", 3, "2026-10-07T12:00:00Z"),
+                Frame("follow", 1, "2026-10-07T12:01:00Z"),
+                Frame("goal_progress", 5, "2026-10-07T12:02:00Z")
+            )
+        );
+        sdk.Evaluate("NomNomz.on('goal_progress', rec('late'));");
+
+        sdk.Text("log.join('|')")
+            .Should()
+            .Be(
+                "early:1:true:2026-10-07T12:01:00Z|late:3:true:2026-10-07T12:00:00Z|late:5:true:2026-10-07T12:02:00Z"
+            );
+    }
+
+    [Fact]
+    public void A_late_handler_gets_no_seed_of_a_type_that_arrived_live_after_the_join()
+    {
+        OverlaySdkRuntime sdk = OverlaySdkRuntime.Connected();
+        sdk.Evaluate(Record);
+
+        sdk.Complete("join", Join(Frame("follow", 1, "2026-10-07T12:01:00Z")));
+        sdk.Deliver("WidgetEvent", new { eventType = "follow", data = new { n = 2 } });
+        sdk.Evaluate("NomNomz.on('follow', rec('late'));");
+
+        sdk.Text("log.length").Should().Be("0");
+    }
+
+    [Fact]
+    public void A_late_any_handler_gets_every_seed_frame_once()
+    {
+        OverlaySdkRuntime sdk = OverlaySdkRuntime.Connected();
+        sdk.Evaluate(Record);
+
+        sdk.Complete(
+            "join",
+            Join(
+                Frame("goal_progress", 3, "2026-10-07T12:00:00Z"),
+                Frame("follow", 1, "2026-10-07T12:01:00Z")
+            )
+        );
+        sdk.Evaluate(
+            "NomNomz.onAny(function (type, data, meta) { log.push(type + ':' + data.n + ':' + meta.replay); });"
+        );
+
+        sdk.Text("log.join('|')").Should().Be("goal_progress:3:true|follow:1:true");
+    }
+
     [Fact]
     public void A_join_answer_without_seed_emits_nothing()
     {

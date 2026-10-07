@@ -78,9 +78,21 @@ public sealed class OverlaySdkController : ControllerBase
             } catch (_) {}
           }
 
-          function on(type, fn) { if (typeof fn === "function") (handlers[type] = handlers[type] || []).push(fn); return api; }
+          // The join is sent as soon as the SDK loads, so a widget may register after the seed arrived: a late
+          // handler gets the kept seed frames it would have seen.
+          function on(type, fn) {
+            if (typeof fn !== "function") return api;
+            (handlers[type] = handlers[type] || []).push(fn);
+            replaySeed(function (f) { if (f.eventType === type) run(fn, f.data, f.eventType, f.meta); });
+            return api;
+          }
           function off(type, fn) { var l = handlers[type]; if (l) handlers[type] = l.filter(function (h) { return h !== fn; }); return api; }
-          function onAny(fn) { if (typeof fn === "function") anyHandlers.push(fn); return api; }
+          function onAny(fn) {
+            if (typeof fn !== "function") return api;
+            anyHandlers.push(fn);
+            replaySeed(function (f) { run(fn, f.eventType, f.data, f.meta); });
+            return api;
+          }
           function onSettings(fn) {
             if (typeof fn === "function") { settingsHandlers.push(fn); run(fn, currentSettings); }
             return api;
@@ -88,6 +100,10 @@ public sealed class OverlaySdkController : ControllerBase
           // The event types that arrived live since the join was sent: a seed frame of such a type is older than
           // what the widget already has, so it is dropped.
           var liveSinceJoin = {};
+          var seedFrames = []; // the last join's seed, kept for handlers that register after it
+          function replaySeed(deliver) {
+            seedFrames.forEach(function (f) { if (!liveSinceJoin[f.eventType]) deliver(f); });
+          }
           // meta tells a handler whether this is a replayed seed frame ({ replay: true, occurredAt }) or a live one.
           function emit(type, data, meta) {
             var m = meta || { replay: false };
@@ -97,11 +113,12 @@ public sealed class OverlaySdkController : ControllerBase
           }
           // Frames come oldest first, from the join answer; they go to the same handlers the live events use.
           function applySeed(frames) {
-            if (!Array.isArray(frames)) return;
-            frames.forEach(function (f) {
-              if (!f || !f.eventType || liveSinceJoin[f.eventType]) return;
-              emit(f.eventType, f.data == null ? {} : f.data, { replay: true, occurredAt: f.occurredAt });
-            });
+            seedFrames = (Array.isArray(frames) ? frames : [])
+              .filter(function (f) { return f && f.eventType; })
+              .map(function (f) {
+                return { eventType: f.eventType, data: f.data == null ? {} : f.data, meta: { replay: true, occurredAt: f.occurredAt } };
+              });
+            replaySeed(function (f) { emit(f.eventType, f.data, f.meta); });
           }
           function applySettings(s) {
             if (!s || typeof s !== "object") return;
@@ -186,6 +203,7 @@ public sealed class OverlaySdkController : ControllerBase
                   if (msg.error) { console.error("[widget] handshake rejected:", msg.error); ws.close(); return; }
                   backoffMs = 1000;
                   liveSinceJoin = {};
+                  seedFrames = [];
                   if (widgetId)
                     ws.send(JSON.stringify({ type: 1, invocationId: "join", target: "JoinWidgetWithSdk", arguments: [widgetId, "__SDK_VERSION__"] }) + RS);
                   return;
