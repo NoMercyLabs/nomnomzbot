@@ -17,7 +17,6 @@ import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.feedback.Feedback
-import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -261,7 +260,7 @@ class WidgetsControllerTest {
     }
 
     @Test
-    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+    fun a_failed_delete_returns_the_failure_over_the_kept_list_without_a_toast() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
                 ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true))),
@@ -272,14 +271,15 @@ class WidgetsControllerTest {
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, feedback = feedback)
         controller.load()
 
-        controller.deleteWidget(widgetId = "w-1")
+        val result: ApiResult<Unit> = controller.deleteWidget(widgetId = "w-1")
 
-        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The list is kept (not blown away); the failure goes back to the confirm dialog, which shows it inline,
+        // so no toast is raised.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
         val state: WidgetsState = controller.state.value
         assertTrue(state is WidgetsState.Ready)
         assertEquals(1, (state as WidgetsState.Ready).widgets.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test
@@ -905,7 +905,7 @@ class WidgetsControllerTest {
 // Builds a controller with a default (immediately-closing) project editor and an empty gallery so the tests that
 // don't exercise those stay unchanged; the editor / gallery tests pass an explicit [FakeProjectEditor] /
 // [FakeWidgetGalleryApi].
-private fun widgetsController(
+internal fun widgetsController(
     channelsApi: ChannelsApi,
     widgetsApi: WidgetsApi,
     editor: ProjectEditorIO = FakeProjectEditor(),
@@ -917,7 +917,7 @@ private fun widgetsController(
 // A fake SDK-types facade. The editor tests don't assert on the declarations (the fake project editor never
 // opens a real language service), so it just returns an empty d.ts — the same graceful path a fetch failure
 // takes in production.
-private class FakeSdkTypesApi(
+internal class FakeSdkTypesApi(
     private val declarations: String = "",
     private val fails: Boolean = false,
 ) : SdkTypesApi {
@@ -937,7 +937,7 @@ private class FakeSdkTypesApi(
 // carrying that edit, and capturing the returned feedback), then closes. An empty [toSave] models the operator
 // closing the editor without saving. [openedEntryContent] is the loaded content of the entry file — what the
 // editor seeded with.
-private class FakeProjectEditor(private val toSave: List<String> = emptyList()) : ProjectEditorIO {
+internal class FakeProjectEditor(private val toSave: List<String> = emptyList()) : ProjectEditorIO {
     var openedTitle: String? = null
     var openedFiles: Map<String, String>? = null
     var openedEntry: String? = null
@@ -974,7 +974,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
     }
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+internal class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -999,7 +999,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 // left untouched) to exercise the error path. [projectResult] is the project getProject returns for the editor to
 // load; [putProjectResult] is the build outcome each project save reports; [versions]/[templates] back the version
 // + template lists. A list-level failure is modelled by passing a Failure as the initial result.
-private class RecordingWidgetsApi(
+internal class RecordingWidgetsApi(
     initial: ApiResult<List<WidgetSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     // The project getProject returns as the editable source (the `src/` file set + manifest the editor loads).
@@ -1239,7 +1239,7 @@ private class RecordingWidgetsApi(
 
 // A recording fake gallery catalogue: returns the preset [listResult] / [detail] and records every browse
 // request so the controller's filter threading is provable without HTTP.
-private class FakeWidgetGalleryApi(
+internal class FakeWidgetGalleryApi(
     private val listResult: ApiResult<GalleryPage> = ApiResult.Ok(GalleryPage(emptyList())),
     private val detail: ApiResult<GalleryItemDetail> = ApiResult.Ok(GalleryItemDetail()),
 ) : WidgetGalleryApi {
