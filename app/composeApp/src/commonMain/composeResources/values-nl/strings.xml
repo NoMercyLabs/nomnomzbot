@@ -1775,7 +1775,6 @@
     <string name="widgets_rotate_widget_token_result_previous_label">Oude URL (verloopt %1$s)</string>
     <string name="widgets_rotate_widget_token_result_new_label">Nieuwe URL — plak in OBS</string>
     <string name="widgets_rotate_widget_token_result_done">Klaar</string>
-    <string name="widgets_rotate_widget_token_error">Kon het token van deze overlay niet vernieuwen: %1$s</string>
     <string name="widgets_create_action">Overlay aanmaken</string>
     <string name="widgets_create_title">Overlay-widget aanmaken</string>
     <string name="widgets_create_name">Widgetnaam</string>

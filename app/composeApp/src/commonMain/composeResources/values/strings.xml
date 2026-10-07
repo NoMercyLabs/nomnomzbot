@@ -1778,7 +1778,6 @@
     <string name="widgets_rotate_widget_token_result_previous_label">Old URL (expires %1$s)</string>
     <string name="widgets_rotate_widget_token_result_new_label">New URL — copy into OBS</string>
     <string name="widgets_rotate_widget_token_result_done">Done</string>
-    <string name="widgets_rotate_widget_token_error">Could not rotate this overlay&apos;s token: %1$s</string>
     <string name="widgets_create_action">Create Overlay</string>
     <string name="widgets_create_title">Create Overlay Widget</string>
     <string name="widgets_create_name">Widget name</string>
