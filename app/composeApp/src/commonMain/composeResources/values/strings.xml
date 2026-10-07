@@ -6229,6 +6229,8 @@
     <string name="editor_preview_fire_editing">Data for {type}</string>
     <string name="editor_preview_fire_samples_error">The test events could not be loaded, so nothing can be fired. Close the editor and open it again.</string>
     <string name="editor_preview_log_action">Would run {actionType} {params}</string>
+    <string name="editor_preview_log_ran">Ran {actionType} {params}</string>
+    <string name="editor_preview_log_ran_failed">Failed {actionType} {params}: {code}</string>
     <string name="editor_preview_log_claim">Claimed {key}</string>
     <string name="editor_preview_log_error">Error</string>
     <string name="editor_console_title">Console</string>

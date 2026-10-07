@@ -400,15 +400,29 @@ export function initPreview({
 
     // ── Preview log: what the widget did that would reach the bot ───────────
 
+    // The words the action works with: each `{name}` the widget passed as a variable, filled in.
+    function filledParams(params, variables) {
+        const json = JSON.stringify(params ?? {});
+        if (!variables) return json;
+        return json.replace(/\{([^{}"]+)\}/g, (placeholder, name) =>
+            Object.hasOwn(variables, name) ? JSON.stringify(String(variables[name])).slice(1, -1) : placeholder,
+        );
+    }
+
+    function describeAction(entry) {
+        const values = { actionType: entry.actionType, params: filledParams(entry.params, entry.variables) };
+        if (!entry.ran) return t('previewLogAction', values);
+        return entry.errorCode
+            ? t('previewLogRanFailed', { ...values, code: entry.errorCode })
+            : t('previewLogRan', values);
+    }
+
     function describeEntry(entry) {
         switch (entry.kind) {
             case 'fired':
                 return t('previewLogFired', { type: entry.type });
             case 'action':
-                return t('previewLogAction', {
-                    actionType: entry.actionType,
-                    params: JSON.stringify(entry.params ?? {}),
-                });
+                return describeAction(entry);
             case 'claim':
                 return t('previewLogClaim', { key: entry.key });
             default:

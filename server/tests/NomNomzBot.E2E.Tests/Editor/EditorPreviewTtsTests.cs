@@ -15,8 +15,10 @@ namespace NomNomzBot.E2E.Tests.Editor;
 
 /// <summary>
 /// A widget in the editor preview that asks for <c>tts_synthesize</c> really speaks: the request goes through the
-/// host bridge (<c>nnz:editor:previewAction</c>), and the audio URL of the host's answer is played by the preview
-/// frame. A failed or unanswered request is a visible console error, never silence. The host is stubbed here: the
+/// host bridge (<c>nnz:editor:previewAction</c>), and the host's answer carries the audio URL. Like live, the action
+/// only makes the clip: the widget plays the clips it picks, on its own timeline, and the preview plays nothing by
+/// itself. The preview log shows the action as run, with the widget's variables filled in. A failed or unanswered
+/// request is a visible console error, never silence. The host is stubbed here: the
 /// test page is its own parent, so it sees the page's request and answers it the way the Compose host does.
 /// </summary>
 public sealed class EditorPreviewTtsTests : EditorPageTest
@@ -34,26 +36,35 @@ public sealed class EditorPreviewTtsTests : EditorPageTest
           this.play = function () { console.log('audio play'); return Promise.resolve(); };
         };
         window.__nnzPreviewActionTimeoutMs = 600;
-        window.NomNomz.actions.invoke('tts_synthesize', { text: 'hello chat' }, { user: 'kitte' })
-          .then(function (r) { console.log('result success=' + r.success + ' code=' + r.errorCode); });
+        window.NomNomz.actions.invoke('tts_synthesize', { text: 'hello {user}' }, { user: 'kitte' })
+          .then(function (r) {
+            console.log('result success=' + r.success + ' code=' + r.errorCode);
+            if (r.success) new Audio(r.variables['tts.audioUrl']).play();
+          });
         </script></body></html>
         """;
 
     [E2EFact]
-    public async Task A_successful_host_reply_plays_the_audio_url_and_sends_the_request_shape()
+    public async Task A_successful_host_reply_hands_the_clip_to_the_widget_which_alone_plays_it()
     {
         await OpenWidgetAsync(Widget, "success");
 
         await Expect(Page.Locator("#consoleList .console-text"))
             .ToContainTextAsync(
-                [$"audio src={AudioUrl}", "audio play", "result success=true code=null"],
+                ["result success=true code=null", $"audio src={AudioUrl}", "audio play"],
                 new() { Timeout = 60_000 }
             );
+        await Expect(
+                Page.Locator("#consoleList .console-text", new() { HasTextString = "audio play" })
+            )
+            .ToHaveCountAsync(1);
+        await Expect(Page.Locator("#previewLog li[data-kind='action']"))
+            .ToHaveTextAsync(["Ran tts_synthesize {\"text\":\"hello kitte\"}"]);
         string request = await Page.EvaluateAsync<string>(
             "() => JSON.stringify(window.__previewActions)"
         );
         Assert.Contains("\"actionType\":\"tts_synthesize\"", request);
-        Assert.Contains("\"params\":{\"text\":\"hello chat\"}", request);
+        Assert.Contains("\"params\":{\"text\":\"hello {user}\"}", request);
         Assert.Contains("\"variables\":{\"user\":\"kitte\"}", request);
     }
 
@@ -68,6 +79,10 @@ public sealed class EditorPreviewTtsTests : EditorPageTest
             .Not.ToContainTextAsync(["audio src="]);
         await Expect(Page.Locator("#consoleList .console-text"))
             .ToContainTextAsync(["result success=false code=TTS_NOT_CONFIGURED"]);
+        await Expect(Page.Locator("#previewLog li[data-kind='action']"))
+            .ToHaveTextAsync([
+                "Failed tts_synthesize {\"text\":\"hello kitte\"}: TTS_NOT_CONFIGURED",
+            ]);
     }
 
     [E2EFact]

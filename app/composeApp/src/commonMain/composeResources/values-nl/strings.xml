@@ -6202,6 +6202,8 @@
     <string name="editor_preview_fire_editing">Data voor {type}</string>
     <string name="editor_preview_fire_samples_error">De testgebeurtenissen konden niet worden geladen, dus er kan niets worden afgevuurd. Sluit de editor en open hem opnieuw.</string>
     <string name="editor_preview_log_action">Zou {actionType} uitvoeren {params}</string>
+    <string name="editor_preview_log_ran">{actionType} uitgevoerd {params}</string>
+    <string name="editor_preview_log_ran_failed">{actionType} mislukt {params}: {code}</string>
     <string name="editor_preview_log_claim">{key} geclaimd</string>
     <string name="editor_preview_log_error">Fout</string>
     <string name="editor_console_title">Console</string>

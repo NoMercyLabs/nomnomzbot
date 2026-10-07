@@ -54,12 +54,13 @@
   // Recorded, never run: the preview has no bot. Resolves as a successful action so the widget's own flow
   // continues the way it would live.
   function invokeAction(actionType, params, variables) {
-    tell({ kind: "action", actionType: String(actionType), params: params || null, variables: variables || null });
     if (String(actionType).toLowerCase() === REAL_ACTION) return runRealAction(String(actionType), params, variables);
+    tell({ kind: "action", actionType: String(actionType), params: params || null, variables: variables || null });
     return Promise.resolve({ success: true, output: null, error: null, errorCode: null, variables: {} });
   }
 
   // The one action a preview really runs: speech, through the editor's host bridge. The host answers by request id.
+  // Like live, it only makes the clip; the widget decides which clip plays, and when. It is logged once it ran.
   var REAL_ACTION = "tts_synthesize";
   var ACTION_TIMEOUT_MS = 20000;
   var pendingActions = {};
@@ -80,32 +81,20 @@
       function finish(result) {
         clearTimeout(timer);
         if (!result.success) console.error(actionType + " " + result.errorCode + (result.error && result.error !== result.errorCode ? ": " + result.error : ""));
+        tell({ kind: "action", actionType: actionType, params: params || null, variables: variables || null, ran: true, errorCode: result.success ? null : result.errorCode });
         resolve(result);
       }
       pendingActions[requestId] = function (reply) {
-        var result = {
+        finish({
           success: reply.success === true,
           output: reply.output == null ? null : reply.output,
           error: reply.error == null ? null : reply.error,
           errorCode: reply.errorCode == null ? null : reply.errorCode,
           variables: reply.variables && typeof reply.variables === "object" ? reply.variables : {},
-        };
-        if (result.success) {
-          clearTimeout(timer);
-          speak(result.variables["tts.audioUrl"]);
-          resolve(result);
-        } else finish(result);
+        });
       };
       tell({ kind: "previewAction", requestId: requestId, actionType: actionType, params: params || null, variables: variables || null });
     });
-  }
-
-  function speak(url) {
-    if (typeof url !== "string" || !url) return;
-    try {
-      var played = new Audio(url).play();
-      if (played && typeof played.catch === "function") played.catch(function (e) { console.error("tts " + describe(e)); });
-    } catch (e) { console.error("tts " + describe(e)); }
   }
 
   // One preview is the only open copy, so it always wins the claim.

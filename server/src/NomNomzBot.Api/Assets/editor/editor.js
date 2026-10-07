@@ -279,6 +279,8 @@ const DEFAULT_LABELS = Object.freeze({
     previewFireSamplesError:
         'The test events could not be loaded, so nothing can be fired. Close the editor and open it again.',
     previewLogAction: 'Would run {actionType} {params}',
+    previewLogRan: 'Ran {actionType} {params}',
+    previewLogRanFailed: 'Failed {actionType} {params}: {code}',
     previewLogClaim: 'Claimed {key}',
     previewLogError: 'Error',
     consoleTitle: 'Console',
