@@ -45,6 +45,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -150,9 +152,9 @@ fun MultiChatScreen(
                         else scope.launch { controller.addChannel(channel.id) }
                     },
                     onSend = { channelId, message -> controller.sendMessage(channelId, message) },
-                    onDelete = { channelId, messageId -> scope.launch { controller.deleteMessage(channelId, messageId) } },
-                    onTimeout = { channelId, userId -> scope.launch { controller.timeoutUser(channelId, userId) } },
-                    onBan = { channelId, userId -> scope.launch { controller.banUser(channelId, userId) } },
+                    onDelete = { channelId, messageId -> controller.deleteMessage(channelId, messageId).toDialogResult() },
+                    onTimeout = { channelId, userId -> controller.timeoutUser(channelId, userId).toDialogResult() },
+                    onBan = { channelId, userId -> controller.banUser(channelId, userId).toDialogResult() },
                     onToggleShield = { channelId, on -> scope.launch { controller.setShieldMode(channelId, on) } },
                 )
         }
@@ -165,9 +167,9 @@ private fun ReadyContent(
     manage: ManageDecision,
     onToggle: (ChannelSummary) -> Unit,
     onSend: suspend (channelId: String, message: String) -> ApiResult<Unit>,
-    onDelete: (channelId: String, messageId: String) -> Unit,
-    onTimeout: (channelId: String, userId: String) -> Unit,
-    onBan: (channelId: String, userId: String) -> Unit,
+    onDelete: suspend (channelId: String, messageId: String) -> DialogResult,
+    onTimeout: suspend (channelId: String, userId: String) -> DialogResult,
+    onBan: suspend (channelId: String, userId: String) -> DialogResult,
     onToggleShield: (channelId: String, enabled: Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -446,9 +448,9 @@ private fun MergedFeed(
     nameByChannel: Map<String, String>,
     colorByChannel: Map<String, String?>,
     manage: ManageDecision,
-    onDelete: (channelId: String, messageId: String) -> Unit,
-    onTimeout: (channelId: String, userId: String) -> Unit,
-    onBan: (channelId: String, userId: String) -> Unit,
+    onDelete: suspend (channelId: String, messageId: String) -> DialogResult,
+    onTimeout: suspend (channelId: String, userId: String) -> DialogResult,
+    onBan: suspend (channelId: String, userId: String) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     Card(modifier = Modifier.fillMaxSize()) {
@@ -486,9 +488,9 @@ private fun MultiChatRow(
     channelName: String?,
     channelChatColor: String?,
     manage: ManageDecision,
-    onDelete: (channelId: String, messageId: String) -> Unit,
-    onTimeout: (channelId: String, userId: String) -> Unit,
-    onBan: (channelId: String, userId: String) -> Unit,
+    onDelete: suspend (channelId: String, messageId: String) -> DialogResult,
+    onTimeout: suspend (channelId: String, userId: String) -> DialogResult,
+    onBan: suspend (channelId: String, userId: String) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -558,9 +560,9 @@ private fun ModerationMenu(
     message: ChatMessage,
     name: String,
     manage: ManageDecision,
-    onDelete: (channelId: String, messageId: String) -> Unit,
-    onTimeout: (channelId: String, userId: String) -> Unit,
-    onBan: (channelId: String, userId: String) -> Unit,
+    onDelete: suspend (channelId: String, messageId: String) -> DialogResult,
+    onTimeout: suspend (channelId: String, userId: String) -> DialogResult,
+    onBan: suspend (channelId: String, userId: String) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -613,7 +615,7 @@ private fun ModerationMenu(
             confirmLabel = stringResource(Res.string.multichat_delete_confirm),
             dismissLabel = stringResource(Res.string.multichat_delete_dismiss),
             destructive = true,
-            onConfirm = { onDelete(message.channelId, message.id); confirmDelete = false },
+            action = { onDelete(message.channelId, message.id) },
             onDismiss = { confirmDelete = false },
         )
     }
@@ -625,7 +627,7 @@ private fun ModerationMenu(
             confirmLabel = stringResource(Res.string.multichat_timeout_confirm),
             dismissLabel = stringResource(Res.string.multichat_timeout_dismiss),
             destructive = true,
-            onConfirm = { onTimeout(message.channelId, message.userId); confirmTimeout = false },
+            action = { onTimeout(message.channelId, message.userId) },
             onDismiss = { confirmTimeout = false },
         )
     }
@@ -637,7 +639,7 @@ private fun ModerationMenu(
             confirmLabel = stringResource(Res.string.multichat_ban_confirm),
             dismissLabel = stringResource(Res.string.multichat_ban_dismiss),
             destructive = true,
-            onConfirm = { onBan(message.channelId, message.userId); confirmBan = false },
+            action = { onBan(message.channelId, message.userId) },
             onDismiss = { confirmBan = false },
         )
     }

@@ -328,42 +328,44 @@ class ChatController(
         _replyTarget.value = null
     }
 
-    /** Delete the single message [messageId], then reload so it drops from the feed. The screen confirms first. */
-    suspend fun deleteMessage(messageId: String) {
-        val channel: String = channelId ?: return failAction(noChannelError())
-        afterAction(chatApi.deleteMessage(channel, messageId))
+    /**
+     * Delete the single message [messageId], then reload so it drops from the feed. The screen confirms first. The
+     * returned [ApiResult] tells the dialog whether it may close: it stays open with the reason on a failure.
+     */
+    suspend fun deleteMessage(messageId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterAction(chatApi.deleteMessage(channel, messageId))
     }
 
     /** Timeout [userId] for [durationSeconds], then reload. The screen confirms this first (destructive). */
-    suspend fun timeout(userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
-        val channel: String = channelId ?: return failAction(noChannelError())
-        afterAction(chatApi.timeout(channel, userId, durationSeconds))
+    suspend fun timeout(userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterAction(chatApi.timeout(channel, userId, durationSeconds))
     }
 
     /**
-     * Ban [userId] — in this channel only ([scope] = "this_channel") or across every channel the operator moderates
+     * Ban [userId] - in this channel only ([scope] = "this_channel") or across every channel the operator moderates
      * ([scope] = "all_moderated"). The screen confirms first (destructive). On success the ban lands via Twitch (no
-     * feed reload — a banned chatter simply stops appearing); a network failure surfaces over the intact feed.
+     * feed reload - a banned chatter simply stops appearing); a failure surfaces over the intact feed and in the
+     * returned [ApiResult], so the dialog stays open.
      */
-    suspend fun ban(userId: String, scope: String, reason: String? = null) {
-        val channel: String = channelId ?: return failAction(noChannelError())
-        when (val result: ApiResult<NetworkBanResult> = chatApi.banUser(channel, userId, scope, reason)) {
-            is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> failAction(result.error.message)
-        }
+    suspend fun ban(userId: String, scope: String, reason: String? = null): ApiResult<NetworkBanResult> {
+        val channel: String = channelId ?: return noChannelFailure()
+        val result: ApiResult<NetworkBanResult> = chatApi.banUser(channel, userId, scope, reason)
+        if (result is ApiResult.Failure) failAction(result.error.message)
+        return result
     }
 
     /**
-     * File a viewer report against [userId] ([userName]/[displayName] captured from the chat row) with [reason] —
+     * File a viewer report against [userId] ([userName]/[displayName] captured from the chat row) with [reason] -
      * flags them for a moderator to triage on the Moderation page. Non-punishing (no feed reload); a failure surfaces
-     * over the intact feed. The screen collects the reason and won't submit it blank.
+     * over the intact feed and in the returned [ApiResult]. The screen collects the reason and won't submit it blank.
      */
-    suspend fun report(userId: String, userName: String, displayName: String?, reason: String) {
-        val channel: String = channelId ?: return failAction(noChannelError())
-        when (val result: ApiResult<Unit> = chatApi.fileReport(channel, userId, userName, displayName, reason)) {
-            is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> failAction(result.error.message)
-        }
+    suspend fun report(userId: String, userName: String, displayName: String?, reason: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        val result: ApiResult<Unit> = chatApi.fileReport(channel, userId, userName, displayName, reason)
+        if (result is ApiResult.Failure) failAction(result.error.message)
+        return result
     }
 
     /** Load the channel's current chat settings and merge them into the Ready state. */
@@ -394,19 +396,29 @@ class ChatController(
         }
     }
 
-    /** Post a Twitch announcement. [color]: "primary" | "blue" | "green" | "orange". */
-    suspend fun announce(message: String, color: String = "primary") {
-        val channel: String = channelId ?: return failAction(noChannelError())
-        afterAction(chatApi.announce(channel, message, color))
+    /**
+     * Post a Twitch announcement. [color]: "primary" | "blue" | "green" | "orange". The returned [ApiResult] tells
+     * the announce dialog whether it may close: a failure keeps it open with the typed text.
+     */
+    suspend fun announce(message: String, color: String = "primary"): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterAction(chatApi.announce(channel, message, color))
     }
 
     // An action either reloads the feed (success) or surfaces its error over the current Ready list without
-    // losing it (failure) — so a failed send / delete / timeout leaves the page intact with a visible reason.
-    private suspend fun afterAction(result: ApiResult<Unit>) {
+    // losing it (failure) - so a failed send / delete / timeout leaves the page intact with a visible reason.
+    private suspend fun afterAction(result: ApiResult<Unit>): ApiResult<Unit> {
         when (result) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failAction(result.error.message)
         }
+        return result
+    }
+
+    private suspend fun <T> noChannelFailure(): ApiResult<T> {
+        val detail: String = noChannelError()
+        failAction(detail)
+        return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = detail))
     }
 
     // The page is already showing content — a write action's failure announces on the shell-level feedback
