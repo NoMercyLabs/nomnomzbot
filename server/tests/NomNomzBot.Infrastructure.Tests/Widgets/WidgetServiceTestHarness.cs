@@ -79,6 +79,15 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.ApplyConfiguration(new RenderedAlertCaptureConfiguration());
 
+        // Minimal ChannelEvent mapping for the seed providers that read the channel-event log; its Channel and
+        // User navigations are ignored like the minimal Channel/User mappings above.
+        modelBuilder.Entity<ChannelEvent>(b =>
+        {
+            b.HasKey(e => e.Id);
+            b.Ignore(e => e.Channel);
+            b.Ignore(e => e.User);
+        });
+
         // The REAL AlertQueueEntry config too — S059's presence-honesty tests write/read through it.
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.Alerts.Persistence.AlertQueueEntryConfiguration()
@@ -122,6 +131,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(PlatformContentVersion)
                 && t != typeof(AlertQueueEntry)
                 && t != typeof(RenderedAlertCapture)
+                && t != typeof(ChannelEvent)
             ),
     ];
 
@@ -245,7 +255,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
-    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
+    public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>

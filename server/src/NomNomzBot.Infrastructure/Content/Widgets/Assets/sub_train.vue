@@ -19,14 +19,20 @@ const count = computed<number>(() => {
 })
 const visible = computed<boolean>(() => count.value > 0)
 
-function add(n: number): void {
-  const t = Date.now()
-  for (let i = 0; i < Math.max(1, n); i++) events.value.push(t)
-  now.value = t
+// A replayed event (seeded on join) keeps the time it really happened, so the train resumes with its true time left.
+function stamp(meta?: NnzEventMeta): number {
+  const at = meta && meta.replay && meta.occurredAt ? Date.parse(meta.occurredAt) : NaN
+  return isFinite(at) ? at : Date.now()
 }
-function onSub(): void { add(1) }
+function add(n: number, t: number): void {
+  for (let i = 0; i < Math.max(1, n); i++) events.value.push(t)
+  now.value = Date.now()
+}
+function onSub(_d: unknown, _type: string, meta?: NnzEventMeta): void { add(1, stamp(meta)) }
 // GiftSubAlertDto (AlertDtos.cs) — camelCase on the wire: count, not amount. A gift of N counts as N.
-function onGift(d: NnzWidgetEventMap['gift'] | null | undefined): void { add(Math.max(1, Number(d && d.count) || 1)) }
+function onGift(d: NnzWidgetEventMap['gift'] | null | undefined, _type: string, meta?: NnzEventMeta): void {
+  add(Math.max(1, Number(d && d.count) || 1), stamp(meta))
+}
 
 onMounted(() => {
   if (typeof NomNomz === 'undefined') return
