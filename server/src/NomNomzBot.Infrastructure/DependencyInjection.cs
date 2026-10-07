@@ -477,6 +477,10 @@ public static class DependencyInjection
             Application.Widgets.Services.IWidgetSettingsSchemaProvider,
             Content.Widgets.WidgetSettingsSchemaProvider
         >();
+        services.AddScoped<
+            Application.Widgets.Services.IWidgetSeedProvider,
+            Widgets.EventTickerSeedProvider
+        >();
         // The real overlay-attachment tracker lives in NomNomzBot.Api next to the SignalR hub that owns its
         // writes, so it cannot be registered here — TryAdd only fills the gap for an Infrastructure-only DI
         // container (this project's own composition tests); the API host's own registration (after
