@@ -93,6 +93,7 @@ public sealed class SuspiciousUserTests
             users,
             twitch,
             Substitute.For<IModerationService>(),
+            Substitute.For<IEventBus>(),
             TimeProvider.System,
             NullLogger<ModerationQueueService>.Instance
         );

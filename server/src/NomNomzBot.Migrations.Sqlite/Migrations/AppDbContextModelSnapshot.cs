@@ -8118,7 +8118,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "AutoModMessageId");
+                    b.HasIndex("BroadcasterId", "AutoModMessageId")
+                        .IsUnique()
+                        .HasFilter("\"AutoModMessageId\" IS NOT NULL AND \"DeletedAt\" IS NULL");
 
                     b.HasIndex("BroadcasterId", "Status");
 

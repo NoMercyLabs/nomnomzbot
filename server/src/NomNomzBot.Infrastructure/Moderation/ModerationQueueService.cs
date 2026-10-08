@@ -19,6 +19,8 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
+using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -45,6 +47,7 @@ public sealed class ModerationQueueService : IModerationQueueService
     private readonly IUserService _users;
     private readonly ITwitchModerationApi _moderation;
     private readonly IModerationService _actions;
+    private readonly IEventBus _events;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ModerationQueueService> _logger;
 
@@ -53,6 +56,7 @@ public sealed class ModerationQueueService : IModerationQueueService
         IUserService users,
         ITwitchModerationApi moderation,
         IModerationService actions,
+        IEventBus events,
         TimeProvider timeProvider,
         ILogger<ModerationQueueService> logger
     )
@@ -61,6 +65,7 @@ public sealed class ModerationQueueService : IModerationQueueService
         _users = users;
         _moderation = moderation;
         _actions = actions;
+        _events = events;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -76,6 +81,16 @@ public sealed class ModerationQueueService : IModerationQueueService
         ModerationQueueSource source = ModerationQueueSource.AutoMod
     )
     {
+        // One held message is one row per channel, whichever source reports it (a chat message can trip an
+        // AutoMod hold and a chat filter at once). A repeat returns the row that already exists.
+        Guid? existing = await FindHeldRowIdAsync(
+            broadcasterId,
+            autoModMessageId,
+            cancellationToken
+        );
+        if (existing is { } existingId)
+            return Result.Success(existingId);
+
         Guid? targetUserId = null;
         Result<UserDto> user = await _users.GetOrCreateAsync(
             twitchUserId,
@@ -99,7 +114,23 @@ public sealed class ModerationQueueService : IModerationQueueService
             AutoModCategory = category,
         };
         _db.ModerationQueueItems.Add(item);
-        await _db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Lost a race to the unique (channel, message id) index: the other writer's row is the one.
+            _db.Entry(item).State = EntityState.Detached;
+            Guid? winner = await FindHeldRowIdAsync(
+                broadcasterId,
+                autoModMessageId,
+                cancellationToken
+            );
+            if (winner is { } winnerId)
+                return Result.Success(winnerId);
+            throw;
+        }
         return Result.Success(item.Id);
     }
 
@@ -290,6 +321,16 @@ public sealed class ModerationQueueService : IModerationQueueService
                 approve,
                 cancellationToken
             );
+            if (relay.IsFailure && relay.ErrorCode == TwitchErrorCodes.NotFound)
+            {
+                // Twitch no longer holds the message (it expired, or another moderator handled it unseen):
+                // nothing can be resolved, so close the row instead of leaving it stuck in the queue.
+                await CloseAsExpiredAsync(item, cancellationToken);
+                return Result.Failure<ResolveModerationQueueItemResultDto>(
+                    "Twitch no longer holds this message, so it was closed.",
+                    "AUTOMOD_MESSAGE_GONE"
+                );
+            }
             if (relay.IsFailure)
             {
                 _logger.LogWarning(
@@ -359,6 +400,70 @@ public sealed class ModerationQueueService : IModerationQueueService
         );
         return Result.Success(
             new ResolveModerationQueueItemResultDto(ToDto(item, names), followUpError)
+        );
+    }
+
+    public async Task<int> ExpireStaleAutoModAsync(
+        TimeSpan olderThan,
+        CancellationToken cancellationToken = default
+    )
+    {
+        DateTime cutoff = _timeProvider.GetUtcNow().UtcDateTime - olderThan;
+        List<ModerationQueueItem> stale = await _db
+            .ModerationQueueItems.Where(i =>
+                i.Source == ModerationQueueSource.AutoMod
+                && i.Status == ModerationQueueStatus.Pending
+                && i.CreatedAt < cutoff
+            )
+            .ToListAsync(cancellationToken);
+
+        foreach (ModerationQueueItem item in stale)
+            await CloseAsExpiredAsync(item, cancellationToken);
+        return stale.Count;
+    }
+
+    private async Task<Guid?> FindHeldRowIdAsync(
+        Guid broadcasterId,
+        string autoModMessageId,
+        CancellationToken cancellationToken
+    )
+    {
+        Guid id = await _db
+            .ModerationQueueItems.Where(i =>
+                i.BroadcasterId == broadcasterId && i.AutoModMessageId == autoModMessageId
+            )
+            .OrderBy(i => i.CreatedAt)
+            .Select(i => i.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return id == Guid.Empty ? null : id;
+    }
+
+    // Closes a row Twitch no longer holds and tells the dashboard (the same event a Twitch-reported expiry
+    // raises, so the queue panel and the attention inbox refresh).
+    private async Task CloseAsExpiredAsync(
+        ModerationQueueItem item,
+        CancellationToken cancellationToken
+    )
+    {
+        item.Status = ModerationQueueStatus.Expired;
+        item.ResolutionAction = "expired";
+        item.ResolvedAt = _timeProvider.GetUtcNow().UtcDateTime;
+        item.ResolvedByUserId = null;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _events.PublishAsync(
+            new AutoModMessageUpdatedEvent
+            {
+                BroadcasterId = item.BroadcasterId,
+                MessageId = item.AutoModMessageId ?? string.Empty,
+                UserId = item.TargetTwitchUserId ?? string.Empty,
+                UserDisplayName = item.TargetUsernameSnapshot ?? string.Empty,
+                UserLogin = item.TargetUsernameSnapshot ?? string.Empty,
+                ModeratorId = string.Empty,
+                ModeratorDisplayName = string.Empty,
+                Status = "expired",
+            },
+            cancellationToken
         );
     }
 

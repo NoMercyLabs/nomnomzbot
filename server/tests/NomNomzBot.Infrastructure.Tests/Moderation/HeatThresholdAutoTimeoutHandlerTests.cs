@@ -127,6 +127,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
             Substitute.For<IUserService>(),
             Substitute.For<ITwitchModerationApi>(),
             moderation,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>(),
             TimeProvider.System,
             NullLogger<ModerationQueueService>.Instance
         );

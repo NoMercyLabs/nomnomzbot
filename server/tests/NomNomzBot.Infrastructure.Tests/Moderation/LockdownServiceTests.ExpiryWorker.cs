@@ -111,6 +111,7 @@ public partial class LockdownServiceTests
                     spam,
                     [new TwitchLockdownAdapter(_chat, _moderation)],
                     _time,
+                    _bus,
                     NullLogger<LockdownService>.Instance
                 );
                 return new FlakyLockdownService(
