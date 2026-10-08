@@ -238,6 +238,7 @@ fun SongRequestsScreen(
                     onBan = { position -> controller.ban(position).toDialogResult() },
                     onAddToQueue = { query, requestedBy -> controller.addToQueue(query, requestedBy).toDialogResult() },
                     onUpdateConfig = { body -> scope.launch { controller.updateConfig(body) } },
+                    onSaveConfig = { body -> controller.saveConfig(body).toDialogResult() },
                     onRotateToken = { controller.rotateSrPageToken().toDialogResult() },
                     onBlockTrack = { provider, trackUri, title, reason ->
                         controller.blockTrack(provider, trackUri, title, reason).toDialogResult()
@@ -274,6 +275,7 @@ private fun ReadyContent(
     onBan: suspend (position: Int) -> DialogResult,
     onAddToQueue: suspend (query: String, requestedBy: String) -> DialogResult,
     onUpdateConfig: (UpdateMusicConfigBody) -> Unit,
+    onSaveConfig: suspend (UpdateMusicConfigBody) -> DialogResult,
     onRotateToken: suspend () -> DialogResult,
     onBlockTrack: suspend (provider: String, trackUri: String, title: String, reason: String?) -> DialogResult,
     onUnblockTrack: (blockedTrackId: String) -> Unit,
@@ -349,6 +351,7 @@ private fun ReadyContent(
                     config = config,
                     configure = configure,
                     onUpdate = onUpdateConfig,
+                    onSave = onSaveConfig,
                 )
             }
             item {
@@ -459,10 +462,12 @@ private fun ConfigSection(
     config: MusicConfig,
     configure: ManageDecision,
     onUpdate: (UpdateMusicConfigBody) -> Unit,
+    onSave: suspend (UpdateMusicConfigBody) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val saveAction: DialogActionState = rememberDialogActionState(onDone = {})
 
     // Local draft state for the fields that batch into one explicit Save (provider/queue-size/per-user/trust)
     // — matches the toggles' semantics: PATCH sends only the fields the operator actually touched, so a stale
@@ -614,21 +619,24 @@ private fun ConfigSection(
             ManageGate(decision = configure) { enabled ->
                 TextButton(
                     onClick = {
-                        onUpdate(
-                            UpdateMusicConfigBody(
-                                preferredProvider = preferredProvider,
-                                maxQueueSize = maxQueueSize,
-                                maxRequestsPerUser = maxPerUser,
-                                minTrustLevel = minTrustLevel,
-                                maxRequestsPerRole = roleCaps,
+                        saveAction.run {
+                            onSave(
+                                UpdateMusicConfigBody(
+                                    preferredProvider = preferredProvider,
+                                    maxQueueSize = maxQueueSize,
+                                    maxRequestsPerUser = maxPerUser,
+                                    minTrustLevel = minTrustLevel,
+                                    maxRequestsPerRole = roleCaps,
+                                )
                             )
-                        )
+                        }
                     },
-                    enabled = enabled,
+                    enabled = enabled && !saveAction.pending,
                 ) {
                     Text(text = stringResource(Res.string.songrequests_config_save), color = tokens.primary)
                 }
             }
+            saveAction.failure?.let { DialogActionError(it) }
         }
     }
 }
