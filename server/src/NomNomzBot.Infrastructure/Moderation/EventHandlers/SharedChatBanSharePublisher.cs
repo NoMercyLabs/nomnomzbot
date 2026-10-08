@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// </summary>
 public sealed class SharedChatBanSharePublisher(
     IApplicationDbContext db,
-    ISharedChatSessionTracker sessions,
+    ISharedChatSessionRestorer restorer,
     IEventBus eventBus
 ) : IEventHandler<UserBannedEvent>
 {
@@ -33,16 +33,20 @@ public sealed class SharedChatBanSharePublisher(
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        SharedChatSessionInfo? session = sessions.GetActiveSession(@event.BroadcasterId);
-        if (session is null)
-            return; // not in a shared-chat session — a plain local ban
-
+        // Cheap checks first: the Helix restore below is only worth a call for a channel that shares its bans.
         bool sharing = await db.SharedBanSettings.AnyAsync(
             s => s.BroadcasterId == @event.BroadcasterId && s.ShareOutgoingBans,
             ct
         );
         if (!sharing)
             return; // the origin never opted in to offering its bans
+
+        SharedChatSessionInfo? session = await restorer.EnsureActiveSessionAsync(
+            @event.BroadcasterId,
+            ct
+        );
+        if (session is null)
+            return; // not in a shared-chat session — a plain local ban
 
         await eventBus.PublishAsync(
             new SharedChatBanIssuedEvent

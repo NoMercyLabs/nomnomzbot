@@ -1724,6 +1724,8 @@ public static class DependencyInjection
         // Live shared-chat session state (singleton): the shared-ban trust web's "active session"
         // precondition — fed by the shared_chat begin/update/end handlers, read at ban time.
         services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();
+        // Re-reads the session from Helix when the tracker is empty (a restart wipes it); scoped for the DbContext.
+        services.AddScoped<ISharedChatSessionRestorer, SharedChatSessionRestorer>();
         // Outbound line shaping + pacing (S010): both singleton — the per-queue-key "last line sent"
         // memory and the token-bucket state must outlive the scoped ChatPlatformRouter created per request.
         services.AddSingleton<Application.Contracts.Chat.IOutboundChatShaper, OutboundChatShaper>();
