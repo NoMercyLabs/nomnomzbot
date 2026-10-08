@@ -81,6 +81,11 @@ public partial class LockdownServiceTests
             CancellationToken ct = default
         ) => inner.EndAsync(broadcasterId, platform, ct);
 
+        public Task<IReadOnlyList<LockdownWindowStatus>> GetActiveAsync(
+            Guid broadcasterId,
+            CancellationToken ct = default
+        ) => inner.GetActiveAsync(broadcasterId, ct);
+
         public Task<int> RestoreDueAsync(CancellationToken ct = default)
         {
             int call = nextCallNumber();
