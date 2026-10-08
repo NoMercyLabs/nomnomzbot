@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -164,7 +165,7 @@ public sealed class UnbanRequestSourceTests
         ActionRequiredInboxService inbox = new(
             [new UnbanRequestSource(db, moderation)],
             db,
-            TimeProvider.System,
+            new FakeTimeProvider(new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero)),
             new RecordingChangeNotifier(),
             NullLogger<ActionRequiredInboxService>.Instance
         );
@@ -173,7 +174,7 @@ public sealed class UnbanRequestSourceTests
 
         items.IsSuccess.Should().BeTrue();
         ActionRequiredItemDto item = items.Value.Should().ContainSingle().Subject;
-        item.Id.Should().Be("source-unavailable:unban_requests");
+        item.Id.Should().Be("source-unavailable:unban_requests:2026-10-08");
         item.Kind.Should().Be("source_unavailable");
         item.Parameters.Should()
             .Contain("source", "unban_requests")
