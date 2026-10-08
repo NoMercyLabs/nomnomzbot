@@ -8,12 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -37,8 +45,15 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
 
     private static async Task<(
         HeatThresholdAutoTimeoutHandler Handler,
-        IModerationService Moderation
-    )> BuildAsync(bool autoTimeoutOn, int timeoutSeconds = 600, bool subjectIsModerator = false)
+        IModerationService Moderation,
+        ModerationServiceTestDbContext Db,
+        RecordingEventBus Bus
+    )> BuildWithStateAsync(
+        bool autoTimeoutOn,
+        int timeoutSeconds = 600,
+        bool subjectIsModerator = false,
+        bool timeoutFails = false
+    )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
@@ -49,6 +64,16 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
                 OwnerUserId = OwnerUserId,
                 Name = "c",
                 NameNormalized = "c",
+            }
+        );
+        db.Users.Add(
+            new()
+            {
+                Id = ViewerUserId,
+                TwitchUserId = ViewerTwitchId,
+                Username = "heatedviewer",
+                UsernameNormalized = "heatedviewer",
+                DisplayName = "HeatedViewer",
             }
         );
         if (subjectIsModerator)
@@ -88,13 +113,41 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success(new ModerationActionResult(true, null)));
+            .Returns(
+                timeoutFails
+                    ? Result.Failure<ModerationActionResult>(
+                        "Twitch refused: missing scope moderator:manage:banned_users",
+                        "PLATFORM_ERROR"
+                    )
+                    : Result.Success(new ModerationActionResult(true, null))
+            );
 
+        ModerationQueueService queue = new(
+            db,
+            Substitute.For<IUserService>(),
+            Substitute.For<ITwitchModerationApi>(),
+            moderation,
+            TimeProvider.System,
+            NullLogger<ModerationQueueService>.Instance
+        );
+        RecordingEventBus bus = new();
         HeatThresholdAutoTimeoutHandler handler = new(
             db,
             moderation,
+            queue,
+            bus,
             NullLogger<HeatThresholdAutoTimeoutHandler>.Instance
         );
+        return (handler, moderation, db, bus);
+    }
+
+    private static async Task<(
+        HeatThresholdAutoTimeoutHandler Handler,
+        IModerationService Moderation
+    )> BuildAsync(bool autoTimeoutOn, int timeoutSeconds = 600, bool subjectIsModerator = false)
+    {
+        (HeatThresholdAutoTimeoutHandler handler, IModerationService moderation, _, _) =
+            await BuildWithStateAsync(autoTimeoutOn, timeoutSeconds, subjectIsModerator);
         return (handler, moderation);
     }
 
@@ -170,6 +223,128 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
 
         await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
 
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutAsync(default!, default, default!, default, default, default, default);
+    }
+
+    [Fact]
+    public async Task WhenDisabled_ACrossingLandsInTheModerationQueueAsOneHeatFlag_AndNothingIsActioned()
+    {
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            IModerationService moderation,
+            ModerationServiceTestDbContext db,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(autoTimeoutOn: false);
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        ModerationQueueItem row = await db.ModerationQueueItems.SingleAsync();
+        row.BroadcasterId.Should().Be(Channel);
+        row.Source.Should().Be(ModerationQueueSource.HeatThreshold);
+        row.Status.Should().Be(ModerationQueueStatus.Pending);
+        row.TargetUserId.Should().Be(ViewerUserId);
+        row.TargetTwitchUserId.Should().Be(ViewerTwitchId);
+        row.TargetUsernameSnapshot.Should().Be("heatedviewer");
+        row.AutoModMessageId.Should().BeNull("a heat flag holds no chat message");
+        row.MessageContentSnapshot.Should().Contain("85").And.Contain("80");
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutAsync(default!, default, default!, default, default, default, default);
+        bus.Published.OfType<UserHeatAutoTimeoutFailedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task WhenDisabled_ASecondCrossingEventForTheSameViewerWhileStillHot_AddsNoSecondRow()
+    {
+        // The projection fires the event only on the upward crossing, so a second HandleAsync for the same
+        // still-pending subject is a repeat delivery (or a re-fire while hot): it must not stack a row.
+        (HeatThresholdAutoTimeoutHandler handler, _, ModerationServiceTestDbContext db, _) =
+            await BuildWithStateAsync(autoTimeoutOn: false);
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        (await db.ModerationQueueItems.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task WhenDisabled_ANewCrossingAfterTheOldFlagWasResolved_FlagsAgain()
+    {
+        (HeatThresholdAutoTimeoutHandler handler, _, ModerationServiceTestDbContext db, _) =
+            await BuildWithStateAsync(autoTimeoutOn: false);
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+        ModerationQueueItem first = await db.ModerationQueueItems.SingleAsync();
+        first.Status = ModerationQueueStatus.Approved;
+        await db.SaveChangesAsync();
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        List<ModerationQueueItem> rows = await db.ModerationQueueItems.ToListAsync();
+        rows.Should().HaveCount(2);
+        rows.Count(r => r.Status == ModerationQueueStatus.Pending).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task WhenEnabled_AndTheTimeoutSucceeds_NothingIsQueuedAndNoFailureIsReported()
+    {
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            _,
+            ModerationServiceTestDbContext db,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(autoTimeoutOn: true);
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        (await db.ModerationQueueItems.CountAsync()).Should().Be(0);
+        bus.Published.OfType<UserHeatAutoTimeoutFailedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task WhenEnabled_AndThePlatformRefusesTheTimeout_TheFailureIsPublishedForTheInbox()
+    {
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            _,
+            ModerationServiceTestDbContext db,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(autoTimeoutOn: true, timeoutFails: true);
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        UserHeatAutoTimeoutFailedEvent failed = bus
+            .Published.OfType<UserHeatAutoTimeoutFailedEvent>()
+            .Single();
+        failed.BroadcasterId.Should().Be(Channel);
+        failed.SubjectUserId.Should().Be(ViewerUserId);
+        failed.SubjectTwitchUserId.Should().Be(ViewerTwitchId);
+        failed.SubjectUsername.Should().Be("heatedviewer");
+        failed.Error.Should().Contain("moderator:manage:banned_users");
+        failed.HeatScore.Should().Be(85m);
+        failed.Threshold.Should().Be(80);
+        (await db.ModerationQueueItems.CountAsync())
+            .Should()
+            .Be(0, "a failed timeout is reported to the inbox, not stacked into the review queue");
+    }
+
+    [Fact]
+    public async Task AModeratorWhoCrossesTheThreshold_IsFlaggedForAHuman_NotActioned()
+    {
+        // The handler's own log has always said "flagged, not actioned" for an immune subject.
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            IModerationService moderation,
+            ModerationServiceTestDbContext db,
+            _
+        ) = await BuildWithStateAsync(autoTimeoutOn: true, subjectIsModerator: true);
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        (await db.ModerationQueueItems.SingleAsync())
+            .Source.Should()
+            .Be(ModerationQueueSource.HeatThreshold);
         await moderation
             .DidNotReceiveWithAnyArgs()
             .TimeoutAsync(default!, default, default!, default, default, default, default);

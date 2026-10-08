@@ -125,6 +125,92 @@ public sealed class ModerationQueueServiceTests
     }
 
     [Fact]
+    public async Task EnqueueFlagAsync_StoresOnePendingFlagWithTheReason_AndNoHeldMessage()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+
+        Result<Guid> result = await service.EnqueueFlagAsync(
+            Tenant,
+            ModerationQueueSource.HeatThreshold,
+            SenderGuid,
+            "9001",
+            "chatter",
+            "Heat reached 85 (threshold 80)."
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Id.Should().Be(result.Value);
+        stored.Source.Should().Be(ModerationQueueSource.HeatThreshold);
+        stored.Status.Should().Be(ModerationQueueStatus.Pending);
+        stored.TargetUserId.Should().Be(SenderGuid);
+        stored.TargetTwitchUserId.Should().Be("9001");
+        stored.TargetUsernameSnapshot.Should().Be("chatter");
+        stored.MessageContentSnapshot.Should().Be("Heat reached 85 (threshold 80).");
+        stored.AutoModMessageId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task EnqueueFlagAsync_WhileTheSameViewerHasAPendingFlag_ReturnsThatRowAndAddsNone()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        Result<Guid> first = await service.EnqueueFlagAsync(
+            Tenant,
+            ModerationQueueSource.HeatThreshold,
+            SenderGuid,
+            "9001",
+            "chatter",
+            "first"
+        );
+
+        Result<Guid> second = await service.EnqueueFlagAsync(
+            Tenant,
+            ModerationQueueSource.HeatThreshold,
+            SenderGuid,
+            "9001",
+            "chatter",
+            "second"
+        );
+
+        second.Value.Should().Be(first.Value);
+        (await db.ModerationQueueItems.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_AFlagWithNoHeldMessage_IsResolvedLocally_WithoutCallingHelix()
+    {
+        (
+            ModerationQueueService service,
+            ModerationServiceTestDbContext db,
+            ITwitchModerationApi moderation
+        ) = await BuildAsync();
+        Result<Guid> flagged = await service.EnqueueFlagAsync(
+            Tenant,
+            ModerationQueueSource.HeatThreshold,
+            SenderGuid,
+            "9001",
+            "chatter",
+            "Heat reached 85 (threshold 80)."
+        );
+        Guid moderatorId = Guid.NewGuid();
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            flagged.Value,
+            new ResolveModerationQueueItemRequest { Action = "approve" },
+            moderatorId.ToString()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .ManageHeldAutoModMessageAsync(default, default!, default, default);
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Status.Should().Be(ModerationQueueStatus.Approved);
+        stored.ResolvedByUserId.Should().Be(moderatorId);
+    }
+
+    [Fact]
     public async Task ListAsync_FiltersByStatus_AndRejectsAnUnknownStatus()
     {
         (ModerationQueueService service, _, _) = await BuildAsync();

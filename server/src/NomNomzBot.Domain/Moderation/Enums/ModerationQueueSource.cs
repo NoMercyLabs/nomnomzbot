@@ -19,4 +19,7 @@ public enum ModerationQueueSource
 
     /// <summary>A channel chat filter (hold or flag action) matched the message.</summary>
     ChatFilter,
+
+    /// <summary>A viewer's heat crossed the channel's threshold and no automatic action was taken (S-HEAT-FLAG-HUMAN).</summary>
+    HeatThreshold = 10,
 }

@@ -39,6 +39,21 @@ public interface IModerationQueueService
     );
 
     /// <summary>
+    /// Flag a viewer for a human (source=<paramref name="source"/>, status=pending) when the bot noticed a problem
+    /// it did not act on by itself — no chat message is held. Returns the existing pending row's id instead of
+    /// adding a second one while the same viewer already has a pending flag from the same source.
+    /// </summary>
+    Task<Result<Guid>> EnqueueFlagAsync(
+        Guid broadcasterId,
+        ModerationQueueSource source,
+        Guid targetUserId,
+        string twitchUserId,
+        string? username,
+        string reason,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Mark a held-message row resolved from a Twitch-reported update (another moderator, or Twitch auto-expiry) —
     /// found by its AutoMod message id. A no-op (not a failure) when no matching pending row exists — the update
     /// may race the enqueue, or arrive for a message this instance never held. <c>ResolvedByUserId</c> stays

@@ -36,6 +36,7 @@ internal static class ActionRequiredInboxHarness
             new WidgetBuildFailureSource(db),
             new OutboundWebhookFailureSource(db),
             new LostSongRequestSource(db, clock),
+            new HeatAutoTimeoutFailureSource(db, clock),
             new SecurityNoticeSource(db),
             new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
         ];

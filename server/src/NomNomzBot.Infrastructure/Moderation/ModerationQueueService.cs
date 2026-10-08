@@ -103,6 +103,43 @@ public sealed class ModerationQueueService : IModerationQueueService
         return Result.Success(item.Id);
     }
 
+    public async Task<Result<Guid>> EnqueueFlagAsync(
+        Guid broadcasterId,
+        ModerationQueueSource source,
+        Guid targetUserId,
+        string twitchUserId,
+        string? username,
+        string reason,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Guid existing = await _db
+            .ModerationQueueItems.Where(i =>
+                i.BroadcasterId == broadcasterId
+                && i.Source == source
+                && i.TargetUserId == targetUserId
+                && i.Status == ModerationQueueStatus.Pending
+            )
+            .Select(i => i.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existing != Guid.Empty)
+            return Result.Success(existing);
+
+        ModerationQueueItem item = new()
+        {
+            BroadcasterId = broadcasterId,
+            Source = source,
+            Status = ModerationQueueStatus.Pending,
+            TargetUserId = targetUserId,
+            TargetTwitchUserId = twitchUserId,
+            TargetUsernameSnapshot = username,
+            MessageContentSnapshot = Truncate(reason, 500),
+        };
+        _db.ModerationQueueItems.Add(item);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(item.Id);
+    }
+
     public async Task ApplyExternalResolutionAsync(
         Guid broadcasterId,
         string autoModMessageId,
@@ -232,7 +269,7 @@ public sealed class ModerationQueueService : IModerationQueueService
                 "VALIDATION_FAILED"
             );
         // Only AutoMod holds live on Twitch's side; a chat-filter item was already deleted (or only flagged),
-        // so its verdict is recorded locally with no Helix release to relay.
+        // and a flag (heat crossing, report) has no held message, so their verdict is recorded locally.
         bool relaysToAutoMod = item.Source == ModerationQueueSource.AutoMod;
         if (relaysToAutoMod && string.IsNullOrEmpty(item.AutoModMessageId))
             return Result.Failure<ResolveModerationQueueItemResultDto>(

@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -28,8 +29,8 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// <para><b>Two hard guarantees, in this order:</b></para>
 /// <list type="number">
 /// <item><b>Opt-in.</b> Nothing fires unless the channel turned
-/// <see cref="AutomodConfigDto.AutoTimeoutOnHeat"/> on. Off (the default) a crossing only flags for a
-/// human, exactly as it did before.</item>
+/// <see cref="AutomodConfigDto.AutoTimeoutOnHeat"/> on. Off (the default) a crossing is flagged for a
+/// human in the moderation queue, once per crossing, and nothing else happens.</item>
 /// <item><b>Immunity is absolute and is checked BEFORE the action, not weighed against it.</b> The
 /// broadcaster and everyone on the channel's moderator roster is never auto-timed-out, at any
 /// threshold, by any amount of accumulated heat (spam-defense SD8/SD11). This is a short-circuit, not a
@@ -48,16 +49,22 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
 
     private readonly IApplicationDbContext _db;
     private readonly IModerationService _moderation;
+    private readonly IModerationQueueService _queue;
+    private readonly IEventBus _bus;
     private readonly ILogger<HeatThresholdAutoTimeoutHandler> _logger;
 
     public HeatThresholdAutoTimeoutHandler(
         IApplicationDbContext db,
         IModerationService moderation,
+        IModerationQueueService queue,
+        IEventBus bus,
         ILogger<HeatThresholdAutoTimeoutHandler> logger
     )
     {
         _db = db;
         _moderation = moderation;
+        _queue = queue;
+        _bus = bus;
         _logger = logger;
     }
 
@@ -74,8 +81,16 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
             broadcasterId.ToString(),
             ct
         );
+        string? username = await _db
+            .Users.Where(u => u.Id == @event.SubjectUserId)
+            .Select(u => u.Username)
+            .FirstOrDefaultAsync(ct);
+
         if (config.IsFailure || !config.Value.AutoTimeoutOnHeat)
-            return; // opt-in: heat only flags until the channel enables enforcement
+        {
+            await FlagForHumanAsync(@event, username, ct); // opt-in: heat only flags until the channel enables enforcement
+            return;
+        }
 
         if (
             await IsImmuneAsync(broadcasterId, @event.SubjectUserId, @event.SubjectTwitchUserId, ct)
@@ -89,6 +104,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
                 @event.HeatScore,
                 @event.Threshold
             );
+            await FlagForHumanAsync(@event, username, ct);
             return;
         }
 
@@ -117,12 +133,27 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
         );
 
         if (result.IsFailure)
+        {
             _logger.LogWarning(
                 "Heat auto-timeout failed for {TwitchUserId} in {BroadcasterId}: {Error}",
                 @event.SubjectTwitchUserId,
                 broadcasterId,
                 result.ErrorMessage
             );
+            await _bus.PublishAsync(
+                new UserHeatAutoTimeoutFailedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    SubjectUserId = @event.SubjectUserId,
+                    SubjectTwitchUserId = @event.SubjectTwitchUserId,
+                    SubjectUsername = username,
+                    Error = result.ErrorMessage ?? "The platform refused the timeout.",
+                    HeatScore = @event.HeatScore,
+                    Threshold = @event.Threshold,
+                },
+                ct
+            );
+        }
         else
             _logger.LogInformation(
                 "Heat auto-timeout applied to {TwitchUserId} in {BroadcasterId} for {Seconds}s "
@@ -132,6 +163,30 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
                 seconds,
                 @event.HeatScore,
                 @event.Threshold
+            );
+    }
+
+    private async Task FlagForHumanAsync(
+        UserHeatThresholdCrossedEvent @event,
+        string? username,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> flagged = await _queue.EnqueueFlagAsync(
+            @event.BroadcasterId,
+            ModerationQueueSource.HeatThreshold,
+            @event.SubjectUserId,
+            @event.SubjectTwitchUserId,
+            username,
+            $"Heat reached {@event.HeatScore:0} (threshold {@event.Threshold}). No automatic action was taken.",
+            ct
+        );
+        if (flagged.IsFailure)
+            _logger.LogWarning(
+                "Could not flag heat crossing of {TwitchUserId} in {BroadcasterId}: {Error}",
+                @event.SubjectTwitchUserId,
+                @event.BroadcasterId,
+                flagged.ErrorMessage
             );
     }
 

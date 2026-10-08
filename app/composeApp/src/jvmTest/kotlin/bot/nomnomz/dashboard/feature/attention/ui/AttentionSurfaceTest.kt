@@ -93,6 +93,37 @@ class AttentionSurfaceTest {
         onAllNodesWithText("Webhook turned off: Discord relay").assertCountEquals(0)
     }
 
+    private val heatTimeoutFailed: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "heat-timeout-failed:e1",
+            kind = "heat_auto_timeout_failed",
+            severity = "warning",
+            titleKey = "attention_heat_timeout_failed_title",
+            messageKey = "attention_heat_timeout_failed_message",
+            parameters = mapOf("username" to "heatedviewer", "error" to "missing scope"),
+            deepLinkRoute = "moderation",
+        )
+
+    @Test
+    fun aFailedHeatTimeoutNamesTheViewerAndTheReason_inBothLocales() = runComposeUiTest {
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(heatTimeoutFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("heatedviewer was not timed out").assertExists()
+        onNodeWithText("Twitch refused the timeout: missing scope", substring = true).assertExists()
+    }
+
+    @Test
+    fun aFailedHeatTimeoutRendersInDutch() = runComposeUiTest {
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(heatTimeoutFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("heatedviewer kreeg geen time-out").assertExists()
+        onNodeWithText("Twitch weigerde de time-out: missing scope", substring = true).assertExists()
+    }
+
     @Test
     fun theSurfaceRendersInDutch() = runComposeUiTest {
         setContent {
