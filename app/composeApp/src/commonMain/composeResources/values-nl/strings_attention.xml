@@ -64,6 +64,8 @@
     <string name="attention_shared_ban_no_shared_session_message">%2$s is verbannen in een kanaal dat niet in jouw gedeelde chat zit, dus jouw kanaal nam de ban niet over. Gedeelde bans werken alleen als beide kanalen in dezelfde gedeelde chat zitten. Overgeslagen bans in het afgelopen etmaal: %1$s.</string>
     <string name="attention_shared_ban_twitch_ban_failed_message">Twitch weigerde de ban voor %2$s: %3$s. Diegene is niet verbannen in jouw kanaal, dus verban zo nodig zelf. Controleer of de bot moderator is. Mislukte bans in het afgelopen etmaal: %1$s.</string>
     <string name="attention_shared_ban_twitch_ban_failed_no_detail_message">Twitch weigerde de ban voor %2$s. Diegene is niet verbannen in jouw kanaal, dus verban zo nodig zelf. Controleer of de bot moderator is. Mislukte bans in het afgelopen etmaal: %1$s.</string>
+    <string name="attention_mass_ban_failed_title">De massale ban in %1$s is niet afgerond</string>
+    <string name="attention_mass_ban_failed_message">%1$s van de %2$s accounts konden niet worden verbannen in %3$s. De rest is wel verbannen. Twitch was misschien druk of weigerde ze, dus probeer ze opnieuw via Moderatie. Controleer of de bot moderator is in je kanaal.</string>
     <string name="attention_filter_action_failed_title">Het filter %1$s kon niets doen met %2$s</string>
     <string name="attention_filter_action_failed_message">Het filter %1$s probeerde in te grijpen bij %2$s (%3$s), maar dat mislukte: %4$s. Niemand heeft diegene gestopt, dus bekijk de chat en grijp zelf in. Controleer of de bot moderator is in je kanaal.</string>
     <string name="attention_bot_not_moderator_title">%1$s is geen moderator in je kanaal</string>

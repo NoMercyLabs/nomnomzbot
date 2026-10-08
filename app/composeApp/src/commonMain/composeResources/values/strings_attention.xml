@@ -64,6 +64,8 @@
     <string name="attention_shared_ban_no_shared_session_message">%2$s was banned in a channel that is not in your shared chat, so your channel did not copy the ban. Shared bans only work while both channels are in the same shared chat. Bans skipped in the last day: %1$s.</string>
     <string name="attention_shared_ban_twitch_ban_failed_message">Twitch refused the ban for %2$s: %3$s. They are not banned in your channel, so ban them by hand if needed. Make sure the bot is a moderator. Failed bans in the last day: %1$s.</string>
     <string name="attention_shared_ban_twitch_ban_failed_no_detail_message">Twitch refused the ban for %2$s. They are not banned in your channel, so ban them by hand if needed. Make sure the bot is a moderator. Failed bans in the last day: %1$s.</string>
+    <string name="attention_mass_ban_failed_title">The mass ban in %1$s did not finish</string>
+    <string name="attention_mass_ban_failed_message">%1$s of %2$s accounts could not be banned in %3$s. The others were banned. Twitch may have been busy or refused them, so retry them from Moderation. Make sure the bot is a moderator in your channel.</string>
     <string name="attention_filter_action_failed_title">The %1$s filter could not act on %2$s</string>
     <string name="attention_filter_action_failed_message">The %1$s filter tried to act on %2$s (%3$s), but it failed: %4$s. Nobody stopped them, so check the chat and act by hand. Make sure the bot is a moderator in your channel.</string>
     <string name="attention_bot_not_moderator_title">%1$s is not a moderator in your channel</string>

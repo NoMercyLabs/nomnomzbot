@@ -41,6 +41,8 @@ import nomnomzbot.composeapp.generated.resources.attention_integration_refresh_f
 import nomnomzbot.composeapp.generated.resources.attention_integration_unusable_message
 import nomnomzbot.composeapp.generated.resources.attention_filter_action_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_filter_action_failed_title
+import nomnomzbot.composeapp.generated.resources.attention_mass_ban_failed_message
+import nomnomzbot.composeapp.generated.resources.attention_mass_ban_failed_title
 import nomnomzbot.composeapp.generated.resources.attention_shared_ban_no_shared_session_message
 import nomnomzbot.composeapp.generated.resources.attention_shared_ban_origin_not_trusted_message
 import nomnomzbot.composeapp.generated.resources.attention_shared_ban_title
@@ -155,6 +157,8 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
             AttentionText(Res.string.attention_heat_timeout_failed_title, listOf(literal(item.param("username"))))
         "attention_automod_delete_failed_title" -> AttentionText(Res.string.attention_automod_delete_failed_title)
         "attention_shared_ban_title" -> AttentionText(Res.string.attention_shared_ban_title)
+        "attention_mass_ban_failed_title" ->
+            AttentionText(Res.string.attention_mass_ban_failed_title, listOf(literal(item.param("channelLogin"))))
         "attention_filter_action_failed_title" ->
             AttentionText(
                 Res.string.attention_filter_action_failed_title,
@@ -266,6 +270,15 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
                     sharedBanArgs(item) + literal(item.param("detail")),
                 )
             }
+        "attention_mass_ban_failed_message" ->
+            AttentionText(
+                Res.string.attention_mass_ban_failed_message,
+                listOf(
+                    literal(item.param("failedCount")),
+                    literal(item.param("totalCount")),
+                    literal(item.param("channelLogin")),
+                ),
+            )
         "attention_filter_action_failed_message" ->
             AttentionText(
                 Res.string.attention_filter_action_failed_message,
