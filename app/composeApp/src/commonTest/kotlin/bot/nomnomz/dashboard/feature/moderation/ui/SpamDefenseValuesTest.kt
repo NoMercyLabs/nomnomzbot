@@ -48,4 +48,25 @@ class SpamDefenseValuesTest {
         assertFalse(SpamDefenseValues.isEditable(unknown))
         assertEquals(30, SpamDefenseValues.withText(SpamDefenseSettings(), "LockdownMinutes", "30")?.lockdownMinutes)
     }
+
+    @Test
+    fun the_newcomer_gate_limits_and_hold_switch_read_and_write_their_own_fields() {
+        val accountAge = SpamSettingDescriptor(key = "AccountAgeGateDays", group = "newcomers", minimum = 0.0, maximum = 365.0)
+        val followAge = SpamSettingDescriptor(key = "FollowAgeGateDays", group = "newcomers", minimum = 0.0, maximum = 90.0)
+        val holds = SpamSettingDescriptor(key = "AccountGateHoldsForReview", group = "newcomers", isToggle = true)
+        val settings = SpamDefenseSettings()
+
+        assertTrue(SpamDefenseValues.isEditable(accountAge))
+        assertTrue(SpamDefenseValues.isEditable(followAge))
+        assertTrue(SpamDefenseValues.isEditable(holds))
+
+        val changed = SpamDefenseValues.withText(SpamDefenseValues.withText(settings, "AccountAgeGateDays", "14")!!, "FollowAgeGateDays", "3")!!
+        assertEquals(14, changed.accountAgeGateDays)
+        assertEquals(3, changed.followAgeGateDays)
+        assertEquals("14", SpamDefenseValues.text(changed, "AccountAgeGateDays"))
+        assertEquals("3", SpamDefenseValues.text(changed, "FollowAgeGateDays"))
+
+        assertTrue(SpamDefenseValues.boolean(settings, "AccountGateHoldsForReview"))
+        assertFalse(SpamDefenseValues.boolean(SpamDefenseValues.withBoolean(settings, "AccountGateHoldsForReview", false), "AccountGateHoldsForReview"))
+    }
 }

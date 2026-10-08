@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Enums;
 
 namespace NomNomzBot.Application.Moderation.Dtos;
@@ -26,7 +27,8 @@ public sealed record ChatFilterDto(
     bool IsCaseSensitive,
     long MatchCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    LinkPolicy? LinkPolicy
 );
 
 /// <summary>Creates a chat filter. A regex filter validates that <see cref="Pattern"/> compiles.</summary>
@@ -37,6 +39,7 @@ public sealed record CreateChatFilterRequest
     public required ChatFilterAction Action { get; init; }
     public string? Pattern { get; init; }
     public List<string>? Terms { get; init; }
+    public LinkPolicy? LinkPolicy { get; init; }
     public string? LinkPolicyJson { get; init; }
     public int? TimeoutSeconds { get; init; }
     public int ExemptMinRoleLevel { get; init; } = 10; // moderator floor
@@ -51,6 +54,7 @@ public sealed record UpdateChatFilterRequest
     public ChatFilterAction? Action { get; init; }
     public string? Pattern { get; init; }
     public List<string>? Terms { get; init; }
+    public LinkPolicy? LinkPolicy { get; init; }
     public string? LinkPolicyJson { get; init; }
     public int? TimeoutSeconds { get; init; }
     public int? ExemptMinRoleLevel { get; init; }
@@ -64,6 +68,7 @@ public sealed record TestChatFilterRequest
     public required ChatFilterType FilterType { get; init; }
     public string? Pattern { get; init; }
     public List<string>? Terms { get; init; }
+    public LinkPolicy? LinkPolicy { get; init; }
     public required string SampleMessage { get; init; }
     public bool IsCaseSensitive { get; init; }
 }

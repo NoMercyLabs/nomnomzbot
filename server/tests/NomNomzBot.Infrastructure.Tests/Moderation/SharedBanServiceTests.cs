@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -65,7 +66,7 @@ public sealed class SharedBanServiceTests
                     new TwitchBanResult("b", "b", "troll-42", DateTimeOffset.UnixEpoch, null)
                 )
             );
-        return (new(db, roles, sessions, twitch), db, sessions, twitch);
+        return (new(db, roles, sessions, twitch, new RecordingEventBus()), db, sessions, twitch);
     }
 
     private static async Task SeedChannelsAsync(ModerationServiceTestDbContext db)
@@ -226,8 +227,7 @@ public sealed class SharedBanServiceTests
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value.Applied.Should().BeTrue(result.Value.SkippedReason);
-        result.Value.ActionId.Should().NotBeNull();
+        result.Value.ActionId.Should().BeGreaterThan(0);
 
         // The Twitch ban ran on the PARTNER channel's own tenant token.
         await twitch
@@ -256,23 +256,23 @@ public sealed class SharedBanServiceTests
 
         // 1. No settings row (accept defaults to OFF).
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
-            .Value.SkippedReason.Should()
+            .ErrorCode.Should()
             .Be("not_accepting");
 
         // 2. Accepting, but the origin is not on the trust list.
         await sut.SaveSettingsAsync(Channel, Actor, new(true, false));
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
-            .Value.SkippedReason.Should()
+            .ErrorCode.Should()
             .Be("origin_not_trusted");
 
         // 3. Trusted, but the partner is not in that shared-chat session right now.
         await sut.AddTrustedChannelAsync(Channel, Actor, Partner);
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
-            .Value.SkippedReason.Should()
+            .ErrorCode.Should()
             .Be("no_shared_session");
         sessions.SetSession(Channel, new("OTHER-session", "host-1", []));
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
-            .Value.SkippedReason.Should()
+            .ErrorCode.Should()
             .Be("no_shared_session");
 
         // No predicate ever passed — Twitch was never called, nothing recorded.
@@ -313,8 +313,9 @@ public sealed class SharedBanServiceTests
             Inbound()
         );
 
-        result.Value.Applied.Should().BeFalse();
-        result.Value.SkippedReason.Should().Be("twitch_ban_failed:TWITCH_MISSING_SCOPE");
+        result.IsFailure.Should().BeTrue("a refused ban is a failure, never a skipped success");
+        result.ErrorCode.Should().Be("twitch_ban_failed");
+        result.ErrorMessage.Should().Contain("missing scope");
         (await db.Records.CountAsync())
             .Should()
             .Be(0, "no ban happened, so nothing may be recorded");
@@ -342,8 +343,7 @@ public sealed class SharedBanServiceTests
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value.Applied.Should().BeTrue(result.Value.SkippedReason);
-        result.Value.ActionId.Should().NotBeNull();
+        result.Value.ActionId.Should().BeGreaterThan(0);
 
         await twitch
             .Received(1)
@@ -377,8 +377,9 @@ public sealed class SharedBanServiceTests
             Inbound()
         );
 
-        result.Value.Applied.Should().BeFalse();
-        result.Value.SkippedReason.Should().Be("twitch_ban_failed:TWITCH_MISSING_SCOPE");
+        result.IsFailure.Should().BeTrue("a refused ban is a failure, never a skipped success");
+        result.ErrorCode.Should().Be("twitch_ban_failed");
+        result.ErrorMessage.Should().Contain("missing scope");
         (await db.Records.CountAsync()).Should().Be(0);
     }
 

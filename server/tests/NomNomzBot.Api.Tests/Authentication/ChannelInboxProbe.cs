@@ -22,6 +22,8 @@ internal sealed class ChannelInboxProbe : IActionRequiredSource
 {
     private static readonly DateTime DetectedAt = new(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc);
 
+    public string SourceKey => "probe";
+
     public IReadOnlyCollection<string> KeyPrefixes => ["probe:"];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes => [];

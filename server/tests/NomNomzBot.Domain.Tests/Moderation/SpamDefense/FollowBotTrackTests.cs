@@ -30,7 +30,8 @@ public class FollowBotTrackTests
             HasProfileContent: true,
             FollowUnfollowCycles: 0,
             IsOnKnownBotList: false,
-            Tier: SpamTrustTier.Untrusted
+            Tier: SpamTrustTier.Untrusted,
+            HasHistory: false
         );
 
     private static FollowCandidate BrandNewButRealViewer(string id) =>
@@ -48,7 +49,8 @@ public class FollowBotTrackTests
             HasProfileContent: false,
             FollowUnfollowCycles: 0,
             IsOnKnownBotList: false,
-            Tier: SpamTrustTier.Untrusted
+            Tier: SpamTrustTier.Untrusted,
+            HasHistory: false
         );
 
     // ---- The test the spec demands in this slice ------------------------------------------------
@@ -82,6 +84,45 @@ public class FollowBotTrackTests
             arrivals.Add(BrandNewButRealViewer($"discord{i}"));
 
         FollowBotTrack.Examine(arrivals).Findings.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("generated-handle")]
+    [InlineData("fresh-and-empty")]
+    [InlineData("known-bot-id")]
+    [InlineData("oscillation")]
+    public void AnyOneIndicatorAlone_NeverBlocks(string which)
+    {
+        // Owner rule 2026-10-05, "we can't ever be wrong": a single signal never acts alone.
+        FollowCandidate single = which switch
+        {
+            "generated-handle" => RealViewer("a") with { Username = "viewer80421933" },
+            "fresh-and-empty" => RealViewer("b") with
+            {
+                AccountAgeHours = 3,
+                HasProfileContent = false,
+            },
+            "known-bot-id" => RealViewer("c") with { IsOnKnownBotList = true },
+            _ => RealViewer("d") with { FollowUnfollowCycles = 4 },
+        };
+
+        FollowBotTrack.IndicatorsFor(single).Should().ContainSingle();
+        FollowBotTrack.Examine([single]).Findings.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AnAccountWithHistory_IsNeverBlocked_EvenWithTwoIndicators()
+    {
+        // Chat history on this instance, or an earlier follow of this channel, means the account is
+        // known. Two matching indicators on a known account are a coincidence, not a farm.
+        FollowCandidate known = Bot("known") with
+        {
+            HasHistory = true,
+        };
+
+        FollowBotTrack.IndicatorsFor(known).Should().HaveCountGreaterThan(1);
+        FollowBotTrack.Examine([known]).Findings.Should().BeEmpty();
+        FollowBotTrack.Examine([Bot("fresh")]).Findings.Should().ContainSingle();
     }
 
     [Fact]
