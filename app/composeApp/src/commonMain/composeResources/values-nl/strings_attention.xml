@@ -27,6 +27,8 @@
     <string name="attention_held_category_unknown">gemarkeerd</string>
     <string name="attention_report_title">%1$s is door een kijker gemeld</string>
     <string name="attention_report_message">Reden: %1$s</string>
+    <string name="attention_unban_request_title">%1$s vraagt om een unban</string>
+    <string name="attention_unban_request_message">Verzoek: %1$s</string>
     <string name="attention_unmanaged_rewards_title_one">1 kanaalpuntenbeloning wordt niet door de bot beheerd</string>
     <string name="attention_unmanaged_rewards_title_many">%1$d kanaalpuntenbeloningen worden niet door de bot beheerd</string>
     <string name="attention_unmanaged_rewards_message">Ze zijn elders gemaakt, dus je kunt ze hier niet bewerken. Neem ze over op de pagina Beloningen.</string>
@@ -55,6 +57,17 @@
     <string name="attention_song_lost_title_many">%1$d verzoeknummers zijn verloren gegaan</string>
     <string name="attention_song_lost_message">“%1$s” voor %2$s verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>
     <string name="attention_song_lost_unnamed_message">Een verzoek verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>
+    <string name="attention_automod_delete_failed_title">AutoMod kon een bericht niet verwijderen</string>
+    <string name="attention_automod_delete_failed_message">De regel “%1$s” probeerde een bericht van %2$s te verwijderen, maar Twitch weigerde dat. Het bericht blijft in de chat staan. Controleer of de bot moderator is in je kanaal. Mislukte verwijderingen in het afgelopen etmaal: %3$s.</string>
+    <string name="attention_shared_ban_title">Een gedeelde ban is niet toegepast</string>
+    <string name="attention_shared_ban_origin_not_trusted_message">%2$s is verbannen in een kanaal dat je niet vertrouwt, dus jouw kanaal nam de ban niet over. Zet dat kanaal bij je vertrouwde peers als je zijn bans wilt. Overgeslagen bans in het afgelopen etmaal: %1$s.</string>
+    <string name="attention_shared_ban_no_shared_session_message">%2$s is verbannen in een kanaal dat niet in jouw gedeelde chat zit, dus jouw kanaal nam de ban niet over. Gedeelde bans werken alleen als beide kanalen in dezelfde gedeelde chat zitten. Overgeslagen bans in het afgelopen etmaal: %1$s.</string>
+    <string name="attention_shared_ban_twitch_ban_failed_message">Twitch weigerde de ban voor %2$s: %3$s. Diegene is niet verbannen in jouw kanaal, dus verban zo nodig zelf. Controleer of de bot moderator is. Mislukte bans in het afgelopen etmaal: %1$s.</string>
+    <string name="attention_shared_ban_twitch_ban_failed_no_detail_message">Twitch weigerde de ban voor %2$s. Diegene is niet verbannen in jouw kanaal, dus verban zo nodig zelf. Controleer of de bot moderator is. Mislukte bans in het afgelopen etmaal: %1$s.</string>
+    <string name="attention_mass_ban_failed_title">De massale ban in %1$s is niet afgerond</string>
+    <string name="attention_mass_ban_failed_message">%1$s van de %2$s accounts konden niet worden verbannen in %3$s. De rest is wel verbannen. Twitch was misschien druk of weigerde ze, dus probeer ze opnieuw via Moderatie. Controleer of de bot moderator is in je kanaal.</string>
+    <string name="attention_filter_action_failed_title">Het filter %1$s kon niets doen met %2$s</string>
+    <string name="attention_filter_action_failed_message">Het filter %1$s probeerde in te grijpen bij %2$s (%3$s), maar dat mislukte: %4$s. Niemand heeft diegene gestopt, dus bekijk de chat en grijp zelf in. Controleer of de bot moderator is in je kanaal.</string>
     <string name="attention_bot_not_moderator_title">%1$s is geen moderator in je kanaal</string>
     <string name="attention_bot_not_moderator_message">Typ /mod %1$s in je Twitch-chat. Twitch beperkt wat een bot zonder moderatorrol kan doen.</string>
     <string name="attention_spotify_blocked_title">Spotify heeft je muziek gepauzeerd tot %1$s</string>
@@ -63,5 +76,9 @@
     <string name="attention_audio_source_missing_message">Voeg de Audio Source-widget toe als browserbron in OBS. Tot die tijd spelen geluiden en TTS af vanaf een andere overlaypagina.</string>
     <string name="attention_audio_source_missing_live_title">De TTS-bron ontbreekt</string>
     <string name="attention_audio_source_missing_live_message">TTS kan nergens afspelen. Voeg de TTS-bron toe in OBS.</string>
+    <string name="attention_source_unavailable_title">Kon %1$s niet controleren</string>
+    <string name="attention_source_unavailable_message">Deze controle is mislukt, dus er kunnen items ontbreken. Reden: %1$s. Oplossing: koppel Twitch opnieuw op de pagina Integraties.</string>
+    <string name="attention_source_name_unban_requests">de unban-verzoeken</string>
+    <string name="attention_source_name_unknown">een van je controles</string>
     <string name="attention_unknown_title">Er vraagt iets je aandacht</string>
 </resources>

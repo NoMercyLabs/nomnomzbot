@@ -10,6 +10,8 @@
 
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Notifications;
@@ -31,15 +33,43 @@ internal static class ActionRequiredInboxHarness
             new DeadIntegrationTokenSource(db),
             new HeldChatMessageSource(db),
             new ViewerReportSource(db),
+            new NoAppealsSource(),
             new UnmanagedRewardSource(db),
             new TwitchGrantGapSource(db),
             new WidgetBuildFailureSource(db),
             new OutboundWebhookFailureSource(db),
             new LostSongRequestSource(db, clock),
             new HeatAutoTimeoutFailureSource(db, clock),
+            new AutoModDeleteFailedSource(db, clock),
+            new SharedBanNotAppliedSource(db, clock),
+            new ChatFilterActionFailureSource(db, clock),
             new SecurityNoticeSource(db),
             new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
+            new MassBanFailureSource(db),
         ];
+
+    // The real unban source fails for a channel with no row, which most inbox tests do not seed. Those tests
+    // are not about appeals, so this stands in with a healthy "no appeals" read.
+    private sealed class NoAppealsSource : IActionRequiredSource
+    {
+        public string SourceKey => "unban_requests";
+
+        public IReadOnlyCollection<string> KeyPrefixes { get; } = ["unban:"];
+
+        public IReadOnlyCollection<string> InvalidatingEventTypes { get; } = [];
+
+        public Task<Result<List<ActionRequiredItemDto>>> GetItemsAsync(
+            Guid channelId,
+            IReadOnlySet<string> dismissedKeys,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success<List<ActionRequiredItemDto>>([]));
+
+        public Task<Result<List<string>>> ResolveDismissalKeysAsync(
+            Guid channelId,
+            string itemId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success<List<string>>([itemId]));
+    }
 
     public static ActionRequiredInboxService Create(
         IApplicationDbContext db,

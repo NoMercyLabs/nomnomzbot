@@ -147,6 +147,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
         throw new NotSupportedException();
     public DbSet<ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
+    public DbSet<ChannelLowTrustStatus> ChannelLowTrustStatuses =>
+        throw new NotSupportedException();
     public DbSet<SharedBanSettings> SharedBanSettings => throw new NotSupportedException();
     public DbSet<SharedBanTrustedChannel> SharedBanTrustedChannels =>
         throw new NotSupportedException();

@@ -43,6 +43,15 @@ public interface IMassBanConsentService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// How this moderator's batches went, newest first: per channel the counts, and for each account Twitch has not
+    /// banned yet the reason (<see cref="MassBanTargetStatus"/>). Banned accounts are counted, not listed.
+    /// </summary>
+    Task<IReadOnlyList<MassBanBatchReport>> ListBatchesAsync(
+        Guid operatorUserId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Every channel this moderator opted in on a streamer's word.</summary>
     Task<IReadOnlyList<ModeratorMassBanOptInRecord>> ListOptInsAsync(
         Guid operatorUserId,
@@ -167,6 +176,42 @@ public static class MassBanOptInSource
 
     /// <summary>The moderator recorded the streamer's permission (<c>ModeratorMassBanOptIn</c>).</summary>
     public const string Moderator = "moderator";
+}
+
+/// <summary>One batch's progress: the counts per outcome and the accounts that are not banned (yet).</summary>
+public sealed record MassBanBatchReport(
+    Guid BatchId,
+    string ChannelLogin,
+    DateTime RequestedAt,
+    DateTime? CompletedAt,
+    int Total,
+    int Banned,
+    int Failed,
+    int Retrying,
+    int Waiting,
+    IReadOnlyList<MassBanTargetReport> Targets
+);
+
+/// <summary>An account that is not banned: its status, how often Twitch was asked, why it failed, and the next try.</summary>
+public sealed record MassBanTargetReport(
+    string TwitchUserId,
+    string Status,
+    int Attempts,
+    string? Error,
+    DateTime? NextAttemptAt
+);
+
+/// <summary>The status strings of <see cref="MassBanTargetReport.Status"/>.</summary>
+public static class MassBanTargetStatus
+{
+    /// <summary>Twitch refused, or kept failing until the last attempt; the error says why.</summary>
+    public const string Failed = "failed";
+
+    /// <summary>A transient failure (429, 5xx, network) is waiting for its next attempt.</summary>
+    public const string Retrying = "retrying";
+
+    /// <summary>Not tried yet.</summary>
+    public const string Waiting = "waiting";
 }
 
 /// <summary>A streamer's permission as recorded by the moderator, for a channel that may never have joined the bot.</summary>

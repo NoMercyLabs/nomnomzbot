@@ -7127,6 +7127,40 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("MediaShareRequests");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BanEvasionEvaluation")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "TwitchUserId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelLowTrustStatuses");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7290,6 +7324,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("WasDryRun")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BatchId");
@@ -7441,6 +7478,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Attempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("Banned")
                         .HasColumnType("boolean");
 
@@ -7450,6 +7492,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<Guid>("MassBanBatchId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
@@ -7566,6 +7611,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ActionType")
                         .IsRequired()
@@ -8046,6 +8094,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AccountAgeGateDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AccountGateHoldsForReview")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("ActionDelaySeconds")
                         .HasColumnType("integer");
 
@@ -8072,6 +8126,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FollowAgeGateDays")
+                        .HasColumnType("integer");
 
                     b.Property<double>("FollowSpikeFactor")
                         .HasColumnType("double precision");

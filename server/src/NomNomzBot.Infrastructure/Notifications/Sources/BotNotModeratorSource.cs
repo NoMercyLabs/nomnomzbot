@@ -29,6 +29,8 @@ public sealed class BotNotModeratorSource(IApplicationDbContext db, IChannelTwit
 {
     private const string KeyPrefix = "bot-not-moderator:";
 
+    public string SourceKey => "bot_moderator";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     // The status service pushes the inbox change itself whenever the status changes value.

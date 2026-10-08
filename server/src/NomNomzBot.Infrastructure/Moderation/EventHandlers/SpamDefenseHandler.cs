@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -53,27 +54,26 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
             ISpamDefenseService spamDefense =
                 scope.ServiceProvider.GetRequiredService<ISpamDefenseService>();
 
-            SpamEvaluationResult? result = await spamDefense.EvaluateAsync(
-                new SpamEvaluationRequest(
-                    @event.BroadcasterId,
-                    @event.Provider,
-                    @event.MessageId,
-                    @event.UserId,
-                    @event.UserDisplayName,
-                    @event.Message,
-                    @event.IsBroadcaster,
-                    @event.IsModerator,
-                    @event.IsVip,
-                    @event.IsSubscriber
-                ),
-                ct
+            SpamEvaluationRequest request = new(
+                @event.BroadcasterId,
+                @event.Provider,
+                @event.MessageId,
+                @event.UserId,
+                @event.UserDisplayName,
+                @event.Message,
+                @event.IsBroadcaster,
+                @event.IsModerator,
+                @event.IsVip,
+                @event.IsSubscriber
             );
+            SpamEvaluationResult? result = await spamDefense.EvaluateAsync(request, ct);
 
             if (result is null)
                 return;
 
-            // Correlation runs on the SKELETON, after the per-message verdict. A cohort that qualifies
-            // can escalate a sender the content layer alone would only have flagged — many strangers
+            // Correlation runs on the SKELETON, after the per-message verdict. A qualified cohort
+            // escalates a sender the content layer alone would have passed or only flagged — but only one
+            // who posted the campaign's own message (SD9) and has no standing (SD8/SD11). Many strangers
             // posting one phrase is evidence no single message carries.
             SpamCorrelationService correlation =
                 scope.ServiceProvider.GetRequiredService<SpamCorrelationService>();
@@ -111,18 +111,44 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                     );
             }
 
+            SpamDecision decision = cohort.MayActOnSender
+                ? SpamEnforcement.EscalateForCampaign(result.Decision, result.Tier)
+                : result.Decision;
+            bool escalated = !ReferenceEquals(decision, result.Decision);
+            if (escalated)
+                await spamDefense.RecordCampaignEscalationAsync(request, result, decision, ct);
+
             // Acting is a separate step from deciding, and it happens here rather than inside the
             // service so that a channel in dry run simply never reaches this line.
-            SpamEnforcementOutcome enforcement = await scope
-                .ServiceProvider.GetRequiredService<SpamEnforcementExecutor>()
-                .ExecuteAsync(
-                    @event.BroadcasterId,
-                    @event.Provider,
-                    @event.MessageId,
-                    @event.UserId,
-                    result.Decision,
-                    ct
-                );
+            // A newcomer-limit verdict is carried out by its own executor: it removes (and may hold) the
+            // message but never reaches the account. A campaign escalation is the sender's own stronger
+            // evidence (SD9), so an escalated verdict always goes to the account executor.
+            SpamEnforcementOutcome enforcement = result.Gate is null || escalated
+                ? await scope
+                    .ServiceProvider.GetRequiredService<SpamEnforcementExecutor>()
+                    .ExecuteAsync(
+                        @event.BroadcasterId,
+                        @event.Provider,
+                        @event.MessageId,
+                        @event.UserId,
+                        decision,
+                        ct,
+                        @event.UserLogin,
+                        @event.UserDisplayName
+                    )
+                : await scope
+                    .ServiceProvider.GetRequiredService<AccountAgeGateExecutor>()
+                    .ExecuteAsync(
+                        @event.BroadcasterId,
+                        @event.Provider,
+                        @event.MessageId,
+                        @event.UserId,
+                        @event.UserLogin,
+                        @event.Message,
+                        result.Decision,
+                        result.Gate,
+                        ct
+                    );
 
             // Only a timeout the platform confirmed counts as the campaign actioning this account. Dry
             // run, a flag, an unsupported platform and a failed call all report TimedOutAccount false,
@@ -140,11 +166,11 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                 _logger.LogInformation(
                     "Spam defence: {Outcome} (would have been {WouldHaveBeen}) for {User} in {Channel} — "
                         + "{Reason} [deleted={Deleted} timedOut={TimedOut} skipped={Skipped}]",
-                    result.Decision.Outcome,
-                    result.Decision.WouldHaveBeen,
+                    decision.Outcome,
+                    decision.WouldHaveBeen,
                     @event.UserLogin,
                     @event.BroadcasterId,
-                    result.Decision.Reason,
+                    decision.Reason,
                     enforcement.DeletedMessage,
                     enforcement.TimedOutAccount,
                     enforcement.Skipped

@@ -353,4 +353,30 @@ public sealed class ModerationEscalationServiceTests
             .Value.DefaultTimeoutSeconds.Should()
             .Be(seconds);
     }
+
+    [Fact]
+    public async Task A_timeout_step_without_its_own_seconds_uses_the_policy_default_timeout()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (ModerationEscalationService sut, EventStoreTestDbContext db, _) = Build(database);
+        db.ModerationEscalationPolicies.Add(
+            new NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy
+            {
+                BroadcasterId = Channel,
+                IsEnabled = true,
+                LadderJson = """[{"AtOffense":1,"Action":"timeout","TimeoutSeconds":null}]""",
+                DefaultTimeoutSeconds = 900,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<EscalationDecision> decision = await sut.ResolveAndRecordAsync(
+            Channel,
+            Subject,
+            "twitch-subject"
+        );
+
+        decision.Value.Action.Should().Be("timeout");
+        decision.Value.TimeoutSeconds.Should().Be(900);
+    }
 }
