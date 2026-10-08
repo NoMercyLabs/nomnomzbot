@@ -43,6 +43,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionConfirm
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
@@ -55,6 +60,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -195,17 +202,12 @@ fun EventResponsesScreen(
             loadDetail = { controller.detail(response.eventType) },
             onDismiss = { editing = null },
             onSave = { responseType, message, pipelineId, widgetId, speakWithTts ->
-                editing = null
-                scope.launch {
-                    controller.save(response.eventType, responseType, message, pipelineId, widgetId, speakWithTts)
-                }
+                controller.save(response.eventType, responseType, message, pipelineId, widgetId, speakWithTts)
+                    .toDialogResult()
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onTestRunPipeline = { pipelineId, variables -> controller.testRunPipeline(pipelineId, variables) },
-            onResetToDefault = {
-                editing = null
-                scope.launch { controller.resetToDefault(response.eventType) }
-            },
+            onResetToDefault = { controller.resetToDefault(response.eventType).toDialogResult() },
             manage = manage,
         )
     }
@@ -346,10 +348,16 @@ private fun EditDialog(
     templateHelpersApi: TemplateHelpersApi,
     loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
-    onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?, speakWithTts: Boolean) -> Unit,
+    onSave: suspend (
+        responseType: String,
+        message: String?,
+        pipelineId: String?,
+        widgetId: String?,
+        speakWithTts: Boolean,
+    ) -> DialogResult,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
-    onResetToDefault: () -> Unit,
+    onResetToDefault: suspend () -> DialogResult,
     manage: ManageDecision,
 ) {
     val tokens = LocalTokens.current
@@ -379,6 +387,10 @@ private fun EditDialog(
     // where a Composable context exists, so the LaunchedEffect below pre-fills real text (never a raw key).
     val presetTemplate: String = resolveSchemaString(preset?.defaultTemplate)
 
+    // Save (and the reset confirm) stay open until the server answers: a failure keeps the typed input and
+    // shows its reason inline; only success closes the dialog.
+    val actionState: DialogActionState = rememberDialogActionState(onDone = onDismiss)
+
     // Load the stored config (so the fields open pre-filled) and fall back to the preset's default template when
     // there is no stored message yet — the "pre-filled templates in every input" the owner asked for.
     LaunchedEffect(response.eventType) {
@@ -405,7 +417,9 @@ private fun EditDialog(
             }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!actionState.pending) onDismiss() },
+        dismissOnBackPress = !actionState.pending,
+        dismissOnClickOutside = !actionState.pending,
         title = {
             Text(
                 text = stringResource(Res.string.event_responses_dialog_title, response.eventType.toEventLabel()),
@@ -530,12 +544,17 @@ private fun EditDialog(
                         onClick = { testRunController.reset(); testRunDialogOpen = true },
                     )
                 }
+
+                actionState.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {
             // The dialog's one primary action; Cancel is ghost and Reset is the quiet destructive treatment.
-            Button(
-                onClick = {
+            DialogActionConfirm(
+                state = actionState,
+                label = stringResource(Res.string.event_responses_dialog_save),
+                enabled = canSubmit,
+                action = {
                     onSave(
                         selectedType,
                         message.takeIf { it.isNotBlank() },
@@ -544,28 +563,23 @@ private fun EditDialog(
                         speakWithTts,
                     )
                 },
-                enabled = canSubmit,
-                size = ButtonSize.Sm,
-            ) {
-                Text(text = stringResource(Res.string.event_responses_dialog_save), maxLines = 1)
-            }
+            )
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
                 Button(
                     onClick = { confirmingReset = true },
-                    enabled = manage.isAllowed,
+                    enabled = manage.isAllowed && !actionState.pending,
                     variant = ButtonVariant.DestructiveGhost,
                     size = ButtonSize.Sm,
                 ) {
                     Text(text = stringResource(Res.string.event_responses_dialog_reset), maxLines = 1)
                 }
-                TextButton(onClick = onDismiss) {
-                    Text(
-                        text = stringResource(Res.string.event_responses_dialog_cancel),
-                        color = tokens.mutedForeground,
-                    )
-                }
+                DialogActionDismiss(
+                    state = actionState,
+                    label = stringResource(Res.string.event_responses_dialog_cancel),
+                    onDismiss = onDismiss,
+                )
             }
         },
     )
@@ -581,11 +595,12 @@ private fun EditDialog(
             ),
             confirmLabel = stringResource(Res.string.event_responses_dialog_reset),
             dismissLabel = stringResource(Res.string.event_responses_dialog_cancel),
-            onConfirm = {
-                confirmingReset = false
-                onResetToDefault()
-            },
             onDismiss = { confirmingReset = false },
+            action = {
+                val result: DialogResult = onResetToDefault()
+                if (result is DialogResult.Done) onDismiss()
+                result
+            },
             destructive = true,
         )
     }

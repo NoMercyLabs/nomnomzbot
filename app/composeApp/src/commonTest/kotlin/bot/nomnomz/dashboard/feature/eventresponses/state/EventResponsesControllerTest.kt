@@ -44,7 +44,6 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
-import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
 import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
@@ -456,7 +455,7 @@ class EventResponsesControllerTest {
     }
 
     @Test
-    fun a_failed_save_announces_an_error_carrying_the_backend_detail_and_no_success() = runTest {
+    fun a_failed_save_hands_the_backend_detail_to_the_dialog_with_no_toast_and_no_success() = runTest {
         val feedback = RecordingFeedback()
         val api =
             RecordingEventResponsesApi(
@@ -476,17 +475,11 @@ class EventResponsesControllerTest {
             )
         controller.load()
 
-        controller.save("channel.follow", "chat_message", "Thanks!", null, null)
+        val result: ApiResult<Unit> = controller.save("channel.follow", "chat_message", "Thanks!", null, null)
 
-        assertEquals(
-            FeedbackKind.Error,
-            feedback.only.kind,
-        )
-        assertEquals(
-            Res.string.feedback_event_response_save_failed,
-            feedback.only.label,
-        )
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        // The dialog shows the reason inline, so the controller must not announce it a second time.
+        assertEquals("no permission", (result as ApiResult.Failure).error.message)
+        assertEquals(0, feedback.messages.size)
     }
 
     @Test
