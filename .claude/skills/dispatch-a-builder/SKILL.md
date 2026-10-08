@@ -46,8 +46,8 @@ Two isolation choices:
    first test". A worker's context budget is at least 140k: about 30k is fixed start-up context.
 8. **The report shape** you want back: what changed, the evidence, the first real error on
    failure — not file dumps.
-8. **Do not push.** Pushing is the orchestrator's decision.
-9. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
+9. **Do not push.** Pushing is the orchestrator's decision.
+10. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
    `Executor: Arc because <reason>`, or executor-guard refuses the dispatch. Name the model
    (Haiku checks, Sonnet pattern work, Opus hard cases).
 
