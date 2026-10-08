@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -43,12 +44,15 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 ///   <item><c>hold</c> — removes the message via Helix and queues it for moderator review.</item>
 ///   <item><c>flag</c> — leaves the message in chat and queues it for moderator review.</item>
 /// </list>
-/// Enforcement rides Helix, so non-Twitch messages are skipped; the broadcaster and moderators are never
-/// filtered, as is any sender at or above a filter's <see cref="ChatFilter.ExemptMinRoleLevel"/>.
+/// A Twitch message is enforced through Helix. A Kick or YouTube message is enforced on its own platform through
+/// <see cref="IInboundOriginModerator"/> — never Helix — and the Twitch-keyed steps (the escalation ladder, the
+/// AutoMod-style review queue) are skipped for it. The broadcaster and moderators are never filtered, as is any
+/// sender at or above a filter's <see cref="ChatFilter.ExemptMinRoleLevel"/>.
 /// </summary>
 public sealed class ChatFilterExecutionHandler(
     IApplicationDbContext db,
     ITwitchModerationApi moderation,
+    IInboundOriginModerator originModerator,
     IModerationEscalationService escalation,
     IModerationQueueService queue,
     IUserService users,
@@ -77,10 +81,8 @@ public sealed class ChatFilterExecutionHandler(
             OutboundSanction.ChannelConfiguration("chat_filter")
         );
 
-        // Enforcement rides Helix (Twitch-only), and the broadcaster + moderators are never auto-filtered.
+        // The broadcaster and moderators are never auto-filtered.
         if (@event.IsBroadcaster || @event.IsModerator)
-            return;
-        if (@event.Provider != AuthEnums.Platform.Twitch)
             return;
 
         Guid broadcasterId = @event.BroadcasterId;
@@ -158,6 +160,17 @@ public sealed class ChatFilterExecutionHandler(
                 return held;
 
             case ChatFilterAction.Flag:
+                // Flag only queues for review, and the queue is Twitch-keyed: nothing was done for any other platform.
+                if (!IsTwitch(@event))
+                {
+                    logger.LogWarning(
+                        "Chat filter '{Filter}' flags only through the Twitch review queue; the {Provider} message {MessageId} was left alone",
+                        filter.Name,
+                        @event.Provider,
+                        @event.MessageId
+                    );
+                    return false;
+                }
                 await QueueForReviewAsync(filter, @event, broadcasterId, ct);
                 return true;
 
@@ -173,13 +186,36 @@ public sealed class ChatFilterExecutionHandler(
         CancellationToken ct
     ) =>
         await ReportIfRefusedAsync(
-            await moderation.DeleteChatMessageAsync(broadcasterId, @event.MessageId, ct),
+            IsTwitch(@event)
+                ? await moderation.DeleteChatMessageAsync(broadcasterId, @event.MessageId, ct)
+                : ToResult(
+                    await originModerator.DeleteMessageAsync(
+                        broadcasterId,
+                        @event.Provider,
+                        @event.MessageId,
+                        ct
+                    )
+                ),
             DeleteAction,
             filter,
             @event,
             broadcasterId,
             ct
         );
+
+    private static bool IsTwitch(ChatMessageReceivedEvent @event) =>
+        @event.Provider == AuthEnums.Platform.Twitch;
+
+    /// <summary>A seam answer that is not Done reads exactly like a refused Helix call.</summary>
+    private static Result ToResult(InboundModerationOutcome outcome) =>
+        outcome.Status == InboundModerationStatus.Done
+            ? Result.Success()
+            : Result.Failure(
+                outcome.Reason,
+                outcome.Status == InboundModerationStatus.NotSupported
+                    ? "PLATFORM_NOT_SUPPORTED"
+                    : "PLATFORM_ACTION_FAILED"
+            );
 
     private async Task<bool> ReportIfRefusedAsync(
         Result result,
@@ -225,6 +261,18 @@ public sealed class ChatFilterExecutionHandler(
         CancellationToken ct
     )
     {
+        // The review queue resolves held messages through Twitch, so a Kick or YouTube message never joins it.
+        if (!IsTwitch(@event))
+        {
+            logger.LogDebug(
+                "Chat filter '{Filter}' did not queue the {Provider} message {MessageId}: the review queue is Twitch-only",
+                filter.Name,
+                @event.Provider,
+                @event.MessageId
+            );
+            return;
+        }
+
         Result<Guid> queued = await queue.EnqueueHeldMessageAsync(
             broadcasterId,
             @event.MessageId,
@@ -260,6 +308,12 @@ public sealed class ChatFilterExecutionHandler(
     )
     {
         bool deleted = await DeleteMessageAsync(filter, @event, broadcasterId, ct);
+
+        // The ladder is keyed to Twitch accounts and its warn step is a Twitch action: another platform gets the
+        // filter's own timeout through the seam.
+        if (!IsTwitch(@event))
+            return await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct)
+                && deleted;
 
         Result<UserDto> subject = await users.GetOrCreateAsync(
             @event.UserId,
@@ -352,21 +406,23 @@ public sealed class ChatFilterExecutionHandler(
         Guid broadcasterId,
         string reason,
         CancellationToken ct
-    ) =>
-        await ReportIfRefusedAsync(
-            await moderation.TimeoutUserAsync(
-                broadcasterId,
-                @event.UserId,
-                filter.TimeoutSeconds ?? DefaultTimeoutSeconds,
-                reason,
-                ct
-            ),
-            TimeoutAction,
-            filter,
-            @event,
-            broadcasterId,
-            ct
-        );
+    )
+    {
+        int seconds = filter.TimeoutSeconds ?? DefaultTimeoutSeconds;
+        Result result = IsTwitch(@event)
+            ? await moderation.TimeoutUserAsync(broadcasterId, @event.UserId, seconds, reason, ct)
+            : ToResult(
+                await originModerator.TimeoutUserAsync(
+                    broadcasterId,
+                    @event.Provider,
+                    @event.UserId,
+                    seconds,
+                    reason,
+                    ct
+                )
+            );
+        return await ReportIfRefusedAsync(result, TimeoutAction, filter, @event, broadcasterId, ct);
+    }
 
     private static bool Matches(ChatFilter filter, string message) =>
         filter.FilterType switch
