@@ -304,6 +304,39 @@ class AttentionSurfaceTest {
         onNodeWithText("missing scope", substring = true).assertExists()
     }
 
+    private val massBanFailed: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "mass-ban-failed:abc",
+            kind = "mass_ban_failed",
+            severity = "warning",
+            titleKey = "attention_mass_ban_failed_title",
+            messageKey = "attention_mass_ban_failed_message",
+            parameters = mapOf("channelLogin" to "stoney_eagle", "failedCount" to "3", "totalCount" to "12"),
+            deepLinkRoute = "moderation",
+        )
+
+    @Test
+    fun aFailedMassBanSaysHowManyOfHowManyAccountsWereNotBanned() = runComposeUiTest {
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(massBanFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("The mass ban in stoney_eagle did not finish").assertExists()
+        onNodeWithText("3 of 12 accounts could not be banned", substring = true).assertExists()
+        onNodeWithText("retry them from Moderation", substring = true).assertExists()
+    }
+
+    @Test
+    fun aFailedMassBanRendersInDutch() = runComposeUiTest {
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(massBanFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("De massale ban in stoney_eagle is niet afgerond").assertExists()
+        onNodeWithText("3 van de 12 accounts konden niet worden verbannen", substring = true).assertExists()
+        onNodeWithText("probeer ze opnieuw via Moderatie", substring = true).assertExists()
+    }
+
     private val operatorActing: ActionRequiredItem =
         ActionRequiredItem(
             id = "security-notice:n1",

@@ -209,6 +209,10 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             new Infrastructure.Platform.Persistence.Configurations.OutboundWebhookEndpointConfiguration()
         );
         b.ApplyConfiguration(new Infrastructure.EventStore.Persistence.EventJournalConfiguration());
+        b.ApplyConfiguration(new Infrastructure.Moderation.Persistence.MassBanBatchConfiguration());
+        b.ApplyConfiguration(
+            new Infrastructure.Moderation.Persistence.MassBanBatchTargetConfiguration()
+        );
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
@@ -236,6 +240,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(BotAccount),
         typeof(ChannelBotAuthorization),
         typeof(NomNomzBot.Domain.Stream.Entities.Stream),
+        typeof(NomNomzBot.Domain.Moderation.Entities.MassBanBatch),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -278,7 +283,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.MassBanBatch>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn> ModeratorMassBanOptIns =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
