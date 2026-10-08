@@ -133,6 +133,38 @@ public class SpamCorrelationServiceTests : IDisposable
         );
     }
 
+    /// <summary>
+    /// What the chat handler does when the bot's own enforcement really timed the account out at the
+    /// platform: observe the message, then tell the campaign it actioned that account. Plain
+    /// <see cref="ObserveAsync"/> alone models an account the bot never touched.
+    /// </summary>
+    private async Task<CohortObservation> ObserveAndActionAsync(
+        string accountId,
+        SpamTrustTier tier,
+        SpamDefenseSettings? settings = null
+    )
+    {
+        CohortObservation observation = await ObserveAsync(accountId, tier, settings);
+
+        using AppDbContext db = NewDbContext();
+        SpamCorrelationService service = new(
+            db,
+            new SpamCampaignReversalExecutor(
+                db,
+                NewModerationMock(),
+                NullLogger<SpamCampaignReversalExecutor>.Instance
+            ),
+            _time
+        );
+        await service.RecordActionedAsync(
+            Channel,
+            Skeleton,
+            accountId,
+            settings ?? new SpamDefenseSettings()
+        );
+        return observation;
+    }
+
     private async Task<CohortVerdict> AddStrangersAsync(int count, string prefix = "stranger")
     {
         CohortVerdict verdict = CohortVerdict.Watching;
@@ -230,10 +262,12 @@ public class SpamCorrelationServiceTests : IDisposable
         _time.Advance(TimeSpan.FromSeconds(10));
 
         // Two accounts get actioned now that the delay has passed.
-        (await ObserveAsync("stranger0", SpamTrustTier.Untrusted))
+        (await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted))
             .MayActOnSender.Should()
             .BeTrue();
-        (await ObserveAsync("stranger1", SpamTrustTier.Untrusted)).MayActOnSender.Should().BeTrue();
+        (await ObserveAndActionAsync("stranger1", SpamTrustTier.Untrusted))
+            .MayActOnSender.Should()
+            .BeTrue();
         Stored().ActionedCount.Should().Be(2);
 
         // 15 regulars join: 20 of 35 have no standing = 57%, below the 65% de-qualify line.
@@ -260,8 +294,8 @@ public class SpamCorrelationServiceTests : IDisposable
         // assertion on _unbannedAccounts failed with an empty list even though ReversedAt was set.
         await AddStrangersAsync(20);
         _time.Advance(TimeSpan.FromSeconds(10));
-        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
-        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger1", SpamTrustTier.Untrusted);
         Stored().ActionedCount.Should().Be(2);
 
         await AddRegularsAsync(15);
@@ -296,8 +330,8 @@ public class SpamCorrelationServiceTests : IDisposable
 
         await AddStrangersAsync(20);
         _time.Advance(TimeSpan.FromSeconds(10));
-        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
-        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger1", SpamTrustTier.Untrusted);
 
         CohortObservation flipping = await ObserveAsync("regular0", SpamTrustTier.Established);
         for (int i = 1; i < 15; i++)
@@ -328,8 +362,8 @@ public class SpamCorrelationServiceTests : IDisposable
 
         await AddStrangersAsync(20);
         _time.Advance(TimeSpan.FromSeconds(10));
-        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
-        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger1", SpamTrustTier.Untrusted);
 
         CohortObservation flipping = new(CohortVerdict.Watching, false, null);
         for (int i = 0; i < 15; i++)
@@ -356,7 +390,7 @@ public class SpamCorrelationServiceTests : IDisposable
         // in the window — noisy at best, and at worst undoing a moderator's later decision.
         await AddStrangersAsync(20);
         _time.Advance(TimeSpan.FromSeconds(10));
-        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
 
         // 20 strangers and 10 regulars is 20/30 = 66.7%, still above the 65% de-qualify line. The
         // eleventh regular takes it to 20/31 = 64.5% and flips it — worth stating precisely, because a
@@ -378,7 +412,7 @@ public class SpamCorrelationServiceTests : IDisposable
         // accounts that came back on the first pass.
         await AddStrangersAsync(20);
         _time.Advance(TimeSpan.FromSeconds(10));
-        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
         await AddRegularsAsync(11);
 
         _unbannedAccounts.Should().BeEquivalentTo(["stranger0"], "restored exactly once");
@@ -394,6 +428,121 @@ public class SpamCorrelationServiceTests : IDisposable
                 ["stranger0"],
                 "the cohort is one-way and already reversed — no re-run should touch Twitch again"
             );
+    }
+
+    // ---- Only what the bot itself did is undone ---------------------------------------------------
+
+    [Fact]
+    public async Task ADryRunCampaign_ThatLaterClears_UnbansNobody_AndRecordsNoActionedAccount()
+    {
+        // Dry run: the cohort MAY act on both accounts, but the enforcement arm never touched either of
+        // them, so the handler never reports an action. Before the fix, Observe itself recorded both as
+        // actioned and the clearing campaign then unbanned them — lifting whatever a human had done.
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        (await ObserveAsync("stranger0", SpamTrustTier.Untrusted)).MayActOnSender.Should().BeTrue();
+        (await ObserveAsync("stranger1", SpamTrustTier.Untrusted)).MayActOnSender.Should().BeTrue();
+
+        await AddRegularsAsync(15);
+
+        SpamCampaignRecord record = Stored();
+        record.IsDequalified.Should().BeTrue("the campaign did clear");
+        record.ActionedAccountIds.Should().BeEmpty();
+        record.ActionedCount.Should().Be(0);
+        record.RestoredAccountCount.Should().Be(0);
+        _unbannedAccounts.Should().BeEmpty("the bot placed no action, so it lifts none");
+    }
+
+    [Fact]
+    public async Task ABanPlacedByAModerator_IsNeverLifted_OnlyTheBotsOwnActionIs()
+    {
+        // stranger0 was timed out by the bot's enforcement. stranger1 posted the same phrase while the
+        // cohort could act on them too, but a human moderator banned them before the bot did.
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+
+        await AddRegularsAsync(15);
+
+        _unbannedAccounts
+            .Should()
+            .Equal(["stranger0"], "the moderator's ban on stranger1 stays in place");
+
+        SpamCampaignRecord record = Stored();
+        record.ActionedAccountIds.Should().Be("stranger0");
+        record.ActionedCount.Should().Be(1);
+        record.RestoredAccountCount.Should().Be(1);
+        record.RestorationFailedAccountIds.Should().BeEmpty();
+        record.ReversedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task AnAccountWhoseEnforcementFailed_IsNotActioned_AndNotUnbanned()
+    {
+        // The handler reports an action only when the platform call succeeded. stranger0's timeout
+        // failed (no report), stranger1's succeeded (report) — only stranger1 is the bot's to undo.
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger1", SpamTrustTier.Untrusted);
+
+        await AddRegularsAsync(15);
+
+        Stored().ActionedAccountIds.Should().Be("stranger1");
+        _unbannedAccounts.Should().Equal(["stranger1"]);
+    }
+
+    [Fact]
+    public async Task AnActionOnAnAccountTheCohortMayNotAct_IsNotRecorded()
+    {
+        // Three ways a reported action still is not the campaign's: before the action delay elapsed, on a
+        // viewer with standing, and on an account that never posted the phrase. Recording any of them
+        // would hand a later reversal an account the campaign had no business touching.
+        await AddStrangersAsync(20);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+        Stored().ActionedAccountIds.Should().BeEmpty("the action delay has not elapsed yet");
+
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAndActionAsync("thesub", SpamTrustTier.SemiTrusted);
+        Stored().ActionedAccountIds.Should().BeEmpty("standing is never auto-actioned");
+
+        using (AppDbContext db = NewDbContext())
+        {
+            SpamCorrelationService service = new(
+                db,
+                new SpamCampaignReversalExecutor(
+                    db,
+                    NewModerationMock(),
+                    NullLogger<SpamCampaignReversalExecutor>.Instance
+                ),
+                _time
+            );
+            await service.RecordActionedAsync(
+                Channel,
+                Skeleton,
+                "outsider",
+                new SpamDefenseSettings()
+            );
+        }
+
+        Stored()
+            .ActionedAccountIds.Should()
+            .BeEmpty("an account that never posted is not a member");
+        Stored().ActionedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RecordingTheSameActionTwice_ListsTheAccountOnce()
+    {
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
+
+        SpamCampaignRecord record = Stored();
+        record.ActionedAccountIds.Should().Be("stranger0");
+        record.ActionedCount.Should().Be(1);
     }
 
     [Fact]
@@ -424,7 +573,7 @@ public class SpamCorrelationServiceTests : IDisposable
         for (int i = 0; i < 20; i++)
             await ObserveAsync($"stranger{i}", SpamTrustTier.Untrusted, noUndo);
         _time.Advance(TimeSpan.FromSeconds(10));
-        await ObserveAsync("stranger0", SpamTrustTier.Untrusted, noUndo);
+        await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted, noUndo);
 
         for (int i = 0; i < 15; i++)
             await ObserveAsync($"regular{i}", SpamTrustTier.Established, noUndo);

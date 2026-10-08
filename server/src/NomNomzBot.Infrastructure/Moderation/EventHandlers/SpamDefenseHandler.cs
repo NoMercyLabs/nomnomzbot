@@ -75,16 +75,16 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
             // Correlation runs on the SKELETON, after the per-message verdict. A cohort that qualifies
             // can escalate a sender the content layer alone would only have flagged — many strangers
             // posting one phrase is evidence no single message carries.
-            CohortObservation cohort = await scope
-                .ServiceProvider.GetRequiredService<SpamCorrelationService>()
-                .ObserveAsync(
-                    @event.BroadcasterId,
-                    result.Skeleton,
-                    @event.UserId,
-                    result.Tier,
-                    result.Settings,
-                    ct
-                );
+            SpamCorrelationService correlation =
+                scope.ServiceProvider.GetRequiredService<SpamCorrelationService>();
+            CohortObservation cohort = await correlation.ObserveAsync(
+                @event.BroadcasterId,
+                result.Skeleton,
+                @event.UserId,
+                result.Tier,
+                result.Settings,
+                ct
+            );
 
             // Truthful even when it is bad news: this logs what the platform actually did (Restoration),
             // never just what the cohort intended (Reversal) — the exact gap that let a "reversed"
@@ -121,6 +121,18 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                     @event.MessageId,
                     @event.UserId,
                     result.Decision,
+                    ct
+                );
+
+            // Only a timeout the platform confirmed counts as the campaign actioning this account. Dry
+            // run, a flag, an unsupported platform and a failed call all report TimedOutAccount false,
+            // so none of them can put an account on the list a later reversal unbans.
+            if (enforcement.TimedOutAccount)
+                await correlation.RecordActionedAsync(
+                    @event.BroadcasterId,
+                    result.Skeleton,
+                    @event.UserId,
+                    result.Settings,
                     ct
                 );
 
