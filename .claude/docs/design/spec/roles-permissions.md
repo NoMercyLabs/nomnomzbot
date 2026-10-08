@@ -537,6 +537,8 @@ These are the `[GLOBAL, seed]` rows the seeders (`ActionDefinitionSeeder`, `IamC
 | moderation:delete_message | Moderator(10) | Low | true |
 | moderation:warn | Moderator(10) | Low | true |
 | moderation:note:write | Moderator(10) | Low | true |
+| moderation:history:read | Moderator(10) | Low | true |
+| moderation:history:write | Moderator(10) | Low | true |
 | moderation:automod:read | Moderator(10) | Low | true |
 | moderation:automod:write | LeadModerator(20) | Low | true |
 | moderation:filter:read | Moderator(10) | Low | true |

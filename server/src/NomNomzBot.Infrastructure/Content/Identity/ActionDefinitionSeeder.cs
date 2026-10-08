@@ -205,6 +205,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:delete_message", Mod);
         M("moderation:warn", Mod);
         M("moderation:note:write", Mod);
+        M("moderation:history:read", Mod);
+        M("moderation:history:write", Mod);
         M("moderation:automod:read", Mod);
         M("moderation:automod:write", LeadModerator);
         M("moderation:filter:read", Mod);

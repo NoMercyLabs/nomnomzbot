@@ -77,6 +77,42 @@ public sealed class ActionDefinitionSeederTests
     }
 
     [Fact]
+    public async Task Reseeding_existing_install_adds_missing_moderation_history_actions()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+        List<ActionDefinition> history = await db
+            .ActionDefinitions.Where(action =>
+                action.ActionKey == "moderation:history:read"
+                || action.ActionKey == "moderation:history:write"
+            )
+            .ToListAsync();
+        db.ActionDefinitions.RemoveRange(history);
+        await db.SaveChangesAsync();
+
+        int added = await SeedAsync(db);
+
+        added.Should().Be(2);
+        List<ActionDefinition> restored = await db
+            .ActionDefinitions.Where(action =>
+                action.ActionKey == "moderation:history:read"
+                || action.ActionKey == "moderation:history:write"
+            )
+            .ToListAsync();
+        restored
+            .Select(action => action.ActionKey)
+            .Should()
+            .BeEquivalentTo(new[] { "moderation:history:read", "moderation:history:write" });
+        restored
+            .Should()
+            .OnlyContain(action =>
+                action.Plane == AuthPlane.Management
+                && action.DefaultLevel == 10
+                && action.FloorLevel == 10
+            );
+    }
+
+    [Fact]
     public async Task Seeds_a_plain_management_row_at_default_equals_floor()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
