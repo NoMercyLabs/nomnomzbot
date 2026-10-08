@@ -23,8 +23,9 @@ namespace NomNomzBot.Infrastructure.Notifications;
 /// <see cref="IActionRequiredSource"/>. The inbox owns only what is common to all sources: loading and writing
 /// the persisted <see cref="ActionRequiredDismissal"/> rows, routing a dismiss to the source that minted the id,
 /// and ordering the result newest first. A dismissal is pushed as a live invalidation so every open dashboard
-/// of the channel drops the item at once. A source that fails is logged and skipped, so one broken subsystem
-/// never blanks the whole inbox.
+/// of the channel drops the item at once. A source that fails is logged and reported as ONE
+/// <c>source_unavailable</c> item naming what could not be checked and why, so one broken subsystem never
+/// blanks the whole inbox and never hides silently. The inbox itself mints and dismisses that item.
 /// </summary>
 public sealed class ActionRequiredInboxService(
     IEnumerable<IActionRequiredSource> sources,
@@ -34,6 +35,8 @@ public sealed class ActionRequiredInboxService(
     ILogger<ActionRequiredInboxService> logger
 ) : IActionRequiredInboxService
 {
+    private const string SourceUnavailableKeyPrefix = "source-unavailable:";
+
     private readonly List<IActionRequiredSource> _sources = [.. sources];
 
     public async Task<Result<List<ActionRequiredItemDto>>> GetItemsAsync(
@@ -58,6 +61,15 @@ public sealed class ActionRequiredInboxService(
                     channelId,
                     produced.ErrorMessage
                 );
+                string unavailableKey = SourceUnavailableKeyPrefix + source.SourceKey;
+                if (!dismissedKeys.Contains(unavailableKey))
+                    items.Add(
+                        ToSourceUnavailableItem(
+                            unavailableKey,
+                            source.SourceKey,
+                            produced.ErrorMessage
+                        )
+                    );
                 continue;
             }
 
@@ -66,6 +78,26 @@ public sealed class ActionRequiredInboxService(
 
         return Result.Success(items.OrderByDescending(i => i.DetectedAt).ToList());
     }
+
+    private ActionRequiredItemDto ToSourceUnavailableItem(
+        string id,
+        string sourceKey,
+        string? reason
+    ) =>
+        new(
+            Id: id,
+            Kind: "source_unavailable",
+            Severity: "warning",
+            TitleKey: "attention_source_unavailable_title",
+            MessageKey: "attention_source_unavailable_message",
+            Parameters: new() { ["source"] = sourceKey, ["reason"] = reason ?? string.Empty },
+            DetectedAt: clock.GetUtcNow().UtcDateTime,
+            DeepLinkRoute: "integrations",
+            SourceUserId: null,
+            SourceUserName: null,
+            Count: 1,
+            QueueItemIds: []
+        );
 
     public async Task<Result<int>> DismissAsync(
         Guid channelId,
@@ -84,6 +116,12 @@ public sealed class ActionRequiredInboxService(
         List<string> itemKeys = [];
         foreach (string id in requestedIds)
         {
+            if (id.StartsWith(SourceUnavailableKeyPrefix, StringComparison.Ordinal))
+            {
+                itemKeys.Add(id);
+                continue;
+            }
+
             IActionRequiredSource? owner = _sources.FirstOrDefault(s =>
                 s.KeyPrefixes.Any(prefix => id.StartsWith(prefix, StringComparison.Ordinal))
             );

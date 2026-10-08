@@ -31,6 +31,8 @@ public sealed class UnbanRequestSource(IApplicationDbContext db, IModerationServ
     private const string KeyPrefix = "unban:";
     private const string PendingStatus = "pending";
 
+    public string SourceKey => "unban_requests";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

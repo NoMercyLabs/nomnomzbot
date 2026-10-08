@@ -11,13 +11,11 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Moderation.Dtos;
-using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Notifications.Sources;
-using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Notifications;
 
@@ -35,7 +33,7 @@ internal static class ActionRequiredInboxHarness
             new DeadIntegrationTokenSource(db),
             new HeldChatMessageSource(db),
             new ViewerReportSource(db),
-            new UnbanRequestSource(db, ModerationWithNoAppeals()),
+            new NoAppealsSource(),
             new UnmanagedRewardSource(db),
             new TwitchGrantGapSource(db),
             new WidgetBuildFailureSource(db),
@@ -48,18 +46,27 @@ internal static class ActionRequiredInboxHarness
             new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
         ];
 
-    private static IModerationService ModerationWithNoAppeals()
+    // The real unban source fails for a channel with no row, which most inbox tests do not seed. Those tests
+    // are not about appeals, so this stands in with a healthy "no appeals" read.
+    private sealed class NoAppealsSource : IActionRequiredSource
     {
-        IModerationService moderation = Substitute.For<IModerationService>();
-        moderation
-            .GetUnbanRequestsAsync(
-                Arg.Any<string>(),
-                Arg.Any<Guid>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(Result.Success<List<UnbanRequestDto>>([]));
-        return moderation;
+        public string SourceKey => "unban_requests";
+
+        public IReadOnlyCollection<string> KeyPrefixes { get; } = ["unban:"];
+
+        public IReadOnlyCollection<string> InvalidatingEventTypes { get; } = [];
+
+        public Task<Result<List<ActionRequiredItemDto>>> GetItemsAsync(
+            Guid channelId,
+            IReadOnlySet<string> dismissedKeys,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success<List<ActionRequiredItemDto>>([]));
+
+        public Task<Result<List<string>>> ResolveDismissalKeysAsync(
+            Guid channelId,
+            string itemId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success<List<string>>([itemId]));
     }
 
     public static ActionRequiredInboxService Create(

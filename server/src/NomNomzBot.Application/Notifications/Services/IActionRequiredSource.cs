@@ -27,6 +27,12 @@ namespace NomNomzBot.Application.Notifications.Services;
 public interface IActionRequiredSource
 {
     /// <summary>
+    /// A stable machine key naming what this source checks (e.g. <c>unban_requests</c>). When a read fails, the
+    /// inbox reports "could not check this" under this key, and the dashboard maps it to a readable name.
+    /// </summary>
+    string SourceKey { get; }
+
+    /// <summary>
     /// The id prefixes this source mints (e.g. <c>token:</c>). The dismiss endpoint routes a requested id to the
     /// source whose prefix it carries, and rejects an id no source owns.
     /// </summary>
