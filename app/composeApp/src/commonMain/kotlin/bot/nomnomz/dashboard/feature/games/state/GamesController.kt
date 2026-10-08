@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.games.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -161,7 +162,7 @@ class GamesController(
      * [payoutMultiplier], [houseEdgePercent]), the per-stream play cap ([maxPlaysPerStream]), the minimum-role
      * [permission] (a CommunityStanding name), and the per-game tuning knobs ([config]). The upsert is a full PUT,
      * so this echoes [game]'s address ([GameSummary.gameType]) and category back unchanged and overrides every
-     * edited field. Reloads on success; surfaces the error on failure.
+     * edited field. Reloads on success; a failure is handed back so the form shows the reason inline.
      */
     suspend fun updateGameConfig(
         game: GameSummary,
@@ -175,9 +176,9 @@ class GamesController(
         maxPlaysPerStream: Int?,
         permission: String,
         config: JsonObject?,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterDialogWrite(
             gamesApi.upsert(
                 channel,
                 game.toBody(
@@ -198,12 +199,23 @@ class GamesController(
 
     /**
      * Put [game]'s settings back on the platform defaults — the backend owns what the defaults are, so nothing is
-     * computed here. Whether the game is on or off is kept. Reloads on success; surfaces the error on failure.
+     * computed here. Whether the game is on or off is kept. Reloads on success; a failure is handed back so the
+     * confirm shows the reason inline.
      */
-    suspend fun resetGame(game: GameSummary) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(gamesApi.reset(channel, game.gameType))
+    suspend fun resetGame(game: GameSummary): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterDialogWrite(gamesApi.reset(channel, game.gameType))
     }
+
+    // A write fired from a dialog that stays open until the server answers: success reloads the list, a failure
+    // is handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    private suspend fun noChannelFailure(): ApiResult<Unit> =
+        ApiResult.Failure(ApiError(0, "NO_CHANNEL", noChannelError()))
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without losing
     // it (failure) — so a failed toggle/edit leaves the page intact with a visible reason.
