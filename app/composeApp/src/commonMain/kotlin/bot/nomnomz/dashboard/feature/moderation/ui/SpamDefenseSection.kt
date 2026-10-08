@@ -29,10 +29,13 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -56,16 +59,20 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Every control shows what moving it costs, not just what it is. A number with a range but no stated
  * consequence is a number nobody can tune honestly.
+ *
+ * [save] is awaited: while it runs the Save button shows pending and ignores clicks, and a
+ * [DialogResult.Failed] leaves the edit in place with the reason beside the button.
  */
 @Composable
 internal fun SpamDefenseSection(
     policy: SpamDefensePolicy,
     manage: ManageDecision,
-    onSave: (SpamDefenseSettings) -> Unit,
+    save: suspend (SpamDefenseSettings) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val saveState = rememberDialogActionState(onDone = {})
 
     var draft: SpamDefenseSettings by remember(policy) { mutableStateOf(policy.settings) }
 
@@ -120,10 +127,17 @@ internal fun SpamDefenseSection(
             }
 
         ManageGate(manage) {
-            Button(onClick = { onSave(draft) }, enabled = manage is ManageDecision.Allowed) {
-                // Reuses the trust editor's save label: the same act, the same word, and one fewer
-                // string for a translator to keep in step.
-                Text(text = stringResource(Res.string.moderation_trust_save))
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                Button(
+                    onClick = { saveState.run { save(draft) } },
+                    enabled = manage is ManageDecision.Allowed,
+                    loading = saveState.pending,
+                ) {
+                    // Reuses the trust editor's save label: the same act, the same word, and one fewer
+                    // string for a translator to keep in step.
+                    Text(text = stringResource(Res.string.moderation_trust_save))
+                }
+                saveState.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         }
     }

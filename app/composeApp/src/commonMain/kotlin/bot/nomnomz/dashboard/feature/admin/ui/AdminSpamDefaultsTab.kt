@@ -18,17 +18,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import bot.nomnomz.dashboard.feature.moderation.ui.SpamDefenseSection
-import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.spam_defaults_explain
 import org.jetbrains.compose.resources.stringResource
@@ -49,7 +48,6 @@ internal fun SpamDefaultsTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val scope = rememberCoroutineScope()
 
     Column(
         // Scrolls: the Save button sits below the full ladder, which is taller than most windows.
@@ -73,7 +71,7 @@ internal fun SpamDefaultsTab(state: AdminState, controller: AdminController) {
                 // Reaching this tab already required the platform permission the endpoint enforces, so
                 // the control-level gate is Allowed; the server still validates every value.
                 manage = ManageDecision.Allowed,
-                onSave = { settings -> scope.launch { controller.saveSpamDefaults(settings) } },
+                save = { settings -> controller.saveSpamDefaults(settings).toDialogResult() },
             )
         }
     }
