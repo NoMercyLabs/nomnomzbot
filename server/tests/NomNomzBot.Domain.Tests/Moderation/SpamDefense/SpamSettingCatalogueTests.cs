@@ -111,7 +111,6 @@ public class SpamSettingCatalogueTests
         // shown, and nothing in the running engine consults it; the marker names the slice that ends that.
         Dictionary<string, string> expected = new()
         {
-            [nameof(SpamDefenseSettings.FollowSpikeFactor)] = "S-SPAM-FOLLOWBOT-WIRE",
             [nameof(SpamDefenseSettings.JoinBurstFactor)] = "S-SPAM-LOCKDOWN-WIRE",
             [nameof(SpamDefenseSettings.LockdownMinutes)] = "S-SPAM-LOCKDOWN-WIRE",
             [nameof(SpamDefenseSettings.LockdownAutoExtend)] = "S-SPAM-LOCKDOWN-WIRE",

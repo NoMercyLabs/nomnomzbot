@@ -13,6 +13,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -334,7 +335,8 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
             read,
             _time,
             Substitute.For<IModerationService>(),
-            new CurrentTenantService()
+            new CurrentTenantService(),
+            Substitute.For<ITwitchUsersApi>()
         ).EvaluateAsync(
             new SpamEvaluationRequest(
                 TenantA,

@@ -7652,6 +7652,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("WasDryRun")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BatchId");

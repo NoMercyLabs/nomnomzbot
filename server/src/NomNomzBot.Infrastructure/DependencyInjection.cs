@@ -1151,6 +1151,11 @@ public static class DependencyInjection
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.
         services.AddScoped<SpamEnforcementExecutor>();
+        // Follow-spike path (S-SPAM-FOLLOWBOT-WIRE): the tracker holds each channel's follow baseline in
+        // memory, so it is a singleton; the sweep reads and writes the DB, so it is scoped. Both are
+        // consumed by concrete type from FollowSpikeHandler.
+        services.AddSingleton<FollowSpikeTracker>();
+        services.AddScoped<FollowBotSweepService>();
         // Same split as SpamEnforcementExecutor, one layer further in: SpamCorrelationService decides a
         // reversal is owed, this carries it out. Consumed by concrete type from SpamCorrelationService.
         services.AddScoped<SpamCampaignReversalExecutor>();

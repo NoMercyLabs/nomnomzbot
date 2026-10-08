@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -39,18 +40,21 @@ public sealed class SpamDefenseService : ISpamDefenseService
     private readonly TimeProvider _time;
     private readonly IModerationService _moderation;
     private readonly ICurrentTenantService _tenant;
+    private readonly ITwitchUsersApi _twitchUsers;
 
     public SpamDefenseService(
         IApplicationDbContext db,
         TimeProvider time,
         IModerationService moderation,
-        ICurrentTenantService tenant
+        ICurrentTenantService tenant,
+        ITwitchUsersApi twitchUsers
     )
     {
         _db = db;
         _time = time;
         _moderation = moderation;
         _tenant = tenant;
+        _twitchUsers = twitchUsers;
     }
 
     /// <summary>
@@ -372,12 +376,32 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (blocks.Count == 0)
             return Result.Failure<int>("spam_follow_bot_batch_not_found", errorCode: "NOT_FOUND");
 
+        // A row is stamped restored only once the Twitch block is really lifted. A dry-run row never
+        // made a block, so there is nothing to lift; a failed unblock stays open so the operator can
+        // retry the batch, and the count reports only what was actually undone.
         DateTime now = _time.GetUtcNow().UtcDateTime;
+        int restored = 0;
         foreach (FollowBotBlock block in blocks)
+        {
+            if (!block.WasDryRun)
+            {
+                Result unblocked = await _twitchUsers.UnblockUserAsync(
+                    broadcasterId,
+                    block.SubjectPlatformUserId,
+                    ct
+                );
+                if (unblocked.IsFailure)
+                    continue;
+            }
+
             block.RestoredAt = now;
+            restored++;
+        }
 
         await _db.SaveChangesAsync(ct);
-        return Result.Success(blocks.Count);
+        return restored == 0
+            ? Result.Failure<int>("spam_follow_bot_restore_failed", errorCode: "UPSTREAM_ERROR")
+            : Result.Success(restored);
     }
 
     public async Task<SpamEvaluationResult?> EvaluateAsync(
@@ -617,25 +641,11 @@ public sealed class SpamDefenseService : ISpamDefenseService
     /// When this channel may first act: its stamped clock, else seven days after it was onboarded (a channel
     /// that never saved settings tracks the enabled defaults, so it has been observing since then).
     /// </summary>
-    private async Task<DateTime?> EnforcementEligibleAtAsync(
-        Guid broadcasterId,
-        CancellationToken ct
-    )
-    {
-        DateTime? stamped = await _db
-            .SpamDefensePolicies.IgnoreQueryFilters()
-            .Where(p => p.BroadcasterId == broadcasterId && p.DeletedAt == null)
-            .Select(p => p.EnforcementEligibleAt)
-            .FirstOrDefaultAsync(ct);
-        return stamped
-            ?? (await ChannelCreatedAtAsync(broadcasterId, ct))?.AddDays(ObservationDays);
-    }
+    private Task<DateTime?> EnforcementEligibleAtAsync(Guid broadcasterId, CancellationToken ct) =>
+        SpamObservationWindow.EligibleAtAsync(_db, broadcasterId, ct);
 
-    private async Task<bool> IsInObservationWindowAsync(Guid broadcasterId, CancellationToken ct)
-    {
-        DateTime? eligibleAt = await EnforcementEligibleAtAsync(broadcasterId, ct);
-        return eligibleAt is not null && _time.GetUtcNow().UtcDateTime < eligibleAt.Value;
-    }
+    private Task<bool> IsInObservationWindowAsync(Guid broadcasterId, CancellationToken ct) =>
+        SpamObservationWindow.IsActiveAsync(_db, _time, broadcasterId, ct);
 
     private Task<DateTime?> ChannelCreatedAtAsync(Guid broadcasterId, CancellationToken ct) =>
         _db

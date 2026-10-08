@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -83,13 +84,15 @@ public class SpamDefenseServiceTests : IDisposable
     private SpamDefenseService NewService(
         AppDbContext db,
         IModerationService? moderation = null,
-        ICurrentTenantService? tenant = null
+        ICurrentTenantService? tenant = null,
+        ITwitchUsersApi? twitchUsers = null
     ) =>
         new(
             db,
             _time,
             moderation ?? Substitute.For<IModerationService>(),
-            tenant ?? new CurrentTenantService()
+            tenant ?? new CurrentTenantService(),
+            twitchUsers ?? Substitute.For<ITwitchUsersApi>()
         );
 
     /// <summary>An automatic (non-dry-run) escalation, the shape a moderator can actually overturn.</summary>
@@ -696,7 +699,23 @@ public class SpamDefenseServiceTests : IDisposable
 
     private static readonly Guid OtherChannel = Guid.Parse("0199c000-0000-7000-8000-0000000000d9");
 
-    private void SeedBlocks(Guid batch, int count, Guid channel, bool restored = false)
+    /// <summary>A Twitch users API whose unblock succeeds unless the test says otherwise.</summary>
+    private static ITwitchUsersApi UnblockingTwitch()
+    {
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .UnblockUserAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        return twitch;
+    }
+
+    private void SeedBlocks(
+        Guid batch,
+        int count,
+        Guid channel,
+        bool restored = false,
+        bool dryRun = false
+    )
     {
         using AppDbContext db = NewDbContext();
         for (int i = 0; i < count; i++)
@@ -711,9 +730,96 @@ public class SpamDefenseServiceTests : IDisposable
                     BatchExamined = count + 5,
                     BlockedAt = Now.UtcDateTime,
                     RestoredAt = restored ? Now.UtcDateTime : null,
+                    WasDryRun = dryRun,
                 }
             );
         db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task RestoringABatch_UnblocksEachAccountOnTwitch_BeforeStampingIt()
+    {
+        // The bug this pins: restore used to stamp RestoredAt and report success while the accounts
+        // stayed blocked on Twitch. The Twitch call is the restore; the stamp only records it.
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 3, Channel);
+        ITwitchUsersApi twitch = UnblockingTwitch();
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.Value.Should().Be(3);
+        foreach (int i in new[] { 0, 1, 2 })
+            await twitch
+                .Received(1)
+                .UnblockUserAsync(Channel, $"bot{batch:N}-{i}", Arg.Any<CancellationToken>());
+        twitch.ReceivedCalls().Should().HaveCount(3, "one unblock per block and nothing else");
+    }
+
+    [Fact]
+    public async Task AnUnblockTwitchRefuses_StaysUnstamped_AndIsNotCountedAsRestored()
+    {
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 3, Channel);
+        ITwitchUsersApi twitch = UnblockingTwitch();
+        twitch
+            .UnblockUserAsync(Channel, $"bot{batch:N}-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("twitch said no"));
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.Value.Should().Be(2);
+        using AppDbContext read = NewDbContext();
+        List<FollowBotBlock> blocks = await read
+            .FollowBotBlocks.Where(b => b.BatchId == batch)
+            .OrderBy(b => b.SubjectPlatformUserId)
+            .ToListAsync();
+        blocks
+            .Where(b => b.RestoredAt is null)
+            .Select(b => b.SubjectPlatformUserId)
+            .Should()
+            .Equal($"bot{batch:N}-1");
+        blocks.Count(b => b.RestoredAt is not null).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ABatchWhereEveryUnblockFails_ReportsFailure_AndStampsNothing()
+    {
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 2, Channel);
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .UnblockUserAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("twitch is down"));
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.IsFailure.Should().BeTrue("claiming a restore that restored nothing is a quiet lie");
+        using AppDbContext read = NewDbContext();
+        (await read.FollowBotBlocks.ToListAsync()).Should().OnlyContain(b => b.RestoredAt == null);
+    }
+
+    [Fact]
+    public async Task ADryRunRow_IsStamped_WithoutAnyTwitchCall()
+    {
+        // A dry-run row never blocked anybody, so there is nothing to undo on Twitch.
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 2, Channel, dryRun: true);
+        ITwitchUsersApi twitch = UnblockingTwitch();
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.Value.Should().Be(2);
+        twitch.ReceivedCalls().Should().BeEmpty();
+        using AppDbContext read = NewDbContext();
+        (await read.FollowBotBlocks.ToListAsync()).Should().OnlyContain(b => b.RestoredAt != null);
     }
 
     [Fact]
@@ -727,7 +833,8 @@ public class SpamDefenseServiceTests : IDisposable
         SeedBlocks(genuine, 3, Channel);
 
         using AppDbContext db = NewDbContext();
-        Result<int> result = await NewService(db).RestoreFollowBotBatchAsync(Channel, misread);
+        Result<int> result = await NewService(db, twitchUsers: UnblockingTwitch())
+            .RestoreFollowBotBatchAsync(Channel, misread);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(5);
