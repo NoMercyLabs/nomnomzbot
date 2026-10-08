@@ -128,6 +128,7 @@ public static class CapabilityGate
     }
 
     private static bool IsLatinLetter(char c) =>
-        c < FirstNonLatinLetter
-        || (c >= LatinExtendedAdditionalStart && c <= LatinExtendedAdditionalEnd);
+        c
+            is < FirstNonLatinLetter
+                or (>= LatinExtendedAdditionalStart and <= LatinExtendedAdditionalEnd);
 }

@@ -267,8 +267,7 @@ public sealed class SpamCorrelationService
         }
 
         existing.LastConfirmedAt = now.UtcDateTime;
-        if (existing.WithdrawnAt is not null)
-            return; // a withdrawn signature is not silently resurrected by a later cohort
+        // WithdrawnAt is left as is: a withdrawn signature is not resurrected by a later cohort.
     }
 
     private void Persist(

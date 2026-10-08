@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
@@ -42,7 +43,7 @@ public sealed class HelixChatProvider : IChatPlatform
     private readonly IApplicationDbContext _db;
     private readonly IHelixBadgeSendGate _badgeGate;
     private readonly TwitchOptions _options;
-    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<HelixChatProvider> _logger;
 
     // Bot sender identity resolved PER BROADCASTER — never one process-wide account. On a multi-tenant
@@ -61,7 +62,7 @@ public sealed class HelixChatProvider : IChatPlatform
         IHelixBadgeSendGate badgeGate,
         IOptions<TwitchOptions> options,
         ILogger<HelixChatProvider> logger,
-        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions
+        IOutboundSanctionAccessor sanctions
     )
     {
         _transport = transport;
@@ -82,11 +83,7 @@ public sealed class HelixChatProvider : IChatPlatform
     /// </summary>
     private IDisposable? Speaking() =>
         _sanctions.Current is null
-            ? _sanctions.Begin(
-                NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
-                    "chat_send"
-                )
-            )
+            ? _sanctions.Begin(OutboundSanction.ChannelConfiguration("chat_send"))
             : null;
 
     public async Task<bool> SendMessageAsync(

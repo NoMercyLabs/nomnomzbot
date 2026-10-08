@@ -333,9 +333,8 @@ public class SpamCorrelationServiceTests : IDisposable
         await ObserveAndActionAsync("stranger0", SpamTrustTier.Untrusted);
         await ObserveAndActionAsync("stranger1", SpamTrustTier.Untrusted);
 
-        CohortObservation flipping = await ObserveAsync("regular0", SpamTrustTier.Established);
-        for (int i = 1; i < 15; i++)
-            flipping = await ObserveAsync($"regular{i}", SpamTrustTier.Established);
+        for (int i = 0; i < 15; i++)
+            await ObserveAsync($"regular{i}", SpamTrustTier.Established);
 
         // Both accounts were attempted — a failure on one must never stop the attempt on the rest.
         _unbannedAccounts.Should().Contain(["stranger0", "stranger1"]);
@@ -663,7 +662,7 @@ public class SpamCorrelationServiceTests : IDisposable
 
         SpamSignature? signature = StoredSignature();
         signature.Should().NotBeNull();
-        signature!.Source.Should().Be(SignatureSource.Local);
+        signature.Source.Should().Be(SignatureSource.Local);
         signature
             .IsQuarantined.Should()
             .BeFalse("confirmed on our own evidence, in our own instance");

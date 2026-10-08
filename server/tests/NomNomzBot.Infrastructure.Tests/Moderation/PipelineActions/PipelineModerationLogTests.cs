@@ -259,7 +259,7 @@ public sealed class PipelineModerationLogTests
         result.Succeeded.Should().BeFalse();
         await h
             .Twitch.DidNotReceiveWithAnyArgs()
-            .BanAsOperatorAsync(default, default!, default!, default, default);
+            .BanAsOperatorAsync(default, default!, default!, default);
         (await ActionRowsAsync(h.Db)).Should().BeEmpty();
     }
 
@@ -281,7 +281,7 @@ public sealed class PipelineModerationLogTests
             .BanUserAsync(Tenant, ViewerId, "link spam", Arg.Any<CancellationToken>());
         await h
             .Twitch.DidNotReceiveWithAnyArgs()
-            .BanAsOperatorAsync(default, default!, default!, default, default);
+            .BanAsOperatorAsync(default, default!, default!, default);
         List<Record> rows = await ActionRowsAsync(h.Db);
         rows.Should().HaveCount(1);
         RowShouldDescribe(rows[0], "ban", "link spam", durationSeconds: null);
@@ -306,7 +306,7 @@ public sealed class PipelineModerationLogTests
             .TimeoutUserAsync(Tenant, ViewerId, 90, "caps", Arg.Any<CancellationToken>());
         await h
             .Twitch.DidNotReceiveWithAnyArgs()
-            .TimeoutAsOperatorAsync(default, default!, default!, default, default, default);
+            .TimeoutAsOperatorAsync(default, default!, default!, default, default);
         List<Record> rows = await ActionRowsAsync(h.Db);
         rows.Should().HaveCount(1);
         RowShouldDescribe(rows[0], "timeout", "caps", durationSeconds: 90);

@@ -185,7 +185,7 @@ public static class AccountRisk
         if (!facts.IsFollowing || facts.FollowAgeHours < 24)
             marks.Add(AccountRiskMark.NotFollowingOrBrandNewFollow);
 
-        if (!facts.HasAvatar && !facts.HasBio && !facts.HasStreamed)
+        if (facts is { HasAvatar: false, HasBio: false, HasStreamed: false })
             marks.Add(AccountRiskMark.DefaultProfile);
 
         if (!string.IsNullOrEmpty(facts.Username) && GeneratedHandle.IsMatch(facts.Username))
