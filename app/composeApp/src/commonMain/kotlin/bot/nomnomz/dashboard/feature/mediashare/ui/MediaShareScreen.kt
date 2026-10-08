@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.MediaShareConfig
 import bot.nomnomz.dashboard.core.network.MediaShareRequest
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -72,6 +73,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -196,7 +198,7 @@ fun MediaShareScreen(
                     ConfigCard(
                         config = current.config,
                         manage = configManage,
-                        onSave = { edited -> scope.launch { controller.saveConfig(edited) } },
+                        onSave = { edited -> controller.saveConfig(edited) },
                     )
                 }
         }
@@ -432,10 +434,16 @@ private fun QueueRow(
 // ── config ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ConfigCard(config: MediaShareConfig, manage: ManageDecision, onSave: (MediaShareConfig) -> Unit) {
+private fun ConfigCard(config: MediaShareConfig, manage: ManageDecision, onSave: suspend (MediaShareConfig) -> ApiResult<Unit>) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
+    val scope: CoroutineScope = rememberCoroutineScope()
+
+    // Save waits for the server: pending disables the button (no second write), a failure keeps every typed
+    // value and shows the reason next to Save.
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
 
     // The edited config is held locally, seeded from the Ready config and re-synced whenever it changes (a save
     // or reload). Number fields are edited as strings so a transiently-empty field is a valid intermediate state.
@@ -479,24 +487,40 @@ private fun ConfigCard(config: MediaShareConfig, manage: ManageDecision, onSave:
             Text(text = stringResource(Res.string.mediashare_submit_hint), style = typography.xs, color = tokens.mutedForeground)
 
             ManageGate(decision = manage) { enabled ->
-                Button(
-                    onClick = {
-                        onSave(
-                            config.copy(
-                                isEnabled = isEnabled,
-                                requireApproval = requireApproval,
-                                allowTwitchClips = allowTwitchClips,
-                                allowYouTube = allowYouTube,
-                                maxDurationSeconds = maxDuration.toIntOrNull() ?: 0,
-                                entryCost = entryCost.toLongOrNull(),
-                                maxQueueLength = maxQueue.toIntOrNull() ?: 0,
-                                perUserCooldownSeconds = cooldown.toIntOrNull() ?: 0,
-                            )
-                        )
-                    },
-                    enabled = enabled,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                 ) {
-                    Text(text = stringResource(Res.string.mediashare_save))
+                    Button(
+                        onClick = {
+                            saving = true
+                            saveError = null
+                            scope.launch {
+                                val result: ApiResult<Unit> =
+                                    onSave(
+                                        config.copy(
+                                            isEnabled = isEnabled,
+                                            requireApproval = requireApproval,
+                                            allowTwitchClips = allowTwitchClips,
+                                            allowYouTube = allowYouTube,
+                                            maxDurationSeconds = maxDuration.toIntOrNull() ?: 0,
+                                            entryCost = entryCost.toLongOrNull(),
+                                            maxQueueLength = maxQueue.toIntOrNull() ?: 0,
+                                            perUserCooldownSeconds = cooldown.toIntOrNull() ?: 0,
+                                        )
+                                    )
+                                saving = false
+                                if (result is ApiResult.Failure) saveError = result.error.message
+                            }
+                        },
+                        enabled = enabled && !saving,
+                        loading = saving,
+                    ) {
+                        Text(text = stringResource(Res.string.mediashare_save))
+                    }
+                    saveError?.let { detail ->
+                        Text(text = detail, style = typography.sm, color = tokens.destructive)
+                    }
                 }
             }
         }

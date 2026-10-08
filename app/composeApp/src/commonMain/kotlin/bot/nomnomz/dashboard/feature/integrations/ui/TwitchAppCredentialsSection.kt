@@ -42,6 +42,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -141,7 +143,7 @@ internal fun TwitchAppCredentialsSection(controller: TwitchAppCredentialsControl
                 ReadyBody(
                     state = current,
                     manage = manage,
-                    onSave = { id, secret -> scope.launch { controller.save(id, secret) } },
+                    onSave = { id: String, secret: String -> controller.save(id, secret) },
                 )
         }
     }
@@ -151,11 +153,12 @@ internal fun TwitchAppCredentialsSection(controller: TwitchAppCredentialsControl
 private fun ReadyBody(
     state: TwitchAppCredentialsState.Ready,
     manage: ManageDecision,
-    onSave: (clientId: String, clientSecret: String) -> Unit,
+    onSave: suspend (clientId: String, clientSecret: String) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
 
     // Local form, re-seeded whenever a reload swaps the Ready state (e.g. after a save), so it always starts
     // empty for a fresh entry rather than echoing back a stored value. Credentials are write-only here — the
@@ -212,7 +215,12 @@ private fun ReadyBody(
                     // Overwriting an already-configured Twitch app touches the live OAuth path, so it confirms first;
                     // a first-time configuration saves straight through.
                     onSave = {
-                        if (state.configured) confirmOverwrite = true else onSave(clientId, clientSecret)
+                        // A blank id never reaches the confirm: the save itself flags the missing field inline.
+                        if (state.configured && clientId.isNotBlank()) {
+                            confirmOverwrite = true
+                        } else {
+                            scope.launch { onSave(clientId, clientSecret) }
+                        }
                     },
                 )
             }
@@ -226,10 +234,7 @@ private fun ReadyBody(
             confirmLabel = stringResource(Res.string.twitch_app_overwrite_confirm),
             dismissLabel = stringResource(Res.string.twitch_app_overwrite_cancel),
             destructive = true,
-            onConfirm = {
-                confirmOverwrite = false
-                onSave(clientId, clientSecret)
-            },
+            action = { onSave(clientId, clientSecret).toDialogResult() },
             onDismiss = { confirmOverwrite = false },
         )
     }
@@ -379,7 +384,7 @@ private fun SaveBar(
         horizontalArrangement = Arrangement.spacedBy(spacing.s4),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The inline save-failure detail (the feedback host also announces it); the success path clears and
+        // The inline save-failure detail (the only place a failure shows; no toast); the success path clears and
         // reloads, so a "saved" line isn't held here.
         when (val error: SaveError? = state.saveError) {
             is SaveError.Backend ->

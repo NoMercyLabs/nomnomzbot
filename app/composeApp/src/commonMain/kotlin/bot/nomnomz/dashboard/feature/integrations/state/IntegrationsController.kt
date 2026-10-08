@@ -50,6 +50,9 @@ import nomnomzbot.composeapp.generated.resources.feedback_regrant_failed
 import nomnomzbot.composeapp.generated.resources.feedback_credentials_saved
 import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
+import nomnomzbot.composeapp.generated.resources.integrations_no_channel_error
+import nomnomzbot.composeapp.generated.resources.provider_credentials_missing_client_id
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.StringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -230,8 +233,8 @@ class IntegrationsController(
      * Register the operator's own BYOC app credentials for [provider] (Spotify/YouTube/Discord) then re-read
      * status so [clientRegistered] reflects the backend. The client id is required (a blank id is a client-
      * side guard); the secret rides as typed. On success the feedback host announces it and the caller
-     * proceeds to OAuth; a failure surfaces on the host and leaves the screen on the credential step. Returns
-     * whether the save succeeded.
+     * proceeds to OAuth. A failure is handed back untouched so the form shows the reason next to Save (no
+     * toast on top of it) and keeps the typed input.
      *
      * Spotify is CHANNEL-scoped, not system-scoped (S-OWN10: the bot never hosts a shared/system-level
      * Spotify app — every channel must register and use its own app), so it routes through
@@ -242,23 +245,28 @@ class IntegrationsController(
         provider: String,
         clientId: String,
         clientSecret: String,
-    ): Boolean {
+    ): ApiResult<Unit> {
         val id: String = clientId.trim()
-        if (id.isEmpty()) return false
+        if (id.isEmpty()) {
+            return ApiResult.Failure(
+                ApiError(0, "MISSING_CLIENT_ID", getString(Res.string.provider_credentials_missing_client_id))
+            )
+        }
 
         if (provider.equals("spotify", ignoreCase = true)) {
-            val channel: String = channelId ?: return false
+            val channel: String =
+                channelId
+                    ?: return ApiResult.Failure(
+                        ApiError(0, "NO_CHANNEL", getString(Res.string.integrations_no_channel_error))
+                    )
             val spotifyResult: ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
                 integrationsApi.saveSpotifyCredentials(channel, id, clientSecret.trim())
             return when (spotifyResult) {
-                is ApiResult.Failure -> {
-                    feedback.error(Res.string.feedback_connect_failed, spotifyResult.error.message)
-                    false
-                }
+                is ApiResult.Failure -> ApiResult.Failure(spotifyResult.error)
                 is ApiResult.Ok -> {
                     feedback.success(Res.string.feedback_credentials_saved)
                     refresh()
-                    true
+                    ApiResult.Ok(Unit)
                 }
             }
         }
@@ -272,19 +280,19 @@ class IntegrationsController(
             when (credentialsProvider) {
                 "youtube", "discord", "kick" ->
                     systemApi.saveCredentials(credentialsProvider, id, clientSecret.trim())
-                else -> return false
+                else ->
+                    return ApiResult.Failure(
+                        ApiError(0, "UNSUPPORTED_PROVIDER", "No credential slot for $provider.")
+                    )
             }
 
         return when (result) {
-            is ApiResult.Failure -> {
-                feedback.error(Res.string.feedback_connect_failed, result.error.message)
-                false
-            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
             is ApiResult.Ok -> {
                 feedback.success(Res.string.feedback_credentials_saved)
                 // Re-read status so the registered signal reflects the backend, not an optimistic flip.
                 refresh()
-                true
+                ApiResult.Ok(Unit)
             }
         }
     }
@@ -427,9 +435,13 @@ class IntegrationsController(
         scopeSetKey: String,
         clientId: String,
         clientSecret: String,
-    ) {
-        dismissOnboarding()
-        if (saveProviderCredentials(provider, clientId, clientSecret)) connectProvider(provider, scopeSetKey)
+    ): ApiResult<Unit> {
+        val saved: ApiResult<Unit> = saveProviderCredentials(provider, clientId, clientSecret)
+        if (saved is ApiResult.Ok) {
+            dismissOnboarding()
+            connectProvider(provider, scopeSetKey)
+        }
+        return saved
     }
 
     /** Start the generic OAuth connect and open the authorize URL, returning the raw start result. */

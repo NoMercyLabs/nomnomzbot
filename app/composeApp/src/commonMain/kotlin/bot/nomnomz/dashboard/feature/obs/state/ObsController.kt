@@ -253,17 +253,20 @@ class ObsController(
         afterLiveAction(obsApi.setRecording(id, if (recording) ObsRecordAction.Stop else ObsRecordAction.Start))
     }
 
-    /** Start or stop the replay buffer based on the current live flag; then re-read live state. */
-    suspend fun toggleReplayBuffer() {
-        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+    /**
+     * Start or stop the replay buffer based on the current live flag; then re-read live state. The result goes back
+     * to the control, which shows a failure next to itself — no toast.
+     */
+    suspend fun toggleReplayBuffer(): ApiResult<Unit> {
+        val id: String = channelId ?: return noChannelFailure()
         val active: Boolean = (_state.value as? ObsUiState.Ready)?.live?.state?.replayBufferActive == true
-        afterLiveAction(obsApi.setReplayBuffer(id, if (active) ObsToggle.Stop else ObsToggle.Start))
+        return afterLiveWrite(obsApi.setReplayBuffer(id, if (active) ObsToggle.Stop else ObsToggle.Start))
     }
 
-    /** Save the last replay-buffer clip to disk; then re-read live state. */
-    suspend fun saveReplayBuffer() {
-        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
-        afterLiveAction(obsApi.saveReplayBuffer(id))
+    /** Save the last replay-buffer clip to disk; then re-read live state. A failure goes back to the control. */
+    suspend fun saveReplayBuffer(): ApiResult<Unit> {
+        val id: String = channelId ?: return noChannelFailure()
+        return afterLiveWrite(obsApi.saveReplayBuffer(id))
     }
 
     /** Start or stop the virtual camera based on its current status; then re-read live state. */
@@ -526,6 +529,12 @@ class ObsController(
             is ApiResult.Ok -> refresh()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
+    }
+
+    // Like [afterLiveAction] but the failure is handed back to the caller instead of toasting.
+    private suspend fun afterLiveWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) refreshLive()
+        return result
     }
 
     private suspend fun afterLiveAction(result: ApiResult<*>) {

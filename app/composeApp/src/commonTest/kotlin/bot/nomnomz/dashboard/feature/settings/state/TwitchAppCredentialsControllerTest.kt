@@ -142,7 +142,7 @@ class TwitchAppCredentialsControllerTest {
     }
 
     @Test
-    fun a_failed_save_surfaces_the_backend_error_inline_and_on_the_frame_without_losing_the_configured_state() = runTest {
+    fun a_failed_save_surfaces_the_backend_error_inline_without_a_toast_or_losing_the_configured_state() = runTest {
         val api = FakeSystemApi(twitchConfigured = true, saveError = "forbidden")
         val feedback = RecordingFeedback()
         val controller = controller(api, feedback = feedback)
@@ -158,8 +158,8 @@ class TwitchAppCredentialsControllerTest {
         assertFalse(ready.saving)
         // The prior configured state is preserved (no spurious flip to "shared").
         assertTrue(ready.configured)
-        // The failure was announced on the frame.
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        // The failure shows inline only: no toast on top of it.
+        assertTrue(feedback.messages.isEmpty())
     }
 
     @Test
