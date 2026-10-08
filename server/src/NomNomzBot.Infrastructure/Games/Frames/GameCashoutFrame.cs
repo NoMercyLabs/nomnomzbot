@@ -23,4 +23,6 @@ public sealed record GameCashoutFrame
     public required double Multiplier { get; init; }
 
     public required long Payout { get; init; }
+
+    public required int CrewSize { get; init; }
 }

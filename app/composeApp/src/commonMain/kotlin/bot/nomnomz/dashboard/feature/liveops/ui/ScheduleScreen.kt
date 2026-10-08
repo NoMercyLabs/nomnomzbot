@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.LiveOpsScheduleSegment
 import bot.nomnomz.dashboard.core.network.LiveOpsScheduleVacation
 import bot.nomnomz.dashboard.core.time.ScheduleTimes
@@ -63,6 +64,7 @@ import bot.nomnomz.dashboard.feature.liveops.state.ScheduleState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.category_picker_empty
@@ -137,9 +139,7 @@ fun ScheduleScreen(
                     onAdd = { showAdd = true },
                     onEdit = { editorTarget = it },
                     onDelete = { pendingDelete = it },
-                    onSetVacation = { enabled, start, end, tz ->
-                        scope.launch { controller.setVacation(enabled, start, end, tz) }
-                    },
+                    onSetVacation = { enabled, start, end, tz -> controller.setVacation(enabled, start, end, tz) },
                 )
             is ScheduleState.Ready ->
                 ScheduleContent(
@@ -150,9 +150,7 @@ fun ScheduleScreen(
                     onAdd = { showAdd = true },
                     onEdit = { editorTarget = it },
                     onDelete = { pendingDelete = it },
-                    onSetVacation = { enabled, start, end, tz ->
-                        scope.launch { controller.setVacation(enabled, start, end, tz) }
-                    },
+                    onSetVacation = { enabled, start, end, tz -> controller.setVacation(enabled, start, end, tz) },
                     onDownloadIcs = { scope.launch { controller.downloadIcalendar() } },
                     savedZone = savedZone,
                 )
@@ -214,7 +212,7 @@ private fun ScheduleContent(
     onAdd: () -> Unit,
     onEdit: (LiveOpsScheduleSegment) -> Unit,
     onDelete: (LiveOpsScheduleSegment) -> Unit,
-    onSetVacation: (enabled: Boolean, start: String?, end: String?, timezone: String?) -> Unit,
+    onSetVacation: suspend (enabled: Boolean, start: String?, end: String?, timezone: String?) -> ApiResult<Unit>,
     onDownloadIcs: (() -> Unit)? = null,
     savedZone: String? = null,
 ) {
@@ -368,11 +366,17 @@ private fun VacationCard(
     vacation: LiveOpsScheduleVacation?,
     savedZone: String?,
     manage: ManageDecision,
-    onSetVacation: (enabled: Boolean, start: String?, end: String?, timezone: String?) -> Unit,
+    onSetVacation: suspend (enabled: Boolean, start: String?, end: String?, timezone: String?) -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope: CoroutineScope = rememberCoroutineScope()
+
+    // Save waits for the server: pending disables the button (no second write); a failure keeps the chosen dates
+    // and shows the reason next to the button.
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
 
     var enabled: Boolean by remember(vacation) { mutableStateOf(vacation != null) }
     var start: String by remember(vacation) { mutableStateOf(vacation?.startTime ?: "") }
@@ -414,11 +418,28 @@ private fun VacationCard(
             TimezonePickerField(zone = timezone, onZoneChange = { timezone = it }, modifier = Modifier.fillMaxWidth())
         }
         ManageGate(decision = manage) { canManage ->
-            OutlinedButton(
-                onClick = { onSetVacation(enabled, start, end, timezone) },
-                enabled = canManage && (!enabled || ScheduleTimes.isValidZone(timezone)),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
-                Text(stringResource(Res.string.schedule_vacation_save))
+                OutlinedButton(
+                    onClick = {
+                        saving = true
+                        saveError = null
+                        scope.launch {
+                            val result: ApiResult<Unit> = onSetVacation(enabled, start, end, timezone)
+                            saving = false
+                            if (result is ApiResult.Failure) saveError = result.error.message
+                        }
+                    },
+                    enabled = canManage && !saving && (!enabled || ScheduleTimes.isValidZone(timezone)),
+                    loading = saving,
+                ) {
+                    Text(stringResource(Res.string.schedule_vacation_save))
+                }
+                saveError?.let { detail ->
+                    Text(text = detail, style = typography.sm, color = tokens.destructive)
+                }
             }
         }
     }

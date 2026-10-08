@@ -32,10 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -65,7 +65,6 @@ import nomnomzbot.composeapp.generated.resources.scripts_create_confirm
 import nomnomzbot.composeapp.generated.resources.scripts_create_description
 import nomnomzbot.composeapp.generated.resources.scripts_create_dismiss
 import nomnomzbot.composeapp.generated.resources.scripts_create_name
-import nomnomzbot.composeapp.generated.resources.scripts_create_name_required
 import nomnomzbot.composeapp.generated.resources.scripts_create_source
 import nomnomzbot.composeapp.generated.resources.scripts_create_title
 import nomnomzbot.composeapp.generated.resources.scripts_delete_cancel
@@ -190,9 +189,8 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
 
     if (showCreate) {
         CreateScriptDialog(
-            onConfirm = { name, description, source ->
-                showCreate = false
-                scope.launch { controller.create(name, description, source, compiledMessage, rowTypeLabel) }
+            onSave = { name, description, source ->
+                controller.create(name, description, source, compiledMessage, rowTypeLabel).toDialogResult()
             },
             onDismiss = { showCreate = false },
         )
@@ -278,56 +276,47 @@ private fun ScriptRow(
 
 @Composable
 private fun CreateScriptDialog(
-    onConfirm: (name: String, description: String?, source: String) -> Unit,
+    onSave: suspend (name: String, description: String?, source: String) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     var name: String by remember { mutableStateOf("") }
     var description: String by remember { mutableStateOf("") }
     var source: String by remember { mutableStateOf("") }
-    var nameError: Boolean by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.scripts_create_title), style = typography.lg, color = tokens.cardForeground) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name, onValueChange = { name = it; nameError = false },
-                    label = stringResource(Res.string.scripts_create_name),
-                    isError = nameError,
-                    errorText = if (nameError) stringResource(Res.string.scripts_create_name_required) else null,
-                )
-                AppTextField(
-                    value = description, onValueChange = { description = it },
-                    label = stringResource(Res.string.scripts_create_description),
-                    isError = false, errorText = null,
-                )
-                Textarea(
-                    value = source,
-                    onValueChange = { source = it },
-                    label = stringResource(Res.string.scripts_create_source),
-                    // Bounded height + fillHeight: pasted source scrolls WITHIN the field (BasicTextField's
-                    // own cursor-follow behavior) instead of growing the dialog past the viewport and
-                    // carrying the Create/Cancel buttons out of reach — confirmed live on the deployed app.
-                    modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 3),
-                    monospace = true,
-                    minLines = 5,
-                    fillHeight = true,
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                if (name.isBlank()) { nameError = true; return@Button }
-                onConfirm(name.trim(), description.trim().takeIf { it.isNotBlank() }, source)
-            }) { Text(stringResource(Res.string.scripts_create_confirm)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.scripts_create_dismiss)) } },
-    )
+    FormDialog(
+        title = stringResource(Res.string.scripts_create_title),
+        saveLabel = stringResource(Res.string.scripts_create_confirm),
+        cancelLabel = stringResource(Res.string.scripts_create_dismiss),
+        onDismiss = onDismiss,
+        save = { onSave(name.trim(), description.trim().takeIf { it.isNotBlank() }, source) },
+        dirty = name.isNotBlank() || description.isNotBlank() || source.isNotBlank(),
+        valid = name.isNotBlank(),
+    ) {
+        AppTextField(
+            value = name, onValueChange = { name = it },
+            label = stringResource(Res.string.scripts_create_name),
+            isError = false, errorText = null,
+        )
+        AppTextField(
+            value = description, onValueChange = { description = it },
+            label = stringResource(Res.string.scripts_create_description),
+            isError = false, errorText = null,
+        )
+        Textarea(
+            value = source,
+            onValueChange = { source = it },
+            label = stringResource(Res.string.scripts_create_source),
+            // Bounded height + fillHeight: pasted source scrolls WITHIN the field (BasicTextField's
+            // own cursor-follow behavior) instead of growing the dialog past the viewport and
+            // carrying the Create/Cancel buttons out of reach — confirmed live on the deployed app.
+            modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 3),
+            monospace = true,
+            minLines = 5,
+            fillHeight = true,
+        )
+    }
 }
 
 @Composable

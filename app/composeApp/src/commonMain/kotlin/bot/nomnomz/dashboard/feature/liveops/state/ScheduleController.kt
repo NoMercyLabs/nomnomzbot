@@ -155,11 +155,12 @@ class ScheduleController(
 
     /**
      * Set the vacation window — [enabled] on/off, its [startTime]..[endTime] (ISO-8601) and [timezone]. Reloads
-     * on success; surfaces the error on failure. No-ops when no channel is loaded.
+     * on success; a failure is handed back untouched so the vacation card shows the reason next to its button
+     * (no page banner on top of it). Turning the window off is this same call with [enabled] false.
      */
-    suspend fun setVacation(enabled: Boolean, startTime: String?, endTime: String?, timezone: String?) {
-        val channel: String = channelId ?: return
-        afterWrite(
+    suspend fun setVacation(enabled: Boolean, startTime: String?, endTime: String?, timezone: String?): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             liveOpsApi.updateScheduleSettings(
                 channel,
                 UpdateScheduleSettingsBody(

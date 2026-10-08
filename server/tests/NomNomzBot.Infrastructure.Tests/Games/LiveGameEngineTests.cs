@@ -51,6 +51,7 @@ public sealed class LiveGameEngineTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000d1");
     private static readonly Guid PlayerA = Guid.Parse("0192a000-0000-7000-8000-0000000000d2");
     private static readonly Guid PlayerB = Guid.Parse("0192a000-0000-7000-8000-0000000000d3");
+    private static readonly Guid PlayerC = Guid.Parse("0192a000-0000-7000-8000-0000000000d4");
     private static readonly Guid WidgetId = Guid.Parse("0192a000-0000-7000-8000-0000000000d9");
 
     private sealed class FixedRandomizer : IGameRandomizer
@@ -825,5 +826,100 @@ public sealed class LiveGameEngineTests
         (await RaffleSeed(h).SeedAsync(Channel, RaffleWidget([]), CancellationToken.None))
             .Should()
             .BeEmpty("the running session is not a raffle");
+    }
+
+    private static LiveGameSeedProvider CrashSeed(Harness h) => new("crash", h.Frames, h.Clock);
+
+    private static bool IsTerminal(Harness h) =>
+        h.Frames.TryGet(Channel, out LiveGameFrameSnapshot? snapshot) && snapshot.Terminal;
+
+    private static async Task<Harness> RunningCrashAsync(SqliteTestDatabase database)
+    {
+        Harness h = New(database, new CrashGame());
+        SeedConfig(h.Db, "crash");
+        (await h.Engine.StartAsync(Channel, new("crash", PlayerA))).IsSuccess.Should().BeTrue();
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!crash 40");
+        await h.Engine.HandleChatInputAsync(Channel, PlayerB, "Bob", "!crash 25");
+        h.Clock.Advance(TimeSpan.FromSeconds(46));
+        await h.Engine.AdvanceClockAsync(Channel);
+        h.Clock.Advance(TimeSpan.FromSeconds(1));
+        await h.Engine.AdvanceClockAsync(Channel);
+        return h;
+    }
+
+    [Fact]
+    public async Task A_reloaded_crash_overlay_mid_round_is_seeded_with_the_open_frame_and_the_newest_progress_frame()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = await RunningCrashAsync(database);
+
+        IReadOnlyList<WidgetSeedFrame> seed = await CrashSeed(h)
+            .SeedAsync(Channel, RaffleWidget([]), CancellationToken.None);
+
+        seed.Select(f => AsPayload(f)["kind"]).Should().Equal("round_open", "progress");
+        seed.Select(f => f.EventType).Should().Equal("game.lobby", "game.running");
+        AsPayload(seed[1])["multiplier"]
+            .Should()
+            .Be(1.15, "the widget shows the multiplier it left at");
+        h.Overlay.Sent.Last().Data.Should().BeSameAs(seed[1].Data);
+    }
+
+    [Fact]
+    public async Task A_crash_join_during_the_climb_carries_the_crew_size_and_the_running_phase()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = await RunningCrashAsync(database);
+        await h.Engine.HandleChatInputAsync(Channel, PlayerC, "Cara", "!crash 30");
+
+        Dictionary<string, object?> join = AsPayload(
+            (await CrashSeed(h).SeedAsync(Channel, RaffleWidget([]), CancellationToken.None))[1]
+        );
+
+        join["kind"].Should().Be("join");
+        join["crewSize"].Should().Be(3, "the widget rebuilds its crew count from the frame");
+        join["phase"].Should().Be("running");
+        join["entry"].Should().Be(1.15, "a late entrant rides from the current multiplier");
+    }
+
+    [Fact]
+    public async Task A_crash_cashout_frame_carries_the_crew_size_so_a_reload_keeps_the_crew_count()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = await RunningCrashAsync(database);
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!crash");
+
+        Dictionary<string, object?> cashout = AsPayload(
+            (await CrashSeed(h).SeedAsync(Channel, RaffleWidget([]), CancellationToken.None))[1]
+        );
+
+        cashout["kind"].Should().Be("cashout");
+        cashout["player"].Should().Be("Alice");
+        cashout["multiplier"].Should().Be(1.15);
+        cashout["crewSize"].Should().Be(2);
+    }
+
+    [Fact]
+    public async Task A_settled_crash_seeds_its_results_only_while_the_widget_would_still_show_them()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = await RunningCrashAsync(database);
+        for (int i = 0; i < 100 && !IsTerminal(h); i++)
+        {
+            h.Clock.Advance(TimeSpan.FromSeconds(1));
+            await h.Engine.AdvanceClockAsync(Channel);
+        }
+        IsTerminal(h).Should().BeTrue("the climb tops out at the cap and settles the round");
+        Widget widget = RaffleWidget(new() { ["hideAfterMs"] = 10000 });
+
+        IReadOnlyList<WidgetSeedFrame> within = await CrashSeed(h)
+            .SeedAsync(Channel, widget, CancellationToken.None);
+        within.Select(f => AsPayload(f)["kind"]).Should().Equal("round_open", "results");
+        within.Last().EventType.Should().Be("game.resolved");
+        AsPayload(within.Last())["capped"].Should().Be(true);
+
+        h.Clock.Advance(TimeSpan.FromSeconds(11));
+        (await CrashSeed(h).SeedAsync(Channel, widget, CancellationToken.None))
+            .Should()
+            .BeEmpty("the widget has already hidden the round");
     }
 }

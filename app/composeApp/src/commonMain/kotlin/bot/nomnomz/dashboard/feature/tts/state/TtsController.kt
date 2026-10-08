@@ -220,10 +220,9 @@ class TtsController(
         }
     }
 
-    /** Delete the rule [entryId], then refresh the list. Failures surface on the lexicon panel. */
-    suspend fun deleteLexiconEntry(entryId: String) {
-        mutateLexicon(announceFailure = true) { channel -> ttsApi.deleteLexiconEntry(channel, entryId) }
-    }
+    /** Delete the rule [entryId], then refresh the list. The result goes back to the confirm dialog (no toast). */
+    suspend fun deleteLexiconEntry(entryId: String): ApiResult<*> =
+        mutateLexicon(announceFailure = false) { channel -> ttsApi.deleteLexiconEntry(channel, entryId) }
 
     // Run one lexicon write, then re-fetch the authoritative list on success (the backend orders and
     // de-duplicates — the UI never guesses). On failure the list stays put; the error is a toast only when
@@ -439,11 +438,16 @@ class TtsController(
     /**
      * Store a bring-your-own-key credential for [provider] (`azure` | `elevenlabs`); [region] is Azure-only.
      * The backend echoes the refreshed config (the provider's stored-flag now true), which replaces the loaded
-     * baseline. A failure surfaces on the Ready state without discarding the form.
+     * baseline. The result goes back to the provider row, which keeps the typed key and shows a failure beside
+     * Save; no error is raised anywhere else, so the reason shows once.
      */
-    suspend fun setByokKey(provider: String, apiKey: String, region: String?) {
-        val target: String = channelId ?: return
-        applyConfigResult { ttsApi.setByokKey(target, provider, apiKey, region) }
+    suspend fun setByokKey(provider: String, apiKey: String, region: String?): ApiResult<TtsConfig> {
+        val target: String = channelId ?: return ApiResult.Failure(ApiError(0, "NO_CHANNEL", ""))
+        val result: ApiResult<TtsConfig> = ttsApi.setByokKey(target, provider, apiKey, region)
+        if (result is ApiResult.Ok) {
+            (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(config = result.value) }
+        }
+        return result
     }
 
     /** Remove the stored BYOK key for [provider]; the backend echoes the refreshed config (flag cleared). */

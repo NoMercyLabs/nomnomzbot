@@ -82,15 +82,10 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     {
         lock (_audioLock)
         {
-            KeyValuePair<string, OverlayConnection>[] mine = _overlays
-                .Where(o => o.Value.BroadcasterId == broadcasterId)
+            KeyValuePair<string, OverlayConnection>[] sources = _overlays
+                .Where(o => o.Value.BroadcasterId == broadcasterId && o.Value.IsAudioSource)
                 .ToArray();
-            KeyValuePair<string, OverlayConnection>[] sources = mine.Where(o =>
-                    o.Value.IsAudioSource
-                )
-                .ToArray();
-            KeyValuePair<string, OverlayConnection>[] pool = sources.Length > 0 ? sources : mine;
-            return pool.Length == 0 ? null : pool.MaxBy(o => o.Value.Order).Key;
+            return sources.Length == 0 ? null : sources.MaxBy(o => o.Value.Order).Key;
         }
     }
 

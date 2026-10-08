@@ -34,8 +34,8 @@ public interface IOverlayPresenceRegistry
 
     /// <summary>
     /// The one connection every sound clip, redemption sound and TTS line plays on: the most recently joined
-    /// Audio source page, else the most recently joined overlay page (so a channel without an Audio source
-    /// still hears audio, once). Null when no overlay page is open.
+    /// Audio source page. Audio never plays on any other widget's page: null when no Audio source page is
+    /// open, so the sound stays silent and the missing-Audio-source inbox warning shows.
     /// </summary>
     string? GetAudioTarget(Guid broadcasterId);
 
