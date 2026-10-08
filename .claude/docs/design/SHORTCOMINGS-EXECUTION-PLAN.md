@@ -587,9 +587,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   not drive enforcement (`SpamDefenseHandler` passes only the per-message decision), though the
   handler comment says it does. Done-when: a qualified campaign escalates a non-shielded sender per
   spec SD9 (own evidence) and a test proves it; an Established sender is never touched.
-- [ ] **S-SPAM-FOLLOW-AGE** the trust tiers Newcomer / Known / Regular need a follow age; no follow date
-  is stored (only `FollowEvent.FollowedAt` on the event). Done-when: a stored follow date per viewer
-  per channel (EventSub follow + Helix backfill) feeds `AccountFacts.IsFollowing/FollowAgeHours`.
 - [ ] **S-SAFETY-PLATFORMS** automatic safety is Twitch-only: spam defence decides but never acts on
   YouTube/Kick (`SpamEnforcementExecutor` "no enforcement path"); chat filters and AutoMod rules skip
   non-Twitch messages; heat auto-timeout calls the Twitch-only `IModerationService` with a Kick id.
