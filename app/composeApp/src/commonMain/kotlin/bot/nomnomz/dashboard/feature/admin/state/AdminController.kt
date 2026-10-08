@@ -2303,29 +2303,29 @@ class AdminController(
 
     /** Creates a new definition of the given [kind] (`command` or `widget` — the two kinds this dashboard
      * offers authoring for, see [bot.nomnomz.dashboard.core.network.PlatformContentAuthoringKinds]) with its
-     * first draft version, then reloads the list and opens it. */
+     * first draft version, then reloads the list and opens it. Called from a stay-open form: the outcome goes
+     * back to the dialog, which shows a failure inline (no toast). */
     suspend fun createContentDefinition(
         kind: String,
         key: String,
         displayName: String,
         description: String?,
         payloadJson: String,
-    ) {
-        val content: PlatformContentApi = contentApi ?: return
-        val body = CreateContentDefinitionBody(
+    ): ApiResult<PlatformContentDefinition> {
+        val content: PlatformContentApi = contentApi ?: return notSent()
+        val body =CreateContentDefinitionBody(
             kind = kind,
             key = key,
             displayName = displayName,
             description = description?.takeIf { it.isNotBlank() },
             payloadJson = payloadJson,
         )
-        when (val result = content.createDefinition(body)) {
-            is ApiResult.Ok -> {
-                loadContentDefinitions()
-                openContentDefinition(result.value.id)
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
+        val result: ApiResult<PlatformContentDefinition> = content.createDefinition(body)
+        if (result is ApiResult.Ok) {
+            loadContentDefinitions()
+            openContentDefinition(result.value.id)
         }
+        return result
     }
 
     /** Drafts a new version on the currently-open definition. Nothing tenant-facing changes yet — a draft is
@@ -2407,15 +2407,14 @@ class AdminController(
 
     /** Soft-retires a definition: `RetiredAt` stops future installs and never touches already-installed
      * tenant copies (§3.1) — a truthful, non-destructive "remove from the catalogue". */
-    suspend fun retireContentDefinition(definitionId: String) {
-        val content: PlatformContentApi = contentApi ?: return
-        when (val result = content.retireDefinition(definitionId)) {
-            is ApiResult.Ok -> {
-                closeContentDefinition()
-                loadContentDefinitions()
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
+    suspend fun retireContentDefinition(definitionId: String): ApiResult<Unit> {
+        val content: PlatformContentApi = contentApi ?: return notSent()
+        val result: ApiResult<Unit> = content.retireDefinition(definitionId)
+        if (result is ApiResult.Ok) {
+            closeContentDefinition()
+            loadContentDefinitions()
         }
+        return result
     }
 }
 

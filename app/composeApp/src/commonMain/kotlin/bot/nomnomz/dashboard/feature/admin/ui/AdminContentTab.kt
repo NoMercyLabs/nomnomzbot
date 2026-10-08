@@ -62,13 +62,16 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.RadioGroup
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -286,8 +289,7 @@ private fun ContentDefinitionList(state: AdminState, controller: AdminController
             eventResponseTypes = state.contentEventResponseTypes,
             onDismiss = { showCreate = false },
             onCreate = { kind, key, name, description, payload ->
-                showCreate = false
-                scope.launch { controller.createContentDefinition(kind, key, name, description, payload) }
+                controller.createContentDefinition(kind, key, name, description, payload).toDialogResult()
             },
         )
     }
@@ -346,7 +348,7 @@ private fun DefinitionRow(definition: PlatformContentDefinition, onOpen: () -> U
 private fun CreateDefinitionDialog(
     eventResponseTypes: List<String>,
     onDismiss: () -> Unit,
-    onCreate: (kind: String, key: String, displayName: String, description: String?, payloadJson: String) -> Unit,
+    onCreate: suspend (kind: String, key: String, displayName: String, description: String?, payloadJson: String) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     var kind: String by remember { mutableStateOf(PlatformContentAuthoringKinds.Command) }
@@ -374,8 +376,28 @@ private fun CreateDefinitionDialog(
             else -> true
         }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_content_new))
+    FormDialog(
+        title = stringResource(Res.string.admin_content_new),
+        saveLabel = stringResource(Res.string.admin_content_create),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        dirty = key.isNotBlank() || displayName.isNotBlank(),
+        valid = key.isNotBlank() && displayName.isNotBlank() && payloadValid,
+        save = {
+            val resolvedPayload: String =
+                when (kind) {
+                    PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.toPayloadJson()
+                    PlatformContentAuthoringKinds.Timer -> timerFields.toPayloadJson()
+                    PlatformContentAuthoringKinds.Reward -> rewardFields.toPayloadJson()
+                    PlatformContentAuthoringKinds.PickList -> pickListFields.toPayloadJson()
+                    PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
+                    PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
+                    PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson
+                    else -> payloadJson
+                }
+            onCreate(kind, key.trim(), displayName.trim(), description, resolvedPayload)
+        },
+    ) {
         Text(text = stringResource(Res.string.admin_content_kind_label), style = LocalTypography.current.sm, color = LocalTokens.current.foreground)
         // Resolved OUTSIDE the label lambda: `label` is a plain (T) -> String, so calling a @Composable
         // string resolver inside it does not compile.
@@ -448,30 +470,6 @@ private fun CreateDefinitionDialog(
                     onValueChange = { payloadJson = it },
                     label = stringResource(Res.string.admin_content_payload_label),
                 )
-        }
-        DialogFooter {
-            Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
-                Text(text = stringResource(Res.string.admin_cancel))
-            }
-            Button(
-                onClick = {
-                    val resolvedPayload: String =
-                        when (kind) {
-                            PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.toPayloadJson()
-                            PlatformContentAuthoringKinds.Timer -> timerFields.toPayloadJson()
-                            PlatformContentAuthoringKinds.Reward -> rewardFields.toPayloadJson()
-                            PlatformContentAuthoringKinds.PickList -> pickListFields.toPayloadJson()
-                            PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
-                            PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
-                            PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson
-                            else -> payloadJson
-                        }
-                    onCreate(kind, key.trim(), displayName.trim(), description, resolvedPayload)
-                },
-                enabled = key.isNotBlank() && displayName.isNotBlank() && payloadValid,
-            ) {
-                Text(text = stringResource(Res.string.admin_content_create))
-            }
         }
     }
 }
@@ -652,10 +650,7 @@ private fun ContentDefinitionDetail(
             confirmLabel = stringResource(Res.string.admin_content_retire),
             dismissLabel = stringResource(Res.string.admin_cancel),
             destructive = true,
-            onConfirm = {
-                showRetireConfirm = false
-                scope.launch { controller.retireContentDefinition(detail.definition.id) }
-            },
+            action = { controller.retireContentDefinition(detail.definition.id).toDialogResult() },
             onDismiss = { showRetireConfirm = false },
         )
     }
