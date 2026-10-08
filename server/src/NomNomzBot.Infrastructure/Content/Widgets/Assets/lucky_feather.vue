@@ -121,13 +121,14 @@ function readHolder(value: unknown): Holder | null {
   }
 }
 
-function onSteal(data: unknown): void {
+// A replayed steal (seeded on join) only restores the holder card: the steal already happened, so no banner.
+function onSteal(data: unknown, _type?: string, meta?: NnzEventMeta): void {
   const d: StealPayload = (data && typeof data === 'object' ? data : {}) as StealPayload
   const next = readHolder(d.newHolder)
   if (!next) return
-  const previous = readHolder(d.previousHolder)
   holder.value = next
-  announce(previous, next)
+  if (meta && meta.replay) return
+  announce(readHolder(d.previousHolder), next)
 }
 
 function onHide(): void {
