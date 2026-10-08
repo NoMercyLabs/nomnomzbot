@@ -76,5 +76,9 @@
     <string name="attention_audio_source_missing_message">Voeg de Audio Source-widget toe als browserbron in OBS. Tot die tijd spelen geluiden en TTS af vanaf een andere overlaypagina.</string>
     <string name="attention_audio_source_missing_live_title">De TTS-bron ontbreekt</string>
     <string name="attention_audio_source_missing_live_message">TTS kan nergens afspelen. Voeg de TTS-bron toe in OBS.</string>
+    <string name="attention_source_unavailable_title">Kon %1$s niet controleren</string>
+    <string name="attention_source_unavailable_message">Deze controle is mislukt, dus er kunnen items ontbreken. Reden: %1$s. Oplossing: koppel Twitch opnieuw op de pagina Integraties.</string>
+    <string name="attention_source_name_unban_requests">de unban-verzoeken</string>
+    <string name="attention_source_name_unknown">een van je controles</string>
     <string name="attention_unknown_title">Er vraagt iets je aandacht</string>
 </resources>

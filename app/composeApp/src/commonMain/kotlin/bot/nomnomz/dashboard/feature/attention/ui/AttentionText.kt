@@ -67,6 +67,10 @@ import nomnomzbot.composeapp.generated.resources.attention_security_impersonatio
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_title_many
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_title_one
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_unnamed_message
+import nomnomzbot.composeapp.generated.resources.attention_source_name_unban_requests
+import nomnomzbot.composeapp.generated.resources.attention_source_name_unknown
+import nomnomzbot.composeapp.generated.resources.attention_source_unavailable_message
+import nomnomzbot.composeapp.generated.resources.attention_source_unavailable_title
 import nomnomzbot.composeapp.generated.resources.attention_spotify_blocked_message
 import nomnomzbot.composeapp.generated.resources.attention_spotify_blocked_title
 import nomnomzbot.composeapp.generated.resources.attention_unknown_title
@@ -170,6 +174,11 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
             AttentionText(
                 Res.string.attention_spotify_blocked_title,
                 listOf(literal(ClockTime.of(item.param("until"), now).orEmpty())),
+            )
+        "attention_source_unavailable_title" ->
+            AttentionText(
+                Res.string.attention_source_unavailable_title,
+                listOf(AttentionArg.Resource(sourceNameOf(item.param("source")))),
             )
         else -> AttentionText(Res.string.attention_unknown_title)
     }
@@ -292,6 +301,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
         "attention_bot_not_moderator_message" ->
             AttentionText(Res.string.attention_bot_not_moderator_message, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_message" -> AttentionText(Res.string.attention_spotify_blocked_message)
+        "attention_source_unavailable_message" ->
+            AttentionText(Res.string.attention_source_unavailable_message, listOf(literal(item.param("reason"))))
         else -> null
     }
 
@@ -309,6 +320,13 @@ fun AttentionText.rememberText(): String {
 }
 
 private fun literal(value: String): AttentionArg = AttentionArg.Literal(value)
+
+// A readable name for the check that failed. A source key with no name here still renders honestly.
+private fun sourceNameOf(sourceKey: String): StringResource =
+    when (sourceKey) {
+        "unban_requests" -> Res.string.attention_source_name_unban_requests
+        else -> Res.string.attention_source_name_unknown
+    }
 
 private fun sharedBanArgs(item: ActionRequiredItem): List<AttentionArg> =
     listOf(literal(item.param("count")), literal(item.param("targetName")))

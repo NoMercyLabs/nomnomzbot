@@ -156,7 +156,7 @@ public sealed class UnbanRequestSourceTests
     }
 
     [Fact]
-    public async Task The_inbox_skips_a_failed_unban_read_instead_of_failing_as_a_whole()
+    public async Task The_inbox_reports_a_failed_unban_read_as_one_source_unavailable_item()
     {
         (ActionRequiredInboxServiceTestDbContext db, IModerationService moderation) = Seed(
             Result.Failure<List<UnbanRequestDto>>("Helix down.", "TWITCH_ERROR")
@@ -172,7 +172,13 @@ public sealed class UnbanRequestSourceTests
         Result<List<ActionRequiredItemDto>> items = await inbox.GetItemsAsync(Channel);
 
         items.IsSuccess.Should().BeTrue();
-        items.Value.Should().BeEmpty("the inbox logs a failed source and skips it");
+        ActionRequiredItemDto item = items.Value.Should().ContainSingle().Subject;
+        item.Id.Should().Be("source-unavailable:unban_requests");
+        item.Kind.Should().Be("source_unavailable");
+        item.Parameters.Should()
+            .Contain("source", "unban_requests")
+            .And.Contain("reason", "Helix down.");
+        item.DeepLinkRoute.Should().Be("integrations");
     }
 
     [Fact]

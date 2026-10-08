@@ -36,6 +36,8 @@ public sealed class AutoModDeleteFailedSource(IApplicationDbContext db, TimeProv
     /// <summary>How long a failure stays in the inbox, long enough to cover one stream.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromHours(24);
 
+    public string SourceKey => "automod_deletes";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

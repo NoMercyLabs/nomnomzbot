@@ -37,6 +37,8 @@ public sealed class ChatFilterActionFailureSource(IApplicationDbContext db, Time
     /// <summary>How long a failure stays in the inbox — long enough to cover one stream.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromHours(24);
 
+    public string SourceKey => "chat_filter_action_failures";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

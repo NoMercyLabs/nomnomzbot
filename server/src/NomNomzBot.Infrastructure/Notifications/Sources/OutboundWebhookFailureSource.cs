@@ -37,6 +37,8 @@ public sealed class OutboundWebhookFailureSource(IApplicationDbContext db) : IAc
     /// </summary>
     public const int FailingStreakThreshold = 3;
 
+    public string SourceKey => "webhooks";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [DisabledKeyPrefix, FailingKeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =
