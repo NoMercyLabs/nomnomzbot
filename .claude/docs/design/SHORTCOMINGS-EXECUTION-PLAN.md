@@ -610,9 +610,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-FILTER-LINKPOLICY** `ChatFilter.LinkPolicyJson` is stored and never read; the LinkPolicy kind
   and `ExemptMinRoleLevel` have no dashboard control. Done-when: the link policy (allowed domains,
   bare-domain matching) is applied and editable.
-- [ ] **S-ESCALATION-DEAD-SETTINGS** `CountAutoModViolations` and `DefaultTimeoutSeconds` are stored and
-  never read (`ModerationEscalationService.cs:255,211`); only chat filters feed the ladder. Done-when:
-  AutoMod and spam-defence violations count when the setting is on, and the ladder's timeout uses the setting.
 - [ ] **S-AUTOMOD-QUEUE-HYGIENE** no sweeper expires pending AutoMod queue rows and `AutoModMessageId`
   has no unique index (`ModerationQueueItemConfiguration.cs:33-34`): a missed update leaves a row the
   streamer cannot dismiss; a redelivered hold duplicates it. Done-when: expired rows close themselves
