@@ -578,6 +578,33 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   settings "not yet active" until then (`SpamSettingCatalogue.PendingSlices`).
 - [ ] **S-SPAM-SEED-CORPUS** idempotent seeder that loads `spec/data/spam-seed-corpus.md` as
   SpamSignature rows with Source=Curated. Done-when: a fresh install matches a corpus skeleton.
+- [ ] **S-SPAM-CAMPAIGN-REVERSAL-OWN** (found 2026-10-08) `SpamCorrelationService` records an account
+  as actioned whenever the campaign MAY act, also in dry run, and the de-qualify reversal unbans every
+  actioned account — so a ban a moderator placed during a campaign that later clears is lifted by the
+  bot. Done-when: only bans the bot itself placed and that succeeded are recorded and reversed; a test
+  proves a moderator's ban survives a de-qualify.
+- [ ] **S-SPAM-CAMPAIGN-ESCALATE** `CohortObservation.MayAct` is never read: the campaign verdict does
+  not drive enforcement (`SpamDefenseHandler` passes only the per-message decision), though the
+  handler comment says it does. Done-when: a qualified campaign escalates a non-shielded sender per
+  spec SD9 (own evidence) and a test proves it; an Established sender is never touched.
+- [ ] **S-SPAM-FOLLOW-AGE** the trust tiers Newcomer / Known / Regular need a follow age; no follow date
+  is stored (only `FollowEvent.FollowedAt` on the event). Done-when: a stored follow date per viewer
+  per channel (EventSub follow + Helix backfill) feeds `AccountFacts.IsFollowing/FollowAgeHours`.
+- [ ] **S-SAFETY-PLATFORMS** automatic safety is Twitch-only: spam defence decides but never acts on
+  YouTube/Kick (`SpamEnforcementExecutor` "no enforcement path"); chat filters and AutoMod rules skip
+  non-Twitch messages; heat auto-timeout calls the Twitch-only `IModerationService` with a Kick id.
+  `IChatProvider` already routes delete/timeout/ban natively. Done-when: each automatic path acts on
+  the message's own platform through `IChatProvider` and reports the platform result; one slice per
+  handler. Then slow / followers / members-only and blocked terms for YouTube and Kick where their
+  APIs offer them (lockdown capability map), and X Live once it is a platform.
+- [ ] **S-SAFETY-MONITOR** the streamer is never told when protection is not running. Done-when: one
+  "Protection status" surface (and an actionable-error inbox entry) shows, live from hub pushes: bot
+  lost moderator status (today a Debug log, `BotLifecycleService.cs:381`), spam defence still in dry
+  run or observation, a platform where automatic action is not available, EventSub moderation topics
+  not subscribed, a failed platform moderation call (today Kick/YouTube failures are void + log only).
+- [ ] **S-AUTOMOD-LINKS-BARE** the AutoMod links rule only matches `http(s)://` (`AutoModerationHandler.cs:439`),
+  so `example.com/x` slips through; its deletions ignore the platform result (`:345-347`).
+  Done-when: bare domains match (with the normalizer's homoglyph folding) and a failed delete is reported.
 
 **Your asks, and where each one is:**
 
