@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,11 +31,11 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.Dialog
-import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
-import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -44,7 +43,6 @@ import bot.nomnomz.dashboard.core.network.AdminAuthorPricedUnitRequest
 import bot.nomnomz.dashboard.core.network.AdminPricedUnit
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
-import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_cancel
 import nomnomzbot.composeapp.generated.resources.admin_priced_unit_add
@@ -73,7 +71,6 @@ internal fun PricedUnitSection(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         Row(
@@ -107,7 +104,7 @@ internal fun PricedUnitSection(state: AdminState, controller: AdminController) {
         PricedUnitFormDialog(
             editing = editing,
             onDismiss = { controller.dismissPricedUnitForm() },
-            onSave = { request -> scope.launch { controller.authorPricedUnit(request) } },
+            onSave = { request -> controller.authorPricedUnit(request).toDialogResult() },
         )
     }
 }
@@ -158,7 +155,7 @@ private fun PricedUnitRow(unit: AdminPricedUnit, onEdit: () -> Unit) {
 private fun PricedUnitFormDialog(
     editing: AdminPricedUnit?,
     onDismiss: () -> Unit,
-    onSave: (AdminAuthorPricedUnitRequest) -> Unit,
+    onSave: suspend (AdminAuthorPricedUnitRequest) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
 
@@ -178,15 +175,34 @@ private fun PricedUnitFormDialog(
             priceValid != null && priceValid >= 0 &&
             batchValid != null && batchValid >= 1
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(
-            text = if (editing != null) {
-                stringResource(Res.string.admin_priced_unit_dialog_title_edit, editing.unitKey)
-            } else {
-                stringResource(Res.string.admin_priced_unit_dialog_title_new)
-            },
-        )
+    val dirty: Boolean =
+        unitKey != editing?.unitKey.orEmpty() ||
+            currency != (editing?.currency ?: "usd") ||
+            price != editing?.priceMinorUnitsPerBatch?.toString().orEmpty() ||
+            batchSize != (editing?.batchSize?.toString() ?: "1")
 
+    FormDialog(
+        title = if (editing != null) {
+            stringResource(Res.string.admin_priced_unit_dialog_title_edit, editing.unitKey)
+        } else {
+            stringResource(Res.string.admin_priced_unit_dialog_title_new)
+        },
+        saveLabel = stringResource(Res.string.admin_priced_unit_save),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = {
+            onSave(
+                AdminAuthorPricedUnitRequest(
+                    unitKey = unitKey,
+                    currency = currency,
+                    priceMinorUnitsPerBatch = priceValid ?: 0L,
+                    batchSize = batchValid ?: 1L,
+                ),
+            )
+        },
+        dirty = dirty,
+        valid = formValid,
+    ) {
         AppTextField(
             value = unitKey,
             onValueChange = { unitKey = it },
@@ -219,25 +235,5 @@ private fun PricedUnitFormDialog(
             isError = batchValid == null || batchValid < 1,
             modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(spacing.s2))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(
-                onClick = {
-                    onSave(
-                        AdminAuthorPricedUnitRequest(
-                            unitKey = unitKey,
-                            currency = currency,
-                            priceMinorUnitsPerBatch = priceValid ?: 0L,
-                            batchSize = batchValid ?: 1L,
-                        ),
-                    )
-                },
-                enabled = formValid,
-            ) {
-                Text(text = stringResource(Res.string.admin_priced_unit_save))
-            }
-        }
     }
 }

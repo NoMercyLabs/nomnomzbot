@@ -907,11 +907,10 @@ class AdminController(
     }
 
     /** Authors (creates or reprices) one usage unit's price. Upsert by unit key — ships EMPTY, so a unit
-     * with no row stays unpriced until the owner does this. Closes the dialog on success. */
-    suspend fun authorPricedUnit(body: AdminAuthorPricedUnitRequest) {
-        dismissPricedUnitForm()
-        writeThenReload { api.authorPricedUnit(body) }
-    }
+     * with no row stays unpriced until the owner does this. Hands the outcome back to the form dialog, which
+     * closes itself on success and shows a failure inline (no toast). */
+    suspend fun authorPricedUnit(body: AdminAuthorPricedUnitRequest): ApiResult<AdminPricedUnit> =
+        reloadAfterDialogWrite { api.authorPricedUnit(body) }
 
     suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
         writeThenReload { api.grantTier(broadcasterId, body) }
