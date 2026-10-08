@@ -271,8 +271,9 @@ class EconomyControllerTest {
             EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
-        controller.freezeAccount("v1", frozen = true)
+        val result: ApiResult<Unit> = controller.freezeAccount("v1", frozen = true)
 
+        assertTrue(result is ApiResult.Ok) // the dialog closes on this
         assertEquals("v1" to true, economyApi.lastFreeze) // addressed by the account's viewerUserId + the flag
         assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
     }

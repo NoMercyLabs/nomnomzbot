@@ -117,6 +117,9 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.economy_account_freeze
 import nomnomzbot.composeapp.generated.resources.economy_account_freeze_action
+import nomnomzbot.composeapp.generated.resources.economy_account_freeze_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.economy_account_freeze_confirm_message
+import nomnomzbot.composeapp.generated.resources.economy_account_freeze_confirm_title
 import nomnomzbot.composeapp.generated.resources.economy_account_frozen
 import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze
 import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze_action
@@ -414,9 +417,8 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     payoutRules = payoutRules,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                     onSaveAwaited = { edited -> controller.save(edited) },
-                    onFreeze = { viewerUserId, frozen ->
-                        scope.launch { controller.freezeAccount(viewerUserId, frozen) }
-                    },
+                    onFreeze = { viewerUserId -> controller.freezeAccount(viewerUserId, frozen = true) },
+                    onUnfreeze = { viewerUserId -> scope.launch { controller.unfreezeAccount(viewerUserId) } },
                     onAccountsPrevPage = { scope.launch { controller.prevAccountsPage() } },
                     onAccountsNextPage = { scope.launch { controller.nextAccountsPage() } },
                     onToggleCatalog = { itemId, enabled ->
@@ -475,7 +477,9 @@ private fun ReadyContent(
     onSave: (CurrencyConfig) -> Unit,
     // The save behind the disable confirm: awaited so the dialog stays open until the server answers.
     onSaveAwaited: suspend (CurrencyConfig) -> ApiResult<Unit>,
-    onFreeze: (String, Boolean) -> Unit,
+    // The freeze behind its confirm is awaited (the dialog stays open until the server answers); unfreeze is one click.
+    onFreeze: suspend (String) -> ApiResult<Unit>,
+    onUnfreeze: (String) -> Unit,
     onAccountsPrevPage: () -> Unit,
     onAccountsNextPage: () -> Unit,
     onToggleCatalog: (String, Boolean) -> Unit,
@@ -644,6 +648,7 @@ private fun ReadyContent(
             onNextPage = onAccountsNextPage,
             manage = config,
             onFreeze = onFreeze,
+            onUnfreeze = onUnfreeze,
             onAdjust = onAdjustAccount,
             loadLedger = loadLedger,
             onTransfer = onTransfer,
@@ -1566,7 +1571,8 @@ internal fun AccountsSection(
     onPrevPage: () -> Unit,
     onNextPage: () -> Unit,
     manage: ManageDecision,
-    onFreeze: (String, Boolean) -> Unit,
+    onFreeze: suspend (String) -> ApiResult<Unit>,
+    onUnfreeze: (String) -> Unit,
     onAdjust: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     onTransfer: suspend (TransferBody) -> ApiResult<Unit>,
@@ -1612,6 +1618,7 @@ internal fun AccountsSection(
                         account = account,
                         manage = manage,
                         onFreeze = onFreeze,
+                        onUnfreeze = onUnfreeze,
                         onAdjust = onAdjust,
                         loadLedger = loadLedger,
                         searchViewers = searchViewers,
@@ -1659,11 +1666,13 @@ internal fun AccountsSection(
 private fun AccountRow(
     account: CurrencyAccountSummary,
     manage: ManageDecision,
-    onFreeze: (String, Boolean) -> Unit,
+    onFreeze: suspend (String) -> ApiResult<Unit>,
+    onUnfreeze: (String) -> Unit,
     onAdjust: suspend (viewerUserId: String, amount: Long, reason: String?) -> ApiResult<Unit>,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
 ) {
+    var showFreezeConfirm: Boolean by remember { mutableStateOf(false) }
     var showAdjust: Boolean by remember { mutableStateOf(false) }
     var showLedger: Boolean by remember { mutableStateOf(false) }
     var ledgerEntries: List<CurrencyLedgerEntry>? by remember { mutableStateOf(null) }
@@ -1738,7 +1747,9 @@ private fun AccountRow(
         // Freeze / unfreeze — Editor floor (ManageGate); the backend re-checks economy:account:freeze.
         ManageGate(decision = manage) { enabled ->
             TextButton(
-                onClick = { onFreeze(account.viewerUserId, !account.isFrozen) },
+                onClick = {
+                    if (account.isFrozen) onUnfreeze(account.viewerUserId) else showFreezeConfirm = true
+                },
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = freezeLabel },
             ) {
@@ -1769,6 +1780,18 @@ private fun AccountRow(
                 maxLines = 1,
             )
         }
+    }
+
+    if (showFreezeConfirm) {
+        ConfirmDialog(
+            title = stringResource(Res.string.economy_account_freeze_confirm_title, account.viewerDisplayName),
+            message = stringResource(Res.string.economy_account_freeze_confirm_message),
+            confirmLabel = stringResource(Res.string.economy_account_freeze),
+            dismissLabel = stringResource(Res.string.economy_account_freeze_confirm_cancel),
+            destructive = true,
+            onDismiss = { showFreezeConfirm = false },
+            action = { onFreeze(account.viewerUserId).toDialogResult() },
+        )
     }
 
     if (showAdjust) {

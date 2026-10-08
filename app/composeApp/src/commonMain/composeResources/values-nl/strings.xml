@@ -1561,6 +1561,9 @@
     <string name="economy_account_freeze">Bevriezen</string>
     <string name="economy_account_unfreeze">Deblokkeren</string>
     <string name="economy_account_freeze_action">%1$s bevriezen</string>
+    <string name="economy_account_freeze_confirm_title">%1$s bevriezen?</string>
+    <string name="economy_account_freeze_confirm_message">Een bevroren account kan niets verdienen of uitgeven totdat je het deblokkeert.</string>
+    <string name="economy_account_freeze_confirm_cancel">Annuleren</string>
     <string name="economy_account_unfreeze_action">%1$s deblokkeren</string>
     <string name="economy_earning_title">Verdienregels</string>
     <string name="economy_earning_empty">Nog geen verdienregels</string>

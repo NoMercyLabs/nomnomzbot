@@ -1564,6 +1564,9 @@
     <string name="economy_account_freeze">Freeze</string>
     <string name="economy_account_unfreeze">Unfreeze</string>
     <string name="economy_account_freeze_action">Freeze %1$s</string>
+    <string name="economy_account_freeze_confirm_title">Freeze %1$s?</string>
+    <string name="economy_account_freeze_confirm_message">A frozen account can neither earn nor spend until you unfreeze it.</string>
+    <string name="economy_account_freeze_confirm_cancel">Cancel</string>
     <string name="economy_account_unfreeze_action">Unfreeze %1$s</string>
     <string name="economy_earning_title">Earning rules</string>
     <string name="economy_earning_empty">No earning rules yet</string>
