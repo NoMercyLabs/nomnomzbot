@@ -99,13 +99,32 @@ class PersonalityController(
         if (current is PersonalityState.Ready) _state.value = current.copy(pending = null)
     }
 
-    /** Save the pending tone change (see [select]); a no-op when nothing is pending. */
-    suspend fun confirm() {
+    /**
+     * Save the pending tone change (see [choose]) and hand the server's answer back to the confirm dialog. The
+     * change stays pending until the server accepts it, so a rejected write keeps the dialog open to show the
+     * reason inline (nothing is set on the card). A no-op success when nothing is pending.
+     */
+    suspend fun confirm(): ApiResult<Unit> {
+        val target: String = channelId ?: return ApiResult.Ok(Unit)
         val current: PersonalityState = _state.value
-        if (current !is PersonalityState.Ready) return
-        val pending: ToneChange = current.pending ?: return
-        _state.value = current.copy(pending = null)
-        select(pending.tone)
+        if (current !is PersonalityState.Ready) return ApiResult.Ok(Unit)
+        val pending: ToneChange = current.pending ?: return ApiResult.Ok(Unit)
+
+        return when (val result: ApiResult<ChannelPersonality> = settingsApi.setPersonality(target, pending.tone)) {
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+            is ApiResult.Ok -> {
+                _state.value =
+                    current.copy(
+                        current = result.value.personality,
+                        available = result.value.available,
+                        saving = false,
+                        justSaved = true,
+                        saveError = null,
+                        pending = null,
+                    )
+                ApiResult.Ok(Unit)
+            }
+        }
     }
 
     /**

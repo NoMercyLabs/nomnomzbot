@@ -906,8 +906,8 @@ private fun PersonalitySection(controller: PersonalityController, manage: Manage
                         ToneChangeDialog(
                             change = change,
                             toneLabel = toneName(change.tone),
-                            onConfirm = { scope.launch { controller.confirm() } },
                             onDismiss = { controller.cancel() },
+                            onConfirm = { controller.confirm().toDialogResult() },
                         )
                     }
 

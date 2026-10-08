@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.settings.ui
 
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.feature.settings.state.ToneChange
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.personality_change_cancel
@@ -28,8 +29,8 @@ import org.jetbrains.compose.resources.stringResource
 internal fun ToneChangeDialog(
     change: ToneChange,
     toneLabel: String,
-    onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    onConfirm: suspend () -> DialogResult,
 ) {
     val following: Int? = change.following
     val own: Int? = change.own
@@ -43,7 +44,7 @@ internal fun ToneChangeDialog(
             },
         confirmLabel = stringResource(Res.string.personality_change_confirm),
         dismissLabel = stringResource(Res.string.personality_change_cancel),
-        onConfirm = onConfirm,
         onDismiss = onDismiss,
+        action = onConfirm,
     )
 }

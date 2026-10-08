@@ -14,6 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.feature.settings.state.ToneChange
@@ -35,8 +36,11 @@ class ToneChangeDialogTest {
                     ToneChangeDialog(
                         change = ToneChange(tone = "sassy", following = 7, own = 2),
                         toneLabel = "Sassy",
-                        onConfirm = { confirmed++ },
                         onDismiss = { dismissed++ },
+                        onConfirm = {
+                            confirmed++
+                            DialogResult.Done
+                        },
                     )
                 }
             }
@@ -55,7 +59,7 @@ class ToneChangeDialogTest {
         waitForIdle()
 
         assertEquals(1, confirmed)
-        assertEquals(0, dismissed)
+        assertEquals(1, dismissed)
     }
 
     @Test
@@ -68,8 +72,11 @@ class ToneChangeDialogTest {
                     ToneChangeDialog(
                         change = ToneChange(tone = "hype", following = 0, own = 9),
                         toneLabel = "Hype",
-                        onConfirm = { confirmed++ },
                         onDismiss = { dismissed++ },
+                        onConfirm = {
+                            confirmed++
+                            DialogResult.Done
+                        },
                     )
                 }
             }
@@ -91,8 +98,8 @@ class ToneChangeDialogTest {
                     ToneChangeDialog(
                         change = ToneChange(tone = "chill", following = null, own = null),
                         toneLabel = "Chill",
-                        onConfirm = {},
                         onDismiss = {},
+                        onConfirm = { DialogResult.Done },
                     )
                 }
             }
@@ -104,5 +111,30 @@ class ToneChangeDialogTest {
                     "Event responses with their own text stay the same. The counts could not be loaded."
             )
             .assertExists()
+    }
+
+    @Test
+    fun a_failed_confirm_keeps_the_dialog_open_with_the_reason_inline() = runComposeUiTest {
+        var dismissed = 0
+        setContent {
+            NomNomzTheme {
+                AppEnvironment("en") {
+                    ToneChangeDialog(
+                        change = ToneChange(tone = "sassy", following = 1, own = 1),
+                        toneLabel = "Sassy",
+                        onDismiss = { dismissed++ },
+                        onConfirm = { DialogResult.Failed("Requires Broadcaster.") },
+                    )
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Change voice").performClick()
+        waitForIdle()
+
+        onNodeWithText("Change the bot voice to Sassy?").assertExists()
+        onNodeWithText("Requires Broadcaster.").assertExists()
+        assertEquals(0, dismissed)
     }
 }
