@@ -76,7 +76,7 @@ public sealed class ActionRequiredInboxAggregationTests
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
         ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
-        item.Id.Should().Be("source-unavailable:failing_checks");
+        item.Id.Should().Be("source-unavailable:failing_checks:2026-10-08");
         item.Kind.Should().Be("source_unavailable");
         item.Severity.Should().Be("warning");
         item.TitleKey.Should().Be("attention_source_unavailable_title");
@@ -99,7 +99,7 @@ public sealed class ActionRequiredInboxAggregationTests
         ActionRequiredInboxService sut = new(
             [new FailingSource()],
             db,
-            TimeProvider.System,
+            new FixedClock(Today),
             new RecordingChangeNotifier(),
             NullLogger<ActionRequiredInboxService>.Instance
         );
@@ -107,7 +107,7 @@ public sealed class ActionRequiredInboxAggregationTests
         Result<int> dismissed = await sut.DismissAsync(
             ChannelId,
             Guid.NewGuid(),
-            ["source-unavailable:failing_checks"]
+            ["source-unavailable:failing_checks:2026-10-08"]
         );
         Result<List<ActionRequiredItemDto>> after = await sut.GetItemsAsync(ChannelId);
 
@@ -115,8 +115,37 @@ public sealed class ActionRequiredInboxAggregationTests
         dismissed.Value.Should().Be(1);
         db.ActionRequiredDismissals.Single()
             .ItemKey.Should()
-            .Be("source-unavailable:failing_checks");
+            .Be("source-unavailable:failing_checks:2026-10-08");
         after.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_ShowsAFailedSourceAgainTheNextDay_WhenItIsStillFailing()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        FixedClock clock = new(Today);
+        ActionRequiredInboxService sut = new(
+            [new FailingSource()],
+            db,
+            clock,
+            new RecordingChangeNotifier(),
+            NullLogger<ActionRequiredInboxService>.Instance
+        );
+        await sut.DismissAsync(
+            ChannelId,
+            Guid.NewGuid(),
+            ["source-unavailable:failing_checks:2026-10-08"]
+        );
+
+        clock.UtcNow = Today.AddDays(1);
+        Result<List<ActionRequiredItemDto>> nextDay = await sut.GetItemsAsync(ChannelId);
+
+        nextDay
+            .Value.Should()
+            .ContainSingle()
+            .Which.Id.Should()
+            .Be("source-unavailable:failing_checks:2026-10-09");
     }
 
     [Fact]
@@ -128,11 +157,15 @@ public sealed class ActionRequiredInboxAggregationTests
         ActionRequiredInboxService sut = new(
             [new FailingSource()],
             db,
-            TimeProvider.System,
+            new FixedClock(Today),
             new RecordingChangeNotifier(),
             NullLogger<ActionRequiredInboxService>.Instance
         );
-        await sut.DismissAsync(ChannelId, Guid.NewGuid(), ["source-unavailable:failing_checks"]);
+        await sut.DismissAsync(
+            ChannelId,
+            Guid.NewGuid(),
+            ["source-unavailable:failing_checks:2026-10-08"]
+        );
 
         Result<List<ActionRequiredItemDto>> other = await sut.GetItemsAsync(otherChannelId);
 
@@ -153,9 +186,13 @@ public sealed class ActionRequiredInboxAggregationTests
         db.ActionRequiredDismissals.Should().BeEmpty();
     }
 
+    private static readonly DateTime Today = new(2026, 10, 8, 9, 30, 0, DateTimeKind.Utc);
+
     private sealed class FixedClock(DateTime utcNow) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => new(utcNow, TimeSpan.Zero);
+        public DateTime UtcNow { get; set; } = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => new(UtcNow, TimeSpan.Zero);
     }
 
     private sealed class FailingSource : IActionRequiredSource

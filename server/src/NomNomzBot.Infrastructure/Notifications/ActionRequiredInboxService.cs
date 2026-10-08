@@ -61,7 +61,10 @@ public sealed class ActionRequiredInboxService(
                     channelId,
                     produced.ErrorMessage
                 );
-                string unavailableKey = SourceUnavailableKeyPrefix + source.SourceKey;
+                // The UTC day is part of the key: a dismissal quiets today's failure only, so a
+                // check that is still broken tomorrow surfaces again instead of hiding for good.
+                string unavailableKey =
+                    $"{SourceUnavailableKeyPrefix}{source.SourceKey}:{clock.GetUtcNow():yyyy-MM-dd}";
                 if (!dismissedKeys.Contains(unavailableKey))
                     items.Add(
                         ToSourceUnavailableItem(
