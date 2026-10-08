@@ -70,8 +70,15 @@ public sealed record AccountRiskAssessment(
 public sealed record AccountFacts
 {
     public double AccountAgeDays { get; init; } = double.MaxValue;
-    public bool IsFollowing { get; init; } = true;
-    public double FollowAgeHours { get; init; } = double.MaxValue;
+
+    /// <summary>
+    /// Whether the viewer follows the channel. <see cref="FollowState.Unknown"/> (the default) means we
+    /// could not find out: it neither earns a follow-based tier nor counts against the viewer.
+    /// </summary>
+    public FollowState Follow { get; init; } = FollowState.Unknown;
+
+    /// <summary>Hours since the follow. Read only when <see cref="Follow"/> is <see cref="FollowState.Following"/>.</summary>
+    public double FollowAgeHours { get; init; }
     public bool HasAvatar { get; init; } = true;
     public bool HasBio { get; init; } = true;
     public bool HasStreamed { get; init; } = true;
@@ -182,7 +189,11 @@ public static class AccountRisk
         else if (facts.AccountAgeDays < 182)
             marks.Add(AccountRiskMark.AccountUnder6Months);
 
-        if (!facts.IsFollowing || facts.FollowAgeHours < 24)
+        // Unknown is not evidence: only a follow we SAW, or its confirmed absence, can count.
+        if (
+            facts.Follow == FollowState.NotFollowing
+            || (facts.Follow == FollowState.Following && facts.FollowAgeHours < 24)
+        )
             marks.Add(AccountRiskMark.NotFollowingOrBrandNewFollow);
 
         if (facts is { HasAvatar: false, HasBio: false, HasStreamed: false })
@@ -218,5 +229,9 @@ public static class AccountRisk
     /// <summary>An account ≥ 2 years old WITH genuine activity — age alone is not enough.</summary>
     private static bool IsEstablishedGenuineAccount(AccountFacts facts) =>
         facts.AccountAgeDays >= 730
-        && (facts.HasStreamed || facts.IsFollowing || facts.HasChatHistoryOnInstance);
+        && (
+            facts.HasStreamed
+            || facts.Follow == FollowState.Following
+            || facts.HasChatHistoryOnInstance
+        );
 }

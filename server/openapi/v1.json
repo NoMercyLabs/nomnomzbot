@@ -109023,6 +109023,13 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "acknowledgedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "description": "One row of the queryable `ModerationHistoryEntry` log."
@@ -137754,6 +137761,20 @@
               "null",
               "string"
             ]
+          },
+          "lastWarningAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastWarningAcknowledgedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "description": "The J.4 rollup as the mod panel shows it."

@@ -1147,10 +1147,19 @@ public static class DependencyInjection
         // on the handler was rebuilt for every chat message and never once hit. Held here it survives
         // between messages; AutoModRuleCacheInvalidator keeps it honest on every rule write.
         services.AddSingleton<IAutoModRuleCache, AutoModRuleCache>();
+        // Singleton for the same reason: the follow lookups and their Helix rate budget must outlive the
+        // per-message scope. Does not end in "Service", so convention scanning does not reach it;
+        // FollowStateService (the IFollowStateService binding) is convention-scanned.
+        services.AddSingleton<Moderation.FollowStateCache>();
         // Consumed by concrete type from the chat-path handler, so convention scanning (I<X>Service ->
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.
         services.AddScoped<SpamEnforcementExecutor>();
+        // Follow-spike path (S-SPAM-FOLLOWBOT-WIRE): the tracker holds each channel's follow baseline in
+        // memory, so it is a singleton; the sweep reads and writes the DB, so it is scoped. Both are
+        // consumed by concrete type from FollowSpikeHandler.
+        services.AddSingleton<FollowSpikeTracker>();
+        services.AddScoped<FollowBotSweepService>();
         // Same split as SpamEnforcementExecutor, one layer further in: SpamCorrelationService decides a
         // reversal is owed, this carries it out. Consumed by concrete type from SpamCorrelationService.
         services.AddScoped<SpamCampaignReversalExecutor>();
@@ -1729,6 +1738,8 @@ public static class DependencyInjection
         // Live shared-chat session state (singleton): the shared-ban trust web's "active session"
         // precondition — fed by the shared_chat begin/update/end handlers, read at ban time.
         services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();
+        // Re-reads the session from Helix when the tracker is empty (a restart wipes it); scoped for the DbContext.
+        services.AddScoped<ISharedChatSessionRestorer, SharedChatSessionRestorer>();
         // Outbound line shaping + pacing (S010): both singleton — the per-queue-key "last line sent"
         // memory and the token-bucket state must outlive the scoped ChatPlatformRouter created per request.
         services.AddSingleton<Application.Contracts.Chat.IOutboundChatShaper, OutboundChatShaper>();
