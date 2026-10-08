@@ -10,13 +10,15 @@
 
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 
 namespace NomNomzBot.Infrastructure.Moderation.PipelineActions;
 
 public sealed class TimeoutAction : ICommandAction
 {
-    private readonly IChatProvider _chat;
+    private readonly IPipelineModerationService _moderation;
 
     public string ActionType => "timeout";
 
@@ -43,7 +45,7 @@ public sealed class TimeoutAction : ICommandAction
             ),
         ];
 
-    public TimeoutAction(IChatProvider chat) => _chat = chat;
+    public TimeoutAction(IPipelineModerationService moderation) => _moderation = moderation;
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -67,13 +69,15 @@ public sealed class TimeoutAction : ICommandAction
 
         string? reason = action.GetString("reason");
 
-        await _chat.TimeoutUserAsync(
+        Result<ModerationActionResult> timedOut = await _moderation.TimeoutAsync(
             ctx.BroadcasterId,
             userId,
             duration,
             reason,
             ctx.CancellationToken
         );
-        return ActionResult.Success($"Timed out {userId} for {duration}s");
+        return timedOut.IsSuccess
+            ? ActionResult.Success($"Timed out {userId} for {duration}s")
+            : ActionResult.Failure($"timeout: {timedOut.ErrorMessage}");
     }
 }

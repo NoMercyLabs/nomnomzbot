@@ -384,20 +384,20 @@ internal sealed class SpyChatProvider : IChatProvider
         CancellationToken cancellationToken = default
     ) => Task.FromResult(true);
 
-    public Task TimeoutUserAsync(
+    public Task<bool> TimeoutUserAsync(
         Guid broadcasterId,
         string userId,
         int durationSeconds,
         string? reason = null,
         CancellationToken cancellationToken = default
-    ) => Task.CompletedTask;
+    ) => Task.FromResult(true);
 
-    public Task BanUserAsync(
+    public Task<bool> BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
         CancellationToken cancellationToken = default
-    ) => Task.CompletedTask;
+    ) => Task.FromResult(true);
 
     public Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,

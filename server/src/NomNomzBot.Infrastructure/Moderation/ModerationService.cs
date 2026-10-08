@@ -18,7 +18,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
@@ -29,7 +28,7 @@ namespace NomNomzBot.Infrastructure.Moderation;
 public class ModerationService : IModerationService
 {
     private const string RuleRecordType = "moderation_rule";
-    private const string ActionRecordType = "moderation_action";
+    private const string ActionRecordType = ModerationActionRecord.RecordType;
     private const string RuleAuditRecordType = "moderation_rule_action";
     private const string NoteRecordType = "user_note";
     private const int NoteMaxLength = 2000;
@@ -593,7 +592,7 @@ public class ModerationService : IModerationService
             : Result.Success(broadcasterTwitchId);
     }
 
-    private async Task<Result<ModerationActionResult>> RecordActionAsync(
+    private Task<Result<ModerationActionResult>> RecordActionAsync(
         Guid tenantId,
         string action,
         string targetUserId,
@@ -601,40 +600,17 @@ public class ModerationService : IModerationService
         int? durationSeconds,
         string? moderatorId,
         CancellationToken cancellationToken
-    )
-    {
-        bool channelExists = await _db.Channels.AnyAsync(c => c.Id == tenantId, cancellationToken);
-        if (!channelExists)
-            return Errors.ChannelNotFound<ModerationActionResult>(tenantId.ToString());
-
-        // targetUserId is the Twitch user id passed to Helix — resolve the username via TwitchUserId.
-        User? targetUser = await _db.Users.FirstOrDefaultAsync(
-            u => u.TwitchUserId == targetUserId,
+    ) =>
+        ModerationActionRecord.WriteAsync(
+            _db,
+            tenantId,
+            action,
+            targetUserId,
+            reason,
+            durationSeconds,
+            moderatorId,
             cancellationToken
         );
-
-        ModerationActionData actionData = new()
-        {
-            Action = action,
-            TargetUserId = targetUserId,
-            TargetUsername = targetUser?.Username,
-            Reason = reason,
-            DurationSeconds = durationSeconds,
-        };
-
-        Record record = new()
-        {
-            BroadcasterId = tenantId,
-            RecordType = ActionRecordType,
-            Data = JsonSerializer.Serialize(actionData),
-            UserId = moderatorId ?? tenantId.ToString(),
-        };
-
-        _db.Records.Add(record);
-        await _db.SaveChangesAsync(cancellationToken);
-
-        return Result.Success(new ModerationActionResult(true, $"{action} applied successfully."));
-    }
 
     public async Task<Result<AutomodConfigDto>> GetAutomodConfigAsync(
         string broadcasterId,
@@ -2146,15 +2122,6 @@ public class ModerationService : IModerationService
         } = new();
         public List<string> ExemptRoles { get; set; } = [];
         public bool IsEnabled { get; set; } = true;
-    }
-
-    private sealed class ModerationActionData
-    {
-        public string Action { get; set; } = string.Empty;
-        public string? TargetUserId { get; set; }
-        public string? TargetUsername { get; set; }
-        public string? Reason { get; set; }
-        public int? DurationSeconds { get; set; }
     }
 
     private sealed class UserNoteData
