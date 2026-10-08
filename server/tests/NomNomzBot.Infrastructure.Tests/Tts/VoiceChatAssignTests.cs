@@ -93,7 +93,9 @@ public sealed class VoiceChatAssignTests
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
             Substitute.For<IUserService>(),
-            new PlatformTtsVoiceDefault(db)
+            new PlatformTtsVoiceDefault(db),
+            Substitute.For<ITtsLexiconService>(),
+            new SpokenNameFormatter()
         );
         twitchUsers ??= TwitchKnowing();
         users ??= Substitute.For<IUserService>();

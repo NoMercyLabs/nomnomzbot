@@ -41,6 +41,8 @@ public class TtsConfigService : ITtsConfigService
     private readonly ISubjectKeyService _subjectKeys;
     private readonly IUserService _users;
     private readonly IPlatformTtsVoiceDefault _platformVoice;
+    private readonly ITtsLexiconService _lexicon;
+    private readonly ISpokenNameFormatter _spokenNames;
 
     public TtsConfigService(
         IApplicationDbContext db,
@@ -48,7 +50,9 @@ public class TtsConfigService : ITtsConfigService
         IEventBus eventBus,
         ISubjectKeyService subjectKeys,
         IUserService users,
-        IPlatformTtsVoiceDefault platformVoice
+        IPlatformTtsVoiceDefault platformVoice,
+        ITtsLexiconService lexicon,
+        ISpokenNameFormatter spokenNames
     )
     {
         _db = db;
@@ -57,6 +61,8 @@ public class TtsConfigService : ITtsConfigService
         _subjectKeys = subjectKeys;
         _users = users;
         _platformVoice = platformVoice;
+        _lexicon = lexicon;
+        _spokenNames = spokenNames;
     }
 
     public async Task<Result<TtsConfigDto>> GetConfigAsync(
@@ -504,7 +510,10 @@ public class TtsConfigService : ITtsConfigService
         try
         {
             TtsResult result = await _ttsService.SynthesizeAsync(
-                request.Text,
+                _spokenNames.ApplyToText(
+                    await _lexicon.ApplyAsync(broadcasterId, request.Text, cancellationToken),
+                    []
+                ),
                 request.VoiceId,
                 ct: cancellationToken
             );

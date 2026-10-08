@@ -129,7 +129,9 @@ public sealed class TtsVoiceAssignmentImportTests
                 Substitute.For<IEventBus>(),
                 Substitute.For<Application.Services.ISubjectKeyService>(),
                 users,
-                new PlatformTtsVoiceDefault(db)
+                new PlatformTtsVoiceDefault(db),
+                Substitute.For<ITtsLexiconService>(),
+                new SpokenNameFormatter()
             ),
             Db = db,
             Users = users,

@@ -117,7 +117,9 @@ public sealed class TtsViewerSelfServiceTests
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
             Substitute.For<IUserService>(),
-            new PlatformTtsVoiceDefault(db)
+            new PlatformTtsVoiceDefault(db),
+            Substitute.For<ITtsLexiconService>(),
+            new SpokenNameFormatter()
         );
         return (config, db);
     }

@@ -70,7 +70,9 @@ public sealed class TtsVoiceDefaultsAdminServiceTests
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
             Substitute.For<IUserService>(),
-            new PlatformTtsVoiceDefault(db)
+            new PlatformTtsVoiceDefault(db),
+            Substitute.For<ITtsLexiconService>(),
+            new SpokenNameFormatter()
         );
         return new(db, sut, channels);
     }
