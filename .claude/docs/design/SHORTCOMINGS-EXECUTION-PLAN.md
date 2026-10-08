@@ -1060,11 +1060,6 @@ than each consumer needing their own clone-and-customize pass.
   because no `JsonStringEnumConverter` is registered; the dashboard only works by round-tripping
   opaque values. Done-when: GET returns the enum names as strings, and the Kotlin client,
   `openapi/v1.json` and `ApiContractTest` agree.
-- **S-CHAT-SETTINGS-FIELDS** `ChatSettings` in `ChatApi.kt` has no `uniqueChatMode` (R9K),
-  `nonModeratorChatDelay` or `nonModeratorChatDelayDuration`, which the backend `ChatSettingsDto`
-  sends to Twitch. The whole-object PUT therefore resets them to off on every save. Done-when: the
-  Chat screen toggles all three, and a test asserts that saving one setting round-trips the others
-  unchanged.
 - **S-MOD-PIPELINE-ACTIONS** add `warn`, `add_chat_filter_hit` and `apply_heat` pipeline actions,
   and route the Ban/Timeout actions through `IModerationService` (today `BanAction` and
   `TimeoutAction` call `IChatProvider` directly, so no mod-log row, escalation or audit is written).
