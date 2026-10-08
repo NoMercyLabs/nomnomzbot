@@ -161,6 +161,8 @@ class AttentionSurfaceTest {
         onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
         onNodeWithText("appealingviewer vraagt om een unban").assertExists()
         onNodeWithText("Verzoek: I was wrongly banned").assertExists()
+    }
+
     private val ownerActionFailed: ActionRequiredItem =
         ActionRequiredItem(
             id = "owner-action-failed:e1",
