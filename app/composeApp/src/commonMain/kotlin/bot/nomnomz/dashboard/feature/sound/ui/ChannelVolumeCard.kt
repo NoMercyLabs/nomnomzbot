@@ -23,6 +23,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -33,6 +35,8 @@ import bot.nomnomz.dashboard.feature.sound.state.MixState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.confirm_dialog_failed
+import nomnomzbot.composeapp.generated.resources.feedback_sound_mix_save_failed
 import nomnomzbot.composeapp.generated.resources.sound_clips_retry
 import nomnomzbot.composeapp.generated.resources.sound_mix_error
 import nomnomzbot.composeapp.generated.resources.sound_mix_help
@@ -48,7 +52,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun ChannelVolumeCard(
     mix: MixState,
     enabled: Boolean,
-    onSave: suspend (master: Int, tts: Int) -> Unit,
+    onSave: suspend (master: Int, tts: Int) -> DialogResult,
     onRetry: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -99,7 +103,7 @@ internal fun ChannelVolumeCard(
 private fun MixSliders(
     mix: ChannelAudioMix,
     enabled: Boolean,
-    onSave: suspend (master: Int, tts: Int) -> Unit,
+    onSave: suspend (master: Int, tts: Int) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     val scope = rememberCoroutineScope()
@@ -111,13 +115,21 @@ private fun MixSliders(
     val master: Float = masterDraft ?: mix.masterVolume.toFloat()
     val tts: Float = ttsDraft ?: mix.ttsVolume.toFloat()
 
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var failure: DialogResult.Failed? by remember { mutableStateOf(null) }
+
+    // Reads the drafts at call time: the drag-end callback can fire before the last value reached composition.
     fun save() {
-        val masterValue: Int = master.roundToInt()
-        val ttsValue: Int = tts.roundToInt()
+        val masterValue: Int = (masterDraft ?: mix.masterVolume.toFloat()).roundToInt()
+        val ttsValue: Int = (ttsDraft ?: mix.ttsVolume.toFloat()).roundToInt()
+        saving = true
+        failure = null
         scope.launch {
-            onSave(masterValue, ttsValue)
+            val result: DialogResult = onSave(masterValue, ttsValue)
+            failure = result as? DialogResult.Failed
             masterDraft = null
             ttsDraft = null
+            saving = false
         }
     }
 
@@ -125,17 +137,26 @@ private fun MixSliders(
         VolumeRow(
             label = stringResource(Res.string.sound_mix_master_label, master.roundToInt()),
             value = master,
-            enabled = enabled,
+            enabled = enabled && !saving,
             onValueChange = { masterDraft = it },
             onValueChangeFinished = ::save,
         )
         VolumeRow(
             label = stringResource(Res.string.sound_mix_tts_label, tts.roundToInt()),
             value = tts,
-            enabled = enabled,
+            enabled = enabled && !saving,
             onValueChange = { ttsDraft = it },
             onValueChangeFinished = ::save,
         )
+        failure?.let { failed: DialogResult.Failed ->
+            InlineError(
+                message =
+                    stringResource(
+                        Res.string.feedback_sound_mix_save_failed,
+                        failed.detail?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.confirm_dialog_failed),
+                    )
+            )
+        }
     }
 }
 
