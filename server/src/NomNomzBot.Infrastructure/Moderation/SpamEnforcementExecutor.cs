@@ -71,6 +71,13 @@ public sealed class SpamEnforcementExecutor
     }
 
     /// <summary>
+    /// Whether automatic action can reach <paramref name="provider"/>. The one answer shared by enforcement
+    /// and the protection status, so what the dashboard reports is what enforcement does.
+    /// </summary>
+    internal static bool CanEnforceOn(string provider) =>
+        string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Carry out a decision. Returns without acting for anything that is not an enforceable outcome —
     /// dry run, a flag, or nothing at all — so the caller never has to remember to check first.
     /// </summary>
@@ -97,7 +104,7 @@ public sealed class SpamEnforcementExecutor
         // Enforcement rides Helix, so a non-Twitch message is recorded and explained but not acted on.
         // Claiming otherwise would be the dishonest kind of bug: an operator believing the room is
         // covered when it is not.
-        if (!string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
+        if (!CanEnforceOn(provider))
             return new SpamEnforcementOutcome(false, false, $"no enforcement path for {provider}");
 
         bool deleted = await DeleteMessageAsync(broadcasterId, messageId, ct);

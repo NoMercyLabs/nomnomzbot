@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -24,7 +22,7 @@ namespace NomNomzBot.Infrastructure.Notifications.Sources;
 /// bot that currently speaks in the channel: a status observed for a replaced bot is stale and says nothing. The
 /// key embeds when the status last changed, so a bot that is de-modded again after a dismissal surfaces again.
 /// </summary>
-public sealed class BotNotModeratorSource(IApplicationDbContext db, IChannelTwitchBotResolver bots)
+public sealed class BotNotModeratorSource(IBotModeratorStatusReader statusReader)
     : IActionRequiredSource
 {
     private const string KeyPrefix = "bot-not-moderator:";
@@ -42,25 +40,20 @@ public sealed class BotNotModeratorSource(IApplicationDbContext db, IChannelTwit
         CancellationToken cancellationToken = default
     )
     {
-        StatusRow? status = await db
-            .Channels.AsNoTracking()
-            .Where(c => c.Id == channelId && c.BotIsModerator == false)
-            .Select(c => new StatusRow(
-                c.BotModeratorStatusBotUserId,
-                c.BotModeratorStatusChangedAt
-            ))
-            .FirstOrDefaultAsync(cancellationToken);
-        if (status?.BotUserId is null || status.ChangedAt is null)
-            return Result.Success<List<ActionRequiredItemDto>>([]);
-
-        ChannelTwitchBot? bot = await bots.ResolveAsync(channelId, cancellationToken);
+        BotModeratorReading reading = await statusReader.ReadAsync(channelId, cancellationToken);
         if (
-            bot is null
-            || !string.Equals(bot.TwitchUserId, status.BotUserId, StringComparison.Ordinal)
+            reading
+            is not {
+                Standing: BotModeratorStanding.NotModerator,
+                Bot: not null,
+                ChangedAt: not null
+            }
         )
             return Result.Success<List<ActionRequiredItemDto>>([]);
 
-        string key = $"{KeyPrefix}{channelId}:{status.ChangedAt.Value.Ticks}";
+        ChannelTwitchBot bot = reading.Bot;
+        DateTime changedAt = reading.ChangedAt.Value;
+        string key = $"{KeyPrefix}{channelId}:{changedAt.Ticks}";
         if (dismissedKeys.Contains(key))
             return Result.Success<List<ActionRequiredItemDto>>([]);
 
@@ -71,7 +64,7 @@ public sealed class BotNotModeratorSource(IApplicationDbContext db, IChannelTwit
             TitleKey: "attention_bot_not_moderator_title",
             MessageKey: "attention_bot_not_moderator_message",
             Parameters: new() { ["botName"] = bot.Username },
-            DetectedAt: status.ChangedAt.Value,
+            DetectedAt: changedAt,
             DeepLinkRoute: "moderation",
             SourceUserId: bot.TwitchUserId,
             SourceUserName: bot.Username,
@@ -86,6 +79,4 @@ public sealed class BotNotModeratorSource(IApplicationDbContext db, IChannelTwit
         string itemId,
         CancellationToken cancellationToken = default
     ) => Task.FromResult(Result.Success<List<string>>([itemId]));
-
-    private sealed record StatusRow(string? BotUserId, DateTime? ChangedAt);
 }

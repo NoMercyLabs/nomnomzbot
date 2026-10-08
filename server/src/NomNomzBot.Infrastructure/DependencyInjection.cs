@@ -1120,6 +1120,11 @@ public static class DependencyInjection
             Application.Identity.Services.IChannelTwitchBotResolver,
             Identity.ChannelTwitchBotResolver
         >();
+        // The one read of the stored bot-moderator status, shared by the inbox item and the protection status.
+        services.AddScoped<
+            Application.Identity.Services.IBotModeratorStatusReader,
+            Identity.BotModeratorStatusReader
+        >();
 
         // Base health-check service — AdminService reports the REAL registered probes. The Api host's
         // AddHealthChecks() call layers the per-profile checks (postgres/redis/lite) onto this same service.

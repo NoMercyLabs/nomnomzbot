@@ -44,7 +44,9 @@ internal static class ActionRequiredInboxHarness
             new SharedBanNotAppliedSource(db, clock),
             new ChatFilterActionFailureSource(db, clock),
             new SecurityNoticeSource(db),
-            new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
+            new BotNotModeratorSource(
+                new BotModeratorStatusReader(db, new ChannelTwitchBotResolver(db))
+            ),
             new MassBanFailureSource(db),
         ];
 

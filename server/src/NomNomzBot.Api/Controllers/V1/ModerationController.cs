@@ -614,6 +614,28 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    // ─── Protection status ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether protection is running in this channel: one check per thing it depends on (the bot is a moderator,
+    /// spam defence acts rather than only records, automatic action reaches each connected platform, Twitch sends
+    /// the moderation events). A check that cannot be read is reported as unknown, never as ok.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("protection-status")]
+    [ProducesResponseType<StatusResponseDto<ProtectionStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProtectionStatus(
+        string channelId,
+        [FromServices] IProtectionStatusService protectionStatus,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(await protectionStatus.GetAsync(broadcasterId, ct));
+    }
+
     /// <summary>Grant a viewer moderator privileges via the Twitch moderation API.</summary>
     [RequireAction("moderation:moderator:write")]
     [HttpPost("moderators")]
