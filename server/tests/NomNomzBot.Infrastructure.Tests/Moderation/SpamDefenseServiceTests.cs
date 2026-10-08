@@ -1493,5 +1493,110 @@ public class SpamDefenseServiceTests : IDisposable
         await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!);
     }
 
+    // ---- A campaign escalation is recorded, not just acted on -----------------------------------
+
+    private static SpamEvaluationResult QuietResult(Guid? detectionId) =>
+        new(
+            SpamEnforcement.Decide(SpamConfidence.Zero, SpamTrustTier.Untrusted, dryRun: false),
+            SpamConfidence.Zero,
+            SpamTrustTier.Untrusted,
+            [],
+            detectionId,
+            "bestviewersonbigfollowscom",
+            new SpamDefenseSettings()
+        );
+
+    [Fact]
+    public async Task ACampaignEscalation_OfAMessageWithNoRow_InsertsTheExplainedDetection()
+    {
+        SpamEvaluationRequest request = Message("best viewers on bigfollows . com", "member-1");
+        SpamEvaluationResult evaluated = QuietResult(null);
+        SpamDecision escalated = SpamEnforcement.EscalateForCampaign(
+            evaluated.Decision,
+            SpamTrustTier.Untrusted
+        );
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db).RecordCampaignEscalationAsync(request, evaluated, escalated);
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.SubjectPlatformUserId.Should().Be("member-1");
+        stored.MessageId.Should().Be(request.MessageId);
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndEscalate);
+        stored.WasDryRun.Should().BeFalse();
+        stored.Confidence.Should().Be(SpamConfidence.High);
+        stored.Signals.Should().Contain(nameof(ContentSignal.CampaignMember));
+        stored.Skeleton.Should().Be("bestviewersonbigfollowscom");
+        stored.Reason.Should().NotBeNullOrWhiteSpace("SD7: no black-box verdicts");
+        stored.DetectedAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task ACampaignEscalation_OfAMessageThatHasARow_UpdatesThatRowInsteadOfAddingOne()
+    {
+        SpamDetection prior = AutomaticDetection(Channel, "member-1", "Viewer", Now.UtcDateTime);
+        prior.Confidence = SpamConfidence.Medium;
+        prior.Outcome = SpamOutcome.DeleteAndQueue;
+        prior.WouldHaveBeen = SpamOutcome.DeleteAndQueue;
+        prior.Signals = nameof(ContentSignal.PromoShape);
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamDetections.Add(prior);
+            await seed.SaveChangesAsync();
+        }
+
+        SpamEvaluationRequest request = Message("promo", "member-1");
+        SpamEvaluationResult evaluated = QuietResult(prior.Id);
+        SpamDecision escalated = SpamEnforcement.EscalateForCampaign(
+            SpamEnforcement.Decide(SpamConfidence.Medium, SpamTrustTier.Untrusted, dryRun: false),
+            SpamTrustTier.Untrusted
+        );
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db).RecordCampaignEscalationAsync(request, evaluated, escalated);
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Id.Should().Be(prior.Id);
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+        stored.Confidence.Should().Be(SpamConfidence.High);
+        stored.Signals.Should().Contain(nameof(ContentSignal.PromoShape));
+        stored.Signals.Should().Contain(nameof(ContentSignal.CampaignMember));
+    }
+
+    [Fact]
+    public async Task ADryRunCampaignEscalation_IsRecordedAsWhatWouldHaveHappened()
+    {
+        SpamEvaluationResult evaluated = new(
+            SpamEnforcement.Decide(SpamConfidence.Zero, SpamTrustTier.Untrusted, dryRun: true),
+            SpamConfidence.Zero,
+            SpamTrustTier.Untrusted,
+            [],
+            null,
+            "bestviewersonbigfollowscom",
+            new SpamDefenseSettings()
+        );
+        SpamDecision escalated = SpamEnforcement.EscalateForCampaign(
+            evaluated.Decision,
+            SpamTrustTier.Untrusted
+        );
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db)
+                .RecordCampaignEscalationAsync(
+                    Message("best viewers on bigfollows . com", "member-1"),
+                    evaluated,
+                    escalated
+                );
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.WasDryRun.Should().BeTrue();
+        stored.Outcome.Should().Be(SpamOutcome.None);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndEscalate);
+    }
+
     public void Dispose() => _connection.Dispose();
 }

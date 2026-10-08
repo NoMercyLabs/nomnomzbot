@@ -145,4 +145,15 @@ public interface ISpamDefenseService
         SpamEvaluationRequest request,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Record that a qualified campaign raised this sender's verdict. Updates the message's detection
+    /// row when <paramref name="evaluated"/> wrote one, otherwise inserts one.
+    /// </summary>
+    Task RecordCampaignEscalationAsync(
+        SpamEvaluationRequest request,
+        SpamEvaluationResult evaluated,
+        SpamDecision escalated,
+        CancellationToken ct = default
+    );
 }

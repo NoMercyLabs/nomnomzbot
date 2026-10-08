@@ -143,6 +143,28 @@ public static class SpamEnforcement
     }
 
     /// <summary>
+    /// Raise a verdict for a sender who posted a qualified campaign's own message (SD9: their own
+    /// evidence, not mere presence in the cohort). A viewer with standing is never raised (SD8/SD11) —
+    /// the campaign layer already refuses them, and this refuses again so the rule holds on its own.
+    /// Dry run keeps <see cref="SpamDecision.Outcome"/> at None and records what would have happened.
+    /// </summary>
+    public static SpamDecision EscalateForCampaign(SpamDecision decision, SpamTrustTier tier)
+    {
+        if (TrustTierLadder.IsShieldedFromAutomatedAccountAction(tier))
+            return decision;
+
+        if (decision.WouldHaveBeen == SpamOutcome.DeleteAndEscalate)
+            return decision;
+
+        return Build(
+            SpamOutcome.DeleteAndEscalate,
+            decision.IsDryRun,
+            "This account posted the message of a confirmed spam campaign, so the message is removed "
+                + "and the account is routed to the escalation ladder."
+        );
+    }
+
+    /// <summary>
     /// In dry run the outcome becomes <see cref="SpamOutcome.None"/> while
     /// <see cref="SpamDecision.WouldHaveBeen"/> keeps the real verdict, so the dashboard can show exactly
     /// what would have happened without anything happening.

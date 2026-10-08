@@ -53,6 +53,7 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
 
     private SpamDecision _decision = new(SpamOutcome.None, SpamOutcome.None, false, "ordinary");
     private bool _timeoutSucceeds = true;
+    private string _skeleton = Skeleton;
 
     public SpamDefenseHandlerCampaignTests()
     {
@@ -139,7 +140,7 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
                         SpamTrustTier.Untrusted,
                         [],
                         null,
-                        Skeleton,
+                        _skeleton,
                         new SpamDefenseSettings()
                     )
                 )
@@ -261,14 +262,17 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         );
         await ChatAsync("stranger0");
 
-        // stranger1 is banned by a human moderator; the bot's enforcement does nothing to them.
+        // stranger1: a human moderator got there first, so the bot's timeout is refused and nothing
+        // the bot did is on record for them.
         _decision = new SpamDecision(
             SpamOutcome.None,
             SpamOutcome.None,
             false,
             "moderator got there"
         );
+        _timeoutSucceeds = false;
         await ChatAsync("stranger1");
+        _timeoutSucceeds = true;
 
         Stored().ActionedAccountIds.Should().Be("stranger0");
 
@@ -292,6 +296,143 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
                 Arg.Any<Guid>(),
                 "stranger1",
                 Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AQualifiedCampaign_EscalatesItsOwnMember_EvenWhenTheMessageAloneIsHarmless()
+    {
+        await QualifyCampaignAsync();
+        _decision = new SpamDecision(SpamOutcome.None, SpamOutcome.None, false, "ordinary");
+
+        await ChatAsync("stranger0");
+
+        await _moderation
+            .Received(1)
+            .TimeoutAsync(
+                Channel.ToString(),
+                Owner,
+                "stranger0",
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _twitch
+            .Received(1)
+            .DeleteChatMessageAsync(Arg.Any<Guid>(), "msg-stranger0", Arg.Any<CancellationToken>());
+        Stored().ActionedAccountIds.Should().Be("stranger0");
+        await _spamDefense
+            .Received(1)
+            .RecordCampaignEscalationAsync(
+                Arg.Is<SpamEvaluationRequest>(r => r.PlatformUserId == "stranger0"),
+                Arg.Any<SpamEvaluationResult>(),
+                Arg.Is<SpamDecision>(d =>
+                    d.Outcome == SpamOutcome.DeleteAndEscalate
+                    && d.WouldHaveBeen == SpamOutcome.DeleteAndEscalate
+                    && !d.IsDryRun
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AnEstablishedMemberOfTheCohort_IsNeverEscalated()
+    {
+        for (int i = 0; i < 20; i++)
+            await ChatAsync($"stranger{i}");
+        await ChatAsyncAs("regular0", SpamTrustTier.Established);
+        _time.Advance(TimeSpan.FromSeconds(10));
+
+        await ChatAsyncAs("regular0", SpamTrustTier.Established);
+
+        await _moderation
+            .DidNotReceive()
+            .TimeoutAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                "regular0",
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _twitch
+            .DidNotReceive()
+            .DeleteChatMessageAsync(Arg.Any<Guid>(), "msg-regular0", Arg.Any<CancellationToken>());
+        await _spamDefense
+            .DidNotReceive()
+            .RecordCampaignEscalationAsync(
+                Arg.Any<SpamEvaluationRequest>(),
+                Arg.Any<SpamEvaluationResult>(),
+                Arg.Any<SpamDecision>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ADryRunChannel_RecordsTheCampaignEscalationButActsOnNothing()
+    {
+        await QualifyCampaignAsync();
+        _decision = new SpamDecision(SpamOutcome.None, SpamOutcome.None, true, "dry run");
+
+        await ChatAsync("stranger0");
+
+        await _moderation
+            .DidNotReceive()
+            .TimeoutAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _twitch
+            .DidNotReceive()
+            .DeleteChatMessageAsync(Arg.Any<Guid>(), "msg-stranger0", Arg.Any<CancellationToken>());
+        Stored().ActionedAccountIds.Should().BeEmpty();
+        await _spamDefense
+            .Received(1)
+            .RecordCampaignEscalationAsync(
+                Arg.Any<SpamEvaluationRequest>(),
+                Arg.Any<SpamEvaluationResult>(),
+                Arg.Is<SpamDecision>(d =>
+                    d.IsDryRun
+                    && d.Outcome == SpamOutcome.None
+                    && d.WouldHaveBeen == SpamOutcome.DeleteAndEscalate
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AMemberWhoPostsSomethingElse_IsNotEscalated_PresenceIsNotEvidence()
+    {
+        await QualifyCampaignAsync();
+        _skeleton = "somethingelseentirely";
+
+        await ChatAsync("stranger0");
+
+        await _moderation
+            .DidNotReceive()
+            .TimeoutAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _spamDefense
+            .DidNotReceive()
+            .RecordCampaignEscalationAsync(
+                Arg.Any<SpamEvaluationRequest>(),
+                Arg.Any<SpamEvaluationResult>(),
+                Arg.Any<SpamDecision>(),
                 Arg.Any<CancellationToken>()
             );
     }
