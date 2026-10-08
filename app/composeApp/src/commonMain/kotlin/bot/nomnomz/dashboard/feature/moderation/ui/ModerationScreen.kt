@@ -388,6 +388,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_con
 import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_short
 import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_title
+import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_load_failed
 import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
@@ -622,6 +623,8 @@ fun ModerationScreen(
                     stats = current.stats,
                     unbanRequests = current.unbanRequests,
                     reports = current.reports,
+                    unbanRequestsError = current.unbanRequestsError,
+                    onRetryUnbanRequests = { scope.launch { controller.retryUnbanRequests() } },
                     reportsError = current.reportsError,
                     onRetryReports = { scope.launch { controller.retryReports() } },
                     automodQueue = current.automodQueue,
@@ -838,6 +841,8 @@ internal fun BansList(
     unbanRequests: List<UnbanRequest>,
     reports: List<ViewerReport>,
     automodQueue: List<ModerationQueueItem>,
+    unbanRequestsError: String? = null,
+    onRetryUnbanRequests: () -> Unit = {},
     reportsError: String? = null,
     onRetryReports: () -> Unit = {},
     bansAvailable: Boolean,
@@ -1093,7 +1098,7 @@ internal fun BansList(
                 }
             }
         }
-        if (unbanRequests.isNotEmpty()) {
+        if (unbanRequests.isNotEmpty() || unbanRequestsError != null) {
             sectionItem(section, ModerationSection.Queue, "unban-header") {
                 Text(
                     text = stringResource(Res.string.moderation_unban_requests_title),
@@ -1105,6 +1110,14 @@ internal fun BansList(
             sectionItem(section, ModerationSection.Queue, "unban-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
+                        if (unbanRequestsError != null) {
+                            LoadFailedNotice(
+                                message = Res.string.moderation_unban_requests_load_failed,
+                                testTag = "unban-requests-load-failed",
+                                onRetry = onRetryUnbanRequests,
+                            )
+                            if (unbanRequests.isNotEmpty()) Separator()
+                        }
                         unbanRequests.forEachIndexed { index, request ->
                             UnbanRequestRow(
                                 request = request,
@@ -1133,7 +1146,11 @@ internal fun BansList(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         if (reportsError != null) {
-                            ReportsLoadFailedNotice(onRetry = onRetryReports)
+                            LoadFailedNotice(
+                                message = Res.string.moderation_reports_load_failed,
+                                testTag = "reports-load-failed",
+                                onRetry = onRetryReports,
+                            )
                             if (reports.isNotEmpty()) Separator()
                         }
                         reports.forEachIndexed { index, report ->
@@ -3124,10 +3141,10 @@ private fun AutomodLoadFailedCard(onRetry: () -> Unit) {
     }
 }
 
-// The viewer-reports read failed: say so, with a quiet Outline Retry. It sits inside the reports card, so it never
-// competes with the page's primary action, and the list is never silently shown as empty.
+// A queue read (viewer reports, unban appeals) failed: say so, with a quiet Outline Retry. It sits inside the
+// queue's card, so it never competes with the page's primary action, and the list is never silently shown as empty.
 @Composable
-private fun ReportsLoadFailedNotice(onRetry: () -> Unit) {
+private fun LoadFailedNotice(message: StringResource, testTag: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -3136,11 +3153,11 @@ private fun ReportsLoadFailedNotice(onRetry: () -> Unit) {
         modifier =
             Modifier.fillMaxWidth()
                 .padding(horizontal = spacing.s4, vertical = spacing.s3)
-                .testTag("reports-load-failed"),
+                .testTag(testTag),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Text(
-            text = stringResource(Res.string.moderation_reports_load_failed),
+            text = stringResource(message),
             style = typography.sm,
             color = tokens.destructive,
         )

@@ -124,6 +124,45 @@ class AttentionSurfaceTest {
         onNodeWithText("Twitch weigerde de time-out: missing scope", substring = true).assertExists()
     }
 
+    private val unbanAppeal: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "unban-request:r1",
+            kind = "unban_request",
+            severity = "info",
+            titleKey = "attention_unban_request_title",
+            messageKey = "attention_unban_request_message",
+            parameters = mapOf("username" to "appealingviewer", "text" to "I was wrongly banned"),
+            deepLinkRoute = "moderation",
+        )
+
+    @Test
+    fun anUnbanAppealNamesTheViewerAndQuotesTheirText_andOpensModeration() = runComposeUiTest {
+        val navigated: MutableList<ShellRoute> = mutableListOf()
+        setContent {
+            Pinned("en") {
+                AttentionSurface(items = listOf(unbanAppeal), onNavigate = { navigated += it }, onDismiss = {})
+            }
+        }
+
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("appealingviewer asked to be unbanned").assertExists()
+        onNodeWithText("Appeal: I was wrongly banned").assertExists()
+
+        onNodeWithText("appealingviewer asked to be unbanned").performClick()
+        assertEquals(listOf(ShellRoute.Moderation), navigated)
+    }
+
+    @Test
+    fun anUnbanAppealRendersInDutch() = runComposeUiTest {
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(unbanAppeal), onNavigate = {}, onDismiss = {}) }
+        }
+
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("appealingviewer vraagt om een unban").assertExists()
+        onNodeWithText("Verzoek: I was wrongly banned").assertExists()
+    }
+
     @Test
     fun theSurfaceRendersInDutch() = runComposeUiTest {
         setContent {

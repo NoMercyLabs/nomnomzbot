@@ -304,11 +304,15 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Pending unban-request appeals (viewers appeal a ban on Twitch). Resilient — a missing scope / no
-        // broadcaster token degrades to an empty queue rather than failing the page.
+        // Pending unban-request appeals (viewers appeal a ban on Twitch). A failure is NOT "no appeals": the
+        // error stays in state so the screen says the list could not be loaded instead of showing an empty queue.
+        var unbanRequestsError: String? = null
         val unbanRequests: List<UnbanRequest> =
             when (val result: ApiResult<List<UnbanRequest>> = moderationApi.unbanRequests(channel.id)) {
-                is ApiResult.Failure -> emptyList()
+                is ApiResult.Failure -> {
+                    unbanRequestsError = result.error.message
+                    emptyList()
+                }
                 is ApiResult.Ok -> result.value
             }
 
@@ -458,6 +462,7 @@ class ModerationController(
                     moderators.isEmpty() &&
                     chatFilters.isEmpty() &&
                     unbanRequests.isEmpty() &&
+                    unbanRequestsError == null &&
                     reports.isEmpty() &&
                     reportsError == null &&
                     automodQueue.isEmpty() &&
@@ -491,6 +496,7 @@ class ModerationController(
                     chatFilters = chatFilters,
                     stats = stats,
                     unbanRequests = unbanRequests,
+                    unbanRequestsError = unbanRequestsError,
                     reports = reports,
                     reportsError = reportsError,
                     automodQueue = automodQueue,
@@ -1224,6 +1230,8 @@ class ModerationController(
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>): Unit = coroutineScope {
         // A viewer report filed or resolved anywhere is announced on the "viewer-reports" config domain.
         launch { hubEvents.onConfigChange("viewer-reports") { retryReports() } }
+        // An unban appeal filed or resolved anywhere is announced on the "unban-requests" config domain.
+        launch { hubEvents.onConfigChange("unban-requests") { retryUnbanRequests() } }
         hubEvents.collect { evt ->
             if (evt is HubEvent.AutoModQueueChanged) {
                 refreshAutomodQueue()
@@ -1285,6 +1293,28 @@ class ModerationController(
             val latest: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
             _userContext.value = latest.copy(context = result.value)
         }
+    }
+
+    /**
+     * Re-fetch the unban-request appeals alone (hub push, or the Retry on the failed-load notice). Same contract
+     * as [retryReports]: a good read replaces the list and clears the error, a failed one keeps the known list
+     * and records the error, and a non-Ready state falls back to a full [load].
+     */
+    suspend fun retryUnbanRequests() {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) {
+            load()
+            return
+        }
+        val result: ApiResult<List<UnbanRequest>> = moderationApi.unbanRequests(channel)
+        val latest: ModerationState = _state.value
+        if (latest !is ModerationState.Ready) return
+        _state.value =
+            when (result) {
+                is ApiResult.Ok -> latest.copy(unbanRequests = result.value, unbanRequestsError = null)
+                is ApiResult.Failure -> latest.copy(unbanRequestsError = result.error.message)
+            }
     }
 
     /**
@@ -1522,6 +1552,7 @@ sealed interface ModerationState {
         val chatFilters: List<ChatFilter> = emptyList(),
         val stats: ModerationStats = ModerationStats(),
         val unbanRequests: List<UnbanRequest> = emptyList(),
+        val unbanRequestsError: String? = null,
         val reports: List<ViewerReport> = emptyList(),
         // The message of a failed reports read, null when the last read succeeded. Never shown as an empty list.
         val reportsError: String? = null,
