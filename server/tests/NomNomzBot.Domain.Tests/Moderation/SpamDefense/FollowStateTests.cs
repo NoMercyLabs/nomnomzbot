@@ -84,22 +84,22 @@ public class FollowStateTests
     public void AnUnknownFollow_AddsNoRiskMark_ButANonFollowerAndABrandNewFollowerDo()
     {
         AccountRisk
-            .Assess(Account(400, FollowState.Unknown, 0))
+            .Assess(Account(400, FollowState.Unknown, 0), 10, 25)
             .Marks.Should()
             .NotContain(AccountRiskMark.NotFollowingOrBrandNewFollow);
 
         AccountRisk
-            .Assess(Account(400, FollowState.NotFollowing, 0))
+            .Assess(Account(400, FollowState.NotFollowing, 0), 10, 25)
             .Marks.Should()
             .Contain(AccountRiskMark.NotFollowingOrBrandNewFollow);
 
         AccountRisk
-            .Assess(Account(400, FollowState.Following, 2))
+            .Assess(Account(400, FollowState.Following, 2), 10, 25)
             .Marks.Should()
             .Contain(AccountRiskMark.NotFollowingOrBrandNewFollow);
 
         AccountRisk
-            .Assess(Account(400, FollowState.Following, 48))
+            .Assess(Account(400, FollowState.Following, 48), 10, 25)
             .Marks.Should()
             .NotContain(AccountRiskMark.NotFollowingOrBrandNewFollow);
     }
@@ -107,9 +107,11 @@ public class FollowStateTests
     [Fact]
     public void AnUnknownFollow_DoesNotRaiseTheCoefficient_OfAnOtherwiseOrdinaryYoungAccount()
     {
-        double unknown = AccountRisk.Assess(Account(20, FollowState.Unknown, 0)).Coefficient;
+        double unknown = AccountRisk
+            .Assess(Account(20, FollowState.Unknown, 0), 10, 25)
+            .Coefficient;
         double notFollowing = AccountRisk
-            .Assess(Account(20, FollowState.NotFollowing, 0))
+            .Assess(Account(20, FollowState.NotFollowing, 0), 10, 25)
             .Coefficient;
 
         notFollowing.Should().BeApproximately(unknown * 1.2, 1e-9);

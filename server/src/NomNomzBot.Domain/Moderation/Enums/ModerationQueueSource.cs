@@ -22,4 +22,7 @@ public enum ModerationQueueSource
 
     /// <summary>A viewer's heat crossed the channel's threshold and no automatic action was taken (S-HEAT-FLAG-HUMAN).</summary>
     HeatThreshold = 10,
+
+    /// <summary>Twitch flagged the chatter as a suspicious user (restricted or monitored) and a message arrived.</summary>
+    SuspiciousUser = 11,
 }

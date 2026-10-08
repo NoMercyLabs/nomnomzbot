@@ -210,6 +210,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.ViewerReport),
         // The bot-side standing rows (J.12) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding),
+        // Twitch's suspicious-user flag per chatter — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus),
         // The shared-ban trust web (J.9/J.9a) — navs ignored above.
         typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanSettings),
         typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel),
@@ -266,6 +268,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus> ChannelLowTrustStatuses =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels =>

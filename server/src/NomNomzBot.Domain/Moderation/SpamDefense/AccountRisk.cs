@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Moderation.Entities;
+
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
 /// <summary>A single account-shape observation, recorded whether or not it moves the coefficient.</summary>
@@ -93,6 +95,12 @@ public sealed record AccountFacts
     public double WatchTimeHoursThisChannel { get; init; }
     public double WatchTimeHoursInstanceWide { get; init; }
     public bool IsPartnerOrAffiliate { get; init; }
+
+    /// <summary>
+    /// Twitch's suspicious-user flag in this channel (<see cref="LowTrustStatuses"/>). Read by the trust
+    /// ladder only: <c>restricted</c> forces Untrusted, <c>active_monitoring</c> caps the tier at Newcomer.
+    /// </summary>
+    public string LowTrustStatus { get; init; } = LowTrustStatuses.None;
 }
 
 /// <summary>

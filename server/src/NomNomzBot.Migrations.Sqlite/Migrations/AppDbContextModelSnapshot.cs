@@ -7479,6 +7479,42 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("MediaShareRequests");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("BanEvasionEvaluation")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "TwitchUserId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelLowTrustStatuses");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding", b =>
                 {
                     b.Property<Guid>("Id")

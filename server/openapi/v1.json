@@ -137694,6 +137694,9 @@
                 "$ref": "#/components/schemas/UserTrustSummaryDto"
               }
             ]
+          },
+          "lowTrustStatus": {
+            "type": "string"
           }
         },
         "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
