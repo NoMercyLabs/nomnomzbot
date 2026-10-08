@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.vts.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -91,12 +92,12 @@ class VtsController(
     /**
      * Persist the connection config. [endpoint] defaults to `ws://localhost:8001` when blank;
      * [eventSubscriptionsMask] is carried back from the current row so a save never resets it. Reloads on
-     * success; surfaces the error on failure.
+     * success; a failure is handed back untouched so the card shows the reason next to Save (no toast on top).
      */
-    suspend fun saveConnection(mode: String, endpoint: String?, isEnabled: Boolean) {
-        val id: String = channelId ?: return failWrite(getString(Res.string.vts_no_channel_error))
-        val current: VtsConnection = (_state.value as? VtsUiState.Ready)?.connection ?: return failWrite(getString(Res.string.vts_no_channel_error))
-        afterWrite(
+    suspend fun saveConnection(mode: String, endpoint: String?, isEnabled: Boolean): ApiResult<Unit> {
+        val id: String = channelId ?: return noChannelFailure()
+        val current: VtsConnection = (_state.value as? VtsUiState.Ready)?.connection ?: return noChannelFailure()
+        val result: ApiResult<VtsConnection> =
             vtsApi.upsertConnection(
                 id,
                 UpsertVtsConnectionBody(
@@ -106,8 +107,17 @@ class VtsController(
                     isEnabled = isEnabled,
                 ),
             )
-        )
+        return when (result) {
+            is ApiResult.Ok -> {
+                refresh()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
     }
+
+    private suspend fun noChannelFailure(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(0, "NO_CHANNEL", getString(Res.string.vts_no_channel_error)))
 
     /**
      * Request a plugin token from VTS. BLOCKS up to ~60s while the streamer clicks "Allow" in the VTS popup.
