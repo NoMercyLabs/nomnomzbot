@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -291,7 +292,7 @@ fun TtsScreen(
                         scope.launch { controller.searchVoices(q, locale, gender, provider, accent, page) }
                     },
                     onSetByok = { provider, apiKey, region ->
-                        scope.launch { controller.setByokKey(provider, apiKey, region) }
+                        controller.setByokKey(provider, apiKey, region).toDialogResult()
                     },
                     onRemoveByok = { provider -> scope.launch { controller.removeByokKey(provider) } },
                     onAddLexicon = { phrase, replacement, kind ->
@@ -300,7 +301,7 @@ fun TtsScreen(
                     onUpdateLexicon = { id, phrase, replacement, kind ->
                         controller.updateLexiconEntry(id, phrase, replacement, kind).toDialogResult()
                     },
-                    onDeleteLexicon = { id -> scope.launch { controller.deleteLexiconEntry(id) } },
+                    onDeleteLexicon = { id -> controller.deleteLexiconEntry(id).toDialogResult() },
                     onSaveNamePronunciation = { value -> scope.launch { controller.saveNamePronunciation(value) } },
                 )
         }
@@ -382,11 +383,11 @@ private fun ReadyContent(
     onAssignViewerVoice: (userId: String, voiceId: String) -> Unit,
     onClearViewerVoice: (userId: String) -> Unit,
     onSearchVoices: (q: String, locale: String, gender: String, provider: String, accent: String, page: Int) -> Unit,
-    onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
+    onSetByok: suspend (provider: String, apiKey: String, region: String?) -> DialogResult,
     onRemoveByok: (provider: String) -> Unit,
     onAddLexicon: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onUpdateLexicon: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
-    onDeleteLexicon: (id: String) -> Unit,
+    onDeleteLexicon: suspend (id: String) -> DialogResult,
     onSaveNamePronunciation: (pronunciation: String) -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
@@ -690,7 +691,7 @@ internal fun VoicesTab(
     onPreviewFallback: (voiceId: String) -> Unit,
     byokConfig: TtsConfig,
     saving: Boolean,
-    onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
+    onSetByok: suspend (provider: String, apiKey: String, region: String?) -> DialogResult,
     onRemoveByok: (provider: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -764,7 +765,7 @@ internal fun PronunciationTab(
     manage: ManageDecision,
     onAdd: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onUpdate: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
-    onDelete: (id: String) -> Unit,
+    onDelete: suspend (id: String) -> DialogResult,
     nameError: String? = null,
 ) {
     val spacing = LocalSpacing.current
@@ -1268,7 +1269,7 @@ private fun ByokSection(
     config: TtsConfig,
     saving: Boolean,
     manage: ManageDecision,
-    onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
+    onSetByok: suspend (provider: String, apiKey: String, region: String?) -> DialogResult,
     onRemoveByok: (provider: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1328,7 +1329,7 @@ private fun ByokProviderRow(
     showRegion: Boolean,
     saving: Boolean,
     manage: ManageDecision,
-    onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
+    onSetByok: suspend (provider: String, apiKey: String, region: String?) -> DialogResult,
     onRemoveByok: (provider: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1337,6 +1338,9 @@ private fun ByokProviderRow(
 
     var apiKey: String by remember(providerKey) { mutableStateOf("") }
     var regionText: String by remember(providerKey, region) { mutableStateOf(region ?: "") }
+    var pending: Boolean by remember(providerKey) { mutableStateOf(false) }
+    var failure: DialogResult.Failed? by remember(providerKey) { mutableStateOf(null) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -1355,7 +1359,7 @@ private fun ByokProviderRow(
             value = apiKey,
             onValueChange = { apiKey = it },
             label = stringResource(Res.string.tts_byok_key_label),
-            enabled = !saving,
+            enabled = !saving && !pending,
             modifier = Modifier.fillMaxWidth(),
         )
         if (showRegion) {
@@ -1370,17 +1374,30 @@ private fun ByokProviderRow(
             ManageGate(decision = manage) { enabled ->
                 Button(
                     onClick = {
-                        onSetByok(providerKey, apiKey.trim(), if (showRegion) regionText.trim().ifBlank { null } else null)
-                        apiKey = ""
+                        pending = true
+                        failure = null
+                        scope.launch {
+                            val result: DialogResult =
+                                onSetByok(
+                                    providerKey,
+                                    apiKey.trim(),
+                                    if (showRegion) regionText.trim().ifBlank { null } else null,
+                                )
+                            pending = false
+                            when (result) {
+                                is DialogResult.Done -> apiKey = ""
+                                is DialogResult.Failed -> failure = result
+                            }
+                        }
                     },
-                    enabled = enabled && apiKey.isNotBlank() && !saving,
+                    enabled = enabled && apiKey.isNotBlank() && !saving && !pending,
                 ) {
                     Text(stringResource(Res.string.tts_byok_save))
                 }
             }
             if (hasKey) {
                 ManageGate(decision = manage) { enabled ->
-                    TextButton(onClick = { onRemoveByok(providerKey) }, enabled = enabled && !saving) {
+                    TextButton(onClick = { onRemoveByok(providerKey) }, enabled = enabled && !saving && !pending) {
                         Text(
                             text = stringResource(Res.string.tts_byok_remove),
                             color = if (enabled && !saving) tokens.destructive else tokens.mutedForeground,
@@ -1389,6 +1406,7 @@ private fun ByokProviderRow(
                 }
             }
         }
+        failure?.let { failed: DialogResult.Failed -> DialogActionError(failed) }
     }
 }
 
@@ -1552,7 +1570,7 @@ private fun PronunciationSection(
     manage: ManageDecision,
     onAdd: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onUpdate: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
-    onDelete: (id: String) -> Unit,
+    onDelete: suspend (id: String) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1637,10 +1655,7 @@ private fun PronunciationSection(
             confirmLabel = stringResource(Res.string.tts_lexicon_delete_confirm),
             dismissLabel = stringResource(Res.string.tts_lexicon_delete_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                onDelete(entry.id)
-            },
+            action = { onDelete(entry.id) },
             onDismiss = { pendingDelete = null },
         )
     }

@@ -556,7 +556,7 @@ class TtsControllerTest {
     }
 
     @Test
-    fun failed_lexicon_delete_still_announces_on_the_feedback_toast() = runTest {
+    fun failed_lexicon_delete_returns_the_reason_and_raises_no_toast() = runTest {
         val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
         ttsApi.lexiconEntries.add(
             TtsLexiconEntry(id = "lex-1", phrase = "brb", replacement = "be right back", matchKind = "word")
@@ -567,10 +567,11 @@ class TtsControllerTest {
         controller.load()
         ttsApi.lexiconWriteFailure = ApiError(409, "ALREADY_EXISTS", "duplicate rule")
 
-        controller.deleteLexiconEntry("lex-1")
+        val result: ApiResult<*> = controller.deleteLexiconEntry("lex-1")
 
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("duplicate rule"), feedback.only.formatArgs)
+        assertEquals("duplicate rule", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
+        assertEquals(listOf("brb"), (controller.state.value as TtsState.Ready).lexicon.map { it.phrase })
     }
 
     @Test

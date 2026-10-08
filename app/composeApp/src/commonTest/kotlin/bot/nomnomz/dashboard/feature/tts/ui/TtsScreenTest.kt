@@ -179,7 +179,7 @@ class TtsScreenTest {
                     onPreviewFallback = {},
                     byokConfig = TtsConfig(),
                     saving = false,
-                    onSetByok = { _, _, _ -> },
+                    onSetByok = { _, _, _ -> DialogResult.Done },
                     onRemoveByok = {},
                 )
             }
@@ -411,7 +411,7 @@ class TtsScreenTest {
                     onSaveName = {},
                     onAdd = { _, _, _ -> DialogResult.Done },
                     onUpdate = { _, _, _, _ -> DialogResult.Done },
-                    onDelete = {},
+                    onDelete = { DialogResult.Done },
                 )
             }
         }
