@@ -153,7 +153,7 @@ public class AccountAgeGateExecutorTests
         await _origin
             .DidNotReceiveWithAnyArgs()
             .TimeoutUserAsync(default, default!, default!, default);
-        await _origin.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!, default);
+        await _origin.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!);
         await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
         await _queue
             .Received(1)
