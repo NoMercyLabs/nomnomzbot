@@ -75,7 +75,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_action_applied
-import nomnomzbot.composeapp.generated.resources.feedback_action_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
 
@@ -1143,7 +1142,8 @@ class ModerationController(
 
     /**
      * Apply a moderation [action] (`"ban"` or `"timeout"`) to [targetUserId]. On success the page reloads so the new
-     * ban appears. On failure the error surfaces on the Ready state without losing the lists.
+     * ban appears and the frame announces it. The outcome is handed back untouched: the Moderate dialog stays open
+     * until it arrives and shows a failure inline, so no failure toast is raised here.
      * [durationSeconds] is only required for `"timeout"` (ignored for ban). [reason] is optional.
      */
     suspend fun performAction(
@@ -1151,18 +1151,13 @@ class ModerationController(
         targetUserId: String,
         durationSeconds: Int?,
         reason: String?,
-    ) {
-        val channel: String = channelId ?: return
-        when (
-            val result: ApiResult<Unit> =
-                moderationApi.performAction(channel, action, targetUserId, durationSeconds, reason)
-        ) {
-            is ApiResult.Ok -> {
-                feedback.success(Res.string.feedback_action_applied)
-                load()
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.feedback_action_failed, result.error.message)
-        }
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+
+        val result: ApiResult<Unit> =
+            moderationApi.performAction(channel, action, targetUserId, durationSeconds, reason)
+        if (result is ApiResult.Ok) feedback.success(Res.string.feedback_action_applied)
+        return afterDialogWrite(result)
     }
 
     /**

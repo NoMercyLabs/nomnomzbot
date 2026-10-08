@@ -65,8 +65,13 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionConfirm
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
@@ -344,7 +349,6 @@ import nomnomzbot.composeapp.generated.resources.moderation_rule_type_emotes
 import nomnomzbot.composeapp.generated.resources.moderation_rule_type_links
 import nomnomzbot.composeapp.generated.resources.moderation_rule_type_profanity
 import nomnomzbot.composeapp.generated.resources.moderation_rule_type_spam
-import nomnomzbot.composeapp.generated.resources.moderation_action_user_id_required
 import nomnomzbot.composeapp.generated.resources.moderation_announce_action
 import nomnomzbot.composeapp.generated.resources.moderation_announce_color_blue
 import nomnomzbot.composeapp.generated.resources.moderation_announce_color_green
@@ -698,7 +702,7 @@ fun ModerationScreen(
                     searchBanTargets = { query -> controller.searchBanTargets(query) },
                     searchChannels = { query -> controller.searchChannels(query) },
                     onPerformAction = { action, userId, duration, reason ->
-                        scope.launch { controller.performAction(action, userId, duration, reason) }
+                        controller.performAction(action, userId, duration, reason)
                     },
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
                     onAddModerator = { id -> scope.launch { controller.addModerator(id) } },
@@ -879,7 +883,8 @@ internal fun BansList(
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchBanTargets: suspend (query: String) -> BanTargetSearch,
     searchChannels: suspend (query: String) -> List<PickerOption>,
-    onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onPerformAction:
+        suspend (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> ApiResult<Unit>,
     onToggleShield: (Boolean) -> Unit,
     onAddModerator: (targetTwitchUserId: String) -> Unit,
     onRemoveModerator: suspend (userId: String) -> ApiResult<Unit>,
@@ -1843,8 +1848,7 @@ internal fun BansList(
         ModerateViewerDialog(
             searchBanTargets = searchBanTargets,
             onConfirm = { action, userId, duration, reason ->
-                onPerformAction(action, userId, duration, reason)
-                showActionDialog = false
+                onPerformAction(action, userId, duration, reason).toDialogResult()
             },
             onDismiss = { showActionDialog = false },
         )
@@ -1925,7 +1929,8 @@ private fun durationPresetLabel(seconds: Int?): String =
 @Composable
 internal fun ModerateViewerDialog(
     searchBanTargets: suspend (query: String) -> BanTargetSearch,
-    onConfirm: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onConfirm:
+        suspend (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -1942,13 +1947,16 @@ internal fun ModerateViewerDialog(
     var durationMenuOpen: Boolean by remember { mutableStateOf(false) }
     var durationText: String by remember { mutableStateOf("600") }
     var isBan: Boolean by remember { mutableStateOf(true) }
-    var showUserIdError: Boolean by remember { mutableStateOf(false) }
     // The latest search outcome, so an empty result reads as "no such Twitch account" or "lookup failed" rather
     // than the generic "no matching viewers".
     var lastSearch: BanTargetSearch? by remember { mutableStateOf(null) }
+    // The dialog stays open until the server answers: a failed ban shows its reason inline, a success closes it.
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!state.pending) onDismiss() },
+        dismissOnBackPress = !state.pending,
+        dismissOnClickOutside = !state.pending,
         title = {
             Text(
                 text = stringResource(Res.string.moderation_action_dialog_title),
@@ -1966,7 +1974,7 @@ internal fun ModerateViewerDialog(
                         found.options
                     },
                     selected = target,
-                    onSelect = { ref -> target = ref; showUserIdError = false },
+                    onSelect = { ref -> target = ref },
                     onClear = { target = null },
                     emptyText =
                         when {
@@ -1978,13 +1986,6 @@ internal fun ModerateViewerDialog(
                     emptyTextIsError = lastSearch?.lookupFailed == true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (showUserIdError) {
-                    Text(
-                        text = stringResource(Res.string.moderation_action_user_id_required),
-                        style = typography.xs,
-                        color = tokens.destructive,
-                    )
-                }
                 TabsList {
                     TabsTrigger(
                         selected = isBan,
@@ -2045,34 +2046,35 @@ internal fun ModerateViewerDialog(
                     label = stringResource(Res.string.moderation_action_reason),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {
             // A ban or a timeout is the destructive half of this dialog, so it wears the destructive
             // variant rather than the same primary pill a save button uses. The person clicking it is
-            // about to remove someone from their channel.
-            Button(
-                variant = ButtonVariant.Destructive,
-                onClick = {
-                    val picked: PickerRef? = target
-                    if (picked == null) {
-                        showUserIdError = true
-                        return@Button
-                    }
+            // about to remove someone from their channel. It stays disabled until a viewer is picked, so the
+            // action can never fire against a hand-typed guess.
+            DialogActionConfirm(
+                state = state,
+                label = stringResource(Res.string.moderation_action_confirm),
+                enabled = target != null,
+                destructive = true,
+                action = {
+                    val picked: PickerRef = checkNotNull(target)
                     val action: String = if (isBan) "ban" else "timeout"
                     val duration: Int? =
                         if (!isBan) durationText.trim().toIntOrNull()?.takeIf { it > 0 } else null
                     val reasonOrNull: String? = reason.trim().takeIf { it.isNotEmpty() }
                     onConfirm(action, picked.id, duration, reasonOrNull)
                 },
-            ) {
-                Text(stringResource(Res.string.moderation_action_confirm))
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.moderation_action_dismiss))
-            }
+            DialogActionDismiss(
+                state = state,
+                label = stringResource(Res.string.moderation_action_dismiss),
+                onDismiss = onDismiss,
+            )
         },
     )
 }

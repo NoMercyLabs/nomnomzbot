@@ -78,6 +78,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_action_applied
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -1285,6 +1286,40 @@ class ModerationControllerModeratorTests {
     }
 
     @Test
+    fun a_failed_ban_hands_the_failure_back_to_the_dialog_and_raises_no_toast_and_no_reload() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.performActionResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))
+        val feedback = RecordingFeedback()
+        val controller =
+            ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi(), feedback)
+        controller.load()
+
+        val result: ApiResult<Unit> = controller.performAction("ban", "777", null, "spam")
+
+        assertEquals(listOf(listOf<String?>("ch1", "ban", "777", null, "spam")), api.performedActions)
+        assertEquals("Missing scope.", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
+        assertEquals(1, api.bansCalls)
+    }
+
+    @Test
+    fun a_successful_timeout_returns_ok_announces_success_and_reloads() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList()), ApiResult.Ok(emptyList())))
+        val feedback = RecordingFeedback()
+        val controller =
+            ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi(), feedback)
+        controller.load()
+
+        val result: ApiResult<Unit> = controller.performAction("timeout", "777", 600, null)
+
+        assertTrue(result is ApiResult.Ok)
+        assertEquals(listOf(listOf<String?>("ch1", "timeout", "777", "600", null)), api.performedActions)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_action_applied, feedback.only.label)
+        assertEquals(2, api.bansCalls)
+    }
+
+    @Test
     fun clearChat_callsTheApi() = runTest {
         val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
         val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
@@ -1651,13 +1686,19 @@ internal class FakeModerationApi(
         return createRuleResult ?: ApiResult.Ok(ModerationRule(id = 999, name = body.name, isEnabled = true))
     }
 
+    var performActionResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    val performedActions: MutableList<List<String?>> = mutableListOf()
+
     override suspend fun performAction(
         channelId: String,
         action: String,
         targetUserId: String,
         durationSeconds: Int?,
         reason: String?,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+    ): ApiResult<Unit> {
+        performedActions.add(listOf(channelId, action, targetUserId, durationSeconds?.toString(), reason))
+        return performActionResult
+    }
 
     override suspend fun stats(channelId: String): ApiResult<ModerationStats> = ApiResult.Ok(ModerationStats())
 

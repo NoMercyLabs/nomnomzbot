@@ -1166,7 +1166,6 @@
     <string name="moderation_action_type_timeout">Time-out</string>
     <string name="moderation_action_confirm">Toepassen</string>
     <string name="moderation_action_dismiss">Annuleren</string>
-    <string name="moderation_action_user_id_required">Voer een Twitch gebruikers-ID in</string>
     <string name="tts_toggle_enabled">TTS inschakelen</string>
     <string name="tts_max_length_invalid">Voer een getal tussen 1 en 500 in.</string>
     <string name="tts_permission_everyone">Iedereen</string>
@@ -2024,7 +2023,6 @@
     <string name="feedback_unbanned">Verbanning opgeheven</string>
     <string name="feedback_unban_failed">Verbanning opheffen mislukt: %1$s</string>
     <string name="feedback_action_applied">Actie uitgevoerd</string>
-    <string name="feedback_action_failed">Actie mislukt: %1$s</string>
 
     <!-- Twitch application credentials (Settings card). -->
     <string name="twitch_app_section_title">Twitch-applicatie</string>
