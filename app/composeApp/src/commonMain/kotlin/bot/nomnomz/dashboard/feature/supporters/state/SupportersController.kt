@@ -90,13 +90,15 @@ class SupportersController(
 
     /**
      * Disconnect the [sourceKey] provider (backend DELETE) — stops ingest for that money source. Reloads on
-     * success; surfaces the error over the kept tiles on failure.
+     * success. The result goes back to the confirm dialog, which shows a failure inline (no toast).
      */
-    suspend fun disconnect(sourceKey: String) {
-        afterConnectionWrite(
-            supportersApi.deleteConnection(sourceKey),
-            success = Res.string.feedback_supporter_connection_removed,
-        )
+    suspend fun disconnect(sourceKey: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = supportersApi.deleteConnection(sourceKey)
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_supporter_connection_removed)
+            loadConnections()
+        }
+        return result
     }
 
     // A connection write either reloads the tiles AND announces success on the frame, or surfaces its error over
