@@ -177,14 +177,12 @@ public sealed class ChatFilterOriginPlatformTests
 
     private static async Task AssertHelixUntouched(Harness h)
     {
-        await h.Helix.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!, default);
+        await h.Helix.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
         await h
             .Helix.DidNotReceiveWithAnyArgs()
-            .TimeoutUserAsync(default, default!, default, default!, default);
-        await h.Helix.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!, default);
-        await h
-            .Helix.DidNotReceiveWithAnyArgs()
-            .WarnChatUserAsync(default, default!, default!, default);
+            .TimeoutUserAsync(default, default!, default, default!);
+        await h.Helix.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!);
+        await h.Helix.DidNotReceiveWithAnyArgs().WarnChatUserAsync(default, default!, default!);
     }
 
     [Fact]
@@ -221,9 +219,7 @@ public sealed class ChatFilterOriginPlatformTests
                 FilterReason,
                 Arg.Any<CancellationToken>()
             );
-        await h
-            .Origin.DidNotReceiveWithAnyArgs()
-            .DeleteMessageAsync(default, default!, default!, default);
+        await h.Origin.DidNotReceiveWithAnyArgs().DeleteMessageAsync(default, default!, default!);
         await AssertHelixUntouched(h);
         h.Bus.Published.Should().BeEmpty();
         (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
@@ -319,12 +315,10 @@ public sealed class ChatFilterOriginPlatformTests
         await h
             .Helix.Received(1)
             .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        await h.Origin.DidNotReceiveWithAnyArgs().DeleteMessageAsync(default, default!, default!);
         await h
             .Origin.DidNotReceiveWithAnyArgs()
-            .DeleteMessageAsync(default, default!, default!, default);
-        await h
-            .Origin.DidNotReceiveWithAnyArgs()
-            .TimeoutUserAsync(default, default!, default!, default, default, default);
+            .TimeoutUserAsync(default, default!, default!, default);
         (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
     }
 
@@ -358,13 +352,11 @@ public sealed class ChatFilterOriginPlatformTests
                 FilterReason,
                 Arg.Any<CancellationToken>()
             );
-        await h
-            .Origin.DidNotReceiveWithAnyArgs()
-            .BanUserAsync(default, default!, default!, default, default);
+        await h.Origin.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!);
         (await h.Verify().ModerationEscalationStates.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
         await AssertHelixUntouched(h);
         (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
     }
@@ -394,9 +386,7 @@ public sealed class ChatFilterOriginPlatformTests
         await h.Handler.HandleAsync(Message(AuthEnums.Platform.Kick, "buy cheap spam now"));
 
         (await h.Verify().ModerationQueueItems.CountAsync()).Should().Be(0);
-        await h
-            .Origin.DidNotReceiveWithAnyArgs()
-            .DeleteMessageAsync(default, default!, default!, default);
+        await h.Origin.DidNotReceiveWithAnyArgs().DeleteMessageAsync(default, default!, default!);
         await AssertHelixUntouched(h);
         (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(0);
     }
