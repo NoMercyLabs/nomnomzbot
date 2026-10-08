@@ -35,7 +35,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_deleted
-import nomnomzbot.composeapp.generated.resources.feedback_picklist_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_saved
 import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
@@ -110,27 +109,30 @@ class PickListsController(
         }
     }
 
-    /** Create a pick-list, then reload so the new row appears. Surfaces the error on failure. */
-    suspend fun createPickList(name: String, description: String?, items: List<String>) {
+    /** Create a pick-list, then reload so the new row appears. A failure is returned to the editor dialog. */
+    suspend fun createPickList(name: String, description: String?, items: List<String>): ApiResult<Unit> =
         afterWrite(
             pickListsApi.create(
                 CreatePickListBody(name.trim(), description.orNullIfBlank(), items.cleaned()),
             )
         )
-    }
 
     /**
      * Edit a pick-list's name/description/items, addressed by its [id]. The [items] list fully replaces the stored
-     * entries. Reloads on success. Surfaces the error on failure.
+     * entries. Reloads on success. A failure is returned to the editor dialog.
      */
-    suspend fun updatePickList(id: String, name: String, description: String?, items: List<String>) {
+    suspend fun updatePickList(
+        id: String,
+        name: String,
+        description: String?,
+        items: List<String>,
+    ): ApiResult<Unit> =
         afterWrite(
             pickListsApi.update(
                 id,
                 UpdatePickListBody(name.trim(), description.orNullIfBlank(), items.cleaned()),
             )
         )
-    }
 
     /** Delete a pick-list, addressed by its [id]. Reloads on success. Surfaces the error on failure. */
 
@@ -170,21 +172,14 @@ class PickListsController(
         _preview.value = null
     }
 
-    // A write either reloads the list AND announces success on the frame, or surfaces its error over the
-    // current Ready list without losing it (failure) — so a failed edit/delete leaves the page intact with a
-    // visible reason AND a frame-level error message. [success] lets a delete say "Deleted" while the rest
-    // default to "Saved".
-    private suspend fun afterWrite(
-        result: ApiResult<Unit>,
-        success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_picklist_saved,
-    ) {
-        when (result) {
-            is ApiResult.Ok -> {
-                feedback.success(success)
-                load()
-            }
-            is ApiResult.Failure -> failWrite(result.error.message)
+    // A write either reloads the list AND announces success on the frame, or hands the failure back to the
+    // editor dialog (shown inline there; no toast, so the reason is never shown twice). The page stays intact.
+    private suspend fun afterWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_picklist_saved)
+            load()
         }
+        return result
     }
 
     /** The published platform pick-list templates this channel can install. */
@@ -208,18 +203,6 @@ class PickListsController(
             load()
         }
         return installed
-    }
-
-    // The page is already showing content (Ready or Empty) — announce on the shell-level feedback toast rather
-    // than a local banner. Only when the page has nothing to show yet does a failure become the page's own
-    // Error state.
-    private fun failWrite(detail: String) {
-        val current: PickListsState = _state.value
-        if (current is PickListsState.Ready || current is PickListsState.Empty) {
-            feedback.error(Res.string.feedback_picklist_save_failed, detail)
-        } else {
-            _state.value = PickListsState.Error(detail)
-        }
     }
 
     // The description is sent as null (omitted from the wire body) when the operator leaves it blank — an empty
