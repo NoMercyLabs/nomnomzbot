@@ -53,12 +53,14 @@ class VtsControllerLocalizationTest {
                     feedback,
                 )
 
-            controller.saveConnection(mode = "direct", endpoint = null, isEnabled = true)
+            // The save hands the failure back to the card (shown next to Save), so no toast is raised.
+            val result: ApiResult<Unit> = controller.saveConnection(mode = "direct", endpoint = null, isEnabled = true)
 
             assertEquals(
-                listOf<Any>("Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals."),
-                feedback.only.formatArgs,
+                "Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.",
+                (result as ApiResult.Failure).error.message,
             )
+            assertEquals(0, feedback.messages.size)
         } finally {
             Locale.setDefault(original)
         }

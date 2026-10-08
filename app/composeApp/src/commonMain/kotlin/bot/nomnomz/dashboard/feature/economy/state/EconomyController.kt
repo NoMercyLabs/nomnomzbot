@@ -356,22 +356,23 @@ class EconomyController(
 
     /**
      * Freeze or unfreeze a viewer's account ([frozen]), then reload so the row reflects the new state. A frozen
-     * account can neither earn nor spend. No-ops when no channel is loaded; surfaces the error on the current
-     * Ready state (the page's [EconomyState.Ready.saveError] slot) on failure without losing the loaded page.
+     * account can neither earn nor spend. This is the write behind the freeze confirm: a failure is handed back
+     * untouched so the dialog shows the reason inline. See [unfreezeAccount] for the one-click direction.
      */
-    suspend fun freezeAccount(viewerUserId: String, frozen: Boolean) {
+    suspend fun freezeAccount(viewerUserId: String, frozen: Boolean): ApiResult<Unit> {
+        val target: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = economyApi.freezeAccount(target, viewerUserId, frozen)
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    /**
+     * Unfreeze a viewer's account with no confirm (it only restores access), then reload. A failure lands on the
+     * current Ready state's [EconomyState.Ready.saveError] without losing the loaded page.
+     */
+    suspend fun unfreezeAccount(viewerUserId: String) {
         val target: String = channelId ?: return
-        when (
-            val result: ApiResult<Unit> = economyApi.freezeAccount(target, viewerUserId, frozen)
-        ) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: EconomyState = _state.value
-                if (current is EconomyState.Ready) {
-                    _state.value = current.copy(saveError = result.error.message)
-                }
-            }
-        }
+        afterWrite(economyApi.freezeAccount(target, viewerUserId, false))
     }
 
     /**

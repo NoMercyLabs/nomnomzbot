@@ -1309,6 +1309,7 @@
     <string name="songrequests_ban_dismiss">Annuleren</string>
     <string name="songrequests_paid_badge">Betaald</string>
     <string name="songrequests_action_error">Afspelen aansturen mislukt: %1$s</string>
+    <string name="songrequests_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="songrequests_queue_title">Wachtrij</string>
     <string name="songrequests_config_title">Verzoekinstellingen</string>
     <string name="songrequests_config_enabled">Verzoekjes ingeschakeld</string>
@@ -1564,6 +1565,9 @@
     <string name="economy_account_freeze">Bevriezen</string>
     <string name="economy_account_unfreeze">Deblokkeren</string>
     <string name="economy_account_freeze_action">%1$s bevriezen</string>
+    <string name="economy_account_freeze_confirm_title">%1$s bevriezen?</string>
+    <string name="economy_account_freeze_confirm_message">Een bevroren account kan niets verdienen of uitgeven totdat je het deblokkeert.</string>
+    <string name="economy_account_freeze_confirm_cancel">Annuleren</string>
     <string name="economy_account_unfreeze_action">%1$s deblokkeren</string>
     <string name="economy_earning_title">Verdienregels</string>
     <string name="economy_earning_empty">Nog geen verdienregels</string>

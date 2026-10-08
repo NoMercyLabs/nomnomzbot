@@ -178,10 +178,7 @@ class ViewerProfileControllerTest {
     }
 
     @Test
-    fun a_rejected_override_message_surfaces_the_backends_reason_on_the_page_banner() = runTest {
-        // A caller that fires-and-forgets the write (the Profile screen's overrides section calls this but a
-        // caller could ignore the return) must still see the failure — via the SAME shell-level feedback toast
-        // every other write on this page uses, not a silently swallowed error.
+    fun a_rejected_override_message_returns_the_backends_reason_without_a_toast() = runTest {
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile(twitchId = "tw-1")))
         val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
         moderationApi.setShoutoutOverrideResult = ApiResult.Failure(ApiError(400, "BAD_REQUEST", "Template too long."))
@@ -192,8 +189,8 @@ class ViewerProfileControllerTest {
         val returned: String? = controller.saveOverrideMessage("x".repeat(2000))
 
         assertEquals("Template too long.", returned)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("Template too long."), feedback.only.formatArgs)
+        // The form shows the reason next to Save; a toast as well would show it twice.
+        assertTrue(feedback.messages.isEmpty())
         // No reload happened on failure — the profile still reflects the PRE-write state.
         assertEquals(1, communityApi.profileCallCount)
     }
@@ -319,7 +316,7 @@ class ViewerProfileControllerTest {
     }
 
     @Test
-    fun a_failed_add_history_note_leaves_the_notes_list_and_toasts_the_error() = runTest {
+    fun a_failed_add_history_note_leaves_the_notes_list_and_returns_the_reason_without_a_toast() = runTest {
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
         val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
         moderationApi.addHistoryNoteResult = ApiResult.Failure(ApiError(400, "BAD_REQUEST", "Note too long."))
@@ -327,10 +324,11 @@ class ViewerProfileControllerTest {
         val controller = controller(communityApi = communityApi, moderationApi = moderationApi, feedback = feedback)
         controller.load("u1")
 
-        controller.addHistoryNote("x")
+        val returned: String? = controller.addHistoryNote("x")
 
+        assertEquals("Note too long.", returned)
         assertTrue((controller.state.value as ViewerProfileState.Ready).notes.isEmpty())
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertTrue(feedback.messages.isEmpty())
     }
 
     private fun controller(

@@ -1312,6 +1312,7 @@
     <string name="songrequests_ban_dismiss">Cancel</string>
     <string name="songrequests_paid_badge">Paid</string>
     <string name="songrequests_action_error">Could not control playback: %1$s</string>
+    <string name="songrequests_no_channel_error">No active channel — reconnect and try again.</string>
     <string name="songrequests_queue_title">Queue</string>
     <string name="songrequests_config_title">Song Request Settings</string>
     <string name="songrequests_config_enabled">Song requests enabled</string>
@@ -1567,6 +1568,9 @@
     <string name="economy_account_freeze">Freeze</string>
     <string name="economy_account_unfreeze">Unfreeze</string>
     <string name="economy_account_freeze_action">Freeze %1$s</string>
+    <string name="economy_account_freeze_confirm_title">Freeze %1$s?</string>
+    <string name="economy_account_freeze_confirm_message">A frozen account can neither earn nor spend until you unfreeze it.</string>
+    <string name="economy_account_freeze_confirm_cancel">Cancel</string>
     <string name="economy_account_unfreeze_action">Unfreeze %1$s</string>
     <string name="economy_earning_title">Earning rules</string>
     <string name="economy_earning_empty">No earning rules yet</string>

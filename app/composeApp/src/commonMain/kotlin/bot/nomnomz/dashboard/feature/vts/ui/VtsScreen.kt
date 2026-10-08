@@ -53,6 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.VtsConnection
 import bot.nomnomz.dashboard.core.network.VtsModelInventory
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -143,9 +144,7 @@ fun VtsScreen(controller: VtsController, role: ManagementRole?) {
                         connection = current.connection,
                         manage = configManage,
                         controller = controller,
-                        onSave = { mode, endpoint, enabled ->
-                            scope.launch { controller.saveConnection(mode, endpoint, enabled) }
-                        },
+                        onSave = { mode, endpoint, enabled -> controller.saveConnection(mode, endpoint, enabled) },
                         onRotate = { scope.launch { controller.rotateBridgeToken() } },
                     )
                     ControlCard(
@@ -164,13 +163,18 @@ private fun ConnectionCard(
     connection: VtsConnection,
     manage: ManageDecision,
     controller: VtsController,
-    onSave: (mode: String, endpoint: String?, enabled: Boolean) -> Unit,
+    onSave: suspend (mode: String, endpoint: String?, enabled: Boolean) -> ApiResult<Unit>,
     onRotate: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
+
+    // Save waits for the server: pending disables the button (no second write), a failure keeps every typed
+    // value and shows the reason next to Save.
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
 
     var mode: String by remember(connection.mode) { mutableStateOf(connection.mode) }
     var endpoint: String by remember(connection.endpoint) { mutableStateOf(connection.endpoint) }
@@ -223,11 +227,29 @@ private fun ConnectionCard(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
                 ManageGate(decision = manage) { gateEnabled ->
-                    Button(onClick = { onSave(mode, endpoint.ifBlank { null }, enabled) }, enabled = gateEnabled) {
+                    Button(
+                        onClick = {
+                            saving = true
+                            saveError = null
+                            scope.launch {
+                                val result: ApiResult<Unit> = onSave(mode, endpoint.ifBlank { null }, enabled)
+                                saving = false
+                                if (result is ApiResult.Failure) saveError = result.error.message
+                            }
+                        },
+                        enabled = gateEnabled && !saving,
+                        loading = saving,
+                    ) {
                         Text(text = stringResource(Res.string.vts_save))
                     }
+                }
+                saveError?.let { detail ->
+                    Text(text = detail, style = typography.sm, color = tokens.destructive)
                 }
                 if (mode == "bridge") {
                     ManageGate(decision = manage) { gateEnabled ->
