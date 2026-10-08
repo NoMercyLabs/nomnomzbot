@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -71,11 +72,6 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         if (@event.IsModerator || @event.IsBroadcaster)
             return;
 
-        // Enforcement rides Helix (timeout/ban/delete) — Twitch-only until a per-platform moderation
-        // seam exists. Flagging without the ability to act would be a lie, so non-Twitch skips entirely.
-        if (@event.Provider != AuthEnums.Platform.Twitch)
-            return;
-
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
             return;
@@ -128,6 +124,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
                 @event.UserLogin,
                 @event.UserDisplayName,
                 @event.MessageId,
+                @event.Provider,
                 cancellationToken
             );
 
@@ -326,6 +323,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         string userLogin,
         string userDisplayName,
         string messageId,
+        string provider,
         CancellationToken ct
     )
     {
@@ -337,23 +335,37 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
             {
                 case "timeout":
                 case "ban":
-                    await ApplyAccountActionAsync(
-                        scope,
-                        rule,
-                        broadcasterId,
-                        userId,
-                        userLogin,
-                        userDisplayName,
-                        ct
-                    );
+                    if (provider == AuthEnums.Platform.Twitch)
+                        await ApplyAccountActionAsync(
+                            scope,
+                            rule,
+                            broadcasterId,
+                            userId,
+                            userLogin,
+                            userDisplayName,
+                            ct
+                        );
+                    else
+                        await ApplyOriginAccountActionAsync(
+                            scope,
+                            rule,
+                            broadcasterId,
+                            userId,
+                            provider,
+                            ct
+                        );
                     break;
 
                 case "delete":
                     // Deleting a message is not an action against the account, so it goes straight to
-                    // Helix. Only timeouts and bans are offences the ladder needs to remember.
-                    Result deleted = await scope
-                        .ServiceProvider.GetRequiredService<ITwitchModerationApi>()
-                        .DeleteChatMessageAsync(broadcasterId, messageId, ct);
+                    // the platform it arrived on. Only timeouts and bans are offences the ladder needs to remember.
+                    Result deleted = await DeleteMessageAsync(
+                        scope,
+                        broadcasterId,
+                        messageId,
+                        provider,
+                        ct
+                    );
                     if (deleted.IsFailure)
                         await ReportFailedDeleteAsync(
                             scope,
@@ -381,6 +393,31 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
                 userId
             );
         }
+    }
+
+    /// <summary>
+    /// Twitch goes straight to Helix. Any other platform goes through <see cref="IInboundOriginModerator"/>
+    /// with the message's own provider, never Helix; a platform that cannot act fails like a refused Twitch delete.
+    /// </summary>
+    private static async Task<Result> DeleteMessageAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        string messageId,
+        string provider,
+        CancellationToken ct
+    )
+    {
+        if (provider == AuthEnums.Platform.Twitch)
+            return await scope
+                .ServiceProvider.GetRequiredService<ITwitchModerationApi>()
+                .DeleteChatMessageAsync(broadcasterId, messageId, ct);
+
+        InboundModerationOutcome outcome = await scope
+            .ServiceProvider.GetRequiredService<IInboundOriginModerator>()
+            .DeleteMessageAsync(broadcasterId, provider, messageId, ct);
+        return outcome.Status == InboundModerationStatus.Done
+            ? Result.Success()
+            : Result.Failure(outcome.Reason ?? "The platform could not carry out the action.");
     }
 
     /// <summary>
@@ -420,6 +457,46 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
                     Error = error ?? "unknown error",
                 },
                 ct
+            );
+    }
+
+    /// <summary>
+    /// A timeout or ban for a Kick or YouTube message goes through <see cref="IInboundOriginModerator"/> with
+    /// the message's provider. <see cref="IModerationService"/> and the escalation ladder are keyed to Twitch
+    /// ids and Helix, so neither is consulted; a refusal is logged like a failed Twitch action.
+    /// </summary>
+    private async Task ApplyOriginAccountActionAsync(
+        IServiceScope scope,
+        AutoModRule rule,
+        Guid broadcasterId,
+        string userId,
+        string provider,
+        CancellationToken ct
+    )
+    {
+        IInboundOriginModerator origin =
+            scope.ServiceProvider.GetRequiredService<IInboundOriginModerator>();
+        string reason = rule.Reason ?? rule.Name;
+
+        InboundModerationOutcome outcome =
+            rule.Action.ToLowerInvariant() == "ban"
+                ? await origin.BanUserAsync(broadcasterId, provider, userId, reason, ct)
+                : await origin.TimeoutUserAsync(
+                    broadcasterId,
+                    provider,
+                    userId,
+                    rule.DurationSeconds ?? DefaultTimeoutSeconds,
+                    reason,
+                    ct
+                );
+
+        if (outcome.Status != InboundModerationStatus.Done)
+            _logger.LogWarning(
+                "Auto-mod '{Action}' failed for user {UserId} in {BroadcasterId}: {Error}",
+                rule.Action,
+                userId,
+                broadcasterId,
+                outcome.Reason
             );
     }
 
