@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.tts.state
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -173,21 +174,19 @@ class TtsController(
 
     /**
      * Add a pronunciation rule ([phrase] spoken as [replacement], matched per [matchKind]) and refresh the
-     * rule list on success. A failure (e.g. a duplicate phrase) surfaces on the Ready state's lexicon panel
-     * without dropping the loaded config.
+     * rule list on success. The write's result goes back to the form dialog, which shows a failure (e.g. a
+     * duplicate phrase) inline; no toast is raised, so the reason shows once.
      */
-    suspend fun addLexiconEntry(phrase: String, replacement: String, matchKind: String) {
-        mutateLexicon { channel ->
+    suspend fun addLexiconEntry(phrase: String, replacement: String, matchKind: String): ApiResult<*> =
+        mutateLexicon(announceFailure = false) { channel ->
             ttsApi.createLexiconEntry(channel, UpsertTtsLexiconEntryBody(phrase, replacement, matchKind))
         }
-    }
 
-    /** Rewrite the rule [entryId], then refresh the list. Failures surface on the lexicon panel. */
-    suspend fun updateLexiconEntry(entryId: String, phrase: String, replacement: String, matchKind: String) {
-        mutateLexicon { channel ->
+    /** Rewrite the rule [entryId], then refresh the list. The result goes back to the form dialog (no toast). */
+    suspend fun updateLexiconEntry(entryId: String, phrase: String, replacement: String, matchKind: String): ApiResult<*> =
+        mutateLexicon(announceFailure = false) { channel ->
             ttsApi.updateLexiconEntry(channel, entryId, UpsertTtsLexiconEntryBody(phrase, replacement, matchKind))
         }
-    }
 
     /**
      * Save how TTS says the channel's own name. A blank [pronunciation] clears it. On success the state holds
@@ -214,21 +213,26 @@ class TtsController(
 
     /** Delete the rule [entryId], then refresh the list. Failures surface on the lexicon panel. */
     suspend fun deleteLexiconEntry(entryId: String) {
-        mutateLexicon { channel -> ttsApi.deleteLexiconEntry(channel, entryId) }
+        mutateLexicon(announceFailure = true) { channel -> ttsApi.deleteLexiconEntry(channel, entryId) }
     }
 
     // Run one lexicon write, then re-fetch the authoritative list on success (the backend orders and
-    // de-duplicates — the UI never guesses). On failure the error lands on the panel, the list stays put.
-    private suspend fun mutateLexicon(write: suspend (channelId: String) -> ApiResult<*>) {
-        val channel: String = channelId ?: return
+    // de-duplicates — the UI never guesses). On failure the list stays put; the error is a toast only when
+    // [announceFailure] (a delete has no form to show it in), otherwise the caller shows the returned result.
+    private suspend fun mutateLexicon(
+        announceFailure: Boolean,
+        write: suspend (channelId: String) -> ApiResult<*>,
+    ): ApiResult<*> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, "NO_CHANNEL", ""))
         val current: TtsState = _state.value
-        if (current !is TtsState.Ready) return
+        if (current !is TtsState.Ready) return ApiResult.Failure(ApiError(0, "NOT_READY", ""))
 
         _state.value = current.copy(lexiconBusy = true)
-        when (val result: ApiResult<*> = write(channel)) {
+        val result: ApiResult<*> = write(channel)
+        when (result) {
             is ApiResult.Failure -> {
                 (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(lexiconBusy = false) }
-                feedback.error(Res.string.tts_lexicon_error, result.error.message)
+                if (announceFailure) feedback.error(Res.string.tts_lexicon_error, result.error.message)
             }
             is ApiResult.Ok -> {
                 val refreshed: List<TtsLexiconEntry> =
@@ -241,6 +245,7 @@ class TtsController(
                 }
             }
         }
+        return result
     }
 
     /**

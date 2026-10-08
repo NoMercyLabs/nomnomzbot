@@ -545,11 +545,29 @@ class TtsControllerTest {
         controller.load()
         ttsApi.lexiconWriteFailure = ApiError(409, "ALREADY_EXISTS", "duplicate rule")
 
-        controller.addLexiconEntry("brb", "bathroom break", "word")
+        val result: ApiResult<*> = controller.addLexiconEntry("brb", "bathroom break", "word")
 
-        // The failure announces on the shell-level feedback toast and the list stays untouched.
+        // The failure goes back to the form dialog (inline, no toast) and the list stays untouched.
         val ready: TtsState.Ready = controller.state.value as TtsState.Ready
         assertEquals(listOf("brb"), ready.lexicon.map { it.phrase })
+        assertEquals("duplicate rule", (result as ApiResult.Failure).error.message)
+        assertTrue(feedback.messages.isEmpty())
+    }
+
+    @Test
+    fun failed_lexicon_delete_still_announces_on_the_feedback_toast() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        ttsApi.lexiconEntries.add(
+            TtsLexiconEntry(id = "lex-1", phrase = "brb", replacement = "be right back", matchKind = "word")
+        )
+        val feedback = RecordingFeedback()
+        val controller =
+            TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi, feedback = feedback)
+        controller.load()
+        ttsApi.lexiconWriteFailure = ApiError(409, "ALREADY_EXISTS", "duplicate rule")
+
+        controller.deleteLexiconEntry("lex-1")
+
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(listOf<Any>("duplicate rule"), feedback.only.formatArgs)
     }
