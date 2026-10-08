@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.commands.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -40,7 +41,6 @@ import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_command_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_command_saved
-import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Commands page state machine the screen renders: resolve the active channel, then surface the
@@ -257,14 +257,15 @@ class CommandsControllerTest {
         val controller = makeController(commandsApi = commandsApi, feedback = feedback)
         controller.load()
 
-        controller.deleteCommand(name = "!hi")
+        val result: DialogResult = controller.deleteCommand(name = "!hi")
 
-        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        // The list is kept (not blown away). The failure goes back to the confirm dialog, which shows it inline,
+        // so no second copy lands on the shell-level toast.
         val state: CommandsState = controller.state.value
         assertTrue(state is CommandsState.Ready)
         assertEquals(1, (state as CommandsState.Ready).commands.size)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf("no permission"), feedback.only.formatArgs)
+        assertEquals(DialogResult.Failed("no permission"), result)
+        assertEquals(emptyList(), feedback.messages)
     }
 
     @Test
@@ -302,7 +303,7 @@ class CommandsControllerTest {
     }
 
     @Test
-    fun a_failed_write_announces_an_error_carrying_the_backend_detail() = runTest {
+    fun a_failed_preset_reset_hands_the_reason_back_without_a_toast() = runTest {
         val feedback = RecordingFeedback()
         val commandsApi =
             RecordingCommandsApi(
@@ -312,12 +313,11 @@ class CommandsControllerTest {
         val controller = makeController(commandsApi = commandsApi, feedback = feedback)
         controller.load()
 
-        controller.deleteCommand(name = "!hi")
+        val result: DialogResult = controller.resetToPreset(name = "!hi")
 
-        // The failure path emits an ERROR (never a success), carrying the backend message as the detail arg.
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_command_save_failed, feedback.only.label)
-        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+        // The reset confirm shows the backend reason inline: the result carries it and no toast repeats it.
+        assertEquals(DialogResult.Failed("no permission"), result)
+        assertEquals(emptyList(), feedback.messages)
     }
 
     // S-BUDGETS-b3: the values [CommandsScreen] feeds its warn-before-refuse New-button wrapper must be exactly

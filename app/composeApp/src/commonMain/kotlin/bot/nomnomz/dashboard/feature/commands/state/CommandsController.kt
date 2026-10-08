@@ -326,14 +326,14 @@ class CommandsController(
 
     /** Delete a command, addressed by its [name]. Reloads on success. The outcome keeps the confirm open on failure. */
     suspend fun deleteCommand(name: String): DialogResult {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        return afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
+        val channel: String = channelId ?: return DialogResult.Failed(noChannelError())
+        return afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted, inline = true)
     }
 
     /** Put a seeded fun command, addressed by its current [name], back on its preset. Reloads on success. */
     suspend fun resetToPreset(name: String): DialogResult {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        return afterWrite(commandsApi.resetToPreset(channel, name))
+        val channel: String = channelId ?: return DialogResult.Failed(noChannelError())
+        return afterWrite(commandsApi.resetToPreset(channel, name), inline = true)
     }
 
     /** Enable or disable a built-in command by its [builtinKey]. Reloads on success. */
@@ -369,10 +369,11 @@ class CommandsController(
     // A write either reloads the list AND announces success on the frame, or surfaces its error over the
     // current Ready list without losing it (failure) — so a failed toggle/delete leaves the page intact with
     // a visible reason AND a frame-level error message. [success] lets a delete say "Deleted" while the rest
-    // default to "Saved".
+    // default to "Saved". A confirm dialog passes [inline] = true: it shows the reason itself, so the toast is skipped.
     private suspend fun afterWrite(
         result: ApiResult<Unit>,
         success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_command_saved,
+        inline: Boolean = false,
     ): DialogResult =
         when (result) {
             is ApiResult.Ok -> {
@@ -380,7 +381,8 @@ class CommandsController(
                 load()
                 DialogResult.Done
             }
-            is ApiResult.Failure -> failWrite(result.error.message)
+            is ApiResult.Failure ->
+                if (inline) DialogResult.Failed(result.error.message) else failWrite(result.error.message)
         }
 
     // The page is already showing content (Ready or Empty — the create dialog still works from Empty) —
