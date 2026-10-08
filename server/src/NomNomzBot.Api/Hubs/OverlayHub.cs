@@ -185,7 +185,7 @@ public class OverlayHub : Hub<IOverlayClient>
             : null;
 
         string? naturalKey = await NaturalKeyAsync(widget);
-        if (naturalKey == OverlayPresenceRegistry.AudioSourceNaturalKey)
+        if (WidgetKeyAliases.Canonical(naturalKey) == OverlayPresenceRegistry.AudioSourceNaturalKey)
         {
             _presence.MarkAudioSource(Context.ConnectionId);
             _inbox.NotifyChanged(broadcasterId);

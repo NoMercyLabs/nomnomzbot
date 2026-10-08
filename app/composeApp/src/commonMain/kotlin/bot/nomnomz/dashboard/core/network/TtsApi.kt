@@ -141,7 +141,7 @@ interface TtsApi {
 
     /**
      * The channel's TTS source for OBS (backend `GET /tts/overlay`) — get-or-creates the system
-     * `tts_audio` widget (the one Audio Source page TTS plays out of) for this channel, so a fresh channel
+     * `audio` widget (the one Audio page every sound and TTS line plays out of) for this channel, so a fresh channel
      * gets a working OBS browser-source URL with no gallery install step.
      */
     suspend fun overlay(channelId: String): ApiResult<TtsOverlay>

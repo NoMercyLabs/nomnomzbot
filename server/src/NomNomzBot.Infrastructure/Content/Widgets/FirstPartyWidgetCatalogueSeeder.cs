@@ -12,6 +12,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Infrastructure.Content.Widgets;
@@ -48,6 +49,21 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
             .Where(item => item.NaturalKey is not null)
             .GroupBy(item => item.NaturalKey!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        // A renamed widget keeps its gallery row: the old-key row becomes the canonical-key row in place (same
+        // Id, same InstallCount, installed widgets stay linked) instead of being retired next to a fresh copy.
+        foreach (KeyValuePair<string, string> alias in WidgetKeyAliases.RetiredToCanonical)
+        {
+            if (
+                byKey.TryGetValue(alias.Key, out WidgetGalleryItem? legacy)
+                && !byKey.ContainsKey(alias.Value)
+            )
+            {
+                legacy.NaturalKey = alias.Value;
+                byKey.Remove(alias.Key);
+                byKey[alias.Value] = legacy;
+            }
+        }
 
         HashSet<string> currentKeys = FirstPartyWidgetCatalogue
             .All.Select(widget => widget.Key)

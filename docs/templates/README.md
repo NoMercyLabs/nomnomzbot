@@ -199,7 +199,7 @@ Live for 2 hours 15 minutes already!
 
 `{stream.startedAt}` — the time the stream went live.
 
-`{tts.audioconnected}` — `true` when an Audio Source page is open, so TTS can be heard.
+`{tts.audioconnected}` — `true` when an Audio widget page is open, so TTS can be heard.
 
 `{broadcaster}`, `{title}`, `{game}`
 Short names used by the stream online/offline events and Discord go-live posts.

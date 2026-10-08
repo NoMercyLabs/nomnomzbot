@@ -822,7 +822,7 @@
     <string name="tts_tab_pronunciation">Uitspraak</string>
     <string name="tts_tab_queue_and_test">Wachtrij en test</string>
     <string name="tts_overlay_title">OBS-overlay</string>
-    <string name="tts_overlay_url_label">TTS-bron voor OBS</string>
+    <string name="tts_overlay_url_label">Audio-widget voor OBS</string>
     <string name="tts_overlay_never_ran">Nog niet gedraaid</string>
     <string name="tts_overlay_last_ran">Laatst gedraaid: %1$s</string>
     <string name="tts_overlay_test_button">Overlay testen</string>
@@ -5116,8 +5116,8 @@
     <string name="widget_sr_queue_showRequester_label">Aanvrager tonen</string>
     <string name="widget_sr_queue_showDuration_label">Duur tonen</string>
     <string name="widget_sr_queue_accentColor_label">Accentkleur</string>
-    <string name="widget_tts_audio_showIndicator_label">Spreekindicator tonen (alleen instellen)</string>
-    <string name="widget_tts_audio_accentColor_label">Accentkleur</string>
+    <string name="widget_audio_showIndicator_label">Spreekindicator tonen (alleen instellen)</string>
+    <string name="widget_audio_accentColor_label">Accentkleur</string>
     <string name="widget_tts_caption_showText_label">Ondertiteltekst tonen</string>
     <string name="widget_tts_caption_voiceLabel_label">Stemlabel tonen</string>
     <string name="widget_tts_caption_position_label">Positie</string>
@@ -5353,7 +5353,7 @@
     <string name="template_helper_raw_message">Het ruwe chatbericht dat de trigger veroorzaakte (Discord pipeline seed-alias)</string>
     <string name="template_helper_time">De huidige lokale tijd</string>
     <string name="template_helper_time_utc">De huidige UTC-tijd</string>
-    <string name="template_helper_tts_audioconnected">Of er een Audio Source-pagina open staat voor het kanaal, zodat TTS te horen is (true of false)</string>
+    <string name="template_helper_tts_audioconnected">Of er een Audio-widgetpagina open staat voor het kanaal, zodat TTS te horen is (true of false)</string>
     <string name="template_helper_transform">Past een tekstbewerking toe (hoofdletters/kleine letters/titel/omgekeerd/etc.) op de omsloten tekst</string>
     <string name="template_helper_user">De inlognaam van de gebruiker die dit activeerde</string>
     <string name="template_helper_user_account_age">Hoe lang geleden het account van de gebruiker is aangemaakt</string>
@@ -6128,8 +6128,8 @@
     <string name="widget_gallery_now_playing_description">Een vaste weergave van het huidige nummer — pil- of kaartweergave, optioneel albumhoes en een geanimeerde voortgangsbalk — die zichzelf verbergt als er niets speelt. Past zich aan de actieve aanbieder aan: bij Spotify wordt het ook een echt Spotify Connect-apparaat en speelt het audio af via deze OBS-bron (Premium en de streaming-scope vereist, pagina Integraties); bij YouTube kan het optioneel de echte video tonen in plaats van de compacte kaart.</string>
     <string name="widget_gallery_sr_queue_name">Verzoeknummers-wachtrij</string>
     <string name="widget_gallery_sr_queue_description">De komende wachtrij met verzoeknummers als compacte lijst — positie, titel en optioneel aanvrager en duur — gevoed door sr_queue-momentopnames en verborgen zolang de wachtrij leeg is.</string>
-    <string name="widget_gallery_tts_audio_name">Audiobron</string>
-    <string name="widget_gallery_tts_audio_description">De ene browserbron waar elke geluidsclip, beloningsgeluid en TTS-regel uit afspeelt. Voeg hem één keer toe, maak hem 1x1 en laat hem staan — houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft.</string>
+    <string name="widget_gallery_audio_name">Audio</string>
+    <string name="widget_gallery_audio_description">Alle geluiden en TTS-regels spelen hier af: geluidsclips, beloningsgeluiden en uitgesproken berichten komen allemaal uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan — houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft.</string>
     <string name="widget_gallery_tts_caption_name">TTS-ondertitel</string>
     <string name="widget_gallery_tts_caption_description">Een spreekindicator met live ondertitel bij TTS-weergave — geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel, plaatsing boven of onder — verborgen zolang er niemand spreekt.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Voorspelling</string>

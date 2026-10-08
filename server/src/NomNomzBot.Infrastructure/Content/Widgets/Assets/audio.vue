@@ -5,7 +5,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
-// The TTS AUDIO source: a browser source whose only job is to be the page TTS plays out of. The SDK does
+// The AUDIO widget: a browser source whose only job is to be the page every sound and TTS line plays out of. The SDK does
 // the playing (it receives the dispatched utterance and plays the server-synthesised audioUrl through a
 // media element, which is the only kind of audio OBS captures from a browser source). This widget exists
 // so a channel has ONE well-known page for that, instead of every streamer hand-rolling a custom widget.

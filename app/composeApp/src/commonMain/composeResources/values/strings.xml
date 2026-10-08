@@ -825,7 +825,7 @@
     <string name="tts_tab_pronunciation">Pronunciation</string>
     <string name="tts_tab_queue_and_test">Queue &amp; test</string>
     <string name="tts_overlay_title">OBS overlay</string>
-    <string name="tts_overlay_url_label">TTS source for OBS</string>
+    <string name="tts_overlay_url_label">Audio widget for OBS</string>
     <string name="tts_overlay_never_ran">Never ran yet</string>
     <string name="tts_overlay_last_ran">Last ran %1$s</string>
     <string name="tts_overlay_test_button">Test overlay</string>
@@ -5132,8 +5132,8 @@
     <string name="widget_sr_queue_showRequester_label">Show requester</string>
     <string name="widget_sr_queue_showDuration_label">Show duration</string>
     <string name="widget_sr_queue_accentColor_label">Accent colour</string>
-    <string name="widget_tts_audio_showIndicator_label">Show a speaking dot (setup only)</string>
-    <string name="widget_tts_audio_accentColor_label">Accent colour</string>
+    <string name="widget_audio_showIndicator_label">Show a speaking dot (setup only)</string>
+    <string name="widget_audio_accentColor_label">Accent colour</string>
     <string name="widget_tts_caption_showText_label">Show caption text</string>
     <string name="widget_tts_caption_voiceLabel_label">Show voice label</string>
     <string name="widget_tts_caption_position_label">Position</string>
@@ -5369,7 +5369,7 @@
     <string name="template_helper_raw_message">The raw triggering chat message (Discord pipeline seed alias)</string>
     <string name="template_helper_time">The current local time</string>
     <string name="template_helper_time_utc">The current UTC time</string>
-    <string name="template_helper_tts_audioconnected">Whether an Audio Source page is open for the channel, so TTS can be heard (true or false)</string>
+    <string name="template_helper_tts_audioconnected">Whether an Audio widget page is open for the channel, so TTS can be heard (true or false)</string>
     <string name="template_helper_transform">Applies a text transform (upper/lower/title/reverse/etc.) to the wrapped text</string>
     <string name="template_helper_user">The triggering user login name</string>
     <string name="template_helper_user_account_age">How long ago the triggering user account was created</string>
@@ -6155,8 +6155,8 @@
     <string name="widget_gallery_now_playing_description">A standing display of the current track — pill or card layout, optional album art and an animated progress sweep — that hides itself while nothing plays. Adapts to whichever provider is playing: for Spotify it also becomes a real Spotify Connect device and streams audio through this OBS source (Premium + the streaming scope required, Integrations page); for YouTube it can optionally render the actual video instead of the compact card.</string>
     <string name="widget_gallery_sr_queue_name">SR Queue</string>
     <string name="widget_gallery_sr_queue_description">The upcoming song-request queue as a compact list — position, title, and optional requester and duration — fed by sr_queue snapshot events and hidden while the queue is empty.</string>
-    <string name="widget_gallery_tts_audio_name">Audio Source</string>
-    <string name="widget_gallery_tts_audio_description">The one browser source every sound clip, redemption sound and TTS line plays out of. Add it once, size it 1x1, and leave it — keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup.</string>
+    <string name="widget_gallery_audio_name">Audio</string>
+    <string name="widget_gallery_audio_description">Every sound and TTS line plays here: sound clips, redemption sounds and spoken messages all come out of this one browser source. Add it once, size it 1x1, and leave it — keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup.</string>
     <string name="widget_gallery_tts_caption_name">TTS Caption</string>
     <string name="widget_gallery_tts_caption_description">A speaking indicator with a live caption for TTS playback — animated voice bars, the speaker’s name, optional voice label, top or bottom placement — hidden while nothing speaks.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Prediction</string>

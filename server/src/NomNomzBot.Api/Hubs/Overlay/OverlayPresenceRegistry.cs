@@ -30,8 +30,8 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
         ConcurrentDictionary<string, byte>
     > _connectionWidgets = new(StringComparer.Ordinal);
 
-    /// <summary>The gallery key of the Audio source page — the one widget every sound and TTS line plays on.</summary>
-    public const string AudioSourceNaturalKey = "tts_audio";
+    /// <summary>The canonical gallery key of the Audio page — the one widget every sound and TTS line plays on.</summary>
+    public const string AudioSourceNaturalKey = WidgetKeyAliases.Audio;
 
     private sealed record OverlayConnection(Guid BroadcasterId, long Order, bool IsAudioSource);
 

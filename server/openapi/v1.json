@@ -85680,7 +85680,7 @@
         "tags": [
           "TTS"
         ],
-        "summary": "The channel's TTS source for OBS (widgets-overlays.md §1.2): get-or-creates the system\n`tts_audio` widget (the one Audio Source page every TTS line plays out of; never a gallery\nbrowse/install) and returns its OBS browser-source URL plus when it last reported running. A fresh\nchannel gets a working URL on the first call — no widget install required.",
+        "summary": "The channel's TTS source for OBS (widgets-overlays.md §1.2): get-or-creates the system\n`audio` widget (the one Audio page every sound and TTS line plays out of; never a gallery\nbrowse/install) and returns its OBS browser-source URL plus when it last reported running. A fresh\nchannel gets a working URL on the first call — no widget install required.",
         "parameters": [
           {
             "name": "channelId",

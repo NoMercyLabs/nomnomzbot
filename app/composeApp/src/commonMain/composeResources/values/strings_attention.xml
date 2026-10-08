@@ -72,8 +72,8 @@
     <string name="attention_bot_not_moderator_message">Type /mod %1$s in your Twitch chat. Twitch limits what a bot without the moderator role can do.</string>
     <string name="attention_spotify_blocked_title">Spotify paused your music until %1$s</string>
     <string name="attention_spotify_blocked_message">Spotify blocked your Spotify app after too many requests. Song requests and now playing wait until then. To continue now, make a new app in the Spotify Developer Dashboard and enter its Client ID and Client Secret on the Integrations page.</string>
-    <string name="attention_audio_source_missing_title">Sounds have no Audio Source</string>
-    <string name="attention_audio_source_missing_message">Add the Audio Source widget as a browser source in OBS. Until then, sounds and TTS play from another overlay page.</string>
+    <string name="attention_audio_source_missing_title">Sounds have no Audio widget</string>
+    <string name="attention_audio_source_missing_message">Add the Audio widget as a browser source in OBS. Until then, sounds and TTS play from another overlay page.</string>
     <string name="attention_audio_source_missing_live_title">The TTS source is missing</string>
     <string name="attention_audio_source_missing_live_message">TTS has nowhere to play. Add the TTS source in OBS.</string>
     <string name="attention_source_unavailable_title">Could not check %1$s</string>

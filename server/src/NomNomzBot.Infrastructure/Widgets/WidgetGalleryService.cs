@@ -59,11 +59,16 @@ public partial class WidgetGalleryService(
         // A reviewer filtering by status sees that slice of the moderation queue; everyone else (and a
         // reviewer without a status filter) gets the public verified catalogue.
         bool queueRead = privileged && !string.IsNullOrWhiteSpace(request.ReviewStatus);
+        // A not-yet-reseeded row under a retired key is still a system surface, so it stays hidden too.
+        string[] hiddenKeys =
+        [
+            .. FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys,
+            .. WidgetKeyAliases.RetiredToCanonical.Keys,
+        ];
         IQueryable<WidgetGalleryItem> query = queueRead
             ? db.WidgetGalleryItems.Where(i => i.ReviewStatus == request.ReviewStatus)
             : db.WidgetGalleryItems.Where(i =>
-                i.ReviewStatus == VerifiedStatus
-                && !FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys.Contains(i.NaturalKey)
+                i.ReviewStatus == VerifiedStatus && !hiddenKeys.Contains(i.NaturalKey!)
             );
 
         if (!string.IsNullOrWhiteSpace(request.Framework))
@@ -445,6 +450,8 @@ public partial class WidgetGalleryService(
     // submission can never claim one, however its natural key is spelled.
     private static FirstPartyWidgetDefinition? CatalogueEntry(WidgetGalleryItem i) =>
         i is { TrustTier: "first_party", NaturalKey: not null }
-            ? FirstPartyWidgetCatalogue.All.FirstOrDefault(w => w.Key == i.NaturalKey)
+            ? FirstPartyWidgetCatalogue.All.FirstOrDefault(w =>
+                w.Key == WidgetKeyAliases.Canonical(i.NaturalKey)
+            )
             : null;
 }
