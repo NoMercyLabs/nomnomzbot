@@ -44,6 +44,23 @@ Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec
 - **S-DROP-AUDIO** Effects and notification volume settings per pack sound slot. Done-when: E2E at volume 0 plays nothing and at 50 plays at half gain.
 - **S-DROP-ANNOUNCE** Optional chat announcement from a template with variables (user, score), off by default. Done-when: test a landing posts exactly the rendered template once.
 
+## OWNER BUG 2026-10-08 — the auto shoutout repeats a shoutout that was already given by hand
+
+- **S-AUTOSO-DEDUP** [fix, stream-facing] The timed auto shoutout skips a viewer who already got a shoutout this stream, by any route.
+  Owner, verbatim: "automatic shoutouts need to check the last shoutout given so it does not give one that has been given manually again after its random timed dispatch".
+  Today `AutoShoutoutScheduler.cs:194` checks `ShoutoutCooldowns.PerUserActive` (60 min) against
+  `ChannelContext.LastShoutoutPerUser`, and only `ShoutoutSender.cs:127` writes it. Three gaps, not checked live:
+  (1) a shoutout sent outside the bot (Twitch `/shoutout`, a moderator, another bot; EventSub
+  `channel.shoutout.create`, handled in `ShoutoutBroadcastHandlers.cs`) stamps nothing; (2) the stamp is in memory
+  only, so a deploy or restart mid-stream forgets it; (3) a hand shoutout more than 60 min before the timed one
+  does not block it. Fix: the scheduler asks "was this user shouted out since this stream started" from a durable
+  source (the shoutout records or the event journal), and `channel.shoutout.create` stamps the same record.
+  Files: `Stream/AutoShoutout/AutoShoutoutScheduler.cs`, `Stream/ShoutoutCooldowns.cs`, `Stream/ShoutoutSender.cs`,
+  the `channel.shoutout.create` handler, tests.
+  Done-when: tests show (a) a `!so` then the timed pass for the same user sends nothing, (b) a native
+  `channel.shoutout.create` for the user blocks the timed one, (c) after a scheduler restart within the same stream
+  the earlier shoutout still blocks it, (d) a user not shouted out this stream still gets the timed one.
+
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
 
 Owner, verbatim: "so basically the code editing is not good enough and lacks too many features. the
