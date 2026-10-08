@@ -161,6 +161,35 @@ class AttentionSurfaceTest {
         onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
         onNodeWithText("appealingviewer vraagt om een unban").assertExists()
         onNodeWithText("Verzoek: I was wrongly banned").assertExists()
+    private val ownerActionFailed: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "owner-action-failed:e1",
+            kind = "owner_action_failed",
+            severity = "warning",
+            titleKey = "attention_owner_action_failed_title",
+            messageKey = "attention_owner_action_failed_message",
+            parameters = mapOf("action" to "obs_input_mute", "error" to "OBS bridge did not answer"),
+            deepLinkRoute = "obs",
+        )
+
+    @Test
+    fun aFailedOwnerActionNamesTheActionAndTheReason_inBothLocales() = runComposeUiTest {
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(ownerActionFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Action obs_input_mute failed").assertExists()
+        onNodeWithText("OBS bridge did not answer", substring = true).assertExists()
+    }
+
+    @Test
+    fun aFailedOwnerActionRendersInDutch() = runComposeUiTest {
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(ownerActionFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Actie obs_input_mute is mislukt").assertExists()
+        onNodeWithText("OBS bridge did not answer", substring = true).assertExists()
     }
 
     @Test

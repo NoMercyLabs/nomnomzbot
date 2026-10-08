@@ -20,8 +20,10 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Deployment;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
 
@@ -46,6 +48,7 @@ public sealed class WidgetActionServiceTests : IDisposable
     private readonly IRateLimiterPartitionStore _rateLimiter =
         Substitute.For<IRateLimiterPartitionStore>();
     private readonly RecordingAction _action = new();
+    private readonly RecordingEventBus _bus = new();
 
     public WidgetActionServiceTests()
     {
@@ -129,6 +132,7 @@ public sealed class WidgetActionServiceTests : IDisposable
                     .BuildServiceProvider(),
                 _authorization,
                 _rateLimiter,
+                _bus,
                 NullLogger<OwnerActionService>.Instance
             ),
             _rateLimiter
@@ -284,6 +288,65 @@ public sealed class WidgetActionServiceTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         result.Value.Succeeded.Should().BeFalse();
         result.Value.Error.Should().Be("provider is down");
+    }
+
+    [Fact]
+    public async Task A_failed_action_publishes_exactly_one_failure_event_with_the_type_the_caller_and_the_error()
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        _action.Behavior = () => ActionResult.Failure("OBS bridge did not answer");
+        await using WidgetTestDbContext db = _database.NewContext();
+
+        Result<WidgetActionOutcome> result = await Service(db).InvokeAsync(Request(widgetId));
+
+        result.Value.Succeeded.Should().BeFalse();
+        OwnerActionFailedEvent failed = _bus
+            .Published.OfType<OwnerActionFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        failed.BroadcasterId.Should().Be(Broadcaster);
+        failed.ActionType.Should().Be("tts_synthesize");
+        failed.Caller.Should().Be("BSOD");
+        failed.Source.Should().Be("widget");
+        failed.Error.Should().Be("OBS bridge did not answer");
+    }
+
+    [Fact]
+    public async Task An_action_that_throws_also_publishes_a_failure_event_with_the_reason()
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        _action.Behavior = () => throw new InvalidOperationException("provider is down");
+        await using WidgetTestDbContext db = _database.NewContext();
+
+        await Service(db).InvokeAsync(Request(widgetId));
+
+        _bus.Published.OfType<OwnerActionFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.Error.Should()
+            .Be("provider is down");
+    }
+
+    [Fact]
+    public async Task A_successful_action_and_a_refused_run_publish_no_failure_event()
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        await using WidgetTestDbContext db = _database.NewContext();
+        await Service(db).InvokeAsync(Request(widgetId));
+
+        _authorization
+            .AuthorizeActionAsync(
+                Owner,
+                Broadcaster,
+                "pipelines:write",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+        await Service(db).InvokeAsync(Request(widgetId));
+        await Service(db).InvokeAsync(Request(widgetId, "no_such_action"));
+
+        _bus.Published.OfType<OwnerActionFailedEvent>().Should().BeEmpty();
     }
 
     [Fact]

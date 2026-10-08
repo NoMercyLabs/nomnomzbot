@@ -50,6 +50,8 @@ import nomnomzbot.composeapp.generated.resources.attention_shared_ban_twitch_ban
 import nomnomzbot.composeapp.generated.resources.attention_shared_ban_twitch_ban_failed_no_detail_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_title
+import nomnomzbot.composeapp.generated.resources.attention_owner_action_failed_message
+import nomnomzbot.composeapp.generated.resources.attention_owner_action_failed_title
 import nomnomzbot.composeapp.generated.resources.attention_report_message
 import nomnomzbot.composeapp.generated.resources.attention_report_title
 import nomnomzbot.composeapp.generated.resources.attention_unban_request_message
@@ -168,6 +170,8 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
                 Res.string.attention_filter_action_failed_title,
                 listOf(literal(item.param("filter")), literal(item.param("username"))),
             )
+        "attention_owner_action_failed_title" ->
+            AttentionText(Res.string.attention_owner_action_failed_title, listOf(literal(item.param("action"))))
         "attention_bot_not_moderator_title" ->
             AttentionText(Res.string.attention_bot_not_moderator_title, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_title" ->
@@ -298,6 +302,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
                     literal(item.param("reason")),
                 ),
             )
+        "attention_owner_action_failed_message" ->
+            AttentionText(Res.string.attention_owner_action_failed_message, listOf(literal(item.param("error"))))
         "attention_bot_not_moderator_message" ->
             AttentionText(Res.string.attention_bot_not_moderator_message, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_message" -> AttentionText(Res.string.attention_spotify_blocked_message)
