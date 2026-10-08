@@ -1073,6 +1073,29 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun suspicious_users_push_reloads_the_open_viewer_card_for_that_viewer_only() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1", lowTrustStatus = "none"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        controller.openUserContext("u1")
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // Another viewer's flag changes: the open card is not re-read.
+        val readsBefore: Int = api.userContextCalls.size
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1", lowTrustStatus = "restricted"))
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(domain = "suspicious-users", entityId = "u2", action = "updated")))
+        assertEquals(readsBefore, api.userContextCalls.size)
+        assertEquals("none", (controller.userContext.value as UserContextState.Ready).context.lowTrustStatus)
+
+        // This viewer's flag changes: the card is re-read in place and shows the new status.
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(domain = "suspicious-users", entityId = "u1", action = "updated")))
+        assertEquals(readsBefore + 1, api.userContextCalls.size)
+        assertEquals("restricted", (controller.userContext.value as UserContextState.Ready).context.lowTrustStatus)
+    }
+
+    @Test
     fun a_config_change_for_another_domain_does_not_refetch_the_history() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())

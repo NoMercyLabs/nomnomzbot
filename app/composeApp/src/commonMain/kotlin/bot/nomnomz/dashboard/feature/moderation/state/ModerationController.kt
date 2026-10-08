@@ -1232,6 +1232,8 @@ class ModerationController(
         launch { hubEvents.onConfigChange("viewer-reports") { retryReports() } }
         // An unban appeal filed or resolved anywhere is announced on the "unban-requests" config domain.
         launch { hubEvents.onConfigChange("unban-requests") { retryUnbanRequests() } }
+        // Twitch's suspicious-user flag of a viewer changed: re-read the open viewer card when it is that viewer.
+        launch { hubEvents.onConfigChange(SUSPICIOUS_USERS_DOMAIN) { change -> refreshOpenCardFor(change.entityId) } }
         hubEvents.collect { evt ->
             if (evt is HubEvent.AutoModQueueChanged) {
                 refreshAutomodQueue()
@@ -1286,6 +1288,17 @@ class ModerationController(
     private suspend fun refreshHistoryViews() {
         val current: ModerationState = _state.value
         if (current is ModerationState.Ready) loadHistoryPage(current.historyPage)
+        refreshOpenCard()
+    }
+
+    /** Re-read the open viewer card only when [userId] is the viewer it shows (hub push about one viewer). */
+    private suspend fun refreshOpenCardFor(userId: String?) {
+        val open: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
+        if (userId == null || open.context.userId != userId) return
+        refreshOpenCard()
+    }
+
+    private suspend fun refreshOpenCard() {
         val channel: String = channelId ?: return
         val open: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
         val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, open.context.userId)
@@ -1529,6 +1542,9 @@ private const val ISO_DATE_LENGTH: Int = 10
 
 // The hub ConfigChanged domain the server pushes when a warned viewer acknowledges their warning.
 private const val MODERATION_HISTORY_DOMAIN: String = "moderation-history"
+
+/** Hub config domain announcing a change of a viewer's Twitch suspicious-user flag (entityId = Twitch user id). */
+private const val SUSPICIOUS_USERS_DOMAIN: String = "suspicious-users"
 
 /** The Moderation page render state. */
 sealed interface ModerationState {
