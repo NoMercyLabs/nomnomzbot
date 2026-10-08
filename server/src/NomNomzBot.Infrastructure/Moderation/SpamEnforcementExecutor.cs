@@ -52,18 +52,21 @@ public sealed class SpamEnforcementExecutor
     private readonly IApplicationDbContext _db;
     private readonly IModerationService _moderation;
     private readonly ITwitchModerationApi _twitch;
+    private readonly IViolationEscalationService _escalation;
     private readonly ILogger<SpamEnforcementExecutor> _logger;
 
     public SpamEnforcementExecutor(
         IApplicationDbContext db,
         IModerationService moderation,
         ITwitchModerationApi twitch,
+        IViolationEscalationService escalation,
         ILogger<SpamEnforcementExecutor> logger
     )
     {
         _db = db;
         _moderation = moderation;
         _twitch = twitch;
+        _escalation = escalation;
         _logger = logger;
     }
 
@@ -77,7 +80,9 @@ public sealed class SpamEnforcementExecutor
         string messageId,
         string subjectPlatformUserId,
         SpamDecision decision,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? subjectLogin = null,
+        string? subjectDisplayName = null
     )
     {
         // Dry run is checked HERE as well as in the decision, not instead of it. The decision already
@@ -99,6 +104,23 @@ public sealed class SpamEnforcementExecutor
 
         if (decision.Outcome != SpamOutcome.DeleteAndEscalate)
             return new SpamEnforcementOutcome(deleted, false, null);
+
+        // A channel that counts AutoMod violations as ladder offenses lets the ladder pick the punishment
+        // INSTEAD of the heat timeout below, so the account is never actioned twice for one message.
+        ViolationEscalationOutcome escalated = await _escalation.TryEscalateAsync(
+            broadcasterId,
+            subjectPlatformUserId,
+            subjectLogin ?? subjectPlatformUserId,
+            subjectDisplayName ?? subjectLogin ?? subjectPlatformUserId,
+            decision.Reason,
+            ct
+        );
+        if (escalated.Handled)
+            return new SpamEnforcementOutcome(
+                deleted,
+                escalated.Applied && escalated.Action is "timeout" or "ban",
+                null
+            );
 
         bool timedOut = await TimeoutAsync(broadcasterId, subjectPlatformUserId, decision, ct);
         return new SpamEnforcementOutcome(deleted, timedOut, null);
