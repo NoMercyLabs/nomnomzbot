@@ -99,6 +99,7 @@ public sealed class ChatFilterExecutionHandlerTests
             users,
             moderation,
             Substitute.For<IModerationService>(),
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>(),
             new FakeTimeProvider(T0),
             NullLogger<ModerationQueueService>.Instance
         );
