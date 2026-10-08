@@ -591,9 +591,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   lost moderator status (today a Debug log, `BotLifecycleService.cs:381`), spam defence still in dry
   run or observation, a platform where automatic action is not available, EventSub moderation topics
   not subscribed, a failed platform moderation call (today Kick/YouTube failures are void + log only).
-- [ ] **S-FILTER-RESULT-REPORTED** filter enforcement results are discarded (`:130,134,205,208,217`) and
-  `MatchCount` rises even when the platform refused (`:113`). Done-when: a failed action reaches the
-  actionable-error inbox and does not count as a match; filters are cached per channel, not read per message.
 - [ ] **S-FILTER-LINKPOLICY** `ChatFilter.LinkPolicyJson` is stored and never read; the LinkPolicy kind
   and `ExemptMinRoleLevel` have no dashboard control. Done-when: the link policy (allowed domains,
   bare-domain matching) is applied and editable.
