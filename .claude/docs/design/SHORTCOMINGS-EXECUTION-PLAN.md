@@ -570,11 +570,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   Also wires JoinBurstFactor (it triggers the lockdown).
 - [ ] **S-SPAM-SEED-CORPUS** idempotent seeder that loads `spec/data/spam-seed-corpus.md` as
   SpamSignature rows with Source=Curated. Done-when: a fresh install matches a corpus skeleton.
-- [ ] **S-SPAM-CAMPAIGN-REVERSAL-OWN** (found 2026-10-08) `SpamCorrelationService` records an account
-  as actioned whenever the campaign MAY act, also in dry run, and the de-qualify reversal unbans every
-  actioned account — so a ban a moderator placed during a campaign that later clears is lifted by the
-  bot. Done-when: only bans the bot itself placed and that succeeded are recorded and reversed; a test
-  proves a moderator's ban survives a de-qualify.
 - [ ] **S-SPAM-CAMPAIGN-ESCALATE** `CohortObservation.MayAct` is never read: the campaign verdict does
   not drive enforcement (`SpamDefenseHandler` passes only the per-message decision), though the
   handler comment says it does. Done-when: a qualified campaign escalates a non-shielded sender per
