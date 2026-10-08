@@ -50391,6 +50391,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/actions/mass-ban/batches": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "How the operator's mass-ban batches went, newest first: the counts per channel and, for every account that is\nnot banned, whether it failed for good (with Twitch's reason), is waiting for a retry, or was not tried yet.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfMassBanBatchDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/actions/mass-ban/opt-ins": {
       "get": {
         "tags": [
@@ -52081,6 +52179,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/protection-status": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Whether protection is running in this channel: one check per thing it depends on (the bot is a moderator,\nspam defence acts rather than only records, automatic action reaches each connected platform, Twitch sends\nthe moderation events). A check that cannot be read is reported as unknown, never as ok.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfProtectionStatusDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/moderators/{userId}": {
       "delete": {
         "tags": [
@@ -52792,7 +52988,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Adds a manual, non-enforcement note to a person's moderation history — a moderator leaving context with\nno matching Twitch action (string ModerationHistoryEntryKinds.Note).",
+        "summary": "Adds a manual, non-enforcement note about a person — a moderator leaving context with no matching Twitch\naction. It lands in the shared user-note store (the notes `users/{userId}/notes` lists).",
         "parameters": [
           {
             "name": "channelId",
@@ -81383,6 +81579,338 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/spam-defense/lockdown": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Every lockdown window of the channel not yet fully restored: the active ones, and any whose restore\nleft a control tightened. Empty means the room is back to normal.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfLockdownWindowStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Tightens the room by hand. The reason is required and stored on the window, so the log can say who\nasked for it and why; at least one control must be named, because a lockdown that tightens nothing\nwould report success while protecting nobody.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngageLockdownRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngageLockdownRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngageLockdownRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfLockdownWindowStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/spam-defense/lockdown/end": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Ends the platform's active window now and puts the room back. One click, at any point.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndLockdownRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndLockdownRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndLockdownRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfLockdownWindowStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/stream": {
       "get": {
         "tags": [
@@ -93917,6 +94445,124 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/widgets/preview-action": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Run `tts_synthesize` for this channel and return the variables it set (`tts.audioUrl`,\n    `tts.durationMs`). A failed run is a 200 with `success: false` and an error code, the same shape\n    the overlay hub's invoke answers, so the preview SDK passes it through unchanged.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetPreviewActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets": {
       "get": {
         "tags": [
@@ -96104,124 +96750,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfDictionaryOfstringAndObject"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/widgets/preview-action": {
-      "post": {
-        "tags": [
-          "Widgets"
-        ],
-        "summary": "Run tts_synthesize for this channel and return the variables it set (tts.audioUrl, tts.durationMs). A failed run is a 200 with success: false and an error code, the same shape the overlay hub's invoke answers, so the preview SDK passes it through unchanged.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/WidgetPreviewActionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetPreviewActionResponse"
                 }
               }
             }
@@ -100234,7 +100762,8 @@
           "isCaseSensitive",
           "matchCount",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "linkPolicy"
         ],
         "type": "object",
         "properties": {
@@ -100302,6 +100831,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "linkPolicy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkPolicy"
+              }
+            ]
           }
         },
         "description": "A custom chat filter (moderation.md J.6) as surfaced to the dashboard."
@@ -101682,6 +102221,16 @@
             "items": {
               "type": "string"
             }
+          },
+          "linkPolicy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkPolicy"
+              }
+            ]
           },
           "linkPolicyJson": {
             "type": [
@@ -104703,6 +105252,19 @@
         },
         "description": "Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable."
       },
+      "EndLockdownRequest": {
+        "required": [
+          "platform"
+        ],
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Platform whose window to end."
+          }
+        },
+        "description": "An operator ending the active window on one platform now."
+      },
       "EndPollDto": {
         "required": [
           "status"
@@ -104730,6 +105292,32 @@
             ]
           }
         }
+      },
+      "EngageLockdownRequest": {
+        "required": [
+          "platform",
+          "reason",
+          "controls"
+        ],
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Platform to tighten."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why, in the operator's words. Stored on the window as `manual: &lt;reason&gt;`."
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LockdownControl"
+            },
+            "description": "The controls to engage. At least one."
+          }
+        },
+        "description": "An operator tightening the room by hand (spam-defense.md §L5.1)."
       },
       "EngagementConfigDto": {
         "required": [
@@ -108061,7 +108649,7 @@
             "type": "boolean"
           }
         },
-        "description": "A viewer's leaderboard visibility on a channel: <c>OptedIn</c> is true unless the viewer has an active opt-out."
+        "description": "A viewer's leaderboard visibility on a channel: `OptedIn` is true unless the viewer has an active opt-out."
       },
       "LeaderboardEntryDto": {
         "required": [
@@ -108212,6 +108800,23 @@
           }
         }
       },
+      "LinkPolicy": {
+        "type": "object",
+        "properties": {
+          "allowedDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Host names whose links are allowed, for example `example.com`. A sub-domain of an entry is allowed too."
+          },
+          "matchBareDomains": {
+            "type": "boolean",
+            "description": "Also treat bare domain text with no scheme (`example.com/x`) as a link."
+          }
+        },
+        "description": "The rules of a `ChatFilterType.LinkPolicy` filter, stored as JSON in `ChatFilter.LinkPolicyJson`.\n\nA link trips the filter unless its host is one of IReadOnlyList&lt;string&gt; LinkPolicy.AllowedDomains or a sub-domain of one.\nWith no allowed domain every link trips, which is how a filter behaved before it had a policy. Only links\nwritten with a scheme (https://x.y) count, unless bool LinkPolicy.MatchBareDomains is on: then a bare\nexample.com counts too."
+      },
       "LiveGameCatalogEntryDto": {
         "required": [
           "gameKey",
@@ -108297,6 +108902,96 @@
           }
         },
         "description": "A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema\nauthors (widget settings fields, pipeline action field descriptors) construct one of these per label/help\nstring instead of a bare English literal or string parameter, so a schema-authoring call site cannot\naccidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —\ntranslations live exclusively in the dashboard's existing i18n home\n(`app/composeApp/src/commonMain/composeResources/values/strings.xml` for `en`, `values-nl/` for\n`nl`), the single place a translator can find and edit every user-facing string in the product. The\ndashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to\nmatch the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →\n`widget_alerts_events_label`). A committed key manifest (`server/i18n/schema-i18n-keys.manifest.json`)\nplus paired backend/frontend guard tests fail the build if a key is authored here without both a `en` and\nan `nl` entry in `strings.xml` — so a missing translation is caught at test time, never shipped as a\nsilent English fallback or, worse, an empty label. string? LocalizedText.Text is user-authored content shown as\nwritten, never product text."
+      },
+      "LockdownControl": {
+        "type": "integer",
+        "description": "A room-tightening control (spam-defense.md §L5.1).\n\nEvery member restricts posting. There is deliberately no ban, timeout, or block member\nin this enum: lockdown must not be able to express an action against a person, because SD0's whole\nclaim is that it costs everyone a few minutes and costs nobody their account."
+      },
+      "LockdownWindowStatus": {
+        "required": [
+          "id",
+          "platform",
+          "trigger",
+          "startedAt",
+          "expiresAt",
+          "endedAt",
+          "restoredAt",
+          "engaged",
+          "unavailable",
+          "applyFailed",
+          "restorationFailed"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "platform": {
+            "type": "string",
+            "description": "Platform whose room was tightened."
+          },
+          "trigger": {
+            "type": "string",
+            "description": "Why, in words an operator can read back."
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "When the window opened.",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When it ends by itself (after any extension).",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Set when a moderator ended it early.",
+            "format": "date-time"
+          },
+          "restoredAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Set only after every engaged control was really put back.",
+            "format": "date-time"
+          },
+          "engaged": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LockdownControl"
+            },
+            "description": "Controls this window tightened."
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LockdownControl"
+            },
+            "description": "Requested controls this platform does not offer here."
+          },
+          "applyFailed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LockdownControl"
+            },
+            "description": "Controls the platform refused: NOT in force."
+          },
+          "restorationFailed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LockdownControl"
+            },
+            "description": "Controls the last restore could not put back: still tightened."
+          }
+        },
+        "description": "One lockdown window as the dashboard reads it (spam-defense.md §L5.1). Every list names controls,\nnever people: lockdown never acts on a person."
       },
       "LoginProviderDto": {
         "required": [
@@ -108445,6 +109140,89 @@
           }
         },
         "description": "One masked code row — the label/last-4 tail is all a read ever shows."
+      },
+      "MassBanBatchDto": {
+        "required": [
+          "batchId",
+          "channelLogin",
+          "requestedAt",
+          "completedAt",
+          "total",
+          "banned",
+          "failed",
+          "retrying",
+          "waiting",
+          "targets"
+        ],
+        "type": "object",
+        "properties": {
+          "batchId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "channelLogin": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "banned": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "retrying": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "waiting": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MassBanTargetResultDto"
+            }
+          }
+        },
+        "description": "One batch's progress: `Banned`, `Failed` (final), `Retrying` (waiting for a next attempt) and\n`Waiting` (not tried yet) add up to `Total`. `Targets` lists every account that is not banned."
       },
       "MassBanChannelOutcomeDto": {
         "required": [
@@ -108598,6 +109376,46 @@
           }
         },
         "description": "One account: its numeric Twitch user id and the optional reason Twitch shows."
+      },
+      "MassBanTargetResultDto": {
+        "required": [
+          "twitchUserId",
+          "status",
+          "attempts",
+          "error",
+          "nextAttemptAt"
+        ],
+        "type": "object",
+        "properties": {
+          "twitchUserId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "attempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextAttemptAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "An account not banned: `Status` is `failed`, `retrying` or `waiting`; `Error` says why."
       },
       "MediaAction": {
         "type": "integer",
@@ -114051,9 +114869,7 @@
           "required",
           "repeatable",
           "options",
-          "description",
-          "declaresVariable",
-          "declaredVariableDefault"
+          "description"
         ],
         "type": "object",
         "properties": {
@@ -114089,7 +114905,8 @@
             ]
           },
           "declaresVariable": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": false
           },
           "declaredVariableDefault": {
             "type": [
@@ -114706,7 +115523,82 @@
           },
           "step": { }
         },
-        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional: one action object ({\"type\":\"send_message\", ...params}); when set, only that action runs, through the same capture engine, instead of the saved pipeline's graph."
+        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional:\none action object (`{\"type\":\"send_message\", ...params}`); when set, only that action runs, through the\nsame capture engine, instead of the saved pipeline's graph."
+      },
+      "PipelineTraceStepDto": {
+        "required": [
+          "stepId",
+          "stepType"
+        ],
+        "type": "object",
+        "properties": {
+          "stepId": {
+            "type": "string"
+          },
+          "stepType": {
+            "type": "string"
+          },
+          "branch": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "iterations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "variableChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineTraceVariableChangeDto"
+            }
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One row of a pipeline test-run trace: what one executed step did. `Branch` names the arm an `if` took\n(`then`/`else`); `Iterations` is the pass count of a `loop`; `VariableChanges` lists only the\nauthor's variables whose value changed; `Output` is what the step produced (e.g. the chat text it would send);\n`Error` is set when the step failed. Rows are in the order the steps ran."
+      },
+      "PipelineTraceVariableChangeDto": {
+        "required": [
+          "key",
+          "before",
+          "after"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "before": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "after": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One variable a traced step changed: the value before the step ran and the value after (null = unset)."
       },
       "PipelineValidationResult": {
         "type": "object",
@@ -115490,7 +116382,7 @@
             "format": "date-time"
           }
         },
-        "description": "A Twitch account resolved straight from the platform by login (Helix Get Users) \u2014 for a person the bot\nhas never seen, so a streamer can ban or time them out ahead of time. `Id` is the Twitch user id\nthe moderation writes consume."
+        "description": "A Twitch account resolved straight from the platform by login (Helix Get Users) — for a person the bot\nhas never seen, so a streamer can ban or time them out ahead of time. `Id` is the Twitch user id\nthe moderation writes consume."
       },
       "PlayContextDto": {
         "required": [
@@ -115763,6 +116655,53 @@
             "type": "string"
           }
         }
+      },
+      "ProtectionCheckDto": {
+        "required": [
+          "key",
+          "state",
+          "platform",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Which check: `bot_moderator`, `spam_defense_mode`, `automatic_action` or `eventsub_moderation`."
+          },
+          "state": {
+            "type": "string",
+            "description": "One of ProtectionCheckStates."
+          },
+          "platform": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The platform the check is about, or null when it covers the whole channel."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Plain English: why the check is in this state, and what is missing when it is not ok."
+          }
+        },
+        "description": "One protection check and its current state."
+      },
+      "ProtectionStatusDto": {
+        "required": [
+          "checks"
+        ],
+        "type": "object",
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProtectionCheckDto"
+            },
+            "description": "Every check, in a stable order."
+          }
+        },
+        "description": "Whether protection is running for one channel: one check per thing a streamer relies on. A check that\ncould not be read is reported as string ProtectionCheckStates.Unknown, never as healthy."
       },
       "ProviderCredentialDto": {
         "required": [
@@ -119747,43 +120686,6 @@
           }
         }
       },
-      "StatusResponseDtoOfPlatformViewerDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PlatformViewerDto"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) \u2014 absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseDtoOfboolean": {
         "type": "object",
         "properties": {
@@ -121156,43 +122058,6 @@
             "type": [
               "null",
               "object"
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseDtoOfWidgetPreviewActionResponse": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WidgetPreviewActionResponse"
-              }
             ]
           },
           "message": {
@@ -124173,6 +125038,43 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfLockdownWindowStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LockdownWindowStatus"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\nMatches the NoMercy media server pattern."
+      },
       "StatusResponseDtoOfIReadOnlyListOfLoginProviderDto": {
         "type": "object",
         "properties": {
@@ -125764,6 +126666,42 @@
           }
         }
       },
+      "StatusResponseDtoOfListOfMassBanBatchDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MassBanBatchDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfListOfMassBanChannelPreviewDto": {
         "type": "object",
         "properties": {
@@ -126339,6 +127277,44 @@
             ]
           }
         }
+      },
+      "StatusResponseDtoOfLockdownWindowStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LockdownWindowStatus"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\nMatches the NoMercy media server pattern."
       },
       "StatusResponseDtoOflong": {
         "type": "object",
@@ -128373,6 +129349,43 @@
         },
         "description": "Standard response envelope for mutations and single-item responses.\nMatches the NoMercy media server pattern."
       },
+      "StatusResponseDtoOfPlatformViewerDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlatformViewerDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfProjectDto": {
         "type": "object",
         "properties": {
@@ -128386,6 +129399,43 @@
               },
               {
                 "$ref": "#/components/schemas/ProjectDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfProtectionStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProtectionStatusDto"
               }
             ]
           },
@@ -130926,6 +131976,43 @@
           }
         }
       },
+      "StatusResponseDtoOfWidgetPreviewActionResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WidgetPreviewActionResponse"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfWidgetSettingsSchema": {
         "type": "object",
         "properties": {
@@ -132098,8 +133185,7 @@
       "TemplateHelperDto": {
         "required": [
           "key",
-          "descriptionKey",
-          "sample"
+          "descriptionKey"
         ],
         "type": "object",
         "properties": {
@@ -132110,7 +133196,8 @@
             "type": "string"
           },
           "sample": {
-            "type": "string"
+            "type": "string",
+            "default": ""
           }
         },
         "description": "Wire shape for one entry of `GET /api/v1/templates/helpers?context=` (S042). string TemplateHelperDto.Key is\nthe placeholder text as written in a template; string TemplateHelperDto.DescriptionKey is the i18n key the\ndashboard resolves for display — never resolved English text (the backend never ships English\nliterals for user-facing strings)."
@@ -132320,6 +133407,16 @@
               "type": "string"
             }
           },
+          "linkPolicy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkPolicy"
+              }
+            ]
+          },
           "sampleMessage": {
             "type": "string"
           },
@@ -132339,85 +133436,6 @@
             "type": "string"
           }
         }
-      },
-      "PipelineTraceVariableChangeDto": {
-        "required": [
-          "key",
-          "before",
-          "after"
-        ],
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "before": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "after": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "One variable a traced step changed: the value before the step ran and the value after (null = unset)."
-      },
-      "PipelineTraceStepDto": {
-        "required": [
-          "stepId",
-          "stepType",
-          "branch",
-          "iterations",
-          "output",
-          "error"
-        ],
-        "type": "object",
-        "properties": {
-          "stepId": {
-            "type": "string"
-          },
-          "stepType": {
-            "type": "string"
-          },
-          "branch": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "iterations": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "variableChanges": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PipelineTraceVariableChangeDto"
-            }
-          },
-          "output": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "error": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "One row of a pipeline test-run trace: what one executed step did."
       },
       "TestRunResultDto": {
         "required": [
@@ -134853,6 +135871,16 @@
               "type": "string"
             }
           },
+          "linkPolicy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkPolicy"
+              }
+            ]
+          },
           "linkPolicyJson": {
             "type": [
               "null",
@@ -136901,7 +137929,8 @@
               "integer",
               "string"
             ],
-            "format": "int32"
+            "format": "int32",
+            "default": 600
           }
         },
         "description": "Full-policy upsert — the ladder is replaced whole, never patched."
@@ -137718,7 +138747,8 @@
             ]
           },
           "lowTrustStatus": {
-            "type": "string"
+            "type": "string",
+            "default": "none"
           }
         },
         "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
@@ -138998,6 +140028,75 @@
         },
         "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\n`Framework` is the source language (vue|vanilla; react and svelte are refused); `Source` is the provenance\n(first_party|verified_gallery|custom). bool WidgetDetail.GalleryUpdateAvailable is true when\nGuid? WidgetDetail.GalleryItemId is set and the gallery item's source has moved on since this widget was installed\nor last updated from it — the streamer's clone is running stale code. Always false for a self-authored\n`custom` widget (no gallery link to compare against). bool WidgetDetail.IsAttached is true when a live\nbrowser source has this widget open right now (`IOverlayPresenceRegistry`) — the \"overlay last-seen\"\nsignal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.\nbool WidgetDetail.IsCustomized is true when the channel has saved its own code over a catalogue widget's source\n(a first-party system widget or a gallery install) — the dashboard marks it \"Edited\" and offers the reset to\nthe catalogue source; a catalogue update never overwrites it on its own. Always false for a `custom`\nwidget, which has no catalogue source to differ from."
       },
+      "WidgetPreviewActionRequest": {
+        "required": [
+          "actionType",
+          "parameters",
+          "variables"
+        ],
+        "type": "object",
+        "properties": {
+          "actionType": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ]
+          },
+          "variables": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A preview action request: the action type, its parameters and the variables that seed its context."
+      },
+      "WidgetPreviewActionResponse": {
+        "required": [
+          "success",
+          "output",
+          "error",
+          "errorCode",
+          "variables"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "What the preview action did; the same fields the overlay hub's invoke returns."
+      },
       "WidgetSettingsField": {
         "required": [
           "key",
@@ -139143,76 +140242,6 @@
           }
         },
         "description": "A starter widget template the editor offers when creating a new custom widget — a working, SDK-using starting\npoint (never a blank editor). string WidgetTemplate.Source is the authored source to seed into the editor + compile."
-      },
-      "WidgetPreviewActionRequest": {
-        "required": [
-          "actionType",
-          "parameters",
-          "variables"
-        ],
-        "type": "object",
-        "properties": {
-          "actionType": {
-            "type": "string"
-          },
-          "parameters": {
-            "type": [
-              "null",
-              "object"
-            ],
-            "additionalProperties": { }
-          },
-          "variables": {
-            "type": [
-              "null",
-              "object"
-            ],
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        },
-        "description": "A preview action request: the action type, its parameters and the variables that seed its context."
-      },
-      "WidgetPreviewActionResponse": {
-        "required": [
-          "success",
-          "output",
-          "error",
-          "errorCode",
-          "variables"
-        ],
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "output": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "error": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "errorCode": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "variables": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        },
-        "description": "What the preview action did; the same fields the overlay hub's invoke returns."
       },
       "WidgetTestEventRequest": {
         "required": [
