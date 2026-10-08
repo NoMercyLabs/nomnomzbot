@@ -2236,17 +2236,18 @@ class AdminController(
      * Saves the platform-wide defaults. Validated server-side against exactly the same ranges a channel
      * page enforces, so this cannot put every channel into a state its own editor would reject.
      */
-    suspend fun saveSpamDefaults(settings: SpamDefenseSettings) {
-        val spam: SpamDefenseApi = spamDefenseApi ?: return
-        when (val result: ApiResult<SpamDefenseSettings> = spam.savePlatformDefaults(settings)) {
-            is ApiResult.Ok ->
-                _state.value =
-                    _state.value.copy(
-                        spamDefaults = _state.value.spamDefaults?.copy(settings = result.value),
-                        error = null,
-                    )
-            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+    suspend fun saveSpamDefaults(settings: SpamDefenseSettings): ApiResult<SpamDefenseSettings> {
+        val spam: SpamDefenseApi =
+            spamDefenseApi ?: return ApiResult.Failure(ApiError(501, "NOT_CONFIGURED", ""))
+        val result: ApiResult<SpamDefenseSettings> = spam.savePlatformDefaults(settings)
+        if (result is ApiResult.Ok) {
+            _state.value =
+                _state.value.copy(
+                    spamDefaults = _state.value.spamDefaults?.copy(settings = result.value),
+                    error = null,
+                )
         }
+        return result
     }
 
     // ── Platform content authoring (S-ADMIN-2b) ────────────────────────────────

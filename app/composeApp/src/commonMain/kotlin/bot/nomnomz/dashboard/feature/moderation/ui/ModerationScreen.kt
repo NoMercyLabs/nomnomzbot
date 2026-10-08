@@ -1381,7 +1381,10 @@ internal fun BansList(
                     SpamDefenseSection(
                         policy = policy,
                         manage = broadcasterManage,
-                        onSave = onSaveSpamDefense,
+                        save = { settings: SpamDefenseSettings ->
+                            onSaveSpamDefense(settings)
+                            DialogResult.Done
+                        },
                     )
                 }
             }
