@@ -22,7 +22,11 @@ namespace NomNomzBot.Application.Moderation.Services;
 /// </summary>
 public interface IModerationQueueService
 {
-    /// <summary>Enqueue a held AutoMod message (source=automod, status=pending). Called by the AutoMod event handler.</summary>
+    /// <summary>
+    /// Enqueue a held message (status=pending). Called by the AutoMod event handler (the default source) and by
+    /// the chat-filter handler (<see cref="ModerationQueueSource.ChatFilter"/>, where <paramref name="autoModMessageId"/>
+    /// is the chat message id and <paramref name="category"/> is the filter name).
+    /// </summary>
     Task<Result<Guid>> EnqueueHeldMessageAsync(
         Guid broadcasterId,
         string autoModMessageId,
@@ -30,7 +34,8 @@ public interface IModerationQueueService
         string username,
         string messageContent,
         string category,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        ModerationQueueSource source = ModerationQueueSource.AutoMod
     );
 
     /// <summary>

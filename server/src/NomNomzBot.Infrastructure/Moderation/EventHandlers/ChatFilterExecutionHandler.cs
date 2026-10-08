@@ -36,7 +36,8 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 ///   <item><c>timeout</c> — times the sender out for the filter's configured duration.</item>
 ///   <item><c>escalate</c> — records one offense on the channel's escalation ladder (§3.11) and applies the
 ///   ladder's decision (warn / timeout / ban) for the subject's running offense count.</item>
-///   <item><c>hold</c> / <c>flag</c> — routed to review (no direct Twitch action from the hot path).</item>
+///   <item><c>hold</c> — removes the message via Helix and queues it for moderator review.</item>
+///   <item><c>flag</c> — leaves the message in chat and queues it for moderator review.</item>
 /// </list>
 /// Enforcement rides Helix, so non-Twitch messages are skipped; the broadcaster and moderators are never
 /// filtered, as is any sender at or above a filter's <see cref="ChatFilter.ExemptMinRoleLevel"/>.
@@ -45,12 +46,14 @@ public sealed partial class ChatFilterExecutionHandler(
     IApplicationDbContext db,
     ITwitchModerationApi moderation,
     IModerationEscalationService escalation,
+    IModerationQueueService queue,
     IUserService users,
     NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
     ILogger<ChatFilterExecutionHandler> logger
 ) : IEventHandler<ChatMessageReceivedEvent>
 {
     private const int DefaultTimeoutSeconds = 600;
+    private const int QueueCategoryMaxLength = 50;
 
     public async Task HandleAsync(
         ChatMessageReceivedEvent @event,
@@ -145,15 +148,53 @@ public sealed partial class ChatFilterExecutionHandler(
                 break;
 
             case ChatFilterAction.Hold:
-            case ChatFilterAction.Flag:
-                // Routed to the moderation review queue rather than enforced from the hot path.
-                logger.LogDebug(
-                    "Chat filter '{Filter}' held/flagged a message from {User}",
-                    filter.Name,
-                    @event.UserLogin
+                Result deleted = await moderation.DeleteChatMessageAsync(
+                    broadcasterId,
+                    @event.MessageId,
+                    ct
                 );
+                if (deleted.IsFailure)
+                    logger.LogWarning(
+                        "Chat filter '{Filter}' could not remove the held message {MessageId}: {Error}",
+                        filter.Name,
+                        @event.MessageId,
+                        deleted.ErrorMessage
+                    );
+                await QueueForReviewAsync(filter, @event, broadcasterId, ct);
+                break;
+
+            case ChatFilterAction.Flag:
+                await QueueForReviewAsync(filter, @event, broadcasterId, ct);
                 break;
         }
+    }
+
+    private async Task QueueForReviewAsync(
+        ChatFilter filter,
+        ChatMessageReceivedEvent @event,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> queued = await queue.EnqueueHeldMessageAsync(
+            broadcasterId,
+            @event.MessageId,
+            @event.UserId,
+            @event.UserLogin,
+            @event.Message,
+            filter.Name.Length <= QueueCategoryMaxLength
+                ? filter.Name
+                : filter.Name[..QueueCategoryMaxLength],
+            ct,
+            ModerationQueueSource.ChatFilter
+        );
+        if (queued.IsFailure)
+            logger.LogWarning(
+                "Chat filter '{Filter}' could not queue the message {MessageId} for review: {Error}",
+                filter.Name,
+                @event.MessageId,
+                queued.ErrorMessage
+            );
     }
 
     /// <summary>
