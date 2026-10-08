@@ -39,6 +39,7 @@ class AdminControllerPlatformBotStaleTest {
         assertNotNull(controller.state.value.platformBotReconnectPreview)
 
         controller.confirmPlatformBotReconnect()
+        controller.awaitPlatformBotReconnect()
 
         assertEquals(1, bot.pollCalls)
         assertNull(controller.state.value.platformBotReconnectDevice)
@@ -46,17 +47,19 @@ class AdminControllerPlatformBotStaleTest {
     }
 
     @Test
-    fun a_stale_count_at_the_start_clears_the_preview_and_never_opens_a_device_login() = runTest {
+    fun a_stale_count_at_the_start_is_handed_back_to_the_dialog_and_never_opens_a_device_login() = runTest {
         val bot = StalePollPlatformBotAdminApi(startFails = true)
         val controller = controllerWith(bot)
         controller.setPlatformBotJustification("rotating the shared bot password")
         controller.previewPlatformBotReconnect()
 
-        controller.confirmPlatformBotReconnect()
+        val result: ApiResult<Unit> = controller.confirmPlatformBotReconnect()
+        controller.awaitPlatformBotReconnect()
 
+        assertEquals(stale, (result as ApiResult.Failure).error)
         assertEquals(0, bot.pollCalls)
         assertNull(controller.state.value.platformBotReconnectDevice)
-        assertNull(controller.state.value.platformBotReconnectPreview)
+        assertNotNull(controller.state.value.platformBotReconnectPreview)
     }
 
     private fun controllerWith(bot: PlatformBotAdminApi): AdminController =
