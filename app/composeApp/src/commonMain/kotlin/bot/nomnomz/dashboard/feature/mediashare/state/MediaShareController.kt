@@ -109,8 +109,11 @@ class MediaShareController(
     /** Move a clip to [position] in the queue (0-based), then re-read. */
     suspend fun reorder(id: String, position: Int) = afterWrite(mediaShareApi.reorder(id, position))
 
-    /** Persist the edited config. On success the Ready state adopts the returned config; else a banner. */
-    suspend fun saveConfig(config: MediaShareConfig) {
+    /**
+     * Persist the edited config. On success the Ready state adopts the returned config. A failure is handed back
+     * untouched so the card shows the reason next to Save (no toast on top of it).
+     */
+    suspend fun saveConfig(config: MediaShareConfig): ApiResult<Unit> {
         val body: UpdateMediaShareConfigBody =
             UpdateMediaShareConfigBody(
                 isEnabled = config.isEnabled,
@@ -122,12 +125,13 @@ class MediaShareController(
                 maxQueueLength = config.maxQueueLength,
                 perUserCooldownSeconds = config.perUserCooldownSeconds,
             )
-        when (val result: ApiResult<MediaShareConfig> = mediaShareApi.updateConfig(body)) {
+        return when (val result: ApiResult<MediaShareConfig> = mediaShareApi.updateConfig(body)) {
             is ApiResult.Ok -> {
-                val current: MediaShareUiState.Ready = _state.value as? MediaShareUiState.Ready ?: return
-                _state.value = current.copy(config = result.value)
+                val current: MediaShareUiState.Ready? = _state.value as? MediaShareUiState.Ready
+                if (current != null) _state.value = current.copy(config = result.value)
+                ApiResult.Ok(Unit)
             }
-            is ApiResult.Failure -> failWrite(result.error.message)
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
         }
     }
 
