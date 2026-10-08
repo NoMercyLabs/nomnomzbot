@@ -39,6 +39,6 @@ public interface IOverlayPresenceRegistry
     /// </summary>
     string? GetAudioTarget(Guid broadcasterId);
 
-    /// <summary>True when an Audio source page (gallery key <c>tts_audio</c>) is open for the channel.</summary>
+    /// <summary>True when an Audio source page (gallery key <c>audio</c>, or its old key <c>tts_audio</c>) is open for the channel.</summary>
     bool IsAudioSourceConnected(Guid broadcasterId);
 }

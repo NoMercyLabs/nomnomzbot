@@ -261,10 +261,14 @@ public class WidgetService : IWidgetService
         if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
-        WidgetGalleryItem? item = await _db.WidgetGalleryItems.FirstOrDefaultAsync(
-            i => i.NaturalKey == galleryNaturalKey,
-            cancellationToken
-        );
+        // A renamed widget resolves through every key it has had: the canonical row wins when both exist.
+        string[] acceptedKeys = [.. WidgetKeyAliases.KeysFor(galleryNaturalKey)];
+        List<WidgetGalleryItem> candidates = await _db
+            .WidgetGalleryItems.Where(i => acceptedKeys.Contains(i.NaturalKey!))
+            .ToListAsync(cancellationToken);
+        WidgetGalleryItem? item = candidates
+            .OrderBy(i => Array.IndexOf(acceptedKeys, i.NaturalKey))
+            .FirstOrDefault();
         if (item is null)
             return Errors.NotFound<WidgetDetail>("WidgetGalleryItem", galleryNaturalKey);
 

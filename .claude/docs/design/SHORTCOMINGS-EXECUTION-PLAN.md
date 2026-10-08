@@ -1311,7 +1311,7 @@ than each consumer needing their own clone-and-customize pass.
   is heard in OBS.
   Decided by the owner 2026-10-05: "edge tts is available everywhere and must be the standard. that lame outdated browser native tts goes away". So `spec/tts.md` §9 decision 3 now reads `Mode=self_host`, `DefaultProvider=edge`
   (free Edge voices synthesized by the bot), and the browser voice is removed from the app and the specs.
-  The playback half was settled 2026-10-02 in S-SDK-WIDGET-DELIVERY: one Audio Source page, volume set on the
+  The playback half was settled 2026-10-02 in S-SDK-WIDGET-DELIVERY: one Audio widget page, volume set on the
   bot's side so balance stays the same across streaming PCs. `speechSynthesis` met neither part: OBS does not
   capture it, and voice and volume depend on each PC's OS voices (`OverlaySdkController.cs:331-334`). A
   browser page also cannot synthesize Edge audio itself: the Edge endpoint checks the `Sec-MS-GEC` token and an
@@ -2559,7 +2559,7 @@ than each consumer needing their own clone-and-customize pass.
   Today no integration has a Test action. Build: `POST /channels/{id}/integrations/{integrationId}/test`
   (write-cheap rate tier, D11) running per provider: Spotify reads player state ("Connected · Playing on Desktop");
   Discord posts "Test from NomNomzBot" to the chosen announcement channel and returns the message link; TTS
-  synthesizes "This is a test" in the default voice and plays it on the Audio Source page (reuse the TTS page's
+  synthesizes "This is a test" in the default voice and plays it on the Audio widget page (reuse the TTS page's
   existing overlay test, `strings.xml:807-810`); YouTube reads the channel name. A 401/403 from the test feeds the
   S-UF-I1b path. The result renders inline on the card, never as a page-level toast only.
   Files: `Api/Controllers/V1/IntegrationsController.cs`, a per-provider `IIntegrationProbe`, `IntegrationsApi.kt`,
@@ -3049,7 +3049,7 @@ than each consumer needing their own clone-and-customize pass.
   Depends: none.
   Done-when: a unit test over `ShellRoute.entries` asserts `icon()` is injective.
 - **S-UF-O2** [fix] The top of Overlays lists every browser source the channel needs, with status and Copy.
-  An **OBS sources** panel: each enabled widget, the TTS overlay, the Audio Source page and the OBS bridge
+  An **OBS sources** panel: each enabled widget, the TTS overlay, the Audio widget page and the OBS bridge
   when bridge mode is on. Each row: a status ("Loaded in OBS 2 min ago", "Never loaded", "Last seen 3 days
   ago"), **Copy**, and with an OBS connection **Add to scene** (S-UF-O1b). Widgets gain a persisted
   `LastSeenAt` stamped on overlay detach and heartbeat (BOTH migration sets) so status survives a restart.
@@ -3058,7 +3058,7 @@ than each consumer needing their own clone-and-customize pass.
   widget entity + both migration sets, widget DTO, `openapi/v1.json`.
   Depends: S062 (presence push).
   Done-when: an Infrastructure test asserts `LastSeenAt` is written when the source disconnects; a jvmTest
-  renders one row per enabled widget plus TTS overlay and Audio Source with their status strings; the TTS
+  renders one row per enabled widget plus TTS overlay and Audio widget with their status strings; the TTS
   page no longer renders a URL.
 - **S-UF-O3c** [fix] After a rotate the OBS sources panel opens in update mode with a countdown.
   "Old URLs stop working in 14:32"; each row is marked "Updated" when presence reports it loaded with the new

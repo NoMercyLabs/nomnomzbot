@@ -169,6 +169,90 @@ public sealed class WidgetServiceEnsureSystemWidgetTests
         }
     }
 
+    private static async Task<Guid> SeedAudioGalleryItemAsync(
+        WidgetSqliteTestDatabase database,
+        string naturalKey
+    )
+    {
+        Guid id = Guid.CreateVersion7();
+        await using WidgetTestDbContext db = database.NewContext();
+        db.WidgetGalleryItems.Add(
+            new()
+            {
+                Id = id,
+                Name = "Audio",
+                Description = "System audio surface",
+                Framework = "vue",
+                TrustTier = "first_party",
+                SourceKind = "in_repo",
+                NaturalKey = naturalKey,
+                SourceCode = "AUDIO_SOURCE",
+                ReviewStatus = "verified",
+                AvailableInSaaS = true,
+                DefaultEventSubscriptions = ["tts_speak"],
+                DefaultSettings = new() { ["showIndicator"] = false },
+            }
+        );
+        await db.SaveChangesAsync();
+        return id;
+    }
+
+    [Theory]
+    [InlineData("audio", "tts_audio")]
+    [InlineData("tts_audio", "audio")]
+    public async Task Ensure_with_the_new_key_and_with_the_old_key_return_the_same_audio_widget(
+        string firstKey,
+        string secondKey
+    )
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Guid galleryItem = await SeedAudioGalleryItemAsync(database, "audio");
+
+        Guid firstId;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> first = await NewService(db)
+                .EnsureSystemWidgetAsync(channel.ToString(), firstKey);
+            first.IsSuccess.Should().BeTrue(first.ErrorMessage);
+            firstId = first.Value.Id;
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> second = await NewService(db)
+                .EnsureSystemWidgetAsync(channel.ToString(), secondKey);
+            second.IsSuccess.Should().BeTrue(second.ErrorMessage);
+            second.Value.Id.Should().Be(firstId);
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget widget = await db.Widgets.SingleAsync(w => w.BroadcasterId == channel);
+            widget.GalleryItemId.Should().Be(galleryItem);
+        }
+    }
+
+    [Fact]
+    public async Task Ensure_with_the_new_key_finds_a_gallery_row_still_stored_under_the_old_key()
+    {
+        // A box that has not re-seeded yet still holds the row as "tts_audio"; the new key must resolve to it
+        // rather than fail NOT_FOUND or install a second copy.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Guid legacyItem = await SeedAudioGalleryItemAsync(database, "tts_audio");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<WidgetDetail> result = await NewService(db)
+            .EnsureSystemWidgetAsync(channel.ToString(), "audio");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        Widget widget = await db.Widgets.SingleAsync(w => w.BroadcasterId == channel);
+        widget.GalleryItemId.Should().Be(legacyItem);
+    }
+
     [Fact]
     public async Task Ensure_fails_honestly_when_no_gallery_item_carries_that_natural_key()
     {

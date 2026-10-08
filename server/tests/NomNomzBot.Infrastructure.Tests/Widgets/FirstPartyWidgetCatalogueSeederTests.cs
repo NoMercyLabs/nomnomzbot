@@ -44,7 +44,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "chat_box",
         "now_playing",
         "sr_queue",
-        "tts_audio",
+        "audio",
         "tts_caption",
         "poll_prediction",
         "redemption_alert",
@@ -234,6 +234,74 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         (await read.WidgetGalleryItems.AnyAsync(i => i.Id == staleId))
             .Should()
             .BeFalse("the default query filter must hide the soft-deleted row from normal reads");
+    }
+
+    [Fact]
+    public async Task A_legacy_tts_audio_row_is_adopted_in_place_as_the_audio_widget()
+    {
+        // The Audio Source widget was renamed to Audio (key "audio"). A database that still holds the old
+        // "tts_audio" row must end with ONE row: same id, same install count, new key, and the widgets that
+        // were installed from it keep pointing at it. A second row would orphan every existing OBS source.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channelId = Guid.CreateVersion7();
+        Guid legacyId;
+        Guid widgetId;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            db.Channels.Add(
+                new()
+                {
+                    Id = channelId,
+                    OwnerUserId = Guid.CreateVersion7(),
+                    TwitchChannelId = "12345",
+                    Name = "teststreamer",
+                    NameNormalized = "teststreamer",
+                    OverlayToken = "tok",
+                }
+            );
+            WidgetGalleryItem legacy = new()
+            {
+                NaturalKey = "tts_audio",
+                Name = "Audio Source",
+                Framework = "vue",
+                SourceKind = "in_repo",
+                TrustTier = "first_party",
+                ReviewStatus = "verified",
+                AvailableInSaaS = true,
+                InstallCount = 4,
+                SourceCode = "<script setup></script><template></template>",
+            };
+            db.WidgetGalleryItems.Add(legacy);
+            Widget installed = new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = channelId,
+                Name = "Audio Source",
+                IsEnabled = true,
+                GalleryItemId = legacy.Id,
+            };
+            db.Widgets.Add(installed);
+            await db.SaveChangesAsync();
+            legacyId = legacy.Id;
+            widgetId = installed.Id;
+        }
+
+        await SeedAsync(database);
+
+        await using WidgetTestDbContext read = database.NewContext();
+        List<WidgetGalleryItem> audioRows = await read
+            .WidgetGalleryItems.IgnoreQueryFilters()
+            .Where(i => i.NaturalKey == "audio" || i.NaturalKey == "tts_audio")
+            .ToListAsync();
+
+        audioRows.Should().ContainSingle();
+        WidgetGalleryItem row = audioRows.Single();
+        row.NaturalKey.Should().Be("audio");
+        row.Id.Should().Be(legacyId);
+        row.Name.Should().Be("Audio");
+        row.InstallCount.Should().Be(4);
+        row.DeletedAt.Should().BeNull();
+        (await read.Widgets.SingleAsync(w => w.Id == widgetId)).GalleryItemId.Should().Be(legacyId);
     }
 
     [Fact]

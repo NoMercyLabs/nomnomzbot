@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Widgets.Services;
+
 namespace NomNomzBot.Infrastructure.Content.Widgets;
 
 /// <summary>
@@ -54,7 +56,7 @@ public static class FirstPartyWidgetCatalogue
     public static readonly IReadOnlyCollection<string> SystemSurfaceNaturalKeys =
     [
         "tts_caption",
-        "tts_audio",
+        WidgetKeyAliases.Audio,
         "alerts",
     ];
 
@@ -248,9 +250,9 @@ public static class FirstPartyWidgetCatalogue
             DefaultEventSubscriptions: ["sr_queue"]
         ),
         new(
-            Key: "tts_audio",
-            Name: "Audio Source",
-            Description: "The one browser source every sound clip, redemption sound and TTS line plays out of. Add it once, size it 1x1, and leave it — keep "
+            Key: WidgetKeyAliases.Audio,
+            Name: "Audio",
+            Description: "Every sound and TTS line plays here: sound clips, redemption sounds and spoken messages all come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
                 + "indicator is only for confirming the source is alive during setup.",
             DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },

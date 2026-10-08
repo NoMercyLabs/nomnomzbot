@@ -255,11 +255,14 @@ public sealed class OverlayAudioRoutingTests
         return widget.Id;
     }
 
-    [Fact]
-    public async Task Joining_the_audio_source_widget_makes_that_page_the_audio_target()
+    [Theory]
+    [InlineData("audio")]
+    [InlineData("tts_audio")]
+    public async Task Joining_the_audio_widget_makes_that_page_the_audio_target(string galleryKey)
     {
+        // "tts_audio" is the widget's old key: a gallery row not yet renamed must still count as the audio page.
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid audioWidget = await SeedWidgetAsync(db, "tts_audio");
+        Guid audioWidget = await SeedWidgetAsync(db, galleryKey);
         Joined page = await ConnectedPageAsync(db, "audio-conn");
 
         JoinWidgetResponse response = await page.Hub.JoinWidgetWithSdk(
@@ -277,7 +280,7 @@ public sealed class OverlayAudioRoutingTests
     public async Task An_audio_source_joining_and_leaving_signals_the_inbox_each_time()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid audioWidget = await SeedWidgetAsync(db, "tts_audio");
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
         Joined page = await ConnectedPageAsync(db, "audio-conn");
         page.Notifier.ClearReceivedCalls();
 

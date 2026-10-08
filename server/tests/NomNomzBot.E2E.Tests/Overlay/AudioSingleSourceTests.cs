@@ -55,7 +55,7 @@ public sealed class AudioSingleSourceTests : PageTest
         string? clipId = await FirstEnabledClipIdAsync();
         Assert.True(clipId is not null, "The channel has no enabled sound clip to preview.");
 
-        (string Id, string Url) audio = await WidgetAsync("Audio Source");
+        (string Id, string Url) audio = await WidgetAsync("Audio");
         (string Id, string Url) caption = await WidgetAsync("TTS Caption");
 
         IPage audioPage = await OpenPageAsync(audio.Url);

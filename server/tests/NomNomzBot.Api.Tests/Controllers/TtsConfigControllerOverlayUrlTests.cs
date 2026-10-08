@@ -26,7 +26,7 @@ using NSubstitute;
 namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
-/// Proves <c>GET /channels/{id}/tts/overlay</c> hands out the one Audio Source page (<c>tts_audio</c>) — the
+/// Proves <c>GET /channels/{id}/tts/overlay</c> hands out the one Audio page (<c>audio</c>) — the
 /// page that actually plays TTS in OBS — and not the caption page, and that it provisions that widget on first
 /// call for a fresh channel.
 /// </summary>
@@ -73,8 +73,8 @@ public sealed class TtsConfigControllerOverlayUrlTests
     {
         IWidgetService widgets = Substitute.For<IWidgetService>();
         widgets
-            .EnsureSystemWidgetAsync(Arg.Any<string>(), "tts_audio", Arg.Any<CancellationToken>())
-            .Returns(Result.Success(Detail("Audio Source", AudioUrl, AudioLastRan)));
+            .EnsureSystemWidgetAsync(Arg.Any<string>(), "audio", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(Detail("Audio", AudioUrl, AudioLastRan)));
         widgets
             .EnsureSystemWidgetAsync(Arg.Any<string>(), "tts_caption", Arg.Any<CancellationToken>())
             .Returns(Result.Success(Detail("TTS Caption", CaptionUrl, null)));
@@ -108,7 +108,7 @@ public sealed class TtsConfigControllerOverlayUrlTests
 
         await widgets
             .Received(1)
-            .EnsureSystemWidgetAsync("fresh-channel", "tts_audio", Arg.Any<CancellationToken>());
+            .EnsureSystemWidgetAsync("fresh-channel", "audio", Arg.Any<CancellationToken>());
         await widgets
             .DidNotReceive()
             .EnsureSystemWidgetAsync(

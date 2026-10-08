@@ -65,7 +65,7 @@ public class TtsConfigController : BaseController
 
     /// <summary>
     /// The channel's TTS source for OBS (widgets-overlays.md §1.2): get-or-creates the system
-    /// <c>tts_audio</c> widget (the one Audio Source page every TTS line plays out of; never a gallery
+    /// <c>audio</c> widget (the one Audio page every sound and TTS line plays out of; never a gallery
     /// browse/install) and returns its OBS browser-source URL plus when it last reported running. A fresh
     /// channel gets a working URL on the first call — no widget install required.
     /// </summary>
@@ -76,7 +76,7 @@ public class TtsConfigController : BaseController
     {
         Result<WidgetDetail> result = await _widgetService.EnsureSystemWidgetAsync(
             channelId,
-            "tts_audio",
+            WidgetKeyAliases.Audio,
             ct
         );
         if (result.IsFailure)

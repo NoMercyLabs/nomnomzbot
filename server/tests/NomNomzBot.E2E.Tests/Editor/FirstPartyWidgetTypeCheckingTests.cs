@@ -26,7 +26,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
     // Natural key (the .vue file name) to the catalogue's gallery name (FirstPartyWidgetCatalogue.cs).
     private static readonly Dictionary<string, string> GalleryNames = new()
     {
-        ["tts_audio"] = "Audio Source",
+        ["audio"] = "Audio",
         ["tts_caption"] = "TTS Caption",
         ["countdown_timer"] = "Countdown / Timer",
         ["alerts"] = "Alerts",

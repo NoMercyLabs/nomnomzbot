@@ -89,7 +89,9 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     public IReadOnlyList<WidgetSettingsSchema> GetAll() => _all;
 
     public WidgetSettingsSchema? GetByKey(string widgetKey) =>
-        _byKey.TryGetValue(widgetKey, out WidgetSettingsSchema? schema) ? schema : null;
+        _byKey.TryGetValue(WidgetKeyAliases.Canonical(widgetKey)!, out WidgetSettingsSchema? schema)
+            ? schema
+            : null;
 
     // The authored field list per widget key. Every DefaultSettings key of the definition MUST appear exactly once
     // (enforced by WidgetSettingsSchemaTests). The accent colour is the last field on every widget that has one.
@@ -187,7 +189,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showDuration", Content),
                 Accent(d),
             ],
-            "tts_audio" => [Bool(d, "showIndicator", Content), Accent(d)],
+            WidgetKeyAliases.Audio => [Bool(d, "showIndicator", Content), Accent(d)],
             "tts_caption" =>
             [
                 Bool(d, "showText", Content),

@@ -48,6 +48,18 @@ public sealed class WidgetSettingsSchemaTests
         "json",
     ];
 
+    [Theory]
+    [InlineData("audio")]
+    [InlineData("tts_audio")]
+    public void The_audio_schema_resolves_under_its_new_key_and_its_old_key(string key)
+    {
+        WidgetSettingsSchema? schema = Provider.GetByKey(key);
+
+        schema.Should().NotBeNull();
+        schema!.WidgetKey.Should().Be("audio");
+        schema.Fields.Select(f => f.Key).Should().BeEquivalentTo("showIndicator", "accentColor");
+    }
+
     [Fact]
     public void Every_first_party_widget_type_has_a_schema()
     {
