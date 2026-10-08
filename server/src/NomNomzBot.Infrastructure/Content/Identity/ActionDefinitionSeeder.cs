@@ -376,6 +376,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("spam:policy:manage", Broadcaster);
         M("spam:detections:read", Mod);
         M("spam:detections:manage", Mod);
+        M("spam:lockdown:read", Mod);
+        M("spam:lockdown:manage", LeadModerator);
         // Re-broadcasting a past alert to overlays is presentation-only (no currency/loyalty/reward
         // side effect), same moderator floor as the other widget/dashboard write actions.
         M("dashboard:replay", Mod);
