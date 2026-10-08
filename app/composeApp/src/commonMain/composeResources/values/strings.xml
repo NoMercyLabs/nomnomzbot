@@ -1136,6 +1136,7 @@
     <string name="moderation_notes_delete_title">Delete note?</string>
     <string name="moderation_notes_delete_message">Delete this note? This can't be undone.</string>
     <string name="moderation_unban_requests_title">Unban requests</string>
+    <string name="moderation_unban_requests_load_failed">Unban requests could not be loaded, so this list may be missing appeals. Retry to check again.</string>
     <string name="moderation_unban_approve">Approve</string>
     <string name="moderation_unban_deny">Deny</string>
     <string name="moderation_unban_deny_title">Deny appeal</string>

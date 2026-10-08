@@ -1133,6 +1133,7 @@
     <string name="moderation_notes_delete_title">Notitie verwijderen?</string>
     <string name="moderation_notes_delete_message">Deze notitie verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="moderation_unban_requests_title">Ontbanverzoeken</string>
+    <string name="moderation_unban_requests_load_failed">De ontbanverzoeken konden niet geladen worden, dus in deze lijst kunnen verzoeken ontbreken. Probeer opnieuw om het nog eens te controleren.</string>
     <string name="moderation_unban_approve">Goedkeuren</string>
     <string name="moderation_unban_deny">Afwijzen</string>
     <string name="moderation_unban_deny_title">Beroep afwijzen</string>

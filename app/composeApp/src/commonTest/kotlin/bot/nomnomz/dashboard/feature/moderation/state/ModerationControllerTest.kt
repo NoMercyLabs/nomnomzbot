@@ -902,6 +902,75 @@ class ModerationControllerTest {
         assertEquals(listOf("rep1"), ready.reports.map { it.id })
     }
 
+    @Test
+    fun a_failed_unban_requests_load_sets_an_error_and_never_presents_an_empty_list() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.unbanRequestsResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "Appeals are down."))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+
+        controller.load()
+
+        // Nothing else on the page, yet the state is Ready (not Empty): the appeals failure must stay visible.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertEquals("Appeals are down.", ready.unbanRequestsError)
+        assertTrue(ready.unbanRequests.isEmpty())
+    }
+
+    @Test
+    fun an_unban_requests_push_refetches_and_replaces_the_list_and_clears_the_error() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.unbanRequestsResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "Appeals are down."))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        assertEquals(1, api.unbanRequestsCalls)
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        api.unbanRequestsResult =
+            ApiResult.Ok(
+                listOf(
+                    UnbanRequest(id = "r2", userLogin = "second", text = "please"),
+                    UnbanRequest(id = "r1", userLogin = "first", text = "sorry"),
+                )
+            )
+        events.emit(configChange("unban-requests"))
+
+        assertEquals(2, api.unbanRequestsCalls)
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertNull(ready.unbanRequestsError)
+        assertEquals(listOf("r2", "r1"), ready.unbanRequests.map { it.id })
+    }
+
+    @Test
+    fun a_failed_unban_requests_refetch_keeps_the_known_appeals_and_flags_the_error() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.unbanRequestsResult = ApiResult.Ok(listOf(UnbanRequest(id = "r1", userLogin = "first", text = "sorry")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        api.unbanRequestsResult = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "Try later."))
+        events.emit(configChange("unban-requests"))
+
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertEquals("Try later.", ready.unbanRequestsError)
+        assertEquals(listOf("r1"), ready.unbanRequests.map { it.id })
+    }
+
+    @Test
+    fun a_config_push_for_another_domain_does_not_refetch_the_unban_requests() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(configChange("quotes"))
+
+        assertEquals(1, api.unbanRequestsCalls)
+    }
+
     private fun configChange(domain: String): HubEvent.ConfigChanged =
         HubEvent.ConfigChanged(
             HubConfigChanged(broadcasterId = "ch1", domain = domain, entityId = null, action = "created")
@@ -1828,7 +1897,12 @@ internal class FakeModerationApi(
     var unbanRequestsResult: ApiResult<List<UnbanRequest>> = ApiResult.Ok(emptyList<UnbanRequest>())
     val resolvedUnban: MutableList<Triple<String, Boolean, String?>> = mutableListOf()
 
-    override suspend fun unbanRequests(channelId: String): ApiResult<List<UnbanRequest>> = unbanRequestsResult
+    var unbanRequestsCalls: Int = 0
+
+    override suspend fun unbanRequests(channelId: String): ApiResult<List<UnbanRequest>> {
+        unbanRequestsCalls++
+        return unbanRequestsResult
+    }
 
     override suspend fun resolveUnbanRequest(
         channelId: String,
