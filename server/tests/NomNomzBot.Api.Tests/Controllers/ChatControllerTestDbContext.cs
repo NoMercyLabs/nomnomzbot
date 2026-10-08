@@ -210,6 +210,9 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     public DbSet<Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         throw new NotSupportedException();
 
+    public DbSet<Domain.Moderation.Entities.LockdownWindowRecord> LockdownWindows =>
+        throw new NotSupportedException();
+
     public DbSet<Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
         throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPoll> ChatPolls => throw new NotSupportedException();

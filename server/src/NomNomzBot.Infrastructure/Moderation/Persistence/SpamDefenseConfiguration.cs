@@ -86,6 +86,30 @@ public class FollowBotBlockConfiguration : IEntityTypeConfiguration<FollowBotBlo
 }
 
 /// <summary>
+/// Lockdown windows. Read two ways: "is a window active on this platform" (channel, platform, end
+/// state) when an operator or the engine asks, and "which windows have passed their expiry" (expiry)
+/// for the sweep that restores them.
+/// </summary>
+public class LockdownWindowRecordConfiguration : IEntityTypeConfiguration<LockdownWindowRecord>
+{
+    public void Configure(EntityTypeBuilder<LockdownWindowRecord> builder)
+    {
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new
+        {
+            e.BroadcasterId,
+            e.Platform,
+            e.EndedAt,
+            e.RestoredAt,
+        });
+        builder.HasIndex(e => e.ExpiresAt);
+
+        builder.Property(e => e.Platform).HasMaxLength(50);
+        builder.Property(e => e.Trigger).HasMaxLength(500);
+    }
+}
+
+/// <summary>
 /// The signature corpus. NOT tenant-scoped on purpose — a campaign one channel confirms should protect
 /// the next channel it hits, and that only works if the corpus is instance-wide.
 /// </summary>

@@ -366,6 +366,9 @@ internal sealed class AdminListsSearchTestDbContext : DbContext, IApplicationDbC
     public DbSet<Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         throw new NotSupportedException();
 
+    public DbSet<Domain.Moderation.Entities.LockdownWindowRecord> LockdownWindows =>
+        throw new NotSupportedException();
+
     public DbSet<Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.ViewerReport> ViewerReports =>
