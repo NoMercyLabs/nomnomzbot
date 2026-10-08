@@ -37,6 +37,8 @@ import nomnomzbot.composeapp.generated.resources.attention_integration_reauth_ti
 import nomnomzbot.composeapp.generated.resources.attention_integration_decrypt_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_refresh_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_unusable_message
+import nomnomzbot.composeapp.generated.resources.attention_report_message
+import nomnomzbot.composeapp.generated.resources.attention_report_title
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_message
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_title
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_topics_message
@@ -104,6 +106,8 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
             } else {
                 AttentionText(Res.string.attention_unmanaged_rewards_title_one)
             }
+        "attention_report_title" ->
+            AttentionText(Res.string.attention_report_title, listOf(literal(item.param("username"))))
         "attention_scope_missing_title" ->
             AttentionText(Res.string.attention_scope_missing_title, listOf(literal(item.param("scope"))))
         "attention_eventsub_unauthorized_title" -> AttentionText(Res.string.attention_eventsub_unauthorized_title)
@@ -184,6 +188,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
             )
         "attention_held_many_message" ->
             AttentionText(Res.string.attention_held_many_message, listOf(literal(item.param("count"))))
+        "attention_report_message" ->
+            AttentionText(Res.string.attention_report_message, listOf(literal(item.param("reason"))))
         "attention_unmanaged_rewards_message" -> AttentionText(Res.string.attention_unmanaged_rewards_message)
         "attention_unmanaged_rewards_pending_message" ->
             AttentionText(
