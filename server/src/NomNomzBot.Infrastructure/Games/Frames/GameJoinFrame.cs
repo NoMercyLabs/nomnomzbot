@@ -27,6 +27,9 @@ public sealed record GameJoinFrame
 
     public double? Entry { get; init; }
 
+    /// <summary>Crash only: <c>lobby</c> or <c>running</c>, the phase the player joined in.</summary>
+    public string? Phase { get; init; }
+
     public int? CrewSize { get; init; }
 
     public double? SuccessChance { get; init; }
