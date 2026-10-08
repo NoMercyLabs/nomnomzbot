@@ -63,11 +63,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -292,10 +294,10 @@ fun TtsScreen(
                     },
                     onRemoveByok = { provider -> scope.launch { controller.removeByokKey(provider) } },
                     onAddLexicon = { phrase, replacement, kind ->
-                        scope.launch { controller.addLexiconEntry(phrase, replacement, kind) }
+                        controller.addLexiconEntry(phrase, replacement, kind).toDialogResult()
                     },
                     onUpdateLexicon = { id, phrase, replacement, kind ->
-                        scope.launch { controller.updateLexiconEntry(id, phrase, replacement, kind) }
+                        controller.updateLexiconEntry(id, phrase, replacement, kind).toDialogResult()
                     },
                     onDeleteLexicon = { id -> scope.launch { controller.deleteLexiconEntry(id) } },
                     onSaveNamePronunciation = { value -> scope.launch { controller.saveNamePronunciation(value) } },
@@ -381,8 +383,8 @@ private fun ReadyContent(
     onSearchVoices: (q: String, locale: String, gender: String, provider: String, accent: String, page: Int) -> Unit,
     onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
     onRemoveByok: (provider: String) -> Unit,
-    onAddLexicon: (phrase: String, replacement: String, matchKind: String) -> Unit,
-    onUpdateLexicon: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
+    onAddLexicon: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
+    onUpdateLexicon: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onDeleteLexicon: (id: String) -> Unit,
     onSaveNamePronunciation: (pronunciation: String) -> Unit = {},
 ) {
@@ -761,8 +763,8 @@ internal fun PronunciationTab(
     nameBusy: Boolean,
     onSaveName: (pronunciation: String) -> Unit,
     manage: ManageDecision,
-    onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
-    onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
+    onAdd: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
+    onUpdate: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onDelete: (id: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -1539,8 +1541,8 @@ private fun PronunciationSection(
     lexicon: List<TtsLexiconEntry>,
     busy: Boolean,
     manage: ManageDecision,
-    onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
-    onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
+    onAdd: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
+    onUpdate: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onDelete: (id: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1612,7 +1614,6 @@ private fun PronunciationSection(
             editor = open,
             onDismiss = { editor = null },
             onSubmit = { phrase, replacement, kind ->
-                editor = null
                 val id: String? = open.id
                 if (id == null) onAdd(phrase, replacement, kind)
                 else onUpdate(id, phrase, replacement, kind)
@@ -1701,11 +1702,8 @@ private fun LexiconRow(
 private fun LexiconFormDialog(
     editor: LexiconEditor,
     onDismiss: () -> Unit,
-    onSubmit: (phrase: String, replacement: String, matchKind: String) -> Unit,
+    onSubmit: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-
     var phrase: String by remember { mutableStateOf(editor.phrase) }
     var replacement: String by remember { mutableStateOf(editor.replacement) }
     var matchKind: String by remember { mutableStateOf(editor.matchKind) }
@@ -1722,51 +1720,34 @@ private fun LexiconFormDialog(
             if (isEdit) Res.string.tts_lexicon_dialog_save else Res.string.tts_lexicon_dialog_add
         )
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = phrase,
-                    onValueChange = { phrase = it.take(100) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.tts_lexicon_dialog_phrase_label),
-                )
-                AppTextField(
-                    value = replacement,
-                    onValueChange = { replacement = it.take(200) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.tts_lexicon_dialog_replacement_label),
-                )
-                VoiceFilterChips(
-                    label = stringResource(Res.string.tts_lexicon_dialog_kind_label),
-                    options = LEXICON_KINDS,
-                    selected = matchKind,
-                    onSelect = { matchKind = it },
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSubmit(phrase.trim(), replacement.trim(), matchKind) },
-                enabled = canSubmit,
-            ) {
-                Text(
-                    text = submitLabel,
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.tts_lexicon_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
-            }
-        },
-    )
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.tts_lexicon_dialog_cancel),
+        onDismiss = onDismiss,
+        save = { onSubmit(phrase.trim(), replacement.trim(), matchKind) },
+        dirty = phrase != editor.phrase || replacement != editor.replacement || matchKind != editor.matchKind,
+        valid = canSubmit,
+    ) {
+        AppTextField(
+            value = phrase,
+            onValueChange = { phrase = it.take(100) },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.tts_lexicon_dialog_phrase_label),
+        )
+        AppTextField(
+            value = replacement,
+            onValueChange = { replacement = it.take(200) },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.tts_lexicon_dialog_replacement_label),
+        )
+        VoiceFilterChips(
+            label = stringResource(Res.string.tts_lexicon_dialog_kind_label),
+            options = LEXICON_KINDS,
+            selected = matchKind,
+            onSelect = { matchKind = it },
+        )
+    }
 }
 
 @Composable

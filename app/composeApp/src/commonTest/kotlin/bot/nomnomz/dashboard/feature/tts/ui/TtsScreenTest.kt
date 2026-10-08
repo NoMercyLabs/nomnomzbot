@@ -40,6 +40,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -408,8 +409,8 @@ class TtsScreenTest {
                     namePronunciation = null,
                     nameBusy = false,
                     onSaveName = {},
-                    onAdd = { _, _, _ -> },
-                    onUpdate = { _, _, _, _ -> },
+                    onAdd = { _, _, _ -> DialogResult.Done },
+                    onUpdate = { _, _, _, _ -> DialogResult.Done },
                     onDelete = {},
                 )
             }
