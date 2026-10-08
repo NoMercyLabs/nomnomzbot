@@ -152,10 +152,8 @@ public class AccountAgeGateExecutorTests
             .DeleteMessageAsync(Channel, "kick", "msg-1", Arg.Any<CancellationToken>());
         await _origin
             .DidNotReceiveWithAnyArgs()
-            .TimeoutUserAsync(default, default!, default!, default, default, default);
-        await _origin
-            .DidNotReceiveWithAnyArgs()
-            .BanUserAsync(default, default!, default!, default, default);
+            .TimeoutUserAsync(default, default!, default!, default);
+        await _origin.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!, default);
         await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
         await _queue
             .Received(1)
@@ -182,9 +180,7 @@ public class AccountAgeGateExecutorTests
 
         outcome.DeletedMessage.Should().BeFalse();
         outcome.Skipped.Should().Be("dry run");
-        await _origin
-            .DidNotReceiveWithAnyArgs()
-            .DeleteMessageAsync(default, default!, default!, default);
+        await _origin.DidNotReceiveWithAnyArgs().DeleteMessageAsync(default, default!, default!);
     }
 
     [Theory]
@@ -234,8 +230,6 @@ public class AccountAgeGateExecutorTests
 
         outcome.DeletedMessage.Should().BeFalse();
         outcome.Skipped.Should().Be("no message id to delete");
-        await _origin
-            .DidNotReceiveWithAnyArgs()
-            .DeleteMessageAsync(default, default!, default!, default);
+        await _origin.DidNotReceiveWithAnyArgs().DeleteMessageAsync(default, default!, default!);
     }
 }
