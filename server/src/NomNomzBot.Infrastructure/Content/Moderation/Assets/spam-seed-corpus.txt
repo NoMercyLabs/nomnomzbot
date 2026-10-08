@@ -1,0 +1,157 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
+# Curated spam seed corpus (spam-defense.md section 4.1), seeded as SpamSignature rows with
+# Source = Curated by SpamCorpusSeeder. One entry per line: "skeleton:<value>" or "domain:<value>".
+# Lines starting with # are comments. Skeletons are already L0-normalized (MessageNormalizer).
+#
+# Provenance (file level only; the corpus carries no per-entry source):
+# Compiled from three public community lists, normalized and deduplicated. No file is vendored,
+# and none of the three states a licence. Entries are our own normalized derivations.
+#   wol - WolfwithSword gist https://gist.github.com/WolfwithSword/364927fdddfdf6ede19111d4d373863b
+#   dak - dakkafex/streamer-spam-blacklist https://github.com/dakkafex/streamer-spam-blacklist (nightbot/spam)
+#   sto - Stop The Bots, April 2026 https://transparent-aluminium.net/2026/05/12/stop-the-bots-twitch-scam-spam-block-list-april-2026-update/
+# Known-bot account ids from the dak list are deliberately NOT seeded (SD9).
+
+domain:boostmap.ru
+domain:botrush.ru
+domain:botsister.com
+domain:eliteviewers.ru
+domain:fastfanfollowers.ru
+domain:mrgadget.net
+domain:mystrm.store
+domain:nezhna.com
+domain:popularviewers.ru
+domain:punktru.ru
+domain:skintrevor.fun
+domain:smmdex.ru
+domain:smmgen.online
+domain:smmmega.online
+domain:streamboo.com
+domain:streamfollowers.online
+skeleton:addmeondiscord
+skeleton:addmeoninsta
+skeleton:addmeupondiscord
+skeleton:addviewers
+skeleton:aiviewersstreamboocom
+skeleton:artworkforstreamers
+skeleton:attractmorefollowersandviewers
+skeleton:banishthetumbleweeds
+skeleton:banneremotes
+skeleton:becomethemainevent
+skeleton:bestfollowers
+skeleton:bestfollowersandviewers
+skeleton:bestviewers
+skeleton:bestviewersandfollowers
+skeleton:bestviewerson
+skeleton:bigfollows
+skeleton:bigfollowscom
+skeleton:buyfollower
+skeleton:buyfollowers
+skeleton:buyviewers
+skeleton:canirunwyou
+skeleton:canyoudropyourdisscord
+skeleton:chatexplosions
+skeleton:chatssoempty
+skeleton:cheapfollow
+skeleton:cheapfollowers
+skeleton:cheapviewers
+skeleton:cheapviewerson
+skeleton:cheapviews
+skeleton:checkmyportfolio
+skeleton:connectingondiscord
+skeleton:connectondiscord
+skeleton:creativeandeyecatchystuff
+skeleton:customart
+skeleton:customartist
+skeleton:customgraphics
+skeleton:didyouseethegametwitch
+skeleton:discordcord
+skeleton:discordusername
+skeleton:dogehype
+skeleton:dogehypedotcom
+skeleton:dontforgetourveryown
+skeleton:everythingisinyourhands
+skeleton:feelfreetoaddme
+skeleton:feelfreetoreachouttomeondiscord
+skeleton:fixitwithbotsister
+skeleton:followergains
+skeleton:followonbot
+skeleton:freepackageforstreamers
+skeleton:getafreetestof
+skeleton:gotostreamrise
+skeleton:hiupgradeyourstreamon
+skeleton:howmuchyoupayme
+skeleton:iamprofessionallogodesigner
+skeleton:idlikeforustochatondiscord
+skeleton:idoartisticthings
+skeleton:idocustomartanimation
+skeleton:idoworkforstreamersandyoutubers
+skeleton:imnotarobotatall
+skeleton:improveryourchannel
+skeleton:insearchoffollowersprimesandviews
+skeleton:itsgivingnosignalvibes
+skeleton:iwanttoofferpromotion
+skeleton:iwanttoofferpromotionofyourchannel
+skeleton:justforafeedback
+skeleton:kindlychatmeondiscord
+skeleton:letslinkondiscord
+skeleton:linkupondiscord
+skeleton:logobanneremotes
+skeleton:logosbannersoverlays
+skeleton:lovetocollab
+skeleton:massivefollower
+skeleton:mountviewers
+skeleton:myinstaprofile
+skeleton:myportfolio
+skeleton:offerpromotion
+skeleton:offerpromotionofyourchannel
+skeleton:pleasesentmeamessage
+skeleton:priceislower
+skeleton:primesandviewers
+skeleton:professionalcustomartist
+skeleton:promotionofyourchannel
+skeleton:reachouttome
+skeleton:realviewers
+skeleton:resultinmassivefollower
+skeleton:seemylast
+skeleton:seemywork
+skeleton:sendmeawhisper
+skeleton:showyoumywork
+skeleton:streamboo
+skeleton:streamisreallyentertaining
+skeleton:streamrise
+skeleton:streamviewers
+skeleton:thebestserviceispromoting
+skeleton:topviewers
+skeleton:tumbleweedsfromyour
+skeleton:twitchfollowers
+skeleton:uncontrollablegrinning
+skeleton:upgradeyourstream
+skeleton:upgradeyourstreamon
+skeleton:usepromocode
+skeleton:usernameondiscord
+skeleton:viewersfollowersandprimes
+skeleton:viewersonthestream
+skeleton:wannabecomefamous
+skeleton:wannacheckmyportfolio
+skeleton:wanttobuyfeetpics
+skeleton:wanttoofferpromotion
+skeleton:workondiscord
+skeleton:wouldyouliketoseemywork
+skeleton:youcanbeagreatstreamer
+skeleton:youcanimproveyourstreamon
+skeleton:yourchatssoempty
+skeleton:yourfollows
+skeleton:yourfollowscom
+skeleton:yourfollowz
+skeleton:youseethegametwitch
+skeleton:youseethegametwitchannouncedtoday
+skeleton:youstreamprettycoolthatswhyifollowedyou

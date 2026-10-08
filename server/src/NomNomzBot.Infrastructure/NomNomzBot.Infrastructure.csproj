@@ -51,6 +51,17 @@
     <EmbeddedResource Include="Content\Widgets\Assets\*.vue" />
   </ItemGroup>
 
+  <!-- The curated spam seed corpus (skeletons + malicious domains), embedded so SpamCorpusSeeder reads it at seed
+       time with no filesystem dependency. LogicalName pins a stable manifest name (the default derivation mangles
+       the hyphens in the file name). -->
+  <ItemGroup>
+    <None Remove="Content\Moderation\Assets\spam-seed-corpus.txt" />
+    <EmbeddedResource
+      Include="Content\Moderation\Assets\spam-seed-corpus.txt"
+      LogicalName="NomNomzBot.Infrastructure.Moderation.Assets.spam-seed-corpus.txt"
+    />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Jint" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
