@@ -642,11 +642,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   and `SuspiciousUserUpdatedEvent` are translated but no handler consumes them. Done-when: a restricted
   or monitored user is marked in chat and in the viewer card, their messages show in the moderation
   queue, the trust ladder treats a restricted user as untrusted, and a mod's change on Twitch shows live.
-- [ ] **S-UNBAN-REQUEST-LIVE** `UnbanRequestCreatedEvent` / `UnbanRequestResolvedEvent` are translated
-  (`ModerationTranslators.cs:124,155`) but no handler consumes them: a new appeal shows only on reload,
-  and one resolved on Twitch by another moderator stays on screen. A failed load shows as "no appeals"
-  (app `ModerationController.kt:305-311`, Failure → emptyList; same for reports `:313-316`). Done-when: a
-  hub push refetches the list, open appeals count in the attention inbox, a failed load shows its reason.
 ---
 
 ## BLOCKED ON THE OWNER — cannot be solved from this side
