@@ -618,10 +618,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-AUTOMOD-LINKS-BARE** the AutoMod links rule only matches `http(s)://` (`AutoModerationHandler.cs:439`),
   so `example.com/x` slips through; its deletions ignore the platform result (`:345-347`).
   Done-when: bare domains match (with the normalizer's homoglyph folding) and a failed delete is reported.
-- [ ] **S-FILTER-HOLD-FLAG** chat-filter actions Hold and Flag only write a Debug log
-  (`ChatFilterExecutionHandler.cs:147-155`) while the dashboard offers them. Done-when: Hold deletes
-  the message and puts it in the moderation queue for approve/deny; Flag adds a queue item without
-  deleting; tests assert the queue rows.
 - [ ] **S-FILTER-ESCALATE-REMOVES** an Escalate filter never removes the message, and with the escalation
   ladder off (default) does nothing (`:194-198`). Done-when: Escalate always deletes, then applies the
   ladder step (or the filter's own timeout when the ladder is off).
