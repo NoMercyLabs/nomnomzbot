@@ -1117,6 +1117,7 @@
     <string name="moderation_reports_reported_by">Reported by %1$s</string>
     <string name="moderation_reports_escalate">Escalate</string>
     <string name="moderation_reports_dismiss">Dismiss</string>
+    <string name="moderation_reports_load_failed">Viewer reports could not be loaded, so this list may be missing reports. Retry to check again.</string>
     <string name="moderation_automod_queue_title">AutoMod held messages</string>
     <string name="moderation_automod_queue_category">Flagged for %1$s</string>
     <string name="moderation_automod_queue_approve">Approve</string>

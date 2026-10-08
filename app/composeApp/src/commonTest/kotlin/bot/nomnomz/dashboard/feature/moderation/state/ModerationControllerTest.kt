@@ -81,6 +81,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_action_applied
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
+import bot.nomnomz.dashboard.core.realtime.HubConfigChanged
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -810,6 +811,101 @@ class ModerationControllerTest {
         assertEquals(listOf("rep1" to "escalate"), api.resolvedReports)
         assertEquals(2, api.reportsCalls)
     }
+
+    @Test
+    fun a_viewer_reports_config_push_refetches_the_reports_live() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult = ApiResult.Ok(listOf(ViewerReport(id = "rep1", reportedUsername = "first", status = "open")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        assertEquals(1, api.reportsCalls)
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A viewer files a second report: the server announces the change on the "viewer-reports" domain.
+        api.reportsResult =
+            ApiResult.Ok(
+                listOf(
+                    ViewerReport(id = "rep2", reportedUsername = "second", status = "open"),
+                    ViewerReport(id = "rep1", reportedUsername = "first", status = "open"),
+                )
+            )
+        events.emit(configChange("viewer-reports"))
+
+        assertEquals(2, api.reportsCalls)
+        assertEquals(
+            listOf("rep2", "rep1"),
+            (controller.state.value as? ModerationState.Ready)?.reports?.map { it.id },
+        )
+    }
+
+    @Test
+    fun a_config_push_for_another_domain_does_not_refetch_the_reports() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult = ApiResult.Ok(listOf(ViewerReport(id = "rep1", status = "open")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(configChange("quotes"))
+
+        assertEquals(1, api.reportsCalls)
+    }
+
+    @Test
+    fun a_failed_reports_load_sets_an_error_and_never_presents_an_empty_list() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "Reports are down."))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+
+        controller.load()
+
+        // Nothing else on the page, yet the state is Ready (not Empty): the reports failure must stay visible.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertEquals("Reports are down.", ready.reportsError)
+        assertTrue(ready.reports.isEmpty())
+    }
+
+    @Test
+    fun a_later_good_reports_load_clears_the_error() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "Reports are down."))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        api.reportsResult = ApiResult.Ok(listOf(ViewerReport(id = "rep1", status = "open")))
+        controller.retryReports()
+
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertNull(ready.reportsError)
+        assertEquals(listOf("rep1"), ready.reports.map { it.id })
+    }
+
+    @Test
+    fun a_failed_live_refetch_keeps_the_known_reports_and_flags_the_error() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult = ApiResult.Ok(listOf(ViewerReport(id = "rep1", status = "open")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        api.reportsResult = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "Try later."))
+        events.emit(configChange("viewer-reports"))
+
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertEquals("Try later.", ready.reportsError)
+        assertEquals(listOf("rep1"), ready.reports.map { it.id })
+    }
+
+    private fun configChange(domain: String): HubEvent.ConfigChanged =
+        HubEvent.ConfigChanged(
+            HubConfigChanged(broadcasterId = "ch1", domain = domain, entityId = null, action = "created")
+        )
 
     @Test
     fun an_automod_queue_push_refetches_the_pending_queue_live() = runTest {
