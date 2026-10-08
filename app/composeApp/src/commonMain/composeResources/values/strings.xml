@@ -5138,6 +5138,7 @@
     <string name="widget_sr_queue_accentColor_label">Accent colour</string>
     <string name="widget_audio_showIndicator_label">Show a speaking dot (setup only)</string>
     <string name="widget_audio_accentColor_label">Accent colour</string>
+    <string name="widget_audio_enableAudio_label">Play audio on this page</string>
     <string name="widget_tts_caption_showText_label">Show caption text</string>
     <string name="widget_tts_caption_voiceLabel_label">Show voice label</string>
     <string name="widget_tts_caption_position_label">Position</string>

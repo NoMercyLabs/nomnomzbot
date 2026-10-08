@@ -33,10 +33,21 @@ internal sealed class WidgetEventNotifierAdapter : IWidgetEventNotifier
         object? data,
         CancellationToken ct = default
     ) =>
-        _notifier.SendWidgetEventAsync(
-            broadcasterId.ToString(),
-            widgetId.ToString(),
-            new(widgetId.ToString(), eventType, data),
-            ct
-        );
+        eventType
+            is "youtube.play"
+                or "youtube.pause"
+                or "youtube.resume"
+                or "youtube.stop"
+                or "youtube.seek"
+            ? _notifier.SendAudioWidgetEventAsync(
+                broadcasterId.ToString(),
+                new(widgetId.ToString(), eventType, data),
+                ct
+            )
+            : _notifier.SendWidgetEventAsync(
+                broadcasterId.ToString(),
+                widgetId.ToString(),
+                new(widgetId.ToString(), eventType, data),
+                ct
+            );
 }

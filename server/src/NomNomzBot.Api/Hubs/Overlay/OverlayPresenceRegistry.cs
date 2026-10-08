@@ -33,7 +33,12 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     /// <summary>The canonical gallery key of the Audio page — the one widget every sound and TTS line plays on.</summary>
     public const string AudioSourceNaturalKey = WidgetKeyAliases.Audio;
 
-    private sealed record OverlayConnection(Guid BroadcasterId, long Order, bool IsAudioSource);
+    private sealed record OverlayConnection(
+        Guid BroadcasterId,
+        long Order,
+        bool IsAudioSource,
+        Guid? AudioWidgetId
+    );
 
     /// <summary>A widget-scoped connection and the exact token it connected with, kept so a rotation can close it.</summary>
     public sealed record BoundConnection(
@@ -67,15 +72,20 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     public void RegisterOverlay(string connectionId, Guid broadcasterId)
     {
         lock (_audioLock)
-            _overlays[connectionId] = new(broadcasterId, ++_order, false);
+            _overlays[connectionId] = new(broadcasterId, ++_order, false, null);
     }
 
     /// <summary>Marks a connection as an Audio source page; it becomes the newest one.</summary>
-    public void MarkAudioSource(string connectionId)
+    public void MarkAudioSource(string connectionId, Guid? widgetId = null)
     {
         lock (_audioLock)
             if (_overlays.TryGetValue(connectionId, out OverlayConnection? current))
-                _overlays[connectionId] = current with { Order = ++_order, IsAudioSource = true };
+                _overlays[connectionId] = current with
+                {
+                    Order = ++_order,
+                    IsAudioSource = true,
+                    AudioWidgetId = widgetId,
+                };
     }
 
     public string? GetAudioTarget(Guid broadcasterId)
@@ -87,6 +97,16 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
                 .ToArray();
             return sources.Length == 0 ? null : sources.MaxBy(o => o.Value.Order).Key;
         }
+    }
+
+    public Guid? GetAudioWidgetId(Guid broadcasterId)
+    {
+        lock (_audioLock)
+            return _overlays
+                .Values.Where(o => o.BroadcasterId == broadcasterId && o.IsAudioSource)
+                .OrderByDescending(o => o.Order)
+                .Select(o => o.AudioWidgetId)
+                .FirstOrDefault();
     }
 
     public bool IsAudioSourceConnected(Guid broadcasterId)

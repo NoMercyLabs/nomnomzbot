@@ -76,7 +76,8 @@ public sealed class YouTubeTransportControlTests
         SongRequestQueueStore Queues,
         YouTubePlayerStateStore PlayerStore,
         RecordingWidgetEventNotifier Notifier,
-        RecordingEventBus Bus
+        RecordingEventBus Bus,
+        IOverlayPresenceRegistry Presence
     );
 
     private static string VideoJson(string id, string title) =>
@@ -130,6 +131,7 @@ public sealed class YouTubeTransportControlTests
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Broadcaster, OwnerWidget).Returns(playerOpen);
         presence.IsWidgetAttached(Broadcaster, OtherWidget).Returns(playerOpen);
+        presence.GetAudioWidgetId(Broadcaster).Returns(playerOpen ? OwnerWidget : null);
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();
@@ -211,7 +213,8 @@ public sealed class YouTubeTransportControlTests
             queues,
             playerStore,
             notifier,
-            bus
+            bus,
+            presence
         );
     }
 
@@ -285,6 +288,28 @@ public sealed class YouTubeTransportControlTests
             .BeTrue();
         await ReportAsync(rig, First, "playing");
         return rig;
+    }
+
+    [Fact]
+    public async Task A_request_waits_without_audio_and_is_handed_over_when_audio_attaches()
+    {
+        Rig rig = await BuildAsync(playerOpen: false);
+        Result queued = await rig.Music.AddToQueueAsync(
+            Broadcaster.ToString(),
+            Watch(First),
+            "viewer1"
+        );
+
+        queued.IsSuccess.Should().BeTrue();
+        QueuedUris(rig).Should().ContainSingle().Which.Should().Be(Watch(First));
+        rig.Notifier.Sent.Should().BeEmpty();
+
+        rig.Presence.GetAudioWidgetId(Broadcaster).Returns(OwnerWidget);
+        (await rig.Players.HandOverNextAsync(Broadcaster)).Should().BeTrue();
+        await rig.Music.HandOverNextAsync(Broadcaster.ToString());
+
+        rig.Notifier.PlayedVideoIds.Should().Equal(First);
+        rig.Notifier.Sent.Should().ContainSingle().Which.Widget.Should().Be(OwnerWidget);
     }
 
     [Fact]

@@ -28,5 +28,7 @@ internal sealed class NoOpOverlayPresenceRegistry : IOverlayPresenceRegistry
 
     public string? GetAudioTarget(Guid broadcasterId) => null;
 
+    public Guid? GetAudioWidgetId(Guid broadcasterId) => null;
+
     public bool IsAudioSourceConnected(Guid broadcasterId) => false;
 }

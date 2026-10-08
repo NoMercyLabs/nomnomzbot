@@ -56,8 +56,11 @@ public sealed class WidgetSettingsSchemaTests
         WidgetSettingsSchema? schema = Provider.GetByKey(key);
 
         schema.Should().NotBeNull();
-        schema!.WidgetKey.Should().Be("audio");
-        schema.Fields.Select(f => f.Key).Should().BeEquivalentTo("showIndicator", "accentColor");
+        schema.WidgetKey.Should().Be("audio");
+        schema
+            .Fields.Select(f => f.Key)
+            .Should()
+            .BeEquivalentTo("showIndicator", "enableAudio", "accentColor");
     }
 
     [Fact]

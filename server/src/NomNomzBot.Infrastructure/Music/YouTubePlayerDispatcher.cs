@@ -11,17 +11,14 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Infrastructure.Music;
 
-/// <summary>Finds the channel's open YouTube player pages and tells them what to play.</summary>
+/// <summary>Finds the channel's Audio page and tells it what to play.</summary>
 public interface IYouTubePlayerDispatcher
 {
     /// <summary>
-    /// The one player widget that owns the channel's YouTube audio, as a list of zero or one id. Candidates are
-    /// the enabled widgets that subscribe <c>now_playing</c> or <c>youtube.play</c> and have a page open. The
-    /// owner is the candidate whose report the store accepted last, else the earliest created.
+    /// The enabled Audio widget on the selected Audio page, as a list of zero or one id.
     /// </summary>
     Task<IReadOnlyList<Guid>> FindPlayersAsync(
         Guid broadcasterId,
@@ -65,6 +62,13 @@ public interface IYouTubePlayerDispatcher
     /// </summary>
     Task<bool> HandOverNextAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 
+    /// <summary>Resumes the current track on a newly selected Audio page. An old report is trusted only while another Audio page was still open.</summary>
+    Task<bool> ReplayCurrentAsync(
+        Guid broadcasterId,
+        bool allowStale,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>
     /// Sends <c>youtube.stop</c> to the owning player, which stops the video and reports it ENDED. With no
     /// player open nothing is sent.
@@ -84,35 +88,22 @@ public sealed class YouTubePlayerDispatcher(
     public const string ResumeEventType = "youtube.resume";
     public const string StopEventType = "youtube.stop";
     public const string SeekEventType = "youtube.seek";
-    private const string NowPlayingEventType = "now_playing";
 
     public async Task<IReadOnlyList<Guid>> FindPlayersAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
-        List<Widget> widgets = await db
-            .Widgets.AsNoTracking()
-            .Where(w => w.BroadcasterId == broadcasterId && w.IsEnabled)
-            .ToListAsync(cancellationToken);
-
-        List<Widget> attached =
-        [
-            .. widgets
-                .Where(w =>
-                    w.EventSubscriptions.Contains(NowPlayingEventType)
-                    || w.EventSubscriptions.Contains(PlayEventType)
-                )
-                .Where(w => presence.IsWidgetAttached(broadcasterId, w.Id)),
-        ];
-        if (attached.Count == 0)
+        Guid? audioWidgetId = presence.GetAudioWidgetId(broadcasterId);
+        if (audioWidgetId is null)
             return [];
-
-        Guid? reporting = store.ReportingWidget(broadcasterId);
-        Widget owner =
-            attached.FirstOrDefault(w => w.Id == reporting)
-            ?? attached.OrderBy(w => w.CreatedAt).ThenBy(w => w.Id).First();
-        return [owner.Id];
+        bool enabled = await db
+            .Widgets.AsNoTracking()
+            .AnyAsync(
+                w => w.Id == audioWidgetId && w.BroadcasterId == broadcasterId && w.IsEnabled,
+                cancellationToken
+            );
+        return enabled ? [audioWidgetId.Value] : [];
     }
 
     public async Task PlayAsync(
@@ -188,6 +179,28 @@ public sealed class YouTubePlayerDispatcher(
     {
         IReadOnlyList<Guid> open = await FindPlayersAsync(broadcasterId, cancellationToken);
         await SendTransportAsync(broadcasterId, open, StopEventType, cancellationToken);
+    }
+
+    public async Task<bool> ReplayCurrentAsync(
+        Guid broadcasterId,
+        bool allowStale,
+        CancellationToken cancellationToken = default
+    )
+    {
+        YouTubePlayerReport? current = allowStale
+            ? store.Latest(broadcasterId)
+            : store.GetFresh(broadcasterId);
+        if (current?.State is not (YouTubePlayerState.Playing or YouTubePlayerState.Paused))
+            return false;
+        IReadOnlyList<Guid> open = await FindPlayersAsync(broadcasterId, cancellationToken);
+        if (open.Count == 0)
+            return false;
+
+        await PlayAsync(broadcasterId, open, current.VideoId, cancellationToken);
+        await SeekAsync(broadcasterId, open, current.PositionMs, cancellationToken);
+        if (current.State == YouTubePlayerState.Paused)
+            await PauseAsync(broadcasterId, open, cancellationToken);
+        return true;
     }
 
     private async Task SendTransportAsync(
