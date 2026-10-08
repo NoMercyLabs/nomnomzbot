@@ -45,6 +45,7 @@ private const val FormDialogMaxHeightFraction: Float = 0.9f
  *   through [onDismiss]. Save stays disabled until [valid].
  * - A [dirty] form asks "Discard changes?" before it closes on Cancel, Esc or a click on the scrim. A clean
  *   form closes at once.
+ * - [destructive] paints the save button red, for a form whose save removes access.
  */
 @Composable
 fun FormDialog(
@@ -56,6 +57,7 @@ fun FormDialog(
     modifier: Modifier = Modifier,
     dirty: Boolean = false,
     valid: Boolean = true,
+    destructive: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -85,7 +87,7 @@ fun FormDialog(
         state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
         DialogFooter {
             DialogActionDismiss(state = state, label = cancelLabel, onDismiss = requestClose)
-            DialogActionConfirm(state = state, label = saveLabel, enabled = valid, action = save)
+            DialogActionConfirm(state = state, label = saveLabel, enabled = valid, destructive = destructive, action = save)
         }
     }
 
