@@ -283,8 +283,8 @@ fun ObsScreen(
                         onPauseRecording = { scope.launch { controller.pauseRecording() } },
                         onResumeRecording = { scope.launch { controller.resumeRecording() } },
                         onSplitRecording = { scope.launch { controller.splitRecording() } },
-                        onToggleReplayBuffer = { scope.launch { controller.toggleReplayBuffer() } },
-                        onSaveReplayBuffer = { scope.launch { controller.saveReplayBuffer() } },
+                        onToggleReplayBuffer = { controller.toggleReplayBuffer() },
+                        onSaveReplayBuffer = { controller.saveReplayBuffer() },
                         onToggleVirtualCam = { scope.launch { controller.toggleVirtualCam() } },
                         // The retry re-reads EVERYTHING (bridge status + setup + probe + live), not just live — a
                         // bridge that just came online is reflected here, not only after a full page reload.
@@ -579,14 +579,28 @@ private fun ControlCard(
     onPauseRecording: () -> Unit,
     onResumeRecording: () -> Unit,
     onSplitRecording: () -> Unit,
-    onToggleReplayBuffer: () -> Unit,
-    onSaveReplayBuffer: () -> Unit,
+    onToggleReplayBuffer: suspend () -> ApiResult<Unit>,
+    onSaveReplayBuffer: suspend () -> ApiResult<Unit>,
     onToggleVirtualCam: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope: CoroutineScope = rememberCoroutineScope()
+    // The replay buffer writes wait for the server: the clicked button shows its spinner, both stay disabled
+    // (no second write), and a failure shows its reason under the row instead of a toast.
+    var replayPending: ReplayAction? by remember { mutableStateOf(null) }
+    var replayError: String? by remember { mutableStateOf(null) }
+    val runReplay: (ReplayAction, suspend () -> ApiResult<Unit>) -> Unit = { action, write ->
+        replayPending = action
+        replayError = null
+        scope.launch {
+            val result: ApiResult<Unit> = write()
+            replayPending = null
+            if (result is ApiResult.Failure) replayError = result.error.message
+        }
+    }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -720,8 +734,9 @@ private fun ControlCard(
             ManageGate(decision = controlManage) { gateEnabled ->
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     Button(
-                        onClick = onToggleReplayBuffer,
-                        enabled = gateEnabled,
+                        onClick = { runReplay(ReplayAction.Toggle, onToggleReplayBuffer) },
+                        enabled = gateEnabled && replayPending == null,
+                        loading = replayPending == ReplayAction.Toggle,
                         variant = if (live.state.replayBufferActive) ButtonVariant.Destructive else ButtonVariant.Outline,
                     ) {
                         Text(
@@ -731,8 +746,9 @@ private fun ControlCard(
                         )
                     }
                     Button(
-                        onClick = onSaveReplayBuffer,
-                        enabled = gateEnabled && live.state.replayBufferActive,
+                        onClick = { runReplay(ReplayAction.Save, onSaveReplayBuffer) },
+                        enabled = gateEnabled && live.state.replayBufferActive && replayPending == null,
+                        loading = replayPending == ReplayAction.Save,
                         variant = ButtonVariant.Outline,
                     ) {
                         Text(text = stringResource(Res.string.obs_replay_buffer_save))
@@ -750,9 +766,12 @@ private fun ControlCard(
                     }
                 }
             }
+            replayError?.let { detail -> Text(text = detail, style = typography.sm, color = tokens.destructive) }
         }
     }
 }
+
+private enum class ReplayAction { Toggle, Save }
 
 // The audio mixer: every OBS audio input with a mute toggle + a volume fader (dB), gated at Moderator
 // (obs:control). Only inputs that actually expose mixer state (mute or volume) are shown — a browser/image source
