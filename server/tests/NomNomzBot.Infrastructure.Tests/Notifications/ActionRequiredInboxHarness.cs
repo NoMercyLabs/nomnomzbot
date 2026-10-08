@@ -10,10 +10,14 @@
 
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Notifications.Sources;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Notifications;
 
@@ -31,6 +35,7 @@ internal static class ActionRequiredInboxHarness
             new DeadIntegrationTokenSource(db),
             new HeldChatMessageSource(db),
             new ViewerReportSource(db),
+            new UnbanRequestSource(db, ModerationWithNoAppeals()),
             new UnmanagedRewardSource(db),
             new TwitchGrantGapSource(db),
             new WidgetBuildFailureSource(db),
@@ -42,6 +47,20 @@ internal static class ActionRequiredInboxHarness
             new SecurityNoticeSource(db),
             new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
         ];
+
+    private static IModerationService ModerationWithNoAppeals()
+    {
+        IModerationService moderation = Substitute.For<IModerationService>();
+        moderation
+            .GetUnbanRequestsAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<List<UnbanRequestDto>>([]));
+        return moderation;
+    }
 
     public static ActionRequiredInboxService Create(
         IApplicationDbContext db,
