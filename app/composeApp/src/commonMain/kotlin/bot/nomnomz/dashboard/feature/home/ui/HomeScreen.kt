@@ -102,6 +102,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
 import bot.nomnomz.dashboard.core.designsystem.component.DialogActionProgressTag
 import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import androidx.compose.ui.platform.testTag
@@ -217,7 +218,6 @@ import nomnomzbot.composeapp.generated.resources.home_platforms_label
 import nomnomzbot.composeapp.generated.resources.home_platforms_offline
 import nomnomzbot.composeapp.generated.resources.home_status_live
 import nomnomzbot.composeapp.generated.resources.home_status_offline
-import nomnomzbot.composeapp.generated.resources.home_stream_error
 import nomnomzbot.composeapp.generated.resources.home_stream_save
 import nomnomzbot.composeapp.generated.resources.home_stream_section
 import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
@@ -282,14 +282,13 @@ fun HomeScreen(
                     topCommands = current.topCommands,
                     actionRequired = current.actionRequired,
                     firstRunSteps = current.firstRunSteps,
-                    streamError = current.streamError,
                     replayStatus = current.replayStatus,
                     isRefreshing = current.isRefreshing,
                     liveOpsController = liveOpsController,
                     chatPollsController = chatPollsController,
                     heldActionKeys = heldActionKeys,
                     onUpdateStream = { title, game, tags ->
-                        scope.launch { controller.updateStreamInfo(title, game, tags) }
+                        controller.updateStreamInfo(title, game, tags).toDialogResult()
                     },
                     onSearchCategories = controller::searchCategories,
                     onSearchRaidTargets = controller::searchRaidTargets,
@@ -338,13 +337,12 @@ private fun ReadyContent(
     topCommands: List<CommandSummary>,
     actionRequired: List<ActionRequiredItem>,
     firstRunSteps: List<FirstRunStep>,
-    streamError: String?,
     replayStatus: Map<String, ReplayStatus>,
     isRefreshing: Boolean,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
     heldActionKeys: Set<String>,
-    onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
+    onUpdateStream: suspend (title: String?, game: String?, tags: List<String>?) -> DialogResult,
     onSearchCategories: suspend (String) -> List<PickerOption>,
     onSearchRaidTargets: suspend (String) -> List<PickerOption>,
     onReplay: (eventId: String) -> Unit,
@@ -530,12 +528,8 @@ private fun ReadyContent(
     if (showChangeTitleDialog) {
         ChangeTitleDialog(
             streamInfo = streamInfo,
-            error = streamError,
             onSearchCategories = onSearchCategories,
-            onSave = { title, game, tags ->
-                showChangeTitleDialog = false
-                onUpdateStream(title, game, tags)
-            },
+            onSave = onUpdateStream,
             onDismiss = { showChangeTitleDialog = false },
         )
     }
@@ -1498,11 +1492,10 @@ private fun TopCommandsCard(commands: List<CommandSummary>) {
 // ─── Dialogs ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ChangeTitleDialog(
+internal fun ChangeTitleDialog(
     streamInfo: StreamInfo?,
-    error: String?,
     onSearchCategories: suspend (String) -> List<PickerOption>,
-    onSave: (title: String?, game: String?, tags: List<String>?) -> Unit,
+    onSave: suspend (title: String?, game: String?, tags: List<String>?) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
     var editTitle: String by remember(streamInfo?.title) { mutableStateOf(streamInfo?.title ?: "") }
@@ -1514,65 +1507,56 @@ private fun ChangeTitleDialog(
     var editTags: String by remember(streamInfo?.tags) {
         mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
     }
-    val spacing = LocalSpacing.current
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.home_stream_section)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = editTitle,
-                    onValueChange = { editTitle = it },
-                    label = stringResource(Res.string.home_stream_title_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                SearchPickerField(
-                    search = onSearchCategories,
-                    selected = selectedGame,
-                    onSelect = { selectedGame = it },
-                    onClear = { selectedGame = null },
-                    label = stringResource(Res.string.category_picker_label),
-                    placeholder = stringResource(Res.string.category_picker_placeholder),
-                    emptyText = stringResource(Res.string.category_picker_empty),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = editTags,
-                    onValueChange = { editTags = it },
-                    label = stringResource(Res.string.home_stream_tags_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (error != null) {
-                    Text(
-                        text = stringResource(Res.string.home_stream_error, error),
-                        style = LocalTypography.current.sm,
-                        color = LocalTokens.current.destructive,
-                    )
-                }
-            }
+    val dirty: Boolean =
+        editTitle != (streamInfo?.title ?: "") ||
+            selectedGame?.name != streamInfo?.gameName?.takeIf { it.isNotBlank() } ||
+            editTags != (streamInfo?.tags?.joinToString(", ") ?: "")
+
+    // The dialog stays open until Twitch answers: a refused title or game keeps the typed values and shows
+    // the reason next to Save (FormDialog), and Save is locked while the call runs.
+    FormDialog(
+        title = stringResource(Res.string.home_stream_section),
+        saveLabel = stringResource(Res.string.home_stream_save),
+        cancelLabel = stringResource(Res.string.home_live_ops_cancel),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        save = {
+            // Always send the tags list (empty = clear). editTags is pre-filled from the current tags, so
+            // an untouched field re-sends them unchanged; clearing the field now actually clears them —
+            // the backend treats an empty list as "clear" and null as "leave unchanged", and the old
+            // `.takeIf { isNotEmpty() }` collapsed a cleared field to null, so tags could never be removed.
+            val tags: List<String> = editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            onSave(
+                editTitle.trim().takeIf { it.isNotEmpty() },
+                selectedGame?.name?.trim()?.takeIf { it.isNotEmpty() },
+                tags,
+            )
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    // Always send the tags list (empty = clear). editTags is pre-filled from the current tags, so
-                    // an untouched field re-sends them unchanged; clearing the field now actually clears them —
-                    // the backend treats an empty list as "clear" and null as "leave unchanged", and the old
-                    // `.takeIf { isNotEmpty() }` collapsed a cleared field to null, so tags could never be removed.
-                    val tags: List<String> =
-                        editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                    onSave(
-                        editTitle.trim().takeIf { it.isNotEmpty() },
-                        selectedGame?.name?.trim()?.takeIf { it.isNotEmpty() },
-                        tags,
-                    )
-                },
-            ) { Text(stringResource(Res.string.home_stream_save)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.home_live_ops_cancel)) }
-        },
-    )
+    ) {
+        AppTextField(
+            value = editTitle,
+            onValueChange = { editTitle = it },
+            label = stringResource(Res.string.home_stream_title_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        SearchPickerField(
+            search = onSearchCategories,
+            selected = selectedGame,
+            onSelect = { selectedGame = it },
+            onClear = { selectedGame = null },
+            label = stringResource(Res.string.category_picker_label),
+            placeholder = stringResource(Res.string.category_picker_placeholder),
+            emptyText = stringResource(Res.string.category_picker_empty),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = editTags,
+            onValueChange = { editTags = it },
+            label = stringResource(Res.string.home_stream_tags_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 // Where a poll runs: a bot chat poll (viewers type an option number, works on every platform) or Twitch's

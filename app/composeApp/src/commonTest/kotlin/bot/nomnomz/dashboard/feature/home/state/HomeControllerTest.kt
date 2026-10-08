@@ -252,15 +252,40 @@ class HomeControllerTest {
             )
         controller.load()
 
-        controller.updateStreamInfo(title = "New title", gameName = "New game", tags = null)
+        val result: ApiResult<StreamInfo> = controller.updateStreamInfo(title = "New title", gameName = "New game", tags = null)
 
+        assertTrue(result is ApiResult.Ok)
         val state: HomeState = controller.state.value
         assertTrue(state is HomeState.Ready)
         val ready: HomeState.Ready = state as HomeState.Ready
         assertEquals("New title", ready.stats.streamTitle)
         assertEquals("New game", ready.stats.gameName)
         assertEquals("New title", ready.streamInfo?.title)
-        assertNull(ready.streamError)
+    }
+
+    @Test
+    fun updateStreamInfo_hands_a_refusal_back_and_leaves_the_banner_untouched() = runTest {
+        val refusal: ApiError = ApiError(400, "TITLE_REFUSED", "Twitch refused the title.")
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(
+                    ApiResult.Ok(DashboardStats(streamTitle = "Old title", gameName = "Old game"))
+                ),
+                streamApi = FakeStreamApi(updateResult = ApiResult.Failure(refusal)),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
+                integrationsApi = FakeIntegrationsApi(),
+            )
+        controller.load()
+
+        val result: ApiResult<StreamInfo> = controller.updateStreamInfo(title = "Bad", gameName = null, tags = null)
+
+        assertEquals(ApiResult.Failure(refusal), result)
+        assertEquals("Old title", (controller.state.value as HomeState.Ready).stats.streamTitle)
     }
 
     @Test

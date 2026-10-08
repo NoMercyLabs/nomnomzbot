@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.feature.attention.state.ATTENTION_HUB_DOMAIN
 import bot.nomnomz.dashboard.feature.attention.state.AttentionController
 import bot.nomnomz.dashboard.core.network.ActivityEvent
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.Category
@@ -222,30 +223,23 @@ class HomeController(
      * [HomeState.Ready.streamInfo] AND the [HomeState.Ready.stats] the live banner renders, so the saved title
      * shows immediately instead of only after the next full reload.
      */
-    suspend fun updateStreamInfo(title: String?, gameName: String?, tags: List<String>?) {
-        val channel: String = channelId ?: return
+    suspend fun updateStreamInfo(title: String?, gameName: String?, tags: List<String>?): ApiResult<StreamInfo> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, "NO_CHANNEL", "No channel is selected."))
         val update: StreamInfoUpdate = StreamInfoUpdate(title = title, gameName = gameName, tags = tags)
-        when (val result: ApiResult<StreamInfo> = streamApi.update(channel, update)) {
-            is ApiResult.Failure -> {
-                val current: HomeState = _state.value
-                if (current is HomeState.Ready) {
-                    _state.value = current.copy(streamError = result.error.message)
-                }
-            }
-            is ApiResult.Ok -> {
-                val current: HomeState = _state.value
-                if (current is HomeState.Ready) {
-                    _state.value = current.copy(
-                        stats = current.stats.copy(
-                            streamTitle = result.value.title,
-                            gameName = result.value.gameName,
-                        ),
-                        streamInfo = result.value,
-                        streamError = null,
-                    )
-                }
+        val result: ApiResult<StreamInfo> = streamApi.update(channel, update)
+        if (result is ApiResult.Ok) {
+            val current: HomeState = _state.value
+            if (current is HomeState.Ready) {
+                _state.value = current.copy(
+                    stats = current.stats.copy(
+                        streamTitle = result.value.title,
+                        gameName = result.value.gameName,
+                    ),
+                    streamInfo = result.value,
+                )
             }
         }
+        return result
     }
 
     /**
@@ -618,8 +612,6 @@ sealed interface HomeState {
          * empty for any channel with real configured content (truthful state, never a stale "still onboarding").
          */
         val firstRunSteps: List<FirstRunStep> = emptyList(),
-        /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
-        val streamError: String? = null,
         /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
         val replayStatus: Map<String, ReplayStatus> = emptyMap(),
         /**
