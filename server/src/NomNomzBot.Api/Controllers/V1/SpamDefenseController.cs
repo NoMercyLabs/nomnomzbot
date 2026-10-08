@@ -35,11 +35,17 @@ public class SpamDefenseController : BaseController
 {
     private readonly ISpamDefenseService _spamDefense;
     private readonly ICurrentUserService _currentUser;
+    private readonly ILockdownService _lockdown;
 
-    public SpamDefenseController(ISpamDefenseService spamDefense, ICurrentUserService currentUser)
+    public SpamDefenseController(
+        ISpamDefenseService spamDefense,
+        ICurrentUserService currentUser,
+        ILockdownService lockdown
+    )
     {
         _spamDefense = spamDefense;
         _currentUser = currentUser;
+        _lockdown = lockdown;
     }
 
     /// <summary>
@@ -221,5 +227,78 @@ public class SpamDefenseController : BaseController
 
         Result result = await _spamDefense.OverturnDetectionAsync(tenantId, id, operatorUserId, ct);
         return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Every lockdown window of the channel not yet fully restored: the active ones, and any whose restore
+    /// left a control tightened. Empty means the room is back to normal.
+    /// </summary>
+    [HttpGet("{channelId}/spam-defense/lockdown")]
+    [Authorize]
+    [RequireAction("spam:lockdown:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<LockdownWindowStatus>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetLockdown(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return Ok(
+            new StatusResponseDto<IReadOnlyList<LockdownWindowStatus>>
+            {
+                Data = await _lockdown.GetActiveAsync(tenantId, ct),
+            }
+        );
+    }
+
+    /// <summary>
+    /// Tightens the room by hand. The reason is required and stored on the window, so the log can say who
+    /// asked for it and why; at least one control must be named, because a lockdown that tightens nothing
+    /// would report success while protecting nobody.
+    /// </summary>
+    [HttpPost("{channelId}/spam-defense/lockdown")]
+    [Authorize]
+    [RequireAction("spam:lockdown:manage")]
+    [ProducesResponseType<StatusResponseDto<LockdownWindowStatus>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> EngageLockdown(
+        string channelId,
+        [FromBody] EngageLockdownRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequestResponse("A reason is required.");
+        if (request.Controls is not { Count: > 0 })
+            return BadRequestResponse("Name at least one control to tighten.");
+
+        return ResultResponse(
+            await _lockdown.EngageAsync(
+                tenantId,
+                request.Platform,
+                $"manual: {request.Reason.Trim()}",
+                request.Controls.ToList(),
+                ct
+            )
+        );
+    }
+
+    /// <summary>Ends the platform's active window now and puts the room back. One click, at any point.</summary>
+    [HttpPost("{channelId}/spam-defense/lockdown/end")]
+    [Authorize]
+    [RequireAction("spam:lockdown:manage")]
+    [ProducesResponseType<StatusResponseDto<LockdownWindowStatus>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> EndLockdown(
+        string channelId,
+        [FromBody] EndLockdownRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(await _lockdown.EndAsync(tenantId, request.Platform, ct));
     }
 }

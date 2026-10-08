@@ -282,6 +282,34 @@ public record ShieldModeEndedAlertDto(
     DateTimeOffset EndedAt
 );
 
+// ─── Lockdown alert data DTOs (controls are enum names, never people) ─────────
+
+public record LockdownEngagedAlertDto(
+    Guid WindowId,
+    string Platform,
+    string Trigger,
+    DateTimeOffset StartedAt,
+    DateTimeOffset ExpiresAt,
+    IReadOnlyList<string> Engaged,
+    IReadOnlyList<string> Unavailable,
+    IReadOnlyList<string> ApplyFailed
+);
+
+public record LockdownExtendedAlertDto(Guid WindowId, string Platform, DateTimeOffset ExpiresAt);
+
+public record LockdownRestoredAlertDto(
+    Guid WindowId,
+    string Platform,
+    DateTimeOffset RestoredAt,
+    IReadOnlyList<string> Restored
+);
+
+public record LockdownRestoreFailedAlertDto(
+    Guid WindowId,
+    string Platform,
+    IReadOnlyList<string> Failed
+);
+
 // ─── Moderator / VIP role change alert DTO ────────────────────────────────────
 
 /// <summary>

@@ -14,15 +14,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
@@ -83,13 +86,17 @@ public class SpamDefenseServiceTests : IDisposable
     private SpamDefenseService NewService(
         AppDbContext db,
         IModerationService? moderation = null,
-        ICurrentTenantService? tenant = null
+        ICurrentTenantService? tenant = null,
+        ITwitchUsersApi? twitchUsers = null,
+        IFollowStateService? follows = null
     ) =>
         new(
             db,
             _time,
             moderation ?? Substitute.For<IModerationService>(),
-            tenant ?? new CurrentTenantService()
+            tenant ?? new CurrentTenantService(),
+            twitchUsers ?? Substitute.For<ITwitchUsersApi>(),
+            follows ?? Substitute.For<IFollowStateService>()
         );
 
     /// <summary>An automatic (non-dry-run) escalation, the shape a moderator can actually overturn.</summary>
@@ -123,11 +130,12 @@ public class SpamDefenseServiceTests : IDisposable
         string text,
         string userId = "viewer-1",
         bool isSubscriber = false,
-        bool isModerator = false
+        bool isModerator = false,
+        string provider = AuthEnums.Platform.Twitch
     ) =>
         new(
             Channel,
-            AuthEnums.Platform.Twitch,
+            provider,
             MessageId: Guid.NewGuid().ToString(),
             PlatformUserId: userId,
             DisplayName: "Viewer",
@@ -696,7 +704,23 @@ public class SpamDefenseServiceTests : IDisposable
 
     private static readonly Guid OtherChannel = Guid.Parse("0199c000-0000-7000-8000-0000000000d9");
 
-    private void SeedBlocks(Guid batch, int count, Guid channel, bool restored = false)
+    /// <summary>A Twitch users API whose unblock succeeds unless the test says otherwise.</summary>
+    private static ITwitchUsersApi UnblockingTwitch()
+    {
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .UnblockUserAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        return twitch;
+    }
+
+    private void SeedBlocks(
+        Guid batch,
+        int count,
+        Guid channel,
+        bool restored = false,
+        bool dryRun = false
+    )
     {
         using AppDbContext db = NewDbContext();
         for (int i = 0; i < count; i++)
@@ -711,9 +735,96 @@ public class SpamDefenseServiceTests : IDisposable
                     BatchExamined = count + 5,
                     BlockedAt = Now.UtcDateTime,
                     RestoredAt = restored ? Now.UtcDateTime : null,
+                    WasDryRun = dryRun,
                 }
             );
         db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task RestoringABatch_UnblocksEachAccountOnTwitch_BeforeStampingIt()
+    {
+        // The bug this pins: restore used to stamp RestoredAt and report success while the accounts
+        // stayed blocked on Twitch. The Twitch call is the restore; the stamp only records it.
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 3, Channel);
+        ITwitchUsersApi twitch = UnblockingTwitch();
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.Value.Should().Be(3);
+        foreach (int i in new[] { 0, 1, 2 })
+            await twitch
+                .Received(1)
+                .UnblockUserAsync(Channel, $"bot{batch:N}-{i}", Arg.Any<CancellationToken>());
+        twitch.ReceivedCalls().Should().HaveCount(3, "one unblock per block and nothing else");
+    }
+
+    [Fact]
+    public async Task AnUnblockTwitchRefuses_StaysUnstamped_AndIsNotCountedAsRestored()
+    {
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 3, Channel);
+        ITwitchUsersApi twitch = UnblockingTwitch();
+        twitch
+            .UnblockUserAsync(Channel, $"bot{batch:N}-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("twitch said no"));
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.Value.Should().Be(2);
+        using AppDbContext read = NewDbContext();
+        List<FollowBotBlock> blocks = await read
+            .FollowBotBlocks.Where(b => b.BatchId == batch)
+            .OrderBy(b => b.SubjectPlatformUserId)
+            .ToListAsync();
+        blocks
+            .Where(b => b.RestoredAt is null)
+            .Select(b => b.SubjectPlatformUserId)
+            .Should()
+            .Equal($"bot{batch:N}-1");
+        blocks.Count(b => b.RestoredAt is not null).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ABatchWhereEveryUnblockFails_ReportsFailure_AndStampsNothing()
+    {
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 2, Channel);
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .UnblockUserAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("twitch is down"));
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.IsFailure.Should().BeTrue("claiming a restore that restored nothing is a quiet lie");
+        using AppDbContext read = NewDbContext();
+        (await read.FollowBotBlocks.ToListAsync()).Should().OnlyContain(b => b.RestoredAt == null);
+    }
+
+    [Fact]
+    public async Task ADryRunRow_IsStamped_WithoutAnyTwitchCall()
+    {
+        // A dry-run row never blocked anybody, so there is nothing to undo on Twitch.
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 2, Channel, dryRun: true);
+        ITwitchUsersApi twitch = UnblockingTwitch();
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db, twitchUsers: twitch)
+            .RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.Value.Should().Be(2);
+        twitch.ReceivedCalls().Should().BeEmpty();
+        using AppDbContext read = NewDbContext();
+        (await read.FollowBotBlocks.ToListAsync()).Should().OnlyContain(b => b.RestoredAt != null);
     }
 
     [Fact]
@@ -727,7 +838,8 @@ public class SpamDefenseServiceTests : IDisposable
         SeedBlocks(genuine, 3, Channel);
 
         using AppDbContext db = NewDbContext();
-        Result<int> result = await NewService(db).RestoreFollowBotBatchAsync(Channel, misread);
+        Result<int> result = await NewService(db, twitchUsers: UnblockingTwitch())
+            .RestoreFollowBotBatchAsync(Channel, misread);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(5);
@@ -1214,6 +1326,378 @@ public class SpamDefenseServiceTests : IDisposable
         (await readBack.SpamDetections.SingleAsync(d => d.Id == detection.Id))
             .OverturnedByUserId.Should()
             .Be(operatorUserId);
+    }
+
+    // ---- Follow age feeds the trust ladder -------------------------------------------------------
+
+    private const string SpamText = "f​r​ee f​ollows";
+
+    private static ITwitchChannelsApi FollowerApi(DateTimeOffset? followedAt)
+    {
+        ITwitchChannelsApi api = Substitute.For<ITwitchChannelsApi>();
+        TwitchChannelFollower? follower = followedAt is null
+            ? null
+            : new("v1", "viewer", "Viewer", followedAt.Value);
+        api.GetChannelFollowerAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(follower));
+        return api;
+    }
+
+    private async Task<SpamTrustTier> TierOf(
+        ITwitchChannelsApi api,
+        FollowStateCache cache,
+        string userId,
+        string provider = AuthEnums.Platform.Twitch
+    )
+    {
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(
+                db,
+                follows: new FollowStateService(api, cache)
+            )
+            .EvaluateAsync(Message(SpamText, userId: userId, provider: provider));
+        return result!.Tier;
+    }
+
+    [Fact]
+    public async Task ATenDayFollower_WithAMonthOfHistory_ReachesKnown()
+    {
+        SeedHistory("follower-1", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+
+        SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "follower-1");
+
+        tier.Should().Be(SpamTrustTier.Known);
+    }
+
+    [Fact]
+    public async Task ATwoHourFollower_StaysBelowNewcomer()
+    {
+        SeedHistory("follower-2", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddHours(-2));
+
+        SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "follower-2");
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+    }
+
+    [Fact]
+    public async Task AFailedLookup_EarnsNoFollowTier_AndIsNotCachedAsNotFollowing()
+    {
+        SeedHistory("follower-3", days: 2, perDay: 3);
+        ITwitchChannelsApi api = Substitute.For<ITwitchChannelsApi>();
+        api.GetChannelFollowerAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchChannelFollower?>("missing moderator:read:followers", "SCOPE")
+            );
+        FollowStateCache cache = new(_time);
+
+        SpamTrustTier tier = await TierOf(api, cache, "follower-3");
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+        cache.TryGet(Channel, "follower-3", out FollowLookup stored).Should().BeTrue();
+        stored
+            .State.Should()
+            .Be(FollowState.Unknown, "a failed lookup is not evidence of not following");
+    }
+
+    [Fact]
+    public async Task ASecondMessageFromTheSameViewer_MakesNoSecondHelixCall()
+    {
+        SeedHistory("follower-4", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+        FollowStateCache cache = new(_time);
+
+        await TierOf(api, cache, "follower-4");
+        SpamTrustTier second = await TierOf(api, cache, "follower-4");
+
+        second.Should().Be(SpamTrustTier.Known);
+        await api.Received(1)
+            .GetChannelFollowerAsync(Channel, "follower-4", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFollowEvent_IsSeenByTheNextMessage_WithoutAHelixCall()
+    {
+        SeedHistory("follower-5", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(null);
+        FollowStateCache cache = new(_time);
+
+        (await TierOf(api, cache, "follower-5")).Should().Be(SpamTrustTier.Untrusted);
+        cache.TryGet(Channel, "follower-5", out FollowLookup before).Should().BeTrue();
+        before.State.Should().Be(FollowState.NotFollowing);
+
+        await new FollowStateCacheHandler(cache).HandleAsync(
+            new FollowEvent
+            {
+                BroadcasterId = Channel,
+                UserId = "follower-5",
+                UserDisplayName = "Viewer",
+                UserLogin = "viewer",
+                FollowedAt = Now.AddDays(-10),
+            }
+        );
+
+        (await TierOf(api, cache, "follower-5")).Should().Be(SpamTrustTier.Known);
+        await api.Received(1)
+            .GetChannelFollowerAsync(Channel, "follower-5", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AKickViewer_MakesNoHelixCall_AndEarnsNoFollowTier()
+    {
+        SeedHistory("kick-1", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+
+        SpamTrustTier tier = await TierOf(
+            api,
+            new FollowStateCache(_time),
+            "kick-1",
+            AuthEnums.Platform.Kick
+        );
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task AnAccountTooYoungForNewcomer_SkipsTheLookup()
+    {
+        SeedAccount("brand-new", ageDays: 2);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+
+        SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "brand-new");
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!);
+    }
+
+    // ---- A campaign escalation is recorded, not just acted on -----------------------------------
+
+    private static SpamEvaluationResult QuietResult(Guid? detectionId) =>
+        new(
+            SpamEnforcement.Decide(SpamConfidence.Zero, SpamTrustTier.Untrusted, dryRun: false),
+            SpamConfidence.Zero,
+            SpamTrustTier.Untrusted,
+            [],
+            detectionId,
+            "bestviewersonbigfollowscom",
+            new SpamDefenseSettings()
+        );
+
+    [Fact]
+    public async Task ACampaignEscalation_OfAMessageWithNoRow_InsertsTheExplainedDetection()
+    {
+        SpamEvaluationRequest request = Message("best viewers on bigfollows . com", "member-1");
+        SpamEvaluationResult evaluated = QuietResult(null);
+        SpamDecision escalated = SpamEnforcement.EscalateForCampaign(
+            evaluated.Decision,
+            SpamTrustTier.Untrusted
+        );
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db).RecordCampaignEscalationAsync(request, evaluated, escalated);
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.SubjectPlatformUserId.Should().Be("member-1");
+        stored.MessageId.Should().Be(request.MessageId);
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndEscalate);
+        stored.WasDryRun.Should().BeFalse();
+        stored.Confidence.Should().Be(SpamConfidence.High);
+        stored.Signals.Should().Contain(nameof(ContentSignal.CampaignMember));
+        stored.Skeleton.Should().Be("bestviewersonbigfollowscom");
+        stored.Reason.Should().NotBeNullOrWhiteSpace("SD7: no black-box verdicts");
+        stored.DetectedAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task ACampaignEscalation_OfAMessageThatHasARow_UpdatesThatRowInsteadOfAddingOne()
+    {
+        SpamDetection prior = AutomaticDetection(Channel, "member-1", "Viewer", Now.UtcDateTime);
+        prior.Confidence = SpamConfidence.Medium;
+        prior.Outcome = SpamOutcome.DeleteAndQueue;
+        prior.WouldHaveBeen = SpamOutcome.DeleteAndQueue;
+        prior.Signals = nameof(ContentSignal.PromoShape);
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamDetections.Add(prior);
+            await seed.SaveChangesAsync();
+        }
+
+        SpamEvaluationRequest request = Message("promo", "member-1");
+        SpamEvaluationResult evaluated = QuietResult(prior.Id);
+        SpamDecision escalated = SpamEnforcement.EscalateForCampaign(
+            SpamEnforcement.Decide(SpamConfidence.Medium, SpamTrustTier.Untrusted, dryRun: false),
+            SpamTrustTier.Untrusted
+        );
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db).RecordCampaignEscalationAsync(request, evaluated, escalated);
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Id.Should().Be(prior.Id);
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+        stored.Confidence.Should().Be(SpamConfidence.High);
+        stored.Signals.Should().Contain(nameof(ContentSignal.PromoShape));
+        stored.Signals.Should().Contain(nameof(ContentSignal.CampaignMember));
+    }
+
+    [Fact]
+    public async Task ADryRunCampaignEscalation_IsRecordedAsWhatWouldHaveHappened()
+    {
+        SpamEvaluationResult evaluated = new(
+            SpamEnforcement.Decide(SpamConfidence.Zero, SpamTrustTier.Untrusted, dryRun: true),
+            SpamConfidence.Zero,
+            SpamTrustTier.Untrusted,
+            [],
+            null,
+            "bestviewersonbigfollowscom",
+            new SpamDefenseSettings()
+        );
+        SpamDecision escalated = SpamEnforcement.EscalateForCampaign(
+            evaluated.Decision,
+            SpamTrustTier.Untrusted
+        );
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db)
+                .RecordCampaignEscalationAsync(
+                    Message("best viewers on bigfollows . com", "member-1"),
+                    evaluated,
+                    escalated
+                );
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.WasDryRun.Should().BeTrue();
+        stored.Outcome.Should().Be(SpamOutcome.None);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndEscalate);
+    }
+
+    // ---- Account / follow age gate ---------------------------------------------------------------
+
+    private void SeedAccount(string twitchUserId, double ageDays)
+    {
+        using AppDbContext db = NewDbContext();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = twitchUserId,
+                Username = twitchUserId,
+                UsernameNormalized = twitchUserId,
+                DisplayName = twitchUserId,
+                AccountCreatedAt = Now.UtcDateTime.AddDays(-ageDays),
+            }
+        );
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task AFreshAccountsFirstMessage_IsHeld_AndRecordedWithTheGateAsTheReason()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
+        SeedAccount("fresh-1", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello everyone", "fresh-1"));
+
+        result.Gate.Should().NotBeNull();
+        result.Gate!.Kind.Should().Be(AccountAgeGateKind.AccountTooYoung);
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Decision.Reason.Should().Contain("7 day");
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Signals.Should().Be(nameof(ContentSignal.AccountAgeGate));
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        stored.WasDryRun.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TheSameYoungAccount_AsAModerator_IsNotGated_AndLeavesNoDetection()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
+        SeedAccount("mod-1", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("hello everyone", "mod-1", isModerator: true)
+        );
+
+        result.Gate.Should().BeNull();
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDetections.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AZeroLimit_GatesNothing()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+        SeedAccount("fresh-2", ageDays: 0.1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello everyone", "fresh-2"));
+
+        result.Gate.Should().BeNull();
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+    }
+
+    [Fact]
+    public async Task InDryRun_TheGateRecordsWhatItWouldDo_AndActsOnNothing()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = true, AccountAgeGateDays = 7 });
+        SeedAccount("fresh-3", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello everyone", "fresh-3"));
+
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.Decision.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Decision.IsDryRun.Should().BeTrue();
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.WasDryRun.Should().BeTrue();
+        stored.Outcome.Should().Be(SpamOutcome.None);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndQueue);
+    }
+
+    [Fact]
+    public async Task AFollowOfTwoHours_UnderAOneDayFollowLimit_IsHeld_ForAnOldAccount()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, FollowAgeGateDays = 1 });
+        SeedAccount("follower-9", ageDays: 400);
+        IFollowStateService follows = Substitute.For<IFollowStateService>();
+        follows
+            .ResolveAsync(Channel, Arg.Any<string>(), "follower-9", Arg.Any<CancellationToken>())
+            .Returns(new FollowLookup(FollowState.Following, Now.AddHours(-2)));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db, follows: follows)
+            .EvaluateAsync(Message("hello everyone", "follower-9"));
+
+        result!.Gate.Should().NotBeNull();
+        result.Gate!.Kind.Should().Be(AccountAgeGateKind.FollowTooYoung);
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+    }
+
+    [Fact]
+    public async Task AContentVerdictStricterThanTheGate_IsNotWeakenedByIt()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
+        SeedAccount("fresh-4", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message(Link, "fresh-4"));
+
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Gate.Should().BeNull("the content layer already removed the message");
     }
 
     public void Dispose() => _connection.Dispose();

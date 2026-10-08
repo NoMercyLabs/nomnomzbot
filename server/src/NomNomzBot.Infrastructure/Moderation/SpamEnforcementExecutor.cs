@@ -52,20 +52,30 @@ public sealed class SpamEnforcementExecutor
     private readonly IApplicationDbContext _db;
     private readonly IModerationService _moderation;
     private readonly ITwitchModerationApi _twitch;
+    private readonly IViolationEscalationService _escalation;
     private readonly ILogger<SpamEnforcementExecutor> _logger;
 
     public SpamEnforcementExecutor(
         IApplicationDbContext db,
         IModerationService moderation,
         ITwitchModerationApi twitch,
+        IViolationEscalationService escalation,
         ILogger<SpamEnforcementExecutor> logger
     )
     {
         _db = db;
         _moderation = moderation;
         _twitch = twitch;
+        _escalation = escalation;
         _logger = logger;
     }
+
+    /// <summary>
+    /// Whether automatic action can reach <paramref name="provider"/>. The one answer shared by enforcement
+    /// and the protection status, so what the dashboard reports is what enforcement does.
+    /// </summary>
+    internal static bool CanEnforceOn(string provider) =>
+        string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Carry out a decision. Returns without acting for anything that is not an enforceable outcome —
@@ -77,7 +87,9 @@ public sealed class SpamEnforcementExecutor
         string messageId,
         string subjectPlatformUserId,
         SpamDecision decision,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? subjectLogin = null,
+        string? subjectDisplayName = null
     )
     {
         // Dry run is checked HERE as well as in the decision, not instead of it. The decision already
@@ -92,13 +104,30 @@ public sealed class SpamEnforcementExecutor
         // Enforcement rides Helix, so a non-Twitch message is recorded and explained but not acted on.
         // Claiming otherwise would be the dishonest kind of bug: an operator believing the room is
         // covered when it is not.
-        if (!string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
+        if (!CanEnforceOn(provider))
             return new SpamEnforcementOutcome(false, false, $"no enforcement path for {provider}");
 
         bool deleted = await DeleteMessageAsync(broadcasterId, messageId, ct);
 
         if (decision.Outcome != SpamOutcome.DeleteAndEscalate)
             return new SpamEnforcementOutcome(deleted, false, null);
+
+        // A channel that counts AutoMod violations as ladder offenses lets the ladder pick the punishment
+        // INSTEAD of the heat timeout below, so the account is never actioned twice for one message.
+        ViolationEscalationOutcome escalated = await _escalation.TryEscalateAsync(
+            broadcasterId,
+            subjectPlatformUserId,
+            subjectLogin ?? subjectPlatformUserId,
+            subjectDisplayName ?? subjectLogin ?? subjectPlatformUserId,
+            decision.Reason,
+            ct
+        );
+        if (escalated.Handled)
+            return new SpamEnforcementOutcome(
+                deleted,
+                escalated is { Applied: true, Action: "timeout" or "ban" },
+                null
+            );
 
         bool timedOut = await TimeoutAsync(broadcasterId, subjectPlatformUserId, decision, ct);
         return new SpamEnforcementOutcome(deleted, timedOut, null);
@@ -177,7 +206,7 @@ public sealed class SpamEnforcementExecutor
             ct
         );
 
-        return config.IsSuccess && config.Value.HeatTimeoutSeconds > 0
+        return config is { IsSuccess: true, Value.HeatTimeoutSeconds: > 0 }
             ? config.Value.HeatTimeoutSeconds
             : FallbackTimeoutSeconds;
     }

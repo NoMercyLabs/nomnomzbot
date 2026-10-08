@@ -26,7 +26,7 @@ public class TrustTierLadderTests
         new()
         {
             AccountAgeDays = 1,
-            IsFollowing = false,
+            Follow = FollowState.NotFollowing,
             FollowAgeHours = 0,
             Username = "viewer12345",
         };
@@ -35,7 +35,7 @@ public class TrustTierLadderTests
         new()
         {
             AccountAgeDays = ageDays,
-            IsFollowing = true,
+            Follow = FollowState.Following,
             FollowAgeHours = followHours,
             Username = "realviewer",
         };
@@ -105,7 +105,7 @@ public class TrustTierLadderTests
         SpamTrustTier tier = TrustTierLadder.Resolve(
             MatureAccount(ageDays: 3_650, followHours: 0) with
             {
-                IsFollowing = false,
+                Follow = FollowState.NotFollowing,
             },
             new ChannelParticipation(), // never spoken in this channel
             NoStanding()
@@ -197,7 +197,7 @@ public class TrustTierLadderTests
             .Resolve(
                 MatureAccount(ageDays, followHours) with
                 {
-                    IsFollowing = followHours > 0,
+                    Follow = followHours > 0 ? FollowState.Following : FollowState.NotFollowing,
                 },
                 new ChannelParticipation { MessageCountHere = messages },
                 NoStanding()

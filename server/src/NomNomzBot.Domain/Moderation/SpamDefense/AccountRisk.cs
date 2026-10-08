@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Moderation.Entities;
+
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
 /// <summary>A single account-shape observation, recorded whether or not it moves the coefficient.</summary>
@@ -70,8 +72,15 @@ public sealed record AccountRiskAssessment(
 public sealed record AccountFacts
 {
     public double AccountAgeDays { get; init; } = double.MaxValue;
-    public bool IsFollowing { get; init; } = true;
-    public double FollowAgeHours { get; init; } = double.MaxValue;
+
+    /// <summary>
+    /// Whether the viewer follows the channel. <see cref="FollowState.Unknown"/> (the default) means we
+    /// could not find out: it neither earns a follow-based tier nor counts against the viewer.
+    /// </summary>
+    public FollowState Follow { get; init; } = FollowState.Unknown;
+
+    /// <summary>Hours since the follow. Read only when <see cref="Follow"/> is <see cref="FollowState.Following"/>.</summary>
+    public double FollowAgeHours { get; init; }
     public bool HasAvatar { get; init; } = true;
     public bool HasBio { get; init; } = true;
     public bool HasStreamed { get; init; } = true;
@@ -86,6 +95,12 @@ public sealed record AccountFacts
     public double WatchTimeHoursThisChannel { get; init; }
     public double WatchTimeHoursInstanceWide { get; init; }
     public bool IsPartnerOrAffiliate { get; init; }
+
+    /// <summary>
+    /// Twitch's suspicious-user flag in this channel (<see cref="LowTrustStatuses"/>). Read by the trust
+    /// ladder only: <c>restricted</c> forces Untrusted, <c>active_monitoring</c> caps the tier at Newcomer.
+    /// </summary>
+    public string LowTrustStatus { get; init; } = LowTrustStatuses.None;
 }
 
 /// <summary>
@@ -182,7 +197,11 @@ public static class AccountRisk
         else if (facts.AccountAgeDays < 182)
             marks.Add(AccountRiskMark.AccountUnder6Months);
 
-        if (!facts.IsFollowing || facts.FollowAgeHours < 24)
+        // Unknown is not evidence: only a follow we SAW, or its confirmed absence, can count.
+        if (
+            facts.Follow == FollowState.NotFollowing
+            || facts is { Follow: FollowState.Following, FollowAgeHours: < 24 }
+        )
             marks.Add(AccountRiskMark.NotFollowingOrBrandNewFollow);
 
         if (facts is { HasAvatar: false, HasBio: false, HasStreamed: false })
@@ -218,5 +237,9 @@ public static class AccountRisk
     /// <summary>An account ≥ 2 years old WITH genuine activity — age alone is not enough.</summary>
     private static bool IsEstablishedGenuineAccount(AccountFacts facts) =>
         facts.AccountAgeDays >= 730
-        && (facts.HasStreamed || facts.IsFollowing || facts.HasChatHistoryOnInstance);
+        && (
+            facts.HasStreamed
+            || facts.Follow == FollowState.Following
+            || facts.HasChatHistoryOnInstance
+        );
 }

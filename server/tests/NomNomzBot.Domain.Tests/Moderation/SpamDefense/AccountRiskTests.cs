@@ -35,7 +35,7 @@ public class AccountRiskTests
         new()
         {
             AccountAgeDays = 400,
-            IsFollowing = true,
+            Follow = FollowState.Following,
             FollowAgeHours = 5_000,
             Username = "ordinaryviewer",
             HasChatHistoryOnInstance = true,
@@ -46,7 +46,7 @@ public class AccountRiskTests
         new()
         {
             AccountAgeDays = 2,
-            IsFollowing = false,
+            Follow = FollowState.NotFollowing,
             FollowAgeHours = 0,
             HasAvatar = false,
             HasBio = false,
@@ -249,7 +249,7 @@ public class AccountRiskTests
             new AccountFacts
             {
                 AccountAgeDays = 900,
-                IsFollowing = false,
+                Follow = FollowState.NotFollowing,
                 HasAvatar = false,
                 HasBio = false,
                 HasStreamed = false,

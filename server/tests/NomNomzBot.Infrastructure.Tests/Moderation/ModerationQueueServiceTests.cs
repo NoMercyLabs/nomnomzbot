@@ -18,6 +18,8 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
+using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
 using NSubstitute;
 
@@ -40,7 +42,11 @@ public sealed class ModerationQueueServiceTests
         ModerationQueueService Service,
         ModerationServiceTestDbContext Db,
         ITwitchModerationApi Moderation
-    )> BuildAsync(Result? relayResult = null, IModerationService? actions = null)
+    )> BuildAsync(
+        Result? relayResult = null,
+        IModerationService? actions = null,
+        IEventBus? events = null
+    )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
@@ -93,6 +99,7 @@ public sealed class ModerationQueueServiceTests
             users,
             moderation,
             actions ?? Substitute.For<IModerationService>(),
+            events ?? Substitute.For<IEventBus>(),
             TimeProvider.System,
             Substitute.For<Microsoft.Extensions.Logging.ILogger<ModerationQueueService>>()
         );
@@ -204,7 +211,7 @@ public sealed class ModerationQueueServiceTests
         result.IsSuccess.Should().BeTrue();
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .ManageHeldAutoModMessageAsync(default, default!, default, default);
+            .ManageHeldAutoModMessageAsync(default, default!, default);
         ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
         stored.Status.Should().Be(ModerationQueueStatus.Approved);
         stored.ResolvedByUserId.Should().Be(moderatorId);
@@ -637,7 +644,7 @@ public sealed class ModerationQueueServiceTests
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .ManageHeldAutoModMessageAsync(default, default!, default, default);
+            .ManageHeldAutoModMessageAsync(default, default!, default);
     }
 
     [Fact]
@@ -693,5 +700,210 @@ public sealed class ModerationQueueServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task EnqueueHeldMessageAsync_TheSameHoldTwice_ReturnsTheExistingRow()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+
+        Result<Guid> first = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-dup",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+        Result<Guid> second = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-dup",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        second.Value.Should().Be(first.Value);
+        (await db.ModerationQueueItems.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EnqueueHeldMessageAsync_AChatFilterHoldOfAnAutoModMessage_ReturnsTheExistingRow()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        Result<Guid> autoMod = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-both",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        Result<Guid> chatFilter = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-both",
+            "9001",
+            "chatter",
+            "text",
+            "caps",
+            source: ModerationQueueSource.ChatFilter
+        );
+
+        chatFilter.Value.Should().Be(autoMod.Value);
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Source.Should().Be(ModerationQueueSource.AutoMod);
+        stored.AutoModCategory.Should().Be("swearing");
+    }
+
+    [Fact]
+    public async Task EnqueueHeldMessageAsync_TheSameMessageIdInAnotherChannel_GetsItsOwnRow()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        Guid otherTenant = Guid.Parse("019f2802-5c77-7dc8-b6f6-b4b98e624b8b");
+
+        Result<Guid> mine = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-shared",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+        Result<Guid> theirs = await service.EnqueueHeldMessageAsync(
+            otherTenant,
+            "amsg-shared",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        theirs.Value.Should().NotBe(mine.Value);
+        (await db.ModerationQueueItems.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenTwitchNoLongerHoldsTheMessage_ClosesTheRowAsExpired_AndTellsTheDashboard()
+    {
+        IEventBus events = Substitute.For<IEventBus>();
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync(
+            relayResult: Result.Failure("not found", TwitchErrorCodes.NotFound),
+            events: events
+        );
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-gone",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest { Action = "approve" },
+            Guid.NewGuid().ToString()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("AUTOMOD_MESSAGE_GONE");
+        result.ErrorMessage.Should().Be("Twitch no longer holds this message, so it was closed.");
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Status.Should().Be(ModerationQueueStatus.Expired);
+        stored.ResolutionAction.Should().Be("expired");
+        stored.ResolvedAt.Should().NotBeNull();
+        stored.ResolvedByUserId.Should().BeNull();
+        await events
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<AutoModMessageUpdatedEvent>(e =>
+                    e.BroadcasterId == Tenant
+                    && e.MessageId == "amsg-gone"
+                    && e.UserId == "9001"
+                    && e.Status == "expired"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenTwitchFailsForAnotherReason_LeavesTheRowPending_AndPublishesNothing()
+    {
+        IEventBus events = Substitute.For<IEventBus>();
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync(
+            relayResult: Result.Failure("slow down", TwitchErrorCodes.RateLimited),
+            events: events
+        );
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-limited",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest { Action = "deny" },
+            Guid.NewGuid().ToString()
+        );
+
+        result.ErrorCode.Should().Be(TwitchErrorCodes.RateLimited);
+        (await db.ModerationQueueItems.SingleAsync())
+            .Status.Should()
+            .Be(ModerationQueueStatus.Pending);
+        await events
+            .DidNotReceive()
+            .PublishAsync(Arg.Any<AutoModMessageUpdatedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExpireStaleAutoModAsync_ClosesOnlyOldPendingAutoModRows_AndReportsTheCount()
+    {
+        IEventBus events = Substitute.For<IEventBus>();
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync(
+            events: events
+        );
+        DateTime now = DateTime.UtcNow;
+        ModerationQueueItem Row(string messageId, ModerationQueueSource source, TimeSpan age) =>
+            new()
+            {
+                BroadcasterId = Tenant,
+                Source = source,
+                AutoModMessageId = messageId,
+                TargetTwitchUserId = "9001",
+                TargetUsernameSnapshot = "chatter",
+                CreatedAt = now - age,
+            };
+        db.ModerationQueueItems.AddRange(
+            Row("old-1", ModerationQueueSource.AutoMod, TimeSpan.FromHours(3)),
+            Row("old-2", ModerationQueueSource.AutoMod, TimeSpan.FromHours(2)),
+            Row("fresh", ModerationQueueSource.AutoMod, TimeSpan.FromMinutes(5)),
+            Row("old-filter", ModerationQueueSource.ChatFilter, TimeSpan.FromHours(3))
+        );
+        await db.SaveChangesAsync();
+
+        int closed = await service.ExpireStaleAutoModAsync(TimeSpan.FromHours(1));
+
+        closed.Should().Be(2);
+        Dictionary<string, ModerationQueueItem> byId =
+            await db.ModerationQueueItems.ToDictionaryAsync(i => i.AutoModMessageId!);
+        byId["old-1"].Status.Should().Be(ModerationQueueStatus.Expired);
+        byId["old-1"].ResolutionAction.Should().Be("expired");
+        byId["old-1"].ResolvedAt.Should().NotBeNull();
+        byId["old-2"].Status.Should().Be(ModerationQueueStatus.Expired);
+        byId["fresh"].Status.Should().Be(ModerationQueueStatus.Pending);
+        byId["old-filter"].Status.Should().Be(ModerationQueueStatus.Pending);
+        await events
+            .Received(2)
+            .PublishAsync(
+                Arg.Is<AutoModMessageUpdatedEvent>(e => e.Status == "expired"),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

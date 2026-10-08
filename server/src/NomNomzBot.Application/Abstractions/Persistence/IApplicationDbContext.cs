@@ -50,6 +50,7 @@ public interface IApplicationDbContext
     DbSet<VoiceTrigger> VoiceTriggers { get; }
     DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus> ChannelLowTrustStatuses { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches { get; }

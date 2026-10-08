@@ -54,9 +54,122 @@ public sealed class ActionRequiredInboxAggregationTests
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
         result.IsSuccess.Should().BeTrue();
-        ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
-        item.Kind.Should().Be("integration_token_dead");
+        result.Value.Should().HaveCount(2);
+        ActionRequiredItemDto item = result.Value.Single(i => i.Kind == "integration_token_dead");
         item.MessageKey.Should().Be("attention_integration_expired_message");
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_ReportsAFailedSourceAsOneItemNamingWhatCouldNotBeChecked()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        DateTime now = new(2026, 10, 8, 9, 30, 0, DateTimeKind.Utc);
+        ActionRequiredInboxService sut = new(
+            [new FailingSource()],
+            db,
+            new FixedClock(now),
+            new RecordingChangeNotifier(),
+            NullLogger<ActionRequiredInboxService>.Instance
+        );
+
+        Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
+
+        ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
+        item.Id.Should().Be("source-unavailable:failing_checks:2026-10-08");
+        item.Kind.Should().Be("source_unavailable");
+        item.Severity.Should().Be("warning");
+        item.TitleKey.Should().Be("attention_source_unavailable_title");
+        item.MessageKey.Should().Be("attention_source_unavailable_message");
+        item.Parameters.Should()
+            .HaveCount(2)
+            .And.Contain("source", "failing_checks")
+            .And.Contain("reason", "source is down");
+        item.DetectedAt.Should().Be(now);
+        item.DeepLinkRoute.Should().Be("integrations");
+        item.Count.Should().Be(1);
+        item.QueueItemIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_HidesAFailedSourceItem_OnceTheStreamerDismissedIt()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        ActionRequiredInboxService sut = new(
+            [new FailingSource()],
+            db,
+            new FixedClock(Today),
+            new RecordingChangeNotifier(),
+            NullLogger<ActionRequiredInboxService>.Instance
+        );
+
+        Result<int> dismissed = await sut.DismissAsync(
+            ChannelId,
+            Guid.NewGuid(),
+            ["source-unavailable:failing_checks:2026-10-08"]
+        );
+        Result<List<ActionRequiredItemDto>> after = await sut.GetItemsAsync(ChannelId);
+
+        dismissed.IsSuccess.Should().BeTrue();
+        dismissed.Value.Should().Be(1);
+        db.ActionRequiredDismissals.Single()
+            .ItemKey.Should()
+            .Be("source-unavailable:failing_checks:2026-10-08");
+        after.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_ShowsAFailedSourceAgainTheNextDay_WhenItIsStillFailing()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        FixedClock clock = new(Today);
+        ActionRequiredInboxService sut = new(
+            [new FailingSource()],
+            db,
+            clock,
+            new RecordingChangeNotifier(),
+            NullLogger<ActionRequiredInboxService>.Instance
+        );
+        await sut.DismissAsync(
+            ChannelId,
+            Guid.NewGuid(),
+            ["source-unavailable:failing_checks:2026-10-08"]
+        );
+
+        clock.UtcNow = Today.AddDays(1);
+        Result<List<ActionRequiredItemDto>> nextDay = await sut.GetItemsAsync(ChannelId);
+
+        nextDay
+            .Value.Should()
+            .ContainSingle()
+            .Which.Id.Should()
+            .Be("source-unavailable:failing_checks:2026-10-09");
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_KeepsAFailedSourceItemOnOtherChannels_WhenOneChannelDismissedIt()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        Guid otherChannelId = Guid.Parse("0192b000-0000-7000-8000-0000000000f2");
+        ActionRequiredInboxService sut = new(
+            [new FailingSource()],
+            db,
+            new FixedClock(Today),
+            new RecordingChangeNotifier(),
+            NullLogger<ActionRequiredInboxService>.Instance
+        );
+        await sut.DismissAsync(
+            ChannelId,
+            Guid.NewGuid(),
+            ["source-unavailable:failing_checks:2026-10-08"]
+        );
+
+        Result<List<ActionRequiredItemDto>> other = await sut.GetItemsAsync(otherChannelId);
+
+        other.Value.Should().ContainSingle().Which.Kind.Should().Be("source_unavailable");
     }
 
     [Fact]
@@ -73,8 +186,19 @@ public sealed class ActionRequiredInboxAggregationTests
         db.ActionRequiredDismissals.Should().BeEmpty();
     }
 
+    private static readonly DateTime Today = new(2026, 10, 8, 9, 30, 0, DateTimeKind.Utc);
+
+    private sealed class FixedClock(DateTime utcNow) : TimeProvider
+    {
+        public DateTime UtcNow { get; set; } = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => new(UtcNow, TimeSpan.Zero);
+    }
+
     private sealed class FailingSource : IActionRequiredSource
     {
+        public string SourceKey => "failing_checks";
+
         public IReadOnlyCollection<string> KeyPrefixes { get; } = ["failing:"];
 
         public IReadOnlyCollection<string> InvalidatingEventTypes { get; } = [];

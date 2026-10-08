@@ -45,6 +45,15 @@ public enum ContentSignal
     /// by the capability floor, never by the content layer, which keeps L2 blind to who sent it.
     /// </summary>
     UnearnedCapability,
+
+    /// <summary>
+    /// The sender is a member of a qualified spam campaign: it posted the campaign's own message (SD9).
+    /// Added by the campaign layer, never by the content layer.
+    /// </summary>
+    CampaignMember,
+
+    /// <summary>The account or its follow is younger than the channel's newcomer limit.</summary>
+    AccountAgeGate,
 }
 
 /// <summary>The signals a message produced, and the confidence they fuse to.</summary>

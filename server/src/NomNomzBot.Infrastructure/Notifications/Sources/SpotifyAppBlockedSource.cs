@@ -33,6 +33,8 @@ public sealed class SpotifyAppBlockedSource(
     /// <summary>The shortest cooldown worth telling the streamer about.</summary>
     public static readonly TimeSpan LongBlock = TimeSpan.FromMinutes(10);
 
+    public string SourceKey => "spotify_app";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     // The cooldown store pushes the inbox change itself when a cooldown starts or ends.

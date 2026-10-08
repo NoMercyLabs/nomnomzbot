@@ -174,11 +174,19 @@ public sealed class HelixChatProvider : IChatPlatform
             : ChatUnbanOutcome.Failed;
     }
 
-    public Task DeleteMessageAsync(
+    public async Task<bool> DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
-    ) => _moderation.DeleteChatMessageAsync(broadcasterId, messageId, cancellationToken);
+    )
+    {
+        Result deleted = await _moderation.DeleteChatMessageAsync(
+            broadcasterId,
+            messageId,
+            cancellationToken
+        );
+        return deleted.IsSuccess;
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
 
