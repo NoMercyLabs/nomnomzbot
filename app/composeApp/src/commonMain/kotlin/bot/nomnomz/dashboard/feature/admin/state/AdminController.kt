@@ -724,11 +724,22 @@ class AdminController(
         }
     }
 
+    /** Like [writeThenReload] for a write made from a stay-open dialog: the failure goes back to the dialog, not a toast. */
+    private suspend fun <T> reloadAfterDialogWrite(call: suspend () -> ApiResult<T>): ApiResult<T> {
+        val result: ApiResult<T> = call()
+        if (result is ApiResult.Ok) fetchSnapshot()
+        return result
+    }
+
     suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest) =
         writeThenReload { api.setFeatureFlag(body) }
 
-    suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest) =
-        writeThenReload { api.setFeatureFlagOverride(flagKey, broadcasterId, body) }
+    /** Hands the outcome back to the confirm dialog, which shows a failure inline and stays open (no toast). */
+    suspend fun setFeatureFlagOverride(
+        flagKey: String,
+        broadcasterId: String,
+        body: AdminSetFeatureFlagOverrideRequest,
+    ): ApiResult<Unit> = reloadAfterDialogWrite { api.setFeatureFlagOverride(flagKey, broadcasterId, body) }
 
     suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
         writeThenReload { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
@@ -781,11 +792,12 @@ class AdminController(
         _state.value = _state.value.copy(flagKillSwitchKey = null, flagKillSwitchPreview = null)
     }
 
-    /** Commits the kill switch the confirm dialog previewed, then closes it. */
-    suspend fun confirmFeatureFlagKillSwitch(body: AdminSetFeatureFlagRequest) {
-        dismissFeatureFlagKillSwitchPreview()
-        setFeatureFlag(body)
-    }
+    /**
+     * Commits the kill switch the confirm dialog previewed. The dialog stays open until this returns; it
+     * closes itself on success and shows the failure inline otherwise.
+     */
+    suspend fun confirmFeatureFlagKillSwitch(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> =
+        reloadAfterDialogWrite { api.setFeatureFlag(body) }
 
     suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) =
         writeThenReload { api.createInviteCode(body) }
