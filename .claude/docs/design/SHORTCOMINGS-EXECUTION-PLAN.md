@@ -576,10 +576,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
       it. The local corpus — store, quarantine, corroboration, curated-skips-quarantine, withdrawal,
       contribution eligibility — is built and is what makes corpus-match and near-duplicate able to
       fire at all.
-- [ ] **S-SPAM-ACCOUNT-AGE-GATE** Sery parity: a channel setting that holds or blocks chat from
-  accounts younger than N days (and, separately, followers younger than N days) with the usual
-  trust-tier exemptions. Done-when: a fresh account's first message is held while a Regular's is
-  not, and the setting explains what it does.
 - [ ] **S-SPAM-LOCKDOWN-WIRE** raid/burst trigger → LockdownWindow → platform chat controls →
   restore on expiry. Done-when: a test hate-raid tightens and later restores the platform rules.
   Also wires JoinBurstFactor (it triggers the lockdown).
