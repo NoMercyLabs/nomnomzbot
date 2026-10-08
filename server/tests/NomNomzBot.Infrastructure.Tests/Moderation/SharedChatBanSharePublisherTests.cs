@@ -9,10 +9,14 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -35,6 +39,18 @@ public sealed class SharedChatBanSharePublisherTests
             Reason = "spam",
         };
 
+    private static SharedChatSessionRestorer NoSessionAtTwitch(
+        ModerationServiceTestDbContext db,
+        SharedChatSessionTracker sessions
+    )
+    {
+        ITwitchChatAssetsApi helix = Substitute.For<ITwitchChatAssetsApi>();
+        helix
+            .GetSharedChatSessionAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<TwitchSharedChatSession>("none", TwitchErrorCodes.NotFound));
+        return new(sessions, helix, db, NullLogger<SharedChatSessionRestorer>.Instance);
+    }
+
     [Fact]
     public async Task A_ban_in_a_session_from_a_sharing_channel_is_offered_with_the_session_id()
     {
@@ -45,7 +61,9 @@ public sealed class SharedChatBanSharePublisherTests
         sessions.SetSession(Origin, new("session-9", "host-1", []));
         RecordingEventBus bus = new();
 
-        await new SharedChatBanSharePublisher(db, sessions, bus).HandleAsync(Ban());
+        await new SharedChatBanSharePublisher(db, NoSessionAtTwitch(db, sessions), bus).HandleAsync(
+            Ban()
+        );
 
         SharedChatBanIssuedEvent published = bus
             .Published.OfType<SharedChatBanIssuedEvent>()
@@ -61,7 +79,7 @@ public sealed class SharedChatBanSharePublisherTests
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         SharedChatSessionTracker sessions = new();
         RecordingEventBus bus = new();
-        SharedChatBanSharePublisher sut = new(db, sessions, bus);
+        SharedChatBanSharePublisher sut = new(db, NoSessionAtTwitch(db, sessions), bus);
 
         // No active session (sharing state irrelevant).
         await sut.HandleAsync(Ban());
@@ -70,6 +88,22 @@ public sealed class SharedChatBanSharePublisherTests
         // In a session, but the channel never opted in to sharing (no settings row = share OFF).
         sessions.SetSession(Origin, new("session-9", "host-1", []));
         await sut.HandleAsync(Ban());
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_sharing_channel_that_Twitch_says_is_in_no_session_offers_nothing()
+    {
+        ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        db.SharedBanSettings.Add(new() { BroadcasterId = Origin, ShareOutgoingBans = true });
+        await db.SaveChangesAsync();
+        SharedChatSessionTracker sessions = new();
+        RecordingEventBus bus = new();
+
+        await new SharedChatBanSharePublisher(db, NoSessionAtTwitch(db, sessions), bus).HandleAsync(
+            Ban()
+        );
+
         bus.Published.Should().BeEmpty();
     }
 }

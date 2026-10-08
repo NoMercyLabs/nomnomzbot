@@ -85,6 +85,7 @@ public sealed class AutoModerationRuleCapabilityTests
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(Substitute.For<ITwitchModerationApi>());
+        services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         ServiceProvider provider = services.BuildServiceProvider();
 
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
@@ -95,7 +96,7 @@ public sealed class AutoModerationRuleCapabilityTests
                 TimeProvider.System,
                 NullLogger<AutoModRuleCache>.Instance
             ),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            Platform.Security.TestSanction.Held(),
             NullLogger<AutoModerationHandler>.Instance
         );
         return (handler, moderation);

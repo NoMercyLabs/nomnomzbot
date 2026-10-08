@@ -40,7 +40,7 @@ class AttentionStringsContractTest {
 
     @Test
     fun every_key_a_backend_producer_emits_is_mapped_to_text() {
-        val sources = File("../../server/src/NomNomzBot.Infrastructure/Notifications/Sources")
+        val sources = File("../../server/src/NomNomzBot.Infrastructure/Notifications")
         if (!sources.isDirectory) fail("backend producers not found at ${sources.absolutePath}")
         val emitted: Set<String> =
             sources.walkTopDown()

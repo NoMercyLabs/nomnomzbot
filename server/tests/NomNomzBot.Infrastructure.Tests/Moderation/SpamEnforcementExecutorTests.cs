@@ -106,7 +106,8 @@ public class SpamEnforcementExecutorTests : IDisposable
 
     private async Task<SpamEnforcementOutcome> ExecuteAsync(
         SpamDecision decision,
-        string provider = AuthEnums.Platform.Twitch
+        string provider = AuthEnums.Platform.Twitch,
+        IViolationEscalationService? escalation = null
     )
     {
         using AppDbContext db = NewDbContext();
@@ -114,6 +115,7 @@ public class SpamEnforcementExecutorTests : IDisposable
             db,
             _moderation,
             _twitch,
+            escalation ?? ViolationEscalationDoubles.NotHandled(),
             NullLogger<SpamEnforcementExecutor>.Instance
         );
 
@@ -123,7 +125,9 @@ public class SpamEnforcementExecutorTests : IDisposable
             "msg-1",
             "viewer-1",
             decision,
-            CancellationToken.None
+            CancellationToken.None,
+            "viewer",
+            "Viewer"
         );
     }
 
@@ -232,6 +236,70 @@ public class SpamEnforcementExecutorTests : IDisposable
     }
 
     // ---- What it does ----------------------------------------------------------------------------
+
+    [Fact]
+    public async Task WhenTheLadderTakesTheOffense_ItReplacesTheHeatTimeout()
+    {
+        // The "AutoMod violations count as ladder offenses" setting: the ladder decides the punishment,
+        // so the spam executor must not stack its own timeout on top of it.
+        SpamDecision decision = SpamEnforcement.Decide(
+            SpamConfidence.High,
+            SpamTrustTier.Untrusted,
+            dryRun: false
+        );
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("timeout");
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(decision, escalation: escalation);
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeTrue();
+        await escalation
+            .Received(1)
+            .TryEscalateAsync(
+                Channel,
+                "viewer-1",
+                "viewer",
+                "Viewer",
+                decision.Reason,
+                Arg.Any<CancellationToken>()
+            );
+        await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
+    public async Task WhenTheLadderOnlyWarns_TheOutcomeDoesNotClaimATimeout()
+    {
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false),
+            escalation: ViolationEscalationDoubles.Handled("warn")
+        );
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeFalse();
+        await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
+    public async Task AMessageOnlyOutcomeIsNeverCountedAsALadderOffense()
+    {
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("timeout");
+
+        await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.Medium, SpamTrustTier.Untrusted, dryRun: false),
+            escalation: escalation
+        );
+
+        await escalation
+            .DidNotReceive()
+            .TryEscalateAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
 
     [Fact]
     public async Task HighConfidenceAgainstAnUntrustedAccount_DeletesTheExactMessageAndTimesOut()

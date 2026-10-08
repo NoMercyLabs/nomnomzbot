@@ -29,6 +29,8 @@ public sealed class HeldChatMessageSource(IApplicationDbContext db) : IActionReq
     private const string HeldKeyPrefix = "held:";
     private const string HeldUserKeyPrefix = "held-user:";
 
+    public string SourceKey => "held_messages";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [HeldKeyPrefix, HeldUserKeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

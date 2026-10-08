@@ -44,6 +44,8 @@ import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import bot.nomnomz.dashboard.core.network.UserNote
+import bot.nomnomz.dashboard.core.network.UserModerationContext
+import bot.nomnomz.dashboard.core.realtime.HubConfigChanged
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
@@ -764,6 +766,46 @@ class HomeControllerTest {
     }
 
     @Test
+    fun suspicious_users_push_reloads_the_open_held_review_context_for_that_viewer() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u9", lowTrustStatus = "none"))
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+        assertEquals("none", (controller.heldReview.value as HeldReviewState.Ready).userContext?.lowTrustStatus)
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+        moderationApi.userContextResult =
+            ApiResult.Ok(UserModerationContext(userId = "u9", lowTrustStatus = "restricted"))
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(domain = "suspicious-users", entityId = "u9", action = "updated")))
+
+        assertEquals(
+            "restricted",
+            (controller.heldReview.value as HeldReviewState.Ready).userContext?.lowTrustStatus,
+        )
+    }
+
+    @Test
+    fun suspicious_users_push_for_another_viewer_leaves_the_open_held_review_alone() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u9", lowTrustStatus = "none"))
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+        val readsBefore: Int = moderationApi.userContextCalls.size
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+        moderationApi.userContextResult =
+            ApiResult.Ok(UserModerationContext(userId = "u9", lowTrustStatus = "restricted"))
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(domain = "suspicious-users", entityId = "someone-else", action = "updated")))
+
+        assertEquals(readsBefore, moderationApi.userContextCalls.size)
+        assertEquals("none", (controller.heldReview.value as HeldReviewState.Ready).userContext?.lowTrustStatus)
+    }
+
+    @Test
     fun resolveHeldMessage_allow_sends_approve_and_removes_the_single_message_item() = runTest {
         val moderationApi = FakeModerationApi()
         moderationApi.automodQueueResult =
@@ -1253,8 +1295,14 @@ private class FakeModerationApi : ModerationApi {
     }
 
     // Enrichment reads the dialog folds to null/default on failure — failing here proves that fold.
-    override suspend fun userContext(channelId: String, userId: String) =
+    var userContextResult: ApiResult<UserModerationContext> =
         ApiResult.Failure(ApiError(404, "NOT_FOUND", "no context"))
+    val userContextCalls: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> {
+        userContextCalls.add(channelId to userId)
+        return userContextResult
+    }
 
     override suspend fun automod(channelId: String) =
         ApiResult.Failure(ApiError(403, "FORBIDDEN", "no automod read"))

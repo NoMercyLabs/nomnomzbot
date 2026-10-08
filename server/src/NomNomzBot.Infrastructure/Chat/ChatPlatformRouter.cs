@@ -57,7 +57,10 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// bot account is connected, its distinct username already tells viewers apart from the streamer, so the
 /// prefix would be redundant noise and is skipped.
 /// </summary>
-public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
+public sealed class ChatPlatformRouter
+    : IChatProvider,
+        IInboundOriginChatSender,
+        IInboundOriginModerator
 {
     private readonly IReadOnlyDictionary<string, IChatPlatform> _platforms;
     private readonly IApplicationDbContext _db;
@@ -365,7 +368,7 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             : await platform.UnbanUserAsync(broadcasterId, userId, cancellationToken);
     }
 
-    public async Task DeleteMessageAsync(
+    public async Task<bool> DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
@@ -376,8 +379,90 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             "delete-message",
             cancellationToken
         );
-        if (platform is not null)
-            await platform.DeleteMessageAsync(broadcasterId, messageId, cancellationToken);
+        return platform is not null
+            && await platform.DeleteMessageAsync(broadcasterId, messageId, cancellationToken);
+    }
+
+    public async Task<InboundModerationOutcome> DeleteMessageAsync(
+        Guid broadcasterId,
+        string provider,
+        string messageId,
+        CancellationToken cancellationToken = default
+    ) =>
+        await ModerateViaAsync(
+            broadcasterId,
+            provider,
+            "delete-message",
+            platform => platform.DeleteMessageAsync(broadcasterId, messageId, cancellationToken)
+        );
+
+    public async Task<InboundModerationOutcome> TimeoutUserAsync(
+        Guid broadcasterId,
+        string provider,
+        string userId,
+        int durationSeconds,
+        string? reason = null,
+        CancellationToken cancellationToken = default
+    ) =>
+        await ModerateViaAsync(
+            broadcasterId,
+            provider,
+            "timeout",
+            platform =>
+                platform.TimeoutUserAsync(
+                    broadcasterId,
+                    userId,
+                    durationSeconds,
+                    reason,
+                    cancellationToken
+                )
+        );
+
+    public async Task<InboundModerationOutcome> BanUserAsync(
+        Guid broadcasterId,
+        string provider,
+        string userId,
+        string? reason = null,
+        CancellationToken cancellationToken = default
+    ) =>
+        await ModerateViaAsync(
+            broadcasterId,
+            provider,
+            "ban",
+            platform => platform.BanUserAsync(broadcasterId, userId, reason, cancellationToken)
+        );
+
+    /// <summary>
+    /// Shared explicit-provider path for <see cref="IInboundOriginModerator"/>: an unregistered provider is
+    /// <see cref="InboundModerationStatus.NotSupported"/> (logged, nothing attempted anywhere — never a
+    /// fall-through to another platform); a registered one reports the platform's own accept/refuse.
+    /// </summary>
+    private async Task<InboundModerationOutcome> ModerateViaAsync(
+        Guid broadcasterId,
+        string provider,
+        string operation,
+        Func<IChatPlatform, Task<bool>> action
+    )
+    {
+        if (!_platforms.TryGetValue(provider, out IChatPlatform? platform))
+        {
+            _logger.LogWarning(
+                "No chat platform registered for provider '{Provider}' (channel {BroadcasterId}) — inbound-origin moderation '{Operation}' refused, never routed to another platform",
+                provider,
+                broadcasterId,
+                operation
+            );
+            return InboundModerationOutcome.NotSupported(
+                $"No chat platform is registered for provider '{provider}'."
+            );
+        }
+
+        bool accepted = await action(platform);
+        return accepted
+            ? InboundModerationOutcome.Done()
+            : InboundModerationOutcome.Failed(
+                $"The '{provider}' chat platform refused the {operation}."
+            );
     }
 
     /// <summary>

@@ -30,6 +30,8 @@ public sealed class WidgetBuildFailureSource(IApplicationDbContext db) : IAction
     private const string KeyPrefix = "widget-build:";
     private const string FailedBuild = "error";
 
+    public string SourceKey => "widget_builds";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

@@ -29,6 +29,8 @@ public sealed class UnmanagedRewardSource(IApplicationDbContext db) : IActionReq
 {
     private const string KeyPrefix = "unmanaged-rewards:";
 
+    public string SourceKey => "rewards";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

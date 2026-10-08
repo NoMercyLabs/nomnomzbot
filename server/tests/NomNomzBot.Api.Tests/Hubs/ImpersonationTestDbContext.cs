@@ -131,6 +131,8 @@ internal sealed class ImpersonationTestDbContext : DbContext, IApplicationDbCont
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
+    public DbSet<Domain.Moderation.Entities.ChannelLowTrustStatus> ChannelLowTrustStatuses =>
+        throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels =>

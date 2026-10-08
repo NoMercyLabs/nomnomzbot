@@ -109023,6 +109023,13 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "acknowledgedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "description": "One row of the queryable `ModerationHistoryEntry` log."
@@ -118631,6 +118638,28 @@
             ],
             "description": "Watch hours across this instance's channels that grant Semi-Trusted.",
             "format": "double"
+          },
+          "accountAgeGateDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Hold chat from accounts younger than this many days. 0 is off.",
+            "format": "int32"
+          },
+          "followAgeGateDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Hold chat from followers who followed less than this many days ago. 0 is off.",
+            "format": "int32"
+          },
+          "accountGateHoldsForReview": {
+            "type": "boolean",
+            "description": "A gated message waits for a moderator (true) or is removed outright (false)."
           },
           "nearDuplicateSimilarity": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
@@ -137687,6 +137716,9 @@
                 "$ref": "#/components/schemas/UserTrustSummaryDto"
               }
             ]
+          },
+          "lowTrustStatus": {
+            "type": "string"
           }
         },
         "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
@@ -137754,6 +137786,20 @@
               "null",
               "string"
             ]
+          },
+          "lastWarningAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastWarningAcknowledgedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "description": "The J.4 rollup as the mod panel shows it."

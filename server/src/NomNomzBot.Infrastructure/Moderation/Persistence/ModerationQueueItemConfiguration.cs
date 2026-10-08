@@ -31,6 +31,10 @@ public class ModerationQueueItemConfiguration : IEntityTypeConfiguration<Moderat
         // The queue panel lists pending items for a channel; the update-event handler looks a held row up by
         // its Twitch message id to resolve it when Twitch reports the verdict.
         builder.HasIndex(e => new { e.BroadcasterId, e.Status });
-        builder.HasIndex(e => new { e.BroadcasterId, e.AutoModMessageId });
+        // One row per held message per channel; rows with no held message (flags) are not constrained.
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.AutoModMessageId })
+            .IsUnique()
+            .HasFilter("\"AutoModMessageId\" IS NOT NULL AND \"DeletedAt\" IS NULL");
     }
 }

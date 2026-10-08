@@ -114,6 +114,7 @@ public sealed class ActionDefinitionClassificationTests
         "spam:policy:read",
         "spam:detections:read",
         "spam:detections:manage",
+        "spam:lockdown:read",
         "community:read",
         "community:trust:write",
         "integration:read",
@@ -214,6 +215,7 @@ public sealed class ActionDefinitionClassificationTests
         // Same reasoning as the trust weights, and the same floor: these decide who the bot auto-actions
         // channel-wide, and they are where enforcement gets switched on at all.
         "spam:policy:manage",
+        "spam:lockdown:manage",
         "moderation:action:read",
         "moderation:timeout",
         "moderation:ban",

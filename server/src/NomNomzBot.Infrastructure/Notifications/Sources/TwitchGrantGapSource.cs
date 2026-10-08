@@ -43,6 +43,8 @@ public sealed class TwitchGrantGapSource(IApplicationDbContext db) : IActionRequ
     private const string MissingScopePrefix = "Missing required scope ";
     private const string MissingAuthorizationMarker = "missing proper authorization";
 
+    public string SourceKey => "twitch_permissions";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } =
     [ScopeKeyPrefix, UnauthorizedKeyPrefix];
 

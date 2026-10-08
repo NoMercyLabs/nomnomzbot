@@ -34,6 +34,8 @@ public sealed class AudioSourceMissingSource(
     private const string Key = "audio-source-missing";
     private const string LiveKeyPrefix = Key + ":live:";
 
+    public string SourceKey => "audio_sources";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [Key];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } = [];

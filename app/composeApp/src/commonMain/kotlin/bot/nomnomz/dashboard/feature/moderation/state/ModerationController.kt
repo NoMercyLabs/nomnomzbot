@@ -304,11 +304,15 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Pending unban-request appeals (viewers appeal a ban on Twitch). Resilient — a missing scope / no
-        // broadcaster token degrades to an empty queue rather than failing the page.
+        // Pending unban-request appeals (viewers appeal a ban on Twitch). A failure is NOT "no appeals": the
+        // error stays in state so the screen says the list could not be loaded instead of showing an empty queue.
+        var unbanRequestsError: String? = null
         val unbanRequests: List<UnbanRequest> =
             when (val result: ApiResult<List<UnbanRequest>> = moderationApi.unbanRequests(channel.id)) {
-                is ApiResult.Failure -> emptyList()
+                is ApiResult.Failure -> {
+                    unbanRequestsError = result.error.message
+                    emptyList()
+                }
                 is ApiResult.Ok -> result.value
             }
 
@@ -458,6 +462,7 @@ class ModerationController(
                     moderators.isEmpty() &&
                     chatFilters.isEmpty() &&
                     unbanRequests.isEmpty() &&
+                    unbanRequestsError == null &&
                     reports.isEmpty() &&
                     reportsError == null &&
                     automodQueue.isEmpty() &&
@@ -491,6 +496,7 @@ class ModerationController(
                     chatFilters = chatFilters,
                     stats = stats,
                     unbanRequests = unbanRequests,
+                    unbanRequestsError = unbanRequestsError,
                     reports = reports,
                     reportsError = reportsError,
                     automodQueue = automodQueue,
@@ -1218,13 +1224,23 @@ class ModerationController(
      *   issued by any moderator appear instantly without a page refresh.
      * - [HubEvent.AutoModQueueChanged]: re-fetches the pending AutoMod queue so a newly held message (or a
      *   resolution made anywhere) shows without a reload.
+     * - [HubEvent.ConfigChanged] for [MODERATION_HISTORY_DOMAIN] (a warned viewer acknowledged): re-fetches the
+     *   history page on screen and the open viewer card, so "warned" turns into "acknowledged" live.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>): Unit = coroutineScope {
         // A viewer report filed or resolved anywhere is announced on the "viewer-reports" config domain.
         launch { hubEvents.onConfigChange("viewer-reports") { retryReports() } }
+        // An unban appeal filed or resolved anywhere is announced on the "unban-requests" config domain.
+        launch { hubEvents.onConfigChange("unban-requests") { retryUnbanRequests() } }
+        // Twitch's suspicious-user flag of a viewer changed: re-read the open viewer card when it is that viewer.
+        launch { hubEvents.onConfigChange(SUSPICIOUS_USERS_DOMAIN) { change -> refreshOpenCardFor(change.entityId) } }
         hubEvents.collect { evt ->
             if (evt is HubEvent.AutoModQueueChanged) {
                 refreshAutomodQueue()
+                return@collect
+            }
+            if (evt is HubEvent.ConfigChanged) {
+                if (evt.change.domain == MODERATION_HISTORY_DOMAIN) refreshHistoryViews()
                 return@collect
             }
             if (evt !is HubEvent.ModAction) return@collect
@@ -1262,6 +1278,55 @@ class ModerationController(
             when (result) {
                 is ApiResult.Ok -> latest.copy(reports = result.value, reportsError = null)
                 is ApiResult.Failure -> latest.copy(reportsError = result.error.message)
+            }
+    }
+
+    /**
+     * Re-fetch the history page on screen and, when a viewer card is open, that viewer's card (hub-pushed
+     * change). The card is swapped in place — no Loading flash — and its notes are kept.
+     */
+    private suspend fun refreshHistoryViews() {
+        val current: ModerationState = _state.value
+        if (current is ModerationState.Ready) loadHistoryPage(current.historyPage)
+        refreshOpenCard()
+    }
+
+    /** Re-read the open viewer card only when [userId] is the viewer it shows (hub push about one viewer). */
+    private suspend fun refreshOpenCardFor(userId: String?) {
+        val open: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
+        if (userId == null || open.context.userId != userId) return
+        refreshOpenCard()
+    }
+
+    private suspend fun refreshOpenCard() {
+        val channel: String = channelId ?: return
+        val open: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
+        val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, open.context.userId)
+        if (result is ApiResult.Ok) {
+            val latest: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
+            _userContext.value = latest.copy(context = result.value)
+        }
+    }
+
+    /**
+     * Re-fetch the unban-request appeals alone (hub push, or the Retry on the failed-load notice). Same contract
+     * as [retryReports]: a good read replaces the list and clears the error, a failed one keeps the known list
+     * and records the error, and a non-Ready state falls back to a full [load].
+     */
+    suspend fun retryUnbanRequests() {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) {
+            load()
+            return
+        }
+        val result: ApiResult<List<UnbanRequest>> = moderationApi.unbanRequests(channel)
+        val latest: ModerationState = _state.value
+        if (latest !is ModerationState.Ready) return
+        _state.value =
+            when (result) {
+                is ApiResult.Ok -> latest.copy(unbanRequests = result.value, unbanRequestsError = null)
+                is ApiResult.Failure -> latest.copy(unbanRequestsError = result.error.message)
             }
     }
 
@@ -1475,6 +1540,12 @@ private val TWITCH_LOGIN: Regex = Regex("^[a-z0-9_]{1,25}$")
 // The leading yyyy-MM-dd of an ISO-8601 timestamp.
 private const val ISO_DATE_LENGTH: Int = 10
 
+// The hub ConfigChanged domain the server pushes when a warned viewer acknowledges their warning.
+private const val MODERATION_HISTORY_DOMAIN: String = "moderation-history"
+
+/** Hub config domain announcing a change of a viewer's Twitch suspicious-user flag (entityId = Twitch user id). */
+private const val SUSPICIOUS_USERS_DOMAIN: String = "suspicious-users"
+
 /** The Moderation page render state. */
 sealed interface ModerationState {
     data object Loading : ModerationState
@@ -1497,6 +1568,7 @@ sealed interface ModerationState {
         val chatFilters: List<ChatFilter> = emptyList(),
         val stats: ModerationStats = ModerationStats(),
         val unbanRequests: List<UnbanRequest> = emptyList(),
+        val unbanRequestsError: String? = null,
         val reports: List<ViewerReport> = emptyList(),
         // The message of a failed reports read, null when the last read succeeded. Never shown as an empty list.
         val reportsError: String? = null,

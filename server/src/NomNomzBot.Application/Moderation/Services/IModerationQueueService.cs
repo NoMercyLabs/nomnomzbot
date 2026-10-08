@@ -88,4 +88,13 @@ public interface IModerationQueueService
         string? resolverUserId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Close every pending AutoMod row older than <paramref name="olderThan"/> as <c>expired</c> (a backstop for a
+    /// missed <c>automod.message.update</c>) and tell the dashboard. Returns how many rows it closed.
+    /// </summary>
+    Task<int> ExpireStaleAutoModAsync(
+        TimeSpan olderThan,
+        CancellationToken cancellationToken = default
+    );
 }
