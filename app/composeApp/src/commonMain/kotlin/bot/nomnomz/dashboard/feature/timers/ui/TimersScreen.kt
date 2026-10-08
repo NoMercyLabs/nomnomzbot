@@ -336,10 +336,7 @@ fun TimersScreen(
             confirmLabel = stringResource(Res.string.timers_delete_confirm),
             dismissLabel = stringResource(Res.string.timers_dialog_cancel),
             destructive = true,
-            onConfirm = {
-                deleteTarget = null
-                scope.launch { controller.deleteTimer(timer.id) }
-            },
+            action = { controller.deleteTimer(timer.id) },
             onDismiss = { deleteTarget = null },
         )
     }

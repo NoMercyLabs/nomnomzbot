@@ -281,7 +281,7 @@ class TimersController(
                 fireOnce = fireOnce,
                 pipelineId = pipelineId,
             )
-        return runWrite { timersApi.create(channelId, request) }
+        return dialogWrite { timersApi.create(channelId, request) }
     }
 
     /** Update an existing timer with the dialog's fields, then reload the list on success. */
@@ -308,13 +308,13 @@ class TimersController(
                 // timer needs the empty sentinel to actually unbind — the backend maps it to null.
                 pipelineId = pipelineId ?: EMPTY_PIPELINE_ID,
             )
-        return runWrite { timersApi.update(channelId, id, request) }
+        return dialogWrite { timersApi.update(channelId, id, request) }
     }
 
     /** Delete a timer, then reload the list on success. */
-    suspend fun deleteTimer(id: String) {
-        val channelId: String = resolveChannelId() ?: return
-        runWrite(success = Res.string.feedback_timer_deleted) { timersApi.delete(channelId, id) }
+    suspend fun deleteTimer(id: String): DialogResult {
+        val channelId: String = resolveChannelId() ?: return DialogResult.Failed(_writeError.value)
+        return dialogWrite(success = Res.string.feedback_timer_deleted) { timersApi.delete(channelId, id) }
     }
 
     /** The published platform timer templates this channel can install. */
@@ -360,19 +360,14 @@ class TimersController(
             is ApiResult.Ok -> result.value.id
         }
 
-    // Run a mutation: on success clear any prior error, announce it on the frame, and reload the list; on
-    // failure surface the message (both the in-page banner AND the frame-level error) and leave the current
-    // list untouched. [success] lets a delete say "Deleted" while the rest default to "Saved".
-    private suspend fun runWrite(
+    // A write fired from a dialog that stays open until the server answers: success reloads and announces, a
+    // failure is handed back so the dialog shows the reason inline (no toast or banner on top of it).
+    private suspend fun dialogWrite(
         success: StringResource = Res.string.feedback_timer_saved,
         write: suspend () -> ApiResult<Unit>,
     ): DialogResult =
         when (val result: ApiResult<Unit> = write()) {
-            is ApiResult.Failure -> {
-                _writeError.value = result.error.message
-                feedback.error(Res.string.feedback_timer_save_failed, result.error.message)
-                DialogResult.Failed(result.error.message)
-            }
+            is ApiResult.Failure -> DialogResult.Failed(result.error.message)
             is ApiResult.Ok -> {
                 _writeError.value = null
                 feedback.success(success)
@@ -380,6 +375,23 @@ class TimersController(
                 DialogResult.Done
             }
         }
+
+    // Run an inline mutation (the row toggle, no dialog): on success clear any prior error, announce it and
+    // reload the list; on failure surface the message (in-page banner AND frame-level error) and leave the
+    // current list untouched.
+    private suspend fun runWrite(write: suspend () -> ApiResult<Unit>) {
+        when (val result: ApiResult<Unit> = write()) {
+            is ApiResult.Failure -> {
+                _writeError.value = result.error.message
+                feedback.error(Res.string.feedback_timer_save_failed, result.error.message)
+            }
+            is ApiResult.Ok -> {
+                _writeError.value = null
+                feedback.success(Res.string.feedback_timer_saved)
+                load()
+            }
+        }
+    }
 }
 
 /** The Timers page render state. */
