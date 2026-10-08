@@ -618,9 +618,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-AUTOMOD-LINKS-BARE** the AutoMod links rule only matches `http(s)://` (`AutoModerationHandler.cs:439`),
   so `example.com/x` slips through; its deletions ignore the platform result (`:345-347`).
   Done-when: bare domains match (with the normalizer's homoglyph folding) and a failed delete is reported.
-- [ ] **S-FILTER-ESCALATE-REMOVES** an Escalate filter never removes the message, and with the escalation
-  ladder off (default) does nothing (`:194-198`). Done-when: Escalate always deletes, then applies the
-  ladder step (or the filter's own timeout when the ladder is off).
 - [ ] **S-FILTER-RESULT-REPORTED** filter enforcement results are discarded (`:130,134,205,208,217`) and
   `MatchCount` rises even when the platform refused (`:113`). Done-when: a failed action reaches the
   actionable-error inbox and does not count as a match; filters are cached per channel, not read per message.
