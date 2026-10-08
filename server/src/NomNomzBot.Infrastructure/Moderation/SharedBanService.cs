@@ -19,6 +19,7 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat;
 
 namespace NomNomzBot.Infrastructure.Moderation;
@@ -34,9 +35,13 @@ public sealed class SharedBanService(
     IApplicationDbContext db,
     IRoleResolver roles,
     ISharedChatSessionTracker sessions,
-    ITwitchModerationApi twitchModeration
+    ITwitchModerationApi twitchModeration,
+    IEventBus eventBus
 ) : ISharedBanService
 {
+    private const string SharedChatOrigin = "shared_chat";
+    private const string FederationOrigin = "federation";
+
     private static readonly int SuperModFloor = ManagementRole.LeadModerator.ToLevel();
 
     public async Task<Result<SharedBanSettingsDto>> GetSettingsAsync(
@@ -177,7 +182,11 @@ public sealed class SharedBanService(
             ct
         );
         if (settings is not { AcceptSharedChatBans: true })
-            return Skipped("not_accepting");
+            // The channel's own choice (default-deny): a failure for the caller, never a report to the streamer.
+            return Result.Failure<SharedBanApplicationResult>(
+                "This channel does not accept shared-chat bans.",
+                SharedBanNotAppliedReasons.NotAccepting
+            );
 
         bool trusted = await db.SharedBanTrustedChannels.AnyAsync(
             t =>
@@ -186,12 +195,28 @@ public sealed class SharedBanService(
             ct
         );
         if (!trusted)
-            return Skipped("origin_not_trusted");
+            return await NotAppliedAsync(
+                partnerBroadcasterId,
+                SharedChatOrigin,
+                inbound,
+                SharedBanNotAppliedReasons.OriginNotTrusted,
+                "The channel that banned this viewer is not on this channel's trust list.",
+                null,
+                ct
+            );
 
         // The session verification: the partner must be LIVE in the SAME shared-chat session.
         SharedChatSessionInfo? session = sessions.GetActiveSession(partnerBroadcasterId);
         if (session is null || session.SessionId != inbound.SharedChatSessionId)
-            return Skipped("no_shared_session");
+            return await NotAppliedAsync(
+                partnerBroadcasterId,
+                SharedChatOrigin,
+                inbound,
+                SharedBanNotAppliedReasons.NoSharedSession,
+                "This channel is not in the same live shared-chat session as the channel that banned this viewer.",
+                null,
+                ct
+            );
 
         // Ban on the partner's OWN tenant token (broadcaster = moderator = the channel) — system-
         // initiated, no operator involved.
@@ -202,7 +227,13 @@ public sealed class SharedBanService(
             ct
         );
         if (banned.IsFailure)
-            return Skipped($"twitch_ban_failed:{banned.ErrorCode}");
+            return await TwitchRefusedAsync(
+                partnerBroadcasterId,
+                SharedChatOrigin,
+                inbound,
+                banned,
+                ct
+            );
 
         // The provenance row: same RecordType + JSON shape ModerationService writes, plus the
         // federation origin fields (moderation.md §3.5) — the mod log shows WHERE the ban came from.
@@ -226,10 +257,7 @@ public sealed class SharedBanService(
         db.Records.Add(record);
         await db.SaveChangesAsync(ct);
 
-        return Result.Success(new SharedBanApplicationResult(true, null, record.Id));
-
-        static Result<SharedBanApplicationResult> Skipped(string reason) =>
-            Result.Success(new SharedBanApplicationResult(false, reason, null));
+        return Result.Success(new SharedBanApplicationResult(record.Id));
     }
 
     public async Task<Result<SharedBanApplicationResult>> ApplyInboundFederatedBanAsync(
@@ -248,7 +276,13 @@ public sealed class SharedBanService(
             ct
         );
         if (banned.IsFailure)
-            return SkippedResult($"twitch_ban_failed:{banned.ErrorCode}");
+            return await TwitchRefusedAsync(
+                targetBroadcasterId,
+                FederationOrigin,
+                inbound,
+                banned,
+                ct
+            );
 
         // Provenance row — same shape ModerationService writes, tagged Origin=federation (distinct from the
         // Twitch-native shared_chat origin) so the mod log shows the ban came across the federation trust plane.
@@ -272,11 +306,56 @@ public sealed class SharedBanService(
         db.Records.Add(record);
         await db.SaveChangesAsync(ct);
 
-        return Result.Success(new SharedBanApplicationResult(true, null, record.Id));
+        return Result.Success(new SharedBanApplicationResult(record.Id));
     }
 
-    private static Result<SharedBanApplicationResult> SkippedResult(string reason) =>
-        Result.Success(new SharedBanApplicationResult(false, reason, null));
+    /// <summary>Twitch said no: fail with the platform's own code and message, and tell the streamer.</summary>
+    private Task<Result<SharedBanApplicationResult>> TwitchRefusedAsync(
+        Guid channelId,
+        string origin,
+        SharedChatBanIssuedEvent inbound,
+        Result<TwitchBanResult> refused,
+        CancellationToken ct
+    ) =>
+        NotAppliedAsync(
+            channelId,
+            origin,
+            inbound,
+            SharedBanNotAppliedReasons.TwitchBanFailed,
+            $"Twitch refused the ban: {refused.ErrorMessage}",
+            $"{refused.ErrorCode}: {refused.ErrorMessage}",
+            ct
+        );
+
+    /// <summary>
+    /// A ban that should have been placed was not. Publishes the report the action-required inbox reads, then
+    /// fails with the reason as the error code — a skipped or refused ban is never a success.
+    /// </summary>
+    private async Task<Result<SharedBanApplicationResult>> NotAppliedAsync(
+        Guid channelId,
+        string origin,
+        SharedChatBanIssuedEvent inbound,
+        string reason,
+        string message,
+        string? detail,
+        CancellationToken ct
+    )
+    {
+        await eventBus.PublishAsync(
+            new SharedChatBanNotAppliedEvent
+            {
+                BroadcasterId = channelId,
+                Reason = reason,
+                Origin = origin,
+                OriginChannelId = inbound.OriginChannelId,
+                TargetTwitchUserId = inbound.TargetTwitchUserId,
+                TargetDisplayName = inbound.TargetDisplayName,
+                Detail = detail,
+            },
+            ct
+        );
+        return Result.Failure<SharedBanApplicationResult>(message, reason);
+    }
 
     /// <summary>The recorded shape — a superset of ModerationService's action data (same JSON reader).</summary>
     private sealed class SharedBanActionData

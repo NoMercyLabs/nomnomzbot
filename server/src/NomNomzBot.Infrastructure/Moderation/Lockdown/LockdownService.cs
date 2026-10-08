@@ -17,7 +17,9 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Moderation.SpamDefense;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation.Lockdown;
 
@@ -46,6 +48,7 @@ public sealed class LockdownService : ILockdownService
     private readonly ISpamDefenseService _spam;
     private readonly IReadOnlyList<IPlatformLockdownAdapter> _adapters;
     private readonly TimeProvider _time;
+    private readonly IEventBus _events;
     private readonly ILogger<LockdownService> _logger;
 
     public LockdownService(
@@ -53,6 +56,7 @@ public sealed class LockdownService : ILockdownService
         ISpamDefenseService spam,
         IEnumerable<IPlatformLockdownAdapter> adapters,
         TimeProvider time,
+        IEventBus events,
         ILogger<LockdownService> logger
     )
     {
@@ -60,7 +64,23 @@ public sealed class LockdownService : ILockdownService
         _spam = spam;
         _adapters = adapters.ToList();
         _time = time;
+        _events = events;
         _logger = logger;
+    }
+
+    public async Task<IReadOnlyList<LockdownWindowStatus>> GetActiveAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        List<LockdownWindowRecord> open = await _db
+            .LockdownWindows.IgnoreQueryFilters()
+            .Where(w =>
+                w.BroadcasterId == broadcasterId && w.RestoredAt == null && w.DeletedAt == null
+            )
+            .OrderBy(w => w.StartedAt)
+            .ToListAsync(ct);
+        return open.Select(ToStatus).ToList();
     }
 
     public async Task<Result<LockdownWindowStatus>> EngageAsync(
@@ -197,6 +217,17 @@ public sealed class LockdownService : ILockdownService
             {
                 window.ExpiresAt = next;
                 await _db.SaveChangesAsync(ct);
+                await _events.PublishAsync(
+                    new LockdownExtendedEvent
+                    {
+                        BroadcasterId = window.BroadcasterId,
+                        OccurredAt = _time.GetUtcNow(),
+                        WindowId = window.Id,
+                        Platform = window.Platform,
+                        ExpiresAt = AsUtc(window.ExpiresAt),
+                    },
+                    ct
+                );
             }
         }
 
@@ -289,7 +320,25 @@ public sealed class LockdownService : ILockdownService
         window.EngagedControlsJson = Serialize(applied);
         window.ApplyFailedControlsJson = Serialize(applyFailed);
         await _db.SaveChangesAsync(ct);
-        return ToStatus(window);
+
+        LockdownWindowStatus status = ToStatus(window);
+        await _events.PublishAsync(
+            new LockdownEngagedEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _time.GetUtcNow(),
+                WindowId = status.Id,
+                Platform = status.Platform,
+                Trigger = status.Trigger,
+                StartedAt = status.StartedAt,
+                ExpiresAt = status.ExpiresAt,
+                Engaged = status.Engaged,
+                Unavailable = status.Unavailable,
+                ApplyFailed = status.ApplyFailed,
+            },
+            ct
+        );
+        return status;
     }
 
     private async Task<IReadOnlyDictionary<LockdownControl, Result<ControlReading>>> ReadAsync(
@@ -332,8 +381,10 @@ public sealed class LockdownService : ILockdownService
         List<LockdownControl> leftBehind = Deserialize<LockdownControl>(
             window.RestorationFailedControlsJson
         );
-        IEnumerable<EngagedControl> toRestore =
-            leftBehind.Count > 0 ? engaged.Where(e => leftBehind.Contains(e.Control)) : engaged;
+        List<EngagedControl> toRestore =
+            leftBehind.Count > 0
+                ? engaged.Where(e => leftBehind.Contains(e.Control)).ToList()
+                : engaged;
 
         List<LockdownControl> failed = [];
         foreach (EngagedControl control in toRestore)
@@ -358,6 +409,32 @@ public sealed class LockdownService : ILockdownService
         if (failed.Count == 0)
             window.RestoredAt = now;
         await _db.SaveChangesAsync(ct);
+
+        if (failed.Count == 0)
+            await _events.PublishAsync(
+                new LockdownRestoredEvent
+                {
+                    BroadcasterId = window.BroadcasterId,
+                    OccurredAt = _time.GetUtcNow(),
+                    WindowId = window.Id,
+                    Platform = window.Platform,
+                    RestoredAt = AsUtc(now),
+                    Restored = toRestore.Select(e => e.Control).ToList(),
+                },
+                ct
+            );
+        else if (!failed.ToHashSet().SetEquals(leftBehind))
+            await _events.PublishAsync(
+                new LockdownRestoreFailedEvent
+                {
+                    BroadcasterId = window.BroadcasterId,
+                    OccurredAt = _time.GetUtcNow(),
+                    WindowId = window.Id,
+                    Platform = window.Platform,
+                    Failed = failed,
+                },
+                ct
+            );
     }
 
     private async Task<Result> TryAsync(Func<Task<Result>> call)

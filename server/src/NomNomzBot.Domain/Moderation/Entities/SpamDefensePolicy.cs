@@ -51,6 +51,12 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
     public double SemiTrustedWatchHoursHere { get; set; } = 10;
     public double SemiTrustedWatchHoursInstance { get; set; } = 25;
 
+    // ─── Newcomers ────────────────────────────────────────────────────────────
+
+    public int AccountAgeGateDays { get; set; }
+    public int FollowAgeGateDays { get; set; }
+    public bool AccountGateHoldsForReview { get; set; } = true;
+
     // ─── Content ──────────────────────────────────────────────────────────────
 
     public double NearDuplicateSimilarity { get; set; } = 0.6;
@@ -92,6 +98,9 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
             DryRun = DryRun,
             SemiTrustedWatchHoursHere = SemiTrustedWatchHoursHere,
             SemiTrustedWatchHoursInstance = SemiTrustedWatchHoursInstance,
+            AccountAgeGateDays = AccountAgeGateDays,
+            FollowAgeGateDays = FollowAgeGateDays,
+            AccountGateHoldsForReview = AccountGateHoldsForReview,
             NearDuplicateSimilarity = NearDuplicateSimilarity,
             MinimumSkeletonLength = MinimumSkeletonLength,
             NonLatinScriptGate = NonLatinScriptGate,
@@ -119,6 +128,9 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
         DryRun = settings.DryRun;
         SemiTrustedWatchHoursHere = settings.SemiTrustedWatchHoursHere;
         SemiTrustedWatchHoursInstance = settings.SemiTrustedWatchHoursInstance;
+        AccountAgeGateDays = settings.AccountAgeGateDays;
+        FollowAgeGateDays = settings.FollowAgeGateDays;
+        AccountGateHoldsForReview = settings.AccountGateHoldsForReview;
         NearDuplicateSimilarity = settings.NearDuplicateSimilarity;
         MinimumSkeletonLength = settings.MinimumSkeletonLength;
         NonLatinScriptGate = settings.NonLatinScriptGate;

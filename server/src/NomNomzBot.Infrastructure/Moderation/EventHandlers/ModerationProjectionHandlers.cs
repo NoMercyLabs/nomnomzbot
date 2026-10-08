@@ -89,6 +89,19 @@ public sealed class WarningSentProjectionHandler(IModerationProjectionService pr
         );
 }
 
+/// <summary>The acknowledge leg — the warned viewer accepted the warning; marks it on the log, no heat, no count.</summary>
+public sealed class WarningAcknowledgedProjectionHandler(IModerationProjectionService projections)
+    : IEventHandler<WarningAcknowledgedEvent>
+{
+    public Task HandleAsync(WarningAcknowledgedEvent @event, CancellationToken ct = default) =>
+        projections.AcknowledgeWarningAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            @event.OccurredAt.UtcDateTime,
+            ct: ct
+        );
+}
+
 /// <summary>
 /// The AutoMod leg (+5 heat) — a moderator denied a message AutoMod held for this user
 /// (<c>automod.message.update</c> with status <c>denied</c>; approved and expired verdicts add no heat).

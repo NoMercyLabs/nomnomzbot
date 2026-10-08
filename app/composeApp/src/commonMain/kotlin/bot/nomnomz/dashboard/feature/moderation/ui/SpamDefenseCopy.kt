@@ -73,6 +73,16 @@ import nomnomzbot.composeapp.generated.resources.spam_setting_network_contribute
 import nomnomzbot.composeapp.generated.resources.spam_setting_network_subscribe_cost
 import nomnomzbot.composeapp.generated.resources.spam_setting_network_subscribe_explanation
 import nomnomzbot.composeapp.generated.resources.spam_setting_network_subscribe_label
+import nomnomzbot.composeapp.generated.resources.spam_setting_account_age_gate_days_cost
+import nomnomzbot.composeapp.generated.resources.spam_setting_account_age_gate_days_explanation
+import nomnomzbot.composeapp.generated.resources.spam_setting_account_age_gate_days_label
+import nomnomzbot.composeapp.generated.resources.spam_setting_account_gate_holds_for_review_cost
+import nomnomzbot.composeapp.generated.resources.spam_setting_account_gate_holds_for_review_explanation
+import nomnomzbot.composeapp.generated.resources.spam_setting_account_gate_holds_for_review_label
+import nomnomzbot.composeapp.generated.resources.spam_setting_follow_age_gate_days_cost
+import nomnomzbot.composeapp.generated.resources.spam_setting_follow_age_gate_days_explanation
+import nomnomzbot.composeapp.generated.resources.spam_setting_follow_age_gate_days_label
+import nomnomzbot.composeapp.generated.resources.spam_group_newcomers
 import nomnomzbot.composeapp.generated.resources.spam_setting_non_latin_script_gate_cost
 import nomnomzbot.composeapp.generated.resources.spam_setting_non_latin_script_gate_explanation
 import nomnomzbot.composeapp.generated.resources.spam_setting_non_latin_script_gate_label
@@ -178,6 +188,16 @@ object SpamDefenseCopy {
             "spam_setting_network_subscribe_cost" to Res.string.spam_setting_network_subscribe_cost,
             "spam_setting_network_subscribe_explanation" to Res.string.spam_setting_network_subscribe_explanation,
             "spam_setting_network_subscribe_label" to Res.string.spam_setting_network_subscribe_label,
+            "spam_setting_account_age_gate_days_cost" to Res.string.spam_setting_account_age_gate_days_cost,
+            "spam_setting_account_age_gate_days_explanation" to Res.string.spam_setting_account_age_gate_days_explanation,
+            "spam_setting_account_age_gate_days_label" to Res.string.spam_setting_account_age_gate_days_label,
+            "spam_setting_account_gate_holds_for_review_cost" to Res.string.spam_setting_account_gate_holds_for_review_cost,
+            "spam_setting_account_gate_holds_for_review_explanation" to Res.string.spam_setting_account_gate_holds_for_review_explanation,
+            "spam_setting_account_gate_holds_for_review_label" to Res.string.spam_setting_account_gate_holds_for_review_label,
+            "spam_setting_follow_age_gate_days_cost" to Res.string.spam_setting_follow_age_gate_days_cost,
+            "spam_setting_follow_age_gate_days_explanation" to Res.string.spam_setting_follow_age_gate_days_explanation,
+            "spam_setting_follow_age_gate_days_label" to Res.string.spam_setting_follow_age_gate_days_label,
+            "spam_group_newcomers" to Res.string.spam_group_newcomers,
             "spam_setting_non_latin_script_gate_cost" to Res.string.spam_setting_non_latin_script_gate_cost,
             "spam_setting_non_latin_script_gate_explanation" to Res.string.spam_setting_non_latin_script_gate_explanation,
             "spam_setting_non_latin_script_gate_label" to Res.string.spam_setting_non_latin_script_gate_label,

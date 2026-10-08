@@ -216,6 +216,11 @@ import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_aut
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_filter_hit
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_report_validated
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_note
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_warn_ack
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_ack_done
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_ack_waiting
+import nomnomzbot.composeapp.generated.resources.moderation_history_last_warned_acknowledged
+import nomnomzbot.composeapp.generated.resources.moderation_history_last_warned_waiting
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_reason_none
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_duration
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_page
@@ -383,6 +388,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_con
 import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_short
 import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_title
+import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_load_failed
 import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
@@ -396,6 +402,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_history_bans
 import nomnomzbot.composeapp.generated.resources.moderation_history_warnings
 import nomnomzbot.composeapp.generated.resources.moderation_history_deleted
 import nomnomzbot.composeapp.generated.resources.moderation_history_first_seen
+import nomnomzbot.composeapp.generated.resources.moderation_queue_source_suspicious_user
+import nomnomzbot.composeapp.generated.resources.moderation_queue_suspicious_approve
+import nomnomzbot.composeapp.generated.resources.moderation_queue_suspicious_deny
+import nomnomzbot.composeapp.generated.resources.moderation_queue_suspicious_not_removed
 import nomnomzbot.composeapp.generated.resources.moderation_trust_badge
 import nomnomzbot.composeapp.generated.resources.moderation_heat_badge
 import nomnomzbot.composeapp.generated.resources.moderation_standing_title
@@ -617,6 +627,8 @@ fun ModerationScreen(
                     stats = current.stats,
                     unbanRequests = current.unbanRequests,
                     reports = current.reports,
+                    unbanRequestsError = current.unbanRequestsError,
+                    onRetryUnbanRequests = { scope.launch { controller.retryUnbanRequests() } },
                     reportsError = current.reportsError,
                     onRetryReports = { scope.launch { controller.retryReports() } },
                     automodQueue = current.automodQueue,
@@ -833,6 +845,8 @@ internal fun BansList(
     unbanRequests: List<UnbanRequest>,
     reports: List<ViewerReport>,
     automodQueue: List<ModerationQueueItem>,
+    unbanRequestsError: String? = null,
+    onRetryUnbanRequests: () -> Unit = {},
     reportsError: String? = null,
     onRetryReports: () -> Unit = {},
     bansAvailable: Boolean,
@@ -1088,7 +1102,7 @@ internal fun BansList(
                 }
             }
         }
-        if (unbanRequests.isNotEmpty()) {
+        if (unbanRequests.isNotEmpty() || unbanRequestsError != null) {
             sectionItem(section, ModerationSection.Queue, "unban-header") {
                 Text(
                     text = stringResource(Res.string.moderation_unban_requests_title),
@@ -1100,6 +1114,14 @@ internal fun BansList(
             sectionItem(section, ModerationSection.Queue, "unban-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
+                        if (unbanRequestsError != null) {
+                            LoadFailedNotice(
+                                message = Res.string.moderation_unban_requests_load_failed,
+                                testTag = "unban-requests-load-failed",
+                                onRetry = onRetryUnbanRequests,
+                            )
+                            if (unbanRequests.isNotEmpty()) Separator()
+                        }
                         unbanRequests.forEachIndexed { index, request ->
                             UnbanRequestRow(
                                 request = request,
@@ -1128,7 +1150,11 @@ internal fun BansList(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         if (reportsError != null) {
-                            ReportsLoadFailedNotice(onRetry = onRetryReports)
+                            LoadFailedNotice(
+                                message = Res.string.moderation_reports_load_failed,
+                                testTag = "reports-load-failed",
+                                onRetry = onRetryReports,
+                            )
                             if (reports.isNotEmpty()) Separator()
                         }
                         reports.forEachIndexed { index, report ->
@@ -2315,7 +2341,7 @@ private fun ViewerReportRow(
 // One pending AutoMod-held message (J.1, S066) — approve releases it to chat, deny drops it. Both relay through
 // Helix on the backend before the row clears from the pending queue (a failed relay leaves it pending to retry).
 @Composable
-private fun AutomodQueueRow(
+internal fun AutomodQueueRow(
     item: ModerationQueueItem,
     manage: ManageDecision,
     onApprove: () -> Unit,
@@ -2347,25 +2373,56 @@ private fun AutomodQueueRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        item.autoModCategory?.takeIf { it.isNotBlank() }?.let { category ->
+        val flagged: Boolean = item.source == SUSPICIOUS_USER_SOURCE
+        if (flagged) {
+            // Twitch flagged the chatter; the message itself stays in chat, so the row says so and the status
+            // (carried in the category) reads as a badge instead of an AutoMod "flagged for" line.
             Text(
-                text = stringResource(Res.string.moderation_automod_queue_category, category),
+                text = stringResource(Res.string.moderation_queue_source_suspicious_user),
                 style = typography.xs,
                 color = tokens.mutedForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
+            item.autoModCategory?.let { status -> LowTrustStatusBadge(status = status) }
+            Text(
+                text = stringResource(Res.string.moderation_queue_suspicious_not_removed),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            item.autoModCategory?.takeIf { it.isNotBlank() }?.let { category ->
+                Text(
+                    text = stringResource(Res.string.moderation_automod_queue_category, category),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
                 Button(onClick = onApprove, enabled = enabled) {
-                    Text(stringResource(Res.string.moderation_automod_queue_approve))
+                    Text(
+                        stringResource(
+                            if (flagged) {
+                                Res.string.moderation_queue_suspicious_approve
+                            } else {
+                                Res.string.moderation_automod_queue_approve
+                            }
+                        )
+                    )
                 }
             }
             ManageGate(decision = manage) { enabled ->
                 TextButton(onClick = onDeny, enabled = enabled) {
                     Text(
-                        text = stringResource(Res.string.moderation_automod_queue_deny),
+                        text = stringResource(
+                            if (flagged) {
+                                Res.string.moderation_queue_suspicious_deny
+                            } else {
+                                Res.string.moderation_automod_queue_deny
+                            }
+                        ),
                         color = tokens.mutedForeground,
                     )
                 }
@@ -2828,7 +2885,7 @@ private fun UserModerationNotes(
 // The loaded rap sheet: the viewer's counters + last action + the recent recorded actions, plus the J.4 all-actions
 // history rollup and the J.5 trust/heat pair when the projections have computed them.
 @Composable
-private fun UserModerationContextBody(context: UserModerationContext, heatThreshold: Int) {
+internal fun UserModerationContextBody(context: UserModerationContext, heatThreshold: Int) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -2844,6 +2901,7 @@ private fun UserModerationContextBody(context: UserModerationContext, heatThresh
             overflow = TextOverflow.Ellipsis,
         )
         context.trust?.let { trust -> TrustHeatBadges(trust = trust, heatThreshold = heatThreshold) }
+        LowTrustStatusNotice(status = context.lowTrustStatus)
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             StatChip(label = stringResource(Res.string.moderation_context_bans), value = context.banCount)
             StatChip(label = stringResource(Res.string.moderation_context_timeouts), value = context.timeoutCount)
@@ -3119,10 +3177,10 @@ private fun AutomodLoadFailedCard(onRetry: () -> Unit) {
     }
 }
 
-// The viewer-reports read failed: say so, with a quiet Outline Retry. It sits inside the reports card, so it never
-// competes with the page's primary action, and the list is never silently shown as empty.
+// A queue read (viewer reports, unban appeals) failed: say so, with a quiet Outline Retry. It sits inside the
+// queue's card, so it never competes with the page's primary action, and the list is never silently shown as empty.
 @Composable
-private fun ReportsLoadFailedNotice(onRetry: () -> Unit) {
+private fun LoadFailedNotice(message: StringResource, testTag: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -3131,11 +3189,11 @@ private fun ReportsLoadFailedNotice(onRetry: () -> Unit) {
         modifier =
             Modifier.fillMaxWidth()
                 .padding(horizontal = spacing.s4, vertical = spacing.s3)
-                .testTag("reports-load-failed"),
+                .testTag(testTag),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Text(
-            text = stringResource(Res.string.moderation_reports_load_failed),
+            text = stringResource(message),
             style = typography.sm,
             color = tokens.destructive,
         )
@@ -3607,6 +3665,8 @@ private fun historyActionTypeLabel(actionType: String): String =
         ModerationHistoryActionTypes.ReportValidated ->
             stringResource(Res.string.moderation_history_log_type_report_validated)
         ModerationHistoryActionTypes.Note -> stringResource(Res.string.moderation_history_log_type_note)
+        ModerationHistoryActionTypes.WarningAcknowledged ->
+            stringResource(Res.string.moderation_history_log_type_warn_ack)
         else -> actionType
     }
 
@@ -3624,6 +3684,7 @@ private fun historyActionTypeBadgeVariant(actionType: String): BadgeVariant =
         -> BadgeVariant.Default
         ModerationHistoryActionTypes.Unban,
         ModerationHistoryActionTypes.Note,
+        ModerationHistoryActionTypes.WarningAcknowledged,
         -> BadgeVariant.Secondary
         else -> BadgeVariant.Outline
     }
@@ -3651,6 +3712,24 @@ internal fun HistoryLogEntryRow(entry: ModerationHistoryEntry) {
                 Badge(variant = historyActionTypeBadgeVariant(entry.actionType)) {
                     Text(text = historyActionTypeLabel(entry.actionType), style = typography.xs)
                 }
+                // A warning is "warned" until the viewer acknowledges it, then "acknowledged": the quiet
+                // outline badge waits, the secondary badge confirms — neither takes the accent.
+                if (entry.actionType == ModerationHistoryActionTypes.Warn) {
+                    val acknowledged: Boolean = entry.acknowledgedAt != null
+                    Badge(variant = if (acknowledged) BadgeVariant.Secondary else BadgeVariant.Outline) {
+                        Text(
+                            text =
+                                stringResource(
+                                    if (acknowledged) {
+                                        Res.string.moderation_history_log_ack_done
+                                    } else {
+                                        Res.string.moderation_history_log_ack_waiting
+                                    }
+                                ),
+                            style = typography.xs,
+                        )
+                    }
+                }
                 entry.durationSeconds?.let { seconds ->
                     Text(
                         text = stringResource(Res.string.moderation_history_log_duration, seconds),
@@ -3659,15 +3738,18 @@ internal fun HistoryLogEntryRow(entry: ModerationHistoryEntry) {
                     )
                 }
             }
-            Text(
-                text =
-                    entry.reason?.takeIf { it.isNotBlank() }
-                        ?: stringResource(Res.string.moderation_history_log_reason_none),
-                style = typography.sm,
-                color = tokens.cardForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // An acknowledgement row carries no reason of its own; "no reason recorded" would be noise.
+            if (entry.actionType != ModerationHistoryActionTypes.WarningAcknowledged) {
+                Text(
+                    text =
+                        entry.reason?.takeIf { it.isNotBlank() }
+                            ?: stringResource(Res.string.moderation_history_log_reason_none),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             entry.moderatorDisplayName?.let { moderator ->
                 Text(
                     text = stringResource(Res.string.moderation_log_by, moderator),
@@ -4146,6 +4228,20 @@ internal fun TrustHeatBadges(trust: UserTrustSummary, heatThreshold: Int) {
     }
 }
 
+// "Warned <date>, acknowledged <date>" once the viewer acknowledged, "Warned <date>, not acknowledged yet" before.
+// Internal so the viewer-card line can be rendered directly in a test.
+@Composable
+internal fun warningStatusText(warnedAt: String, acknowledgedAt: String?): String =
+    if (acknowledgedAt.isNullOrBlank()) {
+        stringResource(Res.string.moderation_history_last_warned_waiting, datePart(warnedAt))
+    } else {
+        stringResource(
+            Res.string.moderation_history_last_warned_acknowledged,
+            datePart(warnedAt),
+            datePart(acknowledgedAt),
+        )
+    }
+
 // The J.4 all-actions rollup — counts EVERY Twitch-side action against the viewer, not only the bot's own record.
 @Composable
 private fun UserModerationHistoryRow(history: UserModerationHistorySummary) {
@@ -4171,6 +4267,13 @@ private fun UserModerationHistoryRow(history: UserModerationHistorySummary) {
         history.firstSeenAt?.takeIf { it.isNotBlank() }?.let { first ->
             Text(
                 text = stringResource(Res.string.moderation_history_first_seen, datePart(first)),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        history.lastWarningAt?.takeIf { it.isNotBlank() }?.let { warned ->
+            Text(
+                text = warningStatusText(warned, history.lastWarningAcknowledgedAt),
                 style = typography.xs,
                 color = tokens.mutedForeground,
             )

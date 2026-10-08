@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -41,10 +42,30 @@ public class SpamEnforcementExecutorTests : IDisposable
     private readonly SqliteConnection _connection;
     private readonly IModerationService _moderation = Substitute.For<IModerationService>();
     private readonly ITwitchModerationApi _twitch = Substitute.For<ITwitchModerationApi>();
+    private readonly IInboundOriginModerator _origin = Substitute.For<IInboundOriginModerator>();
     private int _heatTimeoutSeconds = 600;
 
     public SpamEnforcementExecutorTests()
     {
+        _origin
+            .DeleteMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ => Task.FromResult(InboundModerationOutcome.Done()));
+        _origin
+            .TimeoutUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ => Task.FromResult(InboundModerationOutcome.Done()));
+
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
 
@@ -106,7 +127,8 @@ public class SpamEnforcementExecutorTests : IDisposable
 
     private async Task<SpamEnforcementOutcome> ExecuteAsync(
         SpamDecision decision,
-        string provider = AuthEnums.Platform.Twitch
+        string provider = AuthEnums.Platform.Twitch,
+        IViolationEscalationService? escalation = null
     )
     {
         using AppDbContext db = NewDbContext();
@@ -114,6 +136,8 @@ public class SpamEnforcementExecutorTests : IDisposable
             db,
             _moderation,
             _twitch,
+            _origin,
+            escalation ?? ViolationEscalationDoubles.NotHandled(),
             NullLogger<SpamEnforcementExecutor>.Instance
         );
 
@@ -123,7 +147,9 @@ public class SpamEnforcementExecutorTests : IDisposable
             "msg-1",
             "viewer-1",
             decision,
-            CancellationToken.None
+            CancellationToken.None,
+            "viewer",
+            "Viewer"
         );
     }
 
@@ -203,10 +229,110 @@ public class SpamEnforcementExecutorTests : IDisposable
     }
 
     [Fact]
-    public async Task ANonTwitchMessage_IsNotActedOn_AndSaysSoRatherThanImplyingCover()
+    public async Task ANonTwitchMessage_IsRemovedAndTimedOutOnItsOwnPlatformThroughTheSeam_NeverHelix()
     {
-        // A streamer believing the room is covered when it is not would be the most dangerous bug this
-        // feature could have.
+        _heatTimeoutSeconds = 900;
+        SpamDecision decision = SpamEnforcement.Decide(
+            SpamConfidence.High,
+            SpamTrustTier.Untrusted,
+            dryRun: false
+        );
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(decision, provider: "kick");
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeTrue();
+        outcome.Skipped.Should().Contain("Twitch").And.Contain("kick");
+        await _origin
+            .Received(1)
+            .DeleteMessageAsync(Channel, "kick", "msg-1", Arg.Any<CancellationToken>());
+        await _origin
+            .Received(1)
+            .TimeoutUserAsync(
+                Channel,
+                "kick",
+                "viewer-1",
+                900,
+                decision.Reason,
+                Arg.Any<CancellationToken>()
+            );
+        await AssertNoDeleteIssued();
+        await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
+    public async Task ANonTwitchAccount_IsNeverGivenToTheTwitchEscalationLadder()
+    {
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("ban");
+
+        await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false),
+            provider: "youtube",
+            escalation: escalation
+        );
+
+        await escalation
+            .DidNotReceive()
+            .TryEscalateAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ANonTwitchMediumConfidenceMessage_IsDeletedThroughTheSeamAndTheAccountLeftAlone()
+    {
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.Medium, SpamTrustTier.Untrusted, dryRun: false),
+            provider: "youtube"
+        );
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeFalse();
+        outcome.Skipped.Should().BeNull();
+        await _origin
+            .Received(1)
+            .DeleteMessageAsync(Channel, "youtube", "msg-1", Arg.Any<CancellationToken>());
+        await _origin
+            .DidNotReceive()
+            .TimeoutUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await AssertNoDeleteIssued();
+    }
+
+    [Fact]
+    public async Task ANotSupportedSeamAnswer_IsReportedAsNothingDone_WithTheSeamsReason()
+    {
+        const string reason = "No chat platform is registered for provider 'kick'.";
+        _origin
+            .DeleteMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ => Task.FromResult(InboundModerationOutcome.NotSupported(reason)));
+        _origin
+            .TimeoutUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ => Task.FromResult(InboundModerationOutcome.NotSupported(reason)));
+
         SpamEnforcementOutcome outcome = await ExecuteAsync(
             SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false),
             provider: "kick"
@@ -214,9 +340,49 @@ public class SpamEnforcementExecutorTests : IDisposable
 
         outcome.DeletedMessage.Should().BeFalse();
         outcome.TimedOutAccount.Should().BeFalse();
-        outcome.Skipped.Should().Contain("kick");
+        outcome.Skipped.Should().Contain(reason);
         await AssertNoDeleteIssued();
         await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
+    public async Task AFailedSeamDelete_DoesNotClaimTheDelete_ButStillTimesTheAccountOut()
+    {
+        _origin
+            .DeleteMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ =>
+                Task.FromResult(InboundModerationOutcome.Failed("kick refused the delete"))
+            );
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false),
+            provider: "kick"
+        );
+
+        outcome.DeletedMessage.Should().BeFalse();
+        outcome.TimedOutAccount.Should().BeTrue();
+        outcome.Skipped.Should().Contain("kick refused the delete");
+    }
+
+    [Fact]
+    public async Task ATwitchMessage_StillGoesToHelixOnly_NeverToTheSeam()
+    {
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false)
+        );
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeTrue();
+        outcome.Skipped.Should().BeNull();
+        await _twitch
+            .Received(1)
+            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        _origin.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -232,6 +398,70 @@ public class SpamEnforcementExecutorTests : IDisposable
     }
 
     // ---- What it does ----------------------------------------------------------------------------
+
+    [Fact]
+    public async Task WhenTheLadderTakesTheOffense_ItReplacesTheHeatTimeout()
+    {
+        // The "AutoMod violations count as ladder offenses" setting: the ladder decides the punishment,
+        // so the spam executor must not stack its own timeout on top of it.
+        SpamDecision decision = SpamEnforcement.Decide(
+            SpamConfidence.High,
+            SpamTrustTier.Untrusted,
+            dryRun: false
+        );
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("timeout");
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(decision, escalation: escalation);
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeTrue();
+        await escalation
+            .Received(1)
+            .TryEscalateAsync(
+                Channel,
+                "viewer-1",
+                "viewer",
+                "Viewer",
+                decision.Reason,
+                Arg.Any<CancellationToken>()
+            );
+        await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
+    public async Task WhenTheLadderOnlyWarns_TheOutcomeDoesNotClaimATimeout()
+    {
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false),
+            escalation: ViolationEscalationDoubles.Handled("warn")
+        );
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeFalse();
+        await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
+    public async Task AMessageOnlyOutcomeIsNeverCountedAsALadderOffense()
+    {
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("timeout");
+
+        await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.Medium, SpamTrustTier.Untrusted, dryRun: false),
+            escalation: escalation
+        );
+
+        await escalation
+            .DidNotReceive()
+            .TryEscalateAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
 
     [Fact]
     public async Task HighConfidenceAgainstAnUntrustedAccount_DeletesTheExactMessageAndTimesOut()

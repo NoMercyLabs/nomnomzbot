@@ -610,6 +610,11 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   lost moderator status (today a Debug log, `BotLifecycleService.cs:381`), spam defence still in dry
   run or observation, a platform where automatic action is not available, EventSub moderation topics
   not subscribed, a failed platform moderation call (today Kick/YouTube failures are void + log only).
+- [ ] **S-INBOX-SOURCE-FAILURE** the attention inbox drops a source whose read fails: it logs a warning and
+  shows the rest (`ActionRequiredInboxService.cs:46-62`). So when the owner's token lacks the unban scope,
+  `UnbanRequestSource` fails and the streamer sees no appeals and no error. Done-when: a failed source
+  shows one inbox item that names what could not be checked and the reason (with the fix, e.g. reconnect
+  Twitch), and a test proves it for a failing source.
 - [ ] **S-AUTOMOD-LINKS-BARE** the AutoMod links rule only matches `http(s)://` (`AutoModerationHandler.cs:439`),
   so `example.com/x` slips through; its deletions ignore the platform result (`:345-347`).
   Done-when: bare domains match (with the normalizer's homoglyph folding) and a failed delete is reported.

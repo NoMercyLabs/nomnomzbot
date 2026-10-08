@@ -447,7 +447,12 @@ public class ChatController : BaseController
         // impossible — every other failure is surfaced honestly below, never a silent broadcaster-attributed retry.
         if (result is { IsFailure: true, ErrorCode: TwitchErrorCodes.NoToken })
         {
-            await _chat.DeleteMessageAsync(broadcasterId, messageId, ct);
+            bool deleted = await _chat.DeleteMessageAsync(broadcasterId, messageId, ct);
+            if (!deleted)
+                return ConflictResponse(
+                    "The message was not deleted: the channel has no usable token or the platform refused.",
+                    TwitchErrorCodes.Conflict
+                );
             return Ok(new StatusResponseDto<bool> { Data = true });
         }
 

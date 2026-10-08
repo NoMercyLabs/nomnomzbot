@@ -36,6 +36,8 @@ public sealed class DeadIntegrationTokenSource(IApplicationDbContext db) : IActi
         AuthEnums.IntegrationStatus.Expired,
     };
 
+    public string SourceKey => "integration_tokens";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

@@ -29,6 +29,8 @@ public sealed class ViewerReportSource(IApplicationDbContext db) : IActionRequir
     private const string KeyPrefix = "report:";
     private const string OpenStatus = "open";
 
+    public string SourceKey => "viewer_reports";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

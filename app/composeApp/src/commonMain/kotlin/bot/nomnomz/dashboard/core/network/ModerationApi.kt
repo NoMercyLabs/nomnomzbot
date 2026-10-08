@@ -934,6 +934,8 @@ data class ModerationHistoryEntry(
     val reason: String? = null,
     val durationSeconds: Int? = null,
     val occurredAt: String = "",
+    // Set on a `warn` row once the warned viewer acknowledged it (and on its own `warn_ack` row).
+    val acknowledgedAt: String? = null,
 )
 
 /**
@@ -953,9 +955,21 @@ object ModerationHistoryActionTypes {
     const val FilterHit: String = "filter_hit"
     const val ReportValidated: String = "report_validated"
     const val Note: String = "note"
+    const val WarningAcknowledged: String = "warn_ack"
 
     val All: List<String> =
-        listOf(Ban, Timeout, Warn, Unban, DeleteMessage, AutoModDenied, FilterHit, ReportValidated, Note)
+        listOf(
+            Ban,
+            Timeout,
+            Warn,
+            Unban,
+            DeleteMessage,
+            AutoModDenied,
+            FilterHit,
+            ReportValidated,
+            Note,
+            WarningAcknowledged,
+        )
 }
 
 /**
@@ -980,6 +994,8 @@ data class UserModerationContext(
     val history: UserModerationHistorySummary? = null,
     // The J.5 long-term trust (0–100) + recent heat (0–100, 24h half-life) pair — null until projected.
     val trust: UserTrustSummary? = null,
+    // Twitch's own suspicious-user flag: "none" | "active_monitoring" | "restricted".
+    val lowTrustStatus: String = "none",
 )
 
 /**
@@ -1299,6 +1315,9 @@ data class UserModerationHistorySummary(
     val firstSeenAt: String? = null,
     val lastActionAt: String? = null,
     val lastActionType: String? = null,
+    // When the viewer was last warned, and when they acknowledged that warning (null while still waiting).
+    val lastWarningAt: String? = null,
+    val lastWarningAcknowledgedAt: String? = null,
 )
 
 /**

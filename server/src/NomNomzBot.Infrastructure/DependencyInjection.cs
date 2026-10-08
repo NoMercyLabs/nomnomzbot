@@ -1120,6 +1120,11 @@ public static class DependencyInjection
             Application.Identity.Services.IChannelTwitchBotResolver,
             Identity.ChannelTwitchBotResolver
         >();
+        // The one read of the stored bot-moderator status, shared by the inbox item and the protection status.
+        services.AddScoped<
+            Application.Identity.Services.IBotModeratorStatusReader,
+            Identity.BotModeratorStatusReader
+        >();
 
         // Base health-check service — AdminService reports the REAL registered probes. The Api host's
         // AddHealthChecks() call layers the per-profile checks (postgres/redis/lite) onto this same service.
@@ -1147,10 +1152,20 @@ public static class DependencyInjection
         // on the handler was rebuilt for every chat message and never once hit. Held here it survives
         // between messages; AutoModRuleCacheInvalidator keeps it honest on every rule write.
         services.AddSingleton<IAutoModRuleCache, AutoModRuleCache>();
+        // Singleton for the same reason: the follow lookups and their Helix rate budget must outlive the
+        // per-message scope. Does not end in "Service", so convention scanning does not reach it;
+        // FollowStateService (the IFollowStateService binding) is convention-scanned.
+        services.AddSingleton<FollowStateCache>();
         // Consumed by concrete type from the chat-path handler, so convention scanning (I<X>Service ->
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.
         services.AddScoped<SpamEnforcementExecutor>();
+        services.AddScoped<AccountAgeGateExecutor>();
+        // Follow-spike path (S-SPAM-FOLLOWBOT-WIRE): the tracker holds each channel's follow baseline in
+        // memory, so it is a singleton; the sweep reads and writes the DB, so it is scoped. Both are
+        // consumed by concrete type from FollowSpikeHandler.
+        services.AddSingleton<FollowSpikeTracker>();
+        services.AddScoped<FollowBotSweepService>();
         // Same split as SpamEnforcementExecutor, one layer further in: SpamCorrelationService decides a
         // reversal is owed, this carries it out. Consumed by concrete type from SpamCorrelationService.
         services.AddScoped<SpamCampaignReversalExecutor>();
@@ -1729,6 +1744,8 @@ public static class DependencyInjection
         // Live shared-chat session state (singleton): the shared-ban trust web's "active session"
         // precondition — fed by the shared_chat begin/update/end handlers, read at ban time.
         services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();
+        // Re-reads the session from Helix when the tracker is empty (a restart wipes it); scoped for the DbContext.
+        services.AddScoped<ISharedChatSessionRestorer, SharedChatSessionRestorer>();
         // Outbound line shaping + pacing (S010): both singleton — the per-queue-key "last line sent"
         // memory and the token-bucket state must outlive the scoped ChatPlatformRouter created per request.
         services.AddSingleton<Application.Contracts.Chat.IOutboundChatShaper, OutboundChatShaper>();
@@ -1739,7 +1756,7 @@ public static class DependencyInjection
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
         services.AddScoped<IChatPlatform, KickChatPlatform>();
-        // ChatPlatformRouter implements BOTH IChatProvider (tenant-keyed) and IInboundOriginChatSender
+        // ChatPlatformRouter implements IChatProvider (tenant-keyed), IInboundOriginModerator and IInboundOriginChatSender
         // (S021 — explicit-provider-keyed, for replying on the SAME platform an inbound message arrived
         // on). Registered once as itself and forwarded to both interfaces so the two share one scoped
         // instance — and therefore one provider/bot-line-prefix cache per request — rather than two
@@ -1747,6 +1764,9 @@ public static class DependencyInjection
         services.AddScoped<ChatPlatformRouter>();
         services.AddScoped<IChatProvider>(sp => sp.GetRequiredService<ChatPlatformRouter>());
         services.AddScoped<Application.Chat.Services.IInboundOriginChatSender>(sp =>
+            sp.GetRequiredService<ChatPlatformRouter>()
+        );
+        services.AddScoped<Application.Chat.Services.IInboundOriginModerator>(sp =>
             sp.GetRequiredService<ChatPlatformRouter>()
         );
 

@@ -37,6 +37,32 @@ public sealed record MassBanChannelPreviewDto(
     bool RunsAsBroadcaster
 );
 
+/// <summary>
+/// One batch's progress: <c>Banned</c>, <c>Failed</c> (final), <c>Retrying</c> (waiting for a next attempt) and
+/// <c>Waiting</c> (not tried yet) add up to <c>Total</c>. <c>Targets</c> lists every account that is not banned.
+/// </summary>
+public sealed record MassBanBatchDto(
+    Guid BatchId,
+    string ChannelLogin,
+    DateTime RequestedAt,
+    DateTime? CompletedAt,
+    int Total,
+    int Banned,
+    int Failed,
+    int Retrying,
+    int Waiting,
+    IReadOnlyList<MassBanTargetResultDto> Targets
+);
+
+/// <summary>An account not banned: <c>Status</c> is <c>failed</c>, <c>retrying</c> or <c>waiting</c>; <c>Error</c> says why.</summary>
+public sealed record MassBanTargetResultDto(
+    string TwitchUserId,
+    string Status,
+    int Attempts,
+    string? Error,
+    DateTime? NextAttemptAt
+);
+
 /// <summary>Whether this channel takes part in moderators' mass bans across their channels (off until the owner says so).</summary>
 public sealed record MassBanOptInDto(bool Accepts);
 

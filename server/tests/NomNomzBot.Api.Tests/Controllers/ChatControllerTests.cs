@@ -609,6 +609,7 @@ public sealed class ChatControllerTests
             .Returns(
                 Result.Failure("You have no linked Twitch identity.", TwitchErrorCodes.NoToken)
             );
+        bot.DeleteMessageAsync(Broadcaster, "msg-1", Arg.Any<CancellationToken>()).Returns(true);
         ChatController controller = Build(
             db,
             Substitute.For<IChatMessageDecorator>(),
@@ -621,6 +622,38 @@ public sealed class ChatControllerTests
         result.Should().BeOfType<OkObjectResult>();
         await bot.Received(1)
             .DeleteMessageAsync(Broadcaster, "msg-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteMessage_reports_a_refused_tenant_fallback_instead_of_claiming_success()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider bot = Substitute.For<IChatProvider>();
+        IOperatorMessageDeleter deleter = Substitute.For<IOperatorMessageDeleter>();
+        deleter
+            .DeleteAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure("You have no linked Twitch identity.", TwitchErrorCodes.NoToken)
+            );
+        // The tenant delete answers false when the platform refused, the channel has no usable token, or the
+        // platform is not connected. The message is still in chat; the moderator must not be told it is gone.
+        bot.DeleteMessageAsync(Broadcaster, "msg-1", Arg.Any<CancellationToken>()).Returns(false);
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            chat: bot,
+            operatorDeleter: deleter
+        );
+
+        IActionResult result = await controller.DeleteMessage(Broadcaster.ToString(), "msg-1");
+
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(409);
     }
 
     [Fact]

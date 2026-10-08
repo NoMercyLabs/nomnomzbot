@@ -219,6 +219,51 @@ public sealed class MassBanConsentService : IMassBanConsentService
         return true;
     }
 
+    public async Task<IReadOnlyList<MassBanBatchReport>> ListBatchesAsync(
+        Guid operatorUserId,
+        CancellationToken ct = default
+    )
+    {
+        List<MassBanBatch> batches = await _db
+            .MassBanBatches.AsNoTracking()
+            .Include(b => b.Targets)
+            .Where(b => b.OperatorUserId == operatorUserId)
+            .OrderByDescending(b => b.RequestedAt)
+            .Take(50)
+            .ToListAsync(ct);
+
+        return
+        [
+            .. batches.Select(b => new MassBanBatchReport(
+                b.Id,
+                b.ChannelLogin,
+                b.RequestedAt,
+                b.CompletedAt,
+                b.Targets.Count,
+                b.Targets.Count(t => t.Banned),
+                b.Targets.Count(t => t is { Banned: false, ProcessedAt: not null }),
+                b.Targets.Count(t => t.ProcessedAt == null && t.Attempts > 0),
+                b.Targets.Count(t => t.ProcessedAt == null && t.Attempts == 0),
+                [
+                    .. b
+                        .Targets.Where(t => !t.Banned)
+                        .Select(t => new MassBanTargetReport(
+                            t.TwitchUserId,
+                            TargetStatus(t),
+                            t.Attempts,
+                            t.Error,
+                            t.NextAttemptAt
+                        )),
+                ]
+            )),
+        ];
+    }
+
+    private static string TargetStatus(MassBanBatchTarget target) =>
+        target.ProcessedAt != null ? MassBanTargetStatus.Failed
+        : target.Attempts > 0 ? MassBanTargetStatus.Retrying
+        : MassBanTargetStatus.Waiting;
+
     public async Task<IReadOnlyList<ModeratorMassBanOptInRecord>> ListOptInsAsync(
         Guid operatorUserId,
         CancellationToken ct = default

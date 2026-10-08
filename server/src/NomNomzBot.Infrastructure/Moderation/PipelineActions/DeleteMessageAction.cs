@@ -43,7 +43,15 @@ public sealed class DeleteMessageAction : ICommandAction
         if (string.IsNullOrEmpty(messageId))
             return ActionResult.Failure("delete_message: message_id not resolved");
 
-        await _chat.DeleteMessageAsync(ctx.BroadcasterId, messageId, ctx.CancellationToken);
-        return ActionResult.Success($"Deleted message {messageId}");
+        bool deleted = await _chat.DeleteMessageAsync(
+            ctx.BroadcasterId,
+            messageId,
+            ctx.CancellationToken
+        );
+        return deleted
+            ? ActionResult.Success($"Deleted message {messageId}")
+            : ActionResult.Failure(
+                $"delete_message: the platform did not delete message {messageId}"
+            );
     }
 }

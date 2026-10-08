@@ -27,6 +27,8 @@
     <string name="attention_held_category_unknown">flagged</string>
     <string name="attention_report_title">%1$s was reported by a viewer</string>
     <string name="attention_report_message">Reason: %1$s</string>
+    <string name="attention_unban_request_title">%1$s asked to be unbanned</string>
+    <string name="attention_unban_request_message">Appeal: %1$s</string>
     <string name="attention_unmanaged_rewards_title_one">1 channel-point reward is not managed by the bot</string>
     <string name="attention_unmanaged_rewards_title_many">%1$d channel-point rewards are not managed by the bot</string>
     <string name="attention_unmanaged_rewards_message">They were made elsewhere, so you cannot edit them here. Take control of them on the Rewards page.</string>
@@ -55,6 +57,17 @@
     <string name="attention_song_lost_unnamed_message">A request left the player queue before it played. Any cost was refunded.</string>
     <string name="attention_heat_timeout_failed_title">%1$s was not timed out</string>
     <string name="attention_heat_timeout_failed_message">Their heat passed your limit, but Twitch refused the timeout: %1$s. Nobody acted, so check their chat and act by hand.</string>
+    <string name="attention_automod_delete_failed_title">AutoMod could not delete a message</string>
+    <string name="attention_automod_delete_failed_message">The rule “%1$s” tried to delete a message from %2$s, but Twitch refused. The message stays in chat. Make sure the bot is a moderator in your channel. Failed deletions in the last day: %3$s.</string>
+    <string name="attention_shared_ban_title">A shared ban was not applied</string>
+    <string name="attention_shared_ban_origin_not_trusted_message">%2$s was banned in a channel you do not trust, so your channel did not copy the ban. Add that channel to your trusted peers if you want its bans. Bans skipped in the last day: %1$s.</string>
+    <string name="attention_shared_ban_no_shared_session_message">%2$s was banned in a channel that is not in your shared chat, so your channel did not copy the ban. Shared bans only work while both channels are in the same shared chat. Bans skipped in the last day: %1$s.</string>
+    <string name="attention_shared_ban_twitch_ban_failed_message">Twitch refused the ban for %2$s: %3$s. They are not banned in your channel, so ban them by hand if needed. Make sure the bot is a moderator. Failed bans in the last day: %1$s.</string>
+    <string name="attention_shared_ban_twitch_ban_failed_no_detail_message">Twitch refused the ban for %2$s. They are not banned in your channel, so ban them by hand if needed. Make sure the bot is a moderator. Failed bans in the last day: %1$s.</string>
+    <string name="attention_mass_ban_failed_title">The mass ban in %1$s did not finish</string>
+    <string name="attention_mass_ban_failed_message">%1$s of %2$s accounts could not be banned in %3$s. The others were banned. Twitch may have been busy or refused them, so retry them from Moderation. Make sure the bot is a moderator in your channel.</string>
+    <string name="attention_filter_action_failed_title">The %1$s filter could not act on %2$s</string>
+    <string name="attention_filter_action_failed_message">The %1$s filter tried to act on %2$s (%3$s), but it failed: %4$s. Nobody stopped them, so check the chat and act by hand. Make sure the bot is a moderator in your channel.</string>
     <string name="attention_bot_not_moderator_title">%1$s is not a moderator in your channel</string>
     <string name="attention_bot_not_moderator_message">Type /mod %1$s in your Twitch chat. Twitch limits what a bot without the moderator role can do.</string>
     <string name="attention_spotify_blocked_title">Spotify paused your music until %1$s</string>
@@ -63,5 +76,9 @@
     <string name="attention_audio_source_missing_message">Add the Audio Source widget as a browser source in OBS. Until then, sounds and TTS play from another overlay page.</string>
     <string name="attention_audio_source_missing_live_title">The TTS source is missing</string>
     <string name="attention_audio_source_missing_live_message">TTS has nowhere to play. Add the TTS source in OBS.</string>
+    <string name="attention_source_unavailable_title">Could not check %1$s</string>
+    <string name="attention_source_unavailable_message">This check failed, so some items may be missing here. Reason: %1$s. To fix it, reconnect Twitch on the Integrations page.</string>
+    <string name="attention_source_name_unban_requests">unban requests</string>
+    <string name="attention_source_name_unknown">one of your checks</string>
     <string name="attention_unknown_title">Something needs your attention</string>
 </resources>

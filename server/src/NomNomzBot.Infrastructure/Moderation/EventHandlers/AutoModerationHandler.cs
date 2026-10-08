@@ -14,13 +14,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -36,20 +40,20 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// Rules are loaded from the DB per-channel and cached for 5 minutes to avoid hot-path DB hits.
 /// Exemptions: moderators and the broadcaster are never auto-moderated.
 /// </summary>
-public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageReceivedEvent>
+public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEvent>
 {
     /// <summary>Used when a timeout rule carries no duration of its own.</summary>
     private const int DefaultTimeoutSeconds = 60;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAutoModRuleCache _rules;
-    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<AutoModerationHandler> _logger;
 
     public AutoModerationHandler(
         IServiceScopeFactory scopeFactory,
         IAutoModRuleCache rules,
-        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
+        IOutboundSanctionAccessor sanctions,
         ILogger<AutoModerationHandler> logger
     )
     {
@@ -68,20 +72,13 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         if (@event.IsModerator || @event.IsBroadcaster)
             return;
 
-        // Enforcement rides Helix (timeout/ban/delete) — Twitch-only until a per-platform moderation
-        // seam exists. Flagging without the ability to act would be a lie, so non-Twitch skips entirely.
-        if (@event.Provider != AuthEnums.Platform.Twitch)
-            return;
-
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
             return;
 
         // The channel's own automod rules are what authorise the ban/timeout below.
         using IDisposable sanction = _sanctions.Begin(
-            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
-                "automod_rule"
-            )
+            OutboundSanction.ChannelConfiguration("automod_rule")
         );
 
         IReadOnlyList<AutoModRule> rules = await _rules.GetAsync(broadcasterId, cancellationToken);
@@ -124,7 +121,10 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 rule,
                 broadcasterId,
                 @event.UserId,
+                @event.UserLogin,
+                @event.UserDisplayName,
                 @event.MessageId,
+                @event.Provider,
                 cancellationToken
             );
 
@@ -172,30 +172,26 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     /// </summary>
     private static bool CheckLinks(string message, AutoModRule rule)
     {
-        if (!UrlPattern().IsMatch(message))
+        IReadOnlyList<DetectedLink> links = LinkDetector.Find(message);
+        if (links.Count == 0)
             return false;
 
         HashSet<string> allowed = ReadStringSet(rule, "allowed_domains");
         if (allowed.Count == 0)
             return true;
 
-        foreach (Match match in UrlPattern().Matches(message))
-        {
-            Match host = HostnamePattern().Match(match.Value);
-            if (!host.Success)
-                return true;
-
-            string hostname = host.Groups[1].Value.ToLowerInvariant();
-            string[] parts = hostname.Split('.');
-            // Registrable-ish suffix, so allowing "example.com" also allows "www.example.com".
-            string domain = parts.Length >= 2 ? string.Join('.', parts[^2..]) : hostname;
-
-            if (!allowed.Contains(hostname) && !allowed.Contains(domain))
-                return true;
-        }
-
-        return false;
+        return links.Any(link => link.Host.Length == 0 || !IsAllowedHost(link.Host, allowed));
     }
+
+    /// <summary>
+    /// Allowing "example.com" also allows its subdomains ("www.example.com"), but never a lookalike that
+    /// merely ends with the same letters ("notexample.com").
+    /// </summary>
+    private static bool IsAllowedHost(string host, HashSet<string> allowed) =>
+        allowed.Any(domain =>
+            host.Equals(domain, StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase)
+        );
 
     /// <summary>
     /// Banned phrases, literal by default and regex when the rule asks for it.
@@ -324,7 +320,10 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         AutoModRule rule,
         Guid broadcasterId,
         string userId,
+        string userLogin,
+        string userDisplayName,
         string messageId,
+        string provider,
         CancellationToken ct
     )
     {
@@ -336,15 +335,48 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
             {
                 case "timeout":
                 case "ban":
-                    await ApplyAccountActionAsync(scope, rule, broadcasterId, userId, ct);
+                    if (provider == AuthEnums.Platform.Twitch)
+                        await ApplyAccountActionAsync(
+                            scope,
+                            rule,
+                            broadcasterId,
+                            userId,
+                            userLogin,
+                            userDisplayName,
+                            ct
+                        );
+                    else
+                        await ApplyOriginAccountActionAsync(
+                            scope,
+                            rule,
+                            broadcasterId,
+                            userId,
+                            provider,
+                            ct
+                        );
                     break;
 
                 case "delete":
                     // Deleting a message is not an action against the account, so it goes straight to
-                    // Helix. Only timeouts and bans are offences the ladder needs to remember.
-                    await scope
-                        .ServiceProvider.GetRequiredService<ITwitchModerationApi>()
-                        .DeleteChatMessageAsync(broadcasterId, messageId, ct);
+                    // the platform it arrived on. Only timeouts and bans are offences the ladder needs to remember.
+                    Result deleted = await DeleteMessageAsync(
+                        scope,
+                        broadcasterId,
+                        messageId,
+                        provider,
+                        ct
+                    );
+                    if (deleted.IsFailure)
+                        await ReportFailedDeleteAsync(
+                            scope,
+                            rule,
+                            broadcasterId,
+                            userId,
+                            userLogin,
+                            messageId,
+                            deleted.ErrorMessage,
+                            ct
+                        );
                     break;
 
                 default:
@@ -364,6 +396,111 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     }
 
     /// <summary>
+    /// Twitch goes straight to Helix. Any other platform goes through <see cref="IInboundOriginModerator"/>
+    /// with the message's own provider, never Helix; a platform that cannot act fails like a refused Twitch delete.
+    /// </summary>
+    private static async Task<Result> DeleteMessageAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        string messageId,
+        string provider,
+        CancellationToken ct
+    )
+    {
+        if (provider == AuthEnums.Platform.Twitch)
+            return await scope
+                .ServiceProvider.GetRequiredService<ITwitchModerationApi>()
+                .DeleteChatMessageAsync(broadcasterId, messageId, ct);
+
+        InboundModerationOutcome outcome = await scope
+            .ServiceProvider.GetRequiredService<IInboundOriginModerator>()
+            .DeleteMessageAsync(broadcasterId, provider, messageId, ct);
+        return outcome.Status == InboundModerationStatus.Done
+            ? Result.Success()
+            : Result.Failure(outcome.Reason ?? "The platform could not carry out the action.");
+    }
+
+    /// <summary>
+    /// Twitch refused the deletion (typically the bot is not a moderator), so the message is still on
+    /// screen. The failure is published as an event: the journal keeps it and the attention inbox shows it to
+    /// the streamer. A log line alone would never reach anyone.
+    /// </summary>
+    private async Task ReportFailedDeleteAsync(
+        IServiceScope scope,
+        AutoModRule rule,
+        Guid broadcasterId,
+        string userId,
+        string userLogin,
+        string messageId,
+        string? error,
+        CancellationToken ct
+    )
+    {
+        _logger.LogWarning(
+            "Auto-mod could not delete message {MessageId} from {UserId} in {BroadcasterId}: {Error}",
+            messageId,
+            userId,
+            broadcasterId,
+            error
+        );
+
+        await scope
+            .ServiceProvider.GetRequiredService<IEventBus>()
+            .PublishAsync(
+                new AutoModDeleteFailedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    MessageId = messageId,
+                    UserId = userId,
+                    UserLogin = userLogin,
+                    RuleName = rule.Name,
+                    Error = error ?? "unknown error",
+                },
+                ct
+            );
+    }
+
+    /// <summary>
+    /// A timeout or ban for a Kick or YouTube message goes through <see cref="IInboundOriginModerator"/> with
+    /// the message's provider. <see cref="IModerationService"/> and the escalation ladder are keyed to Twitch
+    /// ids and Helix, so neither is consulted; a refusal is logged like a failed Twitch action.
+    /// </summary>
+    private async Task ApplyOriginAccountActionAsync(
+        IServiceScope scope,
+        AutoModRule rule,
+        Guid broadcasterId,
+        string userId,
+        string provider,
+        CancellationToken ct
+    )
+    {
+        IInboundOriginModerator origin =
+            scope.ServiceProvider.GetRequiredService<IInboundOriginModerator>();
+        string reason = rule.Reason ?? rule.Name;
+
+        InboundModerationOutcome outcome =
+            rule.Action.ToLowerInvariant() == "ban"
+                ? await origin.BanUserAsync(broadcasterId, provider, userId, reason, ct)
+                : await origin.TimeoutUserAsync(
+                    broadcasterId,
+                    provider,
+                    userId,
+                    rule.DurationSeconds ?? DefaultTimeoutSeconds,
+                    reason,
+                    ct
+                );
+
+        if (outcome.Status != InboundModerationStatus.Done)
+            _logger.LogWarning(
+                "Auto-mod '{Action}' failed for user {UserId} in {BroadcasterId}: {Error}",
+                rule.Action,
+                userId,
+                broadcasterId,
+                outcome.Reason
+            );
+    }
+
+    /// <summary>
     /// Timeouts and bans go through <see cref="IModerationService"/>, never straight to Helix.
     ///
     /// <para>The direct-to-Helix path used to be the whole of this method, and it silently cost the
@@ -380,9 +517,26 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         AutoModRule rule,
         Guid broadcasterId,
         string userId,
+        string userLogin,
+        string userDisplayName,
         CancellationToken ct
     )
     {
+        // When the channel counts AutoMod violations as ladder offenses, the ladder's step REPLACES this
+        // rule's own timeout or ban, so one message is never punished twice.
+        ViolationEscalationOutcome escalated = await scope
+            .ServiceProvider.GetRequiredService<IViolationEscalationService>()
+            .TryEscalateAsync(
+                broadcasterId,
+                userId,
+                userLogin,
+                userDisplayName,
+                rule.Reason ?? rule.Name,
+                ct
+            );
+        if (escalated.Handled)
+            return;
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
@@ -435,10 +589,4 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 result.ErrorMessage
             );
     }
-
-    [GeneratedRegex(@"https?://[^\s]+", RegexOptions.IgnoreCase)]
-    private static partial Regex UrlPattern();
-
-    [GeneratedRegex(@"https?://([^/\s:]+)", RegexOptions.IgnoreCase)]
-    private static partial Regex HostnamePattern();
 }
