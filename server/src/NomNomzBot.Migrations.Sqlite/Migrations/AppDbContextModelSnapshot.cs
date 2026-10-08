@@ -7739,6 +7739,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<int>("Attempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("Banned")
                         .HasColumnType("INTEGER");
 
@@ -7749,6 +7754,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid>("MassBanBatchId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("TEXT");
