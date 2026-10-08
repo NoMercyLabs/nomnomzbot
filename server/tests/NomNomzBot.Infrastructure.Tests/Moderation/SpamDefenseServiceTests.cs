@@ -1465,7 +1465,7 @@ public class SpamDefenseServiceTests : IDisposable
         );
 
         tier.Should().Be(SpamTrustTier.Untrusted);
-        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!, default);
+        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!);
     }
 
     [Fact]
@@ -1490,7 +1490,7 @@ public class SpamDefenseServiceTests : IDisposable
         SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "brand-new");
 
         tier.Should().Be(SpamTrustTier.Untrusted);
-        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!, default);
+        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!);
     }
 
     public void Dispose() => _connection.Dispose();

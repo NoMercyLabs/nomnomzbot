@@ -639,7 +639,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
             request.PlatformUserId,
             ct
         );
-        if (follow.State == FollowState.Following && follow.FollowedAt is not null)
+        if (follow is { State: FollowState.Following, FollowedAt: not null })
             facts = facts with
             {
                 Follow = FollowState.Following,

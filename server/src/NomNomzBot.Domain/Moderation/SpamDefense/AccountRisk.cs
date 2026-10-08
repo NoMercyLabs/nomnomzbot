@@ -192,7 +192,7 @@ public static class AccountRisk
         // Unknown is not evidence: only a follow we SAW, or its confirmed absence, can count.
         if (
             facts.Follow == FollowState.NotFollowing
-            || (facts.Follow == FollowState.Following && facts.FollowAgeHours < 24)
+            || facts is { Follow: FollowState.Following, FollowAgeHours: < 24 }
         )
             marks.Add(AccountRiskMark.NotFollowingOrBrandNewFollow);
 

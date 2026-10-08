@@ -26,6 +26,7 @@ using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -146,7 +147,7 @@ public sealed class ChatFilterExecutionHandlerTests
             escalation,
             queue,
             users,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             bus,
             NullLogger<ChatFilterExecutionHandler>.Instance
         );

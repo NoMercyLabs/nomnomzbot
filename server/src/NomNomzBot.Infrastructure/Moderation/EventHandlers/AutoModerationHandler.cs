@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Application.Contracts.Security;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
@@ -45,13 +46,13 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAutoModRuleCache _rules;
-    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<AutoModerationHandler> _logger;
 
     public AutoModerationHandler(
         IServiceScopeFactory scopeFactory,
         IAutoModRuleCache rules,
-        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
+        IOutboundSanctionAccessor sanctions,
         ILogger<AutoModerationHandler> logger
     )
     {
@@ -81,7 +82,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
 
         // The channel's own automod rules are what authorise the ban/timeout below.
         using IDisposable sanction = _sanctions.Begin(
-            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+            OutboundSanction.ChannelConfiguration(
                 "automod_rule"
             )
         );

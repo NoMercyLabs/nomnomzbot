@@ -190,9 +190,7 @@ public static class TrustTierLadder
         TrustTierThresholds? thresholds = null
     ) =>
         !IsEstablished(participation, thresholds)
-        && !participation.IsModeratorHere
-        && !participation.IsVipHere
-        && !participation.IsSubscriberHere
+        && participation is { IsModeratorHere: false, IsVipHere: false, IsSubscriberHere: false }
         && !risk.IsSemiTrusted
         && account.AccountAgeDays >= NewcomerAccountDays;
 

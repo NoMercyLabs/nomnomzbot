@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NSubstitute;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -115,7 +116,7 @@ public sealed class AutoModerationBareLinkTests
                 TimeProvider.System,
                 NullLogger<AutoModRuleCache>.Instance
             ),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             NullLogger<AutoModerationHandler>.Instance
         );
 

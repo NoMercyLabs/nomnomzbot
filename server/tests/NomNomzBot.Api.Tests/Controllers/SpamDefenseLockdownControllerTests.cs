@@ -58,7 +58,7 @@ public sealed class SpamDefenseLockdownControllerTests
     private async Task AssertEngageNeverCalledAsync() =>
         await _lockdown
             .DidNotReceiveWithAnyArgs()
-            .EngageAsync(default, default!, default!, default!, default);
+            .EngageAsync(default, default!, default!, default!);
 
     [Fact]
     public async Task Engage_passes_platform_manual_trigger_and_controls_to_the_service()

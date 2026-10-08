@@ -80,7 +80,7 @@ public class FollowSpikeTrackerTests
         );
 
         window.Should().NotBeNull();
-        window!.Unexamined.Select(f => f.UserId).Should().Equal("b0", "b1", "b2", "b3", "b4", "b5");
+        window.Unexamined.Select(f => f.UserId).Should().Equal("b0", "b1", "b2", "b3", "b4", "b5");
         window.WindowSize.Should().Be(6);
     }
 
@@ -100,7 +100,7 @@ public class FollowSpikeTrackerTests
         );
 
         next.Should().NotBeNull();
-        next!.BatchId.Should().Be(first!.BatchId, "one spike is one reversible batch");
+        next.BatchId.Should().Be(first.BatchId, "one spike is one reversible batch");
         next.Unexamined.Select(f => f.UserId).Should().Equal("b6");
         next.WindowSize.Should().Be(7);
     }
@@ -123,7 +123,7 @@ public class FollowSpikeTrackerTests
             );
 
         second.Should().NotBeNull();
-        second!.BatchId.Should().NotBe(first!.BatchId);
+        second.BatchId.Should().NotBe(first.BatchId);
     }
 
     [Fact]

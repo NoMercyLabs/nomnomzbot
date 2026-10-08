@@ -109,7 +109,7 @@ public sealed class SharedChatSessionRestoreTests
         SharedChatSessionInfo? restored = await sut.EnsureActiveSessionAsync(Origin);
 
         restored.Should().NotBeNull();
-        restored!.SessionId.Should().Be("session-9");
+        restored.SessionId.Should().Be("session-9");
         restored.HostBroadcasterId.Should().Be(OriginTwitchId);
         restored
             .ParticipantTwitchIds.Should()

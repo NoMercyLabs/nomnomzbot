@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Application.Contracts.Security;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
@@ -50,7 +51,7 @@ public sealed partial class ChatFilterExecutionHandler(
     IModerationEscalationService escalation,
     IModerationQueueService queue,
     IUserService users,
-    NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
+    IOutboundSanctionAccessor sanctions,
     IEventBus bus,
     ILogger<ChatFilterExecutionHandler> logger
 ) : IEventHandler<ChatMessageReceivedEvent>
@@ -72,7 +73,7 @@ public sealed partial class ChatFilterExecutionHandler(
         // The channel's own saved filters are what authorise every enforcement below; without this the
         // transport refuses the timeout, which is the correct default for anything acting on its own.
         using IDisposable sanction = sanctions.Begin(
-            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+            OutboundSanction.ChannelConfiguration(
                 "chat_filter"
             )
         );

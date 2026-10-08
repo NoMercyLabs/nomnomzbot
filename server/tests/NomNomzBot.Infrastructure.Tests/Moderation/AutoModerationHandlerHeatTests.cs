@@ -19,6 +19,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NSubstitute;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -124,7 +125,7 @@ public sealed class AutoModerationHandlerHeatTests
                 TimeProvider.System,
                 NullLogger<AutoModRuleCache>.Instance
             ),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             NullLogger<AutoModerationHandler>.Instance
         );
 

@@ -138,7 +138,7 @@ public static class FollowBotTrack
 
         // Both halves are required. A fresh account WITH a profile is a new viewer, and an empty
         // profile on an old account is just someone who never filled it in.
-        if (candidate.AccountAgeHours < FreshAccountHours && !candidate.HasProfileContent)
+        if (candidate is { AccountAgeHours: < FreshAccountHours, HasProfileContent: false })
             indicators.Add(FollowBotIndicator.ZeroHistoryFreshAccount);
 
         if (candidate.FollowUnfollowCycles >= OscillationCycles)
