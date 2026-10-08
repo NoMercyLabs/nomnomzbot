@@ -144,6 +144,20 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             e.Ignore(r => r.Channel);
         });
 
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.ViewerReport>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Ignore(r => r.Channel);
+            e.Ignore(r => r.ReportedUser);
+        });
+        b.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.Ignore(u => u.Channel);
+            e.Ignore(u => u.Pronoun);
+            e.Ignore(u => u.AltPronoun);
+        });
+
         b.ApplyConfiguration(
             new Infrastructure.Notifications.Persistence.ActionRequiredDismissalConfiguration()
         );
@@ -205,6 +219,8 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem),
         typeof(NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal),
         typeof(Reward),
+        typeof(NomNomzBot.Domain.Moderation.Entities.ViewerReport),
+        typeof(User),
         typeof(Channel),
         typeof(Widget),
         typeof(WidgetVersion),
@@ -240,7 +256,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
@@ -249,7 +265,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.ViewerReport>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>

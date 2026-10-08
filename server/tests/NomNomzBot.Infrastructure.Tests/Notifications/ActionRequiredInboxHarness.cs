@@ -30,6 +30,7 @@ internal static class ActionRequiredInboxHarness
         [
             new DeadIntegrationTokenSource(db),
             new HeldChatMessageSource(db),
+            new ViewerReportSource(db),
             new UnmanagedRewardSource(db),
             new TwitchGrantGapSource(db),
             new WidgetBuildFailureSource(db),

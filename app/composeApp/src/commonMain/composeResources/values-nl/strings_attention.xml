@@ -25,6 +25,8 @@
     <string name="attention_held_many_from_user_message">AutoMod heeft %1$s berichten van %2$s tegengehouden.</string>
     <string name="attention_held_many_message">AutoMod heeft %1$s berichten tegengehouden.</string>
     <string name="attention_held_category_unknown">gemarkeerd</string>
+    <string name="attention_report_title">%1$s is door een kijker gemeld</string>
+    <string name="attention_report_message">Reden: %1$s</string>
     <string name="attention_unmanaged_rewards_title_one">1 kanaalpuntenbeloning wordt niet door de bot beheerd</string>
     <string name="attention_unmanaged_rewards_title_many">%1$d kanaalpuntenbeloningen worden niet door de bot beheerd</string>
     <string name="attention_unmanaged_rewards_message">Ze zijn elders gemaakt, dus je kunt ze hier niet bewerken. Neem ze over op de pagina Beloningen.</string>

@@ -25,6 +25,8 @@
     <string name="attention_held_many_from_user_message">AutoMod held %1$s messages from %2$s.</string>
     <string name="attention_held_many_message">AutoMod held %1$s messages.</string>
     <string name="attention_held_category_unknown">flagged</string>
+    <string name="attention_report_title">%1$s was reported by a viewer</string>
+    <string name="attention_report_message">Reason: %1$s</string>
     <string name="attention_unmanaged_rewards_title_one">1 channel-point reward is not managed by the bot</string>
     <string name="attention_unmanaged_rewards_title_many">%1$d channel-point rewards are not managed by the bot</string>
     <string name="attention_unmanaged_rewards_message">They were made elsewhere, so you cannot edit them here. Take control of them on the Rewards page.</string>
