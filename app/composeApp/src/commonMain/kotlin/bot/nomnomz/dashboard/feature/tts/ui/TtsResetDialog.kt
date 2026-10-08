@@ -19,7 +19,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionConfirm
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -57,16 +62,18 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun TtsResetDialog(
     changes: List<TtsResetChange>,
-    onConfirm: () -> Unit,
+    action: suspend () -> DialogResult,
     onDismiss: () -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val canConfirm: Boolean = changes.isNotEmpty()
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!state.pending) onDismiss() },
+        dismissOnBackPress = !state.pending,
+        dismissOnClickOutside = !state.pending,
         title = { Text(text = stringResource(Res.string.tts_reset_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -81,21 +88,23 @@ internal fun TtsResetDialog(
                     Text(text = stringResource(Res.string.tts_reset_unchanged))
                 }
                 Text(text = stringResource(Res.string.tts_reset_preserved), style = typography.sm)
+                state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = canConfirm) {
-                Text(
-                    text = stringResource(Res.string.tts_reset_confirm),
-                    color = if (canConfirm) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
+            DialogActionConfirm(
+                state = state,
+                label = stringResource(Res.string.tts_reset_confirm),
+                enabled = canConfirm,
+                action = action,
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.tts_reset_cancel), color = tokens.mutedForeground)
-            }
+            DialogActionDismiss(
+                state = state,
+                label = stringResource(Res.string.tts_reset_cancel),
+                onDismiss = onDismiss,
+            )
         },
     )
 }

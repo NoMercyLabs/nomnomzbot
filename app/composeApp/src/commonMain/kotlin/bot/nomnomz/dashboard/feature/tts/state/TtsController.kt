@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_error
-import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_error
 
 // The TTS page's state-holder: resolves the active channel, loads its real TTS configuration, and
 // persists edits back (no fabricated values). The screen renders [state]; it edits a local form seeded
@@ -165,11 +164,21 @@ class TtsController(
     /**
      * Put the channel's TTS settings back to the defaults (backend `POST /tts/config/reset`). The backend
      * returns the resulting config, which replaces the loaded baseline; BYOK keys, the default voice, the
-     * lexicon and per-viewer voices are never touched. A failure surfaces on [TtsState.Ready.saveError].
+     * lexicon and per-viewer voices are never touched. The result goes back to the confirm dialog, which shows a
+     * failure inline and stays open; no error is raised anywhere else, so the reason shows once.
      */
-    suspend fun resetConfig() {
-        val target: String = channelId ?: return
-        applyConfigResult { ttsApi.resetConfig(target) }
+    suspend fun resetConfig(): ApiResult<TtsConfig> {
+        val target: String = channelId ?: return ApiResult.Failure(ApiError(0, "NO_CHANNEL", ""))
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return ApiResult.Failure(ApiError(0, "NOT_READY", ""))
+
+        val result: ApiResult<TtsConfig> = ttsApi.resetConfig(target)
+        if (result is ApiResult.Ok) {
+            (_state.value as? TtsState.Ready)?.let {
+                _state.value = it.copy(config = result.value, justSaved = true, saveError = null)
+            }
+        }
+        return result
     }
 
     /**
@@ -191,19 +200,19 @@ class TtsController(
     /**
      * Save how TTS says the channel's own name. A blank [pronunciation] clears it. On success the state holds
      * the value the backend stored (trimmed, or null when cleared); on failure the old value stays and the
-     * error is surfaced.
+     * reason lands on [TtsState.Ready.namePronunciationError], shown next to Save (no toast on top).
      */
     suspend fun saveNamePronunciation(pronunciation: String) {
         val channel: String = channelId ?: return
         val current: TtsState = _state.value
         if (current !is TtsState.Ready) return
 
-        _state.value = current.copy(namePronunciationBusy = true)
+        _state.value = current.copy(namePronunciationBusy = true, namePronunciationError = null)
         when (val result: ApiResult<ChannelNamePronunciation> = ttsApi.setChannelNamePronunciation(channel, pronunciation)) {
-            is ApiResult.Failure -> {
-                (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(namePronunciationBusy = false) }
-                feedback.error(Res.string.tts_name_pronunciation_error, result.error.message)
-            }
+            is ApiResult.Failure ->
+                (_state.value as? TtsState.Ready)?.let {
+                    _state.value = it.copy(namePronunciationBusy = false, namePronunciationError = result.error.message)
+                }
             is ApiResult.Ok ->
                 (_state.value as? TtsState.Ready)?.let {
                     _state.value = it.copy(namePronunciation = result.value, namePronunciationBusy = false)
@@ -540,6 +549,7 @@ sealed interface TtsState {
         // How TTS says the channel's own name; null when the backend could not be asked (the field is hidden).
         val namePronunciation: ChannelNamePronunciation? = null,
         val namePronunciationBusy: Boolean = false,
+        val namePronunciationError: String? = null,
         // The auto-provisioned OBS overlay (URL + last-ran signal), or null while it hasn't loaded / failed
         // to load — the rest of the page still renders in that case (see [TtsController.load]).
         val overlay: TtsOverlay? = null,
