@@ -16,25 +16,23 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "MassBanBatchTarget",
                 type: "integer",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 0
+            );
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "NextAttemptAt",
                 table: "MassBanBatchTarget",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Attempts",
-                table: "MassBanBatchTarget");
+            migrationBuilder.DropColumn(name: "Attempts", table: "MassBanBatchTarget");
 
-            migrationBuilder.DropColumn(
-                name: "NextAttemptAt",
-                table: "MassBanBatchTarget");
+            migrationBuilder.DropColumn(name: "NextAttemptAt", table: "MassBanBatchTarget");
         }
     }
 }

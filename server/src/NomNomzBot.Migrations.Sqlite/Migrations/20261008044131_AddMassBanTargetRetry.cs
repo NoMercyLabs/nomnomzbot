@@ -16,25 +16,23 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "MassBanBatchTarget",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 0
+            );
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "NextAttemptAt",
                 table: "MassBanBatchTarget",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Attempts",
-                table: "MassBanBatchTarget");
+            migrationBuilder.DropColumn(name: "Attempts", table: "MassBanBatchTarget");
 
-            migrationBuilder.DropColumn(
-                name: "NextAttemptAt",
-                table: "MassBanBatchTarget");
+            migrationBuilder.DropColumn(name: "NextAttemptAt", table: "MassBanBatchTarget");
         }
     }
 }

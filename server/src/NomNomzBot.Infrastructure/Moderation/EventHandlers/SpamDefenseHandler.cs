@@ -123,32 +123,33 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
             // A newcomer-limit verdict is carried out by its own executor: it removes (and may hold) the
             // message but never reaches the account. A campaign escalation is the sender's own stronger
             // evidence (SD9), so an escalated verdict always goes to the account executor.
-            SpamEnforcementOutcome enforcement = result.Gate is null || escalated
-                ? await scope
-                    .ServiceProvider.GetRequiredService<SpamEnforcementExecutor>()
-                    .ExecuteAsync(
-                        @event.BroadcasterId,
-                        @event.Provider,
-                        @event.MessageId,
-                        @event.UserId,
-                        decision,
-                        ct,
-                        @event.UserLogin,
-                        @event.UserDisplayName
-                    )
-                : await scope
-                    .ServiceProvider.GetRequiredService<AccountAgeGateExecutor>()
-                    .ExecuteAsync(
-                        @event.BroadcasterId,
-                        @event.Provider,
-                        @event.MessageId,
-                        @event.UserId,
-                        @event.UserLogin,
-                        @event.Message,
-                        result.Decision,
-                        result.Gate,
-                        ct
-                    );
+            SpamEnforcementOutcome enforcement =
+                result.Gate is null || escalated
+                    ? await scope
+                        .ServiceProvider.GetRequiredService<SpamEnforcementExecutor>()
+                        .ExecuteAsync(
+                            @event.BroadcasterId,
+                            @event.Provider,
+                            @event.MessageId,
+                            @event.UserId,
+                            decision,
+                            ct,
+                            @event.UserLogin,
+                            @event.UserDisplayName
+                        )
+                    : await scope
+                        .ServiceProvider.GetRequiredService<AccountAgeGateExecutor>()
+                        .ExecuteAsync(
+                            @event.BroadcasterId,
+                            @event.Provider,
+                            @event.MessageId,
+                            @event.UserId,
+                            @event.UserLogin,
+                            @event.Message,
+                            result.Decision,
+                            result.Gate,
+                            ct
+                        );
 
             // Only a timeout the platform confirmed counts as the campaign actioning this account. Dry
             // run, a flag, an unsupported platform and a failed call all report TimedOutAccount false,
