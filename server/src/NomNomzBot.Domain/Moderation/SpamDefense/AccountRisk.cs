@@ -114,9 +114,6 @@ public static class AccountRisk
     private const double DefaultProfileMultiplier = 1.15;
     private const double GeneratedHandleMultiplier = 1.4;
 
-    private const double SemiTrustedWatchHoursThisChannel = 10.0;
-    private const double SemiTrustedWatchHoursInstanceWide = 25.0;
-
     /// <summary>A word followed by 4–8 digits — the shape auto-generated handles take.</summary>
     private static readonly System.Text.RegularExpressions.Regex GeneratedHandle = new(
         @"^[A-Za-z]{2,}\d{4,8}$",
@@ -127,12 +124,19 @@ public static class AccountRisk
     /// Assess an account. Standing is evaluated FIRST and wins: a viewer with positive standing gets a
     /// coefficient of exactly 1.0 no matter how many risk marks their account shape carries, because no
     /// accumulation of suspicion is allowed to reach someone who has already shown they are real.
+    ///
+    /// <para>The watch-hour bars are the channel's own settings, passed in — a threshold the operator
+    /// edits has to be the threshold the engine applies.</para>
     /// </summary>
-    public static AccountRiskAssessment Assess(AccountFacts facts)
+    public static AccountRiskAssessment Assess(
+        AccountFacts facts,
+        double semiTrustedWatchHoursHere,
+        double semiTrustedWatchHoursInstance
+    )
     {
         List<AccountRiskMark> marks = CollectMarks(facts);
 
-        if (HasPositiveStanding(facts))
+        if (HasPositiveStanding(facts, semiTrustedWatchHoursHere, semiTrustedWatchHoursInstance))
             return new AccountRiskAssessment(1.0, marks, IsSemiTrusted: true);
 
         // Partner/affiliate and long-lived genuine accounts are not Semi-Trusted, but their shape stops
@@ -200,12 +204,16 @@ public static class AccountRisk
     /// §L1.2. Watch time is the strongest signal we own: no public list has it, and a bot farm would have
     /// to genuinely watch to fake it. It is what lets standing reach a viewer who has never typed a word.
     /// </summary>
-    private static bool HasPositiveStanding(AccountFacts facts) =>
+    private static bool HasPositiveStanding(
+        AccountFacts facts,
+        double watchHoursHere,
+        double watchHoursInstance
+    ) =>
         facts.IsModeratorAnywhere
         || facts.IsVipAnywhere
         || facts.IsSubscriberAnywhere
-        || facts.WatchTimeHoursThisChannel >= SemiTrustedWatchHoursThisChannel
-        || facts.WatchTimeHoursInstanceWide >= SemiTrustedWatchHoursInstanceWide;
+        || facts.WatchTimeHoursThisChannel >= watchHoursHere
+        || facts.WatchTimeHoursInstanceWide >= watchHoursInstance;
 
     /// <summary>An account ≥ 2 years old WITH genuine activity — age alone is not enough.</summary>
     private static bool IsEstablishedGenuineAccount(AccountFacts facts) =>

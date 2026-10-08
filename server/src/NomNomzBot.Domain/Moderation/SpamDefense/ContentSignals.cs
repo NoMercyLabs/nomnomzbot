@@ -39,6 +39,12 @@ public enum ContentSignal
     /// slip past link filters. The viewbot-seller campaign's own shape; high-confidence on its own.
     /// </summary>
     SellingAudience,
+
+    /// <summary>
+    /// The message used something its sender's tier has not earned (a link, a non-Latin script). Added
+    /// by the capability floor, never by the content layer, which keeps L2 blind to who sent it.
+    /// </summary>
+    UnearnedCapability,
 }
 
 /// <summary>The signals a message produced, and the confidence they fuse to.</summary>
