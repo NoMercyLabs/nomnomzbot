@@ -5122,6 +5122,7 @@
     <string name="widget_sr_queue_accentColor_label">Accentkleur</string>
     <string name="widget_audio_showIndicator_label">Spreekindicator tonen (alleen instellen)</string>
     <string name="widget_audio_accentColor_label">Accentkleur</string>
+    <string name="widget_audio_enableAudio_label">Audio op deze pagina afspelen</string>
     <string name="widget_tts_caption_showText_label">Ondertiteltekst tonen</string>
     <string name="widget_tts_caption_voiceLabel_label">Stemlabel tonen</string>
     <string name="widget_tts_caption_position_label">Positie</string>
