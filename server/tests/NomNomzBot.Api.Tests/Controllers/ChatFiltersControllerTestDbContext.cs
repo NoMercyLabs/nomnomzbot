@@ -98,6 +98,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
 
     public DbSet<FollowBotBlock> FollowBotBlocks => throw new NotSupportedException();
 
+    public DbSet<LockdownWindowRecord> LockdownWindows => throw new NotSupportedException();
+
     public DbSet<SpamSignature> SpamSignatures => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
