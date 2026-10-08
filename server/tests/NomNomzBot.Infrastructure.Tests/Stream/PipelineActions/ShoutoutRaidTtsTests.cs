@@ -185,6 +185,8 @@ public sealed class ShoutoutRaidTtsTests
                 Arg.Is<TtsSpeakRequest>(r =>
                     r.Text == "Raid hero RaiderName, go follow twitch.tv/raider!"
                     && r.RequestedByTwitchUserId == RaiderId
+                    && r.SpokenNames != null
+                    && r.SpokenNames.Contains("RaiderName")
                 ),
                 Arg.Any<CancellationToken>()
             );

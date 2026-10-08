@@ -55,7 +55,9 @@ public sealed class TtsConfigControllerOwnVoiceTests
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
             Substitute.For<Application.Identity.Services.IUserService>(),
-            new PlatformTtsVoiceDefault(db)
+            new PlatformTtsVoiceDefault(db),
+            Substitute.For<ITtsLexiconService>(),
+            new SpokenNameFormatter()
         );
 
         return new(

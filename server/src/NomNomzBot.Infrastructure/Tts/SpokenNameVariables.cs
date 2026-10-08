@@ -18,6 +18,7 @@ internal static class SpokenNameVariables
 {
     private static readonly string[] NameKeys =
     [
+        "user",
         "user.name",
         "user.displayname",
         "user.login",

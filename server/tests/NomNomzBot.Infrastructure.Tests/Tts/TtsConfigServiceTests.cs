@@ -78,7 +78,9 @@ public sealed class TtsConfigServiceTests
                 bus,
                 subjectKeys,
                 Substitute.For<Application.Identity.Services.IUserService>(),
-                new PlatformTtsVoiceDefault(db)
+                new PlatformTtsVoiceDefault(db),
+                Substitute.For<ITtsLexiconService>(),
+                new SpokenNameFormatter()
             ),
             db,
             bus

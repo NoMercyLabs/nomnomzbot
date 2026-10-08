@@ -240,7 +240,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             request.RatePercent,
             request.PitchPercent,
             segments: null,
-            request.SpokenNames,
+            KnownNames(request),
             ct
         );
     }
@@ -393,7 +393,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             ratePercent: null,
             pitchPercent: null,
             segments,
-            request.SpokenNames,
+            KnownNames(request),
             ct
         );
     }
@@ -537,6 +537,15 @@ public sealed class TtsDispatchService : ITtsDispatchService
         return Result.Success(new PagedList<TtsQueueEntryDto>(items, page, pageSize, total));
     }
 
+    /// <summary>Includes the requester even when a producer supplies no separate name list.</summary>
+    private static List<string> KnownNames(TtsSpeakRequest request)
+    {
+        List<string> names = request.SpokenNames?.ToList() ?? [];
+        if (!string.IsNullOrWhiteSpace(request.RequestedByDisplayName))
+            names.Add(request.RequestedByDisplayName);
+        return names;
+    }
+
     /// <summary>Holds a passing utterance in the approval queue (P.1a) and emits <c>TtsUtteranceQueuedEvent</c>.</summary>
     private async Task<Result<TtsDispatchOutcome>> EnqueueForApprovalAsync(
         TtsSpeakRequest request,
@@ -563,7 +572,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             WasCensored = wasCensored,
             SourceMessageId = request.SourceMessageId,
             StreamId = request.StreamId,
-            SpokenNames = request.SpokenNames?.ToList() ?? [],
+            SpokenNames = KnownNames(request),
             ExpiresAt = _clock.GetUtcNow().UtcDateTime.AddMinutes(QueueTtlMinutes),
         };
         _db.TtsApprovalQueueEntries.Add(entry);

@@ -129,7 +129,9 @@ public sealed class TtsVoiceAssignmentImportTests
                 Substitute.For<IEventBus>(),
                 Substitute.For<Application.Services.ISubjectKeyService>(),
                 users,
-                new PlatformTtsVoiceDefault(db)
+                new PlatformTtsVoiceDefault(db),
+                Substitute.For<ITtsLexiconService>(),
+                new SpokenNameFormatter()
             ),
             Db = db,
             Users = users,
@@ -341,7 +343,7 @@ public sealed class TtsVoiceAssignmentImportTests
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
     }
 
     [Fact]
@@ -364,7 +366,7 @@ public sealed class TtsVoiceAssignmentImportTests
         (await h.Db.UserIdentities.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
     }
 
     [Fact]
@@ -433,6 +435,6 @@ public sealed class TtsVoiceAssignmentImportTests
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
     }
 }

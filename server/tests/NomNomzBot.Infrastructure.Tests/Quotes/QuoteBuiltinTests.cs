@@ -302,7 +302,10 @@ public sealed class QuoteBuiltinTests
         await tts.Received(1)
             .RequestSpeakAsync(
                 Arg.Is<TtsSpeakRequest>(r =>
-                    r.BroadcasterId == channel && r.Text == "Stoney_Eagle said: blame the lag"
+                    r.BroadcasterId == channel
+                    && r.Text == "Stoney_Eagle said: blame the lag"
+                    && r.SpokenNames != null
+                    && r.SpokenNames.Contains("Stoney_Eagle")
                 ),
                 Arg.Any<CancellationToken>()
             );

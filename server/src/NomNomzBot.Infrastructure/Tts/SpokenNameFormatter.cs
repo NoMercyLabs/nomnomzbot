@@ -11,30 +11,18 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Moderation.SpamDefense;
 
 namespace NomNomzBot.Infrastructure.Tts;
 
 /// <summary>
 /// Cleans a name for the voice in fixed steps: strip xX decoration, turn separators and symbols into
 /// spaces, decode leetspeak digits and symbols that sit INSIDE a run of letters, then split camelCase and
-/// letter/digit joins. Digits at the start or end of a name ("gamer123") stay digits.
+/// letter/digit joins. Numeric suffixes stay numbers except a decorative _99 on an already-leet name.
 /// </summary>
 public sealed class SpokenNameFormatter : ISpokenNameFormatter
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
-
-    private static readonly Dictionary<char, char> Leet = new()
-    {
-        ['0'] = 'o',
-        ['1'] = 'i',
-        ['3'] = 'e',
-        ['4'] = 'a',
-        ['5'] = 's',
-        ['7'] = 't',
-        ['8'] = 'b',
-        ['@'] = 'a',
-        ['$'] = 's',
-    };
 
     private static readonly Regex WrappedDecoration = new(
         @"^(?:xX|Xx)(?<inner>.+?)(?:xX|Xx)$",
@@ -73,9 +61,18 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         if (string.IsNullOrWhiteSpace(name))
             return name;
 
+        List<string> tokens = Tokenize(StripWrappedDecoration(name.Trim().TrimStart('@')));
+        bool hasInternalLeet = tokens.Any(token =>
+            LeetRun.Matches(token).Any(run => run.Value.All(IsLeet))
+        );
         List<string> words = [];
-        foreach (string token in Tokenize(StripWrappedDecoration(name.Trim().TrimStart('@'))))
-            words.AddRange(SplitWords(DecodeLeet(token)));
+        for (int index = 0; index < tokens.Count; index++)
+        {
+            string token = tokens[index];
+            if (hasInternalLeet && index == tokens.Count - 1 && IsDecorativeNumber(token))
+                continue;
+            words.AddRange(SplitWords(DecodeLeet(token, hasInternalLeet)));
+        }
 
         return words.Count == 0 ? name : string.Join(' ', words);
     }
@@ -148,7 +145,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         char c = name[index];
         if (char.IsLetterOrDigit(c))
             return true;
-        return Leet.ContainsKey(c)
+        return IsLeet(c)
             && index > 0
             && index < name.Length - 1
             && char.IsLetter(name[index - 1])
@@ -163,9 +160,19 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
 
     // A leading digit is a number ("1Gamer") unless the rest of the name is already leetspeak and it opens a
     // lowercase word: "5p3c7r4l" is "spectral", not "5 pectral".
-    private static string DecodeLeet(string token)
+    private static string DecodeLeet(string token, bool hasInternalLeet)
     {
         string decoded = LeetRun.Replace(token, run => DecodeRun(token, run));
+        // A short trailing glyph belongs to the word when another part of this name proves leetspeak.
+        // A plain word followed by a number (Dark1, Anna1990) keeps its number.
+        if (
+            hasInternalLeet
+            && token.Length is > 1 and <= 3
+            && char.IsLetter(token[^2])
+            && IsLeet(token[^1])
+        )
+            decoded = decoded[..^1] + Decode(token[^1].ToString());
+
         if (decoded == token)
             return decoded;
 
@@ -179,7 +186,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
     {
         char before = token[run.Index - 1];
         char after = token[run.Index + run.Length];
-        if (!run.Value.All(Leet.ContainsKey) || (char.IsLower(before) && char.IsUpper(after)))
+        if (!run.Value.All(IsLeet) || (char.IsLower(before) && char.IsUpper(after)))
             return run.Value;
 
         string decoded = Decode(run.Value);
@@ -190,10 +197,29 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
     {
         StringBuilder decoded = new(run.Length);
         foreach (char c in run)
-            decoded.Append(Leet[c]);
+        {
+            MessageNormalizer.TryFoldLeet(c, out char letter);
+            decoded.Append(letter);
+        }
         return decoded.ToString();
     }
 
+    private static bool IsLeet(char c) => MessageNormalizer.TryFoldLeet(c, out _);
+
+    private static bool IsDecorativeNumber(string token) => token == "99";
+
     private static string[] SplitWords(string token) =>
-        WordSplit.Replace(token, " ").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        WordSplit
+            .Replace(token, " ")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(word =>
+                word.Equals("haxor", StringComparison.OrdinalIgnoreCase)
+                    ? word.All(char.IsUpper)
+                        ? "HACKER"
+                        : char.IsUpper(word[0])
+                            ? "Hacker"
+                            : "hacker"
+                    : word
+            )
+            .ToArray();
 }

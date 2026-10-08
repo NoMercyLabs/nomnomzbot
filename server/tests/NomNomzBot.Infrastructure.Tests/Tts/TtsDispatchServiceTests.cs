@@ -1109,6 +1109,29 @@ public sealed class TtsDispatchServiceTests
     // ── Spoken-name cleaning — after the lexicon, spoken text only ──
 
     [Fact]
+    public async Task RequestSpeakAsync_UsesTheRequesterNameEvenWhenTheRouteOmitsSpokenNames()
+    {
+        Harness h = Build();
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("welcome L33tH4x0r") with
+            {
+                RequestedByDisplayName = "L33tH4x0r",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "welcome Leet Hacker",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task RequestSpeakAsync_CleansAKnownName_InTheSpokenText()
     {
         Harness h = Build();
@@ -1154,6 +1177,33 @@ public sealed class TtsDispatchServiceTests
             .Tts.Received(1)
             .SynthesizeAsync(
                 "shoutout to Dark, go follow",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ApproveAsync_CleansARequesterNamePreservedAcrossTheQueue()
+    {
+        Harness h = Build(modApprovalRequired: true);
+        await h.Service.RequestSpeakAsync(
+            Speak("welcome L33tH4x0r") with
+            {
+                RequestedByDisplayName = "L33tH4x0r",
+            }
+        );
+        TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+        entry.SpokenNames.Should().ContainSingle().Which.Should().Be("L33tH4x0r");
+
+        Result result = await h.Service.ApproveAsync(Tenant, entry.Id, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "welcome Leet Hacker",
                 "default-voice",
                 Arg.Any<double?>(),
                 Arg.Any<double?>(),

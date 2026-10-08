@@ -34,6 +34,8 @@ public sealed class TtsSynthesizeAction : ICommandAction
     private readonly ITtsService _tts;
     private readonly ITtsConfigService _ttsConfig;
     private readonly ISoundClipStore _audioStore;
+    private readonly ITtsLexiconService _lexicon;
+    private readonly ISpokenNameFormatter _spokenNames;
 
     public string ActionType => "tts_synthesize";
 
@@ -74,13 +76,17 @@ public sealed class TtsSynthesizeAction : ICommandAction
         ITemplateResolver resolver,
         ITtsService tts,
         ITtsConfigService ttsConfig,
-        ISoundClipStore audioStore
+        ISoundClipStore audioStore,
+        ITtsLexiconService lexicon,
+        ISpokenNameFormatter spokenNames
     )
     {
         _resolver = resolver;
         _tts = tts;
         _ttsConfig = ttsConfig;
         _audioStore = audioStore;
+        _lexicon = lexicon;
+        _spokenNames = spokenNames;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -146,8 +152,12 @@ public sealed class TtsSynthesizeAction : ICommandAction
                 );
         }
 
+        string spokenText = _spokenNames.ApplyToText(
+            await _lexicon.ApplyAsync(ctx.BroadcasterId, text, ctx.CancellationToken),
+            SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName)
+        );
         TtsResult synth = await _tts.SynthesizeAsync(
-            text,
+            spokenText,
             voiceId,
             action.GetDouble("rate"),
             action.GetDouble("pitch"),

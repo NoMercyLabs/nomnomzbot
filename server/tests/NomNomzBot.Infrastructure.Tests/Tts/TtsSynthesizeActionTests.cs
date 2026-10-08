@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Infrastructure.Tts;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using NSubstitute;
 
@@ -79,8 +80,17 @@ public sealed class TtsSynthesizeActionTests
         ITtsService tts = Substitute.For<ITtsService>();
         ITtsConfigService config = Substitute.For<ITtsConfigService>();
         ISoundClipStore store = Substitute.For<ISoundClipStore>();
+        ITtsLexiconService lexicon = Substitute.For<ITtsLexiconService>();
+        lexicon
+            .ApplyAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci => Task.FromResult(ci.ArgAt<string>(1)));
 
-        return (new(resolver, tts, config, store), tts, config, store);
+        return (
+            new(resolver, tts, config, store, lexicon, new SpokenNameFormatter()),
+            tts,
+            config,
+            store
+        );
     }
 
     /// <summary>Makes the catalogue search report <paramref name="voiceId"/> as a known voice (case-insensitive).</summary>
@@ -128,6 +138,43 @@ public sealed class TtsSynthesizeActionTests
             ModApprovalRequired: false,
             MinBitsToTts: null
         );
+
+    [Fact]
+    public async Task ExecuteAsync_FormatsKnownViewerNameBeforeSynthesis()
+    {
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("welcome L33tH4x0r");
+        MockVoiceExists(config, "en-US-Guy");
+        tts.SynthesizeAsync(Arg.Any<string>(), "en-US-Guy", ct: Arg.Any<CancellationToken>())
+            .Returns(new TtsResult([1], 100, "en-US-Guy", "azure"));
+        store
+            .PutAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<System.IO.Stream>(),
+                "audio/mpeg",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success("clip"));
+        store
+            .GetPlaybackUrlAsync("clip", Arg.Any<CancellationToken>())
+            .Returns(Result.Success("https://bot.local/clip"));
+        PipelineExecutionContext ctx = Context();
+        ctx.Variables["user.displayname"] = "L33tH4x0r";
+
+        ActionResult result = await action.ExecuteAsync(
+            ctx,
+            Action(("text", "{{user.displayname}}"), ("voice", "en-US-Guy"))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await tts.Received(1)
+            .SynthesizeAsync("welcome Leet Hacker", "en-US-Guy", ct: Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public async Task ExecuteAsync_ExplicitVoice_SynthesizesStoresAndExposesVariables()
