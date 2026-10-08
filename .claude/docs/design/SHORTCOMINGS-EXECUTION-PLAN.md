@@ -599,11 +599,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   lost moderator status (today a Debug log, `BotLifecycleService.cs:381`), spam defence still in dry
   run or observation, a platform where automatic action is not available, EventSub moderation topics
   not subscribed, a failed platform moderation call (today Kick/YouTube failures are void + log only).
-- [ ] **S-INBOX-SOURCE-FAILURE** the attention inbox drops a source whose read fails: it logs a warning and
-  shows the rest (`ActionRequiredInboxService.cs:46-62`). So when the owner's token lacks the unban scope,
-  `UnbanRequestSource` fails and the streamer sees no appeals and no error. Done-when: a failed source
-  shows one inbox item that names what could not be checked and the reason (with the fix, e.g. reconnect
-  Twitch), and a test proves it for a failing source.
 - [ ] **S-FILTER-RESULT-REPORTED** filter enforcement results are discarded (`:130,134,205,208,217`) and
   `MatchCount` rises even when the platform refused (`:113`). Done-when: a failed action reaches the
   actionable-error inbox and does not count as a match; filters are cached per channel, not read per message.
