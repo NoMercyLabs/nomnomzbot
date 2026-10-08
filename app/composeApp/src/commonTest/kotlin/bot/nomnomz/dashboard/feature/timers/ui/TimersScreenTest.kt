@@ -12,7 +12,10 @@ package bot.nomnomz.dashboard.feature.timers.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.hasAnyChild
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -23,6 +26,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -160,6 +164,80 @@ class TimersScreenTest {
         // parent node carrying [Disabled] + stateDescription, so assert there rather than on the leaf.
         onNode(hasAnyChild(hasContentDescription("Test pipeline")), useUnmergedTree = true).assertIsNotEnabled()
     }
+
+    // Shared defect SH-1: the delete confirm and the edit form stay open until the server answers.
+    private fun ComposeUiTest.openScreen(api: FakeTimersApi) {
+        val controller =
+            TimersController(
+                channelsApi = FakeChannelsApi(),
+                timersApi = api,
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+                platformTemplatesApi = NoTemplatesApi,
+            )
+        runBlocking { controller.load() }
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        TimersScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+    }
+
+    private val row = TimerSummary(id = "t1", name = "shoutout timer", intervalMinutes = 30, isEnabled = true)
+    private val rowDetail =
+        TimerDetail(id = "t1", name = "shoutout timer", messages = listOf("hello"), intervalMinutes = 30, isEnabled = true)
+    private val reason: String = "The server said no."
+
+    @Test
+    fun a_failed_delete_keeps_the_dialog_open_with_the_reason_inline() = runComposeUiTest {
+        val api = FakeTimersApi(listOf(row), rowDetail, ApiResult.Failure(ApiError(409, "REFUSED", reason)))
+        openScreen(api)
+        onNodeWithContentDescription("Delete shoutout timer").performClick()
+        waitForIdle()
+        onNodeWithText("Delete").performClick()
+        waitForIdle()
+
+        assertEquals(1, api.deleteCalls)
+        onNodeWithText("Delete timer").assertExists()
+        onNodeWithText(reason).assertExists()
+    }
+
+    @Test
+    fun a_successful_delete_closes_the_dialog() = runComposeUiTest {
+        val api = FakeTimersApi(listOf(row), rowDetail)
+        openScreen(api)
+        onNodeWithContentDescription("Delete shoutout timer").performClick()
+        waitForIdle()
+        onNodeWithText("Delete").performClick()
+        waitForIdle()
+
+        assertEquals(1, api.deleteCalls)
+        onNodeWithText("Delete timer").assertDoesNotExist()
+    }
+
+    @Test
+    fun a_failed_edit_save_keeps_the_form_open_with_the_typed_name_and_the_reason() = runComposeUiTest {
+        val api = FakeTimersApi(listOf(row), rowDetail, ApiResult.Failure(ApiError(409, "REFUSED", reason)))
+        openScreen(api)
+        onNodeWithContentDescription("Edit shoutout timer").performClick()
+        waitForIdle()
+        onAllNodes(hasSetTextAction())[0].performTextReplacement("Renamed timer")
+        onNodeWithText("Save").performClick()
+        waitForIdle()
+
+        assertEquals(1, api.updateCalls)
+        onNodeWithText("Renamed timer").assertExists()
+        onNodeWithText(reason).assertExists()
+    }
 }
 
 @androidx.compose.runtime.Composable
@@ -200,12 +278,23 @@ private class FakeChannelsApi : ChannelsApi {
 private class FakeTimersApi(
     private val summaries: List<TimerSummary>,
     private val fixedDetail: TimerDetail,
+    private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : TimersApi {
+    var deleteCalls: Int = 0
+        private set
+    var updateCalls: Int = 0
+        private set
+
     override suspend fun list(channelId: String): ApiResult<List<TimerSummary>> = ApiResult.Ok(summaries)
     override suspend fun create(channelId: String, request: CreateTimerRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun update(channelId: String, id: String, request: UpdateTimerRequest): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
-    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun update(channelId: String, id: String, request: UpdateTimerRequest): ApiResult<Unit> {
+        updateCalls++
+        return writeResult
+    }
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> {
+        deleteCalls++
+        return writeResult
+    }
     override suspend fun toggle(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun detail(channelId: String, id: String): ApiResult<TimerDetail> = ApiResult.Ok(fixedDetail)
 }

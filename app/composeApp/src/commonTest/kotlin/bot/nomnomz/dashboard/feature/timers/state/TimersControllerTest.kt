@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.timers.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
@@ -323,17 +324,18 @@ class TimersControllerTest {
     }
 
     @Test
-    fun createTimer_failure_surfaces_a_write_error_and_leaves_the_list_intact() = runTest {
+    fun createTimer_failure_hands_the_reason_to_the_dialog_and_leaves_the_list_intact() = runTest {
         val existing: List<TimerSummary> =
             listOf(TimerSummary(id = "00000001-0000-0000-0000-000000000001", name = "Keep", intervalMinutes = 10, isEnabled = true, messageCount = 1))
         val api = FakeTimersApi(existing, writeFailure = ApiError(403, "FORBIDDEN", "not allowed"))
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, minChatActivity = 0, enabled = true, fireOnce = false, pipelineId = null)
+        val result: DialogResult =
+            controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, minChatActivity = 0, enabled = true, fireOnce = false, pipelineId = null)
 
-        // The error is surfaced verbatim, the list never reloaded, and the original row is still on the page.
-        assertEquals("not allowed", controller.writeError.value)
+        // The reason goes back to the open dialog verbatim, the list never reloaded, the original row stays.
+        assertEquals(DialogResult.Failed("not allowed"), result)
         assertEquals(1, api.listCalls) // only the initial load, no reload after the failed write
         val state: TimersState = controller.state.value
         assertTrue(state is TimersState.Ready)
@@ -345,7 +347,7 @@ class TimersControllerTest {
         val api = FakeTimersApi(emptyList(), writeFailure = ApiError(500, "ERR", "boom"))
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
-        controller.deleteTimer(id = "00000001-0000-0000-0000-000000000001")
+        controller.toggleTimer(id = "00000001-0000-0000-0000-000000000001", enabled = true)
         assertEquals("boom", controller.writeError.value)
 
         controller.clearWriteError()
@@ -381,13 +383,27 @@ class TimersControllerTest {
     }
 
     @Test
-    fun a_failed_write_announces_an_error_carrying_the_backend_detail_and_no_success() = runTest {
+    fun a_failed_delete_hands_the_reason_to_the_dialog_with_no_toast_and_no_banner() = runTest {
         val feedback = RecordingFeedback()
         val api = FakeTimersApi(emptyList(), writeFailure = ApiError(403, "FORBIDDEN", "no permission"))
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback = feedback)
         controller.load()
 
-        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, minChatActivity = 0, enabled = true, fireOnce = false, pipelineId = null)
+        val result: DialogResult = controller.deleteTimer(id = "t1")
+
+        assertEquals(DialogResult.Failed("no permission"), result)
+        assertTrue(feedback.messages.isEmpty())
+        assertNull(controller.writeError.value)
+    }
+
+    @Test
+    fun a_failed_inline_toggle_announces_an_error_carrying_the_backend_detail_and_no_success() = runTest {
+        val feedback = RecordingFeedback()
+        val api = FakeTimersApi(emptyList(), writeFailure = ApiError(403, "FORBIDDEN", "no permission"))
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback = feedback)
+        controller.load()
+
+        controller.toggleTimer(id = "t1", enabled = true)
 
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(Res.string.feedback_timer_save_failed, feedback.only.label)
