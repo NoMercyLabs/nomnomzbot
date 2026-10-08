@@ -835,11 +835,10 @@ class AdminController(
 
     /** Commits the edit the dialog previewed — [body.confirmedAffectedTenantCount] must match
      * [AdminState.tierEditPreview]'s count or the server rejects it (`PREVIEW_STALE`) rather than
-     * applying against a blast radius the owner never actually saw. Closes the dialog either way. */
-    suspend fun confirmTierEdit(tierId: String, body: AdminUpdateTierRequest) {
-        dismissTierEditPreview()
-        writeThenReload { api.updateTier(tierId, body) }
-    }
+     * applying against a blast radius the owner never actually saw. Hands the outcome back to the edit dialog,
+     * which closes itself on success and shows a failure inline (no toast). */
+    suspend fun confirmTierEdit(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier> =
+        reloadAfterDialogWrite { api.updateTier(tierId, body) }
 
     // ── Comps and entitlement grants (S-ADMIN-4b) ──────────────────────────────
 

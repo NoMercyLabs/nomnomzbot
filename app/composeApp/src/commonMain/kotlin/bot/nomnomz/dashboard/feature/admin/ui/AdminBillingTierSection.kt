@@ -33,15 +33,14 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
-import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.Dialog
-import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
-import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -120,9 +119,7 @@ internal fun TierListSection(state: AdminState, controller: AdminController) {
                 tier = tier,
                 preview = state.tierEditPreview,
                 onDismiss = { controller.dismissTierEditPreview() },
-                onSave = { request ->
-                    scope.launch { controller.confirmTierEdit(tier.id, request) }
-                },
+                onSave = { request -> controller.confirmTierEdit(tier.id, request).toDialogResult() },
             )
         }
     }
@@ -206,7 +203,7 @@ private fun TierEditDialog(
     tier: AdminTier,
     preview: AdminTierChangePreview?,
     onDismiss: () -> Unit,
-    onSave: (AdminUpdateTierRequest) -> Unit,
+    onSave: suspend (AdminUpdateTierRequest) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
@@ -226,10 +223,42 @@ private fun TierEditDialog(
     val priceValid: Int? = priceCents.toIntOrNull()
     val sortValid: Int? = sortOrder.toIntOrNull()
     val formValid: Boolean = displayName.isNotBlank() && currency.isNotBlank() && priceValid != null && sortValid != null
+    val limitsValid: Boolean = limitValues.values.all { it.toLongOrNull() != null }
+    val dirty: Boolean =
+        displayName != tier.displayName ||
+            priceCents != tier.priceCents.toString() ||
+            currency != tier.currency ||
+            sortOrder != tier.sortOrder.toString() ||
+            isPublic != tier.isPublic ||
+            allowsCustomBotName != tier.allowsCustomBotName ||
+            prioritySupport != tier.prioritySupport ||
+            limitValues != tier.limits.associate { it.limitKey to it.limitValue.toString() }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_tier_edit_title, tier.key))
-
+    FormDialog(
+        title = stringResource(Res.string.admin_tier_edit_title, tier.key),
+        saveLabel = stringResource(Res.string.admin_tier_save),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = {
+            onSave(
+                AdminUpdateTierRequest(
+                    displayName = displayName,
+                    priceCents = priceValid ?: tier.priceCents,
+                    currency = currency,
+                    allowsCustomBotName = allowsCustomBotName,
+                    prioritySupport = prioritySupport,
+                    isPublic = isPublic,
+                    sortOrder = sortValid ?: tier.sortOrder,
+                    limits = limitValues.map { (key, value) ->
+                        AdminTierLimit(limitKey = key, limitValue = value.toLongOrNull() ?: 0L)
+                    },
+                    confirmedAffectedTenantCount = preview?.affectedTenantCount ?: 0,
+                ),
+            )
+        },
+        dirty = dirty,
+        valid = formValid && preview != null && limitsValid,
+    ) {
         AppTextField(
             value = displayName,
             onValueChange = { displayName = it },
@@ -291,33 +320,6 @@ private fun TierEditDialog(
 
         Spacer(modifier = Modifier.height(spacing.s2))
         BlastRadiusNotice(preview)
-
-        Spacer(modifier = Modifier.height(spacing.s1))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(
-                onClick = {
-                    onSave(
-                        AdminUpdateTierRequest(
-                            displayName = displayName,
-                            priceCents = priceValid ?: tier.priceCents,
-                            currency = currency,
-                            allowsCustomBotName = allowsCustomBotName,
-                            prioritySupport = prioritySupport,
-                            isPublic = isPublic,
-                            sortOrder = sortValid ?: tier.sortOrder,
-                            limits = limitValues.map { (key, value) ->
-                                AdminTierLimit(limitKey = key, limitValue = value.toLongOrNull() ?: 0L)
-                            },
-                            confirmedAffectedTenantCount = preview?.affectedTenantCount ?: 0,
-                        ),
-                    )
-                },
-                enabled = formValid && preview != null && limitValues.values.all { it.toLongOrNull() != null },
-            ) {
-                Text(text = stringResource(Res.string.admin_tier_save))
-            }
-        }
     }
 }
 
