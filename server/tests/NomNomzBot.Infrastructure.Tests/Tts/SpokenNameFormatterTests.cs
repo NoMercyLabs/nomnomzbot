@@ -44,13 +44,21 @@ public sealed class SpokenNameFormatterTests
     [InlineData("Player1Gamer", "Player 1 Gamer")]
     [InlineData("Team4Life", "Team 4 Life")]
     [InlineData("L33T", "LEET")]
-    [InlineData("H4X0R", "HAXOR")]
-    [InlineData("h4x0r", "haxor")]
+    [InlineData("H4X0R", "HACKER")]
+    [InlineData("h4x0r", "hacker")]
     [InlineData("5p3c7r4l_HH", "spectral HH")]
     [InlineData("4ng3l", "angel")]
     [InlineData("1Gamer", "1 Gamer")]
     [InlineData("3D4rk", "3 Dark")]
     [InlineData("1gamer", "1 gamer")]
+    [InlineData("xX_D4rk_St0rm_Xx", "Dark Storm")]
+    [InlineData("L33tH4x0r", "Leet Hacker")]
+    [InlineData("Pr0_G4m3r_99", "Pro Gamer")]
+    [InlineData("Anna1990", "Anna 1990")]
+    [InlineData("R2D2", "R 2 D 2")]
+    [InlineData("Team_99", "Team 99")]
+    [InlineData("G4mer_11", "Gamer 11")]
+    [InlineData("Pr0_G4m3r_11", "Pro Gamer 11")]
     public void Format_GivesTheSpokenForm(string name, string expected) =>
         _sut.Format(name).Should().Be(expected);
 

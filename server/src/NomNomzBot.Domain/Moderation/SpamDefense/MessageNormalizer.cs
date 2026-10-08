@@ -169,9 +169,14 @@ public static class MessageNormalizer
         ['4'] = 'a',
         ['5'] = 's',
         ['7'] = 't',
+        ['8'] = 'b',
         ['@'] = 'a',
         ['$'] = 's',
     };
+
+    /// <summary>The shared leetspeak character mapping. Callers decide whether a digit is a letter or a number.</summary>
+    public static bool TryFoldLeet(char character, out char letter) =>
+        Leet.TryGetValue(character, out letter);
 
     /// <summary>
     /// Run the full §L0 pipeline. Steps are applied in the spec's order — the order matters: folding
@@ -199,7 +204,7 @@ public static class MessageNormalizer
         foreach (char c in visibleText)
         {
             char mapped = FoldCharacter(c);
-            folded.Append(Leet.TryGetValue(mapped, out char letter) ? letter : mapped);
+            folded.Append(TryFoldLeet(mapped, out char letter) ? letter : mapped);
         }
 
         // 6. Collapse runs to two, then strip everything that is not a letter or digit.
