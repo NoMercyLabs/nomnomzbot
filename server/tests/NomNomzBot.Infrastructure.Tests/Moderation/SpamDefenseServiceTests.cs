@@ -19,11 +19,13 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
@@ -85,14 +87,16 @@ public class SpamDefenseServiceTests : IDisposable
         AppDbContext db,
         IModerationService? moderation = null,
         ICurrentTenantService? tenant = null,
-        ITwitchUsersApi? twitchUsers = null
+        ITwitchUsersApi? twitchUsers = null,
+        IFollowStateService? follows = null
     ) =>
         new(
             db,
             _time,
             moderation ?? Substitute.For<IModerationService>(),
             tenant ?? new CurrentTenantService(),
-            twitchUsers ?? Substitute.For<ITwitchUsersApi>()
+            twitchUsers ?? Substitute.For<ITwitchUsersApi>(),
+            follows ?? Substitute.For<IFollowStateService>()
         );
 
     /// <summary>An automatic (non-dry-run) escalation, the shape a moderator can actually overturn.</summary>
@@ -126,11 +130,12 @@ public class SpamDefenseServiceTests : IDisposable
         string text,
         string userId = "viewer-1",
         bool isSubscriber = false,
-        bool isModerator = false
+        bool isModerator = false,
+        string provider = AuthEnums.Platform.Twitch
     ) =>
         new(
             Channel,
-            AuthEnums.Platform.Twitch,
+            provider,
             MessageId: Guid.NewGuid().ToString(),
             PlatformUserId: userId,
             DisplayName: "Viewer",
@@ -1321,6 +1326,157 @@ public class SpamDefenseServiceTests : IDisposable
         (await readBack.SpamDetections.SingleAsync(d => d.Id == detection.Id))
             .OverturnedByUserId.Should()
             .Be(operatorUserId);
+    }
+
+    // ---- Follow age feeds the trust ladder -------------------------------------------------------
+
+    private const string SpamText = "f​r​ee f​ollows";
+
+    private static ITwitchChannelsApi FollowerApi(DateTimeOffset? followedAt)
+    {
+        ITwitchChannelsApi api = Substitute.For<ITwitchChannelsApi>();
+        TwitchChannelFollower? follower = followedAt is null
+            ? null
+            : new("v1", "viewer", "Viewer", followedAt.Value);
+        api.GetChannelFollowerAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(follower));
+        return api;
+    }
+
+    private async Task<SpamTrustTier> TierOf(
+        ITwitchChannelsApi api,
+        FollowStateCache cache,
+        string userId,
+        string provider = AuthEnums.Platform.Twitch
+    )
+    {
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(
+                db,
+                follows: new FollowStateService(api, cache)
+            )
+            .EvaluateAsync(Message(SpamText, userId: userId, provider: provider));
+        return result!.Tier;
+    }
+
+    [Fact]
+    public async Task ATenDayFollower_WithAMonthOfHistory_ReachesKnown()
+    {
+        SeedHistory("follower-1", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+
+        SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "follower-1");
+
+        tier.Should().Be(SpamTrustTier.Known);
+    }
+
+    [Fact]
+    public async Task ATwoHourFollower_StaysBelowNewcomer()
+    {
+        SeedHistory("follower-2", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddHours(-2));
+
+        SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "follower-2");
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+    }
+
+    [Fact]
+    public async Task AFailedLookup_EarnsNoFollowTier_AndIsNotCachedAsNotFollowing()
+    {
+        SeedHistory("follower-3", days: 2, perDay: 3);
+        ITwitchChannelsApi api = Substitute.For<ITwitchChannelsApi>();
+        api.GetChannelFollowerAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchChannelFollower?>("missing moderator:read:followers", "SCOPE")
+            );
+        FollowStateCache cache = new(_time);
+
+        SpamTrustTier tier = await TierOf(api, cache, "follower-3");
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+        cache.TryGet(Channel, "follower-3", out FollowLookup stored).Should().BeTrue();
+        stored
+            .State.Should()
+            .Be(FollowState.Unknown, "a failed lookup is not evidence of not following");
+    }
+
+    [Fact]
+    public async Task ASecondMessageFromTheSameViewer_MakesNoSecondHelixCall()
+    {
+        SeedHistory("follower-4", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+        FollowStateCache cache = new(_time);
+
+        await TierOf(api, cache, "follower-4");
+        SpamTrustTier second = await TierOf(api, cache, "follower-4");
+
+        second.Should().Be(SpamTrustTier.Known);
+        await api.Received(1)
+            .GetChannelFollowerAsync(Channel, "follower-4", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFollowEvent_IsSeenByTheNextMessage_WithoutAHelixCall()
+    {
+        SeedHistory("follower-5", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(null);
+        FollowStateCache cache = new(_time);
+
+        (await TierOf(api, cache, "follower-5")).Should().Be(SpamTrustTier.Untrusted);
+        cache.TryGet(Channel, "follower-5", out FollowLookup before).Should().BeTrue();
+        before.State.Should().Be(FollowState.NotFollowing);
+
+        await new FollowStateCacheHandler(cache).HandleAsync(
+            new FollowEvent
+            {
+                BroadcasterId = Channel,
+                UserId = "follower-5",
+                UserDisplayName = "Viewer",
+                UserLogin = "viewer",
+                FollowedAt = Now.AddDays(-10),
+            }
+        );
+
+        (await TierOf(api, cache, "follower-5")).Should().Be(SpamTrustTier.Known);
+        await api.Received(1)
+            .GetChannelFollowerAsync(Channel, "follower-5", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AKickViewer_MakesNoHelixCall_AndEarnsNoFollowTier()
+    {
+        SeedHistory("kick-1", days: 2, perDay: 3);
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+
+        SpamTrustTier tier = await TierOf(
+            api,
+            new FollowStateCache(_time),
+            "kick-1",
+            AuthEnums.Platform.Kick
+        );
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task AnAccountTooYoungForNewcomer_SkipsTheLookup()
+    {
+        ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
+
+        SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "brand-new");
+
+        tier.Should().Be(SpamTrustTier.Untrusted);
+        await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!, default);
     }
 
     public void Dispose() => _connection.Dispose();

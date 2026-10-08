@@ -175,7 +175,7 @@ public sealed class FollowBotSweepService
             new AccountFacts
             {
                 AccountAgeDays = 0,
-                IsFollowing = true,
+                Follow = FollowState.Following,
                 FollowAgeHours = 0,
                 Username = follow.Login,
             },

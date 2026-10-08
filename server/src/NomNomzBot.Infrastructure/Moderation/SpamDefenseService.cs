@@ -41,13 +41,15 @@ public sealed class SpamDefenseService : ISpamDefenseService
     private readonly IModerationService _moderation;
     private readonly ICurrentTenantService _tenant;
     private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IFollowStateService _follows;
 
     public SpamDefenseService(
         IApplicationDbContext db,
         TimeProvider time,
         IModerationService moderation,
         ICurrentTenantService tenant,
-        ITwitchUsersApi twitchUsers
+        ITwitchUsersApi twitchUsers,
+        IFollowStateService follows
     )
     {
         _db = db;
@@ -55,6 +57,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
         _moderation = moderation;
         _tenant = tenant;
         _twitchUsers = twitchUsers;
+        _follows = follows;
     }
 
     /// <summary>
@@ -606,10 +609,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
             AccountAgeDays = accountCreatedAt is null
                 ? double.MaxValue
                 : (now - accountCreatedAt.Value).TotalDays,
-            // Follow age has no stored source yet: only the follow event carries it. The ladder's
-            // Newcomer/Known/Regular tiers need it, so they stay out of reach until S-SPAM-FOLLOW-AGE.
-            IsFollowing = false,
-            FollowAgeHours = 0,
+            Follow = FollowState.Unknown,
             Username = request.DisplayName,
             IsSubscriberAnywhere = request.IsSubscriber,
             WatchTimeHoursThisChannel = TimeSpan.FromSeconds(secondsHere).TotalHours,
@@ -622,19 +622,36 @@ public sealed class SpamDefenseService : ISpamDefenseService
             settings.SemiTrustedWatchHoursInstance
         );
 
-        return TrustTierLadder.Resolve(
-            facts,
-            participation,
-            risk,
-            new TrustTierThresholds
-            {
-                EstablishedDays = settings.TrustThresholds.EstablishedDays,
-                EstablishedMessages = settings.TrustThresholds.EstablishedMessages,
-                EstablishedDistinctActiveDays = settings
-                    .TrustThresholds
-                    .EstablishedDistinctActiveDays,
-            }
+        TrustTierThresholds thresholds = new()
+        {
+            EstablishedDays = settings.TrustThresholds.EstablishedDays,
+            EstablishedMessages = settings.TrustThresholds.EstablishedMessages,
+            EstablishedDistinctActiveDays = settings.TrustThresholds.EstablishedDistinctActiveDays,
+        };
+
+        // The follow lookup is paid for (a Helix call), so it only runs when it can change the answer.
+        if (!TrustTierLadder.FollowCanChangeTier(facts, participation, risk, thresholds))
+            return TrustTierLadder.Resolve(facts, participation, risk, thresholds);
+
+        FollowLookup follow = await _follows.ResolveAsync(
+            request.BroadcasterId,
+            request.Provider,
+            request.PlatformUserId,
+            ct
         );
+        if (follow.State == FollowState.Following && follow.FollowedAt is not null)
+            facts = facts with
+            {
+                Follow = FollowState.Following,
+                FollowAgeHours = Math.Max(
+                    0,
+                    (now - follow.FollowedAt.Value.UtcDateTime).TotalHours
+                ),
+            };
+        else if (follow.State == FollowState.NotFollowing)
+            facts = facts with { Follow = FollowState.NotFollowing };
+
+        return TrustTierLadder.Resolve(facts, participation, risk, thresholds);
     }
 
     /// <summary>
