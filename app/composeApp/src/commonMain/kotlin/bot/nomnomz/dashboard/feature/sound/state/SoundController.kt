@@ -33,7 +33,6 @@ import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_saved
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_uploaded
-import nomnomzbot.composeapp.generated.resources.feedback_sound_mix_save_failed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Sound page's state-holder. Lists the channel's uploaded sound clips from the backend (real data only).
@@ -75,14 +74,12 @@ class SoundController(
         }
     }
 
-    /** Store the channel's master and TTS volume; a failure keeps the previous mix and announces the error. */
-    suspend fun updateMix(master: Int, tts: Int) {
-        when (val result: ApiResult<ChannelAudioMix> =
-            soundApi.updateMix(UpdateChannelAudioMixBody(masterVolume = master, ttsVolume = tts))) {
-            is ApiResult.Ok -> _mix.value = MixState.Ready(result.value)
-            is ApiResult.Failure ->
-                feedback.error(Res.string.feedback_sound_mix_save_failed, result.error.message)
-        }
+    /** Store the channel's master and TTS volume; a failure keeps the previous mix and goes back to the card, which shows the reason inline. */
+    suspend fun updateMix(master: Int, tts: Int): ApiResult<ChannelAudioMix> {
+        val result: ApiResult<ChannelAudioMix> =
+            soundApi.updateMix(UpdateChannelAudioMixBody(masterVolume = master, ttsVolume = tts))
+        if (result is ApiResult.Ok) _mix.value = MixState.Ready(result.value)
+        return result
     }
 
     suspend fun uploadClip() {
@@ -112,8 +109,8 @@ class SoundController(
         cooldownSeconds: Int,
         minPermissionLevel: String,
         triggerWord: String?,
-    ) {
-        afterWrite(
+    ): ApiResult<Unit> {
+        val result: ApiResult<Unit> =
             soundApi.update(
                 id,
                 UpdateSoundClipBody(
@@ -126,7 +123,11 @@ class SoundController(
                     triggerWord = triggerWord?.trim()?.ifBlank { null },
                 ),
             )
-        )
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.feedback_sound_clip_saved)
+            load()
+        }
+        return result
     }
 
     suspend fun deleteClip(id: String): ApiResult<Unit> {
@@ -171,19 +172,6 @@ class SoundController(
             is ApiResult.Ok -> feedback.success(Res.string.feedback_sound_clip_stop_sent)
             is ApiResult.Failure ->
                 feedback.error(Res.string.feedback_sound_clip_stop_failed, result.error.message)
-        }
-    }
-
-    private suspend fun afterWrite(
-        result: ApiResult<Unit>,
-        success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_sound_clip_saved,
-    ) {
-        when (result) {
-            is ApiResult.Ok -> {
-                feedback.success(success)
-                load()
-            }
-            is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 

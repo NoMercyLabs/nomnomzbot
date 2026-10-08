@@ -32,7 +32,6 @@ import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_ove
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_sent
-import nomnomzbot.composeapp.generated.resources.feedback_sound_mix_save_failed
 
 // S104-PREVIEW-ON-OVERLAY: proves the sound library's "Preview on overlay" action actually calls the real
 // backend endpoint (POST /sound-clips/{id}/preview, which pushes a PlaySound event to the connected OBS
@@ -154,7 +153,7 @@ class SoundControllerTest {
     }
 
     @Test
-    fun a_failed_mix_save_restores_the_previous_mix_and_surfaces_the_error() = runTest {
+    fun a_failed_mix_save_keeps_the_previous_mix_and_hands_the_error_back_without_a_toast() = runTest {
         val feedback = RecordingFeedback()
         val api =
             FakeSoundApi(
@@ -164,12 +163,11 @@ class SoundControllerTest {
         val controller = soundController(api = api, feedback = feedback)
         controller.load()
 
-        controller.updateMix(master = 10, tts = 10)
+        val result = controller.updateMix(master = 10, tts = 10)
 
         assertEquals(MixState.Ready(ChannelAudioMix(80, 50, 0.15)), controller.mix.value)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(Res.string.feedback_sound_mix_save_failed, feedback.only.label)
-        assertEquals(listOf<Any>("out of range"), feedback.only.formatArgs)
+        assertEquals("out of range", (result as ApiResult.Failure).error.message)
+        assertEquals(0, feedback.messages.size)
     }
 }
 

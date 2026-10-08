@@ -17,14 +17,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,7 +39,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
@@ -153,7 +151,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
                     onPreviewOverlay = { clip -> scope.launch { controller.previewOnOverlay(clip.id) } },
                     mix = mix,
-                    onSaveMix = { master, tts -> controller.updateMix(master, tts) },
+                    onSaveMix = { master, tts -> controller.updateMix(master, tts).toDialogResult() },
                     onRetryMix = { scope.launch { controller.load() } },
                 )
             is SoundState.Ready ->
@@ -168,7 +166,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
                     onPreviewOverlay = { clip -> scope.launch { controller.previewOnOverlay(clip.id) } },
                     mix = mix,
-                    onSaveMix = { master, tts -> controller.updateMix(master, tts) },
+                    onSaveMix = { master, tts -> controller.updateMix(master, tts).toDialogResult() },
                     onRetryMix = { scope.launch { controller.load() } },
                 )
         }
@@ -179,8 +177,8 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
             clip = clip,
             onDismiss = { editTarget = null },
             onSave = { displayName, volume, isEnabled, cooldownSeconds, minPermissionLevel, triggerWord ->
-                scope.launch {
-                    controller.updateClip(
+                controller
+                    .updateClip(
                         id = clip.id,
                         displayName = displayName,
                         defaultVolume = volume,
@@ -189,8 +187,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                         minPermissionLevel = minPermissionLevel,
                         triggerWord = triggerWord,
                     )
-                    editTarget = null
-                }
+                    .toDialogResult()
             },
         )
     }
@@ -230,7 +227,7 @@ private fun ClipList(
     onPreview: (SoundClip) -> Unit,
     onPreviewOverlay: (SoundClip) -> Unit,
     mix: MixState,
-    onSaveMix: suspend (master: Int, tts: Int) -> Unit,
+    onSaveMix: suspend (master: Int, tts: Int) -> DialogResult,
     onRetryMix: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -437,7 +434,7 @@ private fun ClipRow(
 private fun EditClipDialog(
     clip: SoundClip,
     onDismiss: () -> Unit,
-    onSave: (String, Int, Boolean, Int, String, String?) -> Unit,
+    onSave: suspend (String, Int, Boolean, Int, String, String?) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -455,122 +452,107 @@ private fun EditClipDialog(
     val cooldownValue: Int? = cooldown.ifBlank { "0" }.toIntOrNull()
     val cooldownValid: Boolean = cooldownValue != null && cooldownValue >= 0
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.sound_clips_dialog_edit_title),
-                style = typography.xl,
-                color = tokens.cardForeground,
+    val dirty: Boolean =
+        displayName != clip.displayName ||
+            volume.toInt() != clip.defaultVolume ||
+            isEnabled != clip.isEnabled ||
+            triggerWord != clip.triggerWord.orEmpty() ||
+            cooldown != clip.cooldownSeconds.toString() ||
+            minLevel != clip.minPermissionLevel
+
+    FormDialog(
+        title = stringResource(Res.string.sound_clips_dialog_edit_title),
+        saveLabel = stringResource(Res.string.sound_clips_dialog_save),
+        cancelLabel = stringResource(Res.string.sound_clips_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = displayName.isNotBlank() && cooldownValid,
+        save = {
+            onSave(
+                displayName.trim(),
+                volume.toInt(),
+                isEnabled,
+                cooldownValue ?: 0,
+                minLevel,
+                triggerWord.trim().ifBlank { null },
             )
         },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = spacing.s24 * 4).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s4),
-            ) {
-                AppTextField(
-                    value = displayName,
-                    onValueChange = { displayName = it },
-                    label = stringResource(Res.string.sound_clips_dialog_display_name_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                    Text(
-                        text = stringResource(Res.string.sound_clips_dialog_volume_label, volume.toInt()),
-                        style = typography.sm,
-                        color = tokens.mutedForeground,
-                    )
-                    Slider(
-                        value = volume,
-                        onValueChange = { volume = it },
-                        valueRange = 0f..100f,
-                        steps = 9,
-                    )
-                }
+    ) {
+        AppTextField(
+            value = displayName,
+            onValueChange = { displayName = it },
+            label = stringResource(Res.string.sound_clips_dialog_display_name_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(
+                text = stringResource(Res.string.sound_clips_dialog_volume_label, volume.toInt()),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            Slider(
+                value = volume,
+                onValueChange = { volume = it },
+                valueRange = 0f..100f,
+                steps = 9,
+            )
+        }
 
-                // Soundboard chat trigger: a bare, prefix-less word a chatter types to play the clip. Blank = off.
-                AppTextField(
-                    value = triggerWord,
-                    onValueChange = { input -> triggerWord = input.filterNot { it.isWhitespace() } },
-                    label = stringResource(Res.string.sound_clips_dialog_trigger_label),
-                    supportingText = stringResource(Res.string.sound_clips_dialog_trigger_help),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        // Soundboard chat trigger: a bare, prefix-less word a chatter types to play the clip. Blank = off.
+        AppTextField(
+            value = triggerWord,
+            onValueChange = { input -> triggerWord = input.filterNot { it.isWhitespace() } },
+            label = stringResource(Res.string.sound_clips_dialog_trigger_label),
+            supportingText = stringResource(Res.string.sound_clips_dialog_trigger_help),
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-                // Cooldown (seconds) for the chat trigger — spam guard.
-                AppTextField(
-                    value = cooldown,
-                    onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
-                    isError = !cooldownValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    label = stringResource(Res.string.sound_clips_dialog_cooldown_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        // Cooldown (seconds) for the chat trigger — spam guard.
+        AppTextField(
+            value = cooldown,
+            onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
+            isError = !cooldownValid,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            label = stringResource(Res.string.sound_clips_dialog_cooldown_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-                // Minimum role that can fire the trigger — role NAMES only, never the numeric ladder value.
-                AppSelectField(
-                    value = stringResource(PermissionRungs.labelOf(minLevel)),
-                    label = stringResource(Res.string.sound_clips_dialog_permission_label),
-                    expanded = permMenuOpen,
-                    onExpandedChange = { permMenuOpen = it },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    PermissionRungs.Ordered.forEach { (rung, res) ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(res), color = tokens.cardForeground) },
-                            onClick = {
-                                minLevel = rung
-                                permMenuOpen = false
-                            },
-                        )
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.sound_clips_dialog_enabled_label),
-                        style = typography.sm,
-                        color = tokens.cardForeground,
-                    )
-                    Switch(
-                        checked = isEnabled,
-                        onCheckedChange = { isEnabled = it },
-                        modifier = Modifier.semantics { contentDescription = enabledLabel },
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        displayName.trim(),
-                        volume.toInt(),
-                        isEnabled,
-                        cooldownValue ?: 0,
-                        minLevel,
-                        triggerWord.trim().ifBlank { null },
-                    )
-                },
-                enabled = displayName.isNotBlank() && cooldownValid,
-            ) {
-                Text(text = stringResource(Res.string.sound_clips_dialog_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.sound_clips_dialog_cancel),
-                    color = tokens.mutedForeground,
+        // Minimum role that can fire the trigger — role NAMES only, never the numeric ladder value.
+        AppSelectField(
+            value = stringResource(PermissionRungs.labelOf(minLevel)),
+            label = stringResource(Res.string.sound_clips_dialog_permission_label),
+            expanded = permMenuOpen,
+            onExpandedChange = { permMenuOpen = it },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            PermissionRungs.Ordered.forEach { (rung, res) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(res), color = tokens.cardForeground) },
+                    onClick = {
+                        minLevel = rung
+                        permMenuOpen = false
+                    },
                 )
             }
-        },
-    )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = stringResource(Res.string.sound_clips_dialog_enabled_label),
+                style = typography.sm,
+                color = tokens.cardForeground,
+            )
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = { isEnabled = it },
+                modifier = Modifier.semantics { contentDescription = enabledLabel },
+            )
+        }
+    }
 }
 
 @Composable
