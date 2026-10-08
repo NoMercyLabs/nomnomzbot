@@ -499,6 +499,51 @@ public sealed class SpamDefenseService : ISpamDefenseService
         );
     }
 
+    public async Task RecordCampaignEscalationAsync(
+        SpamEvaluationRequest request,
+        SpamEvaluationResult evaluated,
+        SpamDecision escalated,
+        CancellationToken ct = default
+    )
+    {
+        SpamDetection? detection = evaluated.DetectionId is { } id
+            ? await _db.SpamDetections.FirstOrDefaultAsync(d => d.Id == id, ct)
+            : null;
+
+        if (detection is null)
+        {
+            detection = new SpamDetection
+            {
+                BroadcasterId = request.BroadcasterId,
+                SubjectPlatformUserId = request.PlatformUserId,
+                SubjectDisplayName = request.DisplayName,
+                Provider = request.Provider,
+                MessageId = request.MessageId,
+                MessageText = Truncate(request.Message, 1000),
+                Skeleton = Truncate(evaluated.Skeleton, 1000),
+                Signals = string.Empty,
+                Tier = evaluated.Tier,
+                DetectedAt = _time.GetUtcNow().UtcDateTime,
+            };
+            _db.SpamDetections.Add(detection);
+        }
+
+        List<string> signals = detection
+            .Signals.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+        if (!signals.Contains(nameof(ContentSignal.CampaignMember)))
+            signals.Add(nameof(ContentSignal.CampaignMember));
+
+        detection.Signals = string.Join(',', signals);
+        detection.Confidence = SpamConfidence.High;
+        detection.Outcome = escalated.Outcome;
+        detection.WouldHaveBeen = escalated.WouldHaveBeen;
+        detection.WasDryRun = escalated.IsDryRun;
+        detection.Reason = Truncate(escalated.Reason, 1000);
+
+        await _db.SaveChangesAsync(ct);
+    }
+
     /// <summary>
     /// Load the corpus the content layer matches against.
     ///
