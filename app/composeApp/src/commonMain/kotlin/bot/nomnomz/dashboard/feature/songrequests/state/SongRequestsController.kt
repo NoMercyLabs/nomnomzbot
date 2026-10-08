@@ -205,10 +205,15 @@ class SongRequestsController(
     suspend fun resume() = control { channel -> songRequestsApi.resume(channel) }
 
     /**
-     * Remove the queued song at [position]. Reloads on success; surfaces the error on failure.
-     * The screen gates this behind a confirmation before calling.
+     * Remove the queued song at [position]. Reloads on success. The result goes back to the confirm, which stays
+     * open and shows a failure inline; no toast. The screen gates this behind a confirmation before calling.
      */
-    suspend fun remove(position: Int) = control { channel -> songRequestsApi.remove(channel, position) }
+    suspend fun remove(position: Int): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = songRequestsApi.remove(channel, position)
+        if (result is ApiResult.Ok) load()
+        return result
+    }
 
     /** Move the queued song at [position] to the front of the queue — play it next. Reloads on success. */
     suspend fun promote(position: Int) = control { channel -> songRequestsApi.promote(channel, position) }
