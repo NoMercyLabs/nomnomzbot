@@ -630,9 +630,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-ESCALATION-DEAD-SETTINGS** `CountAutoModViolations` and `DefaultTimeoutSeconds` are stored and
   never read (`ModerationEscalationService.cs:255,211`); only chat filters feed the ladder. Done-when:
   AutoMod and spam-defence violations count when the setting is on, and the ladder's timeout uses the setting.
-- [ ] **S-HEAT-FLAG-HUMAN** with `AutoTimeoutOnHeat` off, a heat crossing is dropped silently
-  (`HeatThresholdAutoTimeoutHandler.cs:77-78`) though the code says it flags for a human. Done-when:
-  the crossing lands in the moderation queue / inbox; a failed auto-timeout is reported, not only logged.
 - [ ] **S-AUTOMOD-QUEUE-HYGIENE** no sweeper expires pending AutoMod queue rows and `AutoModMessageId`
   has no unique index (`ModerationQueueItemConfiguration.cs:33-34`): a missed update leaves a row the
   streamer cannot dismiss; a redelivered hold duplicates it. Done-when: expired rows close themselves
