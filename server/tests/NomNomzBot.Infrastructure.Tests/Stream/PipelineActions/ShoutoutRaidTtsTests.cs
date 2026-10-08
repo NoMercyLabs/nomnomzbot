@@ -215,7 +215,7 @@ public sealed class ShoutoutRaidTtsTests
     }
 
     [Fact]
-    public async Task A_raid_shoutout_inside_the_global_cooldown_announces_at_once_and_only_the_native_call_waits()
+    public async Task A_raid_shoutout_inside_the_global_cooldown_waits_to_announce_and_speak()
     {
         Rig rig = await BuildAsync();
         rig.ChannelCtx.LastGlobalShoutout = TimeProvider.System.GetUtcNow();
@@ -223,14 +223,14 @@ public sealed class ShoutoutRaidTtsTests
         ActionResult result = await rig.Sut.ExecuteAsync(EventCtx("channel.raid"), Step(null));
 
         result.Succeeded.Should().BeTrue();
-        result.Output.Should().Be("queued (global cooldown)");
+        result.Output.Should().Be("queued (cooldown)");
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
-        await AssertRaiderLineAnnouncedAsync(rig);
-        await AssertRaiderLineSpokenAsync(rig);
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     [Fact]
-    public async Task A_raid_shoutout_inside_the_per_user_cooldown_still_announces_and_speaks_but_skips_the_native_call()
+    public async Task A_raid_shoutout_inside_the_per_user_cooldown_waits_to_announce_and_speak()
     {
         Rig rig = await BuildAsync();
         rig.ChannelCtx.LastShoutoutPerUser[RaiderId] = TimeProvider.System.GetUtcNow();
@@ -239,8 +239,8 @@ public sealed class ShoutoutRaidTtsTests
 
         result.Succeeded.Should().BeTrue();
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
-        await AssertRaiderLineAnnouncedAsync(rig);
-        await AssertRaiderLineSpokenAsync(rig);
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     [Fact]

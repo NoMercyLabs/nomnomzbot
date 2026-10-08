@@ -25,7 +25,7 @@ namespace NomNomzBot.Infrastructure.Stream.AutoShoutout;
 /// Old-bot parity (ShoutoutQueueService, auto lane): a known streamer's first chat of a stream waits in a
 /// per-stream pending list, then gets a silent shoutout through the shoutout action once the stream is 10
 /// minutes old, 5 minutes passed since the chat, the 8 minute global floor passed and no manual or raid
-/// shoutout waits ahead. Inside the per-user cooldown the item is dropped without an announcement. A pending
+/// shoutout waits ahead. Inside the per-user cooldown the item continues waiting. A pending
 /// list belongs to one stream (<c>WentLiveAt</c>): it is dropped when the channel goes offline or live again.
 /// </summary>
 public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
@@ -186,13 +186,13 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
                 now - streamStart < MinStreamAge
                 || now - item.EnqueuedAt < ChatDelay
                 || ShoutoutCooldowns.GlobalActive(channel, GlobalFloor, now)
+                || ShoutoutCooldowns.PerUserActive(channel, item.TwitchUserId, PerUserCooldown, now)
                 || _queue.Peek(broadcasterId) is not null
             )
                 continue;
 
             if (
-                ShoutoutCooldowns.PerUserActive(channel, item.TwitchUserId, PerUserCooldown, now)
-                || await WasShoutedOutThisStreamAsync(
+                await WasShoutedOutThisStreamAsync(
                     db,
                     broadcasterId,
                     streamStart,

@@ -275,7 +275,7 @@ public sealed class ShoutoutAnnounceNowTests
     }
 
     [Fact]
-    public async Task During_the_global_cooldown_the_announcement_and_tts_go_out_now_and_only_the_native_call_waits()
+    public async Task During_the_global_cooldown_the_announcement_and_tts_wait_with_the_native_call()
     {
         Rig rig = await BuildAsync(Live("Chess", "Rated blitz"));
         rig.ChannelCtx.LastGlobalShoutout = DateTimeOffset.UtcNow;
@@ -283,13 +283,13 @@ public sealed class ShoutoutAnnounceNowTests
         ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step());
 
         result.Succeeded.Should().BeTrue();
-        result.Output.Should().Be("queued (global cooldown)");
+        result.Output.Should().Be("queued (cooldown)");
         const string line = "NumericTarget plays Chess (Rated blitz) live";
         await rig
-            .Chat.Received(1)
+            .Chat.DidNotReceive()
             .SendAnnouncementAsync(Channel, line, Arg.Any<string?>(), Arg.Any<CancellationToken>());
         await rig
-            .Tts.Received(1)
+            .Tts.DidNotReceive()
             .RequestSpeakAsync(
                 Arg.Is<TtsSpeakRequest>(r => r.Text == line),
                 Arg.Any<CancellationToken>()
@@ -297,9 +297,7 @@ public sealed class ShoutoutAnnounceNowTests
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         QueuedShoutout queued = rig.Queue.Peek(Channel)!;
         queued.Target.Id.Should().Be(TargetId);
-        await rig
-            .BotChat.Received(1)
-            .SendMessageAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
     }
 
     [Fact]

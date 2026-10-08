@@ -20,13 +20,11 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Stream;
 
 /// <summary>
-/// Releases the shoutouts that waited out Twitch's global cooldown (old-bot parity: the legacy
-/// ShoutoutQueueService). Each pass takes the head of every channel's queue once its global cooldown has
-/// passed and sends it in full; a run that fails goes back once.
+/// Releases the shoutouts that waited out Twitch's cooldowns. Each pass takes the head of every channel's
+/// queue once both windows have passed and sends it in full; a transient native failure stays queued.
 /// </summary>
 public sealed class ShoutoutQueueWorker : BackgroundService
 {
-    private const int MaxAttempts = 20;
     private const string ShoutoutActionKey = "moderation:shoutout";
     private const string RaidSanction = "shoutout:raid-or-priority-step";
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
@@ -37,6 +35,11 @@ public sealed class ShoutoutQueueWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutQueueWorker> _logger;
+    private readonly SemaphoreSlim _runGate = new(1, 1);
+    private readonly Dictionary<
+        (Guid BroadcasterId, string TargetId),
+        DateTimeOffset
+    > _nextRetryAt = [];
 
     public ShoutoutQueueWorker(
         IShoutoutQueue queue,
@@ -77,34 +80,47 @@ public sealed class ShoutoutQueueWorker : BackgroundService
 
     public async Task ProcessDueAsync(CancellationToken cancellationToken)
     {
-        foreach (Guid broadcasterId in _queue.ChannelsWithPending())
+        await _runGate.WaitAsync(cancellationToken);
+        try
         {
-            QueuedShoutout? head = _queue.Peek(broadcasterId);
-            if (head is null)
-                continue;
+            await _queue.RecoverAsync(cancellationToken);
+            foreach (Guid broadcasterId in _queue.ChannelsWithPending())
+            {
+                QueuedShoutout? head = _queue.Peek(broadcasterId);
+                if (head is null)
+                    continue;
 
-            ChannelContext? channel = _registry.Get(broadcasterId);
-            DateTimeOffset now = _timeProvider.GetUtcNow();
-            if (ShoutoutCooldowns.GlobalActive(channel, head.GlobalCooldown, now))
-                continue;
+                ChannelContext? channel = _registry.Get(broadcasterId);
+                DateTimeOffset now = _timeProvider.GetUtcNow();
+                if (
+                    _nextRetryAt.TryGetValue(
+                        (broadcasterId, head.Target.Id),
+                        out DateTimeOffset retryAt
+                    )
+                    && now < retryAt
+                )
+                    continue;
+                if (
+                    ShoutoutCooldowns.GlobalActive(channel, head.GlobalCooldown, now)
+                    || ShoutoutCooldowns.PerUserActive(
+                        channel,
+                        head.Target.Id,
+                        head.PerUserCooldown,
+                        now
+                    )
+                )
+                    continue;
 
-            // Removed first: a live edge that clears the queue mid-run must not see the item again.
-            if (!_queue.Remove(broadcasterId, head.Target.Id))
-                continue;
-
-            await RunAsync(
-                head,
-                ShoutoutCooldowns.PerUserActive(channel, head.Target.Id, head.PerUserCooldown, now),
-                cancellationToken
-            );
+                await RunAsync(head, cancellationToken);
+            }
+        }
+        finally
+        {
+            _runGate.Release();
         }
     }
 
-    private async Task RunAsync(
-        QueuedShoutout item,
-        bool skipNativeCall,
-        CancellationToken cancellationToken
-    )
+    private async Task RunAsync(QueuedShoutout item, CancellationToken cancellationToken)
     {
         ActionResult result;
         try
@@ -117,14 +133,7 @@ public sealed class ShoutoutQueueWorker : BackgroundService
             );
             IShoutoutSender sender = scope.ServiceProvider.GetRequiredService<IShoutoutSender>();
             result = await sender.SendAsync(
-                new(
-                    item.BroadcasterId,
-                    item.Target,
-                    string.Empty,
-                    Speak: false,
-                    skipNativeCall,
-                    SkipAnnouncement: true
-                ),
+                new(item.BroadcasterId, item.Target, item.Announcement, item.Speak),
                 cancellationToken
             );
         }
@@ -134,20 +143,27 @@ public sealed class ShoutoutQueueWorker : BackgroundService
         }
 
         if (result.Succeeded)
+        {
+            _nextRetryAt.Remove((item.BroadcasterId, item.Target.Id));
+            await _queue.RemoveAsync(item.BroadcasterId, item.Target.Id, cancellationToken);
             return;
+        }
 
         // A rate limit or a dropped connection waits out its window and goes again; only a permanent error
         // (or a run that never succeeds in MaxAttempts passes) drops the item.
-        if (result.Retryable && item.Attempts < MaxAttempts)
+        if (result.Retryable)
         {
+            _nextRetryAt[(item.BroadcasterId, item.Target.Id)] =
+                _timeProvider.GetUtcNow() + item.GlobalCooldown;
             _logger.LogInformation(
                 "Queued shoutout to {UserId} hit a temporary error and waits for the next window: {Error}",
                 item.Target.Id,
                 result.ErrorMessage
             );
-            _queue.Enqueue(item with { Attempts = item.Attempts + 1 });
             return;
         }
+        _nextRetryAt.Remove((item.BroadcasterId, item.Target.Id));
+        await _queue.RemoveAsync(item.BroadcasterId, item.Target.Id, cancellationToken);
         _logger.LogWarning(
             "Queued shoutout to {UserId} was not delivered and is dropped: {Error}",
             item.Target.Id,

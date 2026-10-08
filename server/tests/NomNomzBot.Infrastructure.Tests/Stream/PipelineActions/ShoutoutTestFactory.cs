@@ -54,7 +54,6 @@ internal static class ShoutoutTestFactory
             Sender(chat, registry, db, tts, time),
             resolver,
             Composer(resolver),
-            botChat ?? Substitute.For<IChatProvider>(),
             time,
             NullLogger<ShoutoutAction>.Instance
         );

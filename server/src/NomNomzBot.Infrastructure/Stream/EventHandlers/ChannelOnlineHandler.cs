@@ -63,7 +63,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             return;
 
         // The shoutout queue lives for one stream session (old-bot parity): nothing waits across a live edge.
-        _shoutoutQueue.Clear(broadcasterId);
+        await _shoutoutQueue.ClearAsync(broadcasterId, cancellationToken);
 
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =

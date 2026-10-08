@@ -519,7 +519,7 @@ public sealed class AutoShoutoutSchedulerTests
     }
 
     [Fact]
-    public async Task A_streamer_shouted_out_30_minutes_ago_is_dropped_without_an_announcement()
+    public async Task A_streamer_shouted_out_30_minutes_ago_waits_until_the_per_user_window_clears()
     {
         Rig rig = await BuildAsync();
         await rig.TickAtAsync(12);
@@ -530,10 +530,9 @@ public sealed class AutoShoutoutSchedulerTests
         rig.Shoutouts.Should().Be(0);
         rig.Announcements.Should().Be(0);
 
-        rig.ChannelCtx.LastShoutoutPerUser.Clear();
-        await rig.TickAtAsync(40);
-        rig.Shoutouts.Should().Be(0);
-        rig.Announcements.Should().Be(0);
+        await rig.TickAtAsync(47);
+        rig.Shoutouts.Should().Be(1);
+        rig.Announcements.Should().Be(1);
     }
 
     [Fact]
