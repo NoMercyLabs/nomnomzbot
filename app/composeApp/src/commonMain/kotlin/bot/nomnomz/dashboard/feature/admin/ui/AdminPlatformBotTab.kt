@@ -26,9 +26,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.PlatformBotAdminState
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
@@ -207,8 +209,13 @@ internal fun PlatformBotTab(state: AdminState, controller: AdminController) {
             confirmLabel = stringResource(Res.string.admin_platform_bot_confirm_confirm),
             dismissLabel = stringResource(Res.string.admin_platform_bot_confirm_cancel),
             destructive = true,
-            onConfirm = { scope.launch { controller.confirmPlatformBotReconnect() } },
             onDismiss = { controller.dismissPlatformBotReconnectRequest() },
+            action = {
+                val started: ApiResult<Unit> = controller.confirmPlatformBotReconnect()
+                // The device login runs on the tab's scope: it outlives this dialog, which closes on start.
+                if (started is ApiResult.Ok) scope.launch { controller.awaitPlatformBotReconnect() }
+                started.toDialogResult()
+            },
         )
     }
 }

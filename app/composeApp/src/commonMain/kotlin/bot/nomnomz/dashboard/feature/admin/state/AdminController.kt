@@ -1745,37 +1745,52 @@ class AdminController(
     }
 
     /** Begins the reconnect device login, echoing back the exact count the operator was just shown — a
-     * stale count (the blast radius moved since the preview) is refused server-side rather than acted on. */
-    suspend fun confirmPlatformBotReconnect() {
-        val api: PlatformBotAdminApi = platformBotAdminApi ?: return
-        val preview: PlatformBotReconnectPreview = _state.value.platformBotReconnectPreview ?: return
+     * stale count (the blast radius moved since the preview) is refused server-side rather than acted on.
+     * The confirm dialog stays open until this returns and shows a failure inline, so there is no toast here.
+     * On success the dialog closes and the device panel opens; the caller then runs
+     * [awaitPlatformBotReconnect] outside the dialog, because the login can take minutes. */
+    suspend fun confirmPlatformBotReconnect(): ApiResult<Unit> {
+        val api: PlatformBotAdminApi = platformBotAdminApi ?: return ApiResult.Ok(Unit)
+        val preview: PlatformBotReconnectPreview = _state.value.platformBotReconnectPreview ?: return ApiResult.Ok(Unit)
         val justification: String = _state.value.platformBotJustification.trim()
-        if (justification.isBlank()) return
+        if (justification.isBlank()) return ApiResult.Ok(Unit)
 
-        _state.value = _state.value.copy(platformBotReconnectConfirmOpen = false)
-        when (
+        return when (
             val start = api.startReconnect(
                 justification = justification,
                 confirmedAffectedChannelCount = preview.affectedChannelCount,
             )
         ) {
-            is ApiResult.Failure ->
-                if (start.error.code == PREVIEW_STALE) {
-                    failPlatformBotReconnectAsStale(start.error.message)
-                } else {
-                    feedback.error(Res.string.admin_action_error, start.error.message)
-                }
+            is ApiResult.Failure -> start
             is ApiResult.Ok -> {
+                pendingPlatformBotReconnect = PendingPlatformBotReconnect(start.value, justification, preview.affectedChannelCount)
                 _state.value = _state.value.copy(
+                    platformBotReconnectConfirmOpen = false,
                     platformBotReconnectDevice = PlatformBotReconnectDeviceState(
                         userCode = start.value.userCode,
                         verificationUri = start.value.verificationUri,
                     ),
                 )
-                pollPlatformBotReconnect(start.value, justification, preview.affectedChannelCount)
+                ApiResult.Ok(Unit)
             }
         }
     }
+
+    /** Polls the device login that [confirmPlatformBotReconnect] started, until it resolves. A no-op when no
+     * login is pending. */
+    suspend fun awaitPlatformBotReconnect() {
+        val pending: PendingPlatformBotReconnect = pendingPlatformBotReconnect ?: return
+        pendingPlatformBotReconnect = null
+        pollPlatformBotReconnect(pending.start, pending.justification, pending.confirmedAffectedChannelCount)
+    }
+
+    private class PendingPlatformBotReconnect(
+        val start: DeviceCodeStart,
+        val justification: String,
+        val confirmedAffectedChannelCount: Int,
+    )
+
+    private var pendingPlatformBotReconnect: PendingPlatformBotReconnect? = null
 
     // Poll the reconnect device endpoint on its own interval until the operator approves (→ reload the
     // real status, never an optimistic flip), declines, or the code expires. A transient poll failure is
