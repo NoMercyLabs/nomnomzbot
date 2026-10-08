@@ -648,6 +648,29 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   raid or other event from the actor does nothing. Also: the block is saved Active before fan-out
   (`NetworkBlockService.cs:130-131`), and a lift unbans every leg (`:215`) — verify it never lifts a ban
   the streamer placed separately (same class as S-SPAM-CAMPAIGN-REVERSAL-OWN).
+- [ ] **S-RAID-VET** an incoming raid does nothing protective. The only handlers alert, pay currency
+  and broadcast (`RaidEventHandler.cs:21`, `EngagementEarningHandler.cs:35`, `RaidBroadcastHandler.cs:22`);
+  `RaidEvent` carries only the raider id, name and viewer count. Done-when: on an incoming raid the
+  moderators see a raider card (account age, earlier raids here, whether the raider is banned,
+  blocked or network-blocked here, size versus the raider's own usual audience), a channel setting
+  can hold a raid from an unknown or banned raider in a lockdown (feeds S-SPAM-LOCKDOWN-WIRE), and a
+  test raid from a banned channel triggers it while a known friend's raid does not.
+- [ ] **S-SUSPICIOUS-USERS** Twitch's suspicious-user signals are dropped. `SuspiciousUserMessageEvent`
+  and `SuspiciousUserUpdatedEvent` are translated but no handler consumes them. Done-when: a restricted
+  or monitored user is marked in chat and in the viewer card, their messages show in the moderation
+  queue, the trust ladder treats a restricted user as untrusted, and a mod's change on Twitch shows live.
+- [ ] **S-WARNING-ACK** `WarningAcknowledgedEvent` is translated but never consumed, so the dashboard
+  never shows that a warned viewer acknowledged the warning. Done-when: the mod log and viewer card
+  show "warned" then "acknowledged", pushed live.
+- [ ] **S-UNBAN-REQUEST-LIVE** `UnbanRequestCreatedEvent` / `UnbanRequestResolvedEvent` are translated
+  (`ModerationTranslators.cs:124,155`) but no handler consumes them: a new appeal shows only on reload,
+  and one resolved on Twitch by another moderator stays on screen. A failed load shows as "no appeals"
+  (app `ModerationController.kt:305-311`, Failure → emptyList; same for reports `:313-316`). Done-when: a
+  hub push refetches the list, open appeals count in the attention inbox, a failed load shows its reason.
+- [ ] **S-REPORTS-SURFACE** a new viewer report never reaches a moderator live: the server pushes
+  ConfigChanged "viewer-reports" (`ViewerReportService.cs:225-234`) but no app controller listens, and no
+  attention-inbox source counts open reports. Done-when: the queue refetches on the push and open reports
+  count in the attention inbox.
 
 **Your asks, and where each one is:**
 
