@@ -620,14 +620,8 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-MASSBAN-RETRY** `ProcessedAt` is stamped before the ban call (`MassBanExecutor.cs:141`), so a
   429/5xx target is never retried and failures are log-only. Done-when: transient failures retry with
   backoff, the result (banned / failed with reason) is shown to the streamer.
-- [ ] **S-SHAREDBAN-REPORTED** a trusted partner's shared ban that fails at Twitch returns a "skipped"
-  success with no log or signal (`SharedBanService.cs:179-205,231`, `SharedChatBanApplyHandler.cs:44-60`;
-  federation inbound the same, `SharedChatBanInboundHandler.cs:63-69`); the shared-chat session tracker is
-  memory-only, so after a restart bans skip silently (`SharedChatSessionTracker.cs:26-36`); the dashboard
-  card hides when its read fails (`ModerationController.kt:346-351`). Done-when: a failed or skipped
-  shared ban is shown to the streamer with its reason, the session is re-read from Helix at start, and a
-  failed card read shows "Couldn't load" with Retry. Check whether outbound federation of shared bans
-  exists at all (only the inbound handler was found).
+- [ ] **S-SHAREDBAN-FEDERATE-OUT** shared bans are not published outward. Done-when: a ban in a
+  publishing channel reaches every subscribed channel and the subscriber sees who published it.
 - [ ] **S-NETBLOCK-LEGS** a network block records no failed apply legs (`NetworkBlockService.cs:147-157`),
   retries a failed leg on every chat message with no backoff (`NetworkBlockEnforcementService.cs:34-96`),
   tells no streamer, and queries an unindexed `TargetTwitchUserId` on every chat message (`:39-40`,
