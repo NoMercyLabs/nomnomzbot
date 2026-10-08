@@ -39,12 +39,17 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.designsystem.component.Input
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -267,7 +272,7 @@ internal fun WebhookDeliveriesTab(state: AdminState, controller: AdminController
         WebhookReplayConfirmDialog(
             delivery = pending,
             onDismiss = { controller.dismissWebhookReplay() },
-            onConfirm = { scope.launch { controller.confirmWebhookReplay() } },
+            onConfirm = { controller.confirmWebhookReplay().toDialogResult() },
         )
     }
 }
@@ -342,12 +347,17 @@ private fun WebhookDeliveryRow(delivery: AdminWebhookDelivery, onReplay: () -> U
 /** Shows exactly what a replay will re-send — the event type and the target endpoint — BEFORE the send
  * commits. Confirming sends a genuinely NEW delivery attempt; it never mutates the row being replayed. */
 @Composable
-private fun WebhookReplayConfirmDialog(delivery: AdminWebhookDelivery, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+private fun WebhookReplayConfirmDialog(
+    delivery: AdminWebhookDelivery,
+    onDismiss: () -> Unit,
+    onConfirm: suspend () -> DialogResult,
+) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!state.pending) onDismiss() }) {
         DialogTitle(text = stringResource(Res.string.admin_webhook_replay_confirm_title))
         Spacer(modifier = Modifier.height(spacing.s2))
         Text(
@@ -359,10 +369,11 @@ private fun WebhookReplayConfirmDialog(delivery: AdminWebhookDelivery, onDismiss
             style = typography.sm,
             color = tokens.foreground,
         )
+        state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
         Spacer(modifier = Modifier.height(spacing.s2))
         DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(variant = ButtonVariant.Outline, onClick = onConfirm) {
+            DialogActionDismiss(state = state, label = stringResource(Res.string.admin_cancel), onDismiss = onDismiss)
+            Button(variant = ButtonVariant.Outline, enabled = !state.pending, onClick = { state.run(onConfirm) }) {
                 Text(text = stringResource(Res.string.admin_webhook_replay_confirm_action))
             }
         }
@@ -418,7 +429,7 @@ internal fun ScheduledJobsTab(state: AdminState, controller: AdminController) {
         ScheduledJobRetryConfirmDialog(
             job = pending,
             onDismiss = { controller.dismissScheduledJobRetry() },
-            onConfirm = { scope.launch { controller.confirmScheduledJobRetry() } },
+            onConfirm = { controller.confirmScheduledJobRetry().toDialogResult() },
         )
     }
 }
@@ -483,12 +494,17 @@ private fun ScheduledJobRow(job: AdminScheduledJob, onRetry: () -> Unit) {
 /** Shows exactly which pipeline a retry will re-run BEFORE the retry commits. Confirming schedules a
  * genuinely NEW deferred run; it never mutates the failed attempt being retried. */
 @Composable
-private fun ScheduledJobRetryConfirmDialog(job: AdminScheduledJob, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+private fun ScheduledJobRetryConfirmDialog(
+    job: AdminScheduledJob,
+    onDismiss: () -> Unit,
+    onConfirm: suspend () -> DialogResult,
+) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!state.pending) onDismiss() }) {
         DialogTitle(text = stringResource(Res.string.admin_job_retry_confirm_title))
         Spacer(modifier = Modifier.height(spacing.s2))
         Text(
@@ -500,10 +516,11 @@ private fun ScheduledJobRetryConfirmDialog(job: AdminScheduledJob, onDismiss: ()
             style = typography.sm,
             color = tokens.foreground,
         )
+        state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
         Spacer(modifier = Modifier.height(spacing.s2))
         DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(variant = ButtonVariant.Outline, onClick = onConfirm) {
+            DialogActionDismiss(state = state, label = stringResource(Res.string.admin_cancel), onDismiss = onDismiss)
+            Button(variant = ButtonVariant.Outline, enabled = !state.pending, onClick = { state.run(onConfirm) }) {
                 Text(text = stringResource(Res.string.admin_job_retry_confirm_action))
             }
         }
@@ -889,7 +906,7 @@ internal fun EventReplayTab(state: AdminState, controller: AdminController) {
         EventReplayConfirmDialog(
             preview = pendingPreview,
             onDismiss = { controller.dismissEventReplay() },
-            onConfirm = { scope.launch { controller.confirmEventReplay() } },
+            onConfirm = { controller.confirmEventReplay().toDialogResult() },
         )
     }
 }
@@ -912,12 +929,17 @@ private fun ReplayProjectionMenuItems(state: AdminState, controller: AdminContro
  * BEFORE the replay commits. Confirming re-applies exactly that many events; the journal itself is never
  * mutated, only the projection's read model is re-folded. */
 @Composable
-private fun EventReplayConfirmDialog(preview: AdminEventReplayPreview, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+private fun EventReplayConfirmDialog(
+    preview: AdminEventReplayPreview,
+    onDismiss: () -> Unit,
+    onConfirm: suspend () -> DialogResult,
+) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!state.pending) onDismiss() }) {
         DialogTitle(text = stringResource(Res.string.admin_replay_confirm_title))
         Spacer(modifier = Modifier.height(spacing.s2))
         Text(
@@ -930,10 +952,11 @@ private fun EventReplayConfirmDialog(preview: AdminEventReplayPreview, onDismiss
             style = typography.sm,
             color = tokens.foreground,
         )
+        state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
         Spacer(modifier = Modifier.height(spacing.s2))
         DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(variant = ButtonVariant.Outline, onClick = onConfirm) {
+            DialogActionDismiss(state = state, label = stringResource(Res.string.admin_cancel), onDismiss = onDismiss)
+            Button(variant = ButtonVariant.Outline, enabled = !state.pending, onClick = { state.run(onConfirm) }) {
                 Text(text = stringResource(Res.string.admin_replay_confirm_action))
             }
         }
