@@ -13,10 +13,8 @@ using NomNomzBot.Application.Contracts.Twitch;
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 /// <summary>
-/// The native Twitch /shoutout of a manual or raid shoutout, waiting for Twitch's global cooldown to pass.
-/// Its chat announcement and TTS have already gone out.
+/// A complete shoutout waiting for Twitch's cooldowns to pass.
 /// </summary>
-/// <param name="Attempts">How many times a send of this item has already failed.</param>
 public sealed record QueuedShoutout(
     Guid BroadcasterId,
     TwitchUser Target,
@@ -25,5 +23,6 @@ public sealed record QueuedShoutout(
     TimeSpan GlobalCooldown,
     TimeSpan PerUserCooldown,
     DateTimeOffset EnqueuedAt,
-    int Attempts = 0
+    string Announcement = "",
+    bool Speak = false
 );

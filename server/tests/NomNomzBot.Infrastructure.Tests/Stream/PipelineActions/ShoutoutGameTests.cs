@@ -230,17 +230,19 @@ public sealed class ShoutoutGameTests
     }
 
     [Fact]
-    public async Task A_queued_shoutout_announces_the_game_at_once()
+    public async Task A_queued_shoutout_retains_the_game_until_delivery()
     {
         Rig rig = await BuildAsync(ChannelsReturning(Found("Just Chatting")));
         rig.ChannelCtx.LastGlobalShoutout = DateTimeOffset.UtcNow;
 
         ActionResult result = await rig.Action.ExecuteAsync(Ctx(), Step());
 
-        result.Output.Should().Be("queued (global cooldown)");
-        rig.Queue.Peek(Channel).Should().NotBeNull();
+        result.Output.Should().Be("queued (cooldown)");
+        rig.Queue.Peek(Channel)!
+            .Announcement.Should()
+            .Be("Playing Just Chatting with numerictarget");
         await rig
-            .Chat.Received(1)
+            .Chat.DidNotReceive()
             .SendAnnouncementAsync(
                 Channel,
                 "Playing Just Chatting with numerictarget",

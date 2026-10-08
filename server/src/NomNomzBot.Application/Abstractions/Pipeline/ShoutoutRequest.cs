@@ -12,15 +12,10 @@ using NomNomzBot.Application.Contracts.Twitch;
 
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
-/// <summary>One shoutout run: the native Helix call (unless skipped), the resolved announcement and the TTS.</summary>
-/// <param name="SkipAnnouncement">The chat announcement and TTS already went out; only the native call is left.</param>
-/// <param name="DeferNative">The native call waits in the queue: skip it and leave the cooldown stamps alone.</param>
+/// <summary>One complete shoutout run: native Helix, resolved announcement, and optional TTS.</summary>
 public sealed record ShoutoutRequest(
     Guid BroadcasterId,
     TwitchUser Target,
     string Announcement,
-    bool Speak,
-    bool SkipNativeCall,
-    bool SkipAnnouncement = false,
-    bool DeferNative = false
+    bool Speak
 );

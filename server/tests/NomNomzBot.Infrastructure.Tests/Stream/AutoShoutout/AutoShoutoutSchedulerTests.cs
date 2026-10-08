@@ -519,7 +519,47 @@ public sealed class AutoShoutoutSchedulerTests
     }
 
     [Fact]
-    public async Task A_streamer_shouted_out_30_minutes_ago_is_dropped_without_an_announcement()
+    public async Task A_restart_keeps_an_automatic_shoutout_waiting_for_its_chat_delay()
+    {
+        Rig rig = await BuildAsync();
+        await rig.TickAtAsync(12);
+        await rig.ChatAsync(StreamerA);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(1);
+
+        rig.Sut = rig.NewScheduler();
+        await rig.TickAtAsync(17);
+
+        rig.Shoutouts.Should().Be(1);
+        rig.Announcements.Should().Be(1);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_restart_keeps_automatic_shoutouts_in_chat_order()
+    {
+        Rig rig = await BuildAsync();
+        await rig.TickAtAsync(12);
+        await rig.ChatAsync(StreamerA);
+        await rig.ChatAsync(StreamerB);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(2);
+
+        rig.Sut = rig.NewScheduler();
+        await rig.TickAtAsync(17);
+        rig.Shoutouts.Should().Be(1);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(1);
+        await rig.TickAtAsync(25);
+
+        Received.InOrder(() =>
+        {
+            rig.Chat.SendShoutoutAsync(Channel, StreamerA, Arg.Any<CancellationToken>());
+            rig.Chat.SendShoutoutAsync(Channel, StreamerB, Arg.Any<CancellationToken>());
+        });
+        rig.Announcements.Should().Be(2);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_streamer_shouted_out_30_minutes_ago_waits_until_the_per_user_window_clears()
     {
         Rig rig = await BuildAsync();
         await rig.TickAtAsync(12);
@@ -530,10 +570,9 @@ public sealed class AutoShoutoutSchedulerTests
         rig.Shoutouts.Should().Be(0);
         rig.Announcements.Should().Be(0);
 
-        rig.ChannelCtx.LastShoutoutPerUser.Clear();
-        await rig.TickAtAsync(40);
-        rig.Shoutouts.Should().Be(0);
-        rig.Announcements.Should().Be(0);
+        await rig.TickAtAsync(47);
+        rig.Shoutouts.Should().Be(1);
+        rig.Announcements.Should().Be(1);
     }
 
     [Fact]
@@ -573,6 +612,30 @@ public sealed class AutoShoutoutSchedulerTests
         await rig.ChatAsync(StreamerA);
         await rig.TickAtAsync(45);
         rig.Shoutouts.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_stale_saved_item_cannot_replace_a_new_streams_pending_shoutout()
+    {
+        Rig rig = await BuildAsync();
+        await rig.TickAtAsync(12);
+        await rig.ChatAsync(StreamerA);
+
+        rig.ChannelCtx.WentLiveAt = StreamStart.AddMinutes(14);
+        rig.Clock.SetUtcNow(StreamStart.AddMinutes(26));
+        rig.Sut = rig.NewScheduler();
+        await rig.ChatAsync(StreamerB);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(2);
+
+        await rig.TickAtAsync(31);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, StreamerB, Arg.Any<CancellationToken>());
+        await rig
+            .Chat.DidNotReceive()
+            .SendShoutoutAsync(Channel, StreamerA, Arg.Any<CancellationToken>());
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.auto-pending").Should().Be(0);
     }
 
     [Fact]

@@ -10,7 +10,9 @@
 
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
@@ -51,6 +53,10 @@ public sealed class ShoutoutQueueTests
         public required ITtsDispatchService Tts { get; init; }
         public required ChannelContext ChannelCtx { get; init; }
         public required FakeTimeProvider Clock { get; init; }
+        public required AuthDbContext Db { get; init; }
+        public required IChannelRegistry Registry { get; init; }
+        public required IOutboundSanctionAccessor Sanctions { get; init; }
+        public IServiceScopeFactory? ScopeFactory { get; init; }
     }
 
     private static TwitchUser User(string id) =>
@@ -72,7 +78,7 @@ public sealed class ShoutoutQueueTests
 
     private static string Line(string id) => $"Go check out Name{id}!";
 
-    private static async Task<Rig> BuildAsync()
+    private static async Task<Rig> BuildAsync(bool durable = false)
     {
         FakeTimeProvider clock = new(new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero));
 
@@ -162,7 +168,16 @@ public sealed class ShoutoutQueueTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Channel).Returns(channelCtx);
 
-        ShoutoutQueue queue = new();
+        IServiceScopeFactory? scopeFactory = null;
+        if (durable)
+        {
+            ServiceCollection services = new();
+            services.AddSingleton<IApplicationDbContext>(db);
+            scopeFactory = services
+                .BuildServiceProvider()
+                .GetRequiredService<IServiceScopeFactory>();
+        }
+        ShoutoutQueue queue = new(scopeFactory);
         return new()
         {
             Action = ShoutoutTestFactory.Create(
@@ -184,6 +199,10 @@ public sealed class ShoutoutQueueTests
             Tts = tts,
             ChannelCtx = channelCtx,
             Clock = clock,
+            Db = db,
+            Registry = registry,
+            Sanctions = sanctions,
+            ScopeFactory = scopeFactory,
         };
     }
 
@@ -246,12 +265,10 @@ public sealed class ShoutoutQueueTests
             rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!)
         );
 
-    // The announcement and TTS go out at once; only the native Helix call waits in the queue.
-    private static async Task AssertAnnouncedNowNativeWaitingAsync(Rig rig, string id)
+    // Nothing goes out while the native call is waiting.
+    private static async Task AssertAnnouncedNowNativeWaitingAsync(Rig rig)
     {
-        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
-        await AssertAnnouncedAsync(rig, id);
-        await AssertSpokenForAsync(rig, id);
+        await AssertNothingSentAsync(rig);
     }
 
     private static Task AssertSpokenForAsync(Rig rig, string id) =>
@@ -273,6 +290,178 @@ public sealed class ShoutoutQueueTests
             );
 
     [Fact]
+    public async Task A_restart_recovers_the_waiting_message_and_delivers_it_once()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        await AssertNothingSentAsync(rig);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(1);
+        ShoutoutQueue restartedQueue = new(rig.ScopeFactory);
+        ShoutoutQueueWorker restartedWorker = ShoutoutTestFactory.Worker(
+            restartedQueue,
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock,
+            rig.Sanctions
+        );
+
+        rig.Clock.Advance(GlobalCooldown);
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+        restartedQueue.Peek(Channel).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_restart_preserves_order_for_items_queued_at_the_same_clock_time()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
+        await rig.Action.ExecuteAsync(Raid(), Step(ManualId));
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(2);
+
+        ShoutoutQueue restartedQueue = new(rig.ScopeFactory);
+        ShoutoutQueueWorker restartedWorker = ShoutoutTestFactory.Worker(
+            restartedQueue,
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock,
+            rig.Sanctions
+        );
+        rig.Clock.Advance(GlobalCooldown);
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+        rig.Clock.Advance(GlobalCooldown);
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+
+        Received.InOrder(() =>
+        {
+            rig.Chat.SendShoutoutAsync(Channel, RaiderId, Arg.Any<CancellationToken>());
+            rig.Chat.SendAnnouncementAsync(
+                Channel,
+                Line(RaiderId),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+            rig.Chat.SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+            rig.Chat.SendAnnouncementAsync(
+                Channel,
+                Line(ManualId),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        });
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_restart_after_recorded_delivery_clears_the_pending_item_without_sending_twice()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        rig.Clock.Advance(GlobalCooldown);
+
+        ShoutoutSender sender = ShoutoutTestFactory.Sender(
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock
+        );
+        await sender.SendAsync(
+            new(Channel, User(ManualId), Line(ManualId), true),
+            CancellationToken.None
+        );
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.sent").Should().Be(1);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(1);
+
+        ShoutoutQueue restartedQueue = new(rig.ScopeFactory);
+        ShoutoutQueueWorker restartedWorker = ShoutoutTestFactory.Worker(
+            restartedQueue,
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock,
+            rig.Sanctions
+        );
+        rig.Clock.Advance(TimeSpan.FromMinutes(60));
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_native_only_dashboard_shoutout_does_not_discard_a_queued_announcement()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        rig.Db.ChannelEvents.Add(
+            new NomNomzBot.Domain.Identity.Entities.ChannelEvent
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                ChannelId = Channel,
+                Type = "bot.shoutout.sent",
+                Data = JsonSerializer.Serialize(new { toUserId = ManualId }),
+                CreatedAt = rig.Clock.GetUtcNow().UtcDateTime.AddSeconds(1),
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_queued_shoutout_waits_to_announce_and_speak_until_native_delivery()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        await AssertNothingSentAsync(rig);
+        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(ManualId);
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Queue.Peek(Channel).Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_raid_inside_the_global_cooldown_waits_then_runs_in_full_when_the_cooldown_passes()
     {
         Rig rig = await BuildAsync();
@@ -281,8 +470,8 @@ public sealed class ShoutoutQueueTests
         ActionResult result = await rig.Action.ExecuteAsync(Raid(), Step(RaiderId, tts: true));
 
         result.Succeeded.Should().BeTrue();
-        result.Output.Should().Be("queued (global cooldown)");
-        await AssertAnnouncedNowNativeWaitingAsync(rig, RaiderId);
+        result.Output.Should().Be("queued (cooldown)");
+        await AssertAnnouncedNowNativeWaitingAsync(rig);
         rig.Queue.Peek(Channel)!.Target.Id.Should().Be(RaiderId);
 
         rig.Clock.Advance(GlobalCooldown);
@@ -306,7 +495,7 @@ public sealed class ShoutoutQueueTests
         rig.Clock.Advance(GlobalCooldown - TimeSpan.FromSeconds(1));
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
 
-        await AssertAnnouncedNowNativeWaitingAsync(rig, ManualId);
+        await AssertAnnouncedNowNativeWaitingAsync(rig);
         rig.Queue.Peek(Channel).Should().NotBeNull();
     }
 
@@ -318,8 +507,8 @@ public sealed class ShoutoutQueueTests
 
         ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
-        result.Output.Should().Be("queued (global cooldown)");
-        await AssertAnnouncedNowNativeWaitingAsync(rig, ManualId);
+        result.Output.Should().Be("queued (cooldown)");
+        await AssertAnnouncedNowNativeWaitingAsync(rig);
 
         rig.Clock.Advance(GlobalCooldown);
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
@@ -332,7 +521,7 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_manual_shoutout_inside_only_the_per_user_cooldown_announces_and_speaks_at_once_without_the_native_call()
+    public async Task A_manual_shoutout_inside_only_the_per_user_cooldown_waits_for_the_native_call()
     {
         Rig rig = await BuildAsync();
         rig.ChannelCtx.LastShoutoutPerUser[ManualId] = rig.Clock.GetUtcNow();
@@ -340,15 +529,21 @@ public sealed class ShoutoutQueueTests
         ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
         result.Succeeded.Should().BeTrue();
-        result.Output.Should().NotContain("queued");
-        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+        result.Output.Should().Be("queued (cooldown)");
+        await AssertNothingSentAsync(rig);
+        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(ManualId);
+        rig.Clock.Advance(TimeSpan.FromMinutes(60));
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
         await AssertAnnouncedAsync(rig, ManualId);
         await AssertSpokenForAsync(rig, ManualId);
         rig.Queue.Peek(Channel).Should().BeNull();
     }
 
     [Fact]
-    public async Task A_manual_shoutout_inside_both_cooldowns_waits_then_announces_and_speaks_without_the_native_call()
+    public async Task A_manual_shoutout_inside_both_cooldowns_waits_for_the_per_user_window()
     {
         Rig rig = await BuildAsync();
         StampGlobalCooldown(rig);
@@ -356,27 +551,72 @@ public sealed class ShoutoutQueueTests
 
         ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
-        result.Output.Should().Be("queued (global cooldown)");
-        await AssertAnnouncedNowNativeWaitingAsync(rig, ManualId);
+        result.Output.Should().Be("queued (cooldown)");
+        await AssertAnnouncedNowNativeWaitingAsync(rig);
 
         rig.Clock.Advance(GlobalCooldown);
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
 
-        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+        await AssertNothingSentAsync(rig);
+        rig.Clock.Advance(TimeSpan.FromMinutes(58));
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
         await AssertAnnouncedAsync(rig, ManualId);
         await AssertSpokenForAsync(rig, ManualId);
     }
 
     [Fact]
-    public async Task A_run_that_is_neither_manual_nor_a_raid_is_still_skipped_inside_the_global_cooldown()
+    public async Task An_event_run_waits_inside_the_global_cooldown()
     {
         Rig rig = await BuildAsync();
         StampGlobalCooldown(rig);
 
         ActionResult result = await rig.Action.ExecuteAsync(Automated(), Step(ManualId));
 
-        result.Output.Should().Be("skipped (global cooldown)");
+        result.Output.Should().Be("queued (cooldown)");
         await AssertNothingSentAsync(rig);
+        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(ManualId);
+    }
+
+    [Fact]
+    public async Task A_timed_run_waits_inside_the_global_cooldown()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+        PipelineExecutionContext timed = Ctx(string.Empty, "timer.tick");
+
+        await rig.Action.ExecuteAsync(timed, Step(ManualId, tts: false));
+
+        await AssertNothingSentAsync(rig);
+        rig.Queue.Peek(Channel)!.Announcement.Should().Be(Line(ManualId));
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        await AssertAnnouncedAsync(rig, ManualId);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+    }
+
+    [Fact]
+    public async Task An_unexpected_native_rate_limit_queues_the_announcement()
+    {
+        Rig rig = await BuildAsync();
+        int calls = 0;
+        rig.Chat.SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+                ++calls == 1
+                    ? Result.Failure("429", TwitchErrorCodes.RateLimited)
+                    : Result.Success()
+            );
+
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(ManualId);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
         rig.Queue.Peek(Channel).Should().BeNull();
     }
 
@@ -392,8 +632,8 @@ public sealed class ShoutoutQueueTests
             PriorityStep(RaiderId, priority: true)
         );
 
-        result.Output.Should().Be("queued (global cooldown)");
-        await AssertAnnouncedAsync(rig, RaiderId);
+        result.Output.Should().Be("queued (cooldown)");
+        await AssertNothingSentAsync(rig);
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         rig.Queue.Peek(Channel)!.Target.Id.Should().Be(RaiderId);
         rig.Queue.Peek(Channel)!.IsRaid.Should().BeTrue();
@@ -408,7 +648,7 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_shoutout_step_with_priority_off_is_still_skipped_inside_the_global_cooldown()
+    public async Task A_shoutout_step_with_priority_off_still_waits_inside_the_global_cooldown()
     {
         Rig rig = await BuildAsync();
         StampGlobalCooldown(rig);
@@ -418,9 +658,9 @@ public sealed class ShoutoutQueueTests
             PriorityStep(RaiderId, priority: false)
         );
 
-        result.Output.Should().Be("skipped (global cooldown)");
+        result.Output.Should().Be("queued (cooldown)");
         await AssertNothingSentAsync(rig);
-        rig.Queue.Peek(Channel).Should().BeNull();
+        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(RaiderId);
     }
 
     [Fact]
@@ -448,7 +688,19 @@ public sealed class ShoutoutQueueTests
         Received.InOrder(() =>
         {
             rig.Chat.SendShoutoutAsync(Channel, RaiderId, Arg.Any<CancellationToken>());
+            rig.Chat.SendAnnouncementAsync(
+                Channel,
+                Line(RaiderId),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
             rig.Chat.SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+            rig.Chat.SendAnnouncementAsync(
+                Channel,
+                Line(ManualId),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
         });
         await AssertAnnouncedAsync(rig, RaiderId);
         await AssertAnnouncedAsync(rig, ManualId);
@@ -464,8 +716,8 @@ public sealed class ShoutoutQueueTests
         ActionResult first = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
         ActionResult second = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
-        first.Output.Should().Be("queued (global cooldown)");
-        second.Output.Should().Be("already queued (global cooldown)");
+        first.Output.Should().Be("queued (cooldown)");
+        second.Output.Should().Be("already queued (cooldown)");
 
         rig.Clock.Advance(GlobalCooldown);
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
@@ -475,9 +727,9 @@ public sealed class ShoutoutQueueTests
         await rig
             .Chat.Received(1)
             .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
-        // Each ask is announced and spoken at once; the native call is queued and sent once.
+        // The duplicate ask does not duplicate the announcement.
         await rig
-            .Chat.Received(2)
+            .Chat.Received(1)
             .SendAnnouncementAsync(
                 Channel,
                 Line(ManualId),
@@ -499,8 +751,7 @@ public sealed class ShoutoutQueueTests
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
 
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
-        await AssertAnnouncedAsync(rig, ManualId);
-        await AssertAnnouncedAsync(rig, RaiderId);
+        await AssertNothingSentAsync(rig);
         rig.Queue.ChannelsWithPending().Should().BeEmpty();
     }
 
@@ -520,11 +771,11 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_failed_native_call_on_a_queued_run_still_announces_and_the_item_is_neither_lost_nor_doubled()
+    public async Task A_failed_native_call_on_a_queued_run_sends_no_announcement()
     {
         Rig rig = await BuildAsync();
         rig.Chat.SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>())
-            .Returns(Result.Failure("429 too many requests"));
+            .Returns(Result.Failure("429 too many requests", TwitchErrorCodes.RateLimited));
         StampGlobalCooldown(rig);
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
@@ -534,10 +785,11 @@ public sealed class ShoutoutQueueTests
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
 
         await rig
-            .Chat.Received(1)
+            .Chat.Received(2)
             .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
-        await AssertAnnouncedAsync(rig, ManualId);
-        rig.Queue.Peek(Channel).Should().BeNull();
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+        rig.Queue.Peek(Channel).Should().NotBeNull();
     }
 
     [Fact]
@@ -563,7 +815,7 @@ public sealed class ShoutoutQueueTests
     [Fact]
     public async Task A_queued_run_that_hits_a_rate_limit_waits_and_is_sent_when_the_window_opens()
     {
-        Rig rig = await BuildAsync();
+        Rig rig = await BuildAsync(durable: true);
         int calls = 0;
         rig.Chat.SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>())
             .Returns(_ =>
@@ -573,16 +825,21 @@ public sealed class ShoutoutQueueTests
             );
         StampGlobalCooldown(rig);
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(1);
 
         for (int pass = 0; pass < 4; pass++)
         {
             rig.Clock.Advance(GlobalCooldown);
             await rig.Worker.ProcessDueAsync(CancellationToken.None);
+            rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending")
+                .Should()
+                .Be(pass == 3 ? 0 : 1);
         }
 
         calls.Should().Be(4);
         rig.Queue.Peek(Channel).Should().BeNull();
         await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
     }
 
     [Fact]
@@ -618,7 +875,7 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_manual_shoutout_that_must_queue_posts_a_queued_reply_once_and_a_raid_posts_none()
+    public async Task A_queued_shoutout_posts_no_chat_reply_or_announcement()
     {
         Rig rig = await BuildAsync();
         StampGlobalCooldown(rig);
@@ -628,17 +885,9 @@ public sealed class ShoutoutQueueTests
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
         await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
 
-        await rig
-            .BotChat.Received(1)
-            .SendMessageAsync(
-                Channel,
-                $"Shoutout for Name{ManualId} queued.",
-                Arg.Any<CancellationToken>()
-            );
-        await rig
-            .BotChat.DidNotReceive()
-            .SendMessageAsync(Channel, Arg.Is<string>(t => t.Contains(RaiderId)), default);
-        manual.RepliedToChat.Should().BeTrue();
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await AssertNothingSentAsync(rig);
+        manual.RepliedToChat.Should().BeFalse();
     }
 
     [Fact]
@@ -648,6 +897,6 @@ public sealed class ShoutoutQueueTests
 
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
-        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 }

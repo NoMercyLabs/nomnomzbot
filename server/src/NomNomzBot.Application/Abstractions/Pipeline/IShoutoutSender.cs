@@ -13,7 +13,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 /// <summary>
-/// Sends one shoutout in full: the native Helix call (unless skipped), the templated chat announcement and
+/// Sends one shoutout in full: the native Helix call, then the templated chat announcement and
 /// the optional TTS, then stamps the channel's shoutout cooldowns. The one send path for a direct run of the
 /// shoutout step and for a run released from the <see cref="IShoutoutQueue"/>.
 /// </summary>

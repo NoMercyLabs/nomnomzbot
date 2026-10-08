@@ -8,18 +8,168 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Stream;
 
 /// <summary>
-/// In-memory shoutout queue, one list per channel. A raid goes before every manual shoutout and after the
-/// raids already waiting; a manual shoutout goes to the end. A target never waits twice (old-bot parity).
+/// Durable shoutout queue with an in-memory order index. A raid goes before every manual shoutout and after
+/// raids already waiting; a manual shoutout goes to the end. A target never waits twice.
 /// </summary>
 public sealed class ShoutoutQueue : IShoutoutQueue
 {
+    private const string PendingType = "bot.shoutout.pending";
+    private readonly IServiceScopeFactory? _scopeFactory;
+    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, List<QueuedShoutout>> _byChannel = [];
+
+    public ShoutoutQueue(IServiceScopeFactory? scopeFactory = null) => _scopeFactory = scopeFactory;
+
+    public async Task<bool> EnqueueAsync(QueuedShoutout item, CancellationToken cancellationToken)
+    {
+        if (_scopeFactory is null)
+            return Enqueue(item);
+
+        await _persistenceGate.WaitAsync(cancellationToken);
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            string id = PendingId(item.BroadcasterId, item.Target.Id);
+            if (await db.ChannelEvents.AnyAsync(e => e.Id == id, cancellationToken))
+                return false;
+
+            DateTime createdAt = item.EnqueuedAt.UtcDateTime;
+            DateTime? lastQueuedAt = await db
+                .ChannelEvents.Where(e =>
+                    e.ChannelId == item.BroadcasterId && e.Type == PendingType
+                )
+                .MaxAsync(e => (DateTime?)e.CreatedAt, cancellationToken);
+            if (lastQueuedAt >= createdAt)
+                createdAt = lastQueuedAt.Value.AddTicks(1);
+
+            db.ChannelEvents.Add(
+                new ChannelEvent
+                {
+                    Id = id,
+                    ChannelId = item.BroadcasterId,
+                    Type = PendingType,
+                    Data = JsonSerializer.Serialize(item),
+                    CreatedAt = createdAt,
+                }
+            );
+            await db.SaveChangesAsync(cancellationToken);
+            Enqueue(item);
+            return true;
+        }
+        finally
+        {
+            _persistenceGate.Release();
+        }
+    }
+
+    public async Task RecoverAsync(CancellationToken cancellationToken)
+    {
+        if (_scopeFactory is null)
+            return;
+
+        await _persistenceGate.WaitAsync(cancellationToken);
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            List<string> items = await db
+                .ChannelEvents.AsNoTracking()
+                .Where(e => e.Type == PendingType && e.Data != null)
+                .OrderBy(e => e.CreatedAt)
+                .Select(e => e.Data!)
+                .ToListAsync(cancellationToken);
+            foreach (string data in items)
+            {
+                QueuedShoutout? item = JsonSerializer.Deserialize<QueuedShoutout>(data);
+                if (item is not null)
+                    Enqueue(item);
+            }
+        }
+        finally
+        {
+            _persistenceGate.Release();
+        }
+    }
+
+    public async Task<bool> RemoveAsync(
+        Guid broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_scopeFactory is null)
+            return Remove(broadcasterId, targetTwitchUserId);
+
+        await _persistenceGate.WaitAsync(cancellationToken);
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            ChannelEvent? pending = await db.ChannelEvents.FindAsync(
+                [PendingId(broadcasterId, targetTwitchUserId)],
+                cancellationToken
+            );
+            if (pending is null)
+                return false;
+            db.ChannelEvents.Remove(pending);
+            await db.SaveChangesAsync(cancellationToken);
+            Remove(broadcasterId, targetTwitchUserId);
+            return true;
+        }
+        finally
+        {
+            _persistenceGate.Release();
+        }
+    }
+
+    public async Task ClearAsync(Guid broadcasterId, CancellationToken cancellationToken)
+    {
+        if (_scopeFactory is not null)
+        {
+            await _persistenceGate.WaitAsync(cancellationToken);
+            try
+            {
+                using IServiceScope scope = _scopeFactory.CreateScope();
+                IApplicationDbContext db =
+                    scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+                List<ChannelEvent> pending = await db
+                    .ChannelEvents.Where(e => e.ChannelId == broadcasterId && e.Type == PendingType)
+                    .ToListAsync(cancellationToken);
+                db.ChannelEvents.RemoveRange(pending);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            finally
+            {
+                _persistenceGate.Release();
+            }
+        }
+        Clear(broadcasterId);
+    }
+
+    private static string PendingId(Guid broadcasterId, string targetTwitchUserId)
+    {
+        byte[] hash = SHA256.HashData(
+            Encoding.UTF8.GetBytes($"{broadcasterId:N}:{targetTwitchUserId}")
+        );
+        return "so-" + Convert.ToHexString(hash.AsSpan(0, 16));
+    }
 
     public bool Enqueue(QueuedShoutout item)
     {

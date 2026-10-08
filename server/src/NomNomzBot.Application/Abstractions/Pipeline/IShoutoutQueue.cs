@@ -11,12 +11,21 @@
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 /// <summary>
-/// The per-channel in-memory queue of shoutouts waiting for the global shoutout cooldown (old-bot parity).
+/// The per-channel queue of shoutouts waiting for Twitch cooldowns.
 /// A raid goes before a manual one, first in first out inside a tier, and one target waits only once.
-/// It is not saved across a restart; stream online and offline clear it.
+/// Pending items are saved across a restart; stream online and offline clear them.
 /// </summary>
 public interface IShoutoutQueue
 {
+    Task<bool> EnqueueAsync(QueuedShoutout item, CancellationToken cancellationToken);
+    Task RecoverAsync(CancellationToken cancellationToken);
+    Task<bool> RemoveAsync(
+        Guid broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken
+    );
+    Task ClearAsync(Guid broadcasterId, CancellationToken cancellationToken);
+
     /// <summary>Adds the item. False when the same target already waits in this channel's queue.</summary>
     bool Enqueue(QueuedShoutout item);
 

@@ -16,7 +16,6 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -37,11 +36,8 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 ///   tts — When true, also reads the resolved announcement aloud via the channel's configured TTS pipeline
 ///         (default: false — silent, except on a raid, where it defaults to true). Set true on a
 ///         manual/chat-triggered shoutout; leave false/omitted on an automated one; false always wins.
-///         A manual or raid shoutout inside the global cooldown is queued; inside only the per-user cooldown
-///         it announces and speaks at once with the native Helix call skipped. Any other run inside a
-///         cooldown is skipped.
-///   priority — When true, the shoutout waits in the queue with raid priority (it runs before manual
-///              ones) instead of being skipped inside the global cooldown. Default false.
+///         A shoutout inside either cooldown is queued in full, including its announcement and TTS.
+///   priority — When true, the shoutout waits in the queue with raid priority. Default false.
 ///   template — Per-invocation template override (e.g. a value drawn from a pick_from_list step for a
 ///              varied/snarky rotation). Takes priority over the channel's stored ShoutoutTemplate, which
 ///              in turn takes priority over the built-in default.
@@ -64,7 +60,6 @@ public sealed class ShoutoutAction : ICommandAction
     private const string FallbackGame = "something awesome";
     private const string DefaultTemplate =
         "Go check out {target.name}! Follow the channel to catch the next stream.";
-    private const string QueuedFallback = "Shoutout for {target.name} queued.";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
     // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
@@ -82,7 +77,6 @@ public sealed class ShoutoutAction : ICommandAction
     private readonly IShoutoutSender _sender;
     private readonly ITemplateResolver _templateResolver;
     private readonly IBuiltinResponseComposer _composer;
-    private readonly IChatProvider _chat;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
 
@@ -138,7 +132,6 @@ public sealed class ShoutoutAction : ICommandAction
         IShoutoutSender sender,
         ITemplateResolver templateResolver,
         IBuiltinResponseComposer composer,
-        IChatProvider chat,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
@@ -151,7 +144,6 @@ public sealed class ShoutoutAction : ICommandAction
         _sender = sender;
         _templateResolver = templateResolver;
         _composer = composer;
-        _chat = chat;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -210,17 +202,17 @@ public sealed class ShoutoutAction : ICommandAction
         TimeSpan perUserCooldown = TimeSpan.FromMinutes(perUserMinutes);
         TimeSpan globalCooldown = TimeSpan.FromMinutes(globalMinutes > 0 ? globalMinutes : 2);
 
-        // Old-bot parity (ShoutoutQueueService): a raid or a manual (chat-triggered) shoutout inside Twitch's
-        // global cooldown WAITS in the queue and then runs in full; inside only the per-user cooldown it runs
-        // at once with the native Helix call skipped. Every other run (timer, event response, owner action)
-        // is skipped whole. A manual run is one a chat message started, so it carries a message id.
-        // A step marked priority (a modiversary) waits with raid priority whatever started the run.
+        // Every trigger waits in the same queue while either Twitch cooldown is active. A raid or a step
+        // marked priority runs ahead of standard entries after the current shoutout finishes.
         bool isRaid =
             (
                 ctx.Variables.TryGetValue("event.name", out string? eventName)
                 && string.Equals(eventName, RaidEventName, StringComparison.OrdinalIgnoreCase)
             ) || action.GetBool("priority");
-        bool waits = isRaid || !string.IsNullOrEmpty(ctx.MessageId);
+
+        // A request can arrive before the worker's first pass after a restart. Load older pending items
+        // before deciding whether this request may run immediately.
+        await _queue.RecoverAsync(ctx.CancellationToken);
 
         ChannelContext? channelCtx = _registry.Get(ctx.BroadcasterId);
         DateTimeOffset now = _timeProvider.GetUtcNow();
@@ -234,20 +226,12 @@ public sealed class ShoutoutAction : ICommandAction
         // A waiting queue also holds back a run that is already past the cooldown, so the order stays fair.
         if (
             ShoutoutCooldowns.GlobalActive(channelCtx, globalCooldown, now)
+            || perUserActive
             || _queue.Peek(ctx.BroadcasterId) is not null
         )
         {
-            if (!waits)
-            {
-                _logger.LogDebug(
-                    "Shoutout to {UserId} skipped — global cooldown active",
-                    target.Id
-                );
-                return ActionResult.Success("skipped (global cooldown)");
-            }
-
-            // Only the native Helix call waits: the announcement and TTS go out at once, every time.
-            bool added = _queue.Enqueue(
+            string announcement = await ComposeAnnouncementAsync(ctx, action, target);
+            bool added = await _queue.EnqueueAsync(
                 new QueuedShoutout(
                     ctx.BroadcasterId,
                     target,
@@ -255,78 +239,38 @@ public sealed class ShoutoutAction : ICommandAction
                     isRaid,
                     globalCooldown,
                     perUserCooldown,
-                    now
-                )
-            );
-            ActionResult announced = await _sender.SendAsync(
-                new(
-                    ctx.BroadcasterId,
-                    target,
-                    await ComposeAnnouncementAsync(ctx, action, target),
-                    action.GetBool("tts", isRaid),
-                    SkipNativeCall: false,
-                    DeferNative: true
+                    now,
+                    Announcement: announcement,
+                    Speak: action.GetBool("tts", isRaid)
                 ),
                 ctx.CancellationToken
             );
-            // Only a chat-triggered shoutout is answered, and only when it really joined the queue: the
-            // viewer who typed !so is told the native shoutout waits, never told so about a doubled one.
-            if (added && !string.IsNullOrEmpty(ctx.MessageId))
-                await PostQueuedNoticeAsync(ctx, target);
-            return announced.Succeeded
-                ? ActionResult.Success(
-                    added ? "queued (global cooldown)" : "already queued (global cooldown)"
-                )
-                : announced;
+            return ActionResult.Success(added ? "queued (cooldown)" : "already queued (cooldown)");
         }
 
-        if (perUserActive && !waits)
-        {
-            _logger.LogDebug("Shoutout to {UserId} skipped — per-user cooldown active", target.Id);
-            return ActionResult.Success("skipped (per-user cooldown)");
-        }
+        string immediateAnnouncement = await ComposeAnnouncementAsync(ctx, action, target);
+        ActionResult sent = await _sender.SendAsync(
+            new(ctx.BroadcasterId, target, immediateAnnouncement, action.GetBool("tts", isRaid)),
+            ctx.CancellationToken
+        );
+        if (!sent.Retryable)
+            return sent;
 
-        return await _sender.SendAsync(
-            new(
+        bool queued = await _queue.EnqueueAsync(
+            new QueuedShoutout(
                 ctx.BroadcasterId,
                 target,
-                await ComposeAnnouncementAsync(ctx, action, target),
-                action.GetBool("tts", isRaid),
-                perUserActive
+                ctx.TriggeredByUserId,
+                isRaid,
+                globalCooldown,
+                perUserCooldown,
+                now,
+                Announcement: immediateAnnouncement,
+                Speak: action.GetBool("tts", isRaid)
             ),
             ctx.CancellationToken
         );
-    }
-
-    private async Task PostQueuedNoticeAsync(PipelineExecutionContext ctx, TwitchUser target)
-    {
-        ShoutoutTemplateSelection selection = await _sender.SelectTemplateAsync(
-            ctx.BroadcasterId,
-            target,
-            string.Empty,
-            ctx.CancellationToken
-        );
-        string text = await _composer.ComposeAsync(
-            new()
-            {
-                BroadcasterId = ctx.BroadcasterId,
-                Personality = selection.Personality,
-                BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
-                Slot = BuiltinResponseSlots.Shoutout.Queued,
-                NeutralFallback = QueuedFallback,
-                Variables = new Dictionary<string, string>
-                {
-                    ["target.name"] = target.DisplayName,
-                    ["target.link"] = $"twitch.tv/{target.Login}",
-                },
-            },
-            ctx.CancellationToken
-        );
-        ctx.RepliedToChat |= await _chat.SendMessageAsync(
-            ctx.BroadcasterId,
-            text,
-            ctx.CancellationToken
-        );
+        return ActionResult.Success(queued ? "queued (rate limit)" : "already queued (rate limit)");
     }
 
     private readonly record struct TargetState(string Game, string Title, bool IsLive);
