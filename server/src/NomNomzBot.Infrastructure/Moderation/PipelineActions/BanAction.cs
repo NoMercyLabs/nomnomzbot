@@ -10,13 +10,15 @@
 
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 
 namespace NomNomzBot.Infrastructure.Moderation.PipelineActions;
 
 public sealed class BanAction : ICommandAction
 {
-    private readonly IChatProvider _chat;
+    private readonly IPipelineModerationService _moderation;
 
     public string ActionType => "ban";
 
@@ -37,7 +39,7 @@ public sealed class BanAction : ICommandAction
             ),
         ];
 
-    public BanAction(IChatProvider chat) => _chat = chat;
+    public BanAction(IPipelineModerationService moderation) => _moderation = moderation;
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -54,7 +56,14 @@ public sealed class BanAction : ICommandAction
             return ActionResult.Failure("ban: user_id not resolved");
 
         string? reason = action.GetString("reason");
-        await _chat.BanUserAsync(ctx.BroadcasterId, userId, reason, ctx.CancellationToken);
-        return ActionResult.Success($"Banned {userId}");
+        Result<ModerationActionResult> banned = await _moderation.BanAsync(
+            ctx.BroadcasterId,
+            userId,
+            reason,
+            ctx.CancellationToken
+        );
+        return banned.IsSuccess
+            ? ActionResult.Success($"Banned {userId}")
+            : ActionResult.Failure($"ban: {banned.ErrorMessage}");
     }
 }

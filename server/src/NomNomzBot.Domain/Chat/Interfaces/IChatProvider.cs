@@ -80,7 +80,13 @@ public interface IChatProvider
         CancellationToken cancellationToken = default
     );
 
-    Task TimeoutUserAsync(
+    /// <summary>
+    /// Times a viewer out on the channel's own platform. Returns <c>true</c> only when the platform accepted
+    /// the timeout; <c>false</c> when it could NOT be applied (no connection, dead token, platform refusal).
+    /// Never throws for an expected failure, so a caller that records the action in the moderation log can
+    /// tell a timeout that happened from one that was only attempted.
+    /// </summary>
+    Task<bool> TimeoutUserAsync(
         Guid broadcasterId,
         string userId,
         int durationSeconds,
@@ -88,7 +94,11 @@ public interface IChatProvider
         CancellationToken cancellationToken = default
     );
 
-    Task BanUserAsync(
+    /// <summary>
+    /// Bans a viewer on the channel's own platform. Returns <c>true</c> only when the platform accepted the
+    /// ban; <c>false</c> when it could NOT be applied — same contract as <see cref="TimeoutUserAsync"/>.
+    /// </summary>
+    Task<bool> BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,

@@ -310,7 +310,7 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
         );
     }
 
-    public async Task TimeoutUserAsync(
+    public async Task<bool> TimeoutUserAsync(
         Guid broadcasterId,
         string userId,
         int durationSeconds,
@@ -323,8 +323,8 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             "timeout",
             cancellationToken
         );
-        if (platform is not null)
-            await platform.TimeoutUserAsync(
+        return platform is not null
+            && await platform.TimeoutUserAsync(
                 broadcasterId,
                 userId,
                 durationSeconds,
@@ -333,7 +333,7 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             );
     }
 
-    public async Task BanUserAsync(
+    public async Task<bool> BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
@@ -345,8 +345,8 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             "ban",
             cancellationToken
         );
-        if (platform is not null)
-            await platform.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
+        return platform is not null
+            && await platform.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
     }
 
     public async Task<ChatUnbanOutcome> UnbanUserAsync(

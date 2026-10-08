@@ -125,27 +125,39 @@ public sealed class HelixChatProvider : IChatPlatform
         );
     }
 
-    public Task TimeoutUserAsync(
+    public async Task<bool> TimeoutUserAsync(
         Guid broadcasterId,
         string userId,
         int durationSeconds,
         string? reason = null,
         CancellationToken cancellationToken = default
-    ) =>
-        _moderation.TimeoutUserAsync(
+    )
+    {
+        Result<TwitchBanResult> timedOut = await _moderation.TimeoutUserAsync(
             broadcasterId,
             userId,
             durationSeconds,
             reason,
             cancellationToken
         );
+        return timedOut.IsSuccess;
+    }
 
-    public Task BanUserAsync(
+    public async Task<bool> BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
         CancellationToken cancellationToken = default
-    ) => _moderation.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
+    )
+    {
+        Result<TwitchBanResult> banned = await _moderation.BanUserAsync(
+            broadcasterId,
+            userId,
+            reason,
+            cancellationToken
+        );
+        return banned.IsSuccess;
+    }
 
     public async Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,

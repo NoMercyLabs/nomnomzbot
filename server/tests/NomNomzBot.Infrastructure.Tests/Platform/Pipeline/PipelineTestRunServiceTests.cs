@@ -19,6 +19,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -44,6 +45,7 @@ public sealed class PipelineTestRunServiceTests
     private sealed record Harness(
         PipelineTestRunService Sut,
         IChatProvider Chat,
+        IPipelineModerationService Moderation,
         ITtsDispatchService Tts
     );
 
@@ -73,12 +75,13 @@ public sealed class PipelineTestRunServiceTests
                 )
             );
 
+        IPipelineModerationService moderation = Substitute.For<IPipelineModerationService>();
         ICommandAction[] actions =
         [
             new SendMessageAction(chat, resolver),
             new PlayTtsAction(resolver, tts),
             new SetVariableAction(),
-            new BanAction(chat),
+            new BanAction(moderation),
         ];
         ICommandCondition[] conditions = [new ComparisonCondition(resolver)];
 
@@ -97,6 +100,7 @@ public sealed class PipelineTestRunServiceTests
                 TimeProvider.System
             ),
             chat,
+            moderation,
             tts
         );
     }
@@ -356,7 +360,7 @@ public sealed class PipelineTestRunServiceTests
         TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
 
         result.Success.Should().BeTrue();
-        await h.Chat.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!);
+        await h.Moderation.DidNotReceiveWithAnyArgs().BanAsync(default, default!, default);
         result
             .CapturedEffects.Select(e => e.Name)
             .Should()

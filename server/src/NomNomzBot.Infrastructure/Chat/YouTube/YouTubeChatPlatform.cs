@@ -100,7 +100,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         // No reply threading on the Live Chat API — the plain send IS the reply.
         SendMessageAsync(broadcasterId, message, cancellationToken);
 
-    public Task TimeoutUserAsync(
+    public Task<bool> TimeoutUserAsync(
         Guid broadcasterId,
         string userId,
         int durationSeconds,
@@ -110,7 +110,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         // The Twitch-timeout analogue: a TEMPORARY live-chat ban for the given duration.
         BanCoreAsync(broadcasterId, userId, durationSeconds, "timeout", cancellationToken);
 
-    public Task BanUserAsync(
+    public Task<bool> BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
@@ -204,7 +204,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
             );
     }
 
-    private async Task BanCoreAsync(
+    private async Task<bool> BanCoreAsync(
         Guid broadcasterId,
         string bannedChannelId,
         int? durationSeconds,
@@ -218,7 +218,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
             ct
         );
         if (auth is null)
-            return;
+            return false;
 
         Result<string> banned = await _client.BanUserAsync(
             auth.Value.Token,
@@ -237,7 +237,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
                 banned.ErrorMessage,
                 banned.ErrorCode
             );
-            return;
+            return false;
         }
 
         // Ledger the insert-returned ban id — the only key a later unban (liveChatBans.delete) accepts.
@@ -250,6 +250,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
             durationSeconds,
             ct
         );
+        return true;
     }
 
     /// <summary>The write-auth pair every moderation call needs: the ACTIVE session + a usable token —

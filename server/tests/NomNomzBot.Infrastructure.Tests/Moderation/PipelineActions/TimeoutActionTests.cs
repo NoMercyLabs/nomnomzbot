@@ -11,7 +11,9 @@
 using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Infrastructure.Moderation.PipelineActions;
 using NSubstitute;
 
@@ -55,14 +57,15 @@ public sealed class TimeoutActionTests
         int duration
     )
     {
-        IChatProvider chat = Substitute.For<IChatProvider>();
-        TimeoutAction action = new(chat);
+        IPipelineModerationService moderation = Substitute.For<IPipelineModerationService>();
+        TimeoutAction action = new(moderation);
 
         ActionResult result = await action.ExecuteAsync(NewContext(), ActionWithDuration(duration));
 
         result.Succeeded.Should().BeFalse();
-        await chat.Received(0)
-            .TimeoutUserAsync(
+        await moderation
+            .Received(0)
+            .TimeoutAsync(
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<int>(),
@@ -74,14 +77,24 @@ public sealed class TimeoutActionTests
     [Fact]
     public async Task ExecuteAsync_WithAPositiveDuration_CallsTheChatProviderWithThatExactDuration()
     {
-        IChatProvider chat = Substitute.For<IChatProvider>();
-        TimeoutAction action = new(chat);
+        IPipelineModerationService moderation = Substitute.For<IPipelineModerationService>();
+        moderation
+            .TimeoutAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new ModerationActionResult(true, null)));
+        TimeoutAction action = new(moderation);
 
         ActionResult result = await action.ExecuteAsync(NewContext(), ActionWithDuration(600));
 
         result.Succeeded.Should().BeTrue();
-        await chat.Received(1)
-            .TimeoutUserAsync(
+        await moderation
+            .Received(1)
+            .TimeoutAsync(
                 Arg.Any<Guid>(),
                 "target-123",
                 600,

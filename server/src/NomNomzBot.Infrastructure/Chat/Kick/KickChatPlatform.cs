@@ -72,7 +72,7 @@ public sealed class KickChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     ) => await SendCoreAsync(broadcasterId, message, replyToMessageId, cancellationToken);
 
-    public Task TimeoutUserAsync(
+    public Task<bool> TimeoutUserAsync(
         Guid broadcasterId,
         string userId,
         int durationSeconds,
@@ -95,7 +95,7 @@ public sealed class KickChatPlatform : IChatPlatform
             cancellationToken
         );
 
-    public Task BanUserAsync(
+    public Task<bool> BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
@@ -227,7 +227,7 @@ public sealed class KickChatPlatform : IChatPlatform
         return sent.IsSuccess;
     }
 
-    private async Task ModerateAsync(
+    private async Task<bool> ModerateAsync(
         Guid broadcasterId,
         string userId,
         string verb,
@@ -250,14 +250,14 @@ public sealed class KickChatPlatform : IChatPlatform
                 broadcasterId,
                 userId
             );
-            return;
+            return false;
         }
 
         KickAccess? access = await _tokens.GetAsync(broadcasterId, ct);
         if (access is null)
         {
             LogNoToken(verb, broadcasterId);
-            return;
+            return false;
         }
 
         Result result = await operation(access, target, ct);
@@ -270,6 +270,7 @@ public sealed class KickChatPlatform : IChatPlatform
                 result.ErrorMessage,
                 result.ErrorCode
             );
+        return result.IsSuccess;
     }
 
     /// <summary>Seam seconds → Kick minutes: ceiling so a 30s timeout is 1 minute (never 0 = permanent
