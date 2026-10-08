@@ -34,8 +34,9 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// <list type="bullet">
 ///   <item><c>delete</c> — removes the message via Helix.</item>
 ///   <item><c>timeout</c> — times the sender out for the filter's configured duration.</item>
-///   <item><c>escalate</c> — records one offense on the channel's escalation ladder (§3.11) and applies the
-///   ladder's decision (warn / timeout / ban) for the subject's running offense count.</item>
+///   <item><c>escalate</c> — removes the message, then records one offense on the channel's escalation ladder
+///   (§3.11) and applies the ladder's decision (warn / timeout / ban); with the ladder off it times the sender
+///   out for the filter's configured duration.</item>
 ///   <item><c>hold</c> — removes the message via Helix and queues it for moderator review.</item>
 ///   <item><c>flag</c> — leaves the message in chat and queues it for moderator review.</item>
 /// </list>
@@ -144,7 +145,7 @@ public sealed partial class ChatFilterExecutionHandler(
                 break;
 
             case ChatFilterAction.Escalate:
-                await EscalateAsync(@event, broadcasterId, reason, ct);
+                await EscalateAsync(filter, @event, broadcasterId, reason, ct);
                 break;
 
             case ChatFilterAction.Hold:
@@ -198,16 +199,31 @@ public sealed partial class ChatFilterExecutionHandler(
     }
 
     /// <summary>
-    /// The escalate path: resolve the sender to their internal user id, record one offense on the ladder, and
-    /// apply the returned decision. When the ladder is disabled the service refuses and no action is taken.
+    /// The escalate path: the message is always removed first. Then the sender is resolved to their internal
+    /// user id, one offense is recorded on the ladder, and the ladder's decision is applied. When the ladder is
+    /// off (or cannot answer) the filter's own timeout is applied instead, so an escalate rule always acts.
     /// </summary>
     private async Task EscalateAsync(
+        ChatFilter filter,
         ChatMessageReceivedEvent @event,
         Guid broadcasterId,
         string reason,
         CancellationToken ct
     )
     {
+        Result deleted = await moderation.DeleteChatMessageAsync(
+            broadcasterId,
+            @event.MessageId,
+            ct
+        );
+        if (deleted.IsFailure)
+            logger.LogWarning(
+                "Chat filter '{Filter}' could not remove the escalated message {MessageId}: {Error}",
+                filter.Name,
+                @event.MessageId,
+                deleted.ErrorMessage
+            );
+
         Result<UserDto> subject = await users.GetOrCreateAsync(
             @event.UserId,
             @event.UserLogin,
@@ -221,6 +237,7 @@ public sealed partial class ChatFilterExecutionHandler(
                 "Chat filter escalate could not resolve user {User} to an internal id",
                 @event.UserLogin
             );
+            await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct);
             return;
         }
 
@@ -233,10 +250,11 @@ public sealed partial class ChatFilterExecutionHandler(
         if (decision.IsFailure)
         {
             logger.LogDebug(
-                "Escalation ladder declined to act for {User}: {Error}",
+                "Escalation ladder declined to act for {User}: {Error}; using the filter's own timeout",
                 @event.UserLogin,
                 decision.ErrorMessage
             );
+            await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct);
             return;
         }
 
@@ -265,6 +283,21 @@ public sealed partial class ChatFilterExecutionHandler(
                 break;
         }
     }
+
+    private async Task TimeoutForFilterAsync(
+        ChatFilter filter,
+        ChatMessageReceivedEvent @event,
+        Guid broadcasterId,
+        string reason,
+        CancellationToken ct
+    ) =>
+        await moderation.TimeoutUserAsync(
+            broadcasterId,
+            @event.UserId,
+            filter.TimeoutSeconds ?? DefaultTimeoutSeconds,
+            reason,
+            ct
+        );
 
     private static bool Matches(ChatFilter filter, string message) =>
         filter.FilterType switch
