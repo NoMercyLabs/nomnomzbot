@@ -318,10 +318,13 @@ data class AdminState(
     val replayExecuting: Boolean = false,
     val replayResult: AdminEventReplayResult? = null,
     // ── Impersonation (admin act-as) ──
-    /** Set alongside the feedback toast when a mint attempt fails for one of these two RECOGNIZED reasons, so
-     * the confirm dialog can render a calm, specific explanation instead of the raw server message. Null for
-     * any other failure (network error, unexpected 5xx, …) — those still surface via the feedback toast alone. */
+    /** Set when a begin or mint attempt fails for one of the RECOGNIZED reasons, so the confirm dialog can render
+     * a calm, specific explanation instead of the raw server message. Null for any other failure, which lands
+     * on [impersonationError]. */
     val impersonationRefusal: ImpersonationRefusal? = null,
+    /** The server's words for a begin or mint that failed for a reason with no specific explanation above, so the
+     * act-as dialog shows it inline and stays open. Reset on the next attempt. */
+    val impersonationError: String? = null,
     /** True while an act-as begin is in flight — the confirm action is disabled so a double click never opens
      * two support sessions. */
     val impersonationInFlight: Boolean = false,
@@ -2141,7 +2144,7 @@ class AdminController(
                 feedback.error(Res.string.admin_act_as_unavailable)
                 return false
             }
-        _state.value = _state.value.copy(impersonationRefusal = null, impersonationInFlight = true)
+        _state.value = _state.value.copy(impersonationRefusal = null, impersonationError = null, impersonationInFlight = true)
         try {
             val grant: TenantAccessGrant =
                 when (val result = platformAdminApi.beginAccess(broadcasterId, BeginTenantAccessBody(justification = trimmedJustification))) {
@@ -2169,8 +2172,11 @@ class AdminController(
     }
 
     private fun refuse(error: ApiError) {
-        _state.value = _state.value.copy(impersonationRefusal = classifyImpersonationRefusal(error))
-        feedback.error(Res.string.admin_action_error, error.message)
+        val refusal: ImpersonationRefusal? = classifyImpersonationRefusal(error)
+        _state.value = _state.value.copy(
+            impersonationRefusal = refusal,
+            impersonationError = if (refusal == null) error.message else null,
+        )
     }
 
     /**

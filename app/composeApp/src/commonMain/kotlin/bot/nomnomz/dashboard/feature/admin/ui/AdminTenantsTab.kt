@@ -266,21 +266,19 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
         ImpersonateDialog(
             detail = detail,
             refusal = state.impersonationRefusal,
+            error = state.impersonationError,
             membersError = state.tenantMembersError,
             inFlight = state.impersonationInFlight,
             searchMembers = { query -> controller.searchTenantMembers(detail.id, query) },
             onDismiss = { impersonateFor = null },
+            // A refusal keeps the dialog open (with its message); only a successful begin closes it.
             onConfirm = { subject, justification ->
-                scope.launch {
-                    val succeeded: Boolean = controller.impersonateTenantMember(
-                        broadcasterId = detail.id,
-                        subjectUserId = subject.id,
-                        subjectDisplayName = subject.name,
-                        justification = justification,
-                    )
-                    // A refusal keeps the dialog open (with its specific message); only a successful begin closes it.
-                    if (succeeded) impersonateFor = null
-                }
+                controller.impersonateTenantMember(
+                    broadcasterId = detail.id,
+                    subjectUserId = subject.id,
+                    subjectDisplayName = subject.name,
+                    justification = justification,
+                ).toDialogResult()
             },
         )
     }
@@ -296,11 +294,12 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
 private fun ImpersonateDialog(
     detail: AdminTenantDetail,
     refusal: ImpersonationRefusal?,
+    error: String?,
     membersError: String?,
     inFlight: Boolean,
     searchMembers: suspend (query: String) -> List<TenantMember>,
     onDismiss: () -> Unit,
-    onConfirm: (subject: PickerRef, justification: String) -> Unit,
+    onConfirm: suspend (subject: PickerRef, justification: String) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     var justification: String by remember { mutableStateOf("") }
@@ -309,8 +308,9 @@ private fun ImpersonateDialog(
     }
     val relationLabel: (TenantMember) -> String = tenantMemberRelationLabel()
     val personTypeLabel: String = stringResource(Res.string.participant_standing_everyone)
+    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!action.pending) onDismiss() }) {
         DialogTitle(text = stringResource(Res.string.admin_act_as_title, detail.name))
         DialogDescription(text = stringResource(Res.string.admin_impersonate_desc))
         when (refusal) {
@@ -320,7 +320,7 @@ private fun ImpersonateDialog(
                 InlineError(message = stringResource(Res.string.admin_impersonate_error_not_permitted))
             ImpersonationRefusal.TargetOutsideSession ->
                 InlineError(message = stringResource(Res.string.admin_impersonate_error_target_outside))
-            null -> Unit
+            null -> error?.let { InlineError(message = it) }
         }
         membersError?.let { InlineError(message = stringResource(Res.string.admin_act_as_load_failed, it)) }
         SearchPickerField(
@@ -356,11 +356,11 @@ private fun ImpersonateDialog(
         )
         Spacer(modifier = Modifier.height(spacing.s1))
         DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
+            DialogActionDismiss(state = action, label = stringResource(Res.string.admin_cancel), onDismiss = onDismiss)
             val chosen: PickerRef? = subject
             Button(
-                onClick = { chosen?.let { onConfirm(it, justification) } },
-                enabled = chosen != null && justification.isNotBlank() && !inFlight,
+                onClick = { chosen?.let { action.run { onConfirm(it, justification) } } },
+                enabled = chosen != null && justification.isNotBlank() && !inFlight && !action.pending,
                 variant = ButtonVariant.Destructive,
             ) {
                 Text(
