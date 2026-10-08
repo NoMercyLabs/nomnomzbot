@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.obs.state
 
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -164,7 +165,8 @@ class ObsController(
     /**
      * Persist the connection config. [password] is write-only: `null` keeps the stored one, `""` clears it, any
      * other value sets it. [eventSubscriptionsMask] is carried back from the current row so a save never resets
-     * it. Reloads on success; surfaces the error on failure.
+     * it. Reloads on success; a failure is handed back untouched so the card shows the reason next to Save
+     * (no toast on top of it).
      */
     suspend fun saveConnection(
         mode: String,
@@ -172,10 +174,10 @@ class ObsController(
         port: Int?,
         password: String?,
         isEnabled: Boolean,
-    ) {
-        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
-        val current: ObsConnection = (_state.value as? ObsUiState.Ready)?.connection ?: return failWrite(getString(Res.string.obs_no_channel_error))
-        afterWrite(
+    ): ApiResult<Unit> {
+        val id: String = channelId ?: return noChannelFailure()
+        val current: ObsConnection = (_state.value as? ObsUiState.Ready)?.connection ?: return noChannelFailure()
+        val result: ApiResult<ObsConnection> =
             obsApi.upsertConnection(
                 id,
                 UpsertObsConnectionBody(
@@ -187,8 +189,31 @@ class ObsController(
                     isEnabled = isEnabled,
                 ),
             )
-        )
+        return when (result) {
+            is ApiResult.Ok -> {
+                refresh()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
     }
+
+    /** Clear the stored OBS WebSocket password, keeping the rest of the saved config. A failure raises the toast. */
+    suspend fun clearPassword() {
+        val current: ObsConnection = (_state.value as? ObsUiState.Ready)?.connection ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        val result: ApiResult<Unit> =
+            saveConnection(
+                mode = current.mode,
+                host = current.host,
+                port = current.port,
+                password = "",
+                isEnabled = current.isEnabled,
+            )
+        if (result is ApiResult.Failure) failWrite(result.error.message)
+    }
+
+    private suspend fun noChannelFailure(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(0, "NO_CHANNEL", getString(Res.string.obs_no_channel_error)))
 
     /** Rotate the browser-source bridge token (invalidates the old URL). Reloads on success. */
     suspend fun rotateBridgeToken() {

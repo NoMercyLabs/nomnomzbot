@@ -62,14 +62,16 @@ class ObsControllerLocalizationTest {
                     UnreachableObsApi(),
                 )
 
-            controller.saveConnection(mode = "direct", host = null, port = null, password = null, isEnabled = true)
+            // The save hands the failure back to the card (shown next to Save); the page state is left alone.
+            val result: ApiResult<Unit> =
+                controller.saveConnection(mode = "direct", host = null, port = null, password = null, isEnabled = true)
 
-            val state: ObsUiState = controller.state.value
-            assertTrue(state is ObsUiState.Error)
+            assertTrue(result is ApiResult.Failure)
             assertEquals(
                 "Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.",
-                (state as ObsUiState.Error).detail,
+                (result as ApiResult.Failure).error.message,
             )
+            assertEquals(ObsUiState.Loading, controller.state.value)
         } finally {
             Locale.setDefault(original)
         }
