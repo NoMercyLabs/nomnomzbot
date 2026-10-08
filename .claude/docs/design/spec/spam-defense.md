@@ -554,11 +554,14 @@ Measured limit, also recorded there: exact-skeleton match does not unify `bestvi
 `bestviewerson`. Near-duplicate matching (Jaccard similarity over 4-shingles, §L2) is what closes that, which is
 why L2 carries both rather than either alone.
 
-**Loading the seed corpus is S-SPAM-SEED-CORPUS — not done.** The corpus document exists, but nothing loads it
-into `SpamSignature`: no seeder exists, so today the local corpus holds only skeletons this instance's own
-correlation confirmed (`Source = Local`). Until the slice lands, corpus-match and near-duplicate fire only on
-those, and the viewbot-seller shape is caught by the selling-audience signal rather than by the corpus. The slice
-loads the 119 phrase skeletons + 16 malicious domains, keeping the per-skeleton source attribution.
+**The seed corpus is loaded.** `SpamCorpusSeeder` (Infrastructure `Content/Moderation`) reads the embedded
+`spam-seed-corpus.txt` (119 phrase skeletons + 16 malicious domains, copied from `data/spam-seed-corpus.md`) and
+writes each as a `SpamSignature` row with `Source = Curated`, not quarantined. The merge is keyed by
+(`Kind`, `Value`): a missing row is added; a `Local` or `Network` row is upgraded in place to `Curated`
+(quarantine lifted, corroborations + 1); a withdrawn or deleted row is left alone, so an owner's withdrawal
+survives a restart; an existing `Curated` row is untouched, so a second run changes nothing. Provenance is
+file-level (the three source lists, as a comment block in the data file): the source lists do not record which
+raw term each skeleton came from, so there is no per-skeleton attribution to keep.
 
 The known-bot **account** ids in the `dak` list are a starting hint for L1, never a standing
 auto-ban list (SD9: every block needs that account's own evidence).
@@ -769,7 +772,7 @@ afterwards.
    **The SD8 short-circuit and its table-driven invariant test land here, in the same slice as
    the scorer** — never as a follow-up. An engine that can act before it can be immune has a
    window in which it will hurt someone.
-4. L2 content signals + local corpus. *(Built. Loading the seed corpus into the local corpus is **S-SPAM-SEED-CORPUS**.)*
+4. L2 content signals + local corpus. *(Built, with the seed corpus loaded as `Curated` signatures.)*
 5. L3 correlation + burst detection; follow-bot block track — with the SD9 per-account-evidence
    requirement and its viral-moment test in the same slice, for the same reason. *(Campaign correlation is
    built and wired. Follow-bot tracking: domain logic built, not wired — **S-SPAM-FOLLOWBOT-WIRE**.)*

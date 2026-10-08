@@ -216,7 +216,7 @@ youstreamprettycoolthatswhyifollowedyou
 
 ## Use
 
-To be seeded (S-SPAM-SEED-CORPUS) as `SpamSignature` rows with `Source = Curated`. Per SD9, the ~2 500 known-bot
+Seeded at startup by `SpamCorpusSeeder` as `SpamSignature` rows with `Source = Curated`. Per SD9, the ~2 500 known-bot
 **account ids** in the `dak` list are deliberately **not** seeded as bans — they are an L1 risk
 hint only, because every block must carry that account's own evidence.
 
