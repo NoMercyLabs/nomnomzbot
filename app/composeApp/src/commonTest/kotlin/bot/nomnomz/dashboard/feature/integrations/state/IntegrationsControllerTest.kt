@@ -569,10 +569,10 @@ class IntegrationsControllerTest {
         controller.load()
         assertEquals(false, controller.clientRegistered("spotify"))
 
-        val saved: Boolean =
+        val saved: ApiResult<Unit> =
             controller.saveProviderCredentials("spotify", clientId = "own-id", clientSecret = "own-secret")
 
-        assertTrue(saved)
+        assertTrue(saved is ApiResult.Ok)
         assertEquals("own-id" to "own-secret", integrations.savedSpotify)
         assertNull(system.savedSpotify, "Spotify must never save through the system-level credential endpoint")
         // The post-save status re-read now reports the channel's own client registered.
@@ -598,12 +598,12 @@ class IntegrationsControllerTest {
         // Precondition: the client isn't registered, so a connect would route through the credential step.
         assertEquals(false, controller.clientRegistered("discord"))
 
-        val saved: Boolean =
+        val saved: ApiResult<Unit> =
             controller.saveProviderCredentials("discord", clientId = "disc-id", clientSecret = "disc-secret")
 
         // The save succeeded and hit the RIGHT endpoint with the typed credentials (the side effect that
         // registers the operator's own client) — not the Spotify/YouTube ones.
-        assertTrue(saved)
+        assertTrue(saved is ApiResult.Ok)
         assertEquals("disc-id" to "disc-secret", system.savedDiscord)
         assertNull(system.savedSpotify)
         assertNull(system.savedYouTube)
@@ -625,12 +625,12 @@ class IntegrationsControllerTest {
             )
         controller.load()
 
-        val saved: Boolean =
+        val saved: ApiResult<Unit> =
             controller.saveProviderCredentials("spotify", clientId = "id", clientSecret = "secret")
 
         // A backend rejection returns false (the host stays on the credential step), and the client stays
         // unregistered — the flow never proceeds to an OAuth it can't complete.
-        assertFalse(saved)
+        assertTrue(saved is ApiResult.Failure)
         assertEquals(false, controller.clientRegistered("spotify"))
     }
 
@@ -648,10 +648,10 @@ class IntegrationsControllerTest {
             )
         controller.load()
 
-        val saved: Boolean = controller.saveProviderCredentials("spotify", clientId = "   ", clientSecret = "s")
+        val saved: ApiResult<Unit> = controller.saveProviderCredentials("spotify", clientId = "   ", clientSecret = "s")
 
         // A blank id never reaches the backend (client-side guard) and reports failure.
-        assertFalse(saved)
+        assertTrue(saved is ApiResult.Failure)
         assertNull(system.savedSpotify)
         assertNull(integrations.savedSpotify)
     }
@@ -915,6 +915,7 @@ internal fun makeIntegrationsController(
     bot: FakeBotAuthApi,
     integrations: IntegrationsApi,
     feedback: Feedback = NoOpFeedback,
+    system: SystemApi = FakeSystemApi(twitchSecretConfigured = true),
 ): IntegrationsController {
     val session = SessionStore(FakeVault())
     session.pin(
@@ -933,7 +934,7 @@ internal fun makeIntegrationsController(
         FakeConnectLauncher(),
         FakeTwitchDiagnosticsApi(),
         FakeAuthApi(),
-        FakeSystemApi(twitchSecretConfigured = true),
+        system,
         isWeb = true,
         feedback = feedback,
     )
@@ -1067,7 +1068,14 @@ internal class FakeSystemApi(
     spotifyClientConfigured: Boolean = false,
     discordClientConfigured: Boolean = false,
     private val saveSucceeds: Boolean = true,
+    // When set, the Twitch app credential save answers this instead of Ok; [twitchSaveCalls] counts the attempts.
+    private val twitchSaveResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : SystemApi {
+    var twitchSaveCalls: Int = 0
+        private set
+    var savedTwitchClientId: String? = null
+        private set
+
     private var spotifyOk: Boolean = spotifyClientConfigured
     private var discordOk: Boolean = discordClientConfigured
 
@@ -1101,7 +1109,11 @@ internal class FakeSystemApi(
         clientId: String,
         clientSecret: String,
         botUsername: String?,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+    ): ApiResult<Unit> {
+        twitchSaveCalls++
+        savedTwitchClientId = clientId
+        return twitchSaveResult
+    }
 
     override suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit> {
         if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))

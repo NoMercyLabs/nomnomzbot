@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.settings.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
@@ -19,8 +20,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.twitch_app_save_error
+import nomnomzbot.composeapp.generated.resources.twitch_app_error
+import nomnomzbot.composeapp.generated.resources.twitch_app_missing_client_id
 import nomnomzbot.composeapp.generated.resources.twitch_app_saved
+import org.jetbrains.compose.resources.getString
 
 // The dashboard-side "Twitch application" credential state-holder: the SAME platform-app-credentials flow the
 // first-run wizard drives (SetupController.saveCredentials → PUT …/setup/credentials/twitch → the vaulted
@@ -65,14 +68,15 @@ class TwitchAppCredentialsController(
      * client-side guard that never reaches the backend. On success the feedback host announces it; a failure
      * surfaces inline on the Ready state and on the feedback host, without discarding the user's typed values.
      */
-    suspend fun save(clientId: String, clientSecret: String) {
+    suspend fun save(clientId: String, clientSecret: String): ApiResult<Unit> {
         val current: TwitchAppCredentialsState.Ready =
-            _state.value as? TwitchAppCredentialsState.Ready ?: return
+            _state.value as? TwitchAppCredentialsState.Ready
+                ?: return ApiResult.Failure(ApiError(0, "NOT_READY", getString(Res.string.twitch_app_error, "")))
 
         val id: String = clientId.trim()
         if (id.isEmpty()) {
             _state.value = current.copy(saveError = SaveError.MissingClientId)
-            return
+            return ApiResult.Failure(ApiError(0, "MISSING_CLIENT_ID", getString(Res.string.twitch_app_missing_client_id)))
         }
 
         _state.value = current.copy(saving = true, saveError = null)
@@ -86,16 +90,17 @@ class TwitchAppCredentialsController(
                 botUsername = null,
             )
 
-        when (result) {
+        return when (result) {
             is ApiResult.Failure -> {
-                feedback.error(Res.string.twitch_app_save_error, result.error.message)
                 _state.value =
                     current.copy(saving = false, saveError = SaveError.Backend(result.error.message))
+                result
             }
             is ApiResult.Ok -> {
                 feedback.success(Res.string.twitch_app_saved)
                 // Re-read the status so "configured" reflects the backend, not an optimistic flip.
                 reload(saving = false)
+                result
             }
         }
     }
