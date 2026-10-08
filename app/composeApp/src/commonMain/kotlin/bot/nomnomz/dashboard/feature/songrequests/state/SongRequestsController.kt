@@ -160,16 +160,15 @@ class SongRequestsController(
 
     /**
      * Block a track from song requests. On success the blocked list re-reads (the new entry appears where
-     * the server sorted it); on failure — including TRACK_BLOCKED when it is already on the list — the
-     * error surfaces on the Ready state and the rows stay put.
+     * the server sorted it). The result goes back to the block form, which keeps what was typed and shows a
+     * failure — including TRACK_BLOCKED when it is already on the list — next to its button; no toast.
      */
-    suspend fun blockTrack(provider: String, trackUri: String, title: String, reason: String?) {
-        val channel: String = channelId ?: return
+    suspend fun blockTrack(provider: String, trackUri: String, title: String, reason: String?): ApiResult<BlockedTrack> {
+        val channel: String = channelId ?: return noChannel()
         val body = BlockTrackBody(provider = provider, trackUri = trackUri, title = title, reason = reason)
-        when (val result: ApiResult<BlockedTrack> = songRequestsApi.blockTrack(channel, body)) {
-            is ApiResult.Failure -> surfaceError(result.error.message)
-            is ApiResult.Ok -> loadBlockedTracks((_state.value as? SongRequestsState.Ready)?.blockedPage ?: 1)
-        }
+        val result: ApiResult<BlockedTrack> = songRequestsApi.blockTrack(channel, body)
+        if (result is ApiResult.Ok) loadBlockedTracks((_state.value as? SongRequestsState.Ready)?.blockedPage ?: 1)
+        return result
     }
 
     /**
@@ -186,11 +185,14 @@ class SongRequestsController(
 
     /**
      * Add a song to the queue by search [query], attributed to [requestedBy] (a manual/DJ addition).
-     * Reloads on success so the new entry appears; surfaces the error without clearing the queue on failure.
+     * Reloads on success so the new entry appears. The result goes back to the add form, which keeps the
+     * typed query and shows a failure next to its button; no toast.
      */
-    suspend fun addToQueue(query: String, requestedBy: String) {
-        val channel: String = channelId ?: return
-        control { songRequestsApi.addToQueue(channel, MusicSongRequestBody(query, requestedBy)) }
+    suspend fun addToQueue(query: String, requestedBy: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = songRequestsApi.addToQueue(channel, MusicSongRequestBody(query, requestedBy))
+        if (result is ApiResult.Ok) load()
+        return result
     }
 
     /** Skip the current track. Reloads on success. */
