@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -52,6 +53,7 @@ public sealed class SpamEnforcementExecutor
     private readonly IApplicationDbContext _db;
     private readonly IModerationService _moderation;
     private readonly ITwitchModerationApi _twitch;
+    private readonly IInboundOriginModerator _origin;
     private readonly IViolationEscalationService _escalation;
     private readonly ILogger<SpamEnforcementExecutor> _logger;
 
@@ -59,6 +61,7 @@ public sealed class SpamEnforcementExecutor
         IApplicationDbContext db,
         IModerationService moderation,
         ITwitchModerationApi twitch,
+        IInboundOriginModerator origin,
         IViolationEscalationService escalation,
         ILogger<SpamEnforcementExecutor> logger
     )
@@ -66,15 +69,12 @@ public sealed class SpamEnforcementExecutor
         _db = db;
         _moderation = moderation;
         _twitch = twitch;
+        _origin = origin;
         _escalation = escalation;
         _logger = logger;
     }
 
-    /// <summary>
-    /// Whether automatic action can reach <paramref name="provider"/>. The one answer shared by enforcement
-    /// and the protection status, so what the dashboard reports is what enforcement does.
-    /// </summary>
-    internal static bool CanEnforceOn(string provider) =>
+    private static bool IsTwitch(string provider) =>
         string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
@@ -101,11 +101,17 @@ public sealed class SpamEnforcementExecutor
         if (decision.Outcome is SpamOutcome.None or SpamOutcome.Flag)
             return new SpamEnforcementOutcome(false, false, "nothing to enforce");
 
-        // Enforcement rides Helix, so a non-Twitch message is recorded and explained but not acted on.
-        // Claiming otherwise would be the dishonest kind of bug: an operator believing the room is
-        // covered when it is not.
-        if (!CanEnforceOn(provider))
-            return new SpamEnforcementOutcome(false, false, $"no enforcement path for {provider}");
+        // A message acts on the platform it came from. Twitch rides Helix and the escalation ladder; any
+        // other platform goes through the inbound-origin seam, which answers honestly when it cannot act.
+        if (!IsTwitch(provider))
+            return await ExecuteViaOriginAsync(
+                broadcasterId,
+                provider,
+                messageId,
+                subjectPlatformUserId,
+                decision,
+                ct
+            );
 
         bool deleted = await DeleteMessageAsync(broadcasterId, messageId, ct);
 
@@ -132,6 +138,90 @@ public sealed class SpamEnforcementExecutor
         bool timedOut = await TimeoutAsync(broadcasterId, subjectPlatformUserId, decision, ct);
         return new SpamEnforcementOutcome(deleted, timedOut, null);
     }
+
+    /// <summary>
+    /// The non-Twitch path. Deletes, and for <see cref="SpamOutcome.DeleteAndEscalate"/> times out, on the
+    /// platform the message came from. The Twitch escalation ladder is keyed to Twitch accounts, so it is
+    /// not run here and the outcome says so. A refusal or an unsupported platform is carried in
+    /// <see cref="SpamEnforcementOutcome.Skipped"/>; an action that did not happen is never claimed.
+    /// </summary>
+    private async Task<SpamEnforcementOutcome> ExecuteViaOriginAsync(
+        Guid broadcasterId,
+        string provider,
+        string messageId,
+        string subjectPlatformUserId,
+        SpamDecision decision,
+        CancellationToken ct
+    )
+    {
+        List<string> notes = [];
+
+        bool deleted = false;
+        if (string.IsNullOrWhiteSpace(messageId))
+            notes.Add("no message id to delete");
+        else
+            deleted = Succeeded(
+                await _origin.DeleteMessageAsync(broadcasterId, provider, messageId, ct),
+                $"delete message {messageId}",
+                provider,
+                broadcasterId,
+                notes
+            );
+
+        if (decision.Outcome != SpamOutcome.DeleteAndEscalate)
+            return OriginOutcome(deleted, false, notes);
+
+        notes.Add(
+            $"the escalation ladder is keyed to Twitch accounts, so it was not applied to this {provider} account"
+        );
+
+        bool timedOut = Succeeded(
+            await _origin.TimeoutUserAsync(
+                broadcasterId,
+                provider,
+                subjectPlatformUserId,
+                await ResolveTimeoutSecondsAsync(broadcasterId, ct),
+                decision.Reason,
+                ct
+            ),
+            $"time out {subjectPlatformUserId}",
+            provider,
+            broadcasterId,
+            notes
+        );
+
+        return OriginOutcome(deleted, timedOut, notes);
+    }
+
+    private bool Succeeded(
+        InboundModerationOutcome outcome,
+        string action,
+        string provider,
+        Guid broadcasterId,
+        List<string> notes
+    )
+    {
+        if (outcome.Status == InboundModerationStatus.Done)
+            return true;
+
+        _logger.LogWarning(
+            "Spam defence could not {Action} on {Provider} in {BroadcasterId}: {Status} {Reason}",
+            action,
+            provider,
+            broadcasterId,
+            outcome.Status,
+            outcome.Reason
+        );
+        if (outcome.Reason is not null && !notes.Contains(outcome.Reason))
+            notes.Add(outcome.Reason);
+        return false;
+    }
+
+    private static SpamEnforcementOutcome OriginOutcome(
+        bool deleted,
+        bool timedOut,
+        List<string> notes
+    ) => new(deleted, timedOut, notes.Count == 0 ? null : string.Join("; ", notes));
 
     private async Task<bool> DeleteMessageAsync(
         Guid broadcasterId,

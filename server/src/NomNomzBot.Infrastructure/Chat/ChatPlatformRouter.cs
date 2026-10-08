@@ -383,6 +383,8 @@ public sealed class ChatPlatformRouter
             && await platform.DeleteMessageAsync(broadcasterId, messageId, cancellationToken);
     }
 
+    public bool Supports(string provider) => _platforms.ContainsKey(provider);
+
     public async Task<InboundModerationOutcome> DeleteMessageAsync(
         Guid broadcasterId,
         string provider,

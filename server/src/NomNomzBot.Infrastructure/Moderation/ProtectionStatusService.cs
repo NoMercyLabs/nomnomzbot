@@ -11,6 +11,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -30,6 +31,7 @@ public sealed class ProtectionStatusService(
     IApplicationDbContext db,
     IBotModeratorStatusReader botStatus,
     ISpamDefenseService spam,
+    IInboundOriginModerator origin,
     TimeProvider time
 ) : IProtectionStatusService
 {
@@ -176,8 +178,8 @@ public sealed class ProtectionStatusService(
     private static ProtectionCheckDto Mode(string state, string reason) =>
         new(ProtectionCheckKeys.SpamDefenseMode, state, null, reason);
 
-    private static ProtectionCheckDto AutomaticAction(string platform) =>
-        SpamEnforcementExecutor.CanEnforceOn(platform)
+    private ProtectionCheckDto AutomaticAction(string platform) =>
+        origin.Supports(platform)
             ? new(
                 ProtectionCheckKeys.AutomaticAction,
                 ProtectionCheckStates.Ok,

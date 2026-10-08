@@ -76,6 +76,19 @@ public sealed class InboundOriginModeratorTests
             .Where(name => name != "get_Provider");
 
     [Fact]
+    public async Task Supports_is_true_exactly_for_the_registered_platforms()
+    {
+        (IInboundOriginModerator moderator, IChatPlatform twitch, IChatPlatform kick) =
+            await BuildAsync();
+
+        Assert.True(moderator.Supports(AuthEnums.Platform.Twitch));
+        Assert.True(moderator.Supports(AuthEnums.Platform.Kick));
+        Assert.False(moderator.Supports(AuthEnums.Platform.YouTube));
+        Assert.Empty(ModerationCalls(twitch));
+        Assert.Empty(ModerationCalls(kick));
+    }
+
+    [Fact]
     public async Task A_kick_delete_reaches_the_kick_platform_only_and_reports_done()
     {
         (IInboundOriginModerator moderator, IChatPlatform twitch, IChatPlatform kick) =
