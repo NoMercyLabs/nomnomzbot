@@ -579,13 +579,9 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-SPAM-LOCKDOWN-WIRE** raid/burst trigger → LockdownWindow → platform chat controls →
   restore on expiry. Done-when: a test hate-raid tightens and later restores the platform rules.
   Also wires JoinBurstFactor (it triggers the lockdown).
-- [ ] **S-SAFETY-PLATFORMS** automatic safety is Twitch-only: spam defence decides but never acts on
-  YouTube/Kick (`SpamEnforcementExecutor` "no enforcement path"); chat filters and AutoMod rules skip
-  non-Twitch messages; heat auto-timeout calls the Twitch-only `IModerationService` with a Kick id.
-  `IChatProvider` already routes delete/timeout/ban natively. Done-when: each automatic path acts on
-  the message's own platform through `IChatProvider` and reports the platform result; one slice per
-  handler. Then slow / followers / members-only and blocked terms for YouTube and Kick where their
-  APIs offer them (lockdown capability map), and X Live once it is a platform.
+- [ ] **S-SAFETY-ROOM-MODES** lockdown room controls are Twitch-only. Done-when: slow, followers-only,
+  members-only and blocked terms act on YouTube and Kick where their APIs offer them (lockdown
+  capability map), and on X Live once it is a platform.
 - [ ] **S-SAFETY-MONITOR** the streamer is never told when protection is not running. Done-when: one
   "Protection status" surface (and an actionable-error inbox entry) shows, live from hub pushes: bot
   lost moderator status (today a Debug log, `BotLifecycleService.cs:381`), spam defence still in dry
