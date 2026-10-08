@@ -233,7 +233,7 @@ fun SongRequestsScreen(
                     onSkip = { scope.launch { controller.skip() } },
                     onPause = { scope.launch { controller.pause() } },
                     onResume = { scope.launch { controller.resume() } },
-                    onRemove = { position -> scope.launch { controller.remove(position) } },
+                    onRemove = { position -> controller.remove(position).toDialogResult() },
                     onPromote = { position -> scope.launch { controller.promote(position) } },
                     onBan = { position -> controller.ban(position).toDialogResult() },
                     onAddToQueue = { query, requestedBy -> controller.addToQueue(query, requestedBy).toDialogResult() },
@@ -270,7 +270,7 @@ private fun ReadyContent(
     onSkip: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
-    onRemove: (position: Int) -> Unit,
+    onRemove: suspend (position: Int) -> DialogResult,
     onPromote: (position: Int) -> Unit,
     onBan: suspend (position: Int) -> DialogResult,
     onAddToQueue: suspend (query: String, requestedBy: String) -> DialogResult,
@@ -404,11 +404,8 @@ private fun ReadyContent(
             confirmLabel = stringResource(Res.string.songrequests_remove_confirm),
             dismissLabel = stringResource(Res.string.songrequests_remove_dismiss),
             destructive = true,
-            onConfirm = {
-                onRemove(song.position)
-                pendingRemoval = null
-            },
             onDismiss = { pendingRemoval = null },
+            action = { onRemove(song.position) },
         )
     }
 
