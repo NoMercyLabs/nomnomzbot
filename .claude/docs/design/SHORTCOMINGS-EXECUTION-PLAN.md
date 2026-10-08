@@ -579,10 +579,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-SPAM-LOCKDOWN-WIRE** raid/burst trigger → LockdownWindow → platform chat controls →
   restore on expiry. Done-when: a test hate-raid tightens and later restores the platform rules.
   Also wires JoinBurstFactor (it triggers the lockdown).
-- [ ] **S-SPAM-CAMPAIGN-ESCALATE** `CohortObservation.MayAct` is never read: the campaign verdict does
-  not drive enforcement (`SpamDefenseHandler` passes only the per-message decision), though the
-  handler comment says it does. Done-when: a qualified campaign escalates a non-shielded sender per
-  spec SD9 (own evidence) and a test proves it; an Established sender is never touched.
 - [ ] **S-SAFETY-PLATFORMS** automatic safety is Twitch-only: spam defence decides but never acts on
   YouTube/Kick (`SpamEnforcementExecutor` "no enforcement path"); chat filters and AutoMod rules skip
   non-Twitch messages; heat auto-timeout calls the Twitch-only `IModerationService` with a Kick id.
