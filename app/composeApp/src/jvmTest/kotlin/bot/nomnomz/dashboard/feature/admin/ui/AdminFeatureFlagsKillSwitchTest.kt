@@ -196,6 +196,9 @@ class AdminFeatureFlagsKillSwitchTest {
 
             onAllNodesWithText("Clear override")[1].performClick()
             waitForIdle()
+            assertTrue(api.deleteOverrideCalls.isEmpty(), "asking must not itself clear the override")
+            onNodeWithText("Clear").performClick()
+            waitForIdle()
 
             assertEquals("integration:spotify" to "id-zed", api.deleteOverrideCalls.single())
             onNodeWithText("zed: forced off").assertDoesNotExist()
@@ -309,6 +312,56 @@ class AdminFeatureFlagsKillSwitchTest {
             onNodeWithText("Override integration:spotify for one channel?").assertExists()
         }
     }
+    // SH-1: clearing an override changes live behaviour; it asks first and stays open until the server answers.
+    @Test
+    fun a_refused_clear_keeps_the_confirm_open_with_the_reason() {
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+            overrides = listOf(FeatureFlagOverride("integration:spotify", "id-zed", "zed", isEnabled = false)),
+            deleteFailure = ApiError(409, "REFUSED", "The server said no."),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+            onAllNodesWithText("Clear override")[0].performClick()
+            waitForIdle()
+            onNodeWithText("Clear the override for integration:spotify?").assertExists()
+            assertTrue(api.deleteOverrideCalls.isEmpty(), "asking must not itself clear the override")
+            onNodeWithText("Clear").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.deleteOverrideCalls.size)
+            onNodeWithText("The server said no.").assertExists()
+            onNodeWithText("Clear the override for integration:spotify?").assertExists()
+            onNodeWithText("zed: forced off").assertExists()
+        }
+    }
+
+    @Test
+    fun an_accepted_clear_closes_the_confirm_and_drops_the_row() {
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+            overrides = listOf(FeatureFlagOverride("integration:spotify", "id-zed", "zed", isEnabled = false)),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+            onAllNodesWithText("Clear override")[0].performClick()
+            waitForIdle()
+            onNodeWithText("Clear").performClick()
+            waitForIdle()
+
+            assertEquals("integration:spotify" to "id-zed", api.deleteOverrideCalls.single())
+            onNodeWithText("Clear the override for integration:spotify?").assertDoesNotExist()
+            onNodeWithText("zed: forced off").assertDoesNotExist()
+        }
+    }
 }
 
 private class KillSwitchFakeAdminApi(
@@ -318,6 +371,7 @@ private class KillSwitchFakeAdminApi(
     // The server names a channel on read-back; an id it does not know is refused, never stored.
     private val channelNames: Map<String, String> = emptyMap(),
     private val setFlagFailure: ApiError? = null,
+    private val deleteFailure: ApiError? = null,
 ) : AdminApi {
     val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
     val setOverrideCalls: MutableList<Triple<String, String, AdminSetFeatureFlagOverrideRequest>> = mutableListOf()
@@ -365,6 +419,7 @@ private class KillSwitchFakeAdminApi(
     }
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> {
         deleteOverrideCalls += flagKey to broadcasterId
+        deleteFailure?.let { return ApiResult.Failure(it) }
         overrideRows.removeAll { it.flagKey == flagKey && it.broadcasterId == broadcasterId }
         return ApiResult.Ok(Unit)
     }

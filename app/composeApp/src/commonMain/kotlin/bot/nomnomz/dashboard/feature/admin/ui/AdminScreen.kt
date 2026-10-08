@@ -132,6 +132,9 @@ import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_message_
 import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_title
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_broadcaster_id
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear_confirm
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear_message
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear_title
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm_disable
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm_enable
@@ -1504,6 +1507,7 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
     // A per-tenant override forces one channel off the global ramp; it commits only after the operator
     // confirms exactly which channel gets which state, and the list under the flag is the server's read-back.
     var pendingOverride: PendingFlagOverride? by remember { mutableStateOf(null) }
+    var pendingClear: PendingFlagClear? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
@@ -1620,14 +1624,40 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                         FeatureFlagOverridesList(
                             overrides = state.flagOverrides.filter { it.flagKey == flag.key },
                             enabled = !rowBusy,
-                            onClear = { broadcasterId ->
-                                pendingFlagKey = flag.key
-                                scope.launch {
-                                    controller.deleteFeatureFlagOverride(flag.key, broadcasterId)
-                                    pendingFlagKey = null
-                                }
+                            onClear = { override ->
+                                pendingClear = PendingFlagClear(
+                                    flag.key,
+                                    ResolvedChannel(id = override.broadcasterId, displayName = override.channelName, login = null),
+                                )
                             },
                         )
+
+                        pendingClear?.takeIf { it.flagKey == flag.key }?.let { pending ->
+                            ConfirmDialog(
+                                title = stringResource(Res.string.admin_flag_override_clear_title, flag.key),
+                                message = stringResource(
+                                    Res.string.admin_flag_override_clear_message,
+                                    resolveRowLabel(
+                                        primary = pending.channel.displayName,
+                                        secondary = pending.channel.login,
+                                        typeLabel = stringResource(Res.string.admin_channel_row_type),
+                                        discriminatorSource = pending.channel.id,
+                                    ),
+                                ),
+                                confirmLabel = stringResource(Res.string.admin_flag_override_clear_confirm),
+                                dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),
+                                destructive = true,
+                                action = {
+                                    pendingFlagKey = flag.key
+                                    try {
+                                        controller.deleteFeatureFlagOverride(flag.key, pending.channel.id).toDialogResult()
+                                    } finally {
+                                        pendingFlagKey = null
+                                    }
+                                },
+                                onDismiss = { pendingClear = null },
+                            )
+                        }
 
                         pendingOverride?.takeIf { it.flagKey == flag.key }?.let { pending ->
                             ConfirmDialog(
@@ -1674,12 +1704,10 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                 }
                             },
                             onClearOverride = { typed ->
-                                pendingFlagKey = flag.key
                                 scope.launch {
                                     controller.resolveOverrideChannel(typed)?.let { channel ->
-                                        controller.deleteFeatureFlagOverride(flag.key, channel.id)
+                                        pendingClear = PendingFlagClear(flag.key, channel)
                                     }
-                                    pendingFlagKey = null
                                 }
                             },
                         )
@@ -1696,6 +1724,9 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
 /** An override the operator asked for but has not confirmed yet — the confirm dialog's subject. */
 private data class PendingFlagOverride(val flagKey: String, val channel: ResolvedChannel, val isEnabled: Boolean)
 
+/** An override clear the operator asked for but has not confirmed yet. */
+private data class PendingFlagClear(val flagKey: String, val channel: ResolvedChannel)
+
 /**
  * The overrides the server holds for one flag, by channel name — what is actually forced where. Empty says so
  * explicitly, so "no rows" is never mistaken for "not loaded".
@@ -1704,7 +1735,7 @@ private data class PendingFlagOverride(val flagKey: String, val channel: Resolve
 private fun FeatureFlagOverridesList(
     overrides: List<FeatureFlagOverride>,
     enabled: Boolean,
-    onClear: (broadcasterId: String) -> Unit,
+    onClear: (override: FeatureFlagOverride) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1743,7 +1774,7 @@ private fun FeatureFlagOverridesList(
                         )
                     }
                 }
-                TextButton(onClick = { onClear(override.broadcasterId) }, enabled = enabled) {
+                TextButton(onClick = { onClear(override) }, enabled = enabled) {
                     Text(text = stringResource(Res.string.admin_flag_override_clear))
                 }
             }
