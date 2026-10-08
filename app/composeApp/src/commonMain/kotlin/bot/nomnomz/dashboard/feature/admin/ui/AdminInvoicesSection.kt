@@ -13,9 +13,7 @@ package bot.nomnomz.dashboard.feature.admin.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,11 +31,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.Dialog
-import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
-import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -123,7 +121,7 @@ internal fun InvoicesSection(state: AdminState, controller: AdminController) {
         RefundConfirmDialog(
             invoice = pending,
             onDismiss = { controller.dismissRefund() },
-            onConfirm = { scope.launch { controller.confirmRefund(pending.id) } },
+            onConfirm = { controller.confirmRefund(pending.id).toDialogResult() },
         )
     }
 }
@@ -208,32 +206,21 @@ private fun InvoiceRow(invoice: AdminInvoice, onRefund: () -> Unit) {
 /** The refund confirmation — the counted blast radius (the exact amount and currency about to move) is
  * shown BEFORE the destructive button can be pressed, never hidden behind a bare "Refund" click. */
 @Composable
-private fun RefundConfirmDialog(invoice: AdminInvoice, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val tokens = LocalTokens.current
-
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_invoice_refund_confirm_title))
-        Spacer(modifier = Modifier.height(spacing.s2))
-        Text(
-            text = stringResource(
-                Res.string.admin_invoice_refund_confirm_body,
-                invoice.amountPaidCents / 100,
-                centsMinorPart(invoice.amountPaidCents),
-                invoice.currency.uppercase(),
-            ),
-            style = typography.sm,
-            color = tokens.foreground,
-        )
-        Spacer(modifier = Modifier.height(spacing.s2))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(variant = ButtonVariant.Destructive, onClick = onConfirm) {
-                Text(text = stringResource(Res.string.admin_invoice_refund_confirm_action))
-            }
-        }
-    }
+private fun RefundConfirmDialog(invoice: AdminInvoice, onDismiss: () -> Unit, onConfirm: suspend () -> DialogResult) {
+    ConfirmDialog(
+        title = stringResource(Res.string.admin_invoice_refund_confirm_title),
+        message = stringResource(
+            Res.string.admin_invoice_refund_confirm_body,
+            invoice.amountPaidCents / 100,
+            centsMinorPart(invoice.amountPaidCents),
+            invoice.currency.uppercase(),
+        ),
+        confirmLabel = stringResource(Res.string.admin_invoice_refund_confirm_action),
+        dismissLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        action = onConfirm,
+        destructive = true,
+    )
 }
 
 /**
