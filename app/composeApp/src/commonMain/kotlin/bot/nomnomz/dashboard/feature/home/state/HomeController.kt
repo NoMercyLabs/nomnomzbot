@@ -311,6 +311,10 @@ class HomeController(
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
+            if (evt is HubEvent.ConfigChanged && evt.change.domain == SUSPICIOUS_USERS_HUB_DOMAIN) {
+                refreshHeldReviewContext(evt.change.entityId)
+                return@collect
+            }
             val current: HomeState = _state.value
             if (current is HomeState.Ready) {
                 when (evt) {
@@ -472,6 +476,21 @@ class HomeController(
         )
     }
 
+    /**
+     * Twitch's suspicious-user flag for [userId] changed (hub push). When the open review dialog is about that
+     * viewer, swap in a fresh moderation context so the "Restricted / Monitored" badge follows the flag live.
+     * A failed read keeps the context already shown.
+     */
+    private suspend fun refreshHeldReviewContext(userId: String?) {
+        val channel: String = channelId ?: return
+        val open: HeldReviewState.Ready = _heldReview.value as? HeldReviewState.Ready ?: return
+        if (userId == null || open.item.sourceUserId != userId) return
+        val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, userId)
+        if (result !is ApiResult.Ok) return
+        val latest: HeldReviewState.Ready = _heldReview.value as? HeldReviewState.Ready ?: return
+        _heldReview.value = latest.copy(userContext = result.value)
+    }
+
     /** Close the held-message review dialog (state only — nothing is resolved or lost). */
     fun closeHeldReview() {
         _heldReview.value = null
@@ -571,6 +590,9 @@ class HomeController(
 // The bot's default heat auto-timeout threshold (backend AutomodConfigDto default) — used when the automod
 // config read fails so the held-message dialog can still color heat consistently.
 private const val DEFAULT_HEAT_THRESHOLD: Int = 80
+
+/** Hub config domain announcing a change of a viewer's Twitch suspicious-user flag (entityId = Twitch user id). */
+private const val SUSPICIOUS_USERS_HUB_DOMAIN: String = "suspicious-users"
 
 /** The held-message review dialog's load/render state. */
 sealed interface HeldReviewState {

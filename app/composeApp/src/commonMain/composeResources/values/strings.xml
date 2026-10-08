@@ -4521,6 +4521,14 @@
     <string name="moderation_history_last_warned_acknowledged">Warned %1$s, acknowledged %2$s</string>
     <string name="moderation_trust_badge">Trust %1$s</string>
     <string name="moderation_heat_badge">Heat %1$s</string>
+    <string name="moderation_lowtrust_restricted">Restricted by Twitch</string>
+    <string name="moderation_lowtrust_restricted_hint">Twitch hides messages from this viewer in chat. You still see them here.</string>
+    <string name="moderation_lowtrust_monitored">Monitored by Twitch</string>
+    <string name="moderation_lowtrust_monitored_hint">Twitch flagged this viewer as suspicious. Their messages stay visible in chat.</string>
+    <string name="moderation_queue_source_suspicious_user">Suspicious user flagged by Twitch</string>
+    <string name="moderation_queue_suspicious_not_removed">The message was not removed.</string>
+    <string name="moderation_queue_suspicious_approve">Looks fine</string>
+    <string name="moderation_queue_suspicious_deny">Flag as a problem</string>
 
     <!-- Moderation — bot-side standing tiers (J.12) -->
     <string name="moderation_standing_title">Standing</string>

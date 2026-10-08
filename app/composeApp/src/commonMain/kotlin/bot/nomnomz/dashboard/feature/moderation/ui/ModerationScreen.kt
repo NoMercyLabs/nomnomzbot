@@ -402,6 +402,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_history_bans
 import nomnomzbot.composeapp.generated.resources.moderation_history_warnings
 import nomnomzbot.composeapp.generated.resources.moderation_history_deleted
 import nomnomzbot.composeapp.generated.resources.moderation_history_first_seen
+import nomnomzbot.composeapp.generated.resources.moderation_queue_source_suspicious_user
+import nomnomzbot.composeapp.generated.resources.moderation_queue_suspicious_approve
+import nomnomzbot.composeapp.generated.resources.moderation_queue_suspicious_deny
+import nomnomzbot.composeapp.generated.resources.moderation_queue_suspicious_not_removed
 import nomnomzbot.composeapp.generated.resources.moderation_trust_badge
 import nomnomzbot.composeapp.generated.resources.moderation_heat_badge
 import nomnomzbot.composeapp.generated.resources.moderation_standing_title
@@ -2337,7 +2341,7 @@ private fun ViewerReportRow(
 // One pending AutoMod-held message (J.1, S066) — approve releases it to chat, deny drops it. Both relay through
 // Helix on the backend before the row clears from the pending queue (a failed relay leaves it pending to retry).
 @Composable
-private fun AutomodQueueRow(
+internal fun AutomodQueueRow(
     item: ModerationQueueItem,
     manage: ManageDecision,
     onApprove: () -> Unit,
@@ -2369,25 +2373,56 @@ private fun AutomodQueueRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        item.autoModCategory?.takeIf { it.isNotBlank() }?.let { category ->
+        val flagged: Boolean = item.source == SUSPICIOUS_USER_SOURCE
+        if (flagged) {
+            // Twitch flagged the chatter; the message itself stays in chat, so the row says so and the status
+            // (carried in the category) reads as a badge instead of an AutoMod "flagged for" line.
             Text(
-                text = stringResource(Res.string.moderation_automod_queue_category, category),
+                text = stringResource(Res.string.moderation_queue_source_suspicious_user),
                 style = typography.xs,
                 color = tokens.mutedForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
+            item.autoModCategory?.let { status -> LowTrustStatusBadge(status = status) }
+            Text(
+                text = stringResource(Res.string.moderation_queue_suspicious_not_removed),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            item.autoModCategory?.takeIf { it.isNotBlank() }?.let { category ->
+                Text(
+                    text = stringResource(Res.string.moderation_automod_queue_category, category),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
                 Button(onClick = onApprove, enabled = enabled) {
-                    Text(stringResource(Res.string.moderation_automod_queue_approve))
+                    Text(
+                        stringResource(
+                            if (flagged) {
+                                Res.string.moderation_queue_suspicious_approve
+                            } else {
+                                Res.string.moderation_automod_queue_approve
+                            }
+                        )
+                    )
                 }
             }
             ManageGate(decision = manage) { enabled ->
                 TextButton(onClick = onDeny, enabled = enabled) {
                     Text(
-                        text = stringResource(Res.string.moderation_automod_queue_deny),
+                        text = stringResource(
+                            if (flagged) {
+                                Res.string.moderation_queue_suspicious_deny
+                            } else {
+                                Res.string.moderation_automod_queue_deny
+                            }
+                        ),
                         color = tokens.mutedForeground,
                     )
                 }
@@ -2850,7 +2885,7 @@ private fun UserModerationNotes(
 // The loaded rap sheet: the viewer's counters + last action + the recent recorded actions, plus the J.4 all-actions
 // history rollup and the J.5 trust/heat pair when the projections have computed them.
 @Composable
-private fun UserModerationContextBody(context: UserModerationContext, heatThreshold: Int) {
+internal fun UserModerationContextBody(context: UserModerationContext, heatThreshold: Int) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -2866,6 +2901,7 @@ private fun UserModerationContextBody(context: UserModerationContext, heatThresh
             overflow = TextOverflow.Ellipsis,
         )
         context.trust?.let { trust -> TrustHeatBadges(trust = trust, heatThreshold = heatThreshold) }
+        LowTrustStatusNotice(status = context.lowTrustStatus)
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             StatChip(label = stringResource(Res.string.moderation_context_bans), value = context.banCount)
             StatChip(label = stringResource(Res.string.moderation_context_timeouts), value = context.timeoutCount)

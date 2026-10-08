@@ -994,6 +994,8 @@ data class UserModerationContext(
     val history: UserModerationHistorySummary? = null,
     // The J.5 long-term trust (0–100) + recent heat (0–100, 24h half-life) pair — null until projected.
     val trust: UserTrustSummary? = null,
+    // Twitch's own suspicious-user flag: "none" | "active_monitoring" | "restricted".
+    val lowTrustStatus: String = "none",
 )
 
 /**

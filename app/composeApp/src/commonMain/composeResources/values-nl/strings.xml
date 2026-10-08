@@ -4505,6 +4505,14 @@
     <string name="moderation_history_last_warned_acknowledged">Gewaarschuwd %1$s, bevestigd %2$s</string>
     <string name="moderation_trust_badge">Vertrouwen %1$s</string>
     <string name="moderation_heat_badge">Hitte %1$s</string>
+    <string name="moderation_lowtrust_restricted">Beperkt door Twitch</string>
+    <string name="moderation_lowtrust_restricted_hint">Twitch verbergt de berichten van deze kijker in de chat. Jij ziet ze hier nog wel.</string>
+    <string name="moderation_lowtrust_monitored">In de gaten gehouden door Twitch</string>
+    <string name="moderation_lowtrust_monitored_hint">Twitch heeft deze kijker als verdacht gemarkeerd. Zijn berichten blijven zichtbaar in de chat.</string>
+    <string name="moderation_queue_source_suspicious_user">Verdachte kijker gemarkeerd door Twitch</string>
+    <string name="moderation_queue_suspicious_not_removed">Het bericht is niet verwijderd.</string>
+    <string name="moderation_queue_suspicious_approve">Ziet er goed uit</string>
+    <string name="moderation_queue_suspicious_deny">Markeer als probleem</string>
 
     <!-- Moderatie — bot-status niveaus (J.12) -->
     <string name="moderation_standing_title">Status</string>

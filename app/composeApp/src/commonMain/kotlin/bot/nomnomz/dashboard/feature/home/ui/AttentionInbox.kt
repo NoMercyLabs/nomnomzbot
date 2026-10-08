@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.feature.attention.ui.AttentionGroupedList
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
+import bot.nomnomz.dashboard.feature.moderation.ui.LowTrustStatusNotice
 import bot.nomnomz.dashboard.feature.moderation.ui.TrustHeatBadges
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionForAction
 import kotlinx.datetime.Clock
@@ -237,6 +238,7 @@ private fun HeldReviewBody(
     state.userContext?.trust?.let { trust ->
         TrustHeatBadges(trust = trust, heatThreshold = state.heatThreshold)
     }
+    state.userContext?.let { context -> LowTrustStatusNotice(status = context.lowTrustStatus) }
 
     // The dialog stays open across multiple resolve actions (a moderator works through the whole held-message
     // queue), so the last action's failure stays visible in place rather than floating away as a toast — the
