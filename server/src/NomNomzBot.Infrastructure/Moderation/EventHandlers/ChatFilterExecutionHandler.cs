@@ -23,6 +23,7 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
@@ -45,7 +46,7 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// Enforcement rides Helix, so non-Twitch messages are skipped; the broadcaster and moderators are never
 /// filtered, as is any sender at or above a filter's <see cref="ChatFilter.ExemptMinRoleLevel"/>.
 /// </summary>
-public sealed partial class ChatFilterExecutionHandler(
+public sealed class ChatFilterExecutionHandler(
     IApplicationDbContext db,
     ITwitchModerationApi moderation,
     IModerationEscalationService escalation,
@@ -372,7 +373,9 @@ public sealed partial class ChatFilterExecutionHandler(
         {
             ChatFilterType.Regex => MatchesRegex(filter, message),
             ChatFilterType.Blocklist => MatchesBlocklist(filter, message),
-            ChatFilterType.LinkPolicy => UrlPattern().IsMatch(message),
+            ChatFilterType.LinkPolicy => LinkPolicy
+                .FromStoredJson(filter.LinkPolicyJson)
+                .IsTrippedBy(message),
             _ => false,
         };
 
@@ -426,7 +429,4 @@ public sealed partial class ChatFilterExecutionHandler(
             return null;
         }
     }
-
-    [GeneratedRegex(@"https?://[^\s]+", RegexOptions.IgnoreCase)]
-    private static partial Regex UrlPattern();
 }

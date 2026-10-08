@@ -11,6 +11,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Enums;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -44,13 +45,48 @@ public sealed class ChatFilterEnumWireTests
             false,
             0,
             DateTime.UnixEpoch,
-            DateTime.UnixEpoch
+            DateTime.UnixEpoch,
+            null
         );
 
         string json = JsonSerializer.Serialize(dto, Wire);
 
         json.Should().Contain("\"filterType\":\"Blocklist\"");
         json.Should().Contain("\"action\":\"Escalate\"");
+    }
+
+    [Fact]
+    public void The_link_policy_serializes_as_a_typed_object_and_reads_back_from_a_posted_body()
+    {
+        ChatFilterDto dto = new(
+            Guid.CreateVersion7(),
+            ChatFilterType.LinkPolicy,
+            "links",
+            null,
+            [],
+            ChatFilterAction.Delete,
+            null,
+            10,
+            true,
+            false,
+            0,
+            DateTime.UnixEpoch,
+            DateTime.UnixEpoch,
+            new LinkPolicy { AllowedDomains = ["example.com"], MatchBareDomains = true }
+        );
+
+        string json = JsonSerializer.Serialize(dto, Wire);
+        CreateChatFilterRequest? posted = JsonSerializer.Deserialize<CreateChatFilterRequest>(
+            """{"filterType":"LinkPolicy","name":"l","action":"Delete","linkPolicy":{"allowedDomains":["a.com"],"matchBareDomains":true}}""",
+            Wire
+        );
+
+        json.Should()
+            .Contain(
+                "\"linkPolicy\":{\"allowedDomains\":[\"example.com\"],\"matchBareDomains\":true}"
+            );
+        posted!.LinkPolicy!.AllowedDomains.Should().Equal("a.com");
+        posted.LinkPolicy.MatchBareDomains.Should().BeTrue();
     }
 
     [Fact]
