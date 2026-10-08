@@ -52,6 +52,13 @@ public class LockdownWindowRecord : SoftDeletableEntity, ITenantScoped
     public string UnavailableControlsJson { get; set; } = "[]";
 
     /// <summary>
+    /// JSON array of control names the platform refused (or could not be read) when the window engaged.
+    /// These were never tightened, so there is nothing to restore; kept so the dashboard can say which
+    /// protections are NOT in force.
+    /// </summary>
+    public string ApplyFailedControlsJson { get; set; } = "[]";
+
+    /// <summary>
     /// JSON array of control names the last restore attempt could NOT put back — <c>[]</c> when the
     /// restore was complete. Kept so a partial failure is never silent: a later retry can see exactly
     /// which settings are still tightened.

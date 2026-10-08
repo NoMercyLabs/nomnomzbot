@@ -1157,6 +1157,11 @@ public static class DependencyInjection
         // Same reason: consumed by concrete type from the chat-path handler. Kept apart from
         // SpamDefenseService because correlation is stateful across messages while evaluation is not.
         services.AddScoped<SpamCorrelationService>();
+        // LockdownService takes every platform adapter as an IEnumerable; only Twitch has one wired.
+        services.AddScoped<
+            Moderation.Lockdown.IPlatformLockdownAdapter,
+            Moderation.Lockdown.TwitchLockdownAdapter
+        >();
         // Mass ban across a moderator's channels: consumed by concrete type from the consent service
         // and the execution worker, so convention scanning does not reach them.
         services.AddScoped<Moderation.MassBan.MassBanLiveChannels>();

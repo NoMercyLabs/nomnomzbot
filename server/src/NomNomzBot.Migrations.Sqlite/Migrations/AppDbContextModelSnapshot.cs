@@ -7669,6 +7669,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("ApplyFailedControlsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
