@@ -210,6 +210,45 @@ class PersonalityControllerTest {
     }
 
     @Test
+    fun a_failed_confirm_keeps_the_pending_tone_and_the_current_tone_and_sets_no_card_error() = runTest {
+        val settings =
+            FakePersonalityApi(
+                ApiResult.Ok(ChannelPersonality("informative", listOf("informative", "sassy"))),
+                setResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Requires Broadcaster.")),
+            )
+        val controller = tonePickerController(FakePersonalityEventResponsesApi(), settings)
+        controller.load()
+        controller.choose("sassy")
+
+        controller.confirm()
+
+        val ready: PersonalityState.Ready = controller.state.value as PersonalityState.Ready
+        assertEquals("sassy", settings.lastSetTone)
+        assertEquals(ToneChange(tone = "sassy", following = 0, own = 0), ready.pending)
+        assertEquals("informative", ready.current)
+        assertEquals(null, ready.saveError)
+    }
+
+    @Test
+    fun confirm_reports_the_servers_failure_and_success_to_the_dialog() = runTest {
+        val failing =
+            FakePersonalityApi(
+                ApiResult.Ok(ChannelPersonality("informative", listOf("informative", "sassy"))),
+                setResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Requires Broadcaster.")),
+            )
+        val failingController = tonePickerController(FakePersonalityEventResponsesApi(), failing)
+        failingController.load()
+        failingController.choose("sassy")
+        val failed: ApiResult<Unit> = failingController.confirm()
+        assertEquals("Requires Broadcaster.", (failed as ApiResult.Failure).error.message)
+
+        val working = tonePickerController(FakePersonalityEventResponsesApi())
+        working.load()
+        working.choose("sassy")
+        assertTrue(working.confirm() is ApiResult.Ok)
+    }
+
+    @Test
     fun cancel_drops_the_pending_tone_without_saving() = runTest {
         val settings =
             FakePersonalityApi(
