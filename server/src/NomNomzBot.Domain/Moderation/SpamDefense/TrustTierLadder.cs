@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json.Serialization;
+using NomNomzBot.Domain.Moderation.Entities;
 
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
@@ -115,7 +116,9 @@ public static class TrustTierLadder
     };
 
     /// <summary>
-    /// Resolve the tier. Established is tested first, then in-channel standing, then instance-wide
+    /// Resolve the tier. Twitch's suspicious-user flag is applied first: a <c>restricted</c> chatter is
+    /// Untrusted whatever else is true of them, and an <c>active_monitoring</c> chatter never rises above
+    /// Newcomer. Without a flag, Established is tested first, then in-channel standing, then instance-wide
     /// standing, then the earned ladder — highest wins.
     /// </summary>
     public static SpamTrustTier Resolve(
@@ -123,6 +126,22 @@ public static class TrustTierLadder
         ChannelParticipation participation,
         AccountRiskAssessment risk,
         TrustTierThresholds? thresholds = null
+    )
+    {
+        if (account.LowTrustStatus == LowTrustStatuses.Restricted)
+            return SpamTrustTier.Untrusted;
+
+        SpamTrustTier earned = ResolveEarned(account, participation, risk, thresholds);
+        return account.LowTrustStatus == LowTrustStatuses.ActiveMonitoring
+            ? (SpamTrustTier)Math.Min((int)earned, (int)SpamTrustTier.Newcomer)
+            : earned;
+    }
+
+    private static SpamTrustTier ResolveEarned(
+        AccountFacts account,
+        ChannelParticipation participation,
+        AccountRiskAssessment risk,
+        TrustTierThresholds? thresholds
     )
     {
         TrustTierThresholds t = thresholds ?? new TrustTierThresholds();
@@ -140,23 +159,60 @@ public static class TrustTierLadder
         if (risk.IsSemiTrusted)
             return SpamTrustTier.SemiTrusted;
 
+        // Only a CONFIRMED follow earns these rungs: Unknown and NotFollowing both stay Untrusted.
         if (
-            account is { AccountAgeDays: >= 182, IsFollowing: true, FollowAgeHours: >= 30 * 24 }
+            account
+                is {
+                    AccountAgeDays: >= 182,
+                    Follow: FollowState.Following,
+                    FollowAgeHours: >= 30 * 24
+                }
             && participation is { MessageCountHere: >= 50, DaysSinceLastUpheldStrike: >= 90 }
         )
             return SpamTrustTier.Regular;
 
         if (
-            account is { AccountAgeDays: >= 30, IsFollowing: true, FollowAgeHours: >= 7 * 24 }
+            account
+                is {
+                    AccountAgeDays: >= 30,
+                    Follow: FollowState.Following,
+                    FollowAgeHours: >= 7 * 24
+                }
             && participation.MessageCountHere >= 5
         )
             return SpamTrustTier.Known;
 
-        if (account is { AccountAgeDays: >= 7, IsFollowing: true, FollowAgeHours: >= 24 })
+        if (
+            account is
+            {
+                AccountAgeDays: >= NewcomerAccountDays,
+                Follow: FollowState.Following,
+                FollowAgeHours: >= 24
+            }
+        )
             return SpamTrustTier.Newcomer;
 
         return SpamTrustTier.Untrusted;
     }
+
+    private const double NewcomerAccountDays = 7;
+
+    /// <summary>
+    /// Whether looking up the follow could change the resolved tier. False when the tier is already
+    /// decided above the earned ladder (Established, in-channel standing, SemiTrusted) or the account is
+    /// too young for the lowest follow-based rung, so a caller can skip a paid platform lookup.
+    /// </summary>
+    public static bool FollowCanChangeTier(
+        AccountFacts account,
+        ChannelParticipation participation,
+        AccountRiskAssessment risk,
+        TrustTierThresholds? thresholds = null
+    ) =>
+        account.LowTrustStatus != LowTrustStatuses.Restricted
+        && !IsEstablished(participation, thresholds)
+        && participation is { IsModeratorHere: false, IsVipHere: false, IsSubscriberHere: false }
+        && !risk.IsSemiTrusted
+        && account.AccountAgeDays >= NewcomerAccountDays;
 
     /// <summary>
     /// §L4.1. Earned by sustained participation IN THIS CHANNEL — a ten-year-old account that has never

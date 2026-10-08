@@ -84,11 +84,11 @@ public sealed class PostQuoteActionTests
             CancellationToken ct = default
         ) => Task.FromResult(ChatUnbanOutcome.Success);
 
-        public Task DeleteMessageAsync(
+        public Task<bool> DeleteMessageAsync(
             Guid broadcasterId,
             string messageId,
             CancellationToken ct = default
-        ) => Task.CompletedTask;
+        ) => Task.FromResult(true);
     }
 
     private static QuoteService NewQuoteService(QuoteTestDbContext db)

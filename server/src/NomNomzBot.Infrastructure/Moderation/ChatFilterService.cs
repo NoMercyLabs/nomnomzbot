@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 
@@ -90,6 +91,18 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
                 compileCheck.ErrorCode!
             );
 
+        Result linkPolicyCheck = ResolveLinkPolicy(
+            request.FilterType,
+            request.LinkPolicy,
+            request.LinkPolicyJson,
+            out string? linkPolicyJson
+        );
+        if (linkPolicyCheck.IsFailure)
+            return Result.Failure<ChatFilterDto>(
+                linkPolicyCheck.ErrorMessage!,
+                linkPolicyCheck.ErrorCode!
+            );
+
         if (request is { Action: ChatFilterAction.Timeout, TimeoutSeconds: not > 0 })
             return Result.Failure<ChatFilterDto>(
                 "A timeout filter needs a positive duration.",
@@ -103,7 +116,7 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             Name = request.Name,
             Pattern = request.Pattern,
             TermsJson = SerializeTerms(request.Terms),
-            LinkPolicyJson = request.LinkPolicyJson,
+            LinkPolicyJson = linkPolicyJson,
             Action = request.Action,
             TimeoutSeconds = request.TimeoutSeconds,
             ExemptMinRoleLevel = request.ExemptMinRoleLevel,
@@ -130,6 +143,22 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
         if (filter is null)
             return Result.Failure<ChatFilterDto>("Filter not found.", "NOT_FOUND");
 
+        string? linkPolicyJson = filter.LinkPolicyJson;
+        if (request.LinkPolicy is not null || request.LinkPolicyJson is not null)
+        {
+            Result linkPolicyCheck = ResolveLinkPolicy(
+                filter.FilterType,
+                request.LinkPolicy,
+                request.LinkPolicyJson,
+                out linkPolicyJson
+            );
+            if (linkPolicyCheck.IsFailure)
+                return Result.Failure<ChatFilterDto>(
+                    linkPolicyCheck.ErrorMessage!,
+                    linkPolicyCheck.ErrorCode!
+                );
+        }
+
         if (request.Pattern is not null)
         {
             Result compileCheck = ValidateRegex(filter.FilterType, request.Pattern);
@@ -147,8 +176,7 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             filter.Action = action;
         if (request.Terms is not null)
             filter.TermsJson = SerializeTerms(request.Terms);
-        if (request.LinkPolicyJson is not null)
-            filter.LinkPolicyJson = request.LinkPolicyJson;
+        filter.LinkPolicyJson = linkPolicyJson;
         if (request.TimeoutSeconds is not null)
             filter.TimeoutSeconds = request.TimeoutSeconds;
         if (request.ExemptMinRoleLevel is { } exempt)
@@ -194,6 +222,39 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
                 $"The regex pattern does not compile: {compileError}",
                 "VALIDATION_FAILED"
             );
+    }
+
+    /// <summary>
+    /// Settles the policy a save will store. The typed <paramref name="typed"/> policy wins over the older
+    /// <paramref name="json"/> field. A link-policy filter's JSON must parse and name valid domains; it is stored
+    /// in its canonical form. Nothing is stored when this fails.
+    /// </summary>
+    private static Result ResolveLinkPolicy(
+        ChatFilterType type,
+        LinkPolicy? typed,
+        string? json,
+        out string? storedJson
+    )
+    {
+        storedJson = json;
+        if (typed is not null)
+        {
+            string? typedError = typed.FindError();
+            if (typedError is not null)
+                return Result.Failure(typedError, "VALIDATION_FAILED");
+
+            storedJson = typed.ToStoredJson();
+            return Result.Success();
+        }
+
+        if (type != ChatFilterType.LinkPolicy || string.IsNullOrWhiteSpace(json))
+            return Result.Success();
+
+        if (!LinkPolicy.TryParse(json, out LinkPolicy parsed, out string? error))
+            return Result.Failure(error!, "VALIDATION_FAILED");
+
+        storedJson = parsed.ToStoredJson();
+        return Result.Success();
     }
 
     /// <summary>
@@ -271,13 +332,14 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
                 return Result.Success(new ChatFilterTestResult(blocklistMatch, null));
 
             case ChatFilterType.LinkPolicy:
-                bool hasUrl = Regex.IsMatch(
-                    request.SampleMessage,
-                    @"https?://[^\s]+",
-                    RegexOptions.IgnoreCase,
-                    MatchTimeout
+                LinkPolicy policy = request.LinkPolicy ?? LinkPolicy.Default;
+                string? policyError = policy.FindError();
+                if (policyError is not null)
+                    return Result.Success(new ChatFilterTestResult(false, policyError));
+
+                return Result.Success(
+                    new ChatFilterTestResult(policy.IsTrippedBy(request.SampleMessage), null)
                 );
-                return Result.Success(new ChatFilterTestResult(hasUrl, null));
 
             default:
                 return Result.Failure<ChatFilterTestResult>(
@@ -318,6 +380,9 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             f.IsCaseSensitive,
             f.MatchCount,
             f.CreatedAt,
-            f.UpdatedAt
+            f.UpdatedAt,
+            f.FilterType == ChatFilterType.LinkPolicy
+                ? LinkPolicy.FromStoredJson(f.LinkPolicyJson)
+                : null
         );
 }

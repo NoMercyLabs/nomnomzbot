@@ -43,6 +43,15 @@ public interface ILockdownService
     );
 
     /// <summary>
+    /// Every window of this broadcaster not yet fully restored: active ones, and expired or ended ones whose
+    /// restore left a control tightened. Empty when the room is back to normal.
+    /// </summary>
+    Task<IReadOnlyList<LockdownWindowStatus>> GetActiveAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Restore every window that has expired, was ended, or whose last restore left a control behind.
     /// Called by the sweep; safe to call at any time. Returns how many windows are now fully restored.
     /// </summary>

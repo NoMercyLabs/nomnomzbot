@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Infrastructure.Moderation.MassBan;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation.MassBan;
@@ -251,6 +252,183 @@ public sealed class MassBanExecutorTests
         targets.Values.Should().OnlyContain(t => t.ProcessedAt != null, "a refusal is not retried");
     }
 
+    private static void Answer(
+        MassBanTestWorld world,
+        string targetId,
+        params Result<TwitchBanResult>[] answers
+    ) =>
+        world
+            .Moderation.BanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                targetId,
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(answers[0], answers[1..]);
+
+    private static Result<TwitchBanResult> Banned(string targetId) =>
+        Result.Success(
+            new TwitchBanResult("own1", "mod", targetId, DateTimeOffset.UnixEpoch, null)
+        );
+
+    [Fact]
+    public async Task A_rate_limited_target_waits_for_its_backoff_and_is_banned_on_a_later_pass()
+    {
+        MassBanTestWorld world = new();
+        world.OwnChannel("own1", "stoney");
+        await QueueAsync(world);
+        Answer(
+            world,
+            "1002",
+            Result.Failure<TwitchBanResult>(
+                "Twitch request failed (429).",
+                TwitchErrorCodes.RateLimited,
+                "Too Many Requests"
+            ),
+            Banned("1002")
+        );
+
+        await world.Executor().RunAsync(maxBans: 50);
+        world.Db.ChangeTracker.Clear();
+        MassBanBatchTarget afterFirst = await world
+            .Db.MassBanBatches.SelectMany(b => b.Targets)
+            .SingleAsync(t => t.TwitchUserId == "1002");
+        int tooEarly = await world.Executor().RunAsync(maxBans: 50);
+        world.Clock.Advance(TimeSpan.FromMinutes(5));
+        world.Db.ChangeTracker.Clear();
+        int onRetry = await world.Executor().RunAsync(maxBans: 50);
+
+        afterFirst.ProcessedAt.Should().BeNull("Twitch never answered for this account");
+        afterFirst.Banned.Should().BeFalse();
+        afterFirst.Attempts.Should().Be(1);
+        afterFirst.Error.Should().Contain("429");
+        afterFirst
+            .NextAttemptAt.Should()
+            .BeAfter(world.Clock.GetUtcNow().UtcDateTime.AddMinutes(-5));
+        tooEarly.Should().Be(0, "the backoff has not passed");
+        onRetry.Should().Be(1);
+        world.Db.ChangeTracker.Clear();
+        MassBanBatch batch = await world.Db.MassBanBatches.Include(b => b.Targets).SingleAsync();
+        MassBanBatchTarget retried = batch.Targets.Single(t => t.TwitchUserId == "1002");
+        retried.Banned.Should().BeTrue();
+        retried.ProcessedAt.Should().Be(world.Clock.GetUtcNow().UtcDateTime);
+        retried.Attempts.Should().Be(2);
+        retried.Error.Should().BeNull("the success clears the earlier failure");
+        retried.NextAttemptAt.Should().BeNull();
+        batch.CompletedAt.Should().NotBeNull("every target has an answer now");
+    }
+
+    [Fact]
+    public async Task A_target_that_keeps_failing_transiently_is_marked_failed_after_the_last_attempt()
+    {
+        MassBanTestWorld world = new();
+        world.OwnChannel("own1", "stoney");
+        await QueueAsync(world);
+        world
+            .Moderation.BanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                "1003",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchBanResult>("Twitch request failed (503).", "twitch_error")
+            );
+
+        for (int pass = 0; pass < MassBanRetryPolicy.MaxAttempts + 1; pass++)
+        {
+            await world.Executor().RunAsync(maxBans: 50);
+            world.Clock.Advance(TimeSpan.FromHours(1));
+            world.Db.ChangeTracker.Clear();
+        }
+
+        MassBanBatchTarget gaveUp = await world
+            .Db.MassBanBatches.SelectMany(b => b.Targets)
+            .SingleAsync(t => t.TwitchUserId == "1003");
+        gaveUp.Attempts.Should().Be(MassBanRetryPolicy.MaxAttempts);
+        gaveUp.Banned.Should().BeFalse();
+        gaveUp.ProcessedAt.Should().NotBeNull();
+        gaveUp.NextAttemptAt.Should().BeNull();
+        gaveUp.Error.Should().Contain("503").And.Contain("Gave up");
+    }
+
+    [Fact]
+    public async Task A_permanent_refusal_stores_its_reason_and_is_not_retried()
+    {
+        MassBanTestWorld world = new();
+        world.OwnChannel("own1", "stoney");
+        await QueueAsync(world);
+        Answer(
+            world,
+            "1001",
+            Result.Failure<TwitchBanResult>(
+                "Twitch request failed (400).",
+                "twitch_error",
+                "The user specified in the user_id field may not be banned."
+            )
+        );
+
+        await world.Executor().RunAsync(maxBans: 50);
+        world.Clock.Advance(TimeSpan.FromHours(1));
+        world.Db.ChangeTracker.Clear();
+        int again = await world.Executor().RunAsync(maxBans: 50);
+
+        MassBanBatchTarget refused = await world
+            .Db.MassBanBatches.SelectMany(b => b.Targets)
+            .SingleAsync(t => t.TwitchUserId == "1001");
+        refused.Banned.Should().BeFalse();
+        refused.ProcessedAt.Should().NotBeNull();
+        refused.Attempts.Should().Be(1);
+        refused.NextAttemptAt.Should().BeNull();
+        refused.Error.Should().Contain("may not be banned");
+        again.Should().Be(0, "a refusal is final");
+        await world
+            .Moderation.Received(1)
+            .BanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                "1001",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_target_is_stamped_processed_only_after_Twitch_answered()
+    {
+        MassBanTestWorld world = new();
+        world.OwnChannel("own1", "stoney");
+        await QueueAsync(world);
+        List<DateTime?> stampDuringCall = [];
+        world
+            .Moderation.When(m =>
+                m.BanAsOperatorAsync(
+                    Arg.Any<Guid>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string?>(),
+                    Arg.Any<CancellationToken>()
+                )
+            )
+            .Do(call =>
+                stampDuringCall.Add(
+                    world
+                        .Db.ChangeTracker.Entries<MassBanBatchTarget>()
+                        .Single(e => e.Entity.TwitchUserId == call.ArgAt<string>(2))
+                        .Entity.ProcessedAt
+                )
+            );
+
+        await world.Executor().RunAsync(maxBans: 50);
+
+        stampDuringCall.Should().HaveCount(3).And.OnlyContain(stamp => stamp == null);
+        (await world.Db.MassBanBatches.SelectMany(b => b.Targets).ToListAsync())
+            .Should()
+            .OnlyContain(t => t.ProcessedAt != null && t.Banned);
+    }
+
     [Fact]
     public async Task Only_a_chat_that_was_told_about_the_batch_hears_the_closing_line()
     {
@@ -307,7 +485,7 @@ public sealed class MassBanExecutorTests
             .AllSatisfy(s =>
             {
                 s.Should().NotBeNull();
-                s!.Basis.Should().Be(OutboundSanctionBasis.UserAction);
+                s.Basis.Should().Be(OutboundSanctionBasis.UserAction);
                 s.Detail.Should().Be("moderation:ban");
                 s.ActorUserId.Should().Be(MassBanTestWorld.Operator);
             });

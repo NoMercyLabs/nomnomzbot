@@ -37,6 +37,8 @@ public sealed class LostSongRequestSource(IApplicationDbContext db, TimeProvider
     /// <summary>How long a lost request stays in the inbox — long enough to cover one stream.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromHours(24);
 
+    public string SourceKey => "song_requests";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

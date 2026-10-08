@@ -541,6 +541,9 @@
     <string name="moderation_history_log_type_filter_hit">Filter hit</string>
     <string name="moderation_history_log_type_report_validated">Report upheld</string>
     <string name="moderation_history_log_type_note">Note</string>
+    <string name="moderation_history_log_type_warn_ack">Warning acknowledged</string>
+    <string name="moderation_history_log_ack_done">Acknowledged</string>
+    <string name="moderation_history_log_ack_waiting">Awaiting acknowledgement</string>
     <string name="moderation_history_log_reason_none">No reason recorded</string>
     <string name="moderation_history_log_duration">for %1$ds</string>
     <string name="moderation_history_log_page">Page %1$d</string>
@@ -1135,6 +1138,7 @@
     <string name="moderation_notes_delete_title">Delete note?</string>
     <string name="moderation_notes_delete_message">Delete this note? This can't be undone.</string>
     <string name="moderation_unban_requests_title">Unban requests</string>
+    <string name="moderation_unban_requests_load_failed">Unban requests could not be loaded, so this list may be missing appeals. Retry to check again.</string>
     <string name="moderation_unban_approve">Approve</string>
     <string name="moderation_unban_deny">Deny</string>
     <string name="moderation_unban_deny_title">Deny appeal</string>
@@ -4517,8 +4521,18 @@
     <string name="moderation_history_warnings">Warnings</string>
     <string name="moderation_history_deleted">Deleted</string>
     <string name="moderation_history_first_seen">First seen %1$s</string>
+    <string name="moderation_history_last_warned_waiting">Warned %1$s, not acknowledged yet</string>
+    <string name="moderation_history_last_warned_acknowledged">Warned %1$s, acknowledged %2$s</string>
     <string name="moderation_trust_badge">Trust %1$s</string>
     <string name="moderation_heat_badge">Heat %1$s</string>
+    <string name="moderation_lowtrust_restricted">Restricted by Twitch</string>
+    <string name="moderation_lowtrust_restricted_hint">Twitch hides messages from this viewer in chat. You still see them here.</string>
+    <string name="moderation_lowtrust_monitored">Monitored by Twitch</string>
+    <string name="moderation_lowtrust_monitored_hint">Twitch flagged this viewer as suspicious. Their messages stay visible in chat.</string>
+    <string name="moderation_queue_source_suspicious_user">Suspicious user flagged by Twitch</string>
+    <string name="moderation_queue_suspicious_not_removed">The message was not removed.</string>
+    <string name="moderation_queue_suspicious_approve">Looks fine</string>
+    <string name="moderation_queue_suspicious_deny">Flag as a problem</string>
 
     <!-- Moderation — bot-side standing tiers (J.12) -->
     <string name="moderation_standing_title">Standing</string>
@@ -5937,6 +5951,15 @@
     <string name="spam_setting_non_latin_script_gate_label">Restrict other alphabets to established viewers</string>
     <string name="spam_setting_non_latin_script_gate_explanation">Limits Japanese, Korean, Cyrillic, Arabic and other non-Latin messages to viewers who have been around.</string>
     <string name="spam_setting_non_latin_script_gate_cost">Off by default, and it should stay off for almost everyone: real viewers write in these alphabets every day. It exists for a channel under an active attack that uses them, and it silences honest international viewers while it is on.</string>
+    <string name="spam_setting_account_age_gate_days_label">Newest account age that can chat freely</string>
+    <string name="spam_setting_account_age_gate_days_explanation">Chat from an account younger than this many days is removed. 0 turns it off. Regulars and above are never held, and an account whose age is unknown is never held.</string>
+    <string name="spam_setting_account_age_gate_days_cost">Higher stops more throwaway accounts but also holds honest people who just joined the platform. Lower lets new accounts chat sooner and lets more spam through.</string>
+    <string name="spam_setting_follow_age_gate_days_label">Newest follow that can chat freely</string>
+    <string name="spam_setting_follow_age_gate_days_explanation">Chat from a follower who followed less than this many days ago is removed. 0 turns it off. People who do not follow are not held by this limit, and Regulars and above are never held.</string>
+    <string name="spam_setting_follow_age_gate_days_cost">Higher blocks follow-then-spam accounts but makes every fresh follower wait. Lower lets new followers chat sooner and lets more spam through.</string>
+    <string name="spam_setting_account_gate_holds_for_review_label">Keep gated messages for a moderator</string>
+    <string name="spam_setting_account_gate_holds_for_review_explanation">On: a removed message waits in the moderation queue, where a moderator can read it and decide. Off: the message is removed and nothing is kept.</string>
+    <string name="spam_setting_account_gate_holds_for_review_cost">On means a moderator has more to read. Off means an honest newcomer is silenced with no way to recover the message.</string>
     <string name="spam_setting_qualify_no_standing_share_label">Share of strangers that makes it a campaign</string>
     <string name="spam_setting_qualify_no_standing_share_explanation">When many accounts post the same thing at once, this is how much of that group must be people with no standing in your channel before it is treated as coordinated spam rather than a community joke.</string>
     <string name="spam_setting_qualify_no_standing_share_cost">Lower catches campaigns sooner but starts treating copypasta as an attack. Higher means a campaign needs to be almost entirely strangers before anything happens.</string>
@@ -5992,6 +6015,7 @@
     <string name="spam_setting_dequalify_below_qualify">The exoneration share must stay below the campaign share, so a group on the borderline cannot flip back and forth.</string>
     <string name="spam_group_master">Master</string>
     <string name="spam_group_trust">Trust</string>
+    <string name="spam_group_newcomers">New accounts and new followers</string>
     <string name="spam_group_content">Message content</string>
     <string name="spam_group_campaign">Coordinated campaigns</string>
     <string name="spam_group_bursts">Sudden activity</string>

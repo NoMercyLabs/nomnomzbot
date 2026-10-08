@@ -116,7 +116,11 @@ public interface IChatProvider
         CancellationToken cancellationToken = default
     );
 
-    Task DeleteMessageAsync(
+    /// <summary>
+    /// Deletes a chat message. Returns true only when the platform accepted the delete — false when it
+    /// refused, the channel has no usable token, or the platform is not connected.
+    /// </summary>
+    Task<bool> DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default

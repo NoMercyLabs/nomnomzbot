@@ -30,6 +30,7 @@ public sealed class ActionRequiredInvalidationTests
     [InlineData("WidgetBuildFailedEvent")]
     [InlineData("EventSubSubscriptionStatusChangedEvent")]
     [InlineData("SongRequestLostAtProviderEvent")]
+    [InlineData("SharedChatBanNotAppliedEvent")]
     [InlineData("IntegrationNeedsReauthEvent")]
     public async Task AnEventASourceDeclares_SignalsItsChannel(string eventType)
     {

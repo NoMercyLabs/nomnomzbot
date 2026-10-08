@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Federation;
@@ -26,8 +27,10 @@ namespace NomNomzBot.Infrastructure.Moderation.Federation;
 /// closed inbound accept-set — drop the class, the type is accepted; no wiring edit. Fails closed
 /// (<c>schema_invalid</c>) on a payload it cannot deserialize into the load-bearing fields.
 /// </summary>
-public sealed class SharedChatBanInboundHandler(ISharedBanService sharedBans)
-    : IFederationInboundHandler
+public sealed class SharedChatBanInboundHandler(
+    ISharedBanService sharedBans,
+    ILogger<SharedChatBanInboundHandler> logger
+) : IFederationInboundHandler
 {
     public string Type => "moderation.ban.shared";
 
@@ -61,10 +64,16 @@ public sealed class SharedChatBanInboundHandler(ISharedBanService sharedBans)
             inbound,
             cancellationToken
         );
-        // A Twitch ban that could not be placed (e.g. the target is already banned) is a truthful skip inside the
-        // result, not a routing failure — the claim was accepted and journaled; only the local effect no-oped.
-        return applied.IsFailure
-            ? Result.Failure(applied.ErrorMessage, applied.ErrorCode)
-            : Result.Success();
+        // A Twitch ban that could not be placed (e.g. the target is already banned) is NOT a routing failure: the
+        // service already reported it to the streamer, and a Failure here would abort the envelope for the
+        // channel's other targets. The envelope was accepted; only this channel's local effect did not happen.
+        if (applied.IsFailure)
+            logger.LogWarning(
+                "Federated shared ban not applied for channel {Channel}: {Reason} - {Error}",
+                targetBroadcasterId,
+                applied.ErrorCode,
+                applied.ErrorMessage
+            );
+        return Result.Success();
     }
 }

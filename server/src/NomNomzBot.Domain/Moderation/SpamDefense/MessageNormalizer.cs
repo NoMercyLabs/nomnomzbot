@@ -188,6 +188,47 @@ public static class MessageNormalizer
         // punishes ordinary chat, the exact SD0 failure. Scan the original; decompose only to match.
         bool cosmeticAbuse = HasCosmeticAbuse(original);
 
+        // 1 + 2 + 3. NFKD, then strip the marks and invisibles so they cannot break up a match.
+        string visibleText = StripCosmetic(original);
+
+        // 4. Record mixed-script tokens BEFORE folding — after it, the evidence is gone.
+        List<string> mixedScriptTokens = FindMixedScriptTokens(visibleText);
+
+        // 4 (cont.) + 5. Fold confusables, lowercase, de-leet.
+        StringBuilder folded = new(visibleText.Length);
+        foreach (char c in visibleText)
+        {
+            char mapped = FoldCharacter(c);
+            folded.Append(Leet.TryGetValue(mapped, out char letter) ? letter : mapped);
+        }
+
+        // 6. Collapse runs to two, then strip everything that is not a letter or digit.
+        string skeleton = BuildSkeleton(folded.ToString());
+
+        return new NormalizedMessage(original, skeleton, cosmeticAbuse, mixedScriptTokens);
+    }
+
+    /// <summary>
+    /// The message with its disguises folded away but its punctuation and spacing kept: fullwidth,
+    /// homoglyph and zero-width tricks are undone (steps 1-4 of the pipeline), nothing else changes.
+    ///
+    /// <para>This is what a matcher that needs the DOTS and SLASHES uses — a link detector cannot read
+    /// <see cref="Normalize"/>'s skeleton, which has no punctuation left, and it must not de-leet either:
+    /// a version number like <c>v1.2</c> would become letters. Sharing these steps keeps one definition
+    /// of "the same character" across every layer that reads chat.</para>
+    /// </summary>
+    public static string ReadableForm(string? message)
+    {
+        string visibleText = StripCosmetic(message ?? string.Empty);
+        StringBuilder folded = new(visibleText.Length);
+        foreach (char c in visibleText)
+            folded.Append(FoldCharacter(c));
+        return folded.ToString();
+    }
+
+    /// <summary>NFKD, then drop combining marks and invisibles; odd whitespace becomes a plain space.</summary>
+    private static string StripCosmetic(string original)
+    {
         // 1. NFKD — separates base characters from combining marks and folds fullwidth /
         //    math-alphanumeric / compatibility forms toward ASCII.
         string decomposed = original.Normalize(NormalizationForm.FormKD);
@@ -201,26 +242,14 @@ public static class MessageNormalizer
             visible.Append(IsCollapsibleWhitespace(c) ? ' ' : c);
         }
 
-        // 4. Record mixed-script tokens BEFORE folding — after it, the evidence is gone.
-        string visibleText = visible.ToString();
-        List<string> mixedScriptTokens = FindMixedScriptTokens(visibleText);
-
-        // 4 (cont.) + 5. Fold confusables, lowercase, de-leet.
-        StringBuilder folded = new(visibleText.Length);
-        foreach (char c in visibleText)
-        {
-            char mapped =
-                Confusables.TryGetValue(c, out char latin) ? latin
-                : DeriveLatinSkeleton(c) is char derived ? derived
-                : char.ToLowerInvariant(c);
-            folded.Append(Leet.TryGetValue(mapped, out char letter) ? letter : mapped);
-        }
-
-        // 6. Collapse runs to two, then strip everything that is not a letter or digit.
-        string skeleton = BuildSkeleton(folded.ToString());
-
-        return new NormalizedMessage(original, skeleton, cosmeticAbuse, mixedScriptTokens);
+        return visible.ToString();
     }
+
+    /// <summary>One character folded to its Latin, lowercase form: confusable table, then derived, then lowercase.</summary>
+    private static char FoldCharacter(char c) =>
+        Confusables.TryGetValue(c, out char latin) ? latin
+        : DeriveLatinSkeleton(c) is char derived ? derived
+        : char.ToLowerInvariant(c);
 
     /// <summary>
     /// Combining marks (zalgo, <c>B̟est</c>) and format/invisible characters — zero-width space, joiners,

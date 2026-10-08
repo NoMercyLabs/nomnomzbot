@@ -34,5 +34,8 @@ public sealed record SharedBanTrustedChannelDto(
 /// <summary>Adds one partner to the inbound-ban trust list.</summary>
 public sealed record AddTrustedChannelRequest(Guid TrustedChannelId);
 
-/// <summary>The outcome of one inbound shared-ban application attempt (moderation.md §3.5).</summary>
-public sealed record SharedBanApplicationResult(bool Applied, string? SkippedReason, int? ActionId);
+/// <summary>
+/// A shared ban that WAS placed (moderation.md §3.5): the id of the provenance record. A ban that was refused or
+/// skipped is never this type — it is a failure Result whose error code is the reason.
+/// </summary>
+public sealed record SharedBanApplicationResult(int ActionId);

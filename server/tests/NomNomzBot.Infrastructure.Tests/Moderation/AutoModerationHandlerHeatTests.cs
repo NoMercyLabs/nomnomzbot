@@ -18,6 +18,7 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -45,7 +46,12 @@ public sealed class AutoModerationHandlerHeatTests
         AutoModerationHandler Handler,
         IModerationService Moderation,
         ITwitchModerationApi Twitch
-    )> BuildAsync(string action, int? durationSeconds = null, bool withOwner = true)
+    )> BuildAsync(
+        string action,
+        int? durationSeconds = null,
+        bool withOwner = true,
+        IViolationEscalationService? escalation = null
+    )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
@@ -102,11 +108,19 @@ public sealed class AutoModerationHandlerHeatTests
             .Returns(Result.Success(new ModerationActionResult(true, null)));
 
         ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
+        twitch
+            .DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(twitch);
+        services.AddSingleton(escalation ?? ViolationEscalationDoubles.NotHandled());
         ServiceProvider provider = services.BuildServiceProvider();
 
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
@@ -117,7 +131,7 @@ public sealed class AutoModerationHandlerHeatTests
                 TimeProvider.System,
                 NullLogger<AutoModRuleCache>.Instance
             ),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             NullLogger<AutoModerationHandler>.Instance
         );
 
@@ -227,6 +241,114 @@ public sealed class AutoModerationHandlerHeatTests
                 60,
                 Arg.Any<string?>(),
                 Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ATimeoutRuleHandedToTheLadder_IsPunishedOnlyByTheLadder()
+    {
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("timeout");
+        (AutoModerationHandler handler, IModerationService moderation, _) = await BuildAsync(
+            "timeout",
+            durationSeconds: 300,
+            escalation: escalation
+        );
+
+        await handler.HandleAsync(LinkMessage(), CancellationToken.None);
+
+        await escalation
+            .Received(1)
+            .TryEscalateAsync(
+                Channel,
+                OffenderTwitchId,
+                "offender",
+                "Offender",
+                "links are not allowed here",
+                Arg.Any<CancellationToken>()
+            );
+        await moderation
+            .DidNotReceive()
+            .TimeoutAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ABanRuleHandedToTheLadder_DoesNotAlsoBanOnItsOwn()
+    {
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("warn");
+        (AutoModerationHandler handler, IModerationService moderation, _) = await BuildAsync(
+            "ban",
+            escalation: escalation
+        );
+
+        await handler.HandleAsync(LinkMessage(), CancellationToken.None);
+
+        await moderation
+            .DidNotReceive()
+            .BanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ATimeoutRuleTheLadderDeclines_StillRunsItsOwnTimeout()
+    {
+        (AutoModerationHandler handler, IModerationService moderation, _) = await BuildAsync(
+            "timeout",
+            durationSeconds: 300,
+            escalation: ViolationEscalationDoubles.NotHandled()
+        );
+
+        await handler.HandleAsync(LinkMessage(), CancellationToken.None);
+
+        await moderation
+            .Received(1)
+            .TimeoutAsync(
+                Channel.ToString(),
+                OwnerUserId,
+                OffenderTwitchId,
+                300,
+                "links are not allowed here",
+                null,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ADeleteOnlyRuleIsNeverCountedAsALadderOffense()
+    {
+        IViolationEscalationService escalation = ViolationEscalationDoubles.Handled("timeout");
+        (AutoModerationHandler handler, _, ITwitchModerationApi twitch) = await BuildAsync(
+            "delete",
+            escalation: escalation
+        );
+
+        await handler.HandleAsync(LinkMessage(), CancellationToken.None);
+
+        await twitch
+            .Received(1)
+            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+        await escalation
+            .DidNotReceive()
+            .TryEscalateAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
     }

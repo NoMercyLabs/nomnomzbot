@@ -176,7 +176,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         return ChatUnbanOutcome.Failed;
     }
 
-    public async Task DeleteMessageAsync(
+    public async Task<bool> DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
@@ -188,7 +188,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
             cancellationToken
         );
         if (auth is null)
-            return;
+            return false;
 
         Result deleted = await _client.DeleteMessageAsync(
             auth.Value.Token,
@@ -202,6 +202,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
                 deleted.ErrorMessage,
                 deleted.ErrorCode
             );
+        return deleted.IsSuccess;
     }
 
     private async Task<bool> BanCoreAsync(

@@ -7479,6 +7479,42 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("MediaShareRequests");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("BanEvasionEvaluation")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "TwitchUserId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelLowTrustStatuses");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7652,6 +7688,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("WasDryRun")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BatchId");
@@ -7810,6 +7849,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<int>("Attempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("Banned")
                         .HasColumnType("INTEGER");
 
@@ -7820,6 +7864,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid>("MassBanBatchId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("TEXT");
@@ -7943,6 +7990,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ActionType")
                         .IsRequired()
@@ -8068,7 +8118,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "AutoModMessageId");
+                    b.HasIndex("BroadcasterId", "AutoModMessageId")
+                        .IsUnique()
+                        .HasFilter("\"AutoModMessageId\" IS NOT NULL AND \"DeletedAt\" IS NULL");
 
                     b.HasIndex("BroadcasterId", "Status");
 
@@ -8454,6 +8506,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<int>("AccountAgeGateDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AccountGateHoldsForReview")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("ActionDelaySeconds")
                         .HasColumnType("INTEGER");
 
@@ -8482,6 +8540,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("FollowAgeGateDays")
+                        .HasColumnType("INTEGER");
 
                     b.Property<double>("FollowSpikeFactor")
                         .HasColumnType("REAL");

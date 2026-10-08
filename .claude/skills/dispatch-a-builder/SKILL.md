@@ -40,10 +40,14 @@ Two isolation choices:
    the failing output" BEFORE any production edit. Never "write the code first" (2026-10-03: a brief
    said so and a worker wrote ~118 labels with no test). A worker continuing a code-first handoff
    proves failing-first by running the new test against `git show HEAD:<file>` copies.
-7. **The report shape** you want back: what changed, the evidence, the first real error on
+7. **A reading budget**: at most ~40k tokens of reading before the first test file is written; find a
+   symbol with `grep -n`, then read only that range; never read a whole file over 300 lines. A
+   re-dispatch from a handoff says "do not re-research; your next tool call after the merge writes the
+   first test". A worker's context budget is at least 140k: about 30k is fixed start-up context.
+8. **The report shape** you want back: what changed, the evidence, the first real error on
    failure — not file dumps.
-8. **Do not push.** Pushing is the orchestrator's decision.
-9. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
+9. **Do not push.** Pushing is the orchestrator's decision.
+10. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
    `Executor: Arc because <reason>`, or executor-guard refuses the dispatch. Name the model
    (Haiku checks, Sonnet pattern work, Opus hard cases).
 

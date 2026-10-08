@@ -75,10 +75,20 @@ public class MassBanBatchTarget
     /// <summary>The ban reason Twitch shows, e.g. the channel and moment the account followed.</summary>
     public string Reason { get; set; } = string.Empty;
 
-    /// <summary>Set once the ban was attempted, so a restart resumes where it stopped.</summary>
+    /// <summary>
+    /// Set only once the platform answered for good (banned, or refused for a reason a retry cannot change), so a
+    /// restart resumes where it stopped. A target waiting for a retry keeps this null.
+    /// </summary>
     public DateTime? ProcessedAt { get; set; }
 
     public bool Banned { get; set; }
 
+    /// <summary>The last failure: the reason of a refusal, or why the latest attempt is being retried.</summary>
     public string? Error { get; set; }
+
+    /// <summary>How many times the ban call was made for this account.</summary>
+    public int Attempts { get; set; }
+
+    /// <summary>When a transient failure (429, 5xx, network) is tried again; null when nothing waits.</summary>
+    public DateTime? NextAttemptAt { get; set; }
 }

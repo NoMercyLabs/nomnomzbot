@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -39,18 +40,24 @@ public sealed class SpamDefenseService : ISpamDefenseService
     private readonly TimeProvider _time;
     private readonly IModerationService _moderation;
     private readonly ICurrentTenantService _tenant;
+    private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IFollowStateService _follows;
 
     public SpamDefenseService(
         IApplicationDbContext db,
         TimeProvider time,
         IModerationService moderation,
-        ICurrentTenantService tenant
+        ICurrentTenantService tenant,
+        ITwitchUsersApi twitchUsers,
+        IFollowStateService follows
     )
     {
         _db = db;
         _time = time;
         _moderation = moderation;
         _tenant = tenant;
+        _twitchUsers = twitchUsers;
+        _follows = follows;
     }
 
     /// <summary>
@@ -372,12 +379,32 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (blocks.Count == 0)
             return Result.Failure<int>("spam_follow_bot_batch_not_found", errorCode: "NOT_FOUND");
 
+        // A row is stamped restored only once the Twitch block is really lifted. A dry-run row never
+        // made a block, so there is nothing to lift; a failed unblock stays open so the operator can
+        // retry the batch, and the count reports only what was actually undone.
         DateTime now = _time.GetUtcNow().UtcDateTime;
+        int restored = 0;
         foreach (FollowBotBlock block in blocks)
+        {
+            if (!block.WasDryRun)
+            {
+                Result unblocked = await _twitchUsers.UnblockUserAsync(
+                    broadcasterId,
+                    block.SubjectPlatformUserId,
+                    ct
+                );
+                if (unblocked.IsFailure)
+                    continue;
+            }
+
             block.RestoredAt = now;
+            restored++;
+        }
 
         await _db.SaveChangesAsync(ct);
-        return Result.Success(blocks.Count);
+        return restored == 0
+            ? Result.Failure<int>("spam_follow_bot_restore_failed", errorCode: "UPSTREAM_ERROR")
+            : Result.Success(restored);
     }
 
     public async Task<SpamEvaluationResult?> EvaluateAsync(
@@ -396,7 +423,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
             await BuildContentPolicyAsync(settings, ct)
         );
 
-        SpamTrustTier tier = await ResolveTierAsync(request, settings, ct);
+        (SpamTrustTier tier, AccountFacts facts) = await ResolveTierAsync(request, settings, ct);
         // Enforcement switched on inside the observation window still only observes: the window is the
         // safety story (§6.2), so turning dry run off early cannot skip it.
         bool observing =
@@ -426,9 +453,25 @@ public sealed class SpamDefenseService : ISpamDefenseService
                     ),
             };
 
+        // The newcomer gate (a channel's own age limit) only ever raises a verdict: a message the content
+        // layer already removes keeps its stricter outcome and its own reasons.
+        AccountAgeGateVerdict? gate =
+            decision.WouldHaveBeen < SpamOutcome.DeleteAndQueue
+                ? AccountAgeGate.Evaluate(settings, facts, tier)
+                : null;
+        if (gate is not null)
+        {
+            decision = SpamEnforcement.Gate(gate, observing);
+            signals = [.. signals, ContentSignal.AccountAgeGate];
+        }
+
         // Nothing fired and nothing to say: do not write a row per ordinary message. The detection log
         // is for verdicts a human might review, not a copy of chat.
-        if (confidence == SpamConfidence.Zero && decision.WouldHaveBeen == SpamOutcome.None)
+        if (
+            gate is null
+            && confidence == SpamConfidence.Zero
+            && decision.WouldHaveBeen == SpamOutcome.None
+        )
             return new SpamEvaluationResult(
                 decision,
                 confidence,
@@ -468,8 +511,54 @@ public sealed class SpamDefenseService : ISpamDefenseService
             signals,
             detection.Id,
             normalized.Skeleton,
-            settings
+            settings,
+            gate
         );
+    }
+
+    public async Task RecordCampaignEscalationAsync(
+        SpamEvaluationRequest request,
+        SpamEvaluationResult evaluated,
+        SpamDecision escalated,
+        CancellationToken ct = default
+    )
+    {
+        SpamDetection? detection = evaluated.DetectionId is { } id
+            ? await _db.SpamDetections.FirstOrDefaultAsync(d => d.Id == id, ct)
+            : null;
+
+        if (detection is null)
+        {
+            detection = new SpamDetection
+            {
+                BroadcasterId = request.BroadcasterId,
+                SubjectPlatformUserId = request.PlatformUserId,
+                SubjectDisplayName = request.DisplayName,
+                Provider = request.Provider,
+                MessageId = request.MessageId,
+                MessageText = Truncate(request.Message, 1000),
+                Skeleton = Truncate(evaluated.Skeleton, 1000),
+                Signals = string.Empty,
+                Tier = evaluated.Tier,
+                DetectedAt = _time.GetUtcNow().UtcDateTime,
+            };
+            _db.SpamDetections.Add(detection);
+        }
+
+        List<string> signals = detection
+            .Signals.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+        if (!signals.Contains(nameof(ContentSignal.CampaignMember)))
+            signals.Add(nameof(ContentSignal.CampaignMember));
+
+        detection.Signals = string.Join(',', signals);
+        detection.Confidence = SpamConfidence.High;
+        detection.Outcome = escalated.Outcome;
+        detection.WouldHaveBeen = escalated.WouldHaveBeen;
+        detection.WasDryRun = escalated.IsDryRun;
+        detection.Reason = Truncate(escalated.Reason, 1000);
+
+        await _db.SaveChangesAsync(ct);
     }
 
     /// <summary>
@@ -521,14 +610,30 @@ public sealed class SpamDefenseService : ISpamDefenseService
     /// when they first spoke here, how much they have said, and on how many separate days, which is the
     /// part that stops a burst of messages in one night from buying immunity.</para>
     /// </summary>
-    private async Task<SpamTrustTier> ResolveTierAsync(
+    private async Task<(SpamTrustTier Tier, AccountFacts Facts)> ResolveTierAsync(
         SpamEvaluationRequest request,
         SpamDefenseSettings settings,
         CancellationToken ct
     )
     {
-        if (request.IsBroadcaster || request.IsModerator || request.IsVip)
-            return SpamTrustTier.Established;
+        if (request.IsBroadcaster || request.IsModerator)
+            return (SpamTrustTier.Established, new AccountFacts());
+
+        // Twitch's own flag outranks a VIP badge: a restricted or monitored chatter is not waved through.
+        string lowTrustStatus =
+            await _db
+                .ChannelLowTrustStatuses.IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(s =>
+                    s.BroadcasterId == request.BroadcasterId
+                    && s.TwitchUserId == request.PlatformUserId
+                )
+                .Select(s => s.Status)
+                .FirstOrDefaultAsync(ct)
+            ?? LowTrustStatuses.None;
+
+        if (request.IsVip && lowTrustStatus == LowTrustStatuses.None)
+            return (SpamTrustTier.Established, new AccountFacts());
 
         DateTime now = _time.GetUtcNow().UtcDateTime;
 
@@ -582,12 +687,10 @@ public sealed class SpamDefenseService : ISpamDefenseService
             AccountAgeDays = accountCreatedAt is null
                 ? double.MaxValue
                 : (now - accountCreatedAt.Value).TotalDays,
-            // Follow age has no stored source yet: only the follow event carries it. The ladder's
-            // Newcomer/Known/Regular tiers need it, so they stay out of reach until S-SPAM-FOLLOW-AGE.
-            IsFollowing = false,
-            FollowAgeHours = 0,
+            Follow = FollowState.Unknown,
             Username = request.DisplayName,
             IsSubscriberAnywhere = request.IsSubscriber,
+            LowTrustStatus = lowTrustStatus,
             WatchTimeHoursThisChannel = TimeSpan.FromSeconds(secondsHere).TotalHours,
             WatchTimeHoursInstanceWide = TimeSpan.FromSeconds(secondsInstance).TotalHours,
         };
@@ -598,44 +701,59 @@ public sealed class SpamDefenseService : ISpamDefenseService
             settings.SemiTrustedWatchHoursInstance
         );
 
-        return TrustTierLadder.Resolve(
+        TrustTierThresholds thresholds = new()
+        {
+            EstablishedDays = settings.TrustThresholds.EstablishedDays,
+            EstablishedMessages = settings.TrustThresholds.EstablishedMessages,
+            EstablishedDistinctActiveDays = settings.TrustThresholds.EstablishedDistinctActiveDays,
+        };
+
+        // The follow lookup is paid for (a Helix call), so it only runs when it can change the answer:
+        // either the tier, or the follow limit of a viewer the newcomer gate would still measure.
+        SpamTrustTier tierWithoutFollow = TrustTierLadder.Resolve(
             facts,
             participation,
             risk,
-            new TrustTierThresholds
-            {
-                EstablishedDays = settings.TrustThresholds.EstablishedDays,
-                EstablishedMessages = settings.TrustThresholds.EstablishedMessages,
-                EstablishedDistinctActiveDays = settings
-                    .TrustThresholds
-                    .EstablishedDistinctActiveDays,
-            }
+            thresholds
         );
+        bool followFeedsGate =
+            settings.FollowAgeGateDays > 0 && !AccountAgeGate.IsExempt(tierWithoutFollow);
+        if (
+            !followFeedsGate
+            && !TrustTierLadder.FollowCanChangeTier(facts, participation, risk, thresholds)
+        )
+            return (tierWithoutFollow, facts);
+
+        FollowLookup follow = await _follows.ResolveAsync(
+            request.BroadcasterId,
+            request.Provider,
+            request.PlatformUserId,
+            ct
+        );
+        if (follow is { State: FollowState.Following, FollowedAt: not null })
+            facts = facts with
+            {
+                Follow = FollowState.Following,
+                FollowAgeHours = Math.Max(
+                    0,
+                    (now - follow.FollowedAt.Value.UtcDateTime).TotalHours
+                ),
+            };
+        else if (follow.State == FollowState.NotFollowing)
+            facts = facts with { Follow = FollowState.NotFollowing };
+
+        return (TrustTierLadder.Resolve(facts, participation, risk, thresholds), facts);
     }
 
     /// <summary>
     /// When this channel may first act: its stamped clock, else seven days after it was onboarded (a channel
     /// that never saved settings tracks the enabled defaults, so it has been observing since then).
     /// </summary>
-    private async Task<DateTime?> EnforcementEligibleAtAsync(
-        Guid broadcasterId,
-        CancellationToken ct
-    )
-    {
-        DateTime? stamped = await _db
-            .SpamDefensePolicies.IgnoreQueryFilters()
-            .Where(p => p.BroadcasterId == broadcasterId && p.DeletedAt == null)
-            .Select(p => p.EnforcementEligibleAt)
-            .FirstOrDefaultAsync(ct);
-        return stamped
-            ?? (await ChannelCreatedAtAsync(broadcasterId, ct))?.AddDays(ObservationDays);
-    }
+    private Task<DateTime?> EnforcementEligibleAtAsync(Guid broadcasterId, CancellationToken ct) =>
+        SpamObservationWindow.EligibleAtAsync(_db, broadcasterId, ct);
 
-    private async Task<bool> IsInObservationWindowAsync(Guid broadcasterId, CancellationToken ct)
-    {
-        DateTime? eligibleAt = await EnforcementEligibleAtAsync(broadcasterId, ct);
-        return eligibleAt is not null && _time.GetUtcNow().UtcDateTime < eligibleAt.Value;
-    }
+    private Task<bool> IsInObservationWindowAsync(Guid broadcasterId, CancellationToken ct) =>
+        SpamObservationWindow.IsActiveAsync(_db, _time, broadcasterId, ct);
 
     private Task<DateTime?> ChannelCreatedAtAsync(Guid broadcasterId, CancellationToken ct) =>
         _db

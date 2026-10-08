@@ -46,6 +46,7 @@ public class MassBanBatchTargetConfiguration : IEntityTypeConfiguration<MassBanB
         builder.Property(e => e.TwitchUserId).HasMaxLength(50);
         builder.Property(e => e.Reason).HasMaxLength(500);
         builder.Property(e => e.Error).HasMaxLength(500);
+        builder.Property(e => e.Attempts).HasDefaultValue(0);
         builder.HasIndex(e => new { e.MassBanBatchId, e.ProcessedAt });
     }
 }

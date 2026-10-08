@@ -50,6 +50,7 @@ public sealed record SpamEvaluationRequest(
 /// normalizations drifting and cohorts forming on a different string than detections matched.
 /// </param>
 /// <param name="Settings">The settings this verdict was reached under, so later layers agree with it.</param>
+/// <param name="Gate">The newcomer limit this verdict came from, when it did; null for content verdicts.</param>
 public sealed record SpamEvaluationResult(
     SpamDecision Decision,
     SpamConfidence Confidence,
@@ -57,7 +58,8 @@ public sealed record SpamEvaluationResult(
     IReadOnlyList<ContentSignal> Signals,
     Guid? DetectionId,
     string Skeleton,
-    SpamDefenseSettings Settings
+    SpamDefenseSettings Settings,
+    AccountAgeGateVerdict? Gate = null
 );
 
 /// <summary>
@@ -143,6 +145,17 @@ public interface ISpamDefenseService
     /// </summary>
     Task<SpamEvaluationResult?> EvaluateAsync(
         SpamEvaluationRequest request,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Record that a qualified campaign raised this sender's verdict. Updates the message's detection
+    /// row when <paramref name="evaluated"/> wrote one, otherwise inserts one.
+    /// </summary>
+    Task RecordCampaignEscalationAsync(
+        SpamEvaluationRequest request,
+        SpamEvaluationResult evaluated,
+        SpamDecision escalated,
         CancellationToken ct = default
     );
 }

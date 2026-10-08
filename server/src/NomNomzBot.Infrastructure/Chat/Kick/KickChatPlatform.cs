@@ -168,7 +168,7 @@ public sealed class KickChatPlatform : IChatPlatform
         return ChatUnbanOutcome.Failed;
     }
 
-    public async Task DeleteMessageAsync(
+    public async Task<bool> DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
@@ -178,7 +178,7 @@ public sealed class KickChatPlatform : IChatPlatform
         if (access is null)
         {
             LogNoToken("delete message", broadcasterId);
-            return;
+            return false;
         }
 
         Result deleted = await _client.DeleteMessageAsync(
@@ -193,6 +193,7 @@ public sealed class KickChatPlatform : IChatPlatform
                 deleted.ErrorMessage,
                 deleted.ErrorCode
             );
+        return deleted.IsSuccess;
     }
 
     private async Task<bool> SendCoreAsync(
