@@ -236,7 +236,7 @@ class SongRequestsControllerTest {
     }
 
     @Test
-    fun a_failed_ban_announces_on_the_feedback_toast_and_keeps_the_queue() = runTest {
+    fun a_failed_ban_is_handed_back_to_the_confirm_without_a_toast_and_keeps_the_queue() = runTest {
         val queue = listOf(QueuedSong(position = 0, trackName = "A"))
         val songRequestsApi =
             FakeSongRequestsApi(
@@ -252,14 +252,14 @@ class SongRequestsControllerTest {
             )
 
         controller.load()
-        controller.ban(0)
+        val result: ApiResult<Unit> = controller.ban(0)
 
         assertEquals(listOf("ch1" to 0), songRequestsApi.banCalls)
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
         assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf("Ban failed."), feedback.only.formatArgs)
+        assertEquals("Ban failed.", (result as ApiResult.Failure).error.message)
+        assertEquals(emptyList(), feedback.messages)
         assertEquals(1, songRequestsApi.queueCalls)
     }
 

@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.songrequests.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlockTrackBody
 import bot.nomnomz.dashboard.core.network.BlockedTrack
@@ -33,6 +34,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
+import nomnomzbot.composeapp.generated.resources.songrequests_no_channel_error
+import org.jetbrains.compose.resources.getString
 
 private const val PLAYLIST_PAGE_SIZE: Int = 50
 private const val PLAYLIST_MAX_PAGES: Int = 10
@@ -212,7 +215,12 @@ class SongRequestsController(
      * Ban the queued song at [position] from future song requests, removing it from the live queue too.
      * The screen gates this behind a confirmation before calling. Reloads on success.
      */
-    suspend fun ban(position: Int) = control { channel -> songRequestsApi.ban(channel, position) }
+    suspend fun ban(position: Int): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<Unit> = songRequestsApi.ban(channel, position)
+        if (result is ApiResult.Ok) load()
+        return result
+    }
 
     /** Save a patched SR / music config. Reloads on success. */
     suspend fun updateConfig(body: UpdateMusicConfigBody) {
@@ -268,23 +276,24 @@ class SongRequestsController(
         updateConfig(UpdateMusicConfigBody(maxRequestsPerRole = withRoleCap(stored, role, cap)))
     }
 
-    /** Rotate the SR-page token so the old share link stops working. */
-    suspend fun rotateSrPageToken() {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<String> = songRequestsApi.rotateSrPageToken(channel)) {
-            is ApiResult.Ok -> {
-                val current: SongRequestsState = _state.value
-                if (current is SongRequestsState.Ready) {
-                    _state.value =
-                        current.copy(
-                            srPageToken = result.value,
-                            tokenUrl = buildTokenUrl(baseUrlProvider(), result.value),
-                        )
-                }
-            }
-            is ApiResult.Failure -> surfaceError(result.error.message)
+    /** Rotate the SR-page token so the old share link stops working. A failure is handed back to the open confirm. */
+    suspend fun rotateSrPageToken(): ApiResult<String> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<String> = songRequestsApi.rotateSrPageToken(channel)
+        val current: SongRequestsState = _state.value
+        if (result is ApiResult.Ok && current is SongRequestsState.Ready) {
+            _state.value =
+                current.copy(
+                    srPageToken = result.value,
+                    tokenUrl = buildTokenUrl(baseUrlProvider(), result.value),
+                )
         }
+        return result
     }
+
+    // Nothing was sent (no channel resolved yet): the dialog shows the reason.
+    private suspend fun <T> noChannel(): ApiResult<T> =
+        ApiResult.Failure(ApiError(0, null, getString(Res.string.songrequests_no_channel_error)))
 
     /**
      * Subscribe to [hubEvents] so the queue refreshes when the current track changes. A play/pause toggle
