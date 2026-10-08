@@ -1479,5 +1479,120 @@ public class SpamDefenseServiceTests : IDisposable
         await api.DidNotReceiveWithAnyArgs().GetChannelFollowerAsync(default, default!, default);
     }
 
+    // ---- Account / follow age gate ---------------------------------------------------------------
+
+    private void SeedAccount(string twitchUserId, double ageDays)
+    {
+        using AppDbContext db = NewDbContext();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = twitchUserId,
+                Username = twitchUserId,
+                UsernameNormalized = twitchUserId,
+                DisplayName = twitchUserId,
+                AccountCreatedAt = Now.UtcDateTime.AddDays(-ageDays),
+            }
+        );
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task AFreshAccountsFirstMessage_IsHeld_AndRecordedWithTheGateAsTheReason()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
+        SeedAccount("fresh-1", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello everyone", "fresh-1"));
+
+        result.Gate.Should().NotBeNull();
+        result.Gate!.Kind.Should().Be(AccountAgeGateKind.AccountTooYoung);
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Decision.Reason.Should().Contain("7 day");
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Signals.Should().Be(nameof(ContentSignal.AccountAgeGate));
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        stored.WasDryRun.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TheSameYoungAccount_AsAModerator_IsNotGated_AndLeavesNoDetection()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
+        SeedAccount("mod-1", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("hello everyone", "mod-1", isModerator: true)
+        );
+
+        result.Gate.Should().BeNull();
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDetections.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AZeroLimit_GatesNothing()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+        SeedAccount("fresh-2", ageDays: 0.1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello everyone", "fresh-2"));
+
+        result.Gate.Should().BeNull();
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+    }
+
+    [Fact]
+    public async Task InDryRun_TheGateRecordsWhatItWouldDo_AndActsOnNothing()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = true, AccountAgeGateDays = 7 });
+        SeedAccount("fresh-3", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello everyone", "fresh-3"));
+
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.Decision.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Decision.IsDryRun.Should().BeTrue();
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.WasDryRun.Should().BeTrue();
+        stored.Outcome.Should().Be(SpamOutcome.None);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndQueue);
+    }
+
+    [Fact]
+    public async Task AFollowOfTwoHours_UnderAOneDayFollowLimit_IsHeld_ForAnOldAccount()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, FollowAgeGateDays = 1 });
+        SeedAccount("follower-9", ageDays: 400);
+        IFollowStateService follows = Substitute.For<IFollowStateService>();
+        follows
+            .ResolveAsync(Channel, Arg.Any<string>(), "follower-9", Arg.Any<CancellationToken>())
+            .Returns(new FollowLookup(FollowState.Following, Now.AddHours(-2)));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db, follows: follows)
+            .EvaluateAsync(Message("hello everyone", "follower-9"));
+
+        result!.Gate.Should().NotBeNull();
+        result.Gate!.Kind.Should().Be(AccountAgeGateKind.FollowTooYoung);
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+    }
+
+    [Fact]
+    public async Task AContentVerdictStricterThanTheGate_IsNotWeakenedByIt()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
+        SeedAccount("fresh-4", ageDays: 1);
+
+        SpamEvaluationResult result = await EvaluateAsync(Message(Link, "fresh-4"));
+
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Gate.Should().BeNull("the content layer already removed the message");
+    }
+
     public void Dispose() => _connection.Dispose();
 }
