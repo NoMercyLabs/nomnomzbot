@@ -15,15 +15,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "LockdownWindows",
                 type: "TEXT",
                 nullable: false,
-                defaultValue: "[]");
+                defaultValue: "[]"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ApplyFailedControlsJson",
-                table: "LockdownWindows");
+            migrationBuilder.DropColumn(name: "ApplyFailedControlsJson", table: "LockdownWindows");
         }
     }
 }

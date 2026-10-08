@@ -15,15 +15,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "LockdownWindows",
                 type: "text",
                 nullable: false,
-                defaultValue: "[]");
+                defaultValue: "[]"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ApplyFailedControlsJson",
-                table: "LockdownWindows");
+            migrationBuilder.DropColumn(name: "ApplyFailedControlsJson", table: "LockdownWindows");
         }
     }
 }
