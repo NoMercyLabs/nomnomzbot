@@ -243,8 +243,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             message = stringResource(Res.string.admin_iam_deactivate_confirm),
             confirmLabel = stringResource(Res.string.admin_iam_deactivate),
             onConfirm = { reason ->
-                scope.launch { controller.deactivatePrincipal(principal.id, reason.ifBlank { null }) }
-                deactivateFor = null
+                controller.deactivatePrincipal(principal.id, reason.ifBlank { null }).toDialogResult()
             },
             onDismiss = { deactivateFor = null },
         )
@@ -256,8 +255,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             message = stringResource(Res.string.admin_iam_revoke_confirm_body, assignment.roleName),
             confirmLabel = stringResource(Res.string.admin_iam_revoke),
             onConfirm = { reason ->
-                scope.launch { controller.revokeAssignment(assignment.id, reason.ifBlank { null }) }
-                revokeFor = null
+                controller.revokeAssignment(assignment.id, reason.ifBlank { null }).toDialogResult()
             },
             onDismiss = { revokeFor = null },
         )
@@ -465,14 +463,19 @@ private fun ReasonedConfirmDialog(
     title: String,
     message: String,
     confirmLabel: String,
-    onConfirm: (reason: String) -> Unit,
+    onConfirm: suspend (reason: String) -> DialogResult,
     onDismiss: () -> Unit,
 ) {
-    val spacing = LocalSpacing.current
     var reason: String by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = title)
+    FormDialog(
+        title = title,
+        saveLabel = confirmLabel,
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = { onConfirm(reason) },
+        destructive = true,
+    ) {
         DialogDescription(text = message)
         bot.nomnomz.dashboard.core.designsystem.component.AppTextField(
             value = reason,
@@ -480,12 +483,6 @@ private fun ReasonedConfirmDialog(
             label = stringResource(Res.string.admin_iam_reason),
             modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(spacing.s1))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(onClick = { onConfirm(reason) }, variant = ButtonVariant.Destructive) { Text(text = confirmLabel) }
-        }
     }
 }
 

@@ -1004,12 +1004,11 @@ class AdminController(
         _state.value = _state.value.copy(issuedServiceAccountKey = null)
     }
 
-    suspend fun deactivatePrincipal(principalId: String, reason: String?) {
-        when (val result: ApiResult<Unit> = iamApi.deactivatePrincipal(principalId, reason)) {
-            is ApiResult.Ok -> loadIam()
-            // Self-deactivation returns VALIDATION_FAILED — surface the message, don't swallow it.
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+    /** The caller's dialog shows a failure inline (self-deactivation returns VALIDATION_FAILED), so no toast. */
+    suspend fun deactivatePrincipal(principalId: String, reason: String?): ApiResult<Unit> {
+        val result: ApiResult<Unit> = iamApi.deactivatePrincipal(principalId, reason)
+        if (result is ApiResult.Ok) loadIam()
+        return result
     }
 
     suspend fun reactivatePrincipal(principalId: String) {
@@ -1026,11 +1025,11 @@ class AdminController(
         return result
     }
 
-    suspend fun revokeAssignment(assignmentId: String, reason: String?) {
-        when (val result: ApiResult<Unit> = iamApi.revokeAssignment(assignmentId, reason)) {
-            is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+    /** The caller's dialog shows a failure inline, so no toast is raised here. */
+    suspend fun revokeAssignment(assignmentId: String, reason: String?): ApiResult<Unit> {
+        val result: ApiResult<Unit> = iamApi.revokeAssignment(assignmentId, reason)
+        if (result is ApiResult.Ok) loadIam()
+        return result
     }
 
     // ── Provider app credentials ────────────────────────────────────────────
