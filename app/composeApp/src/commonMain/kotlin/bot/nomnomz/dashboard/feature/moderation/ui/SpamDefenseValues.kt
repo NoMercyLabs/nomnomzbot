@@ -28,6 +28,7 @@ internal object SpamDefenseValues {
     private val toggleKeys: Set<String> = setOf(
         "IsEnabled",
         "DryRun",
+        "AccountGateHoldsForReview",
         "NonLatinScriptGate",
         "AutoReverseOnDequalify",
         "LockdownAutoExtend",
@@ -51,6 +52,7 @@ internal object SpamDefenseValues {
         when (key) {
             "IsEnabled" -> settings.isEnabled
             "DryRun" -> settings.dryRun
+            "AccountGateHoldsForReview" -> settings.accountGateHoldsForReview
             "NonLatinScriptGate" -> settings.nonLatinScriptGate
             "AutoReverseOnDequalify" -> settings.autoReverseOnDequalify
             "LockdownAutoExtend" -> settings.lockdownAutoExtend
@@ -67,6 +69,7 @@ internal object SpamDefenseValues {
         when (key) {
             "IsEnabled" -> settings.copy(isEnabled = value)
             "DryRun" -> settings.copy(dryRun = value)
+            "AccountGateHoldsForReview" -> settings.copy(accountGateHoldsForReview = value)
             "NonLatinScriptGate" -> settings.copy(nonLatinScriptGate = value)
             "AutoReverseOnDequalify" -> settings.copy(autoReverseOnDequalify = value)
             "LockdownAutoExtend" -> settings.copy(lockdownAutoExtend = value)
@@ -79,6 +82,8 @@ internal object SpamDefenseValues {
         when (key) {
             "SemiTrustedWatchHoursHere" -> trim(settings.semiTrustedWatchHoursHere)
             "SemiTrustedWatchHoursInstance" -> trim(settings.semiTrustedWatchHoursInstance)
+            "AccountAgeGateDays" -> settings.accountAgeGateDays.toString()
+            "FollowAgeGateDays" -> settings.followAgeGateDays.toString()
             "NearDuplicateSimilarity" -> settings.nearDuplicateSimilarity.toString()
             "MinimumSkeletonLength" -> settings.minimumSkeletonLength.toString()
             "QualifyNoStandingShare" -> settings.qualifyNoStandingShare.toString()
@@ -112,6 +117,8 @@ internal object SpamDefenseValues {
         return when (key) {
             "SemiTrustedWatchHoursHere" -> settings.copy(semiTrustedWatchHoursHere = number)
             "SemiTrustedWatchHoursInstance" -> settings.copy(semiTrustedWatchHoursInstance = number)
+            "AccountAgeGateDays" -> settings.copy(accountAgeGateDays = whole)
+            "FollowAgeGateDays" -> settings.copy(followAgeGateDays = whole)
             "NearDuplicateSimilarity" -> settings.copy(nearDuplicateSimilarity = number)
             "MinimumSkeletonLength" -> settings.copy(minimumSkeletonLength = whole)
             "QualifyNoStandingShare" -> settings.copy(qualifyNoStandingShare = number)

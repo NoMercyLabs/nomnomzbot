@@ -165,6 +165,13 @@ public static class SpamEnforcement
     }
 
     /// <summary>
+    /// A newcomer-limit verdict (<see cref="AccountAgeGate"/>): the message is removed and queued for a
+    /// moderator, never the account. In dry run it only records what would have happened.
+    /// </summary>
+    public static SpamDecision Gate(AccountAgeGateVerdict verdict, bool dryRun) =>
+        Build(SpamOutcome.DeleteAndQueue, dryRun, verdict.Reason);
+
+    /// <summary>
     /// In dry run the outcome becomes <see cref="SpamOutcome.None"/> while
     /// <see cref="SpamDecision.WouldHaveBeen"/> keeps the real verdict, so the dashboard can show exactly
     /// what would have happened without anything happening.

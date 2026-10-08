@@ -8060,6 +8060,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AccountAgeGateDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AccountGateHoldsForReview")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("ActionDelaySeconds")
                         .HasColumnType("integer");
 
@@ -8086,6 +8092,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FollowAgeGateDays")
+                        .HasColumnType("integer");
 
                     b.Property<double>("FollowSpikeFactor")
                         .HasColumnType("double precision");

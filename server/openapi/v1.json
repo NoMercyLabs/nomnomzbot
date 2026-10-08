@@ -118639,6 +118639,28 @@
             "description": "Watch hours across this instance's channels that grant Semi-Trusted.",
             "format": "double"
           },
+          "accountAgeGateDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Hold chat from accounts younger than this many days. 0 is off.",
+            "format": "int32"
+          },
+          "followAgeGateDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Hold chat from followers who followed less than this many days ago. 0 is off.",
+            "format": "int32"
+          },
+          "accountGateHoldsForReview": {
+            "type": "boolean",
+            "description": "A gated message waits for a moderator (true) or is removed outright (false)."
+          },
           "nearDuplicateSimilarity": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
             "type": [

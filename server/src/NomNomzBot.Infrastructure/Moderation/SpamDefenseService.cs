@@ -423,7 +423,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
             await BuildContentPolicyAsync(settings, ct)
         );
 
-        SpamTrustTier tier = await ResolveTierAsync(request, settings, ct);
+        (SpamTrustTier tier, AccountFacts facts) = await ResolveTierAsync(request, settings, ct);
         // Enforcement switched on inside the observation window still only observes: the window is the
         // safety story (§6.2), so turning dry run off early cannot skip it.
         bool observing =
@@ -453,9 +453,25 @@ public sealed class SpamDefenseService : ISpamDefenseService
                     ),
             };
 
+        // The newcomer gate (a channel's own age limit) only ever raises a verdict: a message the content
+        // layer already removes keeps its stricter outcome and its own reasons.
+        AccountAgeGateVerdict? gate =
+            decision.WouldHaveBeen < SpamOutcome.DeleteAndQueue
+                ? AccountAgeGate.Evaluate(settings, facts, tier)
+                : null;
+        if (gate is not null)
+        {
+            decision = SpamEnforcement.Gate(gate, observing);
+            signals = [.. signals, ContentSignal.AccountAgeGate];
+        }
+
         // Nothing fired and nothing to say: do not write a row per ordinary message. The detection log
         // is for verdicts a human might review, not a copy of chat.
-        if (confidence == SpamConfidence.Zero && decision.WouldHaveBeen == SpamOutcome.None)
+        if (
+            gate is null
+            && confidence == SpamConfidence.Zero
+            && decision.WouldHaveBeen == SpamOutcome.None
+        )
             return new SpamEvaluationResult(
                 decision,
                 confidence,
@@ -495,7 +511,8 @@ public sealed class SpamDefenseService : ISpamDefenseService
             signals,
             detection.Id,
             normalized.Skeleton,
-            settings
+            settings,
+            gate
         );
     }
 
@@ -593,14 +610,14 @@ public sealed class SpamDefenseService : ISpamDefenseService
     /// when they first spoke here, how much they have said, and on how many separate days, which is the
     /// part that stops a burst of messages in one night from buying immunity.</para>
     /// </summary>
-    private async Task<SpamTrustTier> ResolveTierAsync(
+    private async Task<(SpamTrustTier Tier, AccountFacts Facts)> ResolveTierAsync(
         SpamEvaluationRequest request,
         SpamDefenseSettings settings,
         CancellationToken ct
     )
     {
         if (request.IsBroadcaster || request.IsModerator || request.IsVip)
-            return SpamTrustTier.Established;
+            return (SpamTrustTier.Established, new AccountFacts());
 
         DateTime now = _time.GetUtcNow().UtcDateTime;
 
@@ -674,9 +691,21 @@ public sealed class SpamDefenseService : ISpamDefenseService
             EstablishedDistinctActiveDays = settings.TrustThresholds.EstablishedDistinctActiveDays,
         };
 
-        // The follow lookup is paid for (a Helix call), so it only runs when it can change the answer.
-        if (!TrustTierLadder.FollowCanChangeTier(facts, participation, risk, thresholds))
-            return TrustTierLadder.Resolve(facts, participation, risk, thresholds);
+        // The follow lookup is paid for (a Helix call), so it only runs when it can change the answer:
+        // either the tier, or the follow limit of a viewer the newcomer gate would still measure.
+        SpamTrustTier tierWithoutFollow = TrustTierLadder.Resolve(
+            facts,
+            participation,
+            risk,
+            thresholds
+        );
+        bool followFeedsGate =
+            settings.FollowAgeGateDays > 0 && !AccountAgeGate.IsExempt(tierWithoutFollow);
+        if (
+            !followFeedsGate
+            && !TrustTierLadder.FollowCanChangeTier(facts, participation, risk, thresholds)
+        )
+            return (tierWithoutFollow, facts);
 
         FollowLookup follow = await _follows.ResolveAsync(
             request.BroadcasterId,
@@ -696,7 +725,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
         else if (follow.State == FollowState.NotFollowing)
             facts = facts with { Follow = FollowState.NotFollowing };
 
-        return TrustTierLadder.Resolve(facts, participation, risk, thresholds);
+        return (TrustTierLadder.Resolve(facts, participation, risk, thresholds), facts);
     }
 
     /// <summary>

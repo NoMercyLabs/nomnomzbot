@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 
@@ -10,9 +11,11 @@ using NomNomzBot.Infrastructure.Platform.Persistence;
 namespace NomNomzBot.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008064231_AddAccountAgeGate")]
+    partial class AddAccountAgeGate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -7813,11 +7816,6 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
-                    b.Property<int>("Attempts")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
-
                     b.Property<bool>("Banned")
                         .HasColumnType("INTEGER");
 
@@ -7828,9 +7826,6 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid>("MassBanBatchId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("NextAttemptAt")
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("TEXT");

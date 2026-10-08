@@ -22,4 +22,7 @@ public enum ModerationQueueSource
 
     /// <summary>A viewer's heat crossed the channel's threshold and no automatic action was taken (S-HEAT-FLAG-HUMAN).</summary>
     HeatThreshold = 10,
+
+    /// <summary>A message from an account or follow younger than the channel's newcomer limit was held.</summary>
+    AccountAgeGate = 20,
 }
