@@ -82,14 +82,18 @@ public sealed class ModerationQueueService : IModerationQueueService
     )
     {
         // One held message is one row per channel, whichever source reports it (a chat message can trip an
-        // AutoMod hold and a chat filter at once). A repeat returns the row that already exists.
-        Guid? existing = await FindHeldRowIdAsync(
+        // AutoMod hold and a chat filter at once). A repeat returns the row that already exists. Only an
+        // AutoMod row relays its verdict to Twitch, so a late AutoMod hold takes over a pending filter row.
+        ModerationQueueItem? existing = await FindHeldRowAsync(
             broadcasterId,
             autoModMessageId,
             cancellationToken
         );
-        if (existing is { } existingId)
-            return Result.Success(existingId);
+        if (existing is not null)
+        {
+            await UpgradeToAutoModAsync(existing, source, category, cancellationToken);
+            return Result.Success(existing.Id);
+        }
 
         Guid? targetUserId = null;
         Result<UserDto> user = await _users.GetOrCreateAsync(
@@ -122,14 +126,15 @@ public sealed class ModerationQueueService : IModerationQueueService
         {
             // Lost a race to the unique (channel, message id) index: the other writer's row is the one.
             _db.Entry(item).State = EntityState.Detached;
-            Guid? winner = await FindHeldRowIdAsync(
+            ModerationQueueItem? winner = await FindHeldRowAsync(
                 broadcasterId,
                 autoModMessageId,
                 cancellationToken
             );
-            if (winner is { } winnerId)
-                return Result.Success(winnerId);
-            throw;
+            if (winner is null)
+                throw;
+            await UpgradeToAutoModAsync(winner, source, category, cancellationToken);
+            return Result.Success(winner.Id);
         }
         return Result.Success(item.Id);
     }
@@ -422,20 +427,36 @@ public sealed class ModerationQueueService : IModerationQueueService
         return stale.Count;
     }
 
-    private async Task<Guid?> FindHeldRowIdAsync(
+    private Task<ModerationQueueItem?> FindHeldRowAsync(
         Guid broadcasterId,
         string autoModMessageId,
         CancellationToken cancellationToken
-    )
-    {
-        Guid id = await _db
+    ) =>
+        _db
             .ModerationQueueItems.Where(i =>
                 i.BroadcasterId == broadcasterId && i.AutoModMessageId == autoModMessageId
             )
             .OrderBy(i => i.CreatedAt)
-            .Select(i => i.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        return id == Guid.Empty ? null : id;
+
+    // A pending row another source opened becomes the AutoMod row once Twitch reports the hold, so the
+    // moderator's verdict on it reaches Twitch. A resolved row stays as it was.
+    private async Task UpgradeToAutoModAsync(
+        ModerationQueueItem existing,
+        ModerationQueueSource source,
+        string category,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            source != ModerationQueueSource.AutoMod
+            || existing.Source == ModerationQueueSource.AutoMod
+            || existing.Status != ModerationQueueStatus.Pending
+        )
+            return;
+        existing.Source = ModerationQueueSource.AutoMod;
+        existing.AutoModCategory = category;
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     // Closes a row Twitch no longer holds and tells the dashboard (the same event a Twitch-reported expiry

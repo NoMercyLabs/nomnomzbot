@@ -757,6 +757,72 @@ public sealed class ModerationQueueServiceTests
         stored.AutoModCategory.Should().Be("swearing");
     }
 
+    // A chat filter or the suspicious-user handler can hold a message before the AutoMod hold for the same
+    // message arrives. Only an AutoMod row relays its resolve to Twitch, so the row must become AutoMod's.
+    [Fact]
+    public async Task EnqueueHeldMessageAsync_AnAutoModHoldOfAChatFilterMessage_MakesTheRowAutoMods()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        Result<Guid> chatFilter = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-late",
+            "9001",
+            "chatter",
+            "text",
+            "caps",
+            source: ModerationQueueSource.ChatFilter
+        );
+
+        Result<Guid> autoMod = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-late",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        autoMod.Value.Should().Be(chatFilter.Value);
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Source.Should().Be(ModerationQueueSource.AutoMod);
+        stored.AutoModCategory.Should().Be("swearing");
+        stored.Status.Should().Be(ModerationQueueStatus.Pending);
+    }
+
+    [Fact]
+    public async Task EnqueueHeldMessageAsync_AnAutoModHoldOfAResolvedChatFilterRow_LeavesTheRowAlone()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        Result<Guid> chatFilter = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-done",
+            "9001",
+            "chatter",
+            "text",
+            "caps",
+            source: ModerationQueueSource.ChatFilter
+        );
+        ModerationQueueItem row = await db.ModerationQueueItems.SingleAsync(i =>
+            i.Id == chatFilter.Value
+        );
+        row.Status = ModerationQueueStatus.Denied;
+        await db.SaveChangesAsync();
+
+        Result<Guid> autoMod = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-done",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+
+        autoMod.Value.Should().Be(chatFilter.Value);
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Source.Should().Be(ModerationQueueSource.ChatFilter);
+        stored.AutoModCategory.Should().Be("caps");
+    }
+
     [Fact]
     public async Task EnqueueHeldMessageAsync_TheSameMessageIdInAnotherChannel_GetsItsOwnRow()
     {
