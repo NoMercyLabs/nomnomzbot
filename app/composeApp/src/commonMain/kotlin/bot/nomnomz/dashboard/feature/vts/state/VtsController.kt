@@ -144,10 +144,19 @@ class VtsController(
         }
     }
 
-    /** Rotate the bridge token (bridge mode). Reloads on success; surfaces the error on failure. */
-    suspend fun rotateBridgeToken() {
-        val id: String = channelId ?: return failWrite(getString(Res.string.vts_no_channel_error))
-        afterWrite(vtsApi.rotateBridgeToken(id))
+    /**
+     * Rotate the bridge token (bridge mode). Reloads on success; a failure is handed back untouched so the confirm
+     * dialog shows the reason inline (no toast on top).
+     */
+    suspend fun rotateBridgeToken(): ApiResult<Unit> {
+        val id: String = channelId ?: return noChannelFailure()
+        return when (val result: ApiResult<VtsConnection> = vtsApi.rotateBridgeToken(id)) {
+            is ApiResult.Ok -> {
+                refresh()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
     }
 
     /**
@@ -176,13 +185,6 @@ class VtsController(
     }
 
     // ── internals ────────────────────────────────────────────────────────────
-
-    private suspend fun afterWrite(result: ApiResult<*>) {
-        when (result) {
-            is ApiResult.Ok -> refresh()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
-    }
 
     private fun failWrite(detail: String) {
         feedback.error(Res.string.vts_action_error, detail)
