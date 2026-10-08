@@ -594,10 +594,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-FILTER-LINKPOLICY** `ChatFilter.LinkPolicyJson` is stored and never read; the LinkPolicy kind
   and `ExemptMinRoleLevel` have no dashboard control. Done-when: the link policy (allowed domains,
   bare-domain matching) is applied and editable.
-- [ ] **S-AUTOMOD-QUEUE-HYGIENE** no sweeper expires pending AutoMod queue rows and `AutoModMessageId`
-  has no unique index (`ModerationQueueItemConfiguration.cs:33-34`): a missed update leaves a row the
-  streamer cannot dismiss; a redelivered hold duplicates it. Done-when: expired rows close themselves
-  (Twitch holds expire), redelivery is idempotent, a row Twitch no longer knows can be dismissed.
 - [ ] **S-MASSBAN-RETRY** `ProcessedAt` is stamped before the ban call (`MassBanExecutor.cs:141`), so a
   429/5xx target is never retried and failures are log-only. Done-when: transient failures retry with
   backoff, the result (banned / failed with reason) is shown to the streamer.
