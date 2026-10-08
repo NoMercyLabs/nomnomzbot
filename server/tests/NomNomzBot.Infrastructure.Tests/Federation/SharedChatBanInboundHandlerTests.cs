@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Federation;
@@ -47,7 +48,10 @@ public sealed class SharedChatBanInboundHandlerTests
     [Fact]
     public void It_declares_the_type_and_gating_opt_in_that_form_the_accept_set()
     {
-        SharedChatBanInboundHandler handler = new(new RecordingSharedBans());
+        SharedChatBanInboundHandler handler = new(
+            new RecordingSharedBans(),
+            NullLogger<SharedChatBanInboundHandler>.Instance
+        );
         handler.Type.Should().Be("moderation.ban.shared");
         handler.GatingOptInType.Should().Be(FederationOptInType.SharedChatBans);
     }
@@ -56,7 +60,10 @@ public sealed class SharedChatBanInboundHandlerTests
     public async Task It_deserializes_the_payload_and_applies_it_to_the_target_via_the_federated_path()
     {
         RecordingSharedBans bans = new();
-        SharedChatBanInboundHandler handler = new(bans);
+        SharedChatBanInboundHandler handler = new(
+            bans,
+            NullLogger<SharedChatBanInboundHandler>.Instance
+        );
         string payload = JsonConvert.SerializeObject(
             new SharedChatBanIssuedEvent
             {
@@ -80,10 +87,44 @@ public sealed class SharedChatBanInboundHandlerTests
     }
 
     [Fact]
+    public async Task A_ban_the_service_could_not_place_does_not_abort_the_other_targets()
+    {
+        // The service already reported the refusal (event + inbox item); failing the apply here would make the
+        // federation translator abort the envelope for every OTHER target channel too.
+        RecordingSharedBans bans = new()
+        {
+            Outcome = Result.Failure<SharedBanApplicationResult>(
+                "Twitch refused the shared ban.",
+                "twitch_ban_failed"
+            ),
+        };
+        SharedChatBanInboundHandler handler = new(
+            bans,
+            NullLogger<SharedChatBanInboundHandler>.Instance
+        );
+        string payload = JsonConvert.SerializeObject(
+            new SharedChatBanIssuedEvent
+            {
+                SharedChatSessionId = "n/a",
+                OriginChannelId = OriginChannel,
+                TargetTwitchUserId = "troll-42",
+            }
+        );
+
+        Result result = await handler.ApplyAsync(Peer, Target, EnvelopeWith(payload));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        bans.Applied.Should().ContainSingle("the ban was attempted");
+    }
+
+    [Fact]
     public async Task A_malformed_payload_fails_closed_and_never_reaches_the_service()
     {
         RecordingSharedBans bans = new();
-        SharedChatBanInboundHandler handler = new(bans);
+        SharedChatBanInboundHandler handler = new(
+            bans,
+            NullLogger<SharedChatBanInboundHandler>.Instance
+        );
 
         Result result = await handler.ApplyAsync(Peer, Target, EnvelopeWith("{ not valid json"));
 
@@ -96,7 +137,10 @@ public sealed class SharedChatBanInboundHandlerTests
     public async Task A_payload_missing_the_target_user_id_fails_closed()
     {
         RecordingSharedBans bans = new();
-        SharedChatBanInboundHandler handler = new(bans);
+        SharedChatBanInboundHandler handler = new(
+            bans,
+            NullLogger<SharedChatBanInboundHandler>.Instance
+        );
         string payload = JsonConvert.SerializeObject(new { originChannelId = OriginChannel });
 
         Result result = await handler.ApplyAsync(Peer, Target, EnvelopeWith(payload));
@@ -110,6 +154,9 @@ public sealed class SharedChatBanInboundHandlerTests
     {
         public List<(Guid Target, SharedChatBanIssuedEvent Event)> Applied { get; } = [];
 
+        public Result<SharedBanApplicationResult> Outcome { get; set; } =
+            Result.Success(new SharedBanApplicationResult(1));
+
         public Task<Result<SharedBanApplicationResult>> ApplyInboundFederatedBanAsync(
             Guid targetBroadcasterId,
             SharedChatBanIssuedEvent inbound,
@@ -117,7 +164,7 @@ public sealed class SharedChatBanInboundHandlerTests
         )
         {
             Applied.Add((targetBroadcasterId, inbound));
-            return Task.FromResult(Result.Success(new SharedBanApplicationResult(true, null, 1)));
+            return Task.FromResult(Outcome);
         }
 
         public Task<Result<SharedBanSettingsDto>> GetSettingsAsync(

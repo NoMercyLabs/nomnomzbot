@@ -20,9 +20,11 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation.Lockdown;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -53,6 +55,7 @@ public class LockdownServiceTests : IDisposable
 
     private readonly SqliteConnection _connection;
     private readonly FakeTimeProvider _time = new(T0);
+    private readonly CapturingEventBus _bus = new();
     private readonly ITwitchChatApi _chat = Substitute.For<ITwitchChatApi>();
     private readonly ITwitchModerationApi _moderation = Substitute.For<ITwitchModerationApi>();
 
@@ -179,6 +182,7 @@ public class LockdownServiceTests : IDisposable
             spam,
             [new TwitchLockdownAdapter(_chat, _moderation)],
             _time,
+            _bus,
             NullLogger<LockdownService>.Instance
         );
         return await action(service);
@@ -672,6 +676,185 @@ public class LockdownServiceTests : IDisposable
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         Windows().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Engage_announces_what_was_tightened_what_was_unavailable_and_what_failed()
+    {
+        _shieldUpdateFails = wanted => wanted;
+
+        Result<LockdownWindowStatus> result = await EngageAsync(
+            "twitch",
+            LockdownControl.FollowersOnly,
+            LockdownControl.ShieldMode,
+            LockdownControl.BlockedTerms
+        );
+
+        LockdownEngagedEvent announced = _bus.EventsOf<LockdownEngagedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        announced.BroadcasterId.Should().Be(Channel);
+        announced.WindowId.Should().Be(result.Value.Id).And.Be(Windows().Single().Id);
+        announced.Platform.Should().Be("twitch");
+        announced.Trigger.Should().Be("hate raid: 40 fresh accounts, one phrase");
+        announced.StartedAt.Should().Be(T0);
+        announced.ExpiresAt.Should().Be(T0.AddMinutes(15));
+        announced.OccurredAt.Should().Be(T0);
+        announced.Engaged.Should().Equal(LockdownControl.FollowersOnly);
+        announced.Unavailable.Should().Equal(LockdownControl.BlockedTerms);
+        announced.ApplyFailed.Should().Equal(LockdownControl.ShieldMode);
+        _bus.Published.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_refused_engage_announces_nothing()
+    {
+        await EngageAsync("myspace", LockdownControl.SlowMode);
+
+        _bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Engaging_again_announces_the_new_end_time_and_does_not_announce_a_second_engage()
+    {
+        await EngageAsync("twitch", LockdownControl.SlowMode);
+        _time.Advance(TimeSpan.FromMinutes(10));
+
+        await EngageAsync("twitch", LockdownControl.SlowMode);
+
+        LockdownExtendedEvent extended = _bus.EventsOf<LockdownExtendedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        extended.BroadcasterId.Should().Be(Channel);
+        extended.WindowId.Should().Be(Windows().Single().Id);
+        extended.Platform.Should().Be("twitch");
+        extended.ExpiresAt.Should().Be(T0.AddMinutes(25));
+        extended.OccurredAt.Should().Be(T0.AddMinutes(10));
+        _bus.EventsOf<LockdownEngagedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Engaging_again_without_a_new_end_time_announces_no_extension()
+    {
+        _policy = new SpamDefenseSettings { LockdownAutoExtend = false };
+        await EngageAsync("twitch", LockdownControl.SlowMode);
+        _time.Advance(TimeSpan.FromMinutes(10));
+
+        await EngageAsync("twitch", LockdownControl.SlowMode);
+
+        _bus.EventsOf<LockdownExtendedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_full_restore_announces_the_controls_it_put_back()
+    {
+        await EngageAsync("twitch", LockdownControl.FollowersOnly, LockdownControl.ShieldMode);
+        _time.Advance(TimeSpan.FromMinutes(16));
+
+        await RestoreDueAsync();
+
+        LockdownRestoredEvent restored = _bus.EventsOf<LockdownRestoredEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        restored.BroadcasterId.Should().Be(Channel);
+        restored.WindowId.Should().Be(Windows().Single().Id);
+        restored.Platform.Should().Be("twitch");
+        restored.RestoredAt.Should().Be(T0.AddMinutes(16));
+        restored.Restored.Should().Equal(LockdownControl.FollowersOnly, LockdownControl.ShieldMode);
+        _bus.EventsOf<LockdownRestoreFailedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Ending_a_window_early_announces_the_restore()
+    {
+        await EngageAsync("twitch", LockdownControl.SlowMode);
+        _time.Advance(TimeSpan.FromMinutes(3));
+
+        await RunAsync(s => s.EndAsync(Channel, "twitch"));
+
+        LockdownRestoredEvent restored = _bus.EventsOf<LockdownRestoredEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        restored.RestoredAt.Should().Be(T0.AddMinutes(3));
+        restored.Restored.Should().Equal(LockdownControl.SlowMode);
+    }
+
+    [Fact]
+    public async Task A_failed_restore_announces_the_control_left_tightened_once_and_the_later_success_only_the_retried_one()
+    {
+        await EngageAsync("twitch", LockdownControl.FollowersOnly, LockdownControl.ShieldMode);
+        _shieldUpdateFails = wanted => !wanted;
+        _time.Advance(TimeSpan.FromMinutes(16));
+
+        await RestoreDueAsync();
+
+        LockdownRestoreFailedEvent failed = _bus.EventsOf<LockdownRestoreFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        failed.BroadcasterId.Should().Be(Channel);
+        failed.WindowId.Should().Be(Windows().Single().Id);
+        failed.Platform.Should().Be("twitch");
+        failed.Failed.Should().Equal(LockdownControl.ShieldMode);
+        _bus.EventsOf<LockdownRestoredEvent>().Should().BeEmpty();
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await RestoreDueAsync();
+        _bus.EventsOf<LockdownRestoreFailedEvent>().Should().ContainSingle();
+
+        _shieldUpdateFails = _ => false;
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await RestoreDueAsync();
+
+        LockdownRestoredEvent restored = _bus.EventsOf<LockdownRestoredEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        restored.Restored.Should().Equal(LockdownControl.ShieldMode);
+        restored.RestoredAt.Should().Be(T0.AddMinutes(18));
+    }
+
+    [Fact]
+    public async Task Active_lists_only_windows_that_are_not_yet_restored_for_this_channel()
+    {
+        await EngageAsync("twitch", LockdownControl.SlowMode, LockdownControl.ShieldMode);
+
+        IReadOnlyList<LockdownWindowStatus> active = await RunAsync(s => s.GetActiveAsync(Channel));
+        IReadOnlyList<LockdownWindowStatus> other = await RunAsync(s =>
+            s.GetActiveAsync(Guid.Parse("0199c000-0000-7000-8000-0000000000b2"))
+        );
+
+        LockdownWindowStatus window = active.Should().ContainSingle().Subject;
+        window.Platform.Should().Be("twitch");
+        window.Engaged.Should().Equal(LockdownControl.SlowMode, LockdownControl.ShieldMode);
+        window.ExpiresAt.Should().Be(T0.AddMinutes(15));
+        window.RestoredAt.Should().BeNull();
+        other.Should().BeEmpty();
+
+        _time.Advance(TimeSpan.FromMinutes(16));
+        await RestoreDueAsync();
+        (await RunAsync(s => s.GetActiveAsync(Channel))).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Active_still_lists_a_window_whose_restore_left_a_control_tightened()
+    {
+        await EngageAsync("twitch", LockdownControl.ShieldMode);
+        _shieldUpdateFails = wanted => !wanted;
+        _time.Advance(TimeSpan.FromMinutes(16));
+        await RestoreDueAsync();
+
+        IReadOnlyList<LockdownWindowStatus> active = await RunAsync(s => s.GetActiveAsync(Channel));
+
+        active
+            .Should()
+            .ContainSingle()
+            .Which.RestorationFailed.Should()
+            .Equal(LockdownControl.ShieldMode);
     }
 
     public void Dispose() => _connection.Dispose();

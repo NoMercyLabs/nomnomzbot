@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Trust;
 using NomNomzBot.Domain.Trust.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -451,6 +452,137 @@ public sealed class ModerationProjectionServiceTests
         (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
 
         await sut.ApplyActionAsync(Channel, "stranger-nobody-knows", "ban", T0);
+
+        (await db.ModerationHistoryEntries.CountAsync()).Should().Be(0);
+    }
+
+    private static WarningSentEvent SentWarning(DateTime at) =>
+        new()
+        {
+            BroadcasterId = Channel,
+            OccurredAt = new DateTimeOffset(at),
+            UserId = SubjectTwitchId,
+            UserDisplayName = "Viewer42",
+            UserLogin = "viewer42",
+            ModeratorId = "mod-1",
+            ModeratorDisplayName = "ModOne",
+            Reason = "Too many caps",
+            ChatRulesCited = [],
+        };
+
+    private static WarningAcknowledgedEvent Acknowledged(DateTime at) =>
+        new()
+        {
+            BroadcasterId = Channel,
+            OccurredAt = new DateTimeOffset(at),
+            UserId = SubjectTwitchId,
+            UserDisplayName = "Viewer42",
+            UserLogin = "viewer42",
+        };
+
+    [Fact]
+    public async Task A_sent_warning_then_an_acknowledgement_marks_the_stored_warning_with_the_time()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+
+        await new WarningSentProjectionHandler(sut).HandleAsync(SentWarning(T0));
+        ModerationHistoryEntry beforeAck = await db.ModerationHistoryEntries.SingleAsync();
+        beforeAck.AcknowledgedAt.Should().BeNull("a warning starts unacknowledged");
+
+        await new WarningAcknowledgedProjectionHandler(sut).HandleAsync(
+            Acknowledged(T0.AddSeconds(40))
+        );
+
+        ModerationHistoryEntry stored = await db.ModerationHistoryEntries.SingleAsync();
+        stored.ActionType.Should().Be("warn");
+        stored.Reason.Should().Be("Too many caps");
+        stored.AcknowledgedAt.Should().Be(T0.AddSeconds(40));
+        (await db.UserModerationHistories.SingleAsync()).WarningCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task The_viewer_card_shows_when_the_viewer_was_warned_and_when_they_acknowledged()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+        ModerationService moderation = new(
+            db,
+            Substitute.For<Application.Contracts.Twitch.ITwitchModerationApi>(),
+            Substitute.For<Application.Contracts.Twitch.ITwitchModeratorsApi>(),
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            TimeProvider.System,
+            NullLogger<ModerationService>.Instance,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
+        );
+
+        await new WarningSentProjectionHandler(sut).HandleAsync(SentWarning(T0));
+        Result<UserModerationContextDto> warned = await moderation.GetUserContextAsync(
+            Channel.ToString(),
+            SubjectTwitchId
+        );
+        warned.Value.History!.LastWarningAt.Should().Be(T0);
+        warned.Value.History.LastWarningAcknowledgedAt.Should().BeNull();
+
+        await new WarningAcknowledgedProjectionHandler(sut).HandleAsync(
+            Acknowledged(T0.AddSeconds(40))
+        );
+        Result<UserModerationContextDto> acknowledged = await moderation.GetUserContextAsync(
+            Channel.ToString(),
+            SubjectTwitchId
+        );
+        acknowledged.Value.History!.LastWarningAt.Should().Be(T0);
+        acknowledged.Value.History.LastWarningAcknowledgedAt.Should().Be(T0.AddSeconds(40));
+    }
+
+    [Fact]
+    public async Task An_acknowledgement_marks_only_the_latest_open_warning()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+        WarningSentProjectionHandler sent = new(sut);
+        WarningAcknowledgedProjectionHandler acked = new(sut);
+
+        await sent.HandleAsync(SentWarning(T0));
+        await acked.HandleAsync(Acknowledged(T0.AddMinutes(1)));
+        await sent.HandleAsync(SentWarning(T0.AddMinutes(10)));
+        await acked.HandleAsync(Acknowledged(T0.AddMinutes(11)));
+
+        List<ModerationHistoryEntry> rows = await db
+            .ModerationHistoryEntries.OrderBy(e => e.OccurredAt)
+            .ToListAsync();
+        rows.Should().HaveCount(2, "a matched acknowledgement adds no row of its own");
+        rows.Select(r => r.AcknowledgedAt).Should().Equal(T0.AddMinutes(1), T0.AddMinutes(11));
+    }
+
+    [Fact]
+    public async Task An_acknowledgement_with_no_matching_warning_is_stored_without_crashing()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+
+        Func<Task> act = () =>
+            new WarningAcknowledgedProjectionHandler(sut).HandleAsync(
+                Acknowledged(T0.AddSeconds(5))
+            );
+
+        await act.Should().NotThrowAsync();
+        ModerationHistoryEntry stored = await db.ModerationHistoryEntries.SingleAsync();
+        stored.ActionType.Should().Be(ModerationHistoryEntryKinds.WarningAcknowledged);
+        stored.SubjectUserId.Should().Be(Subject);
+        stored.OccurredAt.Should().Be(T0.AddSeconds(5));
+        stored.AcknowledgedAt.Should().Be(T0.AddSeconds(5));
+        (await db.UserModerationHistories.CountAsync())
+            .Should()
+            .Be(0, "an orphan acknowledgement is not a warning and must not bump the rollup");
+    }
+
+    [Fact]
+    public async Task An_acknowledgement_for_an_unknown_viewer_stores_nothing_and_does_not_crash()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+
+        await new WarningAcknowledgedProjectionHandler(sut).HandleAsync(Acknowledged(T0));
 
         (await db.ModerationHistoryEntries.CountAsync()).Should().Be(0);
     }

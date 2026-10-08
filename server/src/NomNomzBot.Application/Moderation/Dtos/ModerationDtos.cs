@@ -78,7 +78,9 @@ public sealed record UserModerationHistorySummaryDto(
     int MessagesDeletedCount,
     DateTime? FirstSeenAt,
     DateTime? LastActionAt,
-    string? LastActionType
+    string? LastActionType,
+    DateTime? LastWarningAt = null,
+    DateTime? LastWarningAcknowledgedAt = null
 );
 
 /// <summary>The J.5 trust + heat pair as the mod panel shows it.</summary>

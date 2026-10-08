@@ -66,7 +66,8 @@ public sealed class ModerationHistoryService(
                 e.ModeratorDisplayName,
                 e.Reason,
                 e.DurationSeconds,
-                e.OccurredAt
+                e.OccurredAt,
+                e.AcknowledgedAt
             ))
             .ToListAsync(ct);
 
