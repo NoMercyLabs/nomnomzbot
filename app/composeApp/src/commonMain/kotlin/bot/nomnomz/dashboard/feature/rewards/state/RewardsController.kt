@@ -146,8 +146,9 @@ class RewardsController(
 
     /**
      * Create a reward, then reload so the new row appears. [timerDurationSeconds] (0/null = no countdown) starts a
-     * countdown on each redemption; [pipelineId] (null = none) binds a pipeline that runs on redemption. Surfaces
-     * the error on failure.
+     * countdown on each redemption; [pipelineId] (null = none) binds a pipeline that runs on redemption. The result
+     * is handed back untouched: the editor stays open until it arrives and shows a failure's reason inline, so no
+     * failure toast fires.
      */
     suspend fun createReward(
         title: String,
@@ -161,9 +162,9 @@ class RewardsController(
         globalCooldownSeconds: Int?,
         timerDurationSeconds: Int?,
         pipelineId: String?,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             rewardsApi.create(
                 channel,
                 CreateRewardBody(
@@ -186,7 +187,7 @@ class RewardsController(
     /**
      * Edit a reward's title / cost / prompt / [response] text / enabled flag, plus its countdown
      * [timerDurationSeconds] (0 clears) and bound [pipelineId] (empty string clears), addressed by its
-     * [rewardId]. Reloads on success. Surfaces the error on failure.
+     * [rewardId]. Reloads on success. The result is handed back untouched, like [createReward].
      */
     suspend fun updateReward(
         rewardId: String,
@@ -203,9 +204,9 @@ class RewardsController(
         globalCooldownSeconds: Int?,
         timerDurationSeconds: Int?,
         pipelineId: String?,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannel()
+        return afterDialogWrite(
             rewardsApi.update(
                 channel,
                 rewardId,
@@ -297,11 +298,7 @@ class RewardsController(
      */
     suspend fun deleteReward(rewardId: String): ApiResult<Unit> {
         val channel: String = channelId ?: return noChannel()
-        val result: ApiResult<Unit> = rewardsApi.delete(channel, rewardId)
-        if (result is ApiResult.Ok) {
-            load()
-        }
-        return result
+        return afterDialogWrite(rewardsApi.delete(channel, rewardId))
     }
 
     /**
@@ -435,6 +432,13 @@ class RewardsController(
 
     private suspend fun noChannel(): ApiResult.Failure =
         ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = noChannelError()))
+
+    // A write fired from a dialog that stays open until the server answers: success reloads, a failure is
+    // handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
+        if (result is ApiResult.Ok) load()
+        return result
+    }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
