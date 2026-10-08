@@ -224,7 +224,18 @@ class SongRequestsController(
         return result
     }
 
-    /** Save a patched SR / music config. Reloads on success. */
+    /**
+     * Save the settings form's batched edits. Reloads on success. The result goes back to the Save control, which
+     * keeps the edited values and shows a failure next to itself; no toast.
+     */
+    suspend fun saveConfig(body: UpdateMusicConfigBody): ApiResult<MusicConfig> {
+        val channel: String = channelId ?: return noChannel()
+        val result: ApiResult<MusicConfig> = songRequestsApi.updateConfig(channel, body)
+        if (result is ApiResult.Ok) load()
+        return result
+    }
+
+    /** Save a patched SR / music config (toggles, banger). Reloads on success; surfaces the error on failure. */
     suspend fun updateConfig(body: UpdateMusicConfigBody) {
         val channel: String = channelId ?: return
         when (val result: ApiResult<MusicConfig> = songRequestsApi.updateConfig(channel, body)) {
