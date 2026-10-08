@@ -1114,6 +1114,7 @@
     <string name="moderation_reports_reported_by">Gemeld door %1$s</string>
     <string name="moderation_reports_escalate">Escaleren</string>
     <string name="moderation_reports_dismiss">Afwijzen</string>
+    <string name="moderation_reports_load_failed">De kijkersmeldingen konden niet geladen worden, dus in deze lijst kunnen meldingen ontbreken. Probeer opnieuw om het nog eens te controleren.</string>
     <string name="moderation_automod_queue_title">Vastgehouden berichten (AutoMod)</string>
     <string name="moderation_automod_queue_category">Gemarkeerd voor %1$s</string>
     <string name="moderation_automod_queue_approve">Goedkeuren</string>

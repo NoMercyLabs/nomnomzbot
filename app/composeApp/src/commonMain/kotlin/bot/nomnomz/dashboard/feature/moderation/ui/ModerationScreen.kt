@@ -367,6 +367,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_automod_queue_deny
 import nomnomzbot.composeapp.generated.resources.moderation_automod_queue_title
 import nomnomzbot.composeapp.generated.resources.moderation_reports_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_reports_escalate
+import nomnomzbot.composeapp.generated.resources.moderation_reports_load_failed
 import nomnomzbot.composeapp.generated.resources.moderation_reports_reported_by
 import nomnomzbot.composeapp.generated.resources.moderation_reports_title
 import nomnomzbot.composeapp.generated.resources.moderation_retry
@@ -616,6 +617,8 @@ fun ModerationScreen(
                     stats = current.stats,
                     unbanRequests = current.unbanRequests,
                     reports = current.reports,
+                    reportsError = current.reportsError,
+                    onRetryReports = { scope.launch { controller.retryReports() } },
                     automodQueue = current.automodQueue,
                     bansAvailable = current.bansAvailable,
                     blockedTermsAvailable = current.blockedTermsAvailable,
@@ -830,6 +833,8 @@ internal fun BansList(
     unbanRequests: List<UnbanRequest>,
     reports: List<ViewerReport>,
     automodQueue: List<ModerationQueueItem>,
+    reportsError: String? = null,
+    onRetryReports: () -> Unit = {},
     bansAvailable: Boolean,
     blockedTermsAvailable: Boolean,
     shieldAvailable: Boolean,
@@ -1110,7 +1115,7 @@ internal fun BansList(
                 }
             }
         }
-        if (reports.isNotEmpty()) {
+        if (reports.isNotEmpty() || reportsError != null) {
             sectionItem(section, ModerationSection.Queue, "reports-header") {
                 Text(
                     text = stringResource(Res.string.moderation_reports_title),
@@ -1122,6 +1127,10 @@ internal fun BansList(
             sectionItem(section, ModerationSection.Queue, "reports-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
+                        if (reportsError != null) {
+                            ReportsLoadFailedNotice(onRetry = onRetryReports)
+                            if (reports.isNotEmpty()) Separator()
+                        }
                         reports.forEachIndexed { index, report ->
                             ViewerReportRow(
                                 report = report,
@@ -3106,6 +3115,32 @@ private fun AutomodLoadFailedCard(onRetry: () -> Unit) {
                 color = tokens.destructive,
             )
             Button(onClick = onRetry) { Text(text = stringResource(Res.string.state_retry)) }
+        }
+    }
+}
+
+// The viewer-reports read failed: say so, with a quiet Outline Retry. It sits inside the reports card, so it never
+// competes with the page's primary action, and the list is never silently shown as empty.
+@Composable
+private fun ReportsLoadFailedNotice(onRetry: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = spacing.s4, vertical = spacing.s3)
+                .testTag("reports-load-failed"),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.moderation_reports_load_failed),
+            style = typography.sm,
+            color = tokens.destructive,
+        )
+        Button(onClick = onRetry, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
+            Text(text = stringResource(Res.string.state_retry))
         }
     }
 }

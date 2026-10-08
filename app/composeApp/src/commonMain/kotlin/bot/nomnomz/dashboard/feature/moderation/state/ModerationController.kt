@@ -69,6 +69,9 @@ import bot.nomnomz.dashboard.core.network.PlatformViewer
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.onConfigChange
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -309,10 +312,15 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Open viewer reports awaiting triage. Resilient — a failure degrades to an empty queue.
+        // Open viewer reports awaiting triage. A failure is NOT "no reports": the error stays in state so the
+        // screen says the list could not be loaded instead of showing an empty queue.
+        var reportsError: String? = null
         val reports: List<ViewerReport> =
             when (val result: ApiResult<List<ViewerReport>> = moderationApi.reports(channel.id)) {
-                is ApiResult.Failure -> emptyList()
+                is ApiResult.Failure -> {
+                    reportsError = result.error.message
+                    emptyList()
+                }
                 is ApiResult.Ok -> result.value
             }
 
@@ -451,6 +459,7 @@ class ModerationController(
                     chatFilters.isEmpty() &&
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
+                    reportsError == null &&
                     automodQueue.isEmpty() &&
                     historyEntries.isEmpty() &&
                     // The Trust & Automation section always has something to show when it is readable —
@@ -483,6 +492,7 @@ class ModerationController(
                     stats = stats,
                     unbanRequests = unbanRequests,
                     reports = reports,
+                    reportsError = reportsError,
                     automodQueue = automodQueue,
                     bansAvailable = bansAvailable,
                     blockedTermsAvailable = blockedTermsAvailable,
@@ -1209,7 +1219,9 @@ class ModerationController(
      * - [HubEvent.AutoModQueueChanged]: re-fetches the pending AutoMod queue so a newly held message (or a
      *   resolution made anywhere) shows without a reload.
      */
-    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>): Unit = coroutineScope {
+        // A viewer report filed or resolved anywhere is announced on the "viewer-reports" config domain.
+        launch { hubEvents.onConfigChange("viewer-reports") { retryReports() } }
         hubEvents.collect { evt ->
             if (evt is HubEvent.AutoModQueueChanged) {
                 refreshAutomodQueue()
@@ -1229,6 +1241,28 @@ class ModerationController(
             )
             _state.value = current.copy(modLog = (listOf(entry) + current.modLog).take(50))
         }
+    }
+
+    /**
+     * Re-fetch the viewer reports alone (hub push, or the Retry on the failed-load notice). On a Ready state only
+     * the reports and their error are swapped: a good read clears the error, a failed one keeps the known
+     * reports and records the error. Any other state falls back to a full [load].
+     */
+    suspend fun retryReports() {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) {
+            load()
+            return
+        }
+        val result: ApiResult<List<ViewerReport>> = moderationApi.reports(channel)
+        val latest: ModerationState = _state.value
+        if (latest !is ModerationState.Ready) return
+        _state.value =
+            when (result) {
+                is ApiResult.Ok -> latest.copy(reports = result.value, reportsError = null)
+                is ApiResult.Failure -> latest.copy(reportsError = result.error.message)
+            }
     }
 
     /**
@@ -1464,6 +1498,8 @@ sealed interface ModerationState {
         val stats: ModerationStats = ModerationStats(),
         val unbanRequests: List<UnbanRequest> = emptyList(),
         val reports: List<ViewerReport> = emptyList(),
+        // The message of a failed reports read, null when the last read succeeded. Never shown as an empty list.
+        val reportsError: String? = null,
         // The AutoMod held-message review queue (J.1, S066) — pending items awaiting approve/deny. See load().
         val automodQueue: List<ModerationQueueItem> = emptyList(),
         // Live-Twitch sections: false when the section's read failed (missing scope / bot not installed here), so
