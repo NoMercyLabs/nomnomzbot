@@ -21,7 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -62,7 +63,6 @@ import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialo
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
 import nomnomzbot.composeapp.generated.resources.platform_templates_browse
 import nomnomzbot.composeapp.generated.resources.rewards_template_creates
-import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
@@ -309,8 +309,9 @@ fun RewardsScreen(
             templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
             onSubmit = { result ->
-                editor = null
-                scope.launch {
+                // The editor stays open until the server answers; Twitch can refuse a reward (duplicate title,
+                // limits), and the reason shows inline with the typed input kept.
+                val answer: ApiResult<Unit> =
                     if (open.isEdit)
                         controller.updateReward(
                             open.id,
@@ -342,7 +343,7 @@ fun RewardsScreen(
                             result.timerDurationSeconds,
                             result.pipelineId,
                         )
-                }
+                answer.toDialogResult()
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
         )
@@ -964,7 +965,7 @@ private fun RewardFormDialog(
     editor: RewardEditor,
     pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onSubmit: (RewardFormResult) -> Unit,
+    onSubmit: suspend (RewardFormResult) -> DialogResult,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     // Null only in a state-holder test that never opens the helper picker — the affordance is simply
     // absent then, rather than a button that opens a dialog with nothing in it.
@@ -999,6 +1000,20 @@ private fun RewardFormDialog(
     val colorValid: Boolean = backgroundColor.isBlank() || parseHexColor(backgroundColor) != null
     val canSubmit: Boolean =
         title.isNotBlank() && parsedCost != null && parsedCost > 0 && timerValid && colorValid
+    val dirty: Boolean =
+        title != editor.title ||
+            cost != editor.cost ||
+            prompt != editor.prompt ||
+            response != editor.response ||
+            enabled != editor.isEnabled ||
+            paused != editor.isPaused ||
+            requireInput != editor.isUserInputRequired ||
+            backgroundColor != editor.backgroundColor ||
+            maxPerStream != editor.maxPerStream ||
+            maxPerUser != editor.maxPerUserPerStream ||
+            globalCooldown != editor.globalCooldownSeconds ||
+            timerSeconds != editor.timerDurationSeconds ||
+            selectedPipelineId != editor.pipelineId
     val dialogTitle: String =
         stringResource(
             if (editor.isEdit) Res.string.rewards_dialog_edit_title
@@ -1012,163 +1027,140 @@ private fun RewardFormDialog(
     val pausedLabel: String = stringResource(Res.string.rewards_dialog_paused_label)
     val requireInputLabel: String = stringResource(Res.string.rewards_dialog_require_input_label)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = dialogTitle) },
-        text = {
-            ScrollArea(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s3),
-                ) {
-                    AppTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_title_label),
-                    )
-                    AppTextField(
-                        value = cost,
-                        // Digits only — drop anything else so the cost field can never hold a non-number.
-                        onValueChange = { input -> cost = input.filter { it.isDigit() } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_cost_label),
-                    )
-                    AppTextField(
-                        value = prompt,
-                        onValueChange = { prompt = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_prompt_label),
-                    )
-                    // The chat message the bot posts when this reward is redeemed. Blank = no announcement.
-                    AppTextField(
-                        value = response,
-                        onValueChange = { response = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_response_label),
-                    )
-                    // The last free-text template field in the product without a helper picker (S043). A
-                    // redemption announcement wants {user} as much as any command response does, and without
-                    // this the streamer has to know the token vocabulary by heart.
-                    templateHelpersApi?.let { helpers ->
-                        TemplateHelpersLink(
-                            context = TemplateHelperContext.EventResponse,
-                            api = helpers,
-                            onInsert = { token ->
-                                response = if (response.isBlank()) token else "$response $token"
-                            },
-                        )
-                    }
-                    // The reward card's background colour (hex). Blank = Twitch's default. Uses the design-system
-                    // colour control (hex field + live swatch).
-                    ColorField(
-                        value = backgroundColor,
-                        onValueChange = { backgroundColor = it },
-                        isError = !colorValid,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_background_color_label),
-                    )
-                    // Twitch redemption limits — blank = no limit. Digits only.
-                    AppTextField(
-                        value = maxPerStream,
-                        onValueChange = { input -> maxPerStream = input.filter { it.isDigit() } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_max_per_stream_label),
-                    )
-                    AppTextField(
-                        value = maxPerUser,
-                        onValueChange = { input -> maxPerUser = input.filter { it.isDigit() } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_max_per_user_label),
-                    )
-                    AppTextField(
-                        value = globalCooldown,
-                        onValueChange = { input -> globalCooldown = input.filter { it.isDigit() } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_cooldown_label),
-                    )
-                    // Optional countdown a redemption auto-starts (seconds; blank/0 = none). Digits only.
-                    AppTextField(
-                        value = timerSeconds,
-                        onValueChange = { input -> timerSeconds = input.filter { it.isDigit() } },
-                        isError = !timerValid,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        label = stringResource(Res.string.rewards_dialog_timer_label),
-                    )
-                    // Optional pipeline to run on redemption. A reference to another table (the channel's pipelines) →
-                    // the shared bind picker: pick an existing pipeline OR create-and-bind a new one without leaving
-                    // this dialog (S046). Shown even with zero pipelines yet, since create-and-bind is how a channel
-                    // makes its first one.
-                    PipelineBindPicker(
-                        pipelines = pipelines,
-                        selectedId = selectedPipelineId,
-                        onSelect = { selectedPipelineId = it },
-                        onCreate = { name -> onCreatePipeline(name) },
-                        pickLabel = stringResource(Res.string.rewards_dialog_pipeline_label),
-                        choosePlaceholder = stringResource(Res.string.rewards_dialog_pipeline_choose),
-                        createNewLabel = stringResource(Res.string.rewards_dialog_pipeline_create_new),
-                        newNameLabel = stringResource(Res.string.rewards_dialog_pipeline_new_name),
-                        createLabel = stringResource(Res.string.rewards_dialog_pipeline_create_confirm),
-                        cancelLabel = stringResource(Res.string.rewards_dialog_cancel),
-                    )
-                    ToggleRow(
-                        label = requireInputLabel,
-                        checked = requireInput,
-                        onCheckedChange = { requireInput = it },
-                    )
-                    ToggleRow(label = enabledLabel, checked = enabled, onCheckedChange = { enabled = it })
-                    // Pause is an edit-only concept (a freshly created reward is never pre-paused).
-                    if (editor.isEdit) {
-                        ToggleRow(label = pausedLabel, checked = paused, onCheckedChange = { paused = it })
-                    }
-                }
-            }
+    FormDialog(
+        title = dialogTitle,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.rewards_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = dirty,
+        valid = canSubmit,
+        save = {
+            val validCost: Int = parsedCost ?: return@FormDialog DialogResult.Failed()
+            onSubmit(
+                RewardFormResult(
+                    title = title,
+                    cost = validCost,
+                    prompt = prompt,
+                    response = response,
+                    isEnabled = enabled,
+                    isPaused = paused,
+                    isUserInputRequired = requireInput,
+                    backgroundColor = backgroundColor.ifBlank { null },
+                    maxPerStream = parsedMaxPerStream,
+                    maxPerUserPerStream = parsedMaxPerUser,
+                    globalCooldownSeconds = parsedCooldown,
+                    timerDurationSeconds = parsedTimer ?: 0,
+                    pipelineId = selectedPipelineId,
+                )
+            )
         },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    parsedCost?.let { validCost ->
-                        onSubmit(
-                            RewardFormResult(
-                                title = title,
-                                cost = validCost,
-                                prompt = prompt,
-                                response = response,
-                                isEnabled = enabled,
-                                isPaused = paused,
-                                isUserInputRequired = requireInput,
-                                backgroundColor = backgroundColor.ifBlank { null },
-                                maxPerStream = parsedMaxPerStream,
-                                maxPerUserPerStream = parsedMaxPerUser,
-                                globalCooldownSeconds = parsedCooldown,
-                                timerDurationSeconds = parsedTimer ?: 0,
-                                pipelineId = selectedPipelineId,
-                            )
-                        )
-                    }
+    ) {
+        AppTextField(
+            value = title,
+            onValueChange = { title = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_title_label),
+        )
+        AppTextField(
+            value = cost,
+            // Digits only — drop anything else so the cost field can never hold a non-number.
+            onValueChange = { input -> cost = input.filter { it.isDigit() } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_cost_label),
+        )
+        AppTextField(
+            value = prompt,
+            onValueChange = { prompt = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_prompt_label),
+        )
+        // The chat message the bot posts when this reward is redeemed. Blank = no announcement.
+        AppTextField(
+            value = response,
+            onValueChange = { response = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_response_label),
+        )
+        // The last free-text template field in the product without a helper picker (S043). A
+        // redemption announcement wants {user} as much as any command response does, and without
+        // this the streamer has to know the token vocabulary by heart.
+        templateHelpersApi?.let { helpers ->
+            TemplateHelpersLink(
+                context = TemplateHelperContext.EventResponse,
+                api = helpers,
+                onInsert = { token ->
+                    response = if (response.isBlank()) token else "$response $token"
                 },
-                enabled = canSubmit,
-            ) {
-                Text(
-                    text = submitLabel,
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.rewards_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
-            }
-        },
-    )
+            )
+        }
+        // The reward card's background colour (hex). Blank = Twitch's default. Uses the design-system
+        // colour control (hex field + live swatch).
+        ColorField(
+            value = backgroundColor,
+            onValueChange = { backgroundColor = it },
+            isError = !colorValid,
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_background_color_label),
+        )
+        // Twitch redemption limits — blank = no limit. Digits only.
+        AppTextField(
+            value = maxPerStream,
+            onValueChange = { input -> maxPerStream = input.filter { it.isDigit() } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_max_per_stream_label),
+        )
+        AppTextField(
+            value = maxPerUser,
+            onValueChange = { input -> maxPerUser = input.filter { it.isDigit() } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_max_per_user_label),
+        )
+        AppTextField(
+            value = globalCooldown,
+            onValueChange = { input -> globalCooldown = input.filter { it.isDigit() } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_cooldown_label),
+        )
+        // Optional countdown a redemption auto-starts (seconds; blank/0 = none). Digits only.
+        AppTextField(
+            value = timerSeconds,
+            onValueChange = { input -> timerSeconds = input.filter { it.isDigit() } },
+            isError = !timerValid,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.rewards_dialog_timer_label),
+        )
+        // Optional pipeline to run on redemption. A reference to another table (the channel's pipelines) →
+        // the shared bind picker: pick an existing pipeline OR create-and-bind a new one without leaving
+        // this dialog (S046). Shown even with zero pipelines yet, since create-and-bind is how a channel
+        // makes its first one.
+        PipelineBindPicker(
+            pipelines = pipelines,
+            selectedId = selectedPipelineId,
+            onSelect = { selectedPipelineId = it },
+            onCreate = { name -> onCreatePipeline(name) },
+            pickLabel = stringResource(Res.string.rewards_dialog_pipeline_label),
+            choosePlaceholder = stringResource(Res.string.rewards_dialog_pipeline_choose),
+            createNewLabel = stringResource(Res.string.rewards_dialog_pipeline_create_new),
+            newNameLabel = stringResource(Res.string.rewards_dialog_pipeline_new_name),
+            createLabel = stringResource(Res.string.rewards_dialog_pipeline_create_confirm),
+            cancelLabel = stringResource(Res.string.rewards_dialog_cancel),
+        )
+        ToggleRow(
+            label = requireInputLabel,
+            checked = requireInput,
+            onCheckedChange = { requireInput = it },
+        )
+        ToggleRow(label = enabledLabel, checked = enabled, onCheckedChange = { enabled = it })
+        // Pause is an edit-only concept (a freshly created reward is never pre-paused).
+        if (editor.isEdit) {
+            ToggleRow(label = pausedLabel, checked = paused, onCheckedChange = { paused = it })
+        }
+    }
 }
 
 // A labelled switch row inside the reward form — the label on the leading edge, the switch trailing.
