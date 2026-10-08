@@ -568,8 +568,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
 - [ ] **S-SPAM-LOCKDOWN-WIRE** raid/burst trigger → LockdownWindow → platform chat controls →
   restore on expiry. Done-when: a test hate-raid tightens and later restores the platform rules.
   Also wires JoinBurstFactor (it triggers the lockdown).
-- [ ] **S-SPAM-SEED-CORPUS** idempotent seeder that loads `spec/data/spam-seed-corpus.md` as
-  SpamSignature rows with Source=Curated. Done-when: a fresh install matches a corpus skeleton.
 - [ ] **S-SPAM-CAMPAIGN-ESCALATE** `CohortObservation.MayAct` is never read: the campaign verdict does
   not drive enforcement (`SpamDefenseHandler` passes only the per-message decision), though the
   handler comment says it does. Done-when: a qualified campaign escalates a non-shielded sender per
