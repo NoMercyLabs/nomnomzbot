@@ -459,7 +459,8 @@ class CodeScriptsController(
      * There is no intermediate trip back to the plain list to click the new row: [compiledMessage] and
      * [rowTypeLabel] are the same caller-resolved strings [CodeScriptsScreen] already threads into
      * [openAndEdit], since this controller has no Composable context to resolve them itself. A failed create
-     * surfaces over the kept list without ever opening the editor.
+     * hands its result back untouched without ever opening the editor: the create dialog stays open with the typed
+     * values and shows the reason inline, so no toast fires here.
      */
     suspend fun create(
         name: String,
@@ -467,19 +468,16 @@ class CodeScriptsController(
         sourceCode: String,
         compiledMessage: String,
         rowTypeLabel: String,
-    ) {
-        when (
-            val result: ApiResult<CodeScriptDetail> =
-                api.create(CreateScriptBody(name, description?.takeIf { it.isNotBlank() }, sourceCode))
-        ) {
-            is ApiResult.Ok -> {
-                val displayName: String =
-                    resolveRowLabel(primary = result.value.name, typeLabel = rowTypeLabel, discriminatorSource = result.value.id)
-                open(result.value.id)
-                editOpenedScriptIfStillOpen(result.value.id, compiledMessage, displayName)
-            }
-            is ApiResult.Failure -> failWrite(result.error.message)
+    ): ApiResult<CodeScriptDetail> {
+        val result: ApiResult<CodeScriptDetail> =
+            api.create(CreateScriptBody(name, description?.takeIf { it.isNotBlank() }, sourceCode))
+        if (result is ApiResult.Ok) {
+            val displayName: String =
+                resolveRowLabel(primary = result.value.name, typeLabel = rowTypeLabel, discriminatorSource = result.value.id)
+            open(result.value.id)
+            editOpenedScriptIfStillOpen(result.value.id, compiledMessage, displayName)
         }
+        return result
     }
 
     /** Delete a script. Reloads the list on success. */

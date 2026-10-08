@@ -2007,7 +2007,6 @@
     <string name="scripts_delete_cancel">Annuleren</string>
     <string name="scripts_create_title">Nieuw script</string>
     <string name="scripts_create_name">Naam</string>
-    <string name="scripts_create_name_required">Naam is verplicht.</string>
     <string name="scripts_create_description">Omschrijving (optioneel)</string>
     <string name="scripts_create_source">Initiële broncode</string>
     <string name="scripts_create_confirm">Aanmaken</string>

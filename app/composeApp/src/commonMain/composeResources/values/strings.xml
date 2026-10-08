@@ -2012,7 +2012,6 @@
     <string name="scripts_delete_cancel">Cancel</string>
     <string name="scripts_create_title">New script</string>
     <string name="scripts_create_name">Name</string>
-    <string name="scripts_create_name_required">Name is required.</string>
     <string name="scripts_create_description">Description (optional)</string>
     <string name="scripts_create_source">Initial source code</string>
     <string name="scripts_create_confirm">Create</string>
