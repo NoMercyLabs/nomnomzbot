@@ -25,8 +25,8 @@ using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
-using NSubstitute;
 using NomNomzBot.Infrastructure.Tests.Platform.Security;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 

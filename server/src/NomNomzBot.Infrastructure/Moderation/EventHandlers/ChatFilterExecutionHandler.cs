@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -26,7 +27,6 @@ using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Contracts.Security;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
@@ -73,9 +73,7 @@ public sealed partial class ChatFilterExecutionHandler(
         // The channel's own saved filters are what authorise every enforcement below; without this the
         // transport refuses the timeout, which is the correct default for anything acting on its own.
         using IDisposable sanction = sanctions.Begin(
-            OutboundSanction.ChannelConfiguration(
-                "chat_filter"
-            )
+            OutboundSanction.ChannelConfiguration("chat_filter")
         );
 
         // Enforcement rides Helix (Twitch-only), and the broadcaster + moderators are never auto-filtered.

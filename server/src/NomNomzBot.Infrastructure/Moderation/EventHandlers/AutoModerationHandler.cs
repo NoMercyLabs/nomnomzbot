@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
@@ -24,7 +25,6 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Contracts.Security;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
@@ -82,9 +82,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
 
         // The channel's own automod rules are what authorise the ban/timeout below.
         using IDisposable sanction = _sanctions.Begin(
-            OutboundSanction.ChannelConfiguration(
-                "automod_rule"
-            )
+            OutboundSanction.ChannelConfiguration("automod_rule")
         );
 
         IReadOnlyList<AutoModRule> rules = await _rules.GetAsync(broadcasterId, cancellationToken);
