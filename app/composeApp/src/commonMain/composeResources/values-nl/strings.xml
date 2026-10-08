@@ -2067,6 +2067,7 @@
     <string name="provider_credentials_save">Opslaan en doorgaan</string>
     <string name="provider_credentials_saving">Opslaan…</string>
     <string name="provider_credentials_save_error">Opslaan van de gegevens mislukt: %1$s</string>
+    <string name="integrations_no_channel_error">Geen actief kanaal - verbind opnieuw en probeer het nog eens.</string>
     <!-- The reactive BYOC-onboarding dialog (S-OWN07): opened when a Connect click answers PROVIDER_NOT_CONFIGURED, instead of an error toast. -->
     <string name="integrations_onboarding_title">Stel %1$s eerst in</string>
     <string name="integrations_onboarding_cancel">Annuleren</string>

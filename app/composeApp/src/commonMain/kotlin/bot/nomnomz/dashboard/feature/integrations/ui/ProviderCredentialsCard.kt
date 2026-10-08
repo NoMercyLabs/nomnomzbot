@@ -42,6 +42,7 @@ import nomnomzbot.composeapp.generated.resources.provider_credentials_descriptio
 import nomnomzbot.composeapp.generated.resources.provider_credentials_missing_client_id
 import nomnomzbot.composeapp.generated.resources.provider_credentials_redirect_label
 import nomnomzbot.composeapp.generated.resources.provider_credentials_save
+import nomnomzbot.composeapp.generated.resources.provider_credentials_save_error
 import nomnomzbot.composeapp.generated.resources.provider_credentials_saving
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
@@ -66,8 +67,12 @@ fun ProviderCredentialsCard(
     missingClientId: Boolean,
     onSave: (clientId: String, clientSecret: String) -> Unit,
     modifier: Modifier = Modifier,
+    // The server's reason the last save failed; shown beside Save while the typed input stays in place.
+    failure: String? = null,
 ) {
     val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
 
     var clientId: String by remember { mutableStateOf("") }
     var clientSecret: String by remember { mutableStateOf("") }
@@ -90,6 +95,14 @@ fun ProviderCredentialsCard(
             providerDisplayName = providerDisplayName,
             enabled = !saving,
         )
+
+        if (failure != null) {
+            Text(
+                text = stringResource(Res.string.provider_credentials_save_error, failure),
+                style = typography.sm,
+                color = tokens.destructive,
+            )
+        }
 
         SaveBar(saving = saving, onSave = { onSave(clientId, clientSecret) })
     }

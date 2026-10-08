@@ -160,7 +160,11 @@ private enum class ConnectModalProvider { Spotify, YouTube, Discord }
 private sealed interface ConnectStage {
     data object Intro : ConnectStage
 
-    data class Credentials(val saving: Boolean = false, val missingClientId: Boolean = false) : ConnectStage
+    data class Credentials(
+        val saving: Boolean = false,
+        val missingClientId: Boolean = false,
+        val failure: String? = null,
+    ) : ConnectStage
 }
 
 // The stable provider key (snake-free lowercase, matching the backend) for a modal provider.
@@ -459,22 +463,26 @@ fun IntegrationsScreen(
                             redirectUrl = controller.integrationRedirectUrl(providerKey),
                             saving = current.saving,
                             missingClientId = current.missingClientId,
+                            failure = current.failure,
                             onSave = { clientId: String, clientSecret: String ->
                                 if (clientId.trim().isEmpty()) {
                                     stage = ConnectStage.Credentials(missingClientId = true)
                                 } else {
                                     stage = ConnectStage.Credentials(saving = true)
                                     scope.launch {
-                                        val saved: Boolean =
+                                        val saved: ApiResult<Unit> =
                                             controller.saveProviderCredentials(
                                                 provider = providerKey,
                                                 clientId = clientId,
                                                 clientSecret = clientSecret,
                                             )
                                         // On success the client is registered server-side → proceed to OAuth;
-                                        // on failure stay on the step (the feedback host carries the detail).
-                                        if (saved) launchOAuth(which)
-                                        else stage = ConnectStage.Credentials()
+                                        // on failure stay on the step with the reason beside Save.
+                                        when (saved) {
+                                            is ApiResult.Ok -> launchOAuth(which)
+                                            is ApiResult.Failure ->
+                                                stage = ConnectStage.Credentials(failure = saved.error.message)
+                                        }
                                     }
                                 }
                             },
@@ -492,6 +500,7 @@ fun IntegrationsScreen(
             val onboardingDisplayName: String = providerDisplayName(onboardingProvider)
             var onboardingSaving: Boolean by remember(onboardingProvider) { mutableStateOf(false) }
             var onboardingMissingClientId: Boolean by remember(onboardingProvider) { mutableStateOf(false) }
+            var onboardingFailure: String? by remember(onboardingProvider) { mutableStateOf(null) }
 
             Dialog(onDismissRequest = { controller.dismissOnboarding() }) {
                 DialogTitle(stringResource(Res.string.integrations_onboarding_title, onboardingDisplayName))
@@ -500,20 +509,24 @@ fun IntegrationsScreen(
                     redirectUrl = controller.integrationRedirectUrl(onboardingProvider),
                     saving = onboardingSaving,
                     missingClientId = onboardingMissingClientId,
+                    failure = onboardingFailure,
                     onSave = { clientId: String, clientSecret: String ->
                         if (clientId.trim().isEmpty()) {
                             onboardingMissingClientId = true
                         } else {
                             onboardingMissingClientId = false
+                            onboardingFailure = null
                             onboardingSaving = true
                             scope.launch {
-                                controller.saveOnboardingCredentialsAndRetry(
-                                    provider = onboardingProvider,
-                                    scopeSetKey = scopeSetFor(onboardingProvider),
-                                    clientId = clientId,
-                                    clientSecret = clientSecret,
-                                )
+                                val saved: ApiResult<Unit> =
+                                    controller.saveOnboardingCredentialsAndRetry(
+                                        provider = onboardingProvider,
+                                        scopeSetKey = scopeSetFor(onboardingProvider),
+                                        clientId = clientId,
+                                        clientSecret = clientSecret,
+                                    )
                                 onboardingSaving = false
+                                if (saved is ApiResult.Failure) onboardingFailure = saved.error.message
                             }
                         }
                     },
