@@ -17,6 +17,8 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Events;
 
 namespace NomNomzBot.Infrastructure.Commands;
 
@@ -26,11 +28,15 @@ public sealed class OwnerActionService(
     IServiceProvider services,
     IActionAuthorizationService authorization,
     IRateLimiterPartitionStore rateLimiter,
+    IEventBus eventBus,
     ILogger<OwnerActionService> logger
 ) : IOwnerActionService
 {
     // Running an arbitrary action is what the dashboard's pipeline test-run does, so it needs the same permission.
     internal const string RequiredActionKey = "pipelines:write";
+
+    // The script bridge rate-limits under this prefix (ScriptActionInvoker); a widget uses its own partition.
+    private const string ScriptPartitionPrefix = "script-action:";
 
     // A caller runs a handful of actions per alert (synthesize, pause, resume, reply). The cap only stops a
     // looping widget or script from flooding chat or the music provider.
@@ -89,10 +95,41 @@ public sealed class OwnerActionService(
                 "RATE_LIMITED"
             );
 
-        return Result.Success(
-            await ExecuteAsync(action, request, ownerUserId.Value, cancellationToken)
+        WidgetActionOutcome outcome = await ExecuteAsync(
+            action,
+            request,
+            ownerUserId.Value,
+            cancellationToken
         );
+        if (!outcome.Succeeded)
+            await PublishFailureAsync(action, request, outcome, cancellationToken);
+
+        return Result.Success(outcome);
     }
+
+    // A run that started and failed is the streamer's own overlay or script not doing its job, so it reaches the inbox.
+    private Task PublishFailureAsync(
+        ICommandAction action,
+        OwnerActionRequest request,
+        WidgetActionOutcome outcome,
+        CancellationToken cancellationToken
+    ) =>
+        eventBus.PublishAsync(
+            new OwnerActionFailedEvent
+            {
+                BroadcasterId = request.BroadcasterId,
+                ActionType = action.ActionType,
+                Caller = request.Caller,
+                Source = request.RateLimitPartition.StartsWith(
+                    ScriptPartitionPrefix,
+                    StringComparison.Ordinal
+                )
+                    ? "script"
+                    : "widget",
+                Error = outcome.Error ?? "The action failed.",
+            },
+            cancellationToken
+        );
 
     private async Task<WidgetActionOutcome> ExecuteAsync(
         ICommandAction action,

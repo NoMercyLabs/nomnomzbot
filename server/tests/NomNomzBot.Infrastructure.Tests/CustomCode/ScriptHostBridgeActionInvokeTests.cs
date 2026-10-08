@@ -29,6 +29,7 @@ using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.TestRun;
@@ -141,6 +142,7 @@ public sealed class ScriptHostBridgeActionInvokeTests : IDisposable
                     .BuildServiceProvider(),
                 _authorization,
                 _rateLimiter,
+                Substitute.For<IEventBus>(),
                 NullLogger<OwnerActionService>.Instance
             ),
             Substitute.For<ITwitchUsersApi>()

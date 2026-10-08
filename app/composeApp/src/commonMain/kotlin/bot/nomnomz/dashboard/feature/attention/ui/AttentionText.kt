@@ -39,6 +39,8 @@ import nomnomzbot.composeapp.generated.resources.attention_integration_refresh_f
 import nomnomzbot.composeapp.generated.resources.attention_integration_unusable_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_title
+import nomnomzbot.composeapp.generated.resources.attention_owner_action_failed_message
+import nomnomzbot.composeapp.generated.resources.attention_owner_action_failed_title
 import nomnomzbot.composeapp.generated.resources.attention_report_message
 import nomnomzbot.composeapp.generated.resources.attention_report_title
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_message
@@ -140,6 +142,8 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
             }
         "attention_heat_timeout_failed_title" ->
             AttentionText(Res.string.attention_heat_timeout_failed_title, listOf(literal(item.param("username"))))
+        "attention_owner_action_failed_title" ->
+            AttentionText(Res.string.attention_owner_action_failed_title, listOf(literal(item.param("action"))))
         "attention_bot_not_moderator_title" ->
             AttentionText(Res.string.attention_bot_not_moderator_title, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_title" ->
@@ -226,6 +230,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
         "attention_song_lost_unnamed_message" -> AttentionText(Res.string.attention_song_lost_unnamed_message)
         "attention_heat_timeout_failed_message" ->
             AttentionText(Res.string.attention_heat_timeout_failed_message, listOf(literal(item.param("error"))))
+        "attention_owner_action_failed_message" ->
+            AttentionText(Res.string.attention_owner_action_failed_message, listOf(literal(item.param("error"))))
         "attention_bot_not_moderator_message" ->
             AttentionText(Res.string.attention_bot_not_moderator_message, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_message" -> AttentionText(Res.string.attention_spotify_blocked_message)
