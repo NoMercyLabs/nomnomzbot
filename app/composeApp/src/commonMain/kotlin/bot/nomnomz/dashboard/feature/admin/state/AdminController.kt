@@ -1899,14 +1899,16 @@ class AdminController(
 
     /** Commits the replay: sends a genuinely NEW delivery attempt (the original stays exactly as it was),
      * then reloads the log so the new row is visible immediately. */
-    suspend fun confirmWebhookReplay() {
-        val deliveryId: Long = _state.value.replayPendingDeliveryId ?: return
-        when (val result = api.replayWebhookDelivery(deliveryId)) {
+    suspend fun confirmWebhookReplay(): ApiResult<Unit> {
+        val deliveryId: Long = _state.value.replayPendingDeliveryId ?: return ApiResult.Ok(Unit)
+        return when (val result = api.replayWebhookDelivery(deliveryId)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(replayPendingDeliveryId = null)
                 loadWebhookDeliveries()
+                ApiResult.Ok(Unit)
             }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
+            // The confirm dialog shows the reason inline and stays open, so no toast.
+            is ApiResult.Failure -> result
         }
     }
 
@@ -1943,15 +1945,17 @@ class AdminController(
 
     /** Commits the retry: schedules a brand-new deferred run for the same pipeline (the original failed
      * attempt stays exactly as it was), then reloads the queue so the new row is visible immediately. */
-    suspend fun confirmScheduledJobRetry() {
-        val taskId: String = _state.value.retryPendingJobId ?: return
-        when (val result = api.retryScheduledJob(taskId)) {
+    suspend fun confirmScheduledJobRetry(): ApiResult<Unit> {
+        val taskId: String = _state.value.retryPendingJobId ?: return ApiResult.Ok(Unit)
+        return when (val result = api.retryScheduledJob(taskId)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(retryPendingJobId = null)
                 feedback.success(Res.string.admin_job_retry_scheduled)
                 loadScheduledJobs()
+                ApiResult.Ok(Unit)
             }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
+            // The confirm dialog shows the reason inline and stays open, so no toast.
+            is ApiResult.Failure -> result
         }
     }
 
@@ -2075,11 +2079,11 @@ class AdminController(
     /** Commits the replay: re-applies exactly the previewed count to the projection, in order. Refused
      * (STALE_COUNT) if the scope's real count changed since the preview — the caller must preview again
      * rather than force a replay through against a number it never actually confirmed. */
-    suspend fun confirmEventReplay() {
+    suspend fun confirmEventReplay(): ApiResult<Unit> {
         val scope = _state.value
-        val preview: AdminEventReplayPreview = scope.replayPreview ?: return
+        val preview: AdminEventReplayPreview = scope.replayPreview ?: return ApiResult.Ok(Unit)
         _state.value = scope.copy(replayExecuting = true)
-        when (
+        return when (
             val result = api.executeEventReplay(
                 broadcasterId = scope.replayBroadcasterId,
                 projectionName = scope.replayProjectionName,
@@ -2089,19 +2093,19 @@ class AdminController(
                 expectedCount = preview.matchingEventCount,
             )
         ) {
-            is ApiResult.Ok ->
+            is ApiResult.Ok -> {
                 _state.value = _state.value.copy(
                     replayExecuting = false,
                     replayConfirmOpen = false,
                     replayPreview = null,
                     replayResult = result.value,
                 )
+                ApiResult.Ok(Unit)
+            }
+            // The confirm dialog shows the reason inline and stays open, so no toast.
             is ApiResult.Failure -> {
-                _state.value = _state.value.copy(
-                    replayExecuting = false,
-                    replayConfirmOpen = false,
-                )
-                feedback.error(Res.string.admin_action_error, result.error.message)
+                _state.value = _state.value.copy(replayExecuting = false)
+                result
             }
         }
     }

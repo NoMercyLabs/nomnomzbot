@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
@@ -237,6 +238,184 @@ class AdminOpsToolsTabRenderTest {
 
             assertEquals(1, api.replayCallCount)
             assertEquals(42L, api.lastReplayedDeliveryId)
+        }
+    }
+
+    private val opsRefusal: ApiResult.Failure = ApiResult.Failure(ApiError(409, "REFUSED", "The server said no."))
+
+    private fun controllerFor(api: FakeAdminApiForOpsToolsTest): AdminController =
+        AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+    private val replayableDelivery: AdminWebhookDelivery = AdminWebhookDelivery(
+        id = 42L,
+        broadcasterId = "chan-1",
+        endpointId = "ep-1",
+        endpointName = "discord-relay",
+        endpointCanReplay = true,
+        eventType = "channel.subscribe",
+        attempt = 1,
+        status = "Failed",
+        responseCode = 500,
+        createdAt = "2026-09-04T12:00:00Z",
+    )
+
+    private val retryableJob: AdminScheduledJob = AdminScheduledJob(
+        id = "job-2",
+        broadcasterId = "chan-1",
+        channelDisplayName = "qtkitte",
+        pipelineId = "pipe-2",
+        pipelineName = "voice-swap-revert",
+        pipelineExists = true,
+        status = "expired",
+        displayState = "failed",
+        dueAt = "2026-09-06T11:00:00Z",
+        firedAt = "2026-09-06T11:00:00Z",
+        createdAt = "2026-09-06T10:00:00Z",
+        triggeredByDisplayName = "other_viewer",
+        canRetry = true,
+    )
+
+    @Test
+    fun webhook_replay_refused_keeps_the_confirm_open_with_the_server_words() {
+        val api = FakeAdminApiForOpsToolsTest(webhookDeliveries = listOf(replayableDelivery), replayFailure = opsRefusal)
+        val controller = controllerFor(api)
+        runTest { controller.loadWebhookDeliveries() }
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingWebhookDeliveriesTab(controller = controller) } }
+            waitForIdle()
+            onNodeWithText("Replay").performClick()
+            waitForIdle()
+            onNodeWithText("Confirm replay").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.replayCallCount)
+            onNodeWithText("Confirm replay").assertExists()
+            onNodeWithText("The server said no.").assertExists()
+        }
+    }
+
+    @Test
+    fun webhook_replay_accepted_closes_the_confirm() {
+        val api = FakeAdminApiForOpsToolsTest(webhookDeliveries = listOf(replayableDelivery))
+        val controller = controllerFor(api)
+        runTest { controller.loadWebhookDeliveries() }
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingWebhookDeliveriesTab(controller = controller) } }
+            waitForIdle()
+            onNodeWithText("Replay").performClick()
+            waitForIdle()
+            onNodeWithText("Confirm replay").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.replayCallCount)
+            onNodeWithText("Confirm replay").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun job_retry_refused_keeps_the_confirm_open_with_the_server_words() {
+        val api = FakeAdminApiForOpsToolsTest(scheduledJobs = listOf(retryableJob), retryFailure = opsRefusal)
+        val controller = controllerFor(api)
+        runTest { controller.loadScheduledJobs() }
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingScheduledJobsTab(controller = controller) } }
+            waitForIdle()
+            onNodeWithText("Retry").performClick()
+            waitForIdle()
+            onNodeWithText("Confirm retry").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.retryCallCount)
+            onNodeWithText("Confirm retry").assertExists()
+            onNodeWithText("The server said no.").assertExists()
+        }
+    }
+
+    @Test
+    fun job_retry_accepted_closes_the_confirm() {
+        val api = FakeAdminApiForOpsToolsTest(scheduledJobs = listOf(retryableJob))
+        val controller = controllerFor(api)
+        runTest { controller.loadScheduledJobs() }
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingScheduledJobsTab(controller = controller) } }
+            waitForIdle()
+            onNodeWithText("Retry").performClick()
+            waitForIdle()
+            onNodeWithText("Confirm retry").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.retryCallCount)
+            onNodeWithText("Confirm retry").assertDoesNotExist()
+        }
+    }
+
+    private fun ComposeUiTest.openEventReplayConfirm() {
+        onNodeWithText("Select a projection").performClick()
+        waitForIdle()
+        onNodeWithText("currency-balance").performClick()
+        waitForIdle()
+        onAllNodes(hasSetTextAction())[0].performTextInput("chan-1")
+        onAllNodes(hasSetTextAction())[1].performTextInput("2026-09-01T00:00:00Z")
+        onAllNodes(hasSetTextAction())[2].performTextInput("2026-09-06T00:00:00Z")
+        waitForIdle()
+        onNodeWithText("Preview").performClick()
+        waitForIdle()
+        onNodeWithText("Replay 7 event(s)").performClick()
+        waitForIdle()
+    }
+
+    private val replayProjection: AdminReplayableProjection = AdminReplayableProjection(
+        projectionName = "currency-balance",
+        isGlobal = false,
+        subscribedEventTypes = listOf("currency.credited"),
+    )
+
+    @Test
+    fun event_replay_refused_keeps_the_confirm_open_with_the_server_words() {
+        val api = FakeAdminApiForOpsToolsTest(
+            replayProjections = listOf(replayProjection),
+            previewCount = 7,
+            executeFailure = opsRefusal,
+        )
+        val controller = controllerFor(api)
+        runTest { controller.loadReplayableProjections() }
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingEventReplayTab(controller = controller) } }
+            waitForIdle()
+            openEventReplayConfirm()
+            onNodeWithText("Confirm replay").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.executeCallCount)
+            onNodeWithText("Confirm replay").assertExists()
+            onNodeWithText("The server said no.").assertExists()
+        }
+    }
+
+    @Test
+    fun event_replay_accepted_closes_the_confirm() {
+        val api = FakeAdminApiForOpsToolsTest(replayProjections = listOf(replayProjection), previewCount = 7)
+        val controller = controllerFor(api)
+        runTest { controller.loadReplayableProjections() }
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingEventReplayTab(controller = controller) } }
+            waitForIdle()
+            openEventReplayConfirm()
+            onNodeWithText("Confirm replay").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.executeCallCount)
+            onNodeWithText("Confirm replay").assertDoesNotExist()
         }
     }
 
@@ -565,6 +744,10 @@ private class FakeAdminApiForOpsToolsTest(
     private val errorBudget: List<AdminTenantErrorBudget> = emptyList(),
     private val replayProjections: List<AdminReplayableProjection> = emptyList(),
     private val previewCount: Long = 0,
+    // When set, the matching write is refused with this failure (after being counted), like a server saying no.
+    private val replayFailure: ApiResult.Failure? = null,
+    private val retryFailure: ApiResult.Failure? = null,
+    private val executeFailure: ApiResult.Failure? = null,
 ) : AdminApi {
     var replayCallCount: Int = 0
         private set
@@ -641,6 +824,7 @@ private class FakeAdminApiForOpsToolsTest(
     override suspend fun replayWebhookDelivery(deliveryId: Long): ApiResult<AdminWebhookReplayResult> {
         replayCallCount++
         lastReplayedDeliveryId = deliveryId
+        if (replayFailure != null) return replayFailure
         val original = webhookDeliveries.first { it.id == deliveryId }
         val replay = original.copy(id = original.id + 1000L, attempt = 1, status = "Delivered", responseCode = 200)
         webhookDeliveries = webhookDeliveries + replay
@@ -655,6 +839,7 @@ private class FakeAdminApiForOpsToolsTest(
     override suspend fun retryScheduledJob(taskId: String): ApiResult<AdminScheduledJobRetryResult> {
         retryCallCount++
         lastRetriedTaskId = taskId
+        if (retryFailure != null) return retryFailure
         val original = scheduledJobs.first { it.id == taskId }
         val retried = original.copy(
             id = "${original.id}-retry",
@@ -717,6 +902,7 @@ private class FakeAdminApiForOpsToolsTest(
     ): ApiResult<AdminEventReplayResult> {
         executeCallCount++
         lastExecuteExpectedCount = expectedCount
+        if (executeFailure != null) return executeFailure
         return ApiResult.Ok(
             AdminEventReplayResult(
                 broadcasterId = broadcasterId,
