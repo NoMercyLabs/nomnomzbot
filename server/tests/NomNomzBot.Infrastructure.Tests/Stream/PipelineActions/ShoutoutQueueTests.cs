@@ -368,6 +368,78 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
+    public async Task A_restart_after_recorded_delivery_clears_the_pending_item_without_sending_twice()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        rig.Clock.Advance(GlobalCooldown);
+
+        ShoutoutSender sender = ShoutoutTestFactory.Sender(
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock
+        );
+        await sender.SendAsync(
+            new(Channel, User(ManualId), Line(ManualId), true),
+            CancellationToken.None
+        );
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.sent").Should().Be(1);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(1);
+
+        ShoutoutQueue restartedQueue = new(rig.ScopeFactory);
+        ShoutoutQueueWorker restartedWorker = ShoutoutTestFactory.Worker(
+            restartedQueue,
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock,
+            rig.Sanctions
+        );
+        rig.Clock.Advance(TimeSpan.FromMinutes(60));
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_native_only_dashboard_shoutout_does_not_discard_a_queued_announcement()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        rig.Db.ChannelEvents.Add(
+            new NomNomzBot.Domain.Identity.Entities.ChannelEvent
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                ChannelId = Channel,
+                Type = "bot.shoutout.sent",
+                Data = JsonSerializer.Serialize(new { toUserId = ManualId }),
+                CreatedAt = rig.Clock.GetUtcNow().UtcDateTime.AddSeconds(1),
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
     public async Task A_queued_shoutout_waits_to_announce_and_speak_until_native_delivery()
     {
         Rig rig = await BuildAsync();

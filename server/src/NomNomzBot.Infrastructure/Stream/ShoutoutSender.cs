@@ -201,7 +201,9 @@ public sealed class ShoutoutSender : IShoutoutSender
                 Id = Guid.CreateVersion7().ToString(),
                 ChannelId = broadcasterId,
                 Type = "bot.shoutout.sent",
-                Data = JsonSerializer.Serialize(new { toUserId = targetUserId }),
+                Data = JsonSerializer.Serialize(
+                    new { toUserId = targetUserId, source = "pipeline" }
+                ),
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }
         );

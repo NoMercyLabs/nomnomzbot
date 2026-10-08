@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using ChannelEvent = NomNomzBot.Domain.Identity.Entities.ChannelEvent;
 
 namespace NomNomzBot.Infrastructure.Stream.AutoShoutout;
 
@@ -32,6 +35,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
 {
     private const string ShoutoutActionType = "shoutout";
     private const string AutoShoutoutSanction = "channel:auto-shoutout";
+    private const string PendingType = "bot.shoutout.auto-pending";
 
     private static readonly TimeSpan MinStreamAge = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan ChatDelay = TimeSpan.FromMinutes(5);
@@ -101,7 +105,21 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
         bool isStreamer = await db
             .Channels.AsNoTracking()
             .AnyAsync(c => c.TwitchChannelId == twitchUserId && c.Enabled, cancellationToken);
-        Record(broadcasterId, streamStart, twitchUserId, displayName, isStreamer);
+        DateTimeOffset enqueuedAt = _timeProvider.GetUtcNow();
+        if (
+            isStreamer
+            && !await PersistAsync(
+                db,
+                broadcasterId,
+                streamStart,
+                twitchUserId,
+                displayName,
+                enqueuedAt,
+                cancellationToken
+            )
+        )
+            return;
+        Record(broadcasterId, streamStart, twitchUserId, displayName, enqueuedAt, isStreamer);
     }
 
     private bool AlreadyChecked(Guid broadcasterId, DateTimeOffset streamStart, string userId)
@@ -114,6 +132,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
 
     public async Task ProcessDueAsync(CancellationToken cancellationToken)
     {
+        await RecoverAsync(cancellationToken);
         List<Guid> channels;
         lock (_gate)
             channels = [.. _sessions.Keys];
@@ -122,11 +141,95 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
             await ProcessChannelAsync(broadcasterId, cancellationToken);
     }
 
+    private static async Task<bool> PersistAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        DateTimeOffset streamStart,
+        string userId,
+        string displayName,
+        DateTimeOffset enqueuedAt,
+        CancellationToken cancellationToken
+    )
+    {
+        string id = PendingId(broadcasterId, streamStart, userId);
+        if (await db.ChannelEvents.AnyAsync(e => e.Id == id, cancellationToken))
+            return false;
+        DateTime createdAt = enqueuedAt.UtcDateTime;
+        DateTime? lastQueuedAt = await db
+            .ChannelEvents.Where(e => e.ChannelId == broadcasterId && e.Type == PendingType)
+            .MaxAsync(e => (DateTime?)e.CreatedAt, cancellationToken);
+        if (lastQueuedAt >= createdAt)
+            createdAt = lastQueuedAt.Value.AddTicks(1);
+        db.ChannelEvents.Add(
+            new ChannelEvent
+            {
+                Id = id,
+                ChannelId = broadcasterId,
+                Type = PendingType,
+                Data = JsonSerializer.Serialize(
+                    new StoredPendingShoutout(
+                        broadcasterId,
+                        streamStart,
+                        userId,
+                        displayName,
+                        enqueuedAt
+                    )
+                ),
+                CreatedAt = createdAt,
+            }
+        );
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private async Task RecoverAsync(CancellationToken cancellationToken)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        List<ChannelEvent> pending = await db
+            .ChannelEvents.Where(e => e.Type == PendingType && e.Data != null)
+            .OrderBy(e => e.CreatedAt)
+            .ToListAsync(cancellationToken);
+        foreach (ChannelEvent row in pending)
+        {
+            StoredPendingShoutout? item = JsonSerializer.Deserialize<StoredPendingShoutout>(
+                row.Data!
+            );
+            ChannelContext? channel = item is null ? null : _registry.Get(item.BroadcasterId);
+            if (
+                item is not null
+                && channel is { IsLive: true, WentLiveAt: DateTimeOffset start }
+                && start == item.StreamStart
+            )
+                Record(
+                    item.BroadcasterId,
+                    item.StreamStart,
+                    item.UserId,
+                    item.DisplayName,
+                    item.EnqueuedAt,
+                    true
+                );
+            else
+                db.ChannelEvents.Remove(row);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string PendingId(Guid broadcasterId, DateTimeOffset streamStart, string userId)
+    {
+        byte[] hash = SHA256.HashData(
+            Encoding.UTF8.GetBytes($"{broadcasterId:N}:{streamStart.UtcTicks}:{userId}")
+        );
+        return "sa-" + Convert.ToHexString(hash.AsSpan(0, 16));
+    }
+
     private void Record(
         Guid broadcasterId,
         DateTimeOffset streamStart,
         string userId,
         string name,
+        DateTimeOffset enqueuedAt,
         bool isStreamer
     )
     {
@@ -141,7 +244,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
                 _sessions[broadcasterId] = session;
             }
             if (session.Seen.Add(userId) && isStreamer)
-                session.Pending.Add(new(userId, name, _timeProvider.GetUtcNow()));
+                session.Pending.Add(new(userId, name, enqueuedAt));
         }
     }
 
@@ -150,22 +253,21 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
         ChannelContext? channel = _registry.Get(broadcasterId);
         List<PendingShoutout> pending;
         DateTimeOffset streamStart;
+        bool stale;
         lock (_gate)
         {
             if (!_sessions.TryGetValue(broadcasterId, out StreamSession? session))
                 return;
-            if (channel is not { IsLive: true, WentLiveAt: DateTimeOffset start })
-            {
-                _sessions.Remove(broadcasterId);
-                return;
-            }
-            if (session.StreamStart != start)
-            {
-                _sessions.Remove(broadcasterId);
-                return;
-            }
-            streamStart = start;
+            stale =
+                channel is not { IsLive: true, WentLiveAt: DateTimeOffset start }
+                || session.StreamStart != start;
+            streamStart = session.StreamStart;
             pending = [.. session.Pending];
+        }
+        if (stale)
+        {
+            await ClearAsync(broadcasterId, cancellationToken);
+            return;
         }
         if (pending.Count == 0)
             return;
@@ -175,7 +277,13 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         if (!await SettingOnAsync(db, broadcasterId, cancellationToken))
         {
-            Remove(broadcasterId, pending.Select(p => p.TwitchUserId));
+            await RemoveAsync(
+                db,
+                broadcasterId,
+                streamStart,
+                pending.Select(p => p.TwitchUserId),
+                cancellationToken
+            );
             return;
         }
 
@@ -201,12 +309,24 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
                 )
             )
             {
-                Remove(broadcasterId, [item.TwitchUserId]);
+                await RemoveAsync(
+                    db,
+                    broadcasterId,
+                    streamStart,
+                    [item.TwitchUserId],
+                    cancellationToken
+                );
                 continue;
             }
 
-            Remove(broadcasterId, [item.TwitchUserId]);
-            await RunAsync(scope.ServiceProvider, broadcasterId, item, cancellationToken);
+            if (await RunAsync(scope.ServiceProvider, broadcasterId, item, cancellationToken))
+                await RemoveAsync(
+                    db,
+                    broadcasterId,
+                    streamStart,
+                    [item.TwitchUserId],
+                    cancellationToken
+                );
         }
     }
 
@@ -244,11 +364,42 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
         return false;
     }
 
-    private void Remove(Guid broadcasterId, IEnumerable<string> userIds)
+    private async Task RemoveAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        DateTimeOffset streamStart,
+        IEnumerable<string> userIds,
+        CancellationToken cancellationToken
+    )
     {
+        List<string> ids = [.. userIds];
+        foreach (string userId in ids)
+        {
+            ChannelEvent? pending = await db.ChannelEvents.FindAsync(
+                [PendingId(broadcasterId, streamStart, userId)],
+                cancellationToken
+            );
+            if (pending is not null)
+                db.ChannelEvents.Remove(pending);
+        }
+        await db.SaveChangesAsync(cancellationToken);
         lock (_gate)
             if (_sessions.TryGetValue(broadcasterId, out StreamSession? session))
-                session.Pending.RemoveAll(p => userIds.Contains(p.TwitchUserId));
+                session.Pending.RemoveAll(p => ids.Contains(p.TwitchUserId));
+    }
+
+    private async Task ClearAsync(Guid broadcasterId, CancellationToken cancellationToken)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        List<ChannelEvent> pending = await db
+            .ChannelEvents.Where(e => e.ChannelId == broadcasterId && e.Type == PendingType)
+            .ToListAsync(cancellationToken);
+        db.ChannelEvents.RemoveRange(pending);
+        await db.SaveChangesAsync(cancellationToken);
+        lock (_gate)
+            _sessions.Remove(broadcasterId);
     }
 
     private static Task<bool> SettingOnAsync(
@@ -262,7 +413,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
             .Select(c => c.AutoShoutoutEnabled)
             .FirstOrDefaultAsync(cancellationToken);
 
-    private async Task RunAsync(
+    private async Task<bool> RunAsync(
         IServiceProvider services,
         Guid broadcasterId,
         PendingShoutout item,
@@ -277,7 +428,7 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
             if (action is null)
             {
                 _logger.LogError("Auto shoutout cannot run: the shoutout action is not registered");
-                return;
+                return false;
             }
 
             PipelineExecutionContext context = new()
@@ -316,10 +467,12 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
                     item.TwitchUserId,
                     result.ErrorMessage
                 );
+            return result.Succeeded;
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Auto shoutout to {UserId} threw", item.TwitchUserId);
+            return false;
         }
     }
 
@@ -332,6 +485,14 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
 
     private sealed record PendingShoutout(
         string TwitchUserId,
+        string DisplayName,
+        DateTimeOffset EnqueuedAt
+    );
+
+    private sealed record StoredPendingShoutout(
+        Guid BroadcasterId,
+        DateTimeOffset StreamStart,
+        string UserId,
         string DisplayName,
         DateTimeOffset EnqueuedAt
     );

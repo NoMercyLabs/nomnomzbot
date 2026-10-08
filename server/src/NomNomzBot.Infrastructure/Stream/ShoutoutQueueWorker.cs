@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -90,6 +91,12 @@ public sealed class ShoutoutQueueWorker : BackgroundService
                 if (head is null)
                     continue;
 
+                if (await WasRecordedAsync(head, cancellationToken))
+                {
+                    await _queue.RemoveAsync(broadcasterId, head.Target.Id, cancellationToken);
+                    continue;
+                }
+
                 ChannelContext? channel = _registry.Get(broadcasterId);
                 DateTimeOffset now = _timeProvider.GetUtcNow();
                 if (
@@ -118,6 +125,40 @@ public sealed class ShoutoutQueueWorker : BackgroundService
         {
             _runGate.Release();
         }
+    }
+
+    private async Task<bool> WasRecordedAsync(
+        QueuedShoutout item,
+        CancellationToken cancellationToken
+    )
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        List<string> data = await db
+            .ChannelEvents.AsNoTracking()
+            .Where(e =>
+                e.ChannelId == item.BroadcasterId
+                && e.Type == "bot.shoutout.sent"
+                && e.CreatedAt >= item.EnqueuedAt.UtcDateTime
+                && e.Data != null
+            )
+            .Select(e => e.Data!)
+            .ToListAsync(cancellationToken);
+        foreach (string payload in data)
+        {
+            using JsonDocument document = JsonDocument.Parse(payload);
+            if (
+                document.RootElement.TryGetProperty("toUserId", out JsonElement target)
+                && target.ValueKind == JsonValueKind.String
+                && target.GetString() == item.Target.Id
+                && document.RootElement.TryGetProperty("source", out JsonElement source)
+                && source.ValueKind == JsonValueKind.String
+                && source.GetString() == "pipeline"
+            )
+                return true;
+        }
+        return false;
     }
 
     private async Task RunAsync(QueuedShoutout item, CancellationToken cancellationToken)
