@@ -47,6 +47,8 @@
     <string name="attention_webhook_disabled_message">Hij is %1$s keer achter elkaar mislukt. Herstel de ontvanger en zet de webhook daarna weer aan.</string>
     <string name="attention_webhook_failing_title">Webhookleveringen mislukken: %1$s</string>
     <string name="attention_webhook_failing_message">De laatste %1$s leveringen zijn mislukt. Controleer de ontvanger.</string>
+    <string name="attention_heat_timeout_failed_title">%1$s kreeg geen time-out</string>
+    <string name="attention_heat_timeout_failed_message">De heat van deze kijker ging boven je limiet, maar Twitch weigerde de time-out: %1$s. Er is niets gedaan, dus bekijk de chat en grijp zelf in.</string>
     <string name="attention_song_lost_title_one">Een verzoeknummer is verloren gegaan</string>
     <string name="attention_song_lost_title_many">%1$d verzoeknummers zijn verloren gegaan</string>
     <string name="attention_song_lost_message">“%1$s” voor %2$s verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>

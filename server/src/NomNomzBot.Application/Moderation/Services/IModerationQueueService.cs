@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Domain.Moderation.Enums;
 
 namespace NomNomzBot.Application.Moderation.Services;
 
@@ -29,6 +30,21 @@ public interface IModerationQueueService
         string username,
         string messageContent,
         string category,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Flag a viewer for a human (source=<paramref name="source"/>, status=pending) when the bot noticed a problem
+    /// it did not act on by itself — no chat message is held. Returns the existing pending row's id instead of
+    /// adding a second one while the same viewer already has a pending flag from the same source.
+    /// </summary>
+    Task<Result<Guid>> EnqueueFlagAsync(
+        Guid broadcasterId,
+        ModerationQueueSource source,
+        Guid targetUserId,
+        string twitchUserId,
+        string? username,
+        string reason,
         CancellationToken cancellationToken = default
     );
 

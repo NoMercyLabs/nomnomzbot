@@ -16,4 +16,7 @@ public enum ModerationQueueSource
     AutoMod,
     ViewerReport,
     BotFlag,
+
+    /// <summary>A viewer's heat crossed the channel's threshold and no automatic action was taken (S-HEAT-FLAG-HUMAN).</summary>
+    HeatThreshold = 10,
 }

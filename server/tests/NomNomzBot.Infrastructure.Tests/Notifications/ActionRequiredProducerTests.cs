@@ -319,6 +319,41 @@ public sealed class ActionRequiredProducerTests
         item.DeepLinkRoute.Should().Be("songrequests");
     }
 
+    // ─── Heat auto-timeout failures ──────────────────────────────────────────
+
+    [Fact]
+    public async Task AFailedHeatAutoTimeout_InTheWindow_IsOneItemPerFailureNamingTheViewerAndTheError()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db = await NewDbAsync();
+        FakeTimeProvider clock = new(T0.AddHours(2));
+        EventJournal mine = HeatFailedEvent(ChannelId, 1, T0, "heatedviewer", "missing scope");
+        db.EventJournals.AddRange(
+            mine,
+            HeatFailedEvent(ChannelId, 2, T0.AddHours(-30), "tooold", "stale"),
+            HeatFailedEvent(OtherChannelId, 1, T0, "notmine", "other channel")
+        );
+        await db.SaveChangesAsync();
+
+        ActionRequiredItemDto item = (
+            await ActionRequiredInboxHarness.Create(db, clock).GetItemsAsync(ChannelId)
+        )
+            .Value.Should()
+            .ContainSingle()
+            .Subject;
+
+        item.Id.Should().Be($"heat-timeout-failed:{mine.EventId}");
+        item.Kind.Should().Be("heat_auto_timeout_failed");
+        item.Severity.Should().Be("warning");
+        item.TitleKey.Should().Be("attention_heat_timeout_failed_title");
+        item.MessageKey.Should().Be("attention_heat_timeout_failed_message");
+        item.Parameters.Should()
+            .Contain("username", "heatedviewer")
+            .And.Contain("error", "missing scope");
+        item.SourceUserId.Should().Be("900042");
+        item.SourceUserName.Should().Be("heatedviewer");
+        item.DetectedAt.Should().Be(T0);
+    }
+
     [Fact]
     public async Task ANewLostSongRequest_SurfacesAgainAfterDismissingTheOldOnes()
     {
@@ -519,6 +554,28 @@ public sealed class ActionRequiredProducerTests
             EncryptionKeyId = Guid.NewGuid(),
             IsEnabled = true,
             CreatedAt = T0.AddDays(-7),
+        };
+
+    private static EventJournal HeatFailedEvent(
+        Guid channelId,
+        long position,
+        DateTime occurredAt,
+        string username,
+        string error
+    ) =>
+        new()
+        {
+            EventId = Guid.NewGuid(),
+            BroadcasterId = channelId,
+            StreamPosition = position,
+            EventType = "UserHeatAutoTimeoutFailedEvent",
+            EventVersion = 1,
+            Source = "domain",
+            Payload =
+                $"{{\"SubjectUserId\":\"{Guid.NewGuid()}\",\"SubjectTwitchUserId\":\"900042\",\"SubjectUsername\":\"{username}\",\"Error\":\"{error}\",\"HeatScore\":85,\"Threshold\":80}}",
+            Metadata = "{}",
+            OccurredAt = occurredAt,
+            RecordedAt = occurredAt,
         };
 
     private static EventJournal LostEvent(

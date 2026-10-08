@@ -102,6 +102,43 @@ public sealed class ModerationQueueService : IModerationQueueService
         return Result.Success(item.Id);
     }
 
+    public async Task<Result<Guid>> EnqueueFlagAsync(
+        Guid broadcasterId,
+        ModerationQueueSource source,
+        Guid targetUserId,
+        string twitchUserId,
+        string? username,
+        string reason,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Guid existing = await _db
+            .ModerationQueueItems.Where(i =>
+                i.BroadcasterId == broadcasterId
+                && i.Source == source
+                && i.TargetUserId == targetUserId
+                && i.Status == ModerationQueueStatus.Pending
+            )
+            .Select(i => i.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existing != Guid.Empty)
+            return Result.Success(existing);
+
+        ModerationQueueItem item = new()
+        {
+            BroadcasterId = broadcasterId,
+            Source = source,
+            Status = ModerationQueueStatus.Pending,
+            TargetUserId = targetUserId,
+            TargetTwitchUserId = twitchUserId,
+            TargetUsernameSnapshot = username,
+            MessageContentSnapshot = Truncate(reason, 500),
+        };
+        _db.ModerationQueueItems.Add(item);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(item.Id);
+    }
+
     public async Task ApplyExternalResolutionAsync(
         Guid broadcasterId,
         string autoModMessageId,
@@ -230,7 +267,8 @@ public sealed class ModerationQueueService : IModerationQueueService
                 "This item has already been resolved.",
                 "VALIDATION_FAILED"
             );
-        if (string.IsNullOrEmpty(item.AutoModMessageId))
+        bool hasHeldMessage = !string.IsNullOrEmpty(item.AutoModMessageId);
+        if (!hasHeldMessage && item.Source == ModerationQueueSource.AutoMod)
             return Result.Failure<ResolveModerationQueueItemResultDto>(
                 "This queue item has no held message to resolve.",
                 "VALIDATION_FAILED"
@@ -241,12 +279,15 @@ public sealed class ModerationQueueService : IModerationQueueService
                 "VALIDATION_FAILED"
             );
 
-        Result relay = await _moderation.ManageHeldAutoModMessageAsync(
-            tenantId,
-            item.AutoModMessageId,
-            approve,
-            cancellationToken
-        );
+        // A flag (heat crossing, report) has no Twitch-held message: only the local row is resolved.
+        Result relay = hasHeldMessage
+            ? await _moderation.ManageHeldAutoModMessageAsync(
+                tenantId,
+                item.AutoModMessageId!,
+                approve,
+                cancellationToken
+            )
+            : Result.Success();
         if (relay.IsFailure)
         {
             _logger.LogWarning(
