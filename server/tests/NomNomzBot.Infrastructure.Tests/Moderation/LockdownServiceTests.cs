@@ -35,7 +35,7 @@ namespace NomNomzBot.Infrastructure.Tests.Moderation;
 /// the viewers would actually see afterwards. Every service call gets a FRESH service and DbContext:
 /// the process that engaged a window may not be the one that restores it.
 /// </summary>
-public class LockdownServiceTests : IDisposable
+public partial class LockdownServiceTests : IDisposable
 {
     private static readonly Guid Channel = Guid.Parse("0199c000-0000-7000-8000-0000000000b1");
     private static readonly DateTimeOffset T0 = new(2026, 10, 8, 20, 0, 0, TimeSpan.Zero);
