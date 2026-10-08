@@ -1147,6 +1147,10 @@ public static class DependencyInjection
         // on the handler was rebuilt for every chat message and never once hit. Held here it survives
         // between messages; AutoModRuleCacheInvalidator keeps it honest on every rule write.
         services.AddSingleton<IAutoModRuleCache, AutoModRuleCache>();
+        // Singleton for the same reason: the follow lookups and their Helix rate budget must outlive the
+        // per-message scope. Does not end in "Service", so convention scanning does not reach it;
+        // FollowStateService (the IFollowStateService binding) is convention-scanned.
+        services.AddSingleton<Moderation.FollowStateCache>();
         // Consumed by concrete type from the chat-path handler, so convention scanning (I<X>Service ->
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.

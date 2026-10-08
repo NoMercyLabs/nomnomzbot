@@ -334,7 +334,8 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
             read,
             _time,
             Substitute.For<IModerationService>(),
-            new CurrentTenantService()
+            new CurrentTenantService(),
+            Substitute.For<IFollowStateService>()
         ).EvaluateAsync(
             new SpamEvaluationRequest(
                 TenantA,
