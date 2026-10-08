@@ -45,7 +45,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -233,11 +236,11 @@ fun SongRequestsScreen(
                     onRemove = { position -> scope.launch { controller.remove(position) } },
                     onPromote = { position -> scope.launch { controller.promote(position) } },
                     onBan = { position -> controller.ban(position).toDialogResult() },
-                    onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
+                    onAddToQueue = { query, requestedBy -> controller.addToQueue(query, requestedBy).toDialogResult() },
                     onUpdateConfig = { body -> scope.launch { controller.updateConfig(body) } },
                     onRotateToken = { controller.rotateSrPageToken().toDialogResult() },
                     onBlockTrack = { provider, trackUri, title, reason ->
-                        scope.launch { controller.blockTrack(provider, trackUri, title, reason) }
+                        controller.blockTrack(provider, trackUri, title, reason).toDialogResult()
                     },
                     onUnblockTrack = { id -> scope.launch { controller.unblockTrack(id) } },
                     onBlockedPage = { page -> scope.launch { controller.loadBlockedTracks(page) } },
@@ -269,10 +272,10 @@ private fun ReadyContent(
     onRemove: (position: Int) -> Unit,
     onPromote: (position: Int) -> Unit,
     onBan: suspend (position: Int) -> DialogResult,
-    onAddToQueue: (query: String, requestedBy: String) -> Unit,
+    onAddToQueue: suspend (query: String, requestedBy: String) -> DialogResult,
     onUpdateConfig: (UpdateMusicConfigBody) -> Unit,
     onRotateToken: suspend () -> DialogResult,
-    onBlockTrack: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
+    onBlockTrack: suspend (provider: String, trackUri: String, title: String, reason: String?) -> DialogResult,
     onUnblockTrack: (blockedTrackId: String) -> Unit,
     onBlockedPage: (page: Int) -> Unit,
 ) {
@@ -769,7 +772,10 @@ private fun SrTokenSection(
 // ── Add to queue (a manual/DJ addition — moved from the Music page, S-OBS-04) ────────────────────────────
 
 @Composable
-private fun AddToQueueSection(moderate: ManageDecision, onAdd: (query: String, requestedBy: String) -> Unit) {
+private fun AddToQueueSection(
+    moderate: ManageDecision,
+    onAdd: suspend (query: String, requestedBy: String) -> DialogResult,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -777,6 +783,10 @@ private fun AddToQueueSection(moderate: ManageDecision, onAdd: (query: String, r
     var query: String by remember { mutableStateOf("") }
     var requestedBy: String by remember { mutableStateOf("") }
     val canAdd: Boolean = query.isNotBlank() && requestedBy.isNotBlank()
+    val action: DialogActionState = rememberDialogActionState(onDone = {
+        query = ""
+        requestedBy = ""
+    })
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
         Text(text = stringResource(Res.string.music_add_title), style = typography.base, color = tokens.cardForeground)
@@ -798,16 +808,13 @@ private fun AddToQueueSection(moderate: ManageDecision, onAdd: (query: String, r
         )
         ManageGate(decision = moderate) { enabled ->
             Button(
-                onClick = {
-                    onAdd(query, requestedBy)
-                    query = ""
-                    requestedBy = ""
-                },
-                enabled = enabled && canAdd,
+                onClick = { action.run { onAdd(query, requestedBy) } },
+                enabled = enabled && canAdd && !action.pending,
             ) {
                 Text(text = stringResource(Res.string.music_add_action))
             }
         }
+        action.failure?.let { DialogActionError(it) }
     }
 }
 
@@ -824,7 +831,7 @@ private fun BlockedTracksSection(
     blockedTotal: Int,
     blockedHasMore: Boolean,
     moderate: ManageDecision,
-    onBlockTrack: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
+    onBlockTrack: suspend (provider: String, trackUri: String, title: String, reason: String?) -> DialogResult,
     onUnblock: (BlockedTrack) -> Unit,
     onPage: (page: Int) -> Unit,
 ) {
@@ -960,7 +967,7 @@ private fun BlockedTrackRow(track: BlockedTrack, moderate: ManageDecision, onUnb
 @Composable
 private fun BlockTrackForm(
     moderate: ManageDecision,
-    onBlock: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
+    onBlock: suspend (provider: String, trackUri: String, title: String, reason: String?) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -971,6 +978,11 @@ private fun BlockTrackForm(
     var title: String by remember { mutableStateOf("") }
     var reason: String by remember { mutableStateOf("") }
     val canBlock: Boolean = trackUri.isNotBlank() && title.isNotBlank()
+    val action: DialogActionState = rememberDialogActionState(onDone = {
+        trackUri = ""
+        title = ""
+        reason = ""
+    })
 
     val providerOptions: List<Pair<String, String>> = listOf(
         "spotify" to stringResource(Res.string.music_block_provider_spotify),
@@ -1029,17 +1041,13 @@ private fun BlockTrackForm(
         )
         ManageGate(decision = moderate) { enabled ->
             Button(
-                onClick = {
-                    onBlock(provider, trackUri, title, reason.takeIf { it.isNotBlank() })
-                    trackUri = ""
-                    title = ""
-                    reason = ""
-                },
-                enabled = enabled && canBlock,
+                onClick = { action.run { onBlock(provider, trackUri, title, reason.takeIf { it.isNotBlank() }) } },
+                enabled = enabled && canBlock && !action.pending,
             ) {
                 Text(text = stringResource(Res.string.music_block_action))
             }
         }
+        action.failure?.let { DialogActionError(it) }
     }
 }
 
