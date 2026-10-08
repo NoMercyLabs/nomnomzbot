@@ -26,6 +26,8 @@ public sealed class MassBanFailureSource(IApplicationDbContext db) : IActionRequ
 {
     private const string KeyPrefix = "massban-failed:";
 
+    public string SourceKey => "mass_bans";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     // A batch finishing is not a journaled domain event; the inbox is read when the dashboard loads.
