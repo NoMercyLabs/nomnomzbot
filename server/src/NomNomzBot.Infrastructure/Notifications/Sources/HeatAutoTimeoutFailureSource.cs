@@ -34,6 +34,8 @@ public sealed class HeatAutoTimeoutFailureSource(IApplicationDbContext db, TimeP
     /// <summary>How long a failure stays in the inbox — long enough to cover one stream.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromHours(24);
 
+    public string SourceKey => "heat_timeouts";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

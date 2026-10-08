@@ -198,6 +198,52 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<List<MassBanChannelPreviewDto>> { Data = rows });
     }
 
+    /// <summary>
+    /// How the operator's mass-ban batches went, newest first: the counts per channel and, for every account that is
+    /// not banned, whether it failed for good (with Twitch's reason), is waiting for a retry, or was not tried yet.
+    /// </summary>
+    [RequireAction("moderation:ban")]
+    [HttpGet("actions/mass-ban/batches")]
+    [ProducesResponseType<StatusResponseDto<List<MassBanBatchDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListMassBanBatches(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        IReadOnlyList<MassBanBatchReport> batches = await _massBan.ListBatchesAsync(
+            operatorUserId,
+            ct
+        );
+        return Ok(
+            new StatusResponseDto<List<MassBanBatchDto>>
+            {
+                Data =
+                [
+                    .. batches.Select(b => new MassBanBatchDto(
+                        b.BatchId,
+                        b.ChannelLogin,
+                        b.RequestedAt,
+                        b.CompletedAt,
+                        b.Total,
+                        b.Banned,
+                        b.Failed,
+                        b.Retrying,
+                        b.Waiting,
+                        [
+                            .. b.Targets.Select(t => new MassBanTargetResultDto(
+                                t.TwitchUserId,
+                                t.Status,
+                                t.Attempts,
+                                t.Error,
+                                t.NextAttemptAt
+                            )),
+                        ]
+                    )),
+                ],
+            }
+        );
+    }
+
     /// <summary>The channels this operator opted into their mass bans on the streamer's word.</summary>
     [RequireAction("moderation:ban")]
     [HttpGet("actions/mass-ban/opt-ins")]

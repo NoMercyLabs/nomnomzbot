@@ -44,6 +44,8 @@ public sealed class SecurityNoticeSource(IApplicationDbContext db) : IActionRequ
         ),
     };
 
+    public string SourceKey => "security_notices";
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     // The notices are written by the impersonation/access broadcast handlers, which push the inbox change

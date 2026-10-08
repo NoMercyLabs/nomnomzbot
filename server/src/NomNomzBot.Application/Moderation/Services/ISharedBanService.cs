@@ -58,8 +58,10 @@ public interface ISharedBanService
     /// SAME active shared-chat session — the predicate is enforced HERE, never by the caller. On apply:
     /// bans via the partner's own tenant token and records a <c>ModerationAction(ban,
     /// origin=shared_chat, OriginChannelId)</c> row (<see cref="ApplyInboundFederatedBanAsync"/> records
-    /// <c>federation</c> instead). A failed predicate is a truthful
-    /// <c>Skipped(reason)</c>, never an error.
+    /// <c>federation</c> instead). A ban that is not placed is a FAILURE whose error code is the reason
+    /// (<c>not_accepting</c>, <c>origin_not_trusted</c>, <c>no_shared_session</c>, <c>twitch_ban_failed</c>) and,
+    /// except for <c>not_accepting</c> (the channel's own choice), a <c>SharedChatBanNotAppliedEvent</c> is
+    /// published so the streamer sees it in the action-required inbox — never a quiet success.
     /// </summary>
     Task<Result<SharedBanApplicationResult>> ApplyInboundSharedBanAsync(
         Guid partnerBroadcasterId,
@@ -75,7 +77,8 @@ public interface ISharedBanService
     /// upstream by the federation inbound gateway. So this path requires NO active Twitch shared-chat session and
     /// consults NO local shared-chat trust list; it bans on the channel's OWN tenant token and records a provenance
     /// row with <c>Origin=federation</c> (explicitly distinct from <c>Origin=shared_chat</c>). A Twitch ban failure
-    /// is a truthful <c>Skipped(reason)</c>, never an error. Idempotency per <c>(EventId, target)</c> is the
+    /// is a failure Result (<c>twitch_ban_failed</c>) that is also reported to the streamer through a
+    /// <c>SharedChatBanNotAppliedEvent</c>. Idempotency per <c>(EventId, target)</c> is the
     /// caller's (the federation handler's) responsibility.
     /// </summary>
     Task<Result<SharedBanApplicationResult>> ApplyInboundFederatedBanAsync(

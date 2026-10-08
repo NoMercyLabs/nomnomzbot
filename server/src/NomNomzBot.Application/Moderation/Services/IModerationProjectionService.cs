@@ -45,6 +45,20 @@ public interface IModerationProjectionService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Records that the subject acknowledged a warning (<c>channel.warning.acknowledge</c>): stamps the latest
+    /// still-open <c>warn</c> history row at or before <paramref name="acknowledgedAtUtc"/>. With no such warning
+    /// the acknowledgement is appended as its own <c>warn_ack</c> row so it is not lost. Never bumps the rollup
+    /// or heat. A subject with no local <c>User</c> row is skipped, like <see cref="ApplyActionAsync"/>.
+    /// </summary>
+    Task<Result> AcknowledgeWarningAsync(
+        Guid broadcasterId,
+        string subjectTwitchUserId,
+        DateTime acknowledgedAtUtc,
+        string? subjectProvider = null,
+        CancellationToken ct = default
+    );
+
     /// <summary>Recomputes the J.5 trust score for one subject from the current J.4 rollup (heat untouched).</summary>
     Task<Result> RecomputeTrustAsync(
         Guid broadcasterId,

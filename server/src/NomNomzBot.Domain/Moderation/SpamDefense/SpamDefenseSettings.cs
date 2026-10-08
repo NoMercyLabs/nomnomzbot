@@ -45,6 +45,17 @@ public sealed record SpamDefenseSettings
     /// <summary>Watch hours across this instance's channels that grant Semi-Trusted.</summary>
     public double SemiTrustedWatchHoursInstance { get; init; } = 25;
 
+    // ---- Newcomers ------------------------------------------------------------------------------
+
+    /// <summary>Hold chat from accounts younger than this many days. 0 is off.</summary>
+    public int AccountAgeGateDays { get; init; }
+
+    /// <summary>Hold chat from followers who followed less than this many days ago. 0 is off.</summary>
+    public int FollowAgeGateDays { get; init; }
+
+    /// <summary>A gated message waits for a moderator (true) or is removed outright (false).</summary>
+    public bool AccountGateHoldsForReview { get; init; } = true;
+
     // ---- Content --------------------------------------------------------------------------------
 
     /// <summary>Similarity at which a message counts as a mutation of a known campaign.</summary>
@@ -194,6 +205,7 @@ public static class SpamSettingCatalogue
     {
         public const string Master = "master";
         public const string Trust = "trust";
+        public const string Newcomers = "newcomers";
         public const string Content = "content";
         public const string Campaign = "campaign";
         public const string Bursts = "bursts";
@@ -204,7 +216,6 @@ public static class SpamSettingCatalogue
     /// <summary>The work items that wire a stored-but-unread setting into the engine.</summary>
     public static class PendingSlices
     {
-        public const string FollowBotWire = "S-SPAM-FOLLOWBOT-WIRE";
         public const string LockdownWire = "S-SPAM-LOCKDOWN-WIRE";
         public const string Network = "S-SPAM-NETWORK";
     }
@@ -227,6 +238,9 @@ public static class SpamSettingCatalogue
         new(nameof(SpamDefenseSettings.TrustThresholds), Groups.Trust),
         new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere), Groups.Trust, 1, 200),
         new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance), Groups.Trust, 1, 500),
+        new(nameof(SpamDefenseSettings.AccountAgeGateDays), Groups.Newcomers, 0, 365),
+        new(nameof(SpamDefenseSettings.FollowAgeGateDays), Groups.Newcomers, 0, 90),
+        new(nameof(SpamDefenseSettings.AccountGateHoldsForReview), Groups.Newcomers),
         new(nameof(SpamDefenseSettings.NearDuplicateSimilarity), Groups.Content, 0, 1),
         new(nameof(SpamDefenseSettings.MinimumSkeletonLength), Groups.Content, 2, 50),
         new(nameof(SpamDefenseSettings.NonLatinScriptGate), Groups.Content),
@@ -237,13 +251,7 @@ public static class SpamSettingCatalogue
         new(nameof(SpamDefenseSettings.MaxWindowSeconds), Groups.Campaign, 60, 7200),
         new(nameof(SpamDefenseSettings.ActionDelaySeconds), Groups.Campaign, 0, 120),
         new(nameof(SpamDefenseSettings.AutoReverseOnDequalify), Groups.Campaign),
-        new(
-            nameof(SpamDefenseSettings.FollowSpikeFactor),
-            Groups.Bursts,
-            1.5,
-            50,
-            PendingSlices.FollowBotWire
-        ),
+        new(nameof(SpamDefenseSettings.FollowSpikeFactor), Groups.Bursts, 1.5, 50),
         new(
             nameof(SpamDefenseSettings.JoinBurstFactor),
             Groups.Bursts,

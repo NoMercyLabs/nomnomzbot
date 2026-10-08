@@ -146,4 +146,10 @@ public class FollowBotBlock : SoftDeletableEntity, ITenantScoped
     public DateTime? RestoredAt { get; set; }
 
     public DateTime BlockedAt { get; set; }
+
+    /// <summary>
+    /// True when the channel was in dry run or its observation window: this row records what WOULD have been
+    /// blocked and no Twitch block exists, so restoring it must not call Twitch.
+    /// </summary>
+    public bool WasDryRun { get; set; }
 }

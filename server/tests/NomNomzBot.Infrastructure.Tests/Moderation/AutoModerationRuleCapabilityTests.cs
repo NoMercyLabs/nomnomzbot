@@ -85,6 +85,7 @@ public sealed class AutoModerationRuleCapabilityTests
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(Substitute.For<ITwitchModerationApi>());
+        services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         ServiceProvider provider = services.BuildServiceProvider();
 
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();

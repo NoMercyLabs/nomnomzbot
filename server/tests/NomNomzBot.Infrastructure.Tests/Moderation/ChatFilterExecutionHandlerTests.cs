@@ -20,9 +20,12 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.EventStore;
+using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -46,7 +49,8 @@ public sealed class ChatFilterExecutionHandlerTests
         EventStoreTestDbContext Db,
         ITwitchModerationApi Moderation,
         ModerationEscalationService Escalation,
-        SqliteTestDatabase Database
+        SqliteTestDatabase Database,
+        RecordingEventBus Bus
     )
     {
         /// <summary>
@@ -69,6 +73,40 @@ public sealed class ChatFilterExecutionHandlerTests
         SqliteTestDatabase database = SqliteTestDatabase.Open();
         EventStoreTestDbContext db = database.NewContext();
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        moderation
+            .TimeoutUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(AppliedBan()));
+        moderation
+            .BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(AppliedBan()));
+        moderation
+            .WarnChatUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(new TwitchWarningResult("tw-chan", TargetTwitchUserId, "mod", "r"))
+            );
 
         IUserService users = Substitute.For<IUserService>();
         users
@@ -102,17 +140,22 @@ public sealed class ChatFilterExecutionHandlerTests
             new FakeTimeProvider(T0),
             NullLogger<ModerationQueueService>.Instance
         );
+        RecordingEventBus bus = new();
         ChatFilterExecutionHandler handler = new(
             db,
             moderation,
             escalation,
             queue,
             users,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
+            bus,
             NullLogger<ChatFilterExecutionHandler>.Instance
         );
-        return new(handler, db, moderation, escalation, database);
+        return new(handler, db, moderation, escalation, database, bus);
     }
+
+    private static TwitchBanResult AppliedBan() =>
+        new("tw-chan", "mod", TargetTwitchUserId, T0, null);
 
     private static ChatMessageReceivedEvent Message(string text, bool isVip = false) =>
         new()
@@ -234,6 +277,102 @@ public sealed class ChatFilterExecutionHandlerTests
                 Channel,
                 TargetTwitchUserId,
                 60,
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_escalate_rule_with_the_ladder_on_deletes_the_message_and_applies_the_ladder_step()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        await h.Escalation.UpsertPolicyAsync(
+            Channel,
+            new(
+                IsEnabled: true,
+                Ladder: [new(1, "timeout", 45), new(2, "ban", null)],
+                OffenseWindowHours: 168,
+                CountAutoModViolations: false
+            )
+        );
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Escalate, ["banned"], timeoutSeconds: 999);
+
+        await h.Handler.HandleAsync(Message("this is banned content"));
+
+        await h
+            .Moderation.Received(1)
+            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        await h
+            .Moderation.Received(1)
+            .TimeoutUserAsync(
+                Channel,
+                TargetTwitchUserId,
+                45,
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await h.Verify().ModerationEscalationStates.SingleAsync()).OffenseCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task An_escalate_rule_with_the_ladder_off_deletes_the_message_and_times_out_for_the_filter_duration()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Escalate, ["banned"], timeoutSeconds: 120);
+
+        await h.Handler.HandleAsync(Message("this is banned content"));
+
+        await h
+            .Moderation.Received(1)
+            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        await h
+            .Moderation.Received(1)
+            .TimeoutUserAsync(
+                Channel,
+                TargetTwitchUserId,
+                120,
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await h.Verify().ModerationEscalationStates.CountAsync()).Should().Be(0);
+        (await h.Db.ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task An_escalate_rule_still_times_out_when_the_platform_delete_fails()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Twitch rejected it.", "TWITCH_ERROR"));
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Escalate, ["banned"], timeoutSeconds: 120);
+
+        await h.Handler.HandleAsync(Message("this is banned content"));
+
+        await h
+            .Moderation.Received(1)
+            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        await h
+            .Moderation.Received(1)
+            .TimeoutUserAsync(
+                Channel,
+                TargetTwitchUserId,
+                120,
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
@@ -392,5 +531,146 @@ public sealed class ChatFilterExecutionHandlerTests
         row.TargetUsernameSnapshot.Should().Be("viewer");
         row.AutoModCategory.Should().Be("test-filter");
         (await h.Db.ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_refused_timeout_is_published_for_the_inbox_and_is_not_counted()
+    {
+        Harness h = Build();
+        h.Moderation.TimeoutUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchBanResult>("Not a moderator.", "TWITCH_FORBIDDEN"));
+        ChatFilter filter = await SeedBlocklistFilter(
+            h.Db,
+            ChatFilterAction.Timeout,
+            ["spam"],
+            timeoutSeconds: 300
+        );
+
+        await h.Handler.HandleAsync(Message("buy cheap spam now"));
+
+        ChatFilterActionFailedEvent failed = h
+            .Bus.Published.Should()
+            .ContainSingle()
+            .Subject.Should()
+            .BeOfType<ChatFilterActionFailedEvent>()
+            .Subject;
+        failed.BroadcasterId.Should().Be(Channel);
+        failed.FilterId.Should().Be(filter.Id);
+        failed.FilterName.Should().Be("test-filter");
+        failed.Action.Should().Be("timeout");
+        failed.SubjectTwitchUserId.Should().Be(TargetTwitchUserId);
+        failed.SubjectUsername.Should().Be("viewer");
+        failed.Error.Should().Be("Not a moderator.");
+        (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_refused_delete_is_published_for_the_inbox_and_is_not_counted()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Message is gone.", "TWITCH_NOT_FOUND"));
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Delete, ["spam"]);
+
+        await h.Handler.HandleAsync(Message("buy cheap spam now"));
+
+        ChatFilterActionFailedEvent failed = h
+            .Bus.Published.Should()
+            .ContainSingle()
+            .Subject.Should()
+            .BeOfType<ChatFilterActionFailedEvent>()
+            .Subject;
+        failed.Action.Should().Be("delete");
+        failed.Error.Should().Be("Message is gone.");
+        (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_successful_timeout_publishes_nothing_and_counts_the_match()
+    {
+        Harness h = Build();
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Timeout, ["spam"], timeoutSeconds: 300);
+
+        await h.Handler.HandleAsync(Message("buy cheap spam now"));
+
+        h.Bus.Published.Should().BeEmpty();
+        (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_refused_ladder_ban_is_published_with_the_ban_action()
+    {
+        Harness h = Build();
+        h.Moderation.BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchBanResult>("Cannot ban a moderator.", "TWITCH_FORBIDDEN")
+            );
+        await h.Escalation.UpsertPolicyAsync(
+            Channel,
+            new(
+                IsEnabled: true,
+                Ladder: [new(1, "ban", null)],
+                OffenseWindowHours: 168,
+                CountAutoModViolations: false
+            )
+        );
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Escalate, ["banned"]);
+
+        await h.Handler.HandleAsync(Message("this is banned content"));
+
+        ChatFilterActionFailedEvent failed = h
+            .Bus.Published.Should()
+            .ContainSingle()
+            .Subject.Should()
+            .BeOfType<ChatFilterActionFailedEvent>()
+            .Subject;
+        failed.Action.Should().Be("ban");
+        failed.Error.Should().Be("Cannot ban a moderator.");
+        (await h.Verify().ChatFilters.SingleAsync()).MatchCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_refused_delete_in_an_escalate_rule_is_published_even_though_the_timeout_follows()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Message is gone.", "TWITCH_NOT_FOUND"));
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Escalate, ["banned"], timeoutSeconds: 60);
+
+        await h.Handler.HandleAsync(Message("this is banned content"));
+
+        h.Bus.Published.OfType<ChatFilterActionFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.Action.Should()
+            .Be("delete");
+        await h
+            .Moderation.Received(1)
+            .TimeoutUserAsync(
+                Channel,
+                TargetTwitchUserId,
+                60,
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

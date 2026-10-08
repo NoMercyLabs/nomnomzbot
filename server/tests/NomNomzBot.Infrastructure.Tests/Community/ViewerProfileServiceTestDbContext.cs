@@ -291,6 +291,8 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus> ChannelLowTrustStatuses =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ChannelLowTrustStatus>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels =>
