@@ -44,6 +44,17 @@ $worktree = $null
 # Every native call here is judged by its exit code, never by stderr: docker/dotnet/jb all write
 # ordinary progress to stderr, and under Windows PowerShell 5.1 that becomes a terminating
 # NativeCommandError while ErrorActionPreference is 'Stop'. Same helper shape as switchover.ps1.
+# One native call per chunk of paths. Windows caps a command line at about 32k characters, and a merged
+# batch of 231 slice files with absolute paths went past it on 2026-10-08 ("the filename or extension is
+# too long") - the build and tests were green and the gate still reported red.
+function Invoke-InChunks([string[]]$items, [string]$failure, [scriptblock]$perChunk, [int]$size = 50) {
+    for ([int]$start = 0; $start -lt $items.Count; $start += $size) {
+        [int]$end = [Math]::Min($start + $size, $items.Count) - 1
+        [string[]]$chunk = $items[$start..$end]
+        Invoke-Native $failure { & $perChunk $chunk }
+    }
+}
+
 function Invoke-Native {
     param([Parameter(Mandatory = $true)][string]$FailureMessage,
         [Parameter(Mandatory = $true)][scriptblock]$Command)
@@ -178,8 +189,8 @@ try {
         $resolvedPaths += (Resolve-Path $candidate).Path
     }
 
-    Invoke-Native 'csharpier format failed on slice files' { dotnet csharpier format @resolvedPaths }
-    Invoke-Native 'csharpier check failed on slice files' { dotnet csharpier check @resolvedPaths }
+    Invoke-InChunks $resolvedPaths 'csharpier format failed on slice files' { param([string[]]$chunk) dotnet csharpier format @chunk }
+    Invoke-InChunks $resolvedPaths 'csharpier check failed on slice files' { param([string[]]$chunk) dotnet csharpier check @chunk }
 
     # Repo-wide CHECK (never a repo-wide format - the scoped format above stays scoped on purpose).
     # A slice's -Paths list cannot contain a file the slice has not created yet, and `dotnet ef
@@ -218,8 +229,9 @@ try {
         }
         else { $_ }
     }
-    Invoke-Native 'dotnet format style failed on slice files' {
-        dotnet format style NomNomzBot.slnx --include @relativePaths --severity warn --no-restore
+    Invoke-InChunks $relativePaths 'dotnet format style failed on slice files' {
+        param([string[]]$chunk)
+        dotnet format style NomNomzBot.slnx --include @chunk --severity warn --no-restore
     }
 
     # inspectcode reads the WHOLE solution regardless of --include, so inside the devbox every file
