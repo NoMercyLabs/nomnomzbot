@@ -41,6 +41,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -214,11 +215,8 @@ fun SupportersScreen(controller: SupportersController, heldActionKeys: Set<Strin
             confirmLabel = stringResource(Res.string.supporters_disconnect_confirm),
             dismissLabel = stringResource(Res.string.supporters_cancel),
             destructive = true,
-            onConfirm = {
-                pendingDisconnect = null
-                scope.launch { controller.disconnect(provider.sourceKey) }
-            },
             onDismiss = { pendingDisconnect = null },
+            action = { controller.disconnect(provider.sourceKey).toDialogResult() },
         )
     }
 }
