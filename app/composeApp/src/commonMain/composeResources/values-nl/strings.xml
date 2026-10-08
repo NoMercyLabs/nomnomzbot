@@ -293,7 +293,6 @@
     <string name="home_stream_tags_hint">Nederlands, Games…</string>
     <string name="home_stream_save">Stream bijwerken</string>
     <string name="home_stream_saved">Stream bijgewerkt</string>
-    <string name="home_stream_error">Bijwerken mislukt: %1$s</string>
 
     <!-- Actie-vereist tegel op Home (S071b) -->
     <string name="home_action_required_section">Vraagt je aandacht</string>
