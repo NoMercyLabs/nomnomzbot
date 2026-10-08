@@ -576,14 +576,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
       it. The local corpus — store, quarantine, corroboration, curated-skips-quarantine, withdrawal,
       contribution eligibility — is built and is what makes corpus-match and near-duplicate able to
       fire at all.
-- [ ] **S-SPAM-FOLLOWBOT-WIRE** follow events → ChannelBaseline → FollowBotTrack → per-account block
-  + FollowBotBlock rows. Done-when: a simulated follow spike creates blocks and the dashboard
-  restore works. Owner 2026-10-05: "how do we determine when we are being followbotted? we can't
-  ever be wrong" — so a single signal (a name pattern, a creation month, a default avatar) never
-  acts on its own; an account acts as a bot only when several signals agree inside the burst
-  window AND it has no chat or follow history anywhere the bot sees; the automatic action is a
-  reversible block, never a ban; a ban needs a person to review the list first (the qtkitte storm
-  of 2026-10-05 was banned from a hand-built list, `.scratch/results/kitte-followbot-2026-10-05.txt`).
 - [ ] **S-SPAM-ACCOUNT-AGE-GATE** Sery parity: a channel setting that holds or blocks chat from
   accounts younger than N days (and, separately, followers younger than N days) with the usual
   trust-tier exemptions. Done-when: a fresh account's first message is held while a Regular's is
