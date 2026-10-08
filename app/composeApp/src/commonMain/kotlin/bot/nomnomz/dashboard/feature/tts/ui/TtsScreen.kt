@@ -130,6 +130,7 @@ import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_phrase_label
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_replacement_label
 import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_clear
 import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_description
+import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_error
 import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_label
 import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_save
 import nomnomzbot.composeapp.generated.resources.tts_name_pronunciation_title
@@ -272,7 +273,7 @@ fun TtsScreen(
                     queueController = queueController,
                     queueManage = queueManage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
-                    onResetConfig = { scope.launch { controller.resetConfig() } },
+                    onResetConfig = { controller.resetConfig().toDialogResult() },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
                     onTestOverlay = { scope.launch { controller.testOverlay() } },
                     onSkipPlayback = { scope.launch { controller.skipPlayback() } },
@@ -368,7 +369,7 @@ private fun ReadyContent(
     queueController: TtsQueueController,
     queueManage: ManageDecision,
     onSave: (TtsConfig) -> Unit,
-    onResetConfig: () -> Unit,
+    onResetConfig: suspend () -> DialogResult,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
     onTestOverlay: () -> Unit,
     onSkipPlayback: () -> Unit,
@@ -537,6 +538,7 @@ private fun ReadyContent(
                     busy = state.lexiconBusy,
                     namePronunciation = state.namePronunciation,
                     nameBusy = state.namePronunciationBusy,
+                    nameError = state.namePronunciationError,
                     onSaveName = onSaveNamePronunciation,
                     manage = manage,
                     onAdd = onAddLexicon,
@@ -573,10 +575,7 @@ private fun ReadyContent(
     if (showReset && resetDefaults != null) {
         TtsResetDialog(
             changes = ttsResetChanges(loaded, resetDefaults),
-            onConfirm = {
-                showReset = false
-                onResetConfig()
-            },
+            action = onResetConfig,
             onDismiss = { showReset = false },
         )
     }
@@ -766,6 +765,7 @@ internal fun PronunciationTab(
     onAdd: suspend (phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onUpdate: suspend (id: String, phrase: String, replacement: String, matchKind: String) -> DialogResult,
     onDelete: (id: String) -> Unit,
+    nameError: String? = null,
 ) {
     val spacing = LocalSpacing.current
     ScrollArea(modifier = Modifier.fillMaxSize()) {
@@ -777,6 +777,7 @@ internal fun PronunciationTab(
                 NamePronunciationSection(
                     saved = namePronunciation,
                     busy = nameBusy,
+                    error = nameError,
                     manage = manage,
                     onSave = onSaveName,
                 )
@@ -1480,6 +1481,7 @@ private val LEXICON_KINDS: List<Pair<String, StringResource>> =
 private fun NamePronunciationSection(
     saved: ChannelNamePronunciation,
     busy: Boolean,
+    error: String?,
     manage: ManageDecision,
     onSave: (pronunciation: String) -> Unit,
 ) {
@@ -1528,6 +1530,13 @@ private fun NamePronunciationSection(
                         Text(stringResource(Res.string.tts_name_pronunciation_clear))
                     }
                 }
+            }
+            if (error != null) {
+                Text(
+                    text = stringResource(Res.string.tts_name_pronunciation_error, error),
+                    style = typography.sm,
+                    color = tokens.destructive,
+                )
             }
         }
     }

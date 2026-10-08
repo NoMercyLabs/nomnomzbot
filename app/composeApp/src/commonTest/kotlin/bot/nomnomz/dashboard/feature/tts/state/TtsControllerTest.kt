@@ -271,11 +271,12 @@ class TtsControllerTest {
         val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
         controller.load()
 
-        controller.resetConfig()
+        val result: ApiResult<TtsConfig> = controller.resetConfig()
 
         val ready: TtsState.Ready = controller.state.value as TtsState.Ready
         assertEquals(loaded, ready.config)
-        assertEquals("not allowed", ready.saveError)
+        assertEquals("not allowed", (result as ApiResult.Failure).error.message)
+        assertEquals(null, ready.saveError)
         assertEquals(false, ready.justSaved)
     }
 
@@ -631,8 +632,8 @@ class TtsControllerTest {
         val ready: TtsState.Ready = controller.state.value as TtsState.Ready
         assertEquals("Stoney Eagle", ready.namePronunciation?.pronunciation)
         assertEquals(false, ready.namePronunciationBusy)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("too long"), feedback.only.formatArgs)
+        assertEquals("too long", ready.namePronunciationError)
+        assertEquals(emptyList(), feedback.messages)
     }
 }
 

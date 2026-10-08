@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.feature.tts.state.TtsResetChange
@@ -44,7 +45,7 @@ class TtsResetDialogTest {
         var confirmed = 0
         setContent {
             AppEnvironment(tag = "en") {
-                NomNomzTheme { TtsResetDialog(changes = changes, onConfirm = { confirmed++ }, onDismiss = {}) }
+                NomNomzTheme { TtsResetDialog(changes = changes, action = { confirmed++; DialogResult.Done }, onDismiss = {}) }
             }
         }
         waitForIdle()
@@ -71,7 +72,7 @@ class TtsResetDialogTest {
         var confirmed = 0
         setContent {
             AppEnvironment(tag = "en") {
-                NomNomzTheme { TtsResetDialog(changes = emptyList(), onConfirm = { confirmed++ }, onDismiss = {}) }
+                NomNomzTheme { TtsResetDialog(changes = emptyList(), action = { confirmed++; DialogResult.Done }, onDismiss = {}) }
             }
         }
         waitForIdle()
@@ -88,7 +89,7 @@ class TtsResetDialogTest {
         setContent {
             AppEnvironment(tag = "en") {
                 NomNomzTheme {
-                    TtsResetDialog(changes = changes, onConfirm = { confirmed++ }, onDismiss = { dismissed++ })
+                    TtsResetDialog(changes = changes, action = { confirmed++; DialogResult.Done }, onDismiss = { dismissed++ })
                 }
             }
         }
@@ -104,7 +105,7 @@ class TtsResetDialogTest {
     fun it_renders_in_dutch_from_resource_keys() = runComposeUiTest {
         setContent {
             AppEnvironment(tag = "nl") {
-                NomNomzTheme { TtsResetDialog(changes = changes, onConfirm = {}, onDismiss = {}) }
+                NomNomzTheme { TtsResetDialog(changes = changes, action = { DialogResult.Done }, onDismiss = {}) }
             }
         }
         waitForIdle()
