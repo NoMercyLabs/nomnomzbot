@@ -1530,6 +1530,14 @@ public class ModerationService : IModerationService
             )
             .Select(s => new UserTrustSummaryDto(s.TrustScore, s.HeatScore, s.ComputedAt))
             .FirstOrDefaultAsync(cancellationToken);
+        // Absent row = no Twitch suspicious-user flag.
+        string lowTrustStatus =
+            await _db
+                .ChannelLowTrustStatuses.AsNoTracking()
+                .Where(s => s.BroadcasterId == tenantId && s.TwitchUserId == targetTwitchUserId)
+                .Select(s => s.Status)
+                .FirstOrDefaultAsync(cancellationToken)
+            ?? LowTrustStatuses.None;
 
         return Result.Success(
             new UserModerationContextDto(
@@ -1544,7 +1552,8 @@ public class ModerationService : IModerationService
                 recent,
                 standings,
                 history,
-                trust
+                trust,
+                lowTrustStatus
             )
         );
     }

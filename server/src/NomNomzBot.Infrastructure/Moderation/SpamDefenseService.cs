@@ -616,7 +616,23 @@ public sealed class SpamDefenseService : ISpamDefenseService
         CancellationToken ct
     )
     {
-        if (request.IsBroadcaster || request.IsModerator || request.IsVip)
+        if (request.IsBroadcaster || request.IsModerator)
+            return (SpamTrustTier.Established, new AccountFacts());
+
+        // Twitch's own flag outranks a VIP badge: a restricted or monitored chatter is not waved through.
+        string lowTrustStatus =
+            await _db
+                .ChannelLowTrustStatuses.IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(s =>
+                    s.BroadcasterId == request.BroadcasterId
+                    && s.TwitchUserId == request.PlatformUserId
+                )
+                .Select(s => s.Status)
+                .FirstOrDefaultAsync(ct)
+            ?? LowTrustStatuses.None;
+
+        if (request.IsVip && lowTrustStatus == LowTrustStatuses.None)
             return (SpamTrustTier.Established, new AccountFacts());
 
         DateTime now = _time.GetUtcNow().UtcDateTime;
@@ -674,6 +690,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
             Follow = FollowState.Unknown,
             Username = request.DisplayName,
             IsSubscriberAnywhere = request.IsSubscriber,
+            LowTrustStatus = lowTrustStatus,
             WatchTimeHoursThisChannel = TimeSpan.FromSeconds(secondsHere).TotalHours,
             WatchTimeHoursInstanceWide = TimeSpan.FromSeconds(secondsInstance).TotalHours,
         };

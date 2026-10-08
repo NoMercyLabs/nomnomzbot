@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json.Serialization;
+using NomNomzBot.Domain.Moderation.Entities;
 
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
@@ -115,7 +116,9 @@ public static class TrustTierLadder
     };
 
     /// <summary>
-    /// Resolve the tier. Established is tested first, then in-channel standing, then instance-wide
+    /// Resolve the tier. Twitch's suspicious-user flag is applied first: a <c>restricted</c> chatter is
+    /// Untrusted whatever else is true of them, and an <c>active_monitoring</c> chatter never rises above
+    /// Newcomer. Without a flag, Established is tested first, then in-channel standing, then instance-wide
     /// standing, then the earned ladder — highest wins.
     /// </summary>
     public static SpamTrustTier Resolve(
@@ -123,6 +126,22 @@ public static class TrustTierLadder
         ChannelParticipation participation,
         AccountRiskAssessment risk,
         TrustTierThresholds? thresholds = null
+    )
+    {
+        if (account.LowTrustStatus == LowTrustStatuses.Restricted)
+            return SpamTrustTier.Untrusted;
+
+        SpamTrustTier earned = ResolveEarned(account, participation, risk, thresholds);
+        return account.LowTrustStatus == LowTrustStatuses.ActiveMonitoring
+            ? (SpamTrustTier)Math.Min((int)earned, (int)SpamTrustTier.Newcomer)
+            : earned;
+    }
+
+    private static SpamTrustTier ResolveEarned(
+        AccountFacts account,
+        ChannelParticipation participation,
+        AccountRiskAssessment risk,
+        TrustTierThresholds? thresholds
     )
     {
         TrustTierThresholds t = thresholds ?? new TrustTierThresholds();
@@ -189,7 +208,8 @@ public static class TrustTierLadder
         AccountRiskAssessment risk,
         TrustTierThresholds? thresholds = null
     ) =>
-        !IsEstablished(participation, thresholds)
+        account.LowTrustStatus != LowTrustStatuses.Restricted
+        && !IsEstablished(participation, thresholds)
         && participation is { IsModeratorHere: false, IsVipHere: false, IsSubscriberHere: false }
         && !risk.IsSemiTrusted
         && account.AccountAgeDays >= NewcomerAccountDays;

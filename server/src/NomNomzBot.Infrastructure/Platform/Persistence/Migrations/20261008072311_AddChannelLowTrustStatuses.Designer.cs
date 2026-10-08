@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.Platform.Persistence;
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008072311_AddChannelLowTrustStatuses")]
+    partial class AddChannelLowTrustStatuses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -7478,11 +7481,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Attempts")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
-
                     b.Property<bool>("Banned")
                         .HasColumnType("boolean");
 
@@ -7492,9 +7490,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<Guid>("MassBanBatchId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("NextAttemptAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
@@ -8094,12 +8089,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("AccountAgeGateDays")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("AccountGateHoldsForReview")
-                        .HasColumnType("boolean");
-
                     b.Property<int>("ActionDelaySeconds")
                         .HasColumnType("integer");
 
@@ -8126,9 +8115,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("FollowAgeGateDays")
-                        .HasColumnType("integer");
 
                     b.Property<double>("FollowSpikeFactor")
                         .HasColumnType("double precision");

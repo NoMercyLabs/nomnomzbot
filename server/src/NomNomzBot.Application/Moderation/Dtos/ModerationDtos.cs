@@ -67,7 +67,9 @@ public sealed record UserModerationContextDto(
     // Unlike the counts above (the bot's own recorded actions), the projection counts EVERY
     // Twitch-side action the EventSub facts carried.
     UserModerationHistorySummaryDto? History = null,
-    UserTrustSummaryDto? Trust = null
+    UserTrustSummaryDto? Trust = null,
+    // Twitch's suspicious-user flag in this channel: "none" | "active_monitoring" | "restricted".
+    string LowTrustStatus = "none"
 );
 
 /// <summary>The J.4 rollup as the mod panel shows it.</summary>
