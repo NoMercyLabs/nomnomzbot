@@ -29,6 +29,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -184,7 +185,7 @@ internal fun TrustSafetyTab(state: AdminState, controller: AdminController) {
             confirmLabel = stringResource(Res.string.admin_trust_safety_overturn_confirm),
             dismissLabel = stringResource(Res.string.admin_trust_safety_overturn_cancel),
             destructive = true,
-            onConfirm = { scope.launch { controller.overturnReviewItem(pending.detectionId) } },
+            action = { controller.overturnReviewItem(pending.detectionId).toDialogResult() },
             onDismiss = { controller.dismissOverturnRequest() },
         )
     }
@@ -394,7 +395,7 @@ private fun NetworkBlockSection(state: AdminState, controller: AdminController, 
             destructive = true,
             // A second click while the first apply is in flight would ban every tenant twice.
             confirmEnabled = !state.networkBlockApplyInFlight,
-            onConfirm = { scope.launch { controller.applyNetworkBlock() } },
+            action = { controller.applyNetworkBlock().toDialogResult() },
             onDismiss = { controller.dismissApplyNetworkBlockRequest() },
         )
     }

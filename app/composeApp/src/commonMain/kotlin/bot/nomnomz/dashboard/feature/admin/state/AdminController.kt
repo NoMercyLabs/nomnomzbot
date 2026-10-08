@@ -1512,28 +1512,26 @@ class AdminController(
     }
 
     /** The operator disagrees: the backend REVERSES the real account action before marking the detection
-     * overturned — a failed reversal leaves the queue row exactly as it was. */
-    suspend fun overturnReviewItem(detectionId: String) {
-        val api: TrustSafetyApi = trustSafetyApi ?: return
+     * overturned — a failed reversal leaves the queue row exactly as it was. The outcome goes back to the
+     * stay-open confirm: a failure shows inline there (no toast) and the pending overturn is kept. */
+    suspend fun overturnReviewItem(detectionId: String): ApiResult<Unit> {
+        val api: TrustSafetyApi = trustSafetyApi ?: return notSent()
         val justification: String = _state.value.trustSafetyJustification.trim()
-        if (justification.isBlank()) return
+        if (justification.isBlank()) return notSent()
 
-        _state.value = _state.value.copy(
-            reviewActionInFlight = detectionId,
-            reviewItemPendingOverturn = null,
-        )
-        when (val result = api.overturn(detectionId = detectionId, justification = justification)) {
-            is ApiResult.Ok -> {
-                _state.value = _state.value.copy(reviewActionInFlight = null)
-                feedback.success(Res.string.admin_review_overturned)
-                loadReviewQueue()
-            }
-            is ApiResult.Failure -> {
-                _state.value = _state.value.copy(reviewActionInFlight = null)
-                feedback.error(Res.string.admin_action_error, result.error.message)
-            }
+        _state.value = _state.value.copy(reviewActionInFlight = detectionId)
+        val result: ApiResult<Unit> = api.overturn(detectionId = detectionId, justification = justification)
+        _state.value = _state.value.copy(reviewActionInFlight = null)
+        if (result is ApiResult.Ok) {
+            _state.value = _state.value.copy(reviewItemPendingOverturn = null)
+            feedback.success(Res.string.admin_review_overturned)
+            loadReviewQueue()
         }
+        return result
     }
+
+    /** A guarded no-op (no API, no justification, already running): a blank reason shows the dialog's generic line. */
+    private fun notSent(): ApiResult.Failure = ApiResult.Failure(ApiError(0, "NOT_SENT", ""))
 
     // ── Network-wide block (S-ADMIN-8b) ──────────────────────────────────────
     // The most dangerous control in the product: it acts across EVERY tenant of this deployment at
@@ -1592,16 +1590,16 @@ class AdminController(
 
     /** Applies the block, echoing back the exact count the operator was just shown — a stale count (the
      * blast radius moved since the preview) is refused server-side rather than silently acted on. */
-    suspend fun applyNetworkBlock() {
-        val api: TrustSafetyApi = trustSafetyApi ?: return
-        val preview: NetworkBlockPreview = _state.value.networkBlockPreview ?: return
+    suspend fun applyNetworkBlock(): ApiResult<Unit> {
+        val api: TrustSafetyApi = trustSafetyApi ?: return notSent()
+        val preview: NetworkBlockPreview = _state.value.networkBlockPreview ?: return notSent()
         val justification: String = _state.value.trustSafetyJustification.trim()
-        if (justification.isBlank()) return
+        if (justification.isBlank()) return notSent()
         // A second confirm while the first is in flight would ban every tenant a second time.
-        if (_state.value.networkBlockApplyInFlight) return
+        if (_state.value.networkBlockApplyInFlight) return notSent()
 
         _state.value = _state.value.copy(networkBlockApplyInFlight = true)
-        val result = api.applyNetworkBlock(
+        val result: ApiResult<NetworkBlock> = api.applyNetworkBlock(
             targetTwitchUserId = preview.targetTwitchUserId,
             reason = _state.value.networkBlockReason.trim().ifBlank { null },
             justification = justification,
@@ -1618,10 +1616,12 @@ class AdminController(
                 )
                 feedback.success(Res.string.admin_network_block_applied, result.value.channelCount)
                 loadNetworkBlocks()
+                return ApiResult.Ok(Unit)
             }
             is ApiResult.Failure -> {
+                // The confirm stays open and shows the reason inline; the preview and typed reason are kept.
                 _state.value = _state.value.copy(networkBlockApplyInFlight = false)
-                feedback.error(Res.string.admin_action_error, result.error.message)
+                return result
             }
         }
     }

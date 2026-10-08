@@ -227,7 +227,7 @@ private class FakeNetworkBlockTrustSafetyApi(
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused in this test"))
 }
 
-private class FakeAdminApiForNetworkBlockTest : AdminApi {
+internal class FakeAdminApiForNetworkBlockTest: AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?) =
         ApiResult.Ok(PaginatedEnvelope<AdminChannel>(emptyList()))
@@ -279,7 +279,7 @@ private class FakeAdminApiForNetworkBlockTest : AdminApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
-private class FakeIamApiForNetworkBlockTest : PlatformIamApi {
+internal class FakeIamApiForNetworkBlockTest: PlatformIamApi {
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
     override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> = ApiResult.Ok(emptyList())
     override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
@@ -295,7 +295,7 @@ private class FakeIamApiForNetworkBlockTest : PlatformIamApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
-private class FakePlatformAdminApiForNetworkBlockTest : PlatformAdminApi {
+internal class FakePlatformAdminApiForNetworkBlockTest: PlatformAdminApi {
     override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int) =
         ApiResult.Ok(PaginatedEnvelope<AdminTenant>(emptyList()))
     override suspend fun getTenant(broadcasterId: String) =
