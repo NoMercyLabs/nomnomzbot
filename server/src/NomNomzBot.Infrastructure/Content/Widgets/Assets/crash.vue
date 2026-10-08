@@ -40,16 +40,28 @@ function onFrame(d: GameFrame): void {
     phase.value = 'lobby'
     return
   }
+  // A reloaded overlay is replayed the opening frame and the newest one, so every frame shows the widget and
+  // carries what it needs to rebuild the view on its own.
   if (d.kind === 'join') {
-    crewCount.value += 1
+    visible.value = true
+    crewCount.value = d.crewSize ?? crewCount.value + 1
+    if (d.phase === 'running') {
+      phase.value = 'running'
+      multiplier.value = d.entry || multiplier.value
+    }
     return
   }
   if (d.kind === 'progress') {
+    visible.value = true
     phase.value = 'running'
     multiplier.value = d.multiplier || multiplier.value
     return
   }
   if (d.kind === 'cashout') {
+    visible.value = true
+    phase.value = 'running'
+    crewCount.value = d.crewSize ?? crewCount.value
+    multiplier.value = d.multiplier || multiplier.value
     cashed.value = [...cashed.value, {
       player: d.player,
       multiplier: d.multiplier,
@@ -58,16 +70,19 @@ function onFrame(d: GameFrame): void {
     return
   }
   if (d.kind === 'bust') {
+    visible.value = true
     phase.value = 'crashed'
     multiplier.value = d.multiplier || multiplier.value
     return
   }
   if (d.kind === 'cap') {
+    visible.value = true
     capped.value = true
     multiplier.value = d.multiplier || multiplier.value
     return
   }
   if (d.kind === 'results') {
+    visible.value = true
     phase.value = 'resolved'
     capped.value = d.capped === true
     multiplier.value = d.crashedAt || multiplier.value

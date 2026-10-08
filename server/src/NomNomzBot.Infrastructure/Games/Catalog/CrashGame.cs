@@ -95,6 +95,8 @@ public sealed class CrashGame : ILiveGame
                         ["player"] = input.Player.DisplayName,
                         ["stake"] = input.Player.Stake,
                         ["entry"] = entry,
+                        ["crewSize"] = CrewSize(state),
+                        ["phase"] = state.Phase == LiveGamePhase.Running ? "running" : "lobby",
                     }
                 )
             );
@@ -116,6 +118,7 @@ public sealed class CrashGame : ILiveGame
                         ["player"] = input.Player.DisplayName,
                         ["multiplier"] = multiplier,
                         ["payout"] = payout,
+                        ["crewSize"] = CrewSize(state),
                     }
                 )
             );
@@ -215,6 +218,10 @@ public sealed class CrashGame : ILiveGame
 
     private static long CashPayout(long stake, double cashMultiplier, double entryMultiplier) =>
         (long)Math.Round(stake * (cashMultiplier / Math.Max(entryMultiplier, 1.0)));
+
+    // Players bought in so far; a replayed join or cash-out frame restores the widget's crew count from it.
+    private static int CrewSize(LiveGameState state) =>
+        state.Data.Keys.Count(k => k.StartsWith("in:", StringComparison.Ordinal));
 
     private static double CurrentMultiplier(LiveGameState state) =>
         state.Data.TryGetValue(MultiplierKey, out object? raw) && raw is not null
