@@ -16,4 +16,7 @@ public enum ModerationQueueSource
     AutoMod,
     ViewerReport,
     BotFlag,
+
+    /// <summary>A channel chat filter (hold or flag action) matched the message.</summary>
+    ChatFilter,
 }

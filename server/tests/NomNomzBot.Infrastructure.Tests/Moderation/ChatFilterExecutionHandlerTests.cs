@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
@@ -93,10 +94,19 @@ public sealed class ChatFilterExecutionHandlerTests
             );
 
         ModerationEscalationService escalation = new(db, new FakeTimeProvider(T0));
+        ModerationQueueService queue = new(
+            db,
+            users,
+            moderation,
+            Substitute.For<IModerationService>(),
+            new FakeTimeProvider(T0),
+            NullLogger<ModerationQueueService>.Instance
+        );
         ChatFilterExecutionHandler handler = new(
             db,
             moderation,
             escalation,
+            queue,
             users,
             NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
             NullLogger<ChatFilterExecutionHandler>.Instance
@@ -307,5 +317,80 @@ public sealed class ChatFilterExecutionHandlerTests
             );
         (await h.Db.ChatFilters.SingleAsync()).MatchCount.Should().Be(0);
         (await h.Verify().ModerationEscalationStates.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_hold_rule_deletes_the_message_and_queues_it_for_review()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Hold, ["sketchy"]);
+
+        await h.Handler.HandleAsync(Message("a sketchy offer for you"));
+
+        await h
+            .Moderation.Received(1)
+            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        ModerationQueueItem row = await h.Verify().ModerationQueueItems.SingleAsync();
+        row.BroadcasterId.Should().Be(Channel);
+        row.Source.Should().Be(ModerationQueueSource.ChatFilter);
+        row.Status.Should().Be(ModerationQueueStatus.Pending);
+        row.MessageContentSnapshot.Should().Be("a sketchy offer for you");
+        row.TargetTwitchUserId.Should().Be(TargetTwitchUserId);
+        row.TargetUsernameSnapshot.Should().Be("viewer");
+        row.TargetUserId.Should().Be(SubjectUserId);
+        row.AutoModMessageId.Should().Be("msg-1");
+        row.AutoModCategory.Should().Be("test-filter");
+        (await h.Db.ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_hold_rule_still_queues_the_message_when_the_platform_delete_fails()
+    {
+        Harness h = Build();
+        h.Moderation.DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Twitch rejected it.", "TWITCH_ERROR"));
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Hold, ["sketchy"]);
+
+        await h.Handler.HandleAsync(Message("a sketchy offer for you"));
+
+        ModerationQueueItem row = await h.Verify().ModerationQueueItems.SingleAsync();
+        row.Source.Should().Be(ModerationQueueSource.ChatFilter);
+        row.Status.Should().Be(ModerationQueueStatus.Pending);
+    }
+
+    [Fact]
+    public async Task A_flag_rule_queues_the_message_without_deleting_it()
+    {
+        Harness h = Build();
+        await SeedBlocklistFilter(h.Db, ChatFilterAction.Flag, ["sketchy"]);
+
+        await h.Handler.HandleAsync(Message("a sketchy offer for you"));
+
+        await h
+            .Moderation.DidNotReceive()
+            .DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        ModerationQueueItem row = await h.Verify().ModerationQueueItems.SingleAsync();
+        row.BroadcasterId.Should().Be(Channel);
+        row.Source.Should().Be(ModerationQueueSource.ChatFilter);
+        row.Status.Should().Be(ModerationQueueStatus.Pending);
+        row.MessageContentSnapshot.Should().Be("a sketchy offer for you");
+        row.TargetTwitchUserId.Should().Be(TargetTwitchUserId);
+        row.TargetUsernameSnapshot.Should().Be("viewer");
+        row.AutoModCategory.Should().Be("test-filter");
+        (await h.Db.ChatFilters.SingleAsync()).MatchCount.Should().Be(1);
     }
 }
