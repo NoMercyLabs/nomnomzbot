@@ -39,6 +39,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -50,6 +51,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.SpinnerSize
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -100,6 +102,10 @@ import nomnomzbot.composeapp.generated.resources.vts_plugin_token_missing
 import nomnomzbot.composeapp.generated.resources.vts_plugin_token_stored
 import nomnomzbot.composeapp.generated.resources.vts_retry
 import nomnomzbot.composeapp.generated.resources.vts_rotate_bridge
+import nomnomzbot.composeapp.generated.resources.vts_rotate_cancel
+import nomnomzbot.composeapp.generated.resources.vts_rotate_confirm
+import nomnomzbot.composeapp.generated.resources.vts_rotate_message
+import nomnomzbot.composeapp.generated.resources.vts_rotate_title
 import nomnomzbot.composeapp.generated.resources.vts_save
 import nomnomzbot.composeapp.generated.resources.vts_status_authorized
 import nomnomzbot.composeapp.generated.resources.vts_status_connected
@@ -145,7 +151,7 @@ fun VtsScreen(controller: VtsController, role: ManagementRole?) {
                         manage = configManage,
                         controller = controller,
                         onSave = { mode, endpoint, enabled -> controller.saveConnection(mode, endpoint, enabled) },
-                        onRotate = { scope.launch { controller.rotateBridgeToken() } },
+                        onRotate = { controller.rotateBridgeToken() },
                     )
                     ControlCard(
                         inventory = current.inventory,
@@ -164,7 +170,7 @@ private fun ConnectionCard(
     manage: ManageDecision,
     controller: VtsController,
     onSave: suspend (mode: String, endpoint: String?, enabled: Boolean) -> ApiResult<Unit>,
-    onRotate: () -> Unit,
+    onRotate: suspend () -> ApiResult<Unit>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -175,6 +181,7 @@ private fun ConnectionCard(
     // value and shows the reason next to Save.
     var saving: Boolean by remember { mutableStateOf(false) }
     var saveError: String? by remember { mutableStateOf(null) }
+    var confirmRotate: Boolean by remember { mutableStateOf(false) }
 
     var mode: String by remember(connection.mode) { mutableStateOf(connection.mode) }
     var endpoint: String by remember(connection.endpoint) { mutableStateOf(connection.endpoint) }
@@ -183,6 +190,18 @@ private fun ConnectionCard(
     // The blocking-authorize UI: a "waiting" spinner while the streamer approves in VTS, then a settled outcome.
     var authorizing: Boolean by remember { mutableStateOf(false) }
     var authorizeOutcome: VtsAuthorizeOutcome? by remember { mutableStateOf(null) }
+
+    if (confirmRotate) {
+        ConfirmDialog(
+            title = stringResource(Res.string.vts_rotate_title),
+            message = stringResource(Res.string.vts_rotate_message),
+            confirmLabel = stringResource(Res.string.vts_rotate_confirm),
+            dismissLabel = stringResource(Res.string.vts_rotate_cancel),
+            destructive = true,
+            action = { onRotate().toDialogResult() },
+            onDismiss = { confirmRotate = false },
+        )
+    }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -253,7 +272,7 @@ private fun ConnectionCard(
                 }
                 if (mode == "bridge") {
                     ManageGate(decision = manage) { gateEnabled ->
-                        OutlinedButton(onClick = onRotate, enabled = gateEnabled) {
+                        OutlinedButton(onClick = { confirmRotate = true }, enabled = gateEnabled) {
                             Text(text = stringResource(Res.string.vts_rotate_bridge))
                         }
                     }

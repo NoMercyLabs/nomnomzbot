@@ -4746,6 +4746,10 @@
     <string name="vts_authorize_denied">Denied in VTube Studio.</string>
     <string name="vts_authorize_failed">Authorization failed or timed out. Is VTube Studio running with the API enabled?</string>
     <string name="vts_rotate_bridge">Rotate bridge token</string>
+    <string name="vts_rotate_title">Rotate the bridge token?</string>
+    <string name="vts_rotate_message">The old token stops working at once. The running bridge disconnects until it gets the new token.</string>
+    <string name="vts_rotate_confirm">Rotate token</string>
+    <string name="vts_rotate_cancel">Cancel</string>
     <string name="vts_control_title">Model control</string>
     <string name="vts_control_desc">Load a model, trigger a hotkey, or activate an expression.</string>
     <string name="vts_control_locked">Authorize the plugin to load the model, hotkey, and expression list.</string>

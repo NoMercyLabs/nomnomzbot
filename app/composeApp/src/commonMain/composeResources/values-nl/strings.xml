@@ -4730,6 +4730,10 @@
     <string name="vts_authorize_denied">Geweigerd in VTube Studio.</string>
     <string name="vts_authorize_failed">Autorisatie mislukt of verlopen. Draait VTube Studio met de API ingeschakeld?</string>
     <string name="vts_rotate_bridge">Bridge-token roteren</string>
+    <string name="vts_rotate_title">Bridge-token roteren?</string>
+    <string name="vts_rotate_message">Het oude token werkt direct niet meer. De draaiende bridge verliest de verbinding tot hij het nieuwe token heeft.</string>
+    <string name="vts_rotate_confirm">Token roteren</string>
+    <string name="vts_rotate_cancel">Annuleren</string>
     <string name="vts_control_title">Modelbesturing</string>
     <string name="vts_control_desc">Laad een model, activeer een sneltoets of een expressie.</string>
     <string name="vts_control_locked">Autoriseer de plugin om de lijst met modellen, sneltoetsen en expressies te laden.</string>
