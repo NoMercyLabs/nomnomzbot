@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -298,6 +299,209 @@ public class SpamDefenseServiceTests : IDisposable
         result!.Tier.Should().Be(SpamTrustTier.SemiTrusted);
         result.Decision.TouchesAccount.Should().BeFalse();
         result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+    }
+
+    // ---- The tier comes from real watch time, and capabilities must be earned -------------------
+
+    private const string Link = "check out https://example.com/clip";
+    private const string JapaneseChat = "こんにちは みなさん";
+
+    /// <summary>Real watch time for a viewer in a channel, the way the watch projection stores it.</summary>
+    private void SeedWatchHours(string userId, double hours, Guid? channel = null)
+    {
+        using AppDbContext db = NewDbContext();
+        db.ViewerProfiles.Add(
+            new ViewerProfile
+            {
+                BroadcasterId = channel ?? Channel,
+                ViewerUserId = Guid.NewGuid(),
+                ViewerTwitchUserId = userId,
+                TotalWatchSeconds = (long)(hours * 3600),
+            }
+        );
+        db.SaveChanges();
+    }
+
+    private async Task ConfigureAsync(SpamDefenseSettings settings)
+    {
+        using AppDbContext setup = NewDbContext();
+        Result<SpamDefenseSettings> saved = await NewService(setup)
+            .UpdateSettingsAsync(Channel, settings);
+        saved.IsSuccess.Should().BeTrue();
+    }
+
+    private async Task<SpamEvaluationResult> EvaluateAsync(SpamEvaluationRequest request)
+    {
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db).EvaluateAsync(request);
+        return result!;
+    }
+
+    [Theory]
+    [InlineData(10, SpamTrustTier.SemiTrusted)] // 12 watch hours here against a 10 hour bar
+    [InlineData(20, SpamTrustTier.Untrusted)] // the same 12 hours against a 20 hour bar
+    public async Task WatchHoursHere_EarnSemiTrusted_OnlyAgainstTheChannelsOwnThreshold(
+        double thresholdHours,
+        SpamTrustTier expected
+    )
+    {
+        SeedWatchHours("watcher-1", hours: 12);
+        await ConfigureAsync(
+            new SpamDefenseSettings { SemiTrustedWatchHoursHere = thresholdHours }
+        );
+
+        SpamEvaluationResult result = await EvaluateAsync(Message("hello chat", "watcher-1"));
+
+        result.Tier.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task WatchHoursAcrossChannels_AreSummed_ForTheInstanceWideThreshold()
+    {
+        // 6 hours here and 6 hours in another channel: neither alone reaches the 10 hour bar, together
+        // they reach 12. The here-threshold is raised out of reach so only the instance sum can earn it.
+        Guid other = Guid.Parse("0199c000-0000-7000-8000-0000000000d2");
+        SeedWatchHours("traveller-1", hours: 6);
+        SeedWatchHours("traveller-1", hours: 6, channel: other);
+        SeedWatchHours("homebody-1", hours: 6);
+        await ConfigureAsync(
+            new SpamDefenseSettings
+            {
+                SemiTrustedWatchHoursHere = 50,
+                SemiTrustedWatchHoursInstance = 10,
+            }
+        );
+
+        SpamEvaluationResult traveller = await EvaluateAsync(Message("hello", "traveller-1"));
+        SpamEvaluationResult homebody = await EvaluateAsync(Message("hello", "homebody-1"));
+
+        traveller.Tier.Should().Be(SpamTrustTier.SemiTrusted);
+        homebody.Tier.Should().Be(SpamTrustTier.Untrusted);
+    }
+
+    [Fact]
+    public async Task ALinkFromAnUntrustedViewer_WithNoOtherSignal_IsDeletedAndQueued_WithTheReason()
+    {
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(Message(Link, "stranger-1"));
+
+        result.Tier.Should().Be(SpamTrustTier.Untrusted);
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        result.Decision.TouchesAccount.Should().BeFalse();
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Confidence.Should().Be(SpamConfidence.Medium);
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        stored.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndQueue);
+        stored.WasDryRun.Should().BeFalse();
+        stored.Signals.Should().Be(nameof(ContentSignal.UnearnedCapability));
+        stored.Reason.Should().Contain(nameof(SpamCapability.PostLink));
+        stored
+            .Reason.Should()
+            .Contain(nameof(SpamTrustTier.Known), "the reason names the tier that earns it");
+    }
+
+    [Fact]
+    public async Task TheSameLink_FromAViewerWhoEarnedPostLink_ProducesNoDetection()
+    {
+        SeedWatchHours("watcher-2", hours: 12);
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(Message(Link, "watcher-2"));
+
+        result.Tier.Should().Be(SpamTrustTier.SemiTrusted);
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.DetectionId.Should().BeNull();
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDetections.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AnUnearnedLink_NeverEscalatesBeyondTheContentsOwnConfidence()
+    {
+        // The message is already High on its own (cosmetic abuse). The unearned link must not change
+        // that, and the tier floor never lowers it either.
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("f​r​ee https://example.com/x", "stranger-2")
+        );
+
+        result.Confidence.Should().Be(SpamConfidence.High);
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Confidence.Should().Be(SpamConfidence.High);
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+    }
+
+    [Fact]
+    public async Task AnUnearnedLink_LiftsAWeakSignalToMedium_AndKeepsBothSignalsOnTheRow()
+    {
+        // "promo @someone" is a single weak signal (Low, flag only). The unearned link lifts it to
+        // Medium, which is delete-and-queue, still never the account.
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("promo @someone https://example.com", "stranger-3")
+        );
+
+        result.Confidence.Should().Be(SpamConfidence.Medium);
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.Signals.Should().Contain(nameof(ContentSignal.PromoShape));
+        stored.Signals.Should().Contain(nameof(ContentSignal.UnearnedCapability));
+        stored.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+    }
+
+    [Fact]
+    public async Task AnEstablishedViewersLink_IsNotQuestioned()
+    {
+        // SD8: immunity is a short-circuit, so the capability floor never runs for an Established viewer.
+        SeedHistory("regular-9", days: 40, perDay: 10);
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(Message(Link, "regular-9"));
+
+        result.Tier.Should().Be(SpamTrustTier.Established);
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDetections.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task NonLatinScript_IsFlagged_OnlyWhenTheChannelTurnsTheGateOn()
+    {
+        await ConfigureAsync(
+            new SpamDefenseSettings { DryRun = false, NonLatinScriptGate = false }
+        );
+        SpamEvaluationResult gateOff = await EvaluateAsync(Message(JapaneseChat, "reader-1"));
+
+        gateOff.Decision.Outcome.Should().Be(SpamOutcome.None);
+        using (AppDbContext read = NewDbContext())
+            (await read.SpamDetections.CountAsync()).Should().Be(0);
+
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, NonLatinScriptGate = true });
+        SpamEvaluationResult gateOn = await EvaluateAsync(Message(JapaneseChat, "reader-1"));
+
+        gateOn.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndQueue);
+        using AppDbContext after = NewDbContext();
+        SpamDetection stored = await after.SpamDetections.SingleAsync();
+        stored.Reason.Should().Contain(nameof(SpamCapability.NonLatinScript));
+        stored.Signals.Should().Be(nameof(ContentSignal.UnearnedCapability));
+    }
+
+    [Fact]
+    public async Task NonLatinScript_WithTheGateOn_IsAllowedForAViewerWhoHasStanding()
+    {
+        SeedWatchHours("watcher-3", hours: 12);
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false, NonLatinScriptGate = true });
+
+        SpamEvaluationResult result = await EvaluateAsync(Message(JapaneseChat, "watcher-3"));
+
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.DetectionId.Should().BeNull();
     }
 
     // ---- Settings round-trip and validation ------------------------------------------------------

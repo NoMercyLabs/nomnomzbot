@@ -204,7 +204,6 @@ public static class SpamSettingCatalogue
     /// <summary>The work items that wire a stored-but-unread setting into the engine.</summary>
     public static class PendingSlices
     {
-        public const string TrustWire = "S-SPAM-TRUST-WIRE";
         public const string FollowBotWire = "S-SPAM-FOLLOWBOT-WIRE";
         public const string LockdownWire = "S-SPAM-LOCKDOWN-WIRE";
         public const string Network = "S-SPAM-NETWORK";
@@ -226,27 +225,11 @@ public static class SpamSettingCatalogue
         new(nameof(SpamDefenseSettings.IsEnabled), Groups.Master),
         new(nameof(SpamDefenseSettings.DryRun), Groups.Master),
         new(nameof(SpamDefenseSettings.TrustThresholds), Groups.Trust),
-        new(
-            nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere),
-            Groups.Trust,
-            1,
-            200,
-            PendingSlices.TrustWire
-        ),
-        new(
-            nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance),
-            Groups.Trust,
-            1,
-            500,
-            PendingSlices.TrustWire
-        ),
+        new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere), Groups.Trust, 1, 200),
+        new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance), Groups.Trust, 1, 500),
         new(nameof(SpamDefenseSettings.NearDuplicateSimilarity), Groups.Content, 0, 1),
         new(nameof(SpamDefenseSettings.MinimumSkeletonLength), Groups.Content, 2, 50),
-        new(
-            nameof(SpamDefenseSettings.NonLatinScriptGate),
-            Groups.Content,
-            PendingSlice: PendingSlices.TrustWire
-        ),
+        new(nameof(SpamDefenseSettings.NonLatinScriptGate), Groups.Content),
         new(nameof(SpamDefenseSettings.QualifyNoStandingShare), Groups.Campaign, 0.5, 1),
         new(nameof(SpamDefenseSettings.DequalifyNoStandingShare), Groups.Campaign, 0.3, 0.95),
         new(nameof(SpamDefenseSettings.MinimumCohortSize), Groups.Campaign, 2, 100),

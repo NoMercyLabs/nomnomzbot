@@ -20,6 +20,16 @@ namespace NomNomzBot.Domain.Tests.Moderation.SpamDefense;
 /// </summary>
 public class AccountRiskTests
 {
+    private const double HoursHere = 10;
+    private const double HoursInstance = 25;
+
+    /// <summary>Assess with the shipped default thresholds unless a test passes its own.</summary>
+    private static AccountRiskAssessment Assess(
+        AccountFacts facts,
+        double hoursHere = HoursHere,
+        double hoursInstance = HoursInstance
+    ) => AccountRisk.Assess(facts, hoursHere, hoursInstance);
+
     /// <summary>An account with nothing suspicious about it and no standing — the neutral baseline.</summary>
     private static AccountFacts Ordinary() =>
         new()
@@ -53,7 +63,7 @@ public class AccountRiskTests
         // message ever, no history anywhere — and it says "hi". Score = content × coefficient, and the
         // content signal is zero, so the score is zero no matter how bad the account looks. There is no
         // additive path from L1 into a score, and this test is what stops one being added.
-        AccountRiskAssessment risk = AccountRisk.Assess(WorstPossibleShape());
+        AccountRiskAssessment risk = Assess(WorstPossibleShape());
         const double contentSignalScore = 0.0; // "hi" — nothing fired
 
         double finalScore = contentSignalScore * risk.Coefficient;
@@ -80,7 +90,7 @@ public class AccountRiskTests
             HasChatHistoryOnInstance = false,
         };
 
-        AccountRiskAssessment risk = AccountRisk.Assess(silentOnly);
+        AccountRiskAssessment risk = Assess(silentOnly);
 
         risk.Marks.Should()
             .Contain(AccountRiskMark.FirstMessageInChannel)
@@ -97,16 +107,14 @@ public class AccountRiskTests
     {
         // The same claim from the other direction: the ONLY difference between these two accounts is
         // silence, and silence must produce no difference at all.
-        double lurker = AccountRisk
-            .Assess(
-                Ordinary() with
-                {
-                    IsFirstMessageInChannel = true,
-                    HasChatHistoryOnInstance = false,
-                }
-            )
-            .Coefficient;
-        double regular = AccountRisk.Assess(Ordinary()).Coefficient;
+        double lurker = Assess(
+            Ordinary() with
+            {
+                IsFirstMessageInChannel = true,
+                HasChatHistoryOnInstance = false,
+            }
+        ).Coefficient;
+        double regular = Assess(Ordinary()).Coefficient;
 
         lurker.Should().Be(regular);
     }
@@ -120,8 +128,7 @@ public class AccountRiskTests
     {
         // A three-day-old account is "under 7 days", not all three bands multiplied together — that
         // would give ×2.29 for what the table says is ×1.6.
-        AccountRisk
-            .Assess(Ordinary() with { AccountAgeDays = ageDays })
+        Assess(Ordinary() with { AccountAgeDays = ageDays })
             .Coefficient.Should()
             .BeApproximately(expected, 0.0001);
     }
@@ -136,8 +143,7 @@ public class AccountRiskTests
         string username,
         bool expectedMark
     ) =>
-        AccountRisk
-            .Assess(Ordinary() with { Username = username })
+        Assess(Ordinary() with { Username = username })
             .Marks.Contains(AccountRiskMark.GeneratedHandlePattern)
             .Should()
             .Be(expectedMark);
@@ -163,7 +169,7 @@ public class AccountRiskTests
             _ => WorstPossibleShape() with { WatchTimeHoursInstanceWide = 25.0 },
         };
 
-        AccountRiskAssessment risk = AccountRisk.Assess(facts);
+        AccountRiskAssessment risk = Assess(facts);
 
         risk.IsSemiTrusted.Should().BeTrue();
         risk.Coefficient.Should().Be(1.0);
@@ -177,8 +183,44 @@ public class AccountRiskTests
     [InlineData(9.9, false)] // just under the 10h bar in this channel
     [InlineData(10.0, true)] // exactly at it
     public void TheWatchTimeThreshold_IsExactlyWhereTheSpecPutsIt(double hours, bool expected) =>
-        AccountRisk
-            .Assess(WorstPossibleShape() with { WatchTimeHoursThisChannel = hours })
+        Assess(WorstPossibleShape() with { WatchTimeHoursThisChannel = hours })
+            .IsSemiTrusted.Should()
+            .Be(expected);
+
+    [Theory]
+    [InlineData(12.0, 10.0, true)] // 12 hours against a 10 hour bar
+    [InlineData(12.0, 20.0, false)] // the same 12 hours against a 20 hour bar
+    [InlineData(20.0, 20.0, true)] // exactly at the channel's own bar
+    public void TheChannelsOwnThreshold_DecidesWhetherWatchHoursHereEarnStanding(
+        double watched,
+        double threshold,
+        bool expected
+    ) =>
+        Assess(
+            WorstPossibleShape() with
+            {
+                WatchTimeHoursThisChannel = watched,
+            },
+            hoursHere: threshold
+        )
+            .IsSemiTrusted.Should()
+            .Be(expected);
+
+    [Theory]
+    [InlineData(30.0, 30.0, true)] // the instance-wide bar is the setting, not a built-in 25
+    [InlineData(30.0, 40.0, false)]
+    public void TheInstanceThreshold_DecidesWhetherWatchHoursAcrossChannelsEarnStanding(
+        double watched,
+        double threshold,
+        bool expected
+    ) =>
+        Assess(
+            WorstPossibleShape() with
+            {
+                WatchTimeHoursInstanceWide = watched,
+            },
+            hoursInstance: threshold
+        )
             .IsSemiTrusted.Should()
             .Be(expected);
 
@@ -187,7 +229,7 @@ public class AccountRiskTests
     {
         // §L1.2 draws this distinction deliberately: their shape stops counting against them, but they
         // do not inherit the no-automated-action ceiling that standing confers.
-        AccountRiskAssessment risk = AccountRisk.Assess(
+        AccountRiskAssessment risk = Assess(
             WorstPossibleShape() with
             {
                 IsPartnerOrAffiliate = true,
@@ -203,7 +245,7 @@ public class AccountRiskTests
     {
         // Age ALONE is not evidence of a real person — a dormant registered-and-parked account is
         // exactly what a farm buys. The spec requires age PLUS genuine activity.
-        AccountRiskAssessment risk = AccountRisk.Assess(
+        AccountRiskAssessment risk = Assess(
             new AccountFacts
             {
                 AccountAgeDays = 900,
@@ -223,8 +265,7 @@ public class AccountRiskTests
     public void MarksAreAlwaysReported_SoAModeratorCanSeeWhatTheSystemLookedAt()
     {
         // SD7: no black-box scoring. Even at a coefficient of 1.0 the observations are visible.
-        AccountRisk
-            .Assess(WorstPossibleShape() with { IsModeratorAnywhere = true })
+        Assess(WorstPossibleShape() with { IsModeratorAnywhere = true })
             .Marks.Should()
             .HaveCountGreaterThan(3);
     }

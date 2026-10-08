@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 
@@ -400,16 +401,39 @@ public sealed class SpamDefenseService : ISpamDefenseService
         // safety story (§6.2), so turning dry run off early cannot skip it.
         bool observing =
             settings.DryRun || await IsInObservationWindowAsync(request.BroadcasterId, ct);
-        SpamDecision decision = SpamEnforcement.Decide(content.Confidence, tier, observing);
+
+        // The capability floor (§L4). Established is immune (SD8): the check is not run for them at all,
+        // so nothing a floor says can reach them. For everyone else an unearned capability lifts the
+        // verdict to Medium and no further.
+        IReadOnlyList<SpamCapability> unearned = TrustTierLadder.IsImmune(tier)
+            ? []
+            : CapabilityGate.Unearned(request.Message, tier, settings.NonLatinScriptGate);
+        SpamConfidence confidence = CapabilityGate.RaiseConfidence(content.Confidence, unearned);
+        IReadOnlyList<ContentSignal> signals =
+            unearned.Count == 0
+                ? content.Signals
+                : [.. content.Signals, ContentSignal.UnearnedCapability];
+
+        SpamDecision decision = SpamEnforcement.Decide(confidence, tier, observing);
+        if (unearned.Count > 0)
+            decision = decision with
+            {
+                Reason =
+                    $"{decision.Reason} "
+                    + CapabilityGate.Explain(
+                        unearned,
+                        CapabilityGate.FloorsFor(settings.NonLatinScriptGate)
+                    ),
+            };
 
         // Nothing fired and nothing to say: do not write a row per ordinary message. The detection log
         // is for verdicts a human might review, not a copy of chat.
-        if (content.Confidence == SpamConfidence.Zero && decision.WouldHaveBeen == SpamOutcome.None)
+        if (confidence == SpamConfidence.Zero && decision.WouldHaveBeen == SpamOutcome.None)
             return new SpamEvaluationResult(
                 decision,
-                content.Confidence,
+                confidence,
                 tier,
-                content.Signals,
+                signals,
                 null,
                 normalized.Skeleton,
                 settings
@@ -424,8 +448,8 @@ public sealed class SpamDefenseService : ISpamDefenseService
             MessageId = request.MessageId,
             MessageText = Truncate(request.Message, 1000),
             Skeleton = Truncate(normalized.Skeleton, 1000),
-            Signals = string.Join(',', content.Signals),
-            Confidence = content.Confidence,
+            Signals = string.Join(',', signals),
+            Confidence = confidence,
             Tier = tier,
             Outcome = decision.Outcome,
             WouldHaveBeen = decision.WouldHaveBeen,
@@ -439,9 +463,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
 
         return new SpamEvaluationResult(
             decision,
-            content.Confidence,
+            confidence,
             tier,
-            content.Signals,
+            signals,
             detection.Id,
             normalized.Skeleton,
             settings
@@ -534,17 +558,45 @@ public sealed class SpamDefenseService : ISpamDefenseService
             DaysSinceLastUpheldStrike = double.MaxValue,
         };
 
+        // Watch time is the strongest standing signal we own (§L1.2): real seconds the viewer was
+        // present, here and across every channel on this instance, from the watch projection.
+        IQueryable<ViewerProfile> profiles = _db
+            .ViewerProfiles.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(p => p.ViewerTwitchUserId == request.PlatformUserId && p.DeletedAt == null);
+        long secondsHere = await profiles
+            .Where(p => p.BroadcasterId == request.BroadcasterId)
+            .SumAsync(p => p.TotalWatchSeconds, ct);
+        long secondsInstance = await profiles.SumAsync(p => p.TotalWatchSeconds, ct);
+
+        DateTime? accountCreatedAt = await _db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId == request.PlatformUserId)
+            .Select(u => u.AccountCreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        // An unknown account age stays unknown (the default) instead of being guessed, so it can never
+        // weigh against the viewer.
         AccountFacts facts = new()
         {
-            AccountAgeDays = participation.DaysSinceFirstMessageHere,
+            AccountAgeDays = accountCreatedAt is null
+                ? double.MaxValue
+                : (now - accountCreatedAt.Value).TotalDays,
+            // Follow age has no stored source yet: only the follow event carries it. The ladder's
+            // Newcomer/Known/Regular tiers need it, so they stay out of reach until S-SPAM-FOLLOW-AGE.
             IsFollowing = false,
             FollowAgeHours = 0,
             Username = request.DisplayName,
+            IsSubscriberAnywhere = request.IsSubscriber,
+            WatchTimeHoursThisChannel = TimeSpan.FromSeconds(secondsHere).TotalHours,
+            WatchTimeHoursInstanceWide = TimeSpan.FromSeconds(secondsInstance).TotalHours,
         };
 
-        // A subscriber has standing anywhere on this instance (§L1.2), which is a floor rather than a
-        // score — so it is passed as the assessment's standing flag, not folded into the ladder.
-        AccountRiskAssessment risk = new(1.0, [], IsSemiTrusted: request.IsSubscriber);
+        AccountRiskAssessment risk = AccountRisk.Assess(
+            facts,
+            settings.SemiTrustedWatchHoursHere,
+            settings.SemiTrustedWatchHoursInstance
+        );
 
         return TrustTierLadder.Resolve(
             facts,
