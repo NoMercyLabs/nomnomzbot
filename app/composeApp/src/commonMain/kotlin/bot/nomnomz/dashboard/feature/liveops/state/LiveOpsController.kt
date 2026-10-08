@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.liveops.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -29,6 +30,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.home_live_ops_action_error
+import nomnomzbot.composeapp.generated.resources.schedule_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // Broadcaster live-ops quick-actions for the Dashboard home page.
 // Loads the currently active poll/prediction on demand and exposes fire-and-forget action methods
@@ -167,12 +171,16 @@ class LiveOpsController(
         }
     }
 
-    suspend fun createClip(): LiveOpsClipStub? {
-        val ch: String = channelId ?: return null
-        return when (val r: ApiResult<LiveOpsClipStub> = liveOpsApi.createClip(ch)) {
-            is ApiResult.Ok -> r.value
-            is ApiResult.Failure -> { setActionError(r.error.message); null }
-        }
+    /**
+     * Create a clip. The result is handed back untouched and raises no toast: the Home button shows the pending
+     * state and the failure reason next to itself.
+     */
+    @OptIn(ExperimentalResourceApi::class)
+    suspend fun createClip(): ApiResult<LiveOpsClipStub> {
+        val ch: String =
+            channelId
+                ?: return ApiResult.Failure(ApiError(0, null, getString(Res.string.schedule_no_channel_error)))
+        return liveOpsApi.createClip(ch)
     }
 
     /**

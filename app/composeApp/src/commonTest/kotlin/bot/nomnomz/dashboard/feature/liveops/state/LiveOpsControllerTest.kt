@@ -76,6 +76,20 @@ class LiveOpsControllerTest {
     }
 
     @Test
+    fun create_clip_failure_raises_no_toast_because_the_screen_shows_it_inline() = runTest {
+        val api = FakeLiveOpsApi(clipResult = ApiResult.Failure(ApiError(400, "NOT_LIVE", "Channel is not live.")))
+        val feedback = RecordingFeedback()
+        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback)
+        controller.load()
+
+        val result: ApiResult<LiveOpsClipStub> = controller.createClip()
+
+        assertEquals(listOf("ch1"), api.clipCalls)
+        assertEquals(0, feedback.messages.size)
+        assertEquals("Channel is not live.", (result as ApiResult.Failure).error.message)
+    }
+
+    @Test
     fun start_twitch_poll_sends_the_body_and_makes_it_the_active_poll() = runTest {
         val created =
             LiveOpsPoll(
@@ -148,7 +162,9 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeLiveOpsApi(
     private val markerResult: ApiResult<LiveOpsMarker> = ApiResult.Failure(ApiError(0, null, "unused")),
     private val pollResult: ApiResult<LiveOpsPoll> = ApiResult.Failure(ApiError(0, null, "unused")),
+    private val clipResult: ApiResult<LiveOpsClipStub> = ApiResult.Failure(ApiError(0, null, "unused")),
 ) : LiveOpsApi {
+    val clipCalls: MutableList<String> = mutableListOf()
     val markerCalls: MutableList<Pair<String, String?>> = mutableListOf()
     val pollBodies: MutableList<CreatePollBody> = mutableListOf()
 
@@ -196,8 +212,10 @@ private class FakeLiveOpsApi(
     override suspend fun snoozeNextAd(channelId: String): ApiResult<LiveOpsAdSnooze> =
         ApiResult.Failure(ApiError(0, null, "unused"))
 
-    override suspend fun createClip(channelId: String): ApiResult<LiveOpsClipStub> =
-        ApiResult.Failure(ApiError(0, null, "unused"))
+    override suspend fun createClip(channelId: String): ApiResult<LiveOpsClipStub> {
+        clipCalls.add(channelId)
+        return clipResult
+    }
 
     override suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule> =
         ApiResult.Failure(ApiError(0, null, "unused"))

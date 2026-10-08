@@ -87,6 +87,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.feature.attention.state.attentionRouteOf
 import bot.nomnomz.dashboard.core.network.ActivityEvent
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.feature.home.state.FirstRunStep
 import bot.nomnomz.dashboard.feature.home.state.FirstRunStepKind
 import bot.nomnomz.dashboard.core.network.CommandSummary
@@ -174,7 +175,6 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_raid
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_confirm
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_length_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_clip_done
-import nomnomzbot.composeapp.generated.resources.home_live_ops_create_clip
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_poll
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_prediction
 import nomnomzbot.composeapp.generated.resources.home_live_ops_end_poll
@@ -446,12 +446,8 @@ private fun ReadyContent(
                     heldActionKeys = heldActionKeys,
                     raidPending = raidPending,
                     onChangeTitle = { showChangeTitleDialog = true },
-                    onCreateClip = {
-                        scope.launch {
-                            val clip: LiveOpsClipStub? = liveOpsController.createClip()
-                            if (clip != null) markerNotice = "$clipDonePrefix ${clip.editUrl}"
-                        }
-                    },
+                    createClip = liveOpsController::createClip,
+                    onClipCreated = { clip: LiveOpsClipStub -> markerNotice = "$clipDonePrefix ${clip.editUrl}" },
                     onMarkMoment = {
                         scope.launch {
                             val marker: LiveOpsMarker? = liveOpsController.createMarker(null)
@@ -1156,7 +1152,8 @@ private fun QuickActionsCard(
     heldActionKeys: Set<String>,
     raidPending: Boolean,
     onChangeTitle: () -> Unit,
-    onCreateClip: () -> Unit,
+    createClip: suspend () -> ApiResult<LiveOpsClipStub>,
+    onClipCreated: (LiveOpsClipStub) -> Unit,
     onMarkMoment: () -> Unit,
     onStartPoll: () -> Unit,
     onEndPoll: () -> Unit,
@@ -1277,10 +1274,9 @@ private fun QuickActionsCard(
             }
 
             GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:clips:write", modifier = Modifier.weight(1f)) { enabled, mod ->
-                QuickActionButton(
-                    icon = AppIcons.Clips,
-                    label = stringResource(Res.string.home_live_ops_create_clip),
-                    onClick = onCreateClip,
+                CreateClipAction(
+                    createClip = createClip,
+                    onCreated = onClipCreated,
                     enabled = enabled,
                     modifier = mod,
                 )
@@ -1376,13 +1372,14 @@ private fun GatedQuickAction(
 }
 
 @Composable
-private fun QuickActionButton(
+internal fun QuickActionButton(
     icon: DrawableResource,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     destructive: Boolean = false,
     enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1407,12 +1404,19 @@ private fun QuickActionButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = iconTint,
-            modifier = Modifier.size(spacing.s6),
-        )
+        if (loading) {
+            // The spinner sits in the icon's box, so the tile keeps its size while the action is pending.
+            Box(modifier = Modifier.size(spacing.s6), contentAlignment = Alignment.Center) {
+                Spinner(size = SpinnerSize.Sm, color = tokens.mutedForeground)
+            }
+        } else {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(spacing.s6),
+            )
+        }
         Text(
             text = label,
             style = typography.xs,
