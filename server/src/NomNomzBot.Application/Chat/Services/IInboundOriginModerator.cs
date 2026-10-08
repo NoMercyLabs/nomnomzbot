@@ -24,6 +24,13 @@ namespace NomNomzBot.Application.Chat.Services;
 /// </summary>
 public interface IInboundOriginModerator
 {
+    /// <summary>
+    /// Whether a chat platform is registered for <paramref name="provider"/>, i.e. whether the actions below
+    /// can be attempted there at all. The one answer shared by enforcement and the protection status, so what
+    /// the dashboard says automatic moderation can reach is what enforcement really tries.
+    /// </summary>
+    bool Supports(string provider);
+
     /// <summary>Deletes the chat message <paramref name="messageId"/> on <paramref name="provider"/>.</summary>
     Task<InboundModerationOutcome> DeleteMessageAsync(
         Guid broadcasterId,

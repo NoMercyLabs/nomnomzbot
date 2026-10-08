@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -151,6 +152,7 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         services.AddSingleton<TimeProvider>(_time);
         services.AddSingleton(_moderation);
         services.AddSingleton(_twitch);
+        services.AddSingleton(Substitute.For<IInboundOriginModerator>());
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(_spamDefense);
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));

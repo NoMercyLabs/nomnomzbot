@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -51,9 +52,14 @@ public sealed class ProtectionStatusServiceTests : IDisposable
 
     private readonly SqliteConnection _connection;
     private readonly FakeTimeProvider _time = new(Now);
+    private readonly IInboundOriginModerator _origin = Substitute.For<IInboundOriginModerator>();
+    private readonly HashSet<string> _registeredPlatforms = [AuthEnums.Platform.Twitch];
 
     public ProtectionStatusServiceTests()
     {
+        _origin
+            .Supports(Arg.Any<string>())
+            .Returns(call => _registeredPlatforms.Contains(call.Arg<string>()));
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
         using AppDbContext db = NewDb();
@@ -83,6 +89,7 @@ public sealed class ProtectionStatusServiceTests : IDisposable
                     Substitute.For<ITwitchUsersApi>(),
                     Substitute.For<IFollowStateService>()
                 ),
+            _origin,
             _time
         );
 
@@ -306,6 +313,29 @@ public sealed class ProtectionStatusServiceTests : IDisposable
         ProtectionCheckDto youtube = Check(checks, ProtectionCheckKeys.AutomaticAction, "youtube");
         youtube.State.Should().Be(ProtectionCheckStates.Warning);
         youtube.Reason.Should().Contain("youtube").And.Contain("cannot");
+    }
+
+    [Fact]
+    public async Task Automatic_action_follows_the_platform_seam_answer_for_each_connected_platform()
+    {
+        SeedHealthyTwitchChannel();
+        AddConnection(AuthEnums.Platform.Twitch);
+        AddConnection(AuthEnums.Platform.Kick);
+        AddConnection(AuthEnums.Platform.YouTube);
+        _registeredPlatforms.Add(AuthEnums.Platform.Kick);
+
+        List<ProtectionCheckDto> checks = await ChecksAsync();
+
+        ProtectionCheckDto kick = Check(checks, ProtectionCheckKeys.AutomaticAction, "kick");
+        kick.State.Should().Be(ProtectionCheckStates.Ok);
+        kick.Reason.Should().Be("Automatic moderation can act on kick.");
+        ProtectionCheckDto youtube = Check(checks, ProtectionCheckKeys.AutomaticAction, "youtube");
+        youtube.State.Should().Be(ProtectionCheckStates.Warning);
+        youtube
+            .Reason.Should()
+            .Be("Automatic moderation cannot act on youtube. Detections there are only recorded.");
+        _origin.Received().Supports("kick");
+        _origin.Received().Supports("youtube");
     }
 
     [Fact]
