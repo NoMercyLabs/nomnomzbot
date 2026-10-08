@@ -99,6 +99,7 @@ public class FollowSpikeTrackerTests
             Factor
         );
 
+        first.Should().NotBeNull();
         next.Should().NotBeNull();
         next.BatchId.Should().Be(first.BatchId, "one spike is one reversible batch");
         next.Unexamined.Select(f => f.UserId).Should().Equal("b6");
@@ -122,6 +123,7 @@ public class FollowSpikeTrackerTests
                 Factor
             );
 
+        first.Should().NotBeNull();
         second.Should().NotBeNull();
         second.BatchId.Should().NotBe(first.BatchId);
     }

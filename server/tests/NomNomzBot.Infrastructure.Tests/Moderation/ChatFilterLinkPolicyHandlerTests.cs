@@ -19,6 +19,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.EventStore;
@@ -103,6 +104,7 @@ public sealed class ChatFilterLinkPolicyHandlerTests
             users,
             moderation,
             Substitute.For<IModerationService>(),
+            Substitute.For<IEventBus>(),
             new FakeTimeProvider(T0),
             NullLogger<ModerationQueueService>.Instance
         );
