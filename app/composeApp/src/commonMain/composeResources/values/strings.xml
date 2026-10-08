@@ -542,6 +542,9 @@
     <string name="moderation_history_log_type_filter_hit">Filter hit</string>
     <string name="moderation_history_log_type_report_validated">Report upheld</string>
     <string name="moderation_history_log_type_note">Note</string>
+    <string name="moderation_history_log_type_warn_ack">Warning acknowledged</string>
+    <string name="moderation_history_log_ack_done">Acknowledged</string>
+    <string name="moderation_history_log_ack_waiting">Awaiting acknowledgement</string>
     <string name="moderation_history_log_reason_none">No reason recorded</string>
     <string name="moderation_history_log_duration">for %1$ds</string>
     <string name="moderation_history_log_page">Page %1$d</string>
@@ -4515,6 +4518,8 @@
     <string name="moderation_history_warnings">Warnings</string>
     <string name="moderation_history_deleted">Deleted</string>
     <string name="moderation_history_first_seen">First seen %1$s</string>
+    <string name="moderation_history_last_warned_waiting">Warned %1$s, not acknowledged yet</string>
+    <string name="moderation_history_last_warned_acknowledged">Warned %1$s, acknowledged %2$s</string>
     <string name="moderation_trust_badge">Trust %1$s</string>
     <string name="moderation_heat_badge">Heat %1$s</string>
 

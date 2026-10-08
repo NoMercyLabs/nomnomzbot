@@ -1213,11 +1213,17 @@ class ModerationController(
      *   issued by any moderator appear instantly without a page refresh.
      * - [HubEvent.AutoModQueueChanged]: re-fetches the pending AutoMod queue so a newly held message (or a
      *   resolution made anywhere) shows without a reload.
+     * - [HubEvent.ConfigChanged] for [MODERATION_HISTORY_DOMAIN] (a warned viewer acknowledged): re-fetches the
+     *   history page on screen and the open viewer card, so "warned" turns into "acknowledged" live.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
             if (evt is HubEvent.AutoModQueueChanged) {
                 refreshAutomodQueue()
+                return@collect
+            }
+            if (evt is HubEvent.ConfigChanged) {
+                if (evt.change.domain == MODERATION_HISTORY_DOMAIN) refreshHistoryViews()
                 return@collect
             }
             if (evt !is HubEvent.ModAction) return@collect
@@ -1233,6 +1239,22 @@ class ModerationController(
                 timestamp = "",
             )
             _state.value = current.copy(modLog = (listOf(entry) + current.modLog).take(50))
+        }
+    }
+
+    /**
+     * Re-fetch the history page on screen and, when a viewer card is open, that viewer's card (hub-pushed
+     * change). The card is swapped in place — no Loading flash — and its notes are kept.
+     */
+    private suspend fun refreshHistoryViews() {
+        val current: ModerationState = _state.value
+        if (current is ModerationState.Ready) loadHistoryPage(current.historyPage)
+        val channel: String = channelId ?: return
+        val open: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
+        val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, open.context.userId)
+        if (result is ApiResult.Ok) {
+            val latest: UserContextState.Ready = _userContext.value as? UserContextState.Ready ?: return
+            _userContext.value = latest.copy(context = result.value)
         }
     }
 
@@ -1445,6 +1467,9 @@ private val TWITCH_LOGIN: Regex = Regex("^[a-z0-9_]{1,25}$")
 
 // The leading yyyy-MM-dd of an ISO-8601 timestamp.
 private const val ISO_DATE_LENGTH: Int = 10
+
+// The hub ConfigChanged domain the server pushes when a warned viewer acknowledges their warning.
+private const val MODERATION_HISTORY_DOMAIN: String = "moderation-history"
 
 /** The Moderation page render state. */
 sealed interface ModerationState {

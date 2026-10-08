@@ -1529,6 +1529,25 @@ public class ModerationService : IModerationService
                 h.LastActionType
             ))
             .FirstOrDefaultAsync(cancellationToken);
+        if (history is not null)
+        {
+            // The viewer card shows "warned" then "acknowledged": the newest warning row carries both times.
+            var lastWarning = await _db
+                .ModerationHistoryEntries.Where(e =>
+                    e.BroadcasterId == tenantId
+                    && e.SubjectTwitchUserId == targetTwitchUserId
+                    && e.ActionType == ModerationHistoryEntryKinds.Warn
+                )
+                .OrderByDescending(e => e.OccurredAt)
+                .Select(e => new { e.OccurredAt, e.AcknowledgedAt })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (lastWarning is not null)
+                history = history with
+                {
+                    LastWarningAt = lastWarning.OccurredAt,
+                    LastWarningAcknowledgedAt = lastWarning.AcknowledgedAt,
+                };
+        }
         UserTrustSummaryDto? trust = await _db
             .UserTrustScores.Where(s =>
                 s.BroadcasterId == tenantId && s.SubjectTwitchUserId == targetTwitchUserId

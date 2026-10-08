@@ -20,7 +20,8 @@ public sealed record ModerationHistoryEntryDto(
     string? ModeratorDisplayName,
     string? Reason,
     int? DurationSeconds,
-    DateTime OccurredAt
+    DateTime OccurredAt,
+    DateTime? AcknowledgedAt = null
 );
 
 /// <summary>

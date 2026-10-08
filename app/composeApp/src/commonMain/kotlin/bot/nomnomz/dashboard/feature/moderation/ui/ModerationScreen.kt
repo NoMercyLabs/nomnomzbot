@@ -211,6 +211,11 @@ import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_aut
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_filter_hit
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_report_validated
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_note
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_warn_ack
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_ack_done
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_ack_waiting
+import nomnomzbot.composeapp.generated.resources.moderation_history_last_warned_acknowledged
+import nomnomzbot.composeapp.generated.resources.moderation_history_last_warned_waiting
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_reason_none
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_duration
 import nomnomzbot.composeapp.generated.resources.moderation_history_log_page
@@ -3567,6 +3572,8 @@ private fun historyActionTypeLabel(actionType: String): String =
         ModerationHistoryActionTypes.ReportValidated ->
             stringResource(Res.string.moderation_history_log_type_report_validated)
         ModerationHistoryActionTypes.Note -> stringResource(Res.string.moderation_history_log_type_note)
+        ModerationHistoryActionTypes.WarningAcknowledged ->
+            stringResource(Res.string.moderation_history_log_type_warn_ack)
         else -> actionType
     }
 
@@ -3584,6 +3591,7 @@ private fun historyActionTypeBadgeVariant(actionType: String): BadgeVariant =
         -> BadgeVariant.Default
         ModerationHistoryActionTypes.Unban,
         ModerationHistoryActionTypes.Note,
+        ModerationHistoryActionTypes.WarningAcknowledged,
         -> BadgeVariant.Secondary
         else -> BadgeVariant.Outline
     }
@@ -3611,6 +3619,24 @@ internal fun HistoryLogEntryRow(entry: ModerationHistoryEntry) {
                 Badge(variant = historyActionTypeBadgeVariant(entry.actionType)) {
                     Text(text = historyActionTypeLabel(entry.actionType), style = typography.xs)
                 }
+                // A warning is "warned" until the viewer acknowledges it, then "acknowledged": the quiet
+                // outline badge waits, the secondary badge confirms — neither takes the accent.
+                if (entry.actionType == ModerationHistoryActionTypes.Warn) {
+                    val acknowledged: Boolean = entry.acknowledgedAt != null
+                    Badge(variant = if (acknowledged) BadgeVariant.Secondary else BadgeVariant.Outline) {
+                        Text(
+                            text =
+                                stringResource(
+                                    if (acknowledged) {
+                                        Res.string.moderation_history_log_ack_done
+                                    } else {
+                                        Res.string.moderation_history_log_ack_waiting
+                                    }
+                                ),
+                            style = typography.xs,
+                        )
+                    }
+                }
                 entry.durationSeconds?.let { seconds ->
                     Text(
                         text = stringResource(Res.string.moderation_history_log_duration, seconds),
@@ -3619,15 +3645,18 @@ internal fun HistoryLogEntryRow(entry: ModerationHistoryEntry) {
                     )
                 }
             }
-            Text(
-                text =
-                    entry.reason?.takeIf { it.isNotBlank() }
-                        ?: stringResource(Res.string.moderation_history_log_reason_none),
-                style = typography.sm,
-                color = tokens.cardForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // An acknowledgement row carries no reason of its own; "no reason recorded" would be noise.
+            if (entry.actionType != ModerationHistoryActionTypes.WarningAcknowledged) {
+                Text(
+                    text =
+                        entry.reason?.takeIf { it.isNotBlank() }
+                            ?: stringResource(Res.string.moderation_history_log_reason_none),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             entry.moderatorDisplayName?.let { moderator ->
                 Text(
                     text = stringResource(Res.string.moderation_log_by, moderator),
@@ -4106,6 +4135,20 @@ internal fun TrustHeatBadges(trust: UserTrustSummary, heatThreshold: Int) {
     }
 }
 
+// "Warned <date>, acknowledged <date>" once the viewer acknowledged, "Warned <date>, not acknowledged yet" before.
+// Internal so the viewer-card line can be rendered directly in a test.
+@Composable
+internal fun warningStatusText(warnedAt: String, acknowledgedAt: String?): String =
+    if (acknowledgedAt.isNullOrBlank()) {
+        stringResource(Res.string.moderation_history_last_warned_waiting, datePart(warnedAt))
+    } else {
+        stringResource(
+            Res.string.moderation_history_last_warned_acknowledged,
+            datePart(warnedAt),
+            datePart(acknowledgedAt),
+        )
+    }
+
 // The J.4 all-actions rollup — counts EVERY Twitch-side action against the viewer, not only the bot's own record.
 @Composable
 private fun UserModerationHistoryRow(history: UserModerationHistorySummary) {
@@ -4131,6 +4174,13 @@ private fun UserModerationHistoryRow(history: UserModerationHistorySummary) {
         history.firstSeenAt?.takeIf { it.isNotBlank() }?.let { first ->
             Text(
                 text = stringResource(Res.string.moderation_history_first_seen, datePart(first)),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        history.lastWarningAt?.takeIf { it.isNotBlank() }?.let { warned ->
+            Text(
+                text = warningStatusText(warned, history.lastWarningAcknowledgedAt),
                 style = typography.xs,
                 color = tokens.mutedForeground,
             )

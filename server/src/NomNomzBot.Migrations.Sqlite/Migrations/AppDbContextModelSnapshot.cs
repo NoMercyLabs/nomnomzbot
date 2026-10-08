@@ -7873,6 +7873,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ActionType")
                         .IsRequired()
                         .HasMaxLength(20)
