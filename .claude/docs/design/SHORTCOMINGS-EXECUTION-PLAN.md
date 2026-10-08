@@ -301,7 +301,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
 - **S-STREAMDECK-OBS-ICONS** Stream Deck OBS plugin icon art — Done-when: every OBS action ships its
   own key icon in the obs manifest
-- **S-MOD-ACTION-DIALOG-WAIT** The Moderate viewer dialog (feature/moderation/ui/ModerationScreen.kt ModerateViewerDialog) closes before the server answers, so a failed ban looks like a success. Done-when: performAction returns ApiResult, the dialog stays open on DialogActionState until the server answers and shows the server's reason inline on failure (MOD-1/2 pattern da49c5ade, 5f86b02b9); a jvmTest proves a failed ban keeps the dialog open with the reason.
 - **IDEA-REACT-RUNTIME** (owner idea 2026-10-04, an idea for later, not a slice) Real React widget support:
   a vendored React runtime the overlay page loads like `/overlay/vue.js`, `react` on the dependency allowlist,
   an esbuild JSX setup that resolves `react/jsx-runtime`, and the app offering `react` again. Until then
