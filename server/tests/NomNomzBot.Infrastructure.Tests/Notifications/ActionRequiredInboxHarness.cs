@@ -38,6 +38,7 @@ internal static class ActionRequiredInboxHarness
             new LostSongRequestSource(db, clock),
             new HeatAutoTimeoutFailureSource(db, clock),
             new AutoModDeleteFailedSource(db, clock),
+            new SharedBanNotAppliedSource(db, clock),
             new SecurityNoticeSource(db),
             new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
         ];
