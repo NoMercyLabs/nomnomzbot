@@ -113,6 +113,8 @@ import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
@@ -231,11 +233,8 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
             editor = open,
             onDismiss = { editor = null },
             onSubmit = { name, description, items ->
-                editor = null
-                scope.launch {
-                    if (open.isEdit) controller.updatePickList(open.id, name, description, items)
-                    else controller.createPickList(name, description, items)
-                }
+                if (open.isEdit) controller.updatePickList(open.id, name, description, items).toDialogResult()
+                else controller.createPickList(name, description, items).toDialogResult()
             },
         )
     }
@@ -490,7 +489,7 @@ private fun PickListRow(
 private fun PickListFormDialog(
     editor: PickListEditor,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, description: String, items: List<String>) -> Unit,
+    onSubmit: suspend (name: String, description: String, items: List<String>) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -513,78 +512,64 @@ private fun PickListFormDialog(
     val itemPlaceholder: String = stringResource(Res.string.picklists_dialog_item_placeholder)
     val removeItemLabel: String = stringResource(Res.string.picklists_dialog_remove_item)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.picklists_dialog_name_label),
-                )
-                AppTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.picklists_dialog_description_label),
-                )
+    FormDialog(
+        title = title,
+        saveLabel = submitLabel,
+        cancelLabel = stringResource(Res.string.picklists_dialog_cancel),
+        onDismiss = onDismiss,
+        save = { onSubmit(name, description, items) },
+        dirty = name != editor.name || description != editor.description || items != editor.items,
+        valid = canSubmit,
+    ) {
+        AppTextField(
+            value = name,
+            onValueChange = { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.picklists_dialog_name_label),
+        )
+        AppTextField(
+            value = description,
+            onValueChange = { description = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.picklists_dialog_description_label),
+        )
 
-                // The entries editor: the "Items" section label, one single-line field per entry (with a per-row
-                // delete), then an "Add item" action that appends a fresh blank row. The list is bounded and scrolls
-                // so a long list never grows the dialog past the viewport (the parent Dialog Column does not scroll).
-                Text(
-                    text = stringResource(Res.string.picklists_dialog_items_label),
-                    style = typography.sm,
-                    color = tokens.foreground,
-                )
-                if (items.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = spacing.s24 * 2)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-                    ) {
-                        items.forEachIndexed { index, value ->
-                            ItemRow(
-                                value = value,
-                                placeholder = itemPlaceholder,
-                                removeLabel = removeItemLabel,
-                                onValueChange = { edited ->
-                                    items = items.toMutableList().also { it[index] = edited }
-                                },
-                                onRemove = { items = items.filterIndexed { i, _ -> i != index } },
-                            )
-                        }
-                    }
-                }
-                TextButton(onClick = { items = items + "" }) {
-                    Text(
-                        text = stringResource(Res.string.picklists_dialog_add_item),
-                        color = tokens.primary,
+        // The entries editor: the "Items" section label, one single-line field per entry (with a per-row
+        // delete), then an "Add item" action that appends a fresh blank row. The list is bounded and scrolls
+        // so a long list never grows the dialog past the viewport (the parent Dialog Column does not scroll).
+        Text(
+            text = stringResource(Res.string.picklists_dialog_items_label),
+            style = typography.sm,
+            color = tokens.foreground,
+        )
+        if (items.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = spacing.s24 * 2)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                items.forEachIndexed { index, value ->
+                    ItemRow(
+                        value = value,
+                        placeholder = itemPlaceholder,
+                        removeLabel = removeItemLabel,
+                        onValueChange = { edited ->
+                            items = items.toMutableList().also { it[index] = edited }
+                        },
+                        onRemove = { items = items.filterIndexed { i, _ -> i != index } },
                     )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSubmit(name, description, items) }, enabled = canSubmit) {
-                Text(
-                    text = submitLabel,
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.picklists_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
-            }
-        },
-    )
+        }
+        TextButton(onClick = { items = items + "" }) {
+            Text(
+                text = stringResource(Res.string.picklists_dialog_add_item),
+                color = tokens.primary,
+            )
+        }
+    }
 }
 
 // One entry in the items editor: a single-line field (its value hoisted into the parent's [items] list, so the
