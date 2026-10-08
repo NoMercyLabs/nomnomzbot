@@ -188,19 +188,20 @@ class ViewerProfileController(
      * [UserNote] joins [ViewerProfileState.Ready.notes] (after the pinned ones, ahead of older notes) — it is
      * not a history row.
      */
-    suspend fun addHistoryNote(note: String) {
-        val channel: String = channelId ?: return
+    suspend fun addHistoryNote(note: String): String? {
+        val channel: String = channelId ?: return noChannelError()
         val current: ViewerProfileState = _state.value
-        if (current !is ViewerProfileState.Ready) return
-        when (
+        if (current !is ViewerProfileState.Ready) return null
+        return when (
             val result = moderationApi.addHistoryNote(channel, current.profile.identity.userId, note)
         ) {
             is ApiResult.Ok -> {
                 val pinned: List<UserNote> = current.notes.filter { it.pinned }
                 val rest: List<UserNote> = current.notes.filterNot { it.pinned }
                 _state.value = current.copy(notes = pinned + result.value + rest)
+                null
             }
-            is ApiResult.Failure -> failWrite(result.error.message)
+            is ApiResult.Failure -> result.error.message
         }
     }
 
@@ -209,7 +210,8 @@ class ViewerProfileController(
      * keyed on their Twitch id (the overrides table has no local-user FK — see [ShoutoutOverride]).
      * Returns null on success, or the backend's message on failure.
      */
-    // Every write below returns the backend's error message (null on success) AND, on failure, sets it on
+    // The shoutout line and the history note only return the message: their form shows it next to Save and a
+    // toast too would show it twice. The other writes below return the backend's error message AND, on failure, set it on
     // [ViewerProfileState.Ready.actionError] via [failWrite] — the same signal [ban]/[addVip]/[setTrust] already
     // use. Belt and braces: a caller that captures the return value shows the error inline (the overrides fields
     // do — the SAME pattern the old Community "Messages" section used), and a caller that fires-and-forgets
@@ -227,10 +229,7 @@ class ViewerProfileController(
                 refresh(isInitial = false)
                 null
             }
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                result.error.message
-            }
+            is ApiResult.Failure -> result.error.message
         }
     }
 

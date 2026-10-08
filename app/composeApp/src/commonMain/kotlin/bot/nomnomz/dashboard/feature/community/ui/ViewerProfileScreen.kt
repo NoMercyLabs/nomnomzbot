@@ -329,7 +329,7 @@ private fun ProfileContent(
                 hasMore = state.historyHasMore,
                 moderate = moderate,
                 onLoadMore = { scope.launch { controller.loadMoreHistory() } },
-                onAddNote = { note -> scope.launch { controller.addHistoryNote(note) } },
+                onAddNote = { note -> controller.addHistoryNote(note) },
             )
         }
 
@@ -354,7 +354,7 @@ private fun ProfileContent(
                 voiceError = voiceError,
                 searchAssignableVoices = { query -> controller.searchAssignableVoices(query) },
                 write = configWrite,
-                onSaveMessage = { template -> scope.launch { controller.saveOverrideMessage(template) } },
+                onSaveMessage = { template -> controller.saveOverrideMessage(template) },
                 onClearMessage = { scope.launch { controller.clearOverrideMessage() } },
                 onSaveVoice = { voiceId -> scope.launch { voiceError = controller.saveTtsVoice(voiceId) } },
                 onClearVoice = { scope.launch { voiceError = controller.clearTtsVoice() } },
@@ -616,12 +616,15 @@ private fun HistorySection(
     hasMore: Boolean,
     moderate: ManageDecision,
     onLoadMore: () -> Unit,
-    onAddNote: (String) -> Unit,
+    onAddNote: suspend (String) -> String?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
     var noteDraft: String by remember { mutableStateOf("") }
+    var noteBusy: Boolean by remember { mutableStateOf(false) }
+    var noteError: String? by remember { mutableStateOf(null) }
 
     ProfileCard(title = stringResource(Res.string.community_profile_history_section)) {
         if (summary == null) {
@@ -684,15 +687,22 @@ private fun HistorySection(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                noteError?.let { reason -> Text(text = reason, style = typography.xs, color = tokens.destructive) }
                 TextButton(
                     onClick = {
                         val trimmed: String = noteDraft.trim()
                         if (trimmed.isNotBlank()) {
-                            onAddNote(trimmed)
-                            noteDraft = ""
+                            noteBusy = true
+                            noteError = null
+                            scope.launch {
+                                val failure: String? = onAddNote(trimmed)
+                                noteBusy = false
+                                noteError = failure
+                                if (failure == null) noteDraft = ""
+                            }
                         }
                     },
-                    enabled = enabled && noteDraft.isNotBlank(),
+                    enabled = enabled && !noteBusy && noteDraft.isNotBlank(),
                 ) {
                     Text(text = stringResource(Res.string.community_profile_history_add_note), color = if (enabled) tokens.primary else tokens.mutedForeground)
                 }
@@ -847,7 +857,7 @@ private fun OverridesSection(
     voiceError: String?,
     searchAssignableVoices: suspend (query: String) -> List<TtsVoice>,
     write: ManageDecision,
-    onSaveMessage: (template: String) -> Unit,
+    onSaveMessage: suspend (template: String) -> String?,
     onClearMessage: () -> Unit,
     onSaveVoice: (voiceId: String) -> Unit,
     onClearVoice: () -> Unit,
@@ -888,12 +898,15 @@ private fun OverrideMessageField(
     saved: String?,
     write: ManageDecision,
     name: String,
-    onSave: (template: String) -> Unit,
+    onSave: suspend (template: String) -> String?,
     onClear: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
     var draft: String by remember { mutableStateOf(saved.orEmpty()) }
     var pendingClear: Boolean by remember { mutableStateOf(false) }
     LaunchedEffect(saved) { draft = saved.orEmpty() }
@@ -910,9 +923,24 @@ private fun OverrideMessageField(
             )
             Text(text = help, style = typography.xs, color = tokens.mutedForeground)
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                val canSave: Boolean = enabled && draft.trim().isNotBlank() && draft.trim() != saved.orEmpty()
-                TextButton(onClick = { if (canSave) onSave(draft.trim()) }, enabled = canSave) {
+                val canSave: Boolean = enabled && !saving && draft.trim().isNotBlank() && draft.trim() != saved.orEmpty()
+                TextButton(
+                    onClick = {
+                        if (canSave) {
+                            saving = true
+                            saveError = null
+                            scope.launch {
+                                saveError = onSave(draft.trim())
+                                saving = false
+                            }
+                        }
+                    },
+                    enabled = canSave,
+                ) {
                     Text(text = stringResource(Res.string.community_messages_save), color = if (canSave) tokens.primary else tokens.mutedForeground)
+                }
+                saveError?.let { reason ->
+                    Text(text = reason, style = typography.xs, color = tokens.destructive, modifier = Modifier.align(Alignment.CenterVertically))
                 }
                 if (!saved.isNullOrBlank()) {
                     TextButton(onClick = { pendingClear = true }, enabled = enabled) {
