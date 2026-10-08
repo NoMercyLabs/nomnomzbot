@@ -22,6 +22,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Sound;
 using NSubstitute;
 
@@ -187,6 +188,23 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
+    public async Task A_youtube_play_event_reaches_only_the_selected_audio_connection()
+    {
+        Pages pages = TwoPages();
+        WidgetEventDto play = new(
+            Guid.NewGuid().ToString(),
+            "youtube.play",
+            new { videoId = "dQw4w9WgXcQ" }
+        );
+
+        await pages.Notifier.SendAudioWidgetEventAsync(Broadcaster.ToString(), play);
+
+        await pages.Audio.Received(1).WidgetEvent(play);
+        await pages.Caption.DidNotReceiveWithAnyArgs().WidgetEvent(default!);
+        pages.Clients.DidNotReceiveWithAnyArgs().Group(default!);
+    }
+
+    [Fact]
     public async Task A_tts_line_and_a_stop_reach_only_the_audio_page()
     {
         Pages pages = TwoPages();
@@ -249,7 +267,10 @@ public sealed class OverlayAudioRoutingTests
 
     private static async Task<Joined> ConnectedPageAsync(
         WidgetTestDbContext db,
-        string connectionId
+        string connectionId,
+        OverlayPresenceRegistry? sharedRegistry = null,
+        string? previousConnection = null,
+        IOverlayClient? previousClient = null
     )
     {
         OverlayTicketService tickets = new(new FakeTimeProvider());
@@ -265,7 +286,9 @@ public sealed class OverlayAudioRoutingTests
             IHubCallerClients<IOverlayClient>
         >();
         clients.Caller.Returns(caller);
-        OverlayPresenceRegistry registry = new();
+        if (previousConnection is not null && previousClient is not null)
+            clients.Client(previousConnection).Returns(previousClient);
+        OverlayPresenceRegistry registry = sharedRegistry ?? new();
         IActionRequiredChangeNotifier notifier = Substitute.For<IActionRequiredChangeNotifier>();
         OverlayHub hub = new(
             db,
@@ -322,7 +345,85 @@ public sealed class OverlayAudioRoutingTests
         response.Success.Should().BeTrue();
         page.Registry.IsAudioSourceConnected(Broadcaster).Should().BeTrue();
         page.Registry.GetAudioTarget(Broadcaster).Should().Be("audio-conn");
+        page.Registry.GetAudioWidgetId(Broadcaster).Should().Be(audioWidget);
         await page.Caller.DidNotReceive().WidgetReload();
+    }
+
+    [Fact]
+    public async Task An_audio_page_becoming_ready_retries_the_waiting_music_request()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Joined page = await ConnectedPageAsync(db, "audio-conn");
+        await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+        ISongRequestHandover requests = Substitute.For<ISongRequestHandover>();
+        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
+
+        await page.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+
+        await players.Received(1).HandOverNextAsync(Broadcaster, Arg.Any<CancellationToken>());
+        await players
+            .Received(1)
+            .ReplayCurrentAsync(Broadcaster, false, Arg.Any<CancellationToken>());
+        await requests
+            .Received(1)
+            .HandOverNextAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_audio_page_resuming_a_track_keeps_the_next_request_waiting()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Joined page = await ConnectedPageAsync(db, "audio-conn");
+        await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+        ISongRequestHandover requests = Substitute.For<ISongRequestHandover>();
+        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
+        players.ReplayCurrentAsync(Broadcaster, false, Arg.Any<CancellationToken>()).Returns(true);
+
+        await page.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+
+        await players.DidNotReceiveWithAnyArgs().HandOverNextAsync(default);
+        await requests
+            .Received(1)
+            .HandOverNextAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_new_audio_page_silences_the_old_player_before_taking_over()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Joined first = await ConnectedPageAsync(db, "first-audio");
+        await first.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+        Joined second = await ConnectedPageAsync(
+            db,
+            "second-audio",
+            first.Registry,
+            "first-audio",
+            first.Caller
+        );
+
+        await second.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+
+        second.Registry.GetAudioTarget(Broadcaster).Should().Be("second-audio");
+        WidgetEventDto stop = first
+            .Caller.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IOverlayClient.WidgetEvent))
+            .Select(c => (WidgetEventDto)c.GetArguments()[0]!)
+            .Should()
+            .ContainSingle()
+            .Subject;
+        stop.WidgetId.Should().Be(audioWidget.ToString());
+        stop.EventType.Should().Be("youtube.stop");
+        stop.Data.Should().BeEquivalentTo(new { handoff = true });
+
+        ISongRequestHandover requests = Substitute.For<ISongRequestHandover>();
+        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
+        await second.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+        await players
+            .Received(1)
+            .ReplayCurrentAsync(Broadcaster, true, Arg.Any<CancellationToken>());
     }
 
     [Fact]

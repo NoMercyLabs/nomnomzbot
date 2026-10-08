@@ -49,6 +49,9 @@ public interface IYouTubePlayerStateStore
 
     YouTubePlayerReport? GetFresh(Guid broadcasterId);
 
+    /// <summary>The last report, including an old one, for transferring a still-open Audio page.</summary>
+    YouTubePlayerReport? Latest(Guid broadcasterId);
+
     /// <summary>The widget whose report the store accepted last, or null when none has reported.</summary>
     Guid? ReportingWidget(Guid broadcasterId);
 
@@ -117,6 +120,13 @@ public sealed class YouTubePlayerStateStore : IYouTubePlayerStateStore
         ChannelPlayer player = PlayerOf(broadcasterId);
         lock (player)
             return FreshOrNull(player.Last);
+    }
+
+    public YouTubePlayerReport? Latest(Guid broadcasterId)
+    {
+        ChannelPlayer player = PlayerOf(broadcasterId);
+        lock (player)
+            return player.Last;
     }
 
     public Guid? ReportingWidget(Guid broadcasterId)

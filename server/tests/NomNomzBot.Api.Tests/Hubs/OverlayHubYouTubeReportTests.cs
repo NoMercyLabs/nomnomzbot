@@ -17,7 +17,6 @@ using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
-using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Music;
@@ -45,8 +44,8 @@ public sealed class OverlayHubYouTubeReportTests
     private static async Task<Rig> ConnectedAsync()
     {
         WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid own = await SeedWidgetAsync(db, Broadcaster);
-        Guid foreign = await SeedWidgetAsync(db, OtherChannel);
+        Guid own = await SeedWidgetAsync(db, Broadcaster, "audio");
+        Guid foreign = await SeedWidgetAsync(db, OtherChannel, "foreign");
 
         FakeTimeProvider time = new();
         OverlayTicketService tickets = new(time);
@@ -65,7 +64,7 @@ public sealed class OverlayHubYouTubeReportTests
 
         OverlayHub hub = new(
             db,
-            Substitute.For<IWidgetService>(),
+            WidgetServiceStubs.SavedSettingsOnly(),
             tickets,
             new OverlayPresenceRegistry(),
             Substitute.For<IChannelRegistry>(),
@@ -80,17 +79,22 @@ public sealed class OverlayHubYouTubeReportTests
             Clients = clients,
         };
         await hub.OnConnectedAsync();
+        await hub.JoinWidgetWithSdk(own.ToString(), "v1");
         return new(hub, new YouTubePlayerStateStore(time), db, own, foreign);
     }
 
-    private static async Task<Guid> SeedWidgetAsync(WidgetTestDbContext db, Guid broadcasterId)
+    private static async Task<Guid> SeedWidgetAsync(
+        WidgetTestDbContext db,
+        Guid broadcasterId,
+        string naturalKey
+    )
     {
-        WidgetGalleryItem item = new() { Name = "yt", NaturalKey = "yt-" + broadcasterId };
+        WidgetGalleryItem item = new() { Name = naturalKey, NaturalKey = naturalKey };
         Widget widget = new()
         {
             Id = Guid.NewGuid(),
             BroadcasterId = broadcasterId,
-            Name = "yt",
+            Name = naturalKey,
             IsEnabled = true,
             GalleryItemId = item.Id,
         };
@@ -107,6 +111,25 @@ public sealed class OverlayHubYouTubeReportTests
             Substitute.For<IEventBus>(),
             new PlayOnceResumeTracker()
         );
+
+    [Fact]
+    public async Task A_display_widget_cannot_report_youtube_playback_for_the_audio_page()
+    {
+        Rig rig = await ConnectedAsync();
+        using WidgetTestDbContext db = rig.Db;
+        Guid display = await SeedWidgetAsync(db, Broadcaster, "now_playing");
+
+        bool accepted = await rig.Hub.ReportYouTubePlayerState(
+            display.ToString(),
+            "dQw4w9WgXcQ",
+            "Playing",
+            1_000,
+            ReportService(rig.Store)
+        );
+
+        accepted.Should().BeFalse();
+        rig.Store.GetFresh(Broadcaster).Should().BeNull();
+    }
 
     [Fact]
     public async Task A_report_for_another_channels_widget_is_refused_and_stores_nothing()

@@ -412,19 +412,22 @@ public sealed class YouTubeMusicProvider
         // §3.5.2: YouTube plays through the channel's browser-source IFrame player, not a provider-side
         // queue. The hand-over goes to that open page: an idle player is told to play now, a busy one gets
         // the video in its one-slot "next" buffer until it reports the current video ended. No open player
-        // page means nothing can play, so the hand-over is refused.
+        // Audio page means nothing can play yet, so the request stays in the next slot until it attaches.
         string? videoId = ExtractVideoId(trackUri);
         if (videoId is null)
             return false;
 
+        YouTubeQueuedTrack queued = await DescribeAsync(broadcasterId, videoId, cancellationToken);
         IReadOnlyList<Guid> players = await _players.FindPlayersAsync(
             broadcasterId,
             cancellationToken
         );
         if (players.Count == 0)
-            return false;
+        {
+            _playerState.SetNext(broadcasterId, queued);
+            return true;
+        }
 
-        YouTubeQueuedTrack queued = await DescribeAsync(broadcasterId, videoId, cancellationToken);
         if (_playerState.IsBusy(broadcasterId))
         {
             _playerState.SetNext(broadcasterId, queued);

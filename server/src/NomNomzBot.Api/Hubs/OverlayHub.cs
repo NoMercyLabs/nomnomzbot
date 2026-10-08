@@ -24,6 +24,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -187,7 +188,27 @@ public class OverlayHub : Hub<IOverlayClient>
         string? naturalKey = await NaturalKeyAsync(widget);
         if (WidgetKeyAliases.Canonical(naturalKey) == OverlayPresenceRegistry.AudioSourceNaturalKey)
         {
-            _presence.MarkAudioSource(Context.ConnectionId);
+            string? previousAudio = _presence.GetAudioTarget(broadcasterId);
+            Guid? previousWidget = _presence.GetAudioWidgetId(broadcasterId);
+            Context.Items["AudioMusicTransfer"] = false;
+            _presence.MarkAudioSource(Context.ConnectionId, widget!.Id);
+            if (
+                previousAudio is not null
+                && previousAudio != Context.ConnectionId
+                && previousWidget is not null
+            )
+            {
+                Context.Items["AudioMusicTransfer"] = true;
+                await Clients
+                    .Client(previousAudio)
+                    .WidgetEvent(
+                        new WidgetEventDto(
+                            previousWidget.Value.ToString(),
+                            "youtube.stop",
+                            new { handoff = true }
+                        )
+                    );
+            }
             _inbox.NotifyChanged(broadcasterId);
         }
 
@@ -325,8 +346,8 @@ public class OverlayHub : Hub<IOverlayClient>
     }
 
     /// <summary>
-    /// A YouTube player page reports what it plays. Counts only for a widget of this connection's channel
-    /// (and, on a widget-scoped ticket, only for that widget); anything else is refused and stores nothing.
+    /// The selected Audio page reports what its YouTube player plays. Reports from other widget pages or
+    /// channels are refused and store nothing.
     /// </summary>
     public async Task<bool> ReportYouTubePlayerState(
         string widgetId,
@@ -339,6 +360,11 @@ public class OverlayHub : Hub<IOverlayClient>
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return false;
         if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            return false;
+        if (
+            _presence.GetAudioTarget(broadcasterId) != Context.ConnectionId
+            || _presence.GetAudioWidgetId(broadcasterId) != parsedWidgetId
+        )
             return false;
 
         bool ownsWidget = await _db
@@ -383,10 +409,31 @@ public class OverlayHub : Hub<IOverlayClient>
             }
         );
 
-    public Task WidgetReady(string widgetId)
+    public async Task WidgetReady(
+        string widgetId,
+        [FromServices] ISongRequestHandover songRequests,
+        [FromServices] IYouTubePlayerDispatcher players
+    )
     {
         _logger.LogDebug("Widget {W} ready on connection {C}", widgetId, Context.ConnectionId);
-        return Task.CompletedTask;
+        if (
+            Context.Items["BroadcasterId"] is not Guid broadcasterId
+            || !MayActFor(widgetId)
+            || !Guid.TryParse(widgetId, out Guid parsedWidgetId)
+            || _presence.GetAudioTarget(broadcasterId) != Context.ConnectionId
+            || _presence.GetAudioWidgetId(broadcasterId) != parsedWidgetId
+        )
+            return;
+
+        bool allowStale = Context.Items["AudioMusicTransfer"] is true;
+        bool replayed = await players.ReplayCurrentAsync(
+            broadcasterId,
+            allowStale,
+            Context.ConnectionAborted
+        );
+        if (!replayed)
+            await players.HandOverNextAsync(broadcasterId, Context.ConnectionAborted);
+        await songRequests.HandOverNextAsync(broadcasterId.ToString(), Context.ConnectionAborted);
     }
 
     /// <summary>

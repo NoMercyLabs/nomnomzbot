@@ -15,7 +15,7 @@ using NomNomzBot.Infrastructure.Content.Widgets;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// The now-playing widget plays the video the bot hands it (<c>youtube.play</c>) through the YouTube IFrame
+/// The Audio widget plays the video the bot hands it (<c>youtube.play</c>) through the YouTube IFrame
 /// Player API and reports PLAYING, PAUSED and ENDED with the position back over the overlay SDK.
 ///
 /// <para>
@@ -24,19 +24,44 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// behaviourally in <c>OverlaySdkYouTubeReportTests</c> and <c>OverlayHubYouTubeReportTests</c>.
 /// </para>
 /// </summary>
-public sealed class NowPlayingYouTubePlayerGuardTests
+public sealed class AudioYouTubePlayerGuardTests
 {
     private static string Source()
     {
-        const string resourceName =
-            "NomNomzBot.Infrastructure.Content.Widgets.Assets.now_playing.vue";
+        const string resourceName = "NomNomzBot.Infrastructure.Content.Widgets.Assets.audio.vue";
         using System.IO.Stream? stream = typeof(FirstPartyWidgetCatalogue)
             .GetTypeInfo()
             .Assembly.GetManifestResourceStream(resourceName);
-        stream.Should().NotBeNull("the now-playing widget must ship as an embedded asset");
+        stream.Should().NotBeNull("the Audio widget must ship as an embedded asset");
 
         using StreamReader reader = new(stream);
         return reader.ReadToEnd();
+    }
+
+    [Fact]
+    public void The_display_widget_does_not_create_a_second_youtube_player()
+    {
+        const string displayResource =
+            "NomNomzBot.Infrastructure.Content.Widgets.Assets.now_playing.vue";
+        using System.IO.Stream? stream =
+            typeof(FirstPartyWidgetCatalogue).Assembly.GetManifestResourceStream(displayResource);
+        stream.Should().NotBeNull();
+        using StreamReader reader = new(stream);
+        string display = reader.ReadToEnd();
+
+        display.Should().NotContain("new YT.Player(");
+        display.Should().NotContain("NomNomz.on('youtube.play'");
+        display.Should().NotContain("new Spotify.Player(");
+        display.Should().Contain("NomNomz.on('now_playing'");
+    }
+
+    [Fact]
+    public void The_audio_widget_hosts_the_spotify_connect_player()
+    {
+        string source = Source();
+        source.Should().Contain("new Spotify.Player(");
+        source.Should().Contain("NomNomz.spotify.playbackToken()");
+        source.Should().Contain("NomNomz.on('now_playing', onAudioNowPlaying)");
     }
 
     [Fact]

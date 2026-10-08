@@ -89,6 +89,7 @@ public sealed class YouTubePlayerHandOverTests
 
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsWidgetAttached(Broadcaster, PlayerWidget).Returns(pageAttached);
+        presence.GetAudioWidgetId(Broadcaster).Returns(pageAttached ? PlayerWidget : null);
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();
@@ -226,15 +227,19 @@ public sealed class YouTubePlayerHandOverTests
     }
 
     [Fact]
-    public async Task Without_an_attached_player_page_the_hand_over_is_refused_and_nothing_is_pushed()
+    public async Task Without_an_audio_page_the_request_stays_queued_and_nothing_is_pushed()
     {
         Rig rig = await BuildAsync(pageAttached: false);
 
         bool accepted = await rig.Provider.AddToQueueAsync(Broadcaster, Watch("dQw4w9WgXcQ"));
 
-        accepted.Should().BeFalse();
+        accepted.Should().BeTrue();
         rig.Notifier.Sent.Should().BeEmpty();
-        (await rig.Provider.GetQueueAsync(Broadcaster)).Should().NotBeNull().And.BeEmpty();
+        (await rig.Provider.GetQueueAsync(Broadcaster))
+            .Should()
+            .ContainSingle()
+            .Which.TrackUri.Should()
+            .Be(Watch("dQw4w9WgXcQ"));
     }
 
     [Fact]

@@ -218,9 +218,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Now Playing",
             Description: "A standing display of the current track — pill or card layout, optional album art and an "
                 + "animated progress sweep — that hides itself while nothing plays. Adapts to whichever provider is "
-                + "playing: for Spotify it also becomes a real Spotify Connect device and streams audio through this "
-                + "OBS source (Premium + the streaming scope required, Integrations page); for YouTube it can "
-                + "optionally render the actual video instead of the compact card.",
+                + "playing. Spotify and YouTube audio plays from the Audio widget.",
             DefaultSettings: new()
             {
                 ["layout"] = "pill",
@@ -228,10 +226,6 @@ public static class FirstPartyWidgetCatalogue
                 ["showProgressBar"] = true,
                 ["provider"] = "",
                 ["accentColor"] = "#9146ff",
-                // On by default: adding this widget opts it into becoming the Spotify Connect device for
-                // Spotify tracks. Still overridable off (e.g. temporarily pause it without uninstalling).
-                ["enableAudio"] = true,
-                ["youtubeMode"] = "card",
             },
             DefaultEventSubscriptions: ["now_playing", "track_saved_changed"]
         ),
@@ -252,11 +246,16 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: WidgetKeyAliases.Audio,
             Name: "Audio",
-            Description: "Every sound and TTS line plays here: sound clips, redemption sounds and spoken messages all come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
+            Description: "All audio plays here: music, sound clips, redemption sounds and spoken messages come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
                 + "indicator is only for confirming the source is alive during setup.",
-            DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },
-            DefaultEventSubscriptions: ["tts_speak"]
+            DefaultSettings: new()
+            {
+                ["showIndicator"] = false,
+                ["accentColor"] = "#9146ff",
+                ["enableAudio"] = true,
+            },
+            DefaultEventSubscriptions: ["tts_speak", "now_playing"]
         ),
         new(
             Key: "tts_caption",

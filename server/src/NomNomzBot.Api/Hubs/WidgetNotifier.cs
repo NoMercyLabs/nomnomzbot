@@ -23,6 +23,13 @@ public interface IWidgetNotifier
         WidgetEventDto dto,
         CancellationToken ct = default
     );
+
+    /// <summary>Sends a music player event to the selected Audio connection only.</summary>
+    Task SendAudioWidgetEventAsync(
+        string broadcasterId,
+        WidgetEventDto dto,
+        CancellationToken ct = default
+    );
     Task ReloadWidgetAsync(string broadcasterId, string widgetId, CancellationToken ct = default);
     Task SendSettingsChangedAsync(
         string broadcasterId,
@@ -103,6 +110,12 @@ public class WidgetNotifier : IWidgetNotifier
         WidgetEventDto dto,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetEvent(dto);
+
+    public Task SendAudioWidgetEventAsync(
+        string broadcasterId,
+        WidgetEventDto dto,
+        CancellationToken ct = default
+    ) => AudioPage(broadcasterId)?.WidgetEvent(dto) ?? Task.CompletedTask;
 
     public Task ReloadWidgetAsync(
         string broadcasterId,

@@ -218,6 +218,7 @@ public sealed class OverlaySdkController : ControllerBase
                   // in-page config is refreshed by this same re-apply, not by throwing the page away.
                   if (msg.result.initialState) applySettings(msg.result.initialState);
                   applySeed(msg.result.seed);
+                  ws.send(JSON.stringify({ type: 1, target: "WidgetReady", arguments: [widgetId] }) + RS);
                 }
               });
             };

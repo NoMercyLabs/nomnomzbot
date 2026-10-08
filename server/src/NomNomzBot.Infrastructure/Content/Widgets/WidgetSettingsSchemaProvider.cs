@@ -178,8 +178,6 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showArt", Content),
                 Bool(d, "showProgressBar", Content),
                 Text(d, "provider", Content, help: true),
-                Bool(d, "enableAudio", Behaviour),
-                SelectField(d, "youtubeMode", Content, Opts(d, "youtubeMode", "card", "video")),
                 Accent(d),
             ],
             "sr_queue" =>
@@ -189,7 +187,12 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showDuration", Content),
                 Accent(d),
             ],
-            WidgetKeyAliases.Audio => [Bool(d, "showIndicator", Content), Accent(d)],
+            WidgetKeyAliases.Audio =>
+            [
+                Bool(d, "showIndicator", Content),
+                Bool(d, "enableAudio", Behaviour),
+                Accent(d),
+            ],
             "tts_caption" =>
             [
                 Bool(d, "showText", Content),
