@@ -223,6 +223,8 @@ public sealed class ActionDefinitionClassificationTests
         "moderation:delete_message",
         "moderation:warn",
         "moderation:note:write",
+        "moderation:history:read",
+        "moderation:history:write",
         "moderation:automod:read",
         "moderation:automod:write",
         "moderation:filter:read",

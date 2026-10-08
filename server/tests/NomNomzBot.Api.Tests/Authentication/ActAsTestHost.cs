@@ -99,7 +99,10 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         "0192b000-0000-7000-8000-00000000a0a0"
     );
 
-    public static async Task<ActAsTestHost> StartAsync(Guid adminUserId)
+    public static async Task<ActAsTestHost> StartAsync(
+        Guid adminUserId,
+        Action<IServiceCollection>? configureServices = null
+    )
     {
         SqliteConnection connection = new("Data Source=:memory:");
         connection.Open();
@@ -131,6 +134,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
                 .ConfigureServices(services =>
                 {
                     Register(services, config, jwt, eventBus, authService, adminUserId, connection);
+                    configureServices?.Invoke(services);
                     services.AddSingleton(moderators);
                     services.AddSingleton(ownerActions);
                 })
