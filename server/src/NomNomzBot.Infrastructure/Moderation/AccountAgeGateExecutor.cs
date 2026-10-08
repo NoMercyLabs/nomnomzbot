@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
@@ -30,16 +31,19 @@ public sealed class AccountAgeGateExecutor
 {
     private readonly ITwitchModerationApi _twitch;
     private readonly IModerationQueueService _queue;
+    private readonly IInboundOriginModerator _origin;
     private readonly ILogger<AccountAgeGateExecutor> _logger;
 
     public AccountAgeGateExecutor(
         ITwitchModerationApi twitch,
         IModerationQueueService queue,
+        IInboundOriginModerator origin,
         ILogger<AccountAgeGateExecutor> logger
     )
     {
         _twitch = twitch;
         _queue = queue;
+        _origin = origin;
         _logger = logger;
     }
 
@@ -60,11 +64,19 @@ public sealed class AccountAgeGateExecutor
         if (decision.IsDryRun)
             return new SpamEnforcementOutcome(false, false, "dry run");
 
-        // Removal rides Helix, so a message from another platform is recorded but not acted on.
-        if (!string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
-            return new SpamEnforcementOutcome(false, false, $"no enforcement path for {provider}");
-
-        bool deleted = await DeleteMessageAsync(broadcasterId, messageId, ct);
+        // A message acts on the platform it came from. Twitch rides Helix; any other platform goes through
+        // the inbound-origin seam, which answers honestly when it cannot act.
+        bool isTwitch = string.Equals(
+            provider,
+            AuthEnums.Platform.Twitch,
+            StringComparison.OrdinalIgnoreCase
+        );
+        bool deleted;
+        string? skipped = null;
+        if (isTwitch)
+            deleted = await DeleteMessageAsync(broadcasterId, messageId, ct);
+        else
+            (deleted, skipped) = await DeleteViaOriginAsync(broadcasterId, provider, messageId, ct);
 
         // Queue only what was really removed: a held row for a message still on screen would offer the
         // moderator an approval that changes nothing.
@@ -79,7 +91,37 @@ public sealed class AccountAgeGateExecutor
                 ct
             );
 
-        return new SpamEnforcementOutcome(deleted, false, null);
+        return new SpamEnforcementOutcome(deleted, false, skipped);
+    }
+
+    private async Task<(bool Deleted, string? Reason)> DeleteViaOriginAsync(
+        Guid broadcasterId,
+        string provider,
+        string messageId,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(messageId))
+            return (false, "no message id to delete");
+
+        InboundModerationOutcome outcome = await _origin.DeleteMessageAsync(
+            broadcasterId,
+            provider,
+            messageId,
+            ct
+        );
+        if (outcome.Status == InboundModerationStatus.Done)
+            return (true, null);
+
+        _logger.LogWarning(
+            "Newcomer gate could not delete message {MessageId} on {Provider} in {BroadcasterId}: {Status} {Reason}",
+            messageId,
+            provider,
+            broadcasterId,
+            outcome.Status,
+            outcome.Reason
+        );
+        return (false, outcome.Reason ?? $"{provider} did not delete the message");
     }
 
     private async Task<bool> DeleteMessageAsync(
