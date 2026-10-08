@@ -64,6 +64,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.media.decodeStaticImage
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
@@ -84,6 +85,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlin.io.encoding.Base64
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -260,19 +262,9 @@ fun ObsScreen(
                         manage = configManage,
                         isRemoteDeployment = isRemoteDeployment,
                         onSave = { mode, host, port, password, enabled ->
-                            scope.launch { controller.saveConnection(mode, host, port, password, enabled) }
+                            controller.saveConnection(mode, host, port, password, enabled)
                         },
-                        onClearPassword = {
-                            scope.launch {
-                                controller.saveConnection(
-                                    mode = current.connection.mode,
-                                    host = current.connection.host,
-                                    port = current.connection.port,
-                                    password = "",
-                                    isEnabled = current.connection.isEnabled,
-                                )
-                            }
-                        },
+                        onClearPassword = { scope.launch { controller.clearPassword() } },
                     )
                     BridgeCard(
                         bridgeUrl = current.bridgeSetup?.bridgeUrl,
@@ -385,12 +377,18 @@ private fun ConnectionCard(
     connection: ObsConnection,
     manage: ManageDecision,
     isRemoteDeployment: Boolean,
-    onSave: (mode: String, host: String?, port: Int?, password: String?, enabled: Boolean) -> Unit,
+    onSave: suspend (mode: String, host: String?, port: Int?, password: String?, enabled: Boolean) -> ApiResult<Unit>,
     onClearPassword: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope: CoroutineScope = rememberCoroutineScope()
+
+    // Save waits for the server: pending disables the button (no second write), a failure keeps every typed
+    // value and shows the reason next to Save.
+    var saving: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember { mutableStateOf(null) }
 
     var mode: String by remember(connection.mode) { mutableStateOf(connection.mode) }
     var host: String by remember(connection.host) { mutableStateOf(connection.host.orEmpty()) }
@@ -479,19 +477,35 @@ private fun ConnectionCard(
             }
 
             ManageGate(decision = manage) { gateEnabled ->
-                Button(
-                    onClick = {
-                        onSave(
-                            mode,
-                            host.ifBlank { null },
-                            port.toIntOrNull(),
-                            password.ifBlank { null },
-                            enabled,
-                        )
-                    },
-                    enabled = gateEnabled,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                 ) {
-                    Text(text = stringResource(Res.string.obs_save))
+                    Button(
+                        onClick = {
+                            saving = true
+                            saveError = null
+                            scope.launch {
+                                val result: ApiResult<Unit> =
+                                    onSave(
+                                        mode,
+                                        host.ifBlank { null },
+                                        port.toIntOrNull(),
+                                        password.ifBlank { null },
+                                        enabled,
+                                    )
+                                saving = false
+                                if (result is ApiResult.Failure) saveError = result.error.message
+                            }
+                        },
+                        enabled = gateEnabled && !saving,
+                        loading = saving,
+                    ) {
+                        Text(text = stringResource(Res.string.obs_save))
+                    }
+                    saveError?.let { detail ->
+                        Text(text = detail, style = typography.sm, color = tokens.destructive)
+                    }
                 }
             }
         }
