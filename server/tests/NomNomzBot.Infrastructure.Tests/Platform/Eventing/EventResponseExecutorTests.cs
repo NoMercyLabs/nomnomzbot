@@ -175,6 +175,8 @@ public sealed class EventResponseExecutorTests
                     && r.RequestedByTwitchUserId == string.Empty
                     && r.VoiceIdOverride == null
                     && r.CommunityStanding == "broadcaster"
+                    && r.SpokenNames != null
+                    && r.SpokenNames.Contains("Gifter")
                 ),
                 Arg.Any<CancellationToken>()
             );

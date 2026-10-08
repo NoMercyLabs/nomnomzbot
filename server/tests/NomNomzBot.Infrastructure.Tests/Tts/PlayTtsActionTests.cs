@@ -113,6 +113,8 @@ public sealed class PlayTtsActionTests
                     r.Text == "hello resolved"
                     && r.BroadcasterId == Channel
                     && r.RequestedByTwitchUserId == "viewer-9"
+                    && r.SpokenNames != null
+                    && r.SpokenNames.Contains("viewer")
                 ),
                 Arg.Any<CancellationToken>()
             );
