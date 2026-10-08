@@ -948,13 +948,17 @@ class AdminController(
 
     /** Refunds [invoiceId] — the server rejects (`VALIDATION_FAILED`) anything but a `Paid` invoice, so an
      * already-refunded row can never be double-refunded even if the dialog is somehow reopened on it. Reloads
-     * the invoice list either way so the new `refunded` status and amount are visible immediately. */
-    suspend fun confirmRefund(invoiceId: String) {
-        val broadcasterId: String = _state.value.invoiceBroadcasterId ?: return
-        _state.value = _state.value.copy(refundPendingInvoiceId = null)
-        when (val result = api.refundInvoice(invoiceId)) {
-            is ApiResult.Ok -> selectInvoiceBroadcaster(broadcasterId)
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
+     * the invoice list on success so the new `refunded` status and amount are visible immediately. The confirm
+     * dialog stays open until this returns and shows a failure inline, so there is no toast here. */
+    suspend fun confirmRefund(invoiceId: String): ApiResult<Unit> {
+        val broadcasterId: String = _state.value.invoiceBroadcasterId ?: return ApiResult.Ok(Unit)
+        return when (val result = api.refundInvoice(invoiceId)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(refundPendingInvoiceId = null)
+                selectInvoiceBroadcaster(broadcasterId)
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> result
         }
     }
 
