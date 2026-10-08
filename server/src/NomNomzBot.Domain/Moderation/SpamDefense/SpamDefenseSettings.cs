@@ -205,7 +205,6 @@ public static class SpamSettingCatalogue
     public static class PendingSlices
     {
         public const string TrustWire = "S-SPAM-TRUST-WIRE";
-        public const string FollowBotWire = "S-SPAM-FOLLOWBOT-WIRE";
         public const string LockdownWire = "S-SPAM-LOCKDOWN-WIRE";
         public const string Network = "S-SPAM-NETWORK";
     }
@@ -254,13 +253,7 @@ public static class SpamSettingCatalogue
         new(nameof(SpamDefenseSettings.MaxWindowSeconds), Groups.Campaign, 60, 7200),
         new(nameof(SpamDefenseSettings.ActionDelaySeconds), Groups.Campaign, 0, 120),
         new(nameof(SpamDefenseSettings.AutoReverseOnDequalify), Groups.Campaign),
-        new(
-            nameof(SpamDefenseSettings.FollowSpikeFactor),
-            Groups.Bursts,
-            1.5,
-            50,
-            PendingSlices.FollowBotWire
-        ),
+        new(nameof(SpamDefenseSettings.FollowSpikeFactor), Groups.Bursts, 1.5, 50),
         new(
             nameof(SpamDefenseSettings.JoinBurstFactor),
             Groups.Bursts,

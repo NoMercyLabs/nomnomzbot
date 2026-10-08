@@ -114,7 +114,6 @@ public class SpamSettingCatalogueTests
             [nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere)] = "S-SPAM-TRUST-WIRE",
             [nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance)] = "S-SPAM-TRUST-WIRE",
             [nameof(SpamDefenseSettings.NonLatinScriptGate)] = "S-SPAM-TRUST-WIRE",
-            [nameof(SpamDefenseSettings.FollowSpikeFactor)] = "S-SPAM-FOLLOWBOT-WIRE",
             [nameof(SpamDefenseSettings.JoinBurstFactor)] = "S-SPAM-LOCKDOWN-WIRE",
             [nameof(SpamDefenseSettings.LockdownMinutes)] = "S-SPAM-LOCKDOWN-WIRE",
             [nameof(SpamDefenseSettings.LockdownAutoExtend)] = "S-SPAM-LOCKDOWN-WIRE",

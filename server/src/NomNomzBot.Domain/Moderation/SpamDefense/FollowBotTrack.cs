@@ -36,6 +36,7 @@ public enum FollowBotIndicator
 /// <param name="FollowUnfollowCycles">Times this account has followed and unfollowed this channel.</param>
 /// <param name="IsOnKnownBotList">Listed by the network feed.</param>
 /// <param name="Tier">Trust tier — standing excludes an account from every sweep (SD11).</param>
+/// <param name="HasHistory">Any chat message on this instance, or an earlier follow of this channel.</param>
 public sealed record FollowCandidate(
     string AccountId,
     string Username,
@@ -43,7 +44,8 @@ public sealed record FollowCandidate(
     bool HasProfileContent,
     int FollowUnfollowCycles,
     bool IsOnKnownBotList,
-    SpamTrustTier Tier
+    SpamTrustTier Tier,
+    bool HasHistory
 );
 
 /// <summary>
@@ -96,6 +98,9 @@ public static class FollowBotTrack
     /// <summary>Following and unfollowing this many times is inventory cycling, not indecision.</summary>
     private const int OscillationCycles = 3;
 
+    /// <summary>Owner rule 2026-10-05: a single signal never acts alone, so at least this many must agree.</summary>
+    public const int MinimumAgreeingIndicators = 2;
+
     /// <summary>
     /// Examine everyone who followed during a spike and return only those with their own evidence.
     /// Accounts with standing are excluded before anything else is considered (SD11).
@@ -106,11 +111,14 @@ public static class FollowBotTrack
 
         foreach (FollowCandidate candidate in candidates)
         {
-            if (TrustTierLadder.IsShieldedFromAutomatedAccountAction(candidate.Tier))
+            if (
+                candidate.HasHistory
+                || TrustTierLadder.IsShieldedFromAutomatedAccountAction(candidate.Tier)
+            )
                 continue;
 
             List<FollowBotIndicator> indicators = IndicatorsFor(candidate);
-            if (indicators.Count > 0)
+            if (indicators.Count >= MinimumAgreeingIndicators)
                 findings.Add(new FollowBotFinding(candidate.AccountId, indicators));
         }
 
