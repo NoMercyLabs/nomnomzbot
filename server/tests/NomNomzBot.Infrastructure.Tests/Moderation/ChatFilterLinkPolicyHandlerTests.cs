@@ -111,6 +111,7 @@ public sealed class ChatFilterLinkPolicyHandlerTests
         ChatFilterExecutionHandler handler = new(
             db,
             moderation,
+            Substitute.For<NomNomzBot.Application.Chat.Services.IInboundOriginModerator>(),
             escalation,
             queue,
             users,
