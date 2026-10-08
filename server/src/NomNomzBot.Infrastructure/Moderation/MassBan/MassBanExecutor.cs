@@ -77,10 +77,8 @@ public sealed class MassBanExecutor
             .MassBanBatches.Include(b => b.Targets)
             .FirstAsync(b => b.Id == batchId, ct);
 
-        List<MassBanBatchTarget> slice =
-        [
-            .. batch.Targets.Where(t => t.ProcessedAt == null).Take(maxBans),
-        ];
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        List<MassBanBatchTarget> slice = [.. batch.Targets.Where(t => IsDue(t, now)).Take(maxBans)];
         // The worker has no HTTP request to inherit a sanction from; the moderator who asked for the batch
         // through moderation:ban is the basis, so every ban carries their id to the outbound guard.
         using (
@@ -100,13 +98,24 @@ public sealed class MassBanExecutor
         return slice.Count;
     }
 
+    // A target waiting out its retry backoff is not due yet.
+    private static bool IsDue(MassBanBatchTarget target, DateTime now) =>
+        target.ProcessedAt == null && (target.NextAttemptAt == null || target.NextAttemptAt <= now);
+
     // The oldest unfinished, undeclined batch that may run now: approved, never held, or its channel is offline.
+    // A batch whose remaining targets all wait for a retry is passed over so it cannot stall the others.
     // When Twitch cannot say who is live, every held batch keeps waiting — holding is the safe side.
     private async Task<Guid?> NextRunnableBatchAsync(CancellationToken ct)
     {
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
         var candidates = await _db
             .MassBanBatches.AsNoTracking()
             .Where(b => b.CompletedAt == null && b.DeclinedAt == null)
+            .Where(b =>
+                b.Targets.Any(t =>
+                    t.ProcessedAt == null && (t.NextAttemptAt == null || t.NextAttemptAt <= now)
+                ) || b.Targets.All(t => t.ProcessedAt != null)
+            )
             .OrderBy(b => b.RequestedAt)
             .Take(MaxCandidates)
             .Select(b => new
@@ -138,9 +147,60 @@ public sealed class MassBanExecutor
 
     private async Task BanAsync(MassBanBatch batch, MassBanBatchTarget target, CancellationToken ct)
     {
-        target.ProcessedAt = _clock.GetUtcNow().UtcDateTime;
-        Result<TwitchBanResult> ban =
-            batch.RunsAsBroadcaster && batch.ChannelId is { } channelId
+        Result<TwitchBanResult> ban = await CallBanAsync(batch, target, ct);
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        target.Attempts++;
+        if (ban.IsSuccess || IsAlreadyBanned(ban.ErrorMessage) || IsAlreadyBanned(ban.ErrorDetail))
+        {
+            target.Banned = true;
+            target.Error = null;
+            target.NextAttemptAt = null;
+            target.ProcessedAt = now;
+            return;
+        }
+
+        // The transport's message is only the status; Twitch's own sentence is the detail (2026-10-06).
+        string error = string.IsNullOrEmpty(ban.ErrorDetail)
+            ? ban.ErrorMessage ?? "Twitch rejected the ban."
+            : $"{ban.ErrorMessage} {ban.ErrorDetail}";
+        bool retry = MassBanRetryPolicy.IsTransient(ban);
+        if (retry && target.Attempts < MassBanRetryPolicy.MaxAttempts)
+        {
+            target.Error = Truncate(error);
+            target.NextAttemptAt = now + MassBanRetryPolicy.DelayAfter(target.Attempts);
+            _logger.LogInformation(
+                "Mass ban in {Channel}: {Target} will be retried (attempt {Attempt}): {Error}",
+                batch.ChannelLogin,
+                target.TwitchUserId,
+                target.Attempts,
+                target.Error
+            );
+            return;
+        }
+
+        target.Error = Truncate(
+            retry ? $"Gave up after {target.Attempts} attempts: {error}" : error
+        );
+        target.NextAttemptAt = null;
+        target.ProcessedAt = now;
+        _logger.LogWarning(
+            "Mass ban in {Channel}: {Target} was not banned: {Error}",
+            batch.ChannelLogin,
+            target.TwitchUserId,
+            target.Error
+        );
+    }
+
+    // A call that throws is a transport failure like any other: it is retried, never left to jam the batch.
+    private async Task<Result<TwitchBanResult>> CallBanAsync(
+        MassBanBatch batch,
+        MassBanBatchTarget target,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return batch.RunsAsBroadcaster && batch.ChannelId is { } channelId
                 ? await _moderation.BanUserAsync(channelId, target.TwitchUserId, target.Reason, ct)
                 : await _moderation.BanAsOperatorAsync(
                     batch.OperatorUserId,
@@ -149,24 +209,15 @@ public sealed class MassBanExecutor
                     target.Reason,
                     ct
                 );
-        if (ban.IsSuccess || IsAlreadyBanned(ban.ErrorMessage) || IsAlreadyBanned(ban.ErrorDetail))
-        {
-            target.Banned = true;
-            return;
         }
-
-        // The transport's message is only the status; Twitch's own sentence is the detail (2026-10-06).
-        string error = string.IsNullOrEmpty(ban.ErrorDetail)
-            ? ban.ErrorMessage ?? "Twitch rejected the ban."
-            : $"{ban.ErrorMessage} {ban.ErrorDetail}";
-        target.Error = error.Length > MaxErrorLength ? error[..MaxErrorLength] : error;
-        _logger.LogWarning(
-            "Mass ban in {Channel}: {Target} was not banned: {Error}",
-            batch.ChannelLogin,
-            target.TwitchUserId,
-            target.Error
-        );
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            return Result.Failure<TwitchBanResult>(ex.Message, TwitchErrorCodes.Transport);
+        }
     }
+
+    private static string Truncate(string error) =>
+        error.Length > MaxErrorLength ? error[..MaxErrorLength] : error;
 
     // Twitch refuses a second ban of the same account; the account is banned all the same.
     private static bool IsAlreadyBanned(string? error) =>
