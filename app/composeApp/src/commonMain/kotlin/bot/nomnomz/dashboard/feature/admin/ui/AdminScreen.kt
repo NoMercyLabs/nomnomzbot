@@ -1916,11 +1916,8 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
             confirmLabel = stringResource(Res.string.admin_invite_revoke),
             dismissLabel = stringResource(Res.string.admin_cancel),
             destructive = true,
-            onConfirm = {
-                scope.launch { controller.revokeInviteCode(invite.id) }
-                revokeInvite = null
-            },
             onDismiss = { revokeInvite = null },
+            action = { controller.revokeInviteCode(invite.id).toDialogResult() },
         )
     }
 
@@ -1928,10 +1925,7 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
         CreateInviteCodeDialog(
             tiers = state.tiers,
             onDismiss = { showCreateInvite = false },
-            onCreate = { request ->
-                scope.launch { controller.createInviteCode(request) }
-                showCreateInvite = false
-            },
+            onCreate = { request -> controller.createInviteCode(request).toDialogResult() },
         )
     }
 }
@@ -1946,7 +1940,7 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
 private fun CreateInviteCodeDialog(
     tiers: List<AdminTier>,
     onDismiss: () -> Unit,
-    onCreate: (bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest) -> Unit,
+    onCreate: suspend (bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest) -> DialogResult,
 ) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1960,9 +1954,24 @@ private fun CreateInviteCodeDialog(
     val maxRedemptions: Int? = maxRedemptionsText.trim().toIntOrNull()
     val formValid: Boolean = maxRedemptions != null && maxRedemptions > 0
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_invite_setup_title))
-
+    FormDialog(
+        title = stringResource(Res.string.admin_invite_setup_title),
+        saveLabel = stringResource(Res.string.admin_invite_setup_confirm),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = {
+            onCreate(
+                bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest(
+                    maxRedemptions = maxRedemptions ?: 1,
+                    grantsFoundersBadge = grantsFounder,
+                    grantsTierId = selectedTierId,
+                    expiresAt = expiresAt.trim().ifBlank { null },
+                ),
+            )
+        },
+        dirty = maxRedemptionsText != "1" || grantsFounder || selectedTierId != null || expiresAt.isNotBlank(),
+        valid = formValid,
+    ) {
         AppTextField(
             value = maxRedemptionsText,
             onValueChange = { maxRedemptionsText = it },
@@ -2001,26 +2010,6 @@ private fun CreateInviteCodeDialog(
             label = stringResource(Res.string.admin_invite_setup_expires),
             modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(spacing.s1))
-        DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(
-                onClick = {
-                    onCreate(
-                        bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest(
-                            maxRedemptions = maxRedemptions ?: 1,
-                            grantsFoundersBadge = grantsFounder,
-                            grantsTierId = selectedTierId,
-                            expiresAt = expiresAt.trim().ifBlank { null },
-                        ),
-                    )
-                },
-                enabled = formValid,
-            ) {
-                Text(text = stringResource(Res.string.admin_invite_setup_confirm))
-            }
-        }
     }
 }
 

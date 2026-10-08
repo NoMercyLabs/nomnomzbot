@@ -799,11 +799,12 @@ class AdminController(
     suspend fun confirmFeatureFlagKillSwitch(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> =
         reloadAfterDialogWrite { api.setFeatureFlag(body) }
 
-    suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) =
-        writeThenReload { api.createInviteCode(body) }
+    /** Both invite writes come from stay-open dialogs: the dialog closes on success and shows a failure inline. */
+    suspend fun createInviteCode(body: AdminCreateInviteCodeRequest): ApiResult<InviteCode> =
+        reloadAfterDialogWrite { api.createInviteCode(body) }
 
-    suspend fun revokeInviteCode(inviteCodeId: String) =
-        writeThenReload { api.revokeInviteCode(inviteCodeId) }
+    suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> =
+        reloadAfterDialogWrite { api.revokeInviteCode(inviteCodeId) }
 
     /**
      * Opens the tier edit dialog for [tierId] and fetches its counted blast radius — the real number of
