@@ -80,6 +80,7 @@ import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_action_applied
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
+import bot.nomnomz.dashboard.core.network.UserModerationHistorySummary
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubConfigChanged
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -950,6 +951,70 @@ class ModerationControllerTest {
             listOf("q1"),
             (controller.state.value as? ModerationState.Ready)?.automodQueue?.map { it.id },
         )
+    }
+
+    @Test
+    fun a_warning_acknowledgement_push_refetches_the_history_page_and_the_open_viewer_card() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.historyEntries =
+            listOf(
+                ModerationHistoryEntry(
+                    id = "w1",
+                    subjectTwitchUserId = "u1",
+                    actionType = ModerationHistoryActionTypes.Warn,
+                    occurredAt = "2026-09-01T12:00:00Z",
+                )
+            )
+        api.userContextResult =
+            ApiResult.Ok(
+                UserModerationContext(
+                    userId = "u1",
+                    history = UserModerationHistorySummary(lastWarningAt = "2026-09-01T12:00:00Z"),
+                )
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        controller.openUserContext("u1")
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // The viewer acknowledges: the server now reports the stamp on both the log row and the card.
+        api.historyEntries =
+            listOf(api.historyEntries.single().copy(acknowledgedAt = "2026-09-01T12:00:40Z"))
+        api.userContextResult =
+            ApiResult.Ok(
+                UserModerationContext(
+                    userId = "u1",
+                    history =
+                        UserModerationHistorySummary(
+                            lastWarningAt = "2026-09-01T12:00:00Z",
+                            lastWarningAcknowledgedAt = "2026-09-01T12:00:40Z",
+                        ),
+                )
+            )
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(domain = "moderation-history", entityId = "u1")))
+
+        assertEquals(
+            listOf("2026-09-01T12:00:40Z"),
+            (controller.state.value as ModerationState.Ready).historyEntries.map { it.acknowledgedAt },
+        )
+        val card: UserContextState.Ready = controller.userContext.value as UserContextState.Ready
+        assertEquals("2026-09-01T12:00:40Z", card.context.history?.lastWarningAcknowledgedAt)
+    }
+
+    @Test
+    fun a_config_change_for_another_domain_does_not_refetch_the_history() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+        val before: Int = api.historyCalls.size
+
+        events.emit(HubEvent.ConfigChanged(HubConfigChanged(domain = "commands", entityId = "c1")))
+
+        assertEquals(before, api.historyCalls.size)
     }
 
     @Test

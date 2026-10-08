@@ -7570,6 +7570,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ActionType")
                         .IsRequired()
                         .HasMaxLength(20)

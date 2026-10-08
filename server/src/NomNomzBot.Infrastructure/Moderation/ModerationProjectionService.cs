@@ -132,6 +132,54 @@ public sealed class ModerationProjectionService(
         return Result.Success();
     }
 
+    public async Task<Result> AcknowledgeWarningAsync(
+        Guid broadcasterId,
+        string subjectTwitchUserId,
+        DateTime acknowledgedAtUtc,
+        string? subjectProvider = null,
+        CancellationToken ct = default
+    )
+    {
+        string provider = subjectProvider ?? AuthEnums.Platform.Twitch;
+        if (string.IsNullOrEmpty(subjectTwitchUserId))
+            return Result.Success();
+
+        Guid? subjectUserId = await ResolveUserIdAsync(provider, subjectTwitchUserId, ct);
+        if (subjectUserId is null)
+            return Result.Success();
+
+        List<ModerationHistoryEntry> openWarnings = await db
+            .ModerationHistoryEntries.Where(e =>
+                e.BroadcasterId == broadcasterId
+                && e.SubjectUserId == subjectUserId.Value
+                && e.ActionType == ModerationHistoryEntryKinds.Warn
+                && e.AcknowledgedAt == null
+                && e.OccurredAt <= acknowledgedAtUtc
+            )
+            .ToListAsync(ct);
+        ModerationHistoryEntry? warning = openWarnings
+            .OrderByDescending(e => e.OccurredAt)
+            .FirstOrDefault();
+
+        if (warning is not null)
+            warning.AcknowledgedAt = acknowledgedAtUtc;
+        else
+            db.ModerationHistoryEntries.Add(
+                new()
+                {
+                    BroadcasterId = broadcasterId,
+                    SubjectUserId = subjectUserId.Value,
+                    SubjectTwitchUserId = subjectTwitchUserId,
+                    ActionType = ModerationHistoryEntryKinds.WarningAcknowledged,
+                    OccurredAt = acknowledgedAtUtc,
+                    AcknowledgedAt = acknowledgedAtUtc,
+                }
+            );
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     public async Task<Result> RecomputeTrustAsync(
         Guid broadcasterId,
         Guid subjectUserId,

@@ -64,6 +64,11 @@ public class ModerationHistoryEntry : BaseEntity, ITenantScoped
 
     /// <summary>When the action actually happened (the source event's timestamp, not row-insert time).</summary>
     public DateTime OccurredAt { get; set; }
+
+    /// <summary>When the warned user acknowledged this warning (<c>channel.warning.acknowledge</c>). Null while
+    /// unacknowledged and for every kind other than <see cref="ModerationHistoryEntryKinds.Warn"/> and
+    /// <see cref="ModerationHistoryEntryKinds.WarningAcknowledged"/>.</summary>
+    public DateTime? AcknowledgedAt { get; set; }
 }
 
 /// <summary>
@@ -85,6 +90,10 @@ public static class ModerationHistoryEntryKinds
     public const string ReportValidated = "report_validated";
     public const string Note = "note";
 
+    /// <summary>An acknowledgement whose warning this log never saw (the warning predates the bot or its
+    /// row was never written) — stored on its own so the acknowledgement is not lost.</summary>
+    public const string WarningAcknowledged = "warn_ack";
+
     public static bool IsKnown(string? kind) =>
         kind
             is Ban
@@ -95,8 +104,20 @@ public static class ModerationHistoryEntryKinds
                 or AutoModDenied
                 or FilterHit
                 or ReportValidated
-                or Note;
+                or Note
+                or WarningAcknowledged;
 
     public static IReadOnlyList<string> All { get; } =
-    [Ban, Timeout, Warn, Unban, DeleteMessage, AutoModDenied, FilterHit, ReportValidated, Note];
+    [
+        Ban,
+        Timeout,
+        Warn,
+        Unban,
+        DeleteMessage,
+        AutoModDenied,
+        FilterHit,
+        ReportValidated,
+        Note,
+        WarningAcknowledged,
+    ];
 }

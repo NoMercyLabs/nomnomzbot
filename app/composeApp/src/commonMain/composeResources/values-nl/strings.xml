@@ -539,6 +539,9 @@
     <string name="moderation_history_log_type_filter_hit">Filter geraakt</string>
     <string name="moderation_history_log_type_report_validated">Melding bevestigd</string>
     <string name="moderation_history_log_type_note">Notitie</string>
+    <string name="moderation_history_log_type_warn_ack">Waarschuwing bevestigd</string>
+    <string name="moderation_history_log_ack_done">Bevestigd</string>
+    <string name="moderation_history_log_ack_waiting">Wacht op bevestiging</string>
     <string name="moderation_history_log_reason_none">Geen reden vastgelegd</string>
     <string name="moderation_history_log_duration">voor %1$ds</string>
     <string name="moderation_history_log_page">Pagina %1$d</string>
@@ -4498,6 +4501,8 @@
     <string name="moderation_history_warnings">Waarschuwingen</string>
     <string name="moderation_history_deleted">Verwijderd</string>
     <string name="moderation_history_first_seen">Eerst gezien %1$s</string>
+    <string name="moderation_history_last_warned_waiting">Gewaarschuwd %1$s, nog niet bevestigd</string>
+    <string name="moderation_history_last_warned_acknowledged">Gewaarschuwd %1$s, bevestigd %2$s</string>
     <string name="moderation_trust_badge">Vertrouwen %1$s</string>
     <string name="moderation_heat_badge">Hitte %1$s</string>
 
