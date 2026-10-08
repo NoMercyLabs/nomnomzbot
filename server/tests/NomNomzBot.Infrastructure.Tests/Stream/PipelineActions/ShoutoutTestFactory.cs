@@ -122,7 +122,7 @@ internal static class ShoutoutTestFactory
     {
         ServiceCollection services = new();
         services.AddScoped<IShoutoutSender>(_ => Sender(chat, registry, db, tts, time));
-        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton(db);
         ServiceProvider provider = services.BuildServiceProvider();
         return new(
             queue,

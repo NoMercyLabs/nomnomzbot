@@ -246,7 +246,7 @@ public sealed class ShoutoutAnnounceNowTests
         seed["target.isLive"].Should().Be("true");
         await rig
             .Channels.DidNotReceiveWithAnyArgs()
-            .GetChannelInformationByTwitchIdsAsync(default!, default);
+            .GetChannelInformationByTwitchIdsAsync(default!);
     }
 
     [Fact]
@@ -297,7 +297,7 @@ public sealed class ShoutoutAnnounceNowTests
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         QueuedShoutout queued = rig.Queue.Peek(Channel)!;
         queued.Target.Id.Should().Be(TargetId);
-        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]

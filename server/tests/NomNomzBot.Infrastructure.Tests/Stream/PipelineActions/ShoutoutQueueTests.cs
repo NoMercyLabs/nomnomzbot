@@ -885,7 +885,7 @@ public sealed class ShoutoutQueueTests
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
         await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
 
-        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
         await AssertNothingSentAsync(rig);
         manual.RepliedToChat.Should().BeFalse();
     }
@@ -897,6 +897,6 @@ public sealed class ShoutoutQueueTests
 
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
-        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 }
