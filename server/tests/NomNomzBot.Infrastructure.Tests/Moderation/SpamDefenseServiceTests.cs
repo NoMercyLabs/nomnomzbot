@@ -1471,6 +1471,20 @@ public class SpamDefenseServiceTests : IDisposable
     [Fact]
     public async Task AnAccountTooYoungForNewcomer_SkipsTheLookup()
     {
+        using (AppDbContext db = NewDbContext())
+        {
+            db.Users.Add(
+                new User
+                {
+                    TwitchUserId = "brand-new",
+                    Username = "brandnew",
+                    UsernameNormalized = "brandnew",
+                    DisplayName = "BrandNew",
+                    AccountCreatedAt = Now.UtcDateTime.AddDays(-2),
+                }
+            );
+            db.SaveChanges();
+        }
         ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
 
         SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "brand-new");

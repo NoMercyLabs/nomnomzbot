@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -50,11 +51,18 @@ public sealed partial class ChatFilterExecutionHandler(
     IModerationQueueService queue,
     IUserService users,
     NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
+    IEventBus bus,
     ILogger<ChatFilterExecutionHandler> logger
 ) : IEventHandler<ChatMessageReceivedEvent>
 {
     private const int DefaultTimeoutSeconds = 600;
     private const int QueueCategoryMaxLength = 50;
+
+    // The action names carried by ChatFilterActionFailedEvent (and the ladder's own "warn"/"timeout"/"ban").
+    private const string DeleteAction = "delete";
+    private const string WarnAction = "warn";
+    private const string TimeoutAction = "timeout";
+    private const string BanAction = "ban";
 
     public async Task HandleAsync(
         ChatMessageReceivedEvent @event,
@@ -112,15 +120,20 @@ public sealed partial class ChatFilterExecutionHandler(
                 broadcasterId
             );
 
-            await EnforceAsync(filter, @event, broadcasterId, cancellationToken);
+            bool enforced = await EnforceAsync(filter, @event, broadcasterId, cancellationToken);
 
-            filter.MatchCount++;
-            await db.SaveChangesAsync(cancellationToken);
+            // A refused action is reported to the inbox, not counted as an enforcement.
+            if (enforced)
+            {
+                filter.MatchCount++;
+                await db.SaveChangesAsync(cancellationToken);
+            }
             return; // enforce only the first matching filter
         }
     }
 
-    private async Task EnforceAsync(
+    /// <summary>Runs the filter's action. Returns false when the platform refused any step of it.</summary>
+    private async Task<bool> EnforceAsync(
         ChatFilter filter,
         ChatMessageReceivedEvent @event,
         Guid broadcasterId,
@@ -131,43 +144,78 @@ public sealed partial class ChatFilterExecutionHandler(
         switch (filter.Action)
         {
             case ChatFilterAction.Delete:
-                await moderation.DeleteChatMessageAsync(broadcasterId, @event.MessageId, ct);
-                break;
+                return await DeleteMessageAsync(filter, @event, broadcasterId, ct);
 
             case ChatFilterAction.Timeout:
-                await moderation.TimeoutUserAsync(
-                    broadcasterId,
-                    @event.UserId,
-                    filter.TimeoutSeconds ?? DefaultTimeoutSeconds,
-                    reason,
-                    ct
-                );
-                break;
+                return await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct);
 
             case ChatFilterAction.Escalate:
-                await EscalateAsync(filter, @event, broadcasterId, reason, ct);
-                break;
+                return await EscalateAsync(filter, @event, broadcasterId, reason, ct);
 
             case ChatFilterAction.Hold:
-                Result deleted = await moderation.DeleteChatMessageAsync(
-                    broadcasterId,
-                    @event.MessageId,
-                    ct
-                );
-                if (deleted.IsFailure)
-                    logger.LogWarning(
-                        "Chat filter '{Filter}' could not remove the held message {MessageId}: {Error}",
-                        filter.Name,
-                        @event.MessageId,
-                        deleted.ErrorMessage
-                    );
+                bool held = await DeleteMessageAsync(filter, @event, broadcasterId, ct);
                 await QueueForReviewAsync(filter, @event, broadcasterId, ct);
-                break;
+                return held;
 
             case ChatFilterAction.Flag:
                 await QueueForReviewAsync(filter, @event, broadcasterId, ct);
-                break;
+                return true;
+
+            default:
+                return true;
         }
+    }
+
+    private async Task<bool> DeleteMessageAsync(
+        ChatFilter filter,
+        ChatMessageReceivedEvent @event,
+        Guid broadcasterId,
+        CancellationToken ct
+    ) =>
+        await ReportIfRefusedAsync(
+            await moderation.DeleteChatMessageAsync(broadcasterId, @event.MessageId, ct),
+            DeleteAction,
+            filter,
+            @event,
+            broadcasterId,
+            ct
+        );
+
+    private async Task<bool> ReportIfRefusedAsync(
+        Result result,
+        string action,
+        ChatFilter filter,
+        ChatMessageReceivedEvent @event,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        if (result.IsSuccess)
+            return true;
+
+        string error = result.ErrorMessage ?? "The platform refused the action.";
+        logger.LogWarning(
+            "Chat filter '{Filter}' could not {Action} for user {User} in channel {Channel}: {Error}",
+            filter.Name,
+            action,
+            @event.UserLogin,
+            broadcasterId,
+            error
+        );
+        await bus.PublishAsync(
+            new ChatFilterActionFailedEvent
+            {
+                BroadcasterId = broadcasterId,
+                FilterId = filter.Id,
+                FilterName = filter.Name,
+                SubjectTwitchUserId = @event.UserId,
+                SubjectUsername = @event.UserLogin,
+                Action = action,
+                Error = error,
+            },
+            ct
+        );
+        return false;
     }
 
     private async Task QueueForReviewAsync(
@@ -203,7 +251,7 @@ public sealed partial class ChatFilterExecutionHandler(
     /// user id, one offense is recorded on the ladder, and the ladder's decision is applied. When the ladder is
     /// off (or cannot answer) the filter's own timeout is applied instead, so an escalate rule always acts.
     /// </summary>
-    private async Task EscalateAsync(
+    private async Task<bool> EscalateAsync(
         ChatFilter filter,
         ChatMessageReceivedEvent @event,
         Guid broadcasterId,
@@ -211,18 +259,7 @@ public sealed partial class ChatFilterExecutionHandler(
         CancellationToken ct
     )
     {
-        Result deleted = await moderation.DeleteChatMessageAsync(
-            broadcasterId,
-            @event.MessageId,
-            ct
-        );
-        if (deleted.IsFailure)
-            logger.LogWarning(
-                "Chat filter '{Filter}' could not remove the escalated message {MessageId}: {Error}",
-                filter.Name,
-                @event.MessageId,
-                deleted.ErrorMessage
-            );
+        bool deleted = await DeleteMessageAsync(filter, @event, broadcasterId, ct);
 
         Result<UserDto> subject = await users.GetOrCreateAsync(
             @event.UserId,
@@ -237,8 +274,8 @@ public sealed partial class ChatFilterExecutionHandler(
                 "Chat filter escalate could not resolve user {User} to an internal id",
                 @event.UserLogin
             );
-            await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct);
-            return;
+            return await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct)
+                && deleted;
         }
 
         Result<EscalationDecision> decision = await escalation.ResolveAndRecordAsync(
@@ -254,48 +291,80 @@ public sealed partial class ChatFilterExecutionHandler(
                 @event.UserLogin,
                 decision.ErrorMessage
             );
-            await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct);
-            return;
+            return await TimeoutForFilterAsync(filter, @event, broadcasterId, reason, ct)
+                && deleted;
         }
 
+        bool applied;
         switch (decision.Value.Action)
         {
-            case "warn":
-                await moderation.WarnChatUserAsync(broadcasterId, @event.UserId, reason, ct);
-                break;
-            case "timeout":
-                await moderation.TimeoutUserAsync(
+            case WarnAction:
+                applied = await ReportIfRefusedAsync(
+                    await moderation.WarnChatUserAsync(broadcasterId, @event.UserId, reason, ct),
+                    WarnAction,
+                    filter,
+                    @event,
                     broadcasterId,
-                    @event.UserId,
-                    decision.Value.TimeoutSeconds ?? DefaultTimeoutSeconds,
-                    reason,
                     ct
                 );
                 break;
-            case "ban":
-                await moderation.BanUserAsync(broadcasterId, @event.UserId, reason, ct);
+            case TimeoutAction:
+                applied = await ReportIfRefusedAsync(
+                    await moderation.TimeoutUserAsync(
+                        broadcasterId,
+                        @event.UserId,
+                        decision.Value.TimeoutSeconds ?? DefaultTimeoutSeconds,
+                        reason,
+                        ct
+                    ),
+                    TimeoutAction,
+                    filter,
+                    @event,
+                    broadcasterId,
+                    ct
+                );
+                break;
+            case BanAction:
+                applied = await ReportIfRefusedAsync(
+                    await moderation.BanUserAsync(broadcasterId, @event.UserId, reason, ct),
+                    BanAction,
+                    filter,
+                    @event,
+                    broadcasterId,
+                    ct
+                );
                 break;
             default:
                 logger.LogWarning(
                     "Escalation ladder returned an unknown action '{Action}'",
                     decision.Value.Action
                 );
+                applied = true;
                 break;
         }
+
+        return applied && deleted;
     }
 
-    private async Task TimeoutForFilterAsync(
+    private async Task<bool> TimeoutForFilterAsync(
         ChatFilter filter,
         ChatMessageReceivedEvent @event,
         Guid broadcasterId,
         string reason,
         CancellationToken ct
     ) =>
-        await moderation.TimeoutUserAsync(
+        await ReportIfRefusedAsync(
+            await moderation.TimeoutUserAsync(
+                broadcasterId,
+                @event.UserId,
+                filter.TimeoutSeconds ?? DefaultTimeoutSeconds,
+                reason,
+                ct
+            ),
+            TimeoutAction,
+            filter,
+            @event,
             broadcasterId,
-            @event.UserId,
-            filter.TimeoutSeconds ?? DefaultTimeoutSeconds,
-            reason,
             ct
         );
 

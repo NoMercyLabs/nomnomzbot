@@ -39,6 +39,13 @@ import nomnomzbot.composeapp.generated.resources.attention_integration_reauth_ti
 import nomnomzbot.composeapp.generated.resources.attention_integration_decrypt_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_refresh_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_unusable_message
+import nomnomzbot.composeapp.generated.resources.attention_filter_action_failed_message
+import nomnomzbot.composeapp.generated.resources.attention_filter_action_failed_title
+import nomnomzbot.composeapp.generated.resources.attention_shared_ban_no_shared_session_message
+import nomnomzbot.composeapp.generated.resources.attention_shared_ban_origin_not_trusted_message
+import nomnomzbot.composeapp.generated.resources.attention_shared_ban_title
+import nomnomzbot.composeapp.generated.resources.attention_shared_ban_twitch_ban_failed_message
+import nomnomzbot.composeapp.generated.resources.attention_shared_ban_twitch_ban_failed_no_detail_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_title
 import nomnomzbot.composeapp.generated.resources.attention_report_message
@@ -151,6 +158,12 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
         "attention_heat_timeout_failed_title" ->
             AttentionText(Res.string.attention_heat_timeout_failed_title, listOf(literal(item.param("username"))))
         "attention_automod_delete_failed_title" -> AttentionText(Res.string.attention_automod_delete_failed_title)
+        "attention_shared_ban_title" -> AttentionText(Res.string.attention_shared_ban_title)
+        "attention_filter_action_failed_title" ->
+            AttentionText(
+                Res.string.attention_filter_action_failed_title,
+                listOf(literal(item.param("filter")), literal(item.param("username"))),
+            )
         "attention_bot_not_moderator_title" ->
             AttentionText(Res.string.attention_bot_not_moderator_title, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_title" ->
@@ -249,6 +262,29 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
                 Res.string.attention_automod_delete_failed_message,
                 listOf(literal(item.param("ruleName")), literal(item.param("userName")), literal(item.param("count"))),
             )
+        "attention_shared_ban_origin_not_trusted_message" ->
+            AttentionText(Res.string.attention_shared_ban_origin_not_trusted_message, sharedBanArgs(item))
+        "attention_shared_ban_no_shared_session_message" ->
+            AttentionText(Res.string.attention_shared_ban_no_shared_session_message, sharedBanArgs(item))
+        "attention_shared_ban_twitch_ban_failed_message" ->
+            if (item.param("detail").isBlank()) {
+                AttentionText(Res.string.attention_shared_ban_twitch_ban_failed_no_detail_message, sharedBanArgs(item))
+            } else {
+                AttentionText(
+                    Res.string.attention_shared_ban_twitch_ban_failed_message,
+                    sharedBanArgs(item) + literal(item.param("detail")),
+                )
+            }
+        "attention_filter_action_failed_message" ->
+            AttentionText(
+                Res.string.attention_filter_action_failed_message,
+                listOf(
+                    literal(item.param("filter")),
+                    literal(item.param("username")),
+                    literal(item.param("action")),
+                    literal(item.param("reason")),
+                ),
+            )
         "attention_bot_not_moderator_message" ->
             AttentionText(Res.string.attention_bot_not_moderator_message, listOf(literal(item.param("botName"))))
         "attention_spotify_blocked_message" -> AttentionText(Res.string.attention_spotify_blocked_message)
@@ -278,6 +314,9 @@ private fun sourceNameOf(sourceKey: String): StringResource =
         "unban_requests" -> Res.string.attention_source_name_unban_requests
         else -> Res.string.attention_source_name_unknown
     }
+
+private fun sharedBanArgs(item: ActionRequiredItem): List<AttentionArg> =
+    listOf(literal(item.param("count")), literal(item.param("targetName")))
 
 private fun heldCategory(item: ActionRequiredItem): AttentionArg =
     item.parameters["category"]?.takeIf { it.isNotBlank() }?.let(::literal)

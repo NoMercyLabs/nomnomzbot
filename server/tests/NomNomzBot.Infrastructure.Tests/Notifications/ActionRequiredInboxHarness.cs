@@ -42,6 +42,7 @@ internal static class ActionRequiredInboxHarness
             new HeatAutoTimeoutFailureSource(db, clock),
             new AutoModDeleteFailedSource(db, clock),
             new SharedBanNotAppliedSource(db, clock),
+            new ChatFilterActionFailureSource(db, clock),
             new SecurityNoticeSource(db),
             new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
         ];

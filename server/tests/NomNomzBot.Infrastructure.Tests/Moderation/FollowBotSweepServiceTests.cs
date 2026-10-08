@@ -433,6 +433,7 @@ public class FollowBotSweepServiceTests : IDisposable
         services.AddSingleton<TimeProvider>(_time);
         services.AddSingleton(_twitch);
         services.AddSingleton(Substitute.For<IModerationService>());
+        services.AddSingleton(Substitute.For<IFollowStateService>());
         services.AddSingleton<ICurrentTenantService>(new CurrentTenantService());
         services.AddScoped(_ => NewDbContext());
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());

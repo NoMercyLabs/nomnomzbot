@@ -19,6 +19,7 @@ namespace NomNomzBot.Domain.Moderation.Events;
 /// </summary>
 public sealed class LockdownEngagedEvent : DomainEventBase
 {
+    /// <summary>The lockdown window this event is about.</summary>
     public required Guid WindowId { get; init; }
 
     /// <summary>The platform whose room was tightened (<c>twitch</c>, <c>kick</c>, ...).</summary>
@@ -27,6 +28,7 @@ public sealed class LockdownEngagedEvent : DomainEventBase
     /// <summary>Why, in words an operator can read back.</summary>
     public required string Trigger { get; init; }
 
+    /// <summary>When the window opened.</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
     /// <summary>When the window ends by itself.</summary>
@@ -45,8 +47,10 @@ public sealed class LockdownEngagedEvent : DomainEventBase
 /// <summary>An active lockdown window was pushed out because a second engage arrived inside the policy ceiling.</summary>
 public sealed class LockdownExtendedEvent : DomainEventBase
 {
+    /// <summary>The lockdown window this event is about.</summary>
     public required Guid WindowId { get; init; }
 
+    /// <summary>The platform whose room the window covers (<c>twitch</c>, <c>kick</c>, ...).</summary>
     public required string Platform { get; init; }
 
     /// <summary>The new end time.</summary>
@@ -56,10 +60,13 @@ public sealed class LockdownExtendedEvent : DomainEventBase
 /// <summary>Every control a lockdown window tightened was confirmed put back.</summary>
 public sealed class LockdownRestoredEvent : DomainEventBase
 {
+    /// <summary>The lockdown window this event is about.</summary>
     public required Guid WindowId { get; init; }
 
+    /// <summary>The platform whose room the window covers (<c>twitch</c>, <c>kick</c>, ...).</summary>
     public required string Platform { get; init; }
 
+    /// <summary>When the last control was confirmed put back.</summary>
     public required DateTimeOffset RestoredAt { get; init; }
 
     /// <summary>Controls this restore put back (only the ones this attempt touched).</summary>
@@ -72,8 +79,10 @@ public sealed class LockdownRestoredEvent : DomainEventBase
 /// </summary>
 public sealed class LockdownRestoreFailedEvent : DomainEventBase
 {
+    /// <summary>The lockdown window this event is about.</summary>
     public required Guid WindowId { get; init; }
 
+    /// <summary>The platform whose room the window covers (<c>twitch</c>, <c>kick</c>, ...).</summary>
     public required string Platform { get; init; }
 
     /// <summary>The controls still tightened.</summary>
