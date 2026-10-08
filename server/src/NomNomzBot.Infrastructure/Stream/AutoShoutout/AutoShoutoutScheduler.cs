@@ -190,12 +190,58 @@ public sealed class AutoShoutoutScheduler : IAutoShoutoutScheduler
             )
                 continue;
 
-            Remove(broadcasterId, [item.TwitchUserId]);
-            if (ShoutoutCooldowns.PerUserActive(channel, item.TwitchUserId, PerUserCooldown, now))
+            if (
+                ShoutoutCooldowns.PerUserActive(channel, item.TwitchUserId, PerUserCooldown, now)
+                || await WasShoutedOutThisStreamAsync(
+                    db,
+                    broadcasterId,
+                    streamStart,
+                    item.TwitchUserId,
+                    cancellationToken
+                )
+            )
+            {
+                Remove(broadcasterId, [item.TwitchUserId]);
                 continue;
+            }
 
+            Remove(broadcasterId, [item.TwitchUserId]);
             await RunAsync(scope.ServiceProvider, broadcasterId, item, cancellationToken);
         }
+    }
+
+    private static async Task<bool> WasShoutedOutThisStreamAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        DateTimeOffset streamStart,
+        string twitchUserId,
+        CancellationToken cancellationToken
+    )
+    {
+        List<string> data = await db
+            .ChannelEvents.AsNoTracking()
+            .Where(e =>
+                e.ChannelId == broadcasterId
+                && e.CreatedAt >= streamStart.UtcDateTime
+                && (e.Type == "channel.shoutout.create" || e.Type == "bot.shoutout.sent")
+                && e.Data != null
+            )
+            .Select(e => e.Data!)
+            .ToListAsync(cancellationToken);
+
+        foreach (string payload in data)
+        {
+            using JsonDocument document = JsonDocument.Parse(payload);
+            if (
+                document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("toUserId", out JsonElement target)
+                && target.ValueKind == JsonValueKind.String
+                && target.GetString() == twitchUserId
+            )
+                return true;
+        }
+
+        return false;
     }
 
     private void Remove(Guid broadcasterId, IEnumerable<string> userIds)

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -50,7 +51,10 @@ public sealed class AutoShoutoutSchedulerTests
 
     private sealed class Rig
     {
-        public required AutoShoutoutScheduler Sut { get; init; }
+        public required AutoShoutoutScheduler Sut { get; set; }
+        public required Func<AutoShoutoutScheduler> NewScheduler { get; init; }
+        public required AuthDbContext Db { get; init; }
+        public required ICommandAction Action { get; init; }
         public required FakeTimeProvider Clock { get; init; }
         public required ITwitchChatApi Chat { get; init; }
         public required ITtsDispatchService Tts { get; init; }
@@ -217,26 +221,135 @@ public sealed class AutoShoutoutSchedulerTests
             .AddSingleton(action)
             .BuildServiceProvider();
 
-        AutoShoutoutScheduler sut = new(
-            provider.GetRequiredService<IServiceScopeFactory>(),
-            registry,
-            queue,
-            sanctions,
-            guard,
-            clock,
-            NullLogger<AutoShoutoutScheduler>.Instance
-        );
+        AutoShoutoutScheduler NewScheduler() =>
+            new(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                registry,
+                queue,
+                sanctions,
+                guard,
+                clock,
+                NullLogger<AutoShoutoutScheduler>.Instance
+            );
 
         return new()
         {
             SeenSanctions = seenSanctions,
-            Sut = sut,
+            Sut = NewScheduler(),
+            NewScheduler = NewScheduler,
+            Db = db,
+            Action = action,
             Clock = clock,
             Chat = chat,
             Tts = tts,
             ChannelCtx = channelCtx,
             Queue = queue,
         };
+    }
+
+    [Fact]
+    public async Task Manual_shoutout_earlier_in_stream_blocks_timed_shoutout_after_cooldown()
+    {
+        Rig rig = await BuildAsync();
+        rig.Clock.SetUtcNow(StreamStart.AddMinutes(2));
+        ActionResult result = await rig.Action.ExecuteAsync(
+            new PipelineExecutionContext
+            {
+                BroadcasterId = Channel,
+                TriggeredByUserId = BroadcasterTwitchId,
+                TriggeredByDisplayName = "stoney",
+                MessageId = "manual-1",
+                RawMessage = "!so 1001",
+                CancellationToken = CancellationToken.None,
+            },
+            new ActionDefinition
+            {
+                Type = "shoutout",
+                Parameters = new() { ["user_id"] = JsonSerializer.SerializeToElement(StreamerA) },
+            }
+        );
+        result.Succeeded.Should().BeTrue();
+        rig.Db.ChannelEvents.Should()
+            .ContainSingle(e => e.ChannelId == Channel && e.Type == "bot.shoutout.sent");
+
+        await rig.TickAtAsync(72);
+        await rig.ChatAsync(StreamerA);
+        await rig.TickAtAsync(77);
+
+        rig.Shoutouts.Should().Be(1);
+        rig.Announcements.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Native_shoutout_event_blocks_timed_shoutout_after_cooldown()
+    {
+        Rig rig = await BuildAsync();
+        rig.Db.ChannelEvents.Add(
+            new NomNomzBot.Domain.Identity.Entities.ChannelEvent
+            {
+                Id = Guid.NewGuid().ToString(),
+                ChannelId = Channel,
+                Type = "channel.shoutout.create",
+                Data = JsonSerializer.Serialize(new { toUserId = StreamerA }),
+                CreatedAt = StreamStart.AddMinutes(2).UtcDateTime,
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+        await rig.TickAtAsync(12);
+        await rig.ChatAsync(StreamerA);
+        await rig.TickAtAsync(17);
+
+        rig.Shoutouts.Should().Be(0);
+        rig.Announcements.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Shoutout_record_survives_scheduler_restart_in_same_stream()
+    {
+        Rig rig = await BuildAsync();
+        rig.Db.ChannelEvents.Add(
+            new NomNomzBot.Domain.Identity.Entities.ChannelEvent
+            {
+                Id = Guid.NewGuid().ToString(),
+                ChannelId = Channel,
+                Type = "channel.shoutout.create",
+                Data = JsonSerializer.Serialize(new { toUserId = StreamerA }),
+                CreatedAt = StreamStart.AddMinutes(2).UtcDateTime,
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+        await rig.TickAtAsync(12);
+        rig.Sut = rig.NewScheduler();
+        await rig.ChatAsync(StreamerA);
+        await rig.TickAtAsync(17);
+
+        rig.Shoutouts.Should().Be(0);
+        rig.Announcements.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Earlier_stream_record_does_not_block_a_new_stream_shoutout()
+    {
+        Rig rig = await BuildAsync();
+        rig.Db.ChannelEvents.Add(
+            new NomNomzBot.Domain.Identity.Entities.ChannelEvent
+            {
+                Id = Guid.NewGuid().ToString(),
+                ChannelId = Channel,
+                Type = "channel.shoutout.create",
+                Data = JsonSerializer.Serialize(new { toUserId = StreamerA }),
+                CreatedAt = StreamStart.AddMinutes(-30).UtcDateTime,
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+        await rig.TickAtAsync(12);
+        await rig.ChatAsync(StreamerA);
+        await rig.TickAtAsync(17);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, StreamerA, Arg.Any<CancellationToken>());
+        rig.Announcements.Should().Be(1);
     }
 
     [Fact]

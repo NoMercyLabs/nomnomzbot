@@ -165,6 +165,9 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Streams)
             .Ignore(e => e.Events);
 
+        b.Entity<ChannelEvent>().HasKey(e => e.Id);
+        b.Entity<ChannelEvent>().Ignore(e => e.Channel).Ignore(e => e.User);
+
         b.Entity<SavingsJar>().HasKey(e => e.Id);
         b.Entity<SavingsJar>().HasQueryFilter(e => e.DeletedAt == null);
         b.Entity<SavingsJarMembership>().HasKey(e => e.Id);
@@ -213,6 +216,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     [
         typeof(Domain.Platform.Entities.Configuration),
         typeof(Channel),
+        typeof(ChannelEvent),
         typeof(DiscordGuildConnection),
         typeof(SavingsJar),
         typeof(SavingsJarMembership),
@@ -274,7 +278,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
-    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
+    public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<Domain.Stream.Entities.Stream> Streams => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Domain.Platform.Entities.Record> Records => throw new NotSupportedException();

@@ -369,6 +369,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         ChannelEvent feedRow = await db.ChannelEvents.SingleAsync(e => e.ChannelId == channel);
         feedRow.Id.Should().Be(eventId.ToString());
         feedRow.Type.Should().Be("channel.shoutout.create");
+        feedRow.Data.Should().Contain("\"toUserId\":\"target-1\"");
 
         RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
             c.BroadcasterId == channel

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -15,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Entities;
@@ -128,7 +130,11 @@ public sealed class ShoutoutSender : IShoutoutSender
         }
 
         if (request.SkipAnnouncement)
+        {
+            if (result.IsSuccess)
+                await RecordAsync(request.BroadcasterId, rawUserId, cancellationToken);
             return NativeOnlyOutcome(result, rawUserId);
+        }
 
         // The native Helix shoutout carries no visible text and Twitch renders it minimally — post the
         // channel's own custom-templated announcement too (old-bot parity), independent of whether the
@@ -150,6 +156,9 @@ public sealed class ShoutoutSender : IShoutoutSender
                 rawUserId,
                 announceResult.ErrorMessage
             );
+
+        if (result.IsSuccess || announceResult.IsSuccess)
+            await RecordAsync(request.BroadcasterId, rawUserId, cancellationToken);
 
         // TTS is opt-in per invocation (old-bot parity: manual !so speaks it, an automated
         // presence-detection shoutout stays silent by simply never passing tts:true) and best-effort — a
@@ -206,6 +215,25 @@ public sealed class ShoutoutSender : IShoutoutSender
                 ? $"shoutout announced for {rawUserId} (native Twitch shoutout not sent)"
                 : $"shoutout sent to {rawUserId}"
         );
+    }
+
+    private async Task RecordAsync(
+        Guid broadcasterId,
+        string targetUserId,
+        CancellationToken cancellationToken
+    )
+    {
+        _db.ChannelEvents.Add(
+            new ChannelEvent
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                ChannelId = broadcasterId,
+                Type = "bot.shoutout.sent",
+                Data = JsonSerializer.Serialize(new { toUserId = targetUserId }),
+                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
+            }
+        );
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     // The queued run carries only the native call: a rate limit or dropped connection goes back in the queue,

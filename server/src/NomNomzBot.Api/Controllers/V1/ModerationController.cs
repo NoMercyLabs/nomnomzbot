@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Claims;
+using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +24,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Trust.Dtos;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Stream.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -1843,7 +1845,20 @@ public class ModerationController : BaseController
             request.TargetTwitchUserId,
             ct
         );
-        return result.IsFailure ? TwitchResultResponse(result) : NoContent();
+        if (result.IsFailure)
+            return TwitchResultResponse(result);
+
+        _db.ChannelEvents.Add(
+            new ChannelEvent
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                ChannelId = broadcasterId,
+                Type = "bot.shoutout.sent",
+                Data = JsonSerializer.Serialize(new { toUserId = request.TargetTwitchUserId }),
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     public record ShoutoutTemplateDto(string? Template);
@@ -1904,10 +1919,7 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        Domain.Identity.Entities.Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
-            ct
-        );
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
         if (channel is null)
             return NotFoundResponse("Channel not found.");
 
@@ -1951,10 +1963,7 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        Domain.Identity.Entities.Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
-            ct
-        );
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
         if (channel is null)
             return NotFoundResponse("Channel not found.");
 
@@ -1976,10 +1985,7 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        Domain.Identity.Entities.Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
-            ct
-        );
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
         if (channel is null)
             return NotFoundResponse("Channel not found.");
 
