@@ -607,9 +607,6 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   `UnbanRequestSource` fails and the streamer sees no appeals and no error. Done-when: a failed source
   shows one inbox item that names what could not be checked and the reason (with the fix, e.g. reconnect
   Twitch), and a test proves it for a failing source.
-- [ ] **S-AUTOMOD-LINKS-BARE** the AutoMod links rule only matches `http(s)://` (`AutoModerationHandler.cs:439`),
-  so `example.com/x` slips through; its deletions ignore the platform result (`:345-347`).
-  Done-when: bare domains match (with the normalizer's homoglyph folding) and a failed delete is reported.
 - [ ] **S-FILTER-RESULT-REPORTED** filter enforcement results are discarded (`:130,134,205,208,217`) and
   `MatchCount` rises even when the platform refused (`:113`). Done-when: a failed action reaches the
   actionable-error inbox and does not count as a match; filters are cached per channel, not read per message.
