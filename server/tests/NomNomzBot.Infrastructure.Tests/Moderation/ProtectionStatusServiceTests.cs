@@ -190,13 +190,13 @@ public sealed class ProtectionStatusServiceTests : IDisposable
             .Select(c => (c.Key, c.State, c.Platform))
             .Should()
             .BeEquivalentTo(
-                new[]
+                new (string Key, string State, string? Platform)[]
                 {
                     (ProtectionCheckKeys.BotModerator, ProtectionCheckStates.Ok, "twitch"),
-                    (ProtectionCheckKeys.SpamDefenseMode, ProtectionCheckStates.Ok, (string?)null),
+                    (ProtectionCheckKeys.SpamDefenseMode, ProtectionCheckStates.Ok, null),
                     (ProtectionCheckKeys.AutomaticAction, ProtectionCheckStates.Ok, "twitch"),
                     (ProtectionCheckKeys.EventSubModeration, ProtectionCheckStates.Ok, "twitch"),
-                }!,
+                },
                 o => o.WithStrictOrdering()
             );
         checks.Should().OnlyContain(c => c.Reason.Length > 0);
