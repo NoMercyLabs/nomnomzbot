@@ -10,7 +10,6 @@
 
 using System.Text.Json;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Application.Vts.Services;
 using NomNomzBot.Infrastructure.Obs.Bridge;
 
@@ -24,25 +23,13 @@ namespace NomNomzBot.Infrastructure.Vts.Transport;
 /// </summary>
 public sealed class BridgeVtsTransport : IVtsTransport
 {
-    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(15);
     private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web);
 
-    private readonly IObsBridgeRegistry _registry;
-    private readonly IObsBridgePusher _pusher;
-    private readonly ObsBridgeCommandBook _commands;
-    private readonly TimeProvider _clock;
+    private readonly ObsBridgeRoundTrip _roundTrip;
 
-    public BridgeVtsTransport(
-        IObsBridgeRegistry registry,
-        IObsBridgePusher pusher,
-        ObsBridgeCommandBook commands,
-        TimeProvider clock
-    )
+    public BridgeVtsTransport(ObsBridgeRoundTrip roundTrip)
     {
-        _registry = registry;
-        _pusher = pusher;
-        _commands = commands;
-        _clock = clock;
+        _roundTrip = roundTrip;
     }
 
     public async Task<Result<string>> RequestAsync(
@@ -52,13 +39,6 @@ public sealed class BridgeVtsTransport : IVtsTransport
         CancellationToken ct = default
     )
     {
-        string? leader = await _registry.GetLeaderAsync(broadcasterId, ct);
-        if (leader is null)
-            return Result.Failure<string>(
-                "No bridge is connected for this channel.",
-                "VTS_BRIDGE_OFFLINE"
-            );
-
         Guid commandId = Guid.CreateVersion7();
         string payload = JsonSerializer.Serialize(
             new
@@ -70,32 +50,33 @@ public sealed class BridgeVtsTransport : IVtsTransport
             WireJson
         );
 
-        Task<ObsBridgeAck> ack = _commands.BeginAsync(broadcasterId, commandId);
-        try
+        ObsBridgeRoundTripOutcome outcome = await _roundTrip.SendAsync(
+            broadcasterId,
+            commandId,
+            payload,
+            ct
+        );
+        return outcome.State switch
         {
-            await _pusher.PushExecuteAsync(leader, commandId, payload, ct);
-            ObsBridgeAck answered = await ack.WaitAsync(CommandTimeout, _clock, ct);
-            return answered.Ok
-                ? Result.Success(answered.DataJson ?? "{}")
-                : Result.Failure<string>(
-                    answered.Error ?? "VTS rejected the request.",
-                    "VTS_ERROR"
-                );
-        }
-        catch (TimeoutException)
-        {
-            _commands.Abandon(commandId);
-            return Result.Failure<string>(
+            ObsBridgeRoundTripState.Acked when outcome.Ack!.Ok => Result.Success(
+                outcome.Ack.DataJson ?? "{}"
+            ),
+            ObsBridgeRoundTripState.Acked => Result.Failure<string>(
+                outcome.Ack!.Error ?? "VTS rejected the request.",
+                "VTS_ERROR"
+            ),
+            ObsBridgeRoundTripState.Offline => Result.Failure<string>(
+                "No bridge is connected for this channel.",
+                "VTS_BRIDGE_OFFLINE"
+            ),
+            ObsBridgeRoundTripState.Timeout => Result.Failure<string>(
                 "The bridge did not answer within the timeout.",
                 "VTS_TIMEOUT"
-            );
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            return Result.Failure<string>(
+            ),
+            _ => Result.Failure<string>(
                 "The bridge disconnected mid-command.",
                 "VTS_BRIDGE_OFFLINE"
-            );
-        }
+            ),
+        };
     }
 }
