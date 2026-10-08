@@ -343,7 +343,7 @@ public sealed class TtsVoiceAssignmentImportTests
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public sealed class TtsVoiceAssignmentImportTests
         (await h.Db.UserIdentities.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
     }
 
     [Fact]
@@ -435,6 +435,6 @@ public sealed class TtsVoiceAssignmentImportTests
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
         await h
             .Users.DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
     }
 }

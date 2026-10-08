@@ -167,8 +167,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         // A plain word followed by a number (Dark1, Anna1990) keeps its number.
         if (
             hasInternalLeet
-            && token.Length <= 3
-            && token.Length > 1
+            && token.Length is > 1 and <= 3
             && char.IsLetter(token[^2])
             && IsLeet(token[^1])
         )
