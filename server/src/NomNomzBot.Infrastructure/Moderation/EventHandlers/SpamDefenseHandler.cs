@@ -121,7 +121,9 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                     @event.MessageId,
                     @event.UserId,
                     result.Decision,
-                    ct
+                    ct,
+                    @event.UserLogin,
+                    @event.UserDisplayName
                 );
 
             // Only a timeout the platform confirmed counts as the campaign actioning this account. Dry

@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
@@ -251,7 +252,9 @@ public class SpamCorpusSeederTests : IDisposable
             db,
             _time,
             Substitute.For<IModerationService>(),
-            new CurrentTenantService()
+            new CurrentTenantService(),
+            Substitute.For<ITwitchUsersApi>(),
+            Substitute.For<IFollowStateService>()
         );
 
         SpamEvaluationResult? result = await service.EvaluateAsync(

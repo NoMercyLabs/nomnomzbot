@@ -127,6 +127,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
                 broadcasterId,
                 @event.UserId,
                 @event.UserLogin,
+                @event.UserDisplayName,
                 @event.MessageId,
                 cancellationToken
             );
@@ -324,6 +325,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         Guid broadcasterId,
         string userId,
         string userLogin,
+        string userDisplayName,
         string messageId,
         CancellationToken ct
     )
@@ -336,7 +338,15 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
             {
                 case "timeout":
                 case "ban":
-                    await ApplyAccountActionAsync(scope, rule, broadcasterId, userId, ct);
+                    await ApplyAccountActionAsync(
+                        scope,
+                        rule,
+                        broadcasterId,
+                        userId,
+                        userLogin,
+                        userDisplayName,
+                        ct
+                    );
                     break;
 
                 case "delete":
@@ -431,9 +441,26 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         AutoModRule rule,
         Guid broadcasterId,
         string userId,
+        string userLogin,
+        string userDisplayName,
         CancellationToken ct
     )
     {
+        // When the channel counts AutoMod violations as ladder offenses, the ladder's step REPLACES this
+        // rule's own timeout or ban, so one message is never punished twice.
+        ViolationEscalationOutcome escalated = await scope
+            .ServiceProvider.GetRequiredService<IViolationEscalationService>()
+            .TryEscalateAsync(
+                broadcasterId,
+                userId,
+                userLogin,
+                userDisplayName,
+                rule.Reason ?? rule.Name,
+                ct
+            );
+        if (escalated.Handled)
+            return;
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 

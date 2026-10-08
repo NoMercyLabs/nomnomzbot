@@ -150,6 +150,7 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         services.AddSingleton<TimeProvider>(_time);
         services.AddSingleton(_moderation);
         services.AddSingleton(_twitch);
+        services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(_spamDefense);
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());

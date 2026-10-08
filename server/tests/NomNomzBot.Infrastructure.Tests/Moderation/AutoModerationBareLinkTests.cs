@@ -104,6 +104,7 @@ public sealed class AutoModerationBareLinkTests
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(twitch);
+        services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(bus);
         ServiceProvider provider = services.BuildServiceProvider();
 
