@@ -63,6 +63,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
@@ -1196,8 +1199,7 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
             provider = provider,
             onDismiss = { editing = null },
             onSave = { clientId, clientSecret, apiKey ->
-                editing = null
-                scope.launch { controller.saveProviderCredential(provider.provider, clientId, clientSecret, apiKey) }
+                controller.saveProviderCredential(provider.provider, clientId, clientSecret, apiKey).toDialogResult()
             },
         )
     }
@@ -1216,10 +1218,7 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
             confirmLabel = stringResource(Res.string.admin_providers_clear),
             dismissLabel = stringResource(Res.string.admin_cancel),
             destructive = true,
-            onConfirm = {
-                confirmClear = null
-                scope.launch { controller.clearProviderCredential(provider.provider) }
-            },
+            action = { controller.clearProviderCredential(provider.provider).toDialogResult() },
             onDismiss = { confirmClear = null },
         )
     }
@@ -1311,14 +1310,23 @@ private fun SourceBadge(label: String, source: String) {
 private fun ProviderCredentialDialog(
     provider: ProviderCredential,
     onDismiss: () -> Unit,
-    onSave: (clientId: String, clientSecret: String, apiKey: String) -> Unit,
+    onSave: suspend (clientId: String, clientSecret: String, apiKey: String) -> DialogResult,
 ) {
     var clientId: String by remember { mutableStateOf("") }
     var clientSecret: String by remember { mutableStateOf("") }
     var apiKey: String by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_providers_configure_title, provider.provider))
+    val anyTyped: Boolean = clientId.isNotBlank() || clientSecret.isNotBlank() || apiKey.isNotBlank()
+
+    FormDialog(
+        title = stringResource(Res.string.admin_providers_configure_title, provider.provider),
+        saveLabel = stringResource(Res.string.admin_providers_save),
+        cancelLabel = stringResource(Res.string.admin_cancel),
+        onDismiss = onDismiss,
+        save = { onSave(clientId, clientSecret, apiKey) },
+        dirty = anyTyped,
+        valid = anyTyped,
+    ) {
         DialogDescription(text = stringResource(Res.string.admin_providers_configure_desc))
 
         AppTextField(
@@ -1342,18 +1350,6 @@ private fun ProviderCredentialDialog(
                 label = stringResource(Res.string.admin_providers_api_key_label),
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-
-        DialogFooter {
-            Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
-                Text(text = stringResource(Res.string.admin_cancel))
-            }
-            Button(
-                onClick = { onSave(clientId, clientSecret, apiKey) },
-                enabled = clientId.isNotBlank() || clientSecret.isNotBlank() || apiKey.isNotBlank(),
-            ) {
-                Text(text = stringResource(Res.string.admin_providers_save))
-            }
         }
     }
 }

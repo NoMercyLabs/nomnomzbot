@@ -1053,31 +1053,28 @@ class AdminController(
     }
 
     /** Stores a client id, secret and/or (YouTube only) Data API key. Blank fields are dropped, so the server is never asked to
-     * overwrite a value the operator left alone. A failure announces on the shell-level feedback toast. */
+     * overwrite a value the operator left alone. The result goes back to the open dialog, which shows a failure inline. */
     suspend fun saveProviderCredential(
         provider: String,
         clientId: String,
         clientSecret: String,
         apiKey: String,
-    ) {
+    ): ApiResult<ProviderCredential> {
         val body = SaveProviderCredentialBody(
             clientId = clientId.takeIf { it.isNotBlank() },
             clientSecret = clientSecret.takeIf { it.isNotBlank() },
             apiKey = apiKey.takeIf { it.isNotBlank() },
         )
-        when (val result = api.saveProviderCredential(provider, body)) {
-            is ApiResult.Ok -> loadProviders()
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+        val result: ApiResult<ProviderCredential> = api.saveProviderCredential(provider, body)
+        if (result is ApiResult.Ok) loadProviders()
+        return result
     }
 
-    /** Clears the stored rows so the environment resolves again. A failure announces on the shell-level
-     * feedback toast. */
-    suspend fun clearProviderCredential(provider: String) {
-        when (val result = api.clearProviderCredential(provider)) {
-            is ApiResult.Ok -> loadProviders()
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+    /** Clears the stored rows so the environment resolves again. The result goes back to the open dialog. */
+    suspend fun clearProviderCredential(provider: String): ApiResult<ProviderCredential> {
+        val result: ApiResult<ProviderCredential> = api.clearProviderCredential(provider)
+        if (result is ApiResult.Ok) loadProviders()
+        return result
     }
 
     // ── Tenants ─────────────────────────────────────────────────────────────
