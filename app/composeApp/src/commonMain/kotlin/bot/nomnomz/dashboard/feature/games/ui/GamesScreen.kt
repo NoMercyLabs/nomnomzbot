@@ -14,8 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,8 +49,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import androidx.compose.ui.platform.testTag
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -217,11 +217,8 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
             confirmLabel = stringResource(Res.string.games_reset_confirm),
             dismissLabel = stringResource(Res.string.games_dialog_cancel),
             destructive = true,
-            onConfirm = {
-                pendingReset = null
-                scope.launch { controller.resetGame(game) }
-            },
             onDismiss = { pendingReset = null },
+            action = { controller.resetGame(game).toDialogResult() },
         )
     }
 
@@ -234,9 +231,8 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
                 pendingReset = game
             },
             onSave = { edit ->
-                editing = null
-                scope.launch {
-                    controller.updateGameConfig(
+                controller
+                    .updateGameConfig(
                         game = game,
                         minBet = edit.minBet,
                         maxBet = edit.maxBet,
@@ -249,7 +245,7 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
                         permission = edit.permission,
                         config = edit.config,
                     )
-                }
+                    .toDialogResult()
             },
         )
     }
@@ -659,7 +655,7 @@ private fun GameConfigDialog(
     game: GameSummary,
     onDismiss: () -> Unit,
     onReset: () -> Unit,
-    onSave: (GameConfigEdit) -> Unit,
+    onSave: suspend (GameConfigEdit) -> DialogResult,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -702,15 +698,37 @@ private fun GameConfigDialog(
             winChanceValid && payoutValid && houseEdgeValid && rangeValid
 
     val eighteenPlusLabel: String = stringResource(Res.string.games_dialog_18plus_label)
+    // Every editable field in one list, so the form knows when it has been changed (it then asks before discarding).
+    val currentFields: List<Any> =
+        listOf(minBet, maxBet, cooldown, maxPlays, requires18Plus, winChance, payout, houseEdge, permission, configEntries.toList())
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(Res.string.games_dialog_title, game.gameType)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
+    val initialFields: List<Any> = remember { currentFields }
+
+    FormDialog(
+        title = stringResource(Res.string.games_dialog_title, game.gameType),
+        saveLabel = stringResource(Res.string.games_dialog_save),
+        cancelLabel = stringResource(Res.string.games_dialog_cancel),
+        onDismiss = onDismiss,
+        dirty = currentFields != initialFields,
+        valid = canSave,
+        save = {
+            onSave(
+                GameConfigEdit(
+                    minBet = minBetValue,
+                    maxBet = maxBetValue,
+                    cooldownSeconds = cooldownValue ?: 0,
+                    requires18Plus = requires18Plus,
+                    winChancePercent = winChanceValue,
+                    payoutMultiplier = payoutValue,
+                    houseEdgePercent = houseEdgeValue,
+                    maxPlaysPerStream = maxPlaysValue,
+                    permission = permission,
+                    config = entriesToConfig(configEntries),
+                )
+            )
+        },
+    ) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 DialogSectionLabel(stringResource(Res.string.games_dialog_limits_section))
                 AppTextField(
                     value = minBet,
@@ -833,38 +851,7 @@ private fun GameConfigDialog(
                 TextButton(onClick = { configEntries.add("" to "") }) {
                     Text(text = stringResource(Res.string.games_dialog_config_add), color = tokens.primary)
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onSave(
-                        GameConfigEdit(
-                            minBet = minBetValue,
-                            maxBet = maxBetValue,
-                            cooldownSeconds = cooldownValue ?: 0,
-                            requires18Plus = requires18Plus,
-                            winChancePercent = winChanceValue,
-                            payoutMultiplier = payoutValue,
-                            houseEdgePercent = houseEdgeValue,
-                            maxPlaysPerStream = maxPlaysValue,
-                            permission = permission,
-                            config = entriesToConfig(configEntries),
-                        )
-                    )
-                },
-                enabled = canSave,
-                modifier = Modifier.testTag("game-save"),
-            ) {
-                Text(
-                    text = stringResource(Res.string.games_dialog_save),
-                    color = if (canSave) tokens.primary else tokens.mutedForeground,
-                )
-            }
-        },
-        dismissButton = {
-            // The destructive reset sits apart from Save/Cancel in its own quiet destructive treatment.
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                // The destructive reset sits apart from Save/Cancel in its own quiet destructive treatment.
                 Button(
                     onClick = onReset,
                     variant = ButtonVariant.DestructiveGhost,
@@ -873,15 +860,8 @@ private fun GameConfigDialog(
                 ) {
                     Text(text = stringResource(Res.string.games_dialog_reset), maxLines = 1)
                 }
-                TextButton(onClick = onDismiss) {
-                    Text(
-                        text = stringResource(Res.string.games_dialog_cancel),
-                        color = tokens.mutedForeground,
-                    )
-                }
             }
-        },
-    )
+    }
 }
 
 // A small group heading inside the config dialog.

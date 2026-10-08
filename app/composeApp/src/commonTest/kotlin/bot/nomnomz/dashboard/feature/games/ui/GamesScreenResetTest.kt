@@ -22,6 +22,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -65,7 +66,7 @@ class GamesScreenResetTest {
         onNodeWithContentDescription("Edit coinflip").performClick()
         waitForIdle()
         // A real pointer tap: the footer must be on screen even though the settings are taller than the window.
-        onNodeWithTag("game-reset").performClick()
+        onNodeWithTag("game-reset").performScrollTo().performClick()
         waitForIdle()
 
         onNodeWithText(
@@ -98,8 +99,8 @@ class GamesScreenResetTest {
         onNodeWithContentDescription("Edit coinflip").performClick()
         waitForIdle()
 
-        onNodeWithTag("game-reset").assertIsDisplayed()
-        onNodeWithTag("game-save").assertIsDisplayed()
+        onNodeWithTag("game-reset").performScrollTo().assertIsDisplayed()
+        onNodeWithText("Save").assertIsDisplayed()
     }
 }
 
