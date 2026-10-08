@@ -251,15 +251,15 @@ class EventResponsesController(
         pipelineId: String?,
         widgetId: String?,
         speakWithTts: Boolean = false,
-    ) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
+    ): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
         // Only overlay responses carry a widget target; for every other type send an empty metadata map so a
         // stale target from a previous overlay config never lingers.
         val metadata: Map<String, String> =
             if (responseType == "overlay" && !widgetId.isNullOrBlank())
                 mapOf(WidgetIdMetadataKey to widgetId)
             else emptyMap()
-        afterWrite(
+        return afterDialogWrite(
             eventResponsesApi.upsert(
                 channel,
                 eventType,
@@ -281,13 +281,28 @@ class EventResponsesController(
      * row is a fixed catalogue entry (S-EVENTRESPONSE-NO-CREATE) — `POST .../reset` resets its fields in
      * place and never removes it, matching the "Reset to default" label the confirm dialog already shows.
      */
-    suspend fun resetToDefault(eventType: String) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(
+    suspend fun resetToDefault(eventType: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return afterDialogWrite(
             eventResponsesApi.resetToDefault(channel, eventType),
             success = Res.string.feedback_event_response_reset,
         )
     }
+
+    // A write fired from a dialog that stays open until the server answers: success announces and reloads, a
+    // failure is handed back untouched so the dialog shows the reason inline (no toast on top of it).
+    private suspend fun afterDialogWrite(
+        result: ApiResult<*>,
+        success: StringResource = Res.string.feedback_event_response_saved,
+    ): ApiResult<Unit> =
+        when (result) {
+            is ApiResult.Ok -> {
+                feedback.success(success)
+                load()
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Failure -> result
+        }
 
     // A write either reloads the list AND announces success on the frame, or surfaces its error over the current
     // Ready list without losing it (failure) AND announces it on the frame. [success] lets a reset say "Reset to
