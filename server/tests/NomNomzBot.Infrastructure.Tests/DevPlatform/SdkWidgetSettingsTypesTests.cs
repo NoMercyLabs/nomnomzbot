@@ -177,6 +177,50 @@ public sealed partial class SdkWidgetSettingsTypesTests
     }
 
     [Fact]
+    public void Without_a_schema_the_widget_surface_still_declares_the_NnzWidgetSettings_name()
+    {
+        string dts = new SdkTypeEmitter(new EventCatalog())
+            .EmitTypeScript(SdkContext.Widget)
+            .ReplaceLineEndings("\n");
+
+        dts.Should().Contain("type NnzWidgetSettings = Record<string, unknown>;");
+    }
+
+    // A cloned widget carries no gallery link and no settings.json, so it is served the schema-less surface. Every
+    // first-party widget source that imports the name must still compile against that surface.
+    [Fact]
+    public void Every_first_party_widget_that_names_NnzWidgetSettings_compiles_against_the_schema_less_surface()
+    {
+        System.Reflection.Assembly assembly = typeof(SdkTypeEmitter).Assembly;
+        List<string> namingIt = [];
+        foreach (
+            string resource in assembly
+                .GetManifestResourceNames()
+                .Where(name =>
+                    name.Contains(".Content.Widgets.Assets.", StringComparison.Ordinal)
+                    && name.EndsWith(".vue", StringComparison.Ordinal)
+                )
+        )
+        {
+            using System.IO.Stream stream = assembly.GetManifestResourceStream(resource)!;
+            using StreamReader reader = new(stream);
+            if (reader.ReadToEnd().Contains("NnzWidgetSettings", StringComparison.Ordinal))
+                namingIt.Add(resource);
+        }
+
+        namingIt
+            .Should()
+            .HaveCountGreaterThan(20, "the first-party widgets type onSettings with it");
+
+        string dts = new SdkTypeEmitter(new EventCatalog()).EmitTypeScript(SdkContext.Widget);
+        Regex declared = new(@"\b(interface|type) NnzWidgetSettings\b");
+        declared
+            .IsMatch(dts)
+            .Should()
+            .BeTrue("{0} widget sources name NnzWidgetSettings", namingIt.Count);
+    }
+
+    [Fact]
     public void The_typed_widget_surface_declares_no_any()
     {
         string dts = Dts(Schema());

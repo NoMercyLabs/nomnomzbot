@@ -148,6 +148,12 @@ internal sealed class TypeScriptDefinitionWriter
             sb.AppendLine(WidgetSettingsTypeWriter.Write(_widgetSettings));
             settingsType = WidgetSettingsTypeWriter.InterfaceName;
         }
+        else if (_context == SdkContext.Widget)
+        {
+            // A widget with no schema (a clone carries no gallery link and no settings.json) still imports the
+            // name from its own SDK types, so the name must resolve to the open record.
+            sb.AppendLine(WidgetSettingsTypeWriter.WriteOpen());
+        }
         sb.AppendLine(
             _context == SdkContext.Script
                 ? SdkRuntimeSurface.ScriptGlobals(_triggerKeys)

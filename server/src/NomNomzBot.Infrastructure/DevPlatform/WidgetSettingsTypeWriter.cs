@@ -43,6 +43,10 @@ internal static partial class WidgetSettingsTypeWriter
         return sb.ToString();
     }
 
+    /// <summary>The name for a widget with no settings schema: an open record, so a source that names it compiles.</summary>
+    public static string WriteOpen() =>
+        $"/** The settings of this widget; it declares no schema, so any key is allowed. */\ntype {InterfaceName} = Record<string, unknown>;\n";
+
     private static string MemberName(string key) => Identifier().IsMatch(key) ? key : Literal(key);
 
     private static string TsType(WidgetSettingsField field) =>
