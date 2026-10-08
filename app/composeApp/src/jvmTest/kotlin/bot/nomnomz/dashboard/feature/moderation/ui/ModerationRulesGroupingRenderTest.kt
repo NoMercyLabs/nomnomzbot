@@ -157,7 +157,7 @@ class ModerationRulesGroupingRenderTest {
             searchViewers = { emptyList<PickerOption>() },
             searchBanTargets = { BanTargetSearch(options = emptyList()) },
             searchChannels = { emptyList<PickerOption>() },
-            onPerformAction = { _, _, _, _ -> },
+            onPerformAction = { _, _, _, _ -> ApiResult.Ok(Unit) },
             onToggleShield = {},
             onAddModerator = {},
             onRemoveModerator = { ApiResult.Ok(Unit) },
