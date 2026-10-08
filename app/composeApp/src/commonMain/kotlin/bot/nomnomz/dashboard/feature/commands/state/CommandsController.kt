@@ -181,8 +181,8 @@ class CommandsController(
      * random-response list, or a pipeline), the permission floor, the cooldown pair, aliases, and the live flag.
      */
     suspend fun createCommand(input: CommandInput): DialogResult {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        return afterWrite(commandsApi.create(channel, input.toCreateBody()))
+        val channel: String = channelId ?: return DialogResult.Failed(noChannelError())
+        return afterWrite(commandsApi.create(channel, input.toCreateBody()), inline = true)
     }
 
     /**
@@ -314,8 +314,8 @@ class CommandsController(
      * editable field is sent so the backend applies exactly what the dialog shows. Reloads on success.
      */
     suspend fun updateCommand(name: String, input: CommandInput): DialogResult {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        return afterWrite(commandsApi.update(channel, name, input.toUpdateBody()))
+        val channel: String = channelId ?: return DialogResult.Failed(noChannelError())
+        return afterWrite(commandsApi.update(channel, name, input.toUpdateBody()), inline = true)
     }
 
     /** Flip a command's enabled flag via the update endpoint (no dedicated toggle route). Reloads on success. */

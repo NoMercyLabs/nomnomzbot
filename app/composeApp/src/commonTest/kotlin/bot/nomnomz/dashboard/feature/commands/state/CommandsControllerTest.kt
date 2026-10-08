@@ -320,6 +320,43 @@ class CommandsControllerTest {
         assertEquals(emptyList(), feedback.messages)
     }
 
+    @Test
+    fun a_failed_create_hands_the_reason_back_without_a_toast() = runTest {
+        val feedback = RecordingFeedback()
+        val commandsApi =
+            RecordingCommandsApi(
+                ApiResult.Ok(emptyList()),
+                writeResult = ApiResult.Failure(ApiError(409, "CONFLICT", "name taken")),
+            )
+        val controller = makeController(commandsApi = commandsApi, feedback = feedback)
+        controller.load()
+
+        val result: DialogResult = controller.createCommand(failedFormInput("!hi"))
+
+        // The form shows the reason inline (FormDialog), so no second copy lands on the toast.
+        assertEquals(DialogResult.Failed("name taken"), result)
+        assertEquals(emptyList(), feedback.messages)
+        assertEquals(1, commandsApi.created.size)
+    }
+
+    @Test
+    fun a_failed_update_hands_the_reason_back_without_a_toast() = runTest {
+        val feedback = RecordingFeedback()
+        val commandsApi =
+            RecordingCommandsApi(
+                ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true))),
+                writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
+            )
+        val controller = makeController(commandsApi = commandsApi, feedback = feedback)
+        controller.load()
+
+        val result: DialogResult = controller.updateCommand("!hi", failedFormInput("!hi"))
+
+        assertEquals(DialogResult.Failed("no permission"), result)
+        assertEquals(emptyList(), feedback.messages)
+        assertEquals(1, (controller.state.value as CommandsState.Ready).commands.size)
+    }
+
     // S-BUDGETS-b3: the values [CommandsScreen] feeds its warn-before-refuse New-button wrapper must be exactly
     // what the billing-limits endpoint returned — never a client-recomputed count — and must find the
     // "custom_commands" row among other unrelated resources in the same report.
@@ -573,6 +610,26 @@ class CommandsControllerTest {
 // ── Fakes ────────────────────────────────────────────────────────────────────────────────────────
 
 /** Factory helper — supplies sensible defaults so each test only overrides what it cares about. */
+private fun failedFormInput(name: String): CommandInput =
+    CommandInput(
+        name = name,
+        tier = "template",
+        minPermissionLevel = "Everyone",
+        prefixMode = "Default",
+        customPrefix = "",
+        matchMode = "Prefix",
+        matchPattern = "",
+        templateResponse = "yo",
+        templateResponses = emptyList(),
+        pipelineId = null,
+        cooldownSeconds = 0,
+        userCooldownSeconds = 0,
+        cooldownPerUser = false,
+        description = "",
+        aliases = emptyList(),
+        isEnabled = true,
+    )
+
 private fun makeController(
     channelResult: ApiResult<ChannelSummary> = ApiResult.Ok(ChannelSummary(id = "ch1")),
     commandsResult: ApiResult<List<CommandSummary>> = ApiResult.Ok(emptyList()),
