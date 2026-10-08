@@ -445,7 +445,7 @@ public sealed class OverlaySdkController : ControllerBase
               case "WidgetReload": location.reload(); break;
               case "Event": { var oe = args[0] || {}; emit(oe.type, feedData(oe.payload)); break; }
               // Raw hub targets: the server sends these to the channel's one audio page only (the Audio source
-              // page, else the newest overlay page), and this is the only place the SDK plays sound.
+              // page only), and this is the only place the SDK plays sound.
               case "PlaySound": { var ps = args[0] || {}; playSound(ps); emit("play_sound", ps); break; }
               case "StopSound": { var ss = args[0] || {}; stopSound(ss); emit("stop_sound", ss); break; }
               case "TtsSpeak": { var ts = args[0] || {}; speakTts(ts); emit("tts_speak", ts); break; }

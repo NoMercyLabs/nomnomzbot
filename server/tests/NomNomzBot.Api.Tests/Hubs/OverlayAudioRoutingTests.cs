@@ -28,8 +28,8 @@ using NSubstitute;
 namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
-/// Audio plays on exactly one overlay page. The registry names that page (the newest Audio source, else the
-/// newest overlay page), the notifier sends sound and TTS only to it, and the TTS handler keeps the audio off
+/// Audio plays on exactly one overlay page. The registry names that page (the newest Audio source; with none,
+/// no page and no audio), the notifier sends sound and TTS only to it, and the TTS handler keeps the audio off
 /// the widget event so a caption page can never play it.
 /// </summary>
 public sealed class OverlayAudioRoutingTests
@@ -60,7 +60,7 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public void When_the_audio_source_disconnects_the_audio_falls_back_to_the_caption_page()
+    public void When_the_audio_source_disconnects_there_is_no_audio_target()
     {
         OverlayPresenceRegistry registry = new();
         registry.RegisterOverlay("caption", Broadcaster);
@@ -69,8 +69,57 @@ public sealed class OverlayAudioRoutingTests
 
         registry.Drop("audio");
 
-        registry.GetAudioTarget(Broadcaster).Should().Be("caption");
+        registry.GetAudioTarget(Broadcaster).Should().BeNull();
         registry.IsAudioSourceConnected(Broadcaster).Should().BeFalse();
+    }
+
+    [Fact]
+    public void With_only_non_audio_pages_open_there_is_no_audio_target()
+    {
+        OverlayPresenceRegistry registry = new();
+        registry.RegisterOverlay("caption", Broadcaster);
+        registry.RegisterOverlay("bsod", Broadcaster);
+
+        registry.GetAudioTarget(Broadcaster).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task With_only_non_audio_pages_open_a_tts_line_and_a_sound_clip_reach_no_connection()
+    {
+        OverlayPresenceRegistry registry = new();
+        registry.RegisterOverlay("caption-conn", Broadcaster);
+        registry.RegisterOverlay("bsod-conn", Broadcaster);
+        IOverlayClient caption = Substitute.For<IOverlayClient>();
+        IOverlayClient bsod = Substitute.For<IOverlayClient>();
+        IHubClients<IOverlayClient> clients = Substitute.For<IHubClients<IOverlayClient>>();
+        clients.Client("caption-conn").Returns(caption);
+        clients.Client("bsod-conn").Returns(bsod);
+        IHubContext<OverlayHub, IOverlayClient> hub = Substitute.For<
+            IHubContext<OverlayHub, IOverlayClient>
+        >();
+        hub.Clients.Returns(clients);
+        WidgetNotifier notifier = new(hub, registry);
+
+        await notifier.PlaySoundAsync(Broadcaster.ToString(), new("https://x/a.mp3", 100, "h1"));
+        await notifier.TtsSpeakAsync(
+            Broadcaster.ToString(),
+            new(
+                Broadcaster,
+                "hello",
+                "v1",
+                "azure",
+                null,
+                null,
+                null,
+                "data:audio/mpeg;base64,AQID"
+            )
+        );
+
+        await caption.DidNotReceiveWithAnyArgs().PlaySound(default!);
+        await caption.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
+        await bsod.DidNotReceiveWithAnyArgs().PlaySound(default!);
+        await bsod.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
+        clients.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
