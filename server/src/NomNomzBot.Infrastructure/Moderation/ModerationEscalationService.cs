@@ -117,10 +117,9 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         EscalationLadderStep step =
             ladder.Where(s => s.AtOffense <= newCount).MaxBy(s => s.AtOffense) ?? ladder[0];
         // A timeout rung with no length of its own uses the channel's default timeout, never zero.
-        int? timeoutSeconds =
-            step.Action == "timeout" && step.TimeoutSeconds is null or <= 0
-                ? policy.DefaultTimeoutSeconds
-                : step.TimeoutSeconds;
+        int? timeoutSeconds = step is { Action: "timeout", TimeoutSeconds: null or <= 0 }
+            ? policy.DefaultTimeoutSeconds
+            : step.TimeoutSeconds;
         return Result.Success(new EscalationDecision(step.Action, timeoutSeconds, newCount));
     }
 

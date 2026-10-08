@@ -55,7 +55,7 @@ public sealed class ChatFilterLinkPolicyServiceTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.LinkPolicy!.AllowedDomains.Should().Equal("example.com", "twitch.tv");
+        result.Value.LinkPolicy!.AllowedDomains.Should().Equal("example.com", "twitch.tv");
         result.Value.LinkPolicy.MatchBareDomains.Should().BeFalse();
         (await db.ChatFilters.SingleAsync())
             .LinkPolicyJson.Should()
@@ -76,7 +76,7 @@ public sealed class ChatFilterLinkPolicyServiceTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.LinkPolicy.Should().NotBeNull();
+        result.Value.LinkPolicy.Should().NotBeNull();
         result.Value.LinkPolicy!.AllowedDomains.Should().Equal("example.com");
         result.Value.LinkPolicy.MatchBareDomains.Should().BeTrue();
     }
@@ -90,7 +90,7 @@ public sealed class ChatFilterLinkPolicyServiceTests
         Result<ChatFilterDto> result = await service.CreateAsync(Broadcaster, NewLinkFilter());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.LinkPolicy!.AllowedDomains.Should().BeEmpty();
+        result.Value.LinkPolicy!.AllowedDomains.Should().BeEmpty();
         (await db.ChatFilters.SingleAsync()).LinkPolicyJson.Should().BeNull();
     }
 
@@ -168,7 +168,7 @@ public sealed class ChatFilterLinkPolicyServiceTests
                 NewLinkFilter(new LinkPolicy { AllowedDomains = ["old.com"] })
             )
         )
-            .Value!
+            .Value
             .Id;
 
         Result<ChatFilterDto> result = await service.UpdateAsync(
@@ -198,7 +198,7 @@ public sealed class ChatFilterLinkPolicyServiceTests
                 NewLinkFilter(new LinkPolicy { AllowedDomains = ["old.com"] })
             )
         )
-            .Value!
+            .Value
             .Id;
         string? before = (await db.ChatFilters.SingleAsync()).LinkPolicyJson;
 
@@ -224,8 +224,8 @@ public sealed class ChatFilterLinkPolicyServiceTests
 
         bool allowed = service
             .TestPattern(Test("see https://shop.example.com/x", policy))
-            .Value!.IsMatch;
-        bool blocked = service.TestPattern(Test("see https://other.net/x", policy)).Value!.IsMatch;
+            .Value.IsMatch;
+        bool blocked = service.TestPattern(Test("see https://other.net/x", policy)).Value.IsMatch;
 
         allowed.Should().BeFalse();
         blocked.Should().BeTrue();
@@ -241,7 +241,7 @@ public sealed class ChatFilterLinkPolicyServiceTests
             .TestPattern(
                 Test("https://x.net", new LinkPolicy { AllowedDomains = ["https://example.com"] })
             )
-            .Value!;
+            .Value;
 
         result.IsMatch.Should().BeFalse();
         result.CompileError.Should().Contain("is not a valid domain name");

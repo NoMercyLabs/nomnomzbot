@@ -41,7 +41,7 @@ public class AccountAgeGateTests
         );
 
         verdict.Should().NotBeNull();
-        verdict!.Kind.Should().Be(AccountAgeGateKind.AccountTooYoung);
+        verdict.Kind.Should().Be(AccountAgeGateKind.AccountTooYoung);
         verdict.HoldsForReview.Should().BeTrue();
         verdict.Reason.Should().Contain("3 day");
     }
@@ -147,7 +147,7 @@ public class AccountAgeGateTests
         );
 
         verdict.Should().NotBeNull();
-        verdict!.Kind.Should().Be(AccountAgeGateKind.FollowTooYoung);
+        verdict.Kind.Should().Be(AccountAgeGateKind.FollowTooYoung);
     }
 
     [Theory]

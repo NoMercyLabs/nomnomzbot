@@ -321,7 +321,7 @@ public sealed class ModerationQueueService : IModerationQueueService
                 approve,
                 cancellationToken
             );
-            if (relay.IsFailure && relay.ErrorCode == TwitchErrorCodes.NotFound)
+            if (relay is { IsFailure: true, ErrorCode: TwitchErrorCodes.NotFound })
             {
                 // Twitch no longer holds the message (it expired, or another moderator handled it unseen):
                 // nothing can be resolved, so close the row instead of leaving it stuck in the queue.

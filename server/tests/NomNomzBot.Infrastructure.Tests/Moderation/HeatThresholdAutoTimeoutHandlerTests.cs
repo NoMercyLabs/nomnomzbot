@@ -197,7 +197,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
 
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .TimeoutAsync(default!, default, default!, default, default, default, default);
+            .TimeoutAsync(default!, default, default!, default);
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
 
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .TimeoutAsync(default!, default, default!, default, default, default, default);
+            .TimeoutAsync(default!, default, default!, default);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
 
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .TimeoutAsync(default!, default, default!, default, default, default, default);
+            .TimeoutAsync(default!, default, default!, default);
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
         row.MessageContentSnapshot.Should().Contain("85").And.Contain("80");
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .TimeoutAsync(default!, default, default!, default, default, default, default);
+            .TimeoutAsync(default!, default, default!, default);
         bus.Published.OfType<UserHeatAutoTimeoutFailedEvent>().Should().BeEmpty();
     }
 
@@ -348,7 +348,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
             .Be(ModerationQueueSource.HeatThreshold);
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .TimeoutAsync(default!, default, default!, default, default, default, default);
+            .TimeoutAsync(default!, default, default!, default);
     }
 
     [Fact]

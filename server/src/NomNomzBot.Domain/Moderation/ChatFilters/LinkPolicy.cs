@@ -77,8 +77,8 @@ public sealed record LinkPolicy
     /// <summary>The first problem with this policy, or null when it is valid.</summary>
     public string? FindError()
     {
-        foreach (string? domain in AllowedDomains)
-            if (!IsValidHost(domain?.Trim().TrimEnd('.')))
+        foreach (string domain in AllowedDomains)
+            if (!IsValidHost(domain))
                 return $"\"{domain}\" is not a valid domain name. Use a host such as example.com, with no scheme, path or port.";
 
         return null;
@@ -123,9 +123,9 @@ public sealed record LinkPolicy
         link.Text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
         || link.Text.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>A DNS name with at least two labels. An IP address, a bare TLD, a scheme, a path or a port is not a valid entry.</summary>
-    private static bool IsValidHost(string? host) =>
-        !string.IsNullOrWhiteSpace(host)
+    /// <summary>A DNS name with at least two labels, after trimming spaces and a trailing dot. An IP address, a bare TLD, a scheme, a path or a port is not a valid entry; a null entry from a JSON body is not either.</summary>
+    private static bool IsValidHost(string? entry) =>
+        entry?.Trim().TrimEnd('.') is { Length: > 0 } host
         && host.Contains('.')
         && Uri.CheckHostName(host) == UriHostNameType.Dns;
 }

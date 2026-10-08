@@ -195,7 +195,7 @@ public sealed class ViolationEscalationServiceTests : IDisposable
     {
         SeedPolicy(enabled: true, countAutoMod: true, Ladder());
 
-        ViolationEscalationOutcome first = await EscalateAsync("Link posted");
+        ViolationEscalationOutcome first = await EscalateAsync();
 
         first.Handled.Should().BeTrue();
         first.Action.Should().Be("warn");
@@ -212,7 +212,7 @@ public sealed class ViolationEscalationServiceTests : IDisposable
                 Arg.Any<CancellationToken>()
             );
 
-        ViolationEscalationOutcome second = await EscalateAsync("Link posted");
+        ViolationEscalationOutcome second = await EscalateAsync();
 
         second.Handled.Should().BeTrue();
         second.Action.Should().Be("timeout");

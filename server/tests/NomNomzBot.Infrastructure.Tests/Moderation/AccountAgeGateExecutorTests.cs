@@ -123,7 +123,7 @@ public class AccountAgeGateExecutorTests
 
         outcome.DeletedMessage.Should().BeFalse();
         outcome.Skipped.Should().Be("dry run");
-        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!, default);
+        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
         await _queue
             .DidNotReceiveWithAnyArgs()
             .EnqueueHeldMessageAsync(default, default!, default!, default!, default!, default!);

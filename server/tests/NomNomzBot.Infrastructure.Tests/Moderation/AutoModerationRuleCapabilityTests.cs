@@ -96,7 +96,7 @@ public sealed class AutoModerationRuleCapabilityTests
                 TimeProvider.System,
                 NullLogger<AutoModRuleCache>.Instance
             ),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            Platform.Security.TestSanction.Held(),
             NullLogger<AutoModerationHandler>.Instance
         );
         return (handler, moderation);

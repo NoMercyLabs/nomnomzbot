@@ -485,7 +485,7 @@ public sealed class MassBanExecutorTests
             .AllSatisfy(s =>
             {
                 s.Should().NotBeNull();
-                s!.Basis.Should().Be(OutboundSanctionBasis.UserAction);
+                s.Basis.Should().Be(OutboundSanctionBasis.UserAction);
                 s.Detail.Should().Be("moderation:ban");
                 s.ActorUserId.Should().Be(MassBanTestWorld.Operator);
             });

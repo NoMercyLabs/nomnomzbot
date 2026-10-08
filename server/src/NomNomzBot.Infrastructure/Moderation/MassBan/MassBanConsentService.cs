@@ -241,7 +241,7 @@ public sealed class MassBanConsentService : IMassBanConsentService
                 b.CompletedAt,
                 b.Targets.Count,
                 b.Targets.Count(t => t.Banned),
-                b.Targets.Count(t => !t.Banned && t.ProcessedAt != null),
+                b.Targets.Count(t => t is { Banned: false, ProcessedAt: not null }),
                 b.Targets.Count(t => t.ProcessedAt == null && t.Attempts > 0),
                 b.Targets.Count(t => t.ProcessedAt == null && t.Attempts == 0),
                 [

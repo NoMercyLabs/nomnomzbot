@@ -200,7 +200,7 @@ public sealed class MassBanExecutor
     {
         try
         {
-            return batch.RunsAsBroadcaster && batch.ChannelId is { } channelId
+            return batch is { RunsAsBroadcaster: true, ChannelId: { } channelId }
                 ? await _moderation.BanUserAsync(channelId, target.TwitchUserId, target.Reason, ct)
                 : await _moderation.BanAsOperatorAsync(
                     batch.OperatorUserId,

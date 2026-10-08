@@ -118,7 +118,7 @@ public sealed class SpamEnforcementExecutor
         if (escalated.Handled)
             return new SpamEnforcementOutcome(
                 deleted,
-                escalated.Applied && escalated.Action is "timeout" or "ban",
+                escalated is { Applied: true, Action: "timeout" or "ban" },
                 null
             );
 
@@ -199,7 +199,7 @@ public sealed class SpamEnforcementExecutor
             ct
         );
 
-        return config.IsSuccess && config.Value.HeatTimeoutSeconds > 0
+        return config is { IsSuccess: true, Value.HeatTimeoutSeconds: > 0 }
             ? config.Value.HeatTimeoutSeconds
             : FallbackTimeoutSeconds;
     }

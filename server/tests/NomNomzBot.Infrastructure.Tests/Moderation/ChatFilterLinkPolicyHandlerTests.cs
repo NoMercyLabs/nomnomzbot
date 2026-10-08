@@ -114,7 +114,7 @@ public sealed class ChatFilterLinkPolicyHandlerTests
             escalation,
             queue,
             users,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            Platform.Security.TestSanction.Held(),
             new RecordingEventBus(),
             NullLogger<ChatFilterExecutionHandler>.Instance
         );

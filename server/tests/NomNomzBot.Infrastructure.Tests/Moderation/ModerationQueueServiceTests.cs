@@ -211,7 +211,7 @@ public sealed class ModerationQueueServiceTests
         result.IsSuccess.Should().BeTrue();
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .ManageHeldAutoModMessageAsync(default, default!, default, default);
+            .ManageHeldAutoModMessageAsync(default, default!, default);
         ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
         stored.Status.Should().Be(ModerationQueueStatus.Approved);
         stored.ResolvedByUserId.Should().Be(moderatorId);
@@ -644,7 +644,7 @@ public sealed class ModerationQueueServiceTests
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .ManageHeldAutoModMessageAsync(default, default!, default, default);
+            .ManageHeldAutoModMessageAsync(default, default!, default);
     }
 
     [Fact]
