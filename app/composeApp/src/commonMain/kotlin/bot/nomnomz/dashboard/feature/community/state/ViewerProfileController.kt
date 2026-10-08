@@ -269,20 +269,17 @@ class ViewerProfileController(
         }
     }
 
-    /** Assign this person's TTS voice. Returns null on success, else the backend's message. */
-    suspend fun saveTtsVoice(voiceId: String): String? {
-        val channel: String = channelId ?: return noChannelError()
-        val target: String = requireTwitchId() ?: return NoTwitchIdError
-        return when (val result = ttsApi.setUserVoice(channel, target, voiceId)) {
-            is ApiResult.Ok -> {
-                refresh(isInitial = false)
-                null
-            }
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                result.error.message
-            }
-        }
+    /**
+     * Assign this person's TTS voice. Ok reloads the profile; a failure is handed back to the editor, which shows
+     * the reason next to Assign (no banner or toast, so the user sees the error once).
+     */
+    suspend fun saveTtsVoice(voiceId: String): ApiResult<Unit> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, "NO_CHANNEL", noChannelError()))
+        val target: String =
+            requireTwitchId() ?: return ApiResult.Failure(ApiError(0, "NO_TWITCH_ID", NoTwitchIdError))
+        val result: ApiResult<Unit> = ttsApi.setUserVoice(channel, target, voiceId)
+        if (result is ApiResult.Ok) refresh(isInitial = false)
+        return result
     }
 
     /** Clear this person's TTS voice override (they fall back to the channel default). */

@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.network.ViewerProfileSummary
 import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -232,9 +233,9 @@ class ViewerProfileControllerTest {
         val controller = controller(communityApi = communityApi, ttsApi = ttsApi)
         controller.load("u1")
 
-        val error: String? = controller.saveTtsVoice("voice-xyz")
+        val result: ApiResult<Unit> = controller.saveTtsVoice("voice-xyz")
 
-        assertNull(error)
+        assertIs<ApiResult.Ok<Unit>>(result)
         assertEquals(listOf(Triple("ch1", "tw-7", "voice-xyz")), ttsApi.setVoiceCalls)
         assertEquals(2, communityApi.profileCallCount)
     }

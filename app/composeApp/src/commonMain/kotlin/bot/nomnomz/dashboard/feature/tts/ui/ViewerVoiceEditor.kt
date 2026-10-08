@@ -81,7 +81,6 @@ fun ViewerVoiceEditor(
     val currentLabel: String? = currentVoiceId?.let { id -> voices.firstOrNull { it.id == id }?.label() ?: id }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        error?.let { detail -> Text(text = detail, style = typography.sm, color = tokens.destructive) }
         Text(
             text =
                 if (currentLabel == null) {
@@ -108,6 +107,7 @@ fun ViewerVoiceEditor(
                 Button(
                     onClick = { onAssign(pickedVoiceId) },
                     enabled = enabled && pickedVoiceId.isNotBlank() && pickedVoiceId != currentVoiceId && !busy,
+                    loading = busy,
                 ) {
                     Text(stringResource(Res.string.tts_viewer_voice_assign))
                 }
@@ -123,6 +123,7 @@ fun ViewerVoiceEditor(
                 }
             }
         }
+        error?.let { detail -> Text(text = detail, style = typography.sm, color = tokens.destructive) }
     }
 }
 

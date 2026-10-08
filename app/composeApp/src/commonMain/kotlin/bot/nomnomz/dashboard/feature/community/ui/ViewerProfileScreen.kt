@@ -289,6 +289,7 @@ private fun ProfileContent(
     var pendingExport: Boolean by remember { mutableStateOf(false) }
     var pendingErase: Boolean by remember { mutableStateOf(false) }
     var voiceError: String? by remember { mutableStateOf(null) }
+    var voiceBusy: Boolean by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -358,7 +359,16 @@ private fun ProfileContent(
                 write = configWrite,
                 onSaveMessage = { template -> controller.saveOverrideMessage(template) },
                 onClearMessage = { scope.launch { controller.clearOverrideMessage() } },
-                onSaveVoice = { voiceId -> scope.launch { voiceError = controller.saveTtsVoice(voiceId) } },
+                voiceBusy = voiceBusy,
+                onSaveVoice = { voiceId ->
+                    scope.launch {
+                        voiceBusy = true
+                        voiceError = null
+                        val result: ApiResult<Unit> = controller.saveTtsVoice(voiceId)
+                        voiceError = (result as? ApiResult.Failure)?.error?.message
+                        voiceBusy = false
+                    }
+                },
                 onClearVoice = { scope.launch { voiceError = controller.clearTtsVoice() } },
             )
         }
@@ -857,6 +867,7 @@ private fun OverridesSection(
     overrides: bot.nomnomz.dashboard.core.network.ViewerOverrides,
     availableVoices: List<TtsVoice>,
     voiceError: String?,
+    voiceBusy: Boolean,
     searchAssignableVoices: suspend (query: String) -> List<TtsVoice>,
     write: ManageDecision,
     onSaveMessage: suspend (template: String) -> String?,
@@ -882,7 +893,7 @@ private fun OverridesSection(
         ViewerVoiceEditor(
             userId = userId,
             currentVoiceId = overrides.ttsVoice?.voiceId,
-            busy = false,
+            busy = voiceBusy,
             error = voiceError,
             voices = availableVoices,
             manage = write,
