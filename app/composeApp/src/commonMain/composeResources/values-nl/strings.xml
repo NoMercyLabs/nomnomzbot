@@ -1305,6 +1305,7 @@
     <string name="songrequests_ban_dismiss">Annuleren</string>
     <string name="songrequests_paid_badge">Betaald</string>
     <string name="songrequests_action_error">Afspelen aansturen mislukt: %1$s</string>
+    <string name="songrequests_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="songrequests_queue_title">Wachtrij</string>
     <string name="songrequests_config_title">Verzoekinstellingen</string>
     <string name="songrequests_config_enabled">Verzoekjes ingeschakeld</string>

@@ -45,6 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
@@ -230,10 +232,10 @@ fun SongRequestsScreen(
                     onResume = { scope.launch { controller.resume() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
                     onPromote = { position -> scope.launch { controller.promote(position) } },
-                    onBan = { position -> scope.launch { controller.ban(position) } },
+                    onBan = { position -> controller.ban(position).toDialogResult() },
                     onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
                     onUpdateConfig = { body -> scope.launch { controller.updateConfig(body) } },
-                    onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
+                    onRotateToken = { controller.rotateSrPageToken().toDialogResult() },
                     onBlockTrack = { provider, trackUri, title, reason ->
                         scope.launch { controller.blockTrack(provider, trackUri, title, reason) }
                     },
@@ -266,10 +268,10 @@ private fun ReadyContent(
     onResume: () -> Unit,
     onRemove: (position: Int) -> Unit,
     onPromote: (position: Int) -> Unit,
-    onBan: (position: Int) -> Unit,
+    onBan: suspend (position: Int) -> DialogResult,
     onAddToQueue: (query: String, requestedBy: String) -> Unit,
     onUpdateConfig: (UpdateMusicConfigBody) -> Unit,
-    onRotateToken: () -> Unit,
+    onRotateToken: suspend () -> DialogResult,
     onBlockTrack: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
     onUnblockTrack: (blockedTrackId: String) -> Unit,
     onBlockedPage: (page: Int) -> Unit,
@@ -413,11 +415,8 @@ private fun ReadyContent(
             confirmLabel = stringResource(Res.string.songrequests_ban_confirm),
             dismissLabel = stringResource(Res.string.songrequests_ban_dismiss),
             destructive = true,
-            onConfirm = {
-                onBan(song.position)
-                pendingBan = null
-            },
             onDismiss = { pendingBan = null },
+            action = { onBan(song.position) },
         )
     }
 
@@ -446,11 +445,8 @@ private fun ReadyContent(
             confirmLabel = stringResource(Res.string.songrequests_token_rotate_confirm),
             dismissLabel = stringResource(Res.string.songrequests_token_rotate_dismiss),
             destructive = true,
-            onConfirm = {
-                onRotateToken()
-                showRotateConfirm = false
-            },
             onDismiss = { showRotateConfirm = false },
+            action = { onRotateToken() },
         )
     }
 }
