@@ -193,6 +193,48 @@ public sealed class ModerationQueueServiceTests
     }
 
     [Fact]
+    public async Task ResolveAsync_OnAChatFilterItem_RecordsTheVerdictWithoutAskingAutoModToRelease()
+    {
+        (
+            ModerationQueueService service,
+            ModerationServiceTestDbContext db,
+            ITwitchModerationApi moderation
+        ) = await BuildAsync();
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "chat-msg-1",
+            "9001",
+            "chatter",
+            "text",
+            "my-filter",
+            source: ModerationQueueSource.ChatFilter
+        );
+        Guid moderatorId = Guid.NewGuid();
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest { Action = "deny" },
+            moderatorId.ToString()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await moderation
+            .DidNotReceive()
+            .ManageHeldAutoModMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            );
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Source.Should().Be(ModerationQueueSource.ChatFilter);
+        stored.Status.Should().Be(ModerationQueueStatus.Denied);
+        stored.ResolvedByUserId.Should().Be(moderatorId);
+        stored.ResolutionAction.Should().Be("denied");
+    }
+
+    [Fact]
     public async Task ResolveAsync_ADeny_CallsHelixWithApproveFalse()
     {
         (ModerationQueueService service, _, ITwitchModerationApi moderation) = await BuildAsync();

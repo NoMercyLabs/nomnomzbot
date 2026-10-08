@@ -72,7 +72,8 @@ public sealed class ModerationQueueService : IModerationQueueService
         string username,
         string messageContent,
         string category,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        ModerationQueueSource source = ModerationQueueSource.AutoMod
     )
     {
         Guid? targetUserId = null;
@@ -88,7 +89,7 @@ public sealed class ModerationQueueService : IModerationQueueService
         ModerationQueueItem item = new()
         {
             BroadcasterId = broadcasterId,
-            Source = ModerationQueueSource.AutoMod,
+            Source = source,
             Status = ModerationQueueStatus.Pending,
             TargetUserId = targetUserId,
             TargetTwitchUserId = twitchUserId,
@@ -230,7 +231,10 @@ public sealed class ModerationQueueService : IModerationQueueService
                 "This item has already been resolved.",
                 "VALIDATION_FAILED"
             );
-        if (string.IsNullOrEmpty(item.AutoModMessageId))
+        // Only AutoMod holds live on Twitch's side; a chat-filter item was already deleted (or only flagged),
+        // so its verdict is recorded locally with no Helix release to relay.
+        bool relaysToAutoMod = item.Source == ModerationQueueSource.AutoMod;
+        if (relaysToAutoMod && string.IsNullOrEmpty(item.AutoModMessageId))
             return Result.Failure<ResolveModerationQueueItemResultDto>(
                 "This queue item has no held message to resolve.",
                 "VALIDATION_FAILED"
@@ -241,23 +245,26 @@ public sealed class ModerationQueueService : IModerationQueueService
                 "VALIDATION_FAILED"
             );
 
-        Result relay = await _moderation.ManageHeldAutoModMessageAsync(
-            tenantId,
-            item.AutoModMessageId,
-            approve,
-            cancellationToken
-        );
-        if (relay.IsFailure)
+        if (relaysToAutoMod)
         {
-            _logger.LogWarning(
-                "AutoMod queue resolve failed for item {ItemId}: {Error}",
-                item.Id,
-                relay.ErrorMessage
+            Result relay = await _moderation.ManageHeldAutoModMessageAsync(
+                tenantId,
+                item.AutoModMessageId!,
+                approve,
+                cancellationToken
             );
-            return Result.Failure<ResolveModerationQueueItemResultDto>(
-                relay.ErrorMessage!,
-                relay.ErrorCode!
-            );
+            if (relay.IsFailure)
+            {
+                _logger.LogWarning(
+                    "AutoMod queue resolve failed for item {ItemId}: {Error}",
+                    item.Id,
+                    relay.ErrorMessage
+                );
+                return Result.Failure<ResolveModerationQueueItemResultDto>(
+                    relay.ErrorMessage!,
+                    relay.ErrorCode!
+                );
+            }
         }
 
         item.Status = approve ? ModerationQueueStatus.Approved : ModerationQueueStatus.Denied;
