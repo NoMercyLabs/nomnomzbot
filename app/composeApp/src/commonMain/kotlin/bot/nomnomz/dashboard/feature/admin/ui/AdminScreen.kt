@@ -1595,9 +1595,9 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                 dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),
                                 destructive = true,
                                 confirmEnabled = preview != null,
-                                onConfirm = {
+                                action = {
                                     pendingFlagKey = flag.key
-                                    scope.launch {
+                                    try {
                                         controller.confirmFeatureFlagKillSwitch(
                                             AdminSetFeatureFlagRequest(
                                                 key = flag.key,
@@ -1608,7 +1608,8 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                                 requiresConsent = flag.requiresConsent,
                                                 deploymentMode = flag.deploymentMode,
                                             ),
-                                        )
+                                        ).toDialogResult()
+                                    } finally {
                                         pendingFlagKey = null
                                     }
                                 },
@@ -1646,15 +1647,15 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                 ),
                                 confirmLabel = stringResource(Res.string.admin_flag_override_confirm),
                                 dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),
-                                onConfirm = {
-                                    pendingOverride = null
+                                action = {
                                     pendingFlagKey = flag.key
-                                    scope.launch {
+                                    try {
                                         controller.setFeatureFlagOverride(
                                             flag.key,
                                             pending.channel.id,
                                             AdminSetFeatureFlagOverrideRequest(isEnabled = pending.isEnabled),
-                                        )
+                                        ).toDialogResult()
+                                    } finally {
                                         pendingFlagKey = null
                                     }
                                 },

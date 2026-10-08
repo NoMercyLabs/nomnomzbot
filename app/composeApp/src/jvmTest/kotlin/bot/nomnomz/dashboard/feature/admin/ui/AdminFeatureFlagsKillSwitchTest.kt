@@ -234,6 +234,79 @@ class AdminFeatureFlagsKillSwitchTest {
             assertEquals("0192a000-0000-7000-8000-0000000091aa", broadcasterId)
             assertFalse(body.isEnabled)
             onNodeWithText("acme: forced off").assertExists()
+            onNodeWithText("Override integration:spotify for one channel?").assertDoesNotExist()
+        }
+    }
+
+    // SH-1: the confirms used to close at once and fire the write, so a refused write looked like success.
+    @Test
+    fun a_refused_kill_switch_keeps_the_confirm_open_with_the_reason() {
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+            blastRadius = FeatureFlagBlastRadiusDto(tenantsAffected = 3, sampleChannelNames = listOf("acme")),
+            setFlagFailure = ApiError(409, "REFUSED", "The server said no."),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+            onNode(isToggleable()).performClick()
+            waitForIdle()
+            onNodeWithText("Turn off").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.setFeatureFlagCalls.size)
+            onNodeWithText("The server said no.").assertExists()
+            onNodeWithText("Turn off").assertExists()
+            onNodeWithText("Enabled — 100%").assertExists()
+        }
+    }
+
+    @Test
+    fun an_accepted_kill_switch_closes_the_confirm() {
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+            blastRadius = FeatureFlagBlastRadiusDto(tenantsAffected = 3, sampleChannelNames = listOf("acme")),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+            onNode(isToggleable()).performClick()
+            waitForIdle()
+            onNodeWithText("Turn off").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.setFeatureFlagCalls.size)
+            onNodeWithText("Turn off").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun a_refused_override_keeps_the_confirm_open_with_the_reason() {
+        // No known channel name: the fake answers 404 "Channel not found." to the write.
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+            onNode(hasSetTextAction()).performTextInput("0192a000-0000-7000-8000-0000000091aa")
+            onNodeWithText("Override: disable").performClick()
+            waitForIdle()
+            onNodeWithText("Set override").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.setOverrideCalls.size)
+            onNodeWithText("Channel not found.").assertExists()
+            onNodeWithText("Override integration:spotify for one channel?").assertExists()
         }
     }
 }
@@ -244,6 +317,7 @@ private class KillSwitchFakeAdminApi(
     overrides: List<FeatureFlagOverride> = emptyList(),
     // The server names a channel on read-back; an id it does not know is refused, never stored.
     private val channelNames: Map<String, String> = emptyMap(),
+    private val setFlagFailure: ApiError? = null,
 ) : AdminApi {
     val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
     val setOverrideCalls: MutableList<Triple<String, String, AdminSetFeatureFlagOverrideRequest>> = mutableListOf()
@@ -261,6 +335,7 @@ private class KillSwitchFakeAdminApi(
     override suspend fun getFeatureFlags(): ApiResult<List<FeatureFlag>> = ApiResult.Ok(flags)
     override suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> {
         setFeatureFlagCalls += body
+        setFlagFailure?.let { return ApiResult.Failure(it) }
         return ApiResult.Ok(
             FeatureFlag(
                 key = body.key,
