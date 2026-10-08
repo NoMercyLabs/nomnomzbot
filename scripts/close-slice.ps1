@@ -40,24 +40,29 @@ if (-not (Test-Path $plan)) { throw "plan not found: $plan" }
 [System.Collections.Generic.List[string]]$kept = [System.Collections.Generic.List[string]]::new()
 [bool]$found = $false
 [int]$i = 0
+# a slice bullet is "- **ID**" or "- [ ] **ID**": both forms are in the plan, and a terminator that knew
+# only the first ran a closed slice on through every checkbox sibling after it
+[string]$bulletStart = '^- (\[[ xX]\] )?\*\*'
+[string]$headingStart = '^#{1,6} '
+[string]$sliceStart = $bulletStart + [regex]::Escape($Slice) + '\*\*'
 
 while ($i -lt $lines.Length) {
     [string]$line = $lines[$i]
     # exact-id match, first hit only: a wildcard here also deleted siblings (S006 took S006b with it)
-    if (-not $found -and $line.StartsWith("- **$Slice**", [StringComparison]::Ordinal)) {
+    if (-not $found -and $line -cmatch $sliceStart) {
         $found = $true
         $i++
-        # a bullet runs until the next bullet, the next heading, a marker comment, or a rule
+        # a bullet runs until the next bullet, the next heading of any level, a marker comment, or a rule
         # (the last slice before <!-- parity:end --> once took the marker with it)
         while ($i -lt $lines.Length -and
-               -not $lines[$i].StartsWith('- **') -and
-               -not $lines[$i].StartsWith('## ') -and
+               $lines[$i] -cnotmatch $bulletStart -and
+               $lines[$i] -cnotmatch $headingStart -and
                -not $lines[$i].StartsWith('<!--') -and
                $lines[$i].Trim() -ne '---') { $i++ }
         foreach ($f in $Follow) { $kept.Add($f) }
         # a bullet block absorbs the blank line that separated it from a following heading;
         # put it back so sections keep their spacing as slices are deleted over time
-        if ($i -lt $lines.Length -and $lines[$i].StartsWith('## ') -and
+        if ($i -lt $lines.Length -and $lines[$i] -cmatch $headingStart -and
             $kept.Count -gt 0 -and $kept[$kept.Count - 1].Trim() -ne '') {
             $kept.Add('')
         }
