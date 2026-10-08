@@ -40,3 +40,17 @@ public sealed record LockdownWindowStatus(
     IReadOnlyList<LockdownControl> ApplyFailed,
     IReadOnlyList<LockdownControl> RestorationFailed
 );
+
+/// <summary>An operator tightening the room by hand (spam-defense.md §L5.1).</summary>
+/// <param name="Platform">Platform to tighten.</param>
+/// <param name="Reason">Why, in the operator's words. Stored on the window as <c>manual: &lt;reason&gt;</c>.</param>
+/// <param name="Controls">The controls to engage. At least one.</param>
+public sealed record EngageLockdownRequest(
+    string Platform,
+    string Reason,
+    IReadOnlyList<LockdownControl> Controls
+);
+
+/// <summary>An operator ending the active window on one platform now.</summary>
+/// <param name="Platform">Platform whose window to end.</param>
+public sealed record EndLockdownRequest(string Platform);
