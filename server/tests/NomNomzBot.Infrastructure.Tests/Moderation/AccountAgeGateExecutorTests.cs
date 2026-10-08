@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
@@ -31,6 +32,7 @@ public class AccountAgeGateExecutorTests
 
     private readonly ITwitchModerationApi _twitch = Substitute.For<ITwitchModerationApi>();
     private readonly IModerationQueueService _queue = Substitute.For<IModerationQueueService>();
+    private readonly IInboundOriginModerator _origin = Substitute.For<IInboundOriginModerator>();
 
     public AccountAgeGateExecutorTests()
     {
@@ -52,7 +54,7 @@ public class AccountAgeGateExecutorTests
     }
 
     private AccountAgeGateExecutor NewExecutor() =>
-        new(_twitch, _queue, NullLogger<AccountAgeGateExecutor>.Instance);
+        new(_twitch, _queue, _origin, NullLogger<AccountAgeGateExecutor>.Instance);
 
     private static SpamDecision Decision(bool dryRun) =>
         new(
@@ -130,18 +132,110 @@ public class AccountAgeGateExecutorTests
     }
 
     [Fact]
-    public async Task OnAPlatformWithoutAnEnforcementPath_NothingHappens()
+    public async Task OnKick_AYoungAccountsMessageIsDeletedThroughTheSeam_AndNeverTimedOut()
     {
+        _origin
+            .DeleteMessageAsync(Channel, "kick", "msg-1", Arg.Any<CancellationToken>())
+            .Returns(InboundModerationOutcome.Done());
+
         SpamEnforcementOutcome outcome = await RunAsync(
             Decision(false),
             Verdict(holds: true),
             provider: "kick"
         );
 
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeFalse();
+        outcome.Skipped.Should().BeNull();
+        await _origin
+            .Received(1)
+            .DeleteMessageAsync(Channel, "kick", "msg-1", Arg.Any<CancellationToken>());
+        await _origin
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutUserAsync(default, default!, default!, default, default, default);
+        await _origin
+            .DidNotReceiveWithAnyArgs()
+            .BanUserAsync(default, default!, default!, default, default);
+        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
+        await _queue
+            .Received(1)
+            .EnqueueHeldMessageAsync(
+                Channel,
+                "msg-1",
+                "viewer-1",
+                "viewer_one",
+                "buy followers",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>(),
+                ModerationQueueSource.AccountAgeGate
+            );
+    }
+
+    [Fact]
+    public async Task OnYouTube_InDryRun_NothingReachesTheSeam()
+    {
+        SpamEnforcementOutcome outcome = await RunAsync(
+            Decision(true),
+            Verdict(holds: false),
+            provider: "youtube"
+        );
+
         outcome.DeletedMessage.Should().BeFalse();
-        outcome.Skipped.Should().Contain("kick");
+        outcome.Skipped.Should().Be("dry run");
+        await _origin
+            .DidNotReceiveWithAnyArgs()
+            .DeleteMessageAsync(default, default!, default!, default);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WhenTheSeamRefuses_TheOutcomeCarriesTheReason_AndClaimsNothing(
+        bool notSupported
+    )
+    {
+        _origin
+            .DeleteMessageAsync(Channel, "youtube", "msg-1", Arg.Any<CancellationToken>())
+            .Returns(
+                notSupported
+                    ? InboundModerationOutcome.NotSupported("youtube cannot delete here")
+                    : InboundModerationOutcome.Failed("youtube cannot delete here")
+            );
+
+        SpamEnforcementOutcome outcome = await RunAsync(
+            Decision(false),
+            Verdict(holds: true),
+            provider: "youtube"
+        );
+
+        outcome.DeletedMessage.Should().BeFalse();
+        outcome.TimedOutAccount.Should().BeFalse();
+        outcome.Skipped.Should().Be("youtube cannot delete here");
+        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
         await _queue
             .DidNotReceiveWithAnyArgs()
             .EnqueueHeldMessageAsync(default, default!, default!, default!, default!, default!);
+    }
+
+    [Fact]
+    public async Task OnKick_WithoutAMessageId_NothingIsDeleted_AndTheOutcomeSaysWhy()
+    {
+        SpamEnforcementOutcome outcome = await NewExecutor()
+            .ExecuteAsync(
+                Channel,
+                "kick",
+                "",
+                "viewer-1",
+                "viewer_one",
+                "buy followers",
+                Decision(false),
+                Verdict(holds: true)
+            );
+
+        outcome.DeletedMessage.Should().BeFalse();
+        outcome.Skipped.Should().Be("no message id to delete");
+        await _origin
+            .DidNotReceiveWithAnyArgs()
+            .DeleteMessageAsync(default, default!, default!, default);
     }
 }
