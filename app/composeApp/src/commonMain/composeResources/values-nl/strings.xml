@@ -5913,6 +5913,15 @@
     <string name="spam_setting_non_latin_script_gate_label">Andere alfabetten beperken tot gevestigde kijkers</string>
     <string name="spam_setting_non_latin_script_gate_explanation">Beperkt Japanse, Koreaanse, Cyrillische, Arabische en andere niet-Latijnse berichten tot kijkers die er al even zijn.</string>
     <string name="spam_setting_non_latin_script_gate_cost">Standaard uit, en dat zou het voor bijna iedereen moeten blijven: echte kijkers schrijven elke dag in deze alfabetten. Het bestaat voor een kanaal onder een actieve aanval die ze gebruikt, en het legt eerlijke internationale kijkers het zwijgen op zolang het aanstaat.</string>
+    <string name="spam_setting_account_age_gate_days_label">Jongste accountleeftijd die vrij mag chatten</string>
+    <string name="spam_setting_account_age_gate_days_explanation">Chat van een account dat jonger is dan dit aantal dagen wordt verwijderd. 0 zet het uit. Vaste kijkers en hoger worden nooit vastgehouden, en een account met onbekende leeftijd ook niet.</string>
+    <string name="spam_setting_account_age_gate_days_cost">Hoger stopt meer wegwerpaccounts, maar houdt ook eerlijke mensen tegen die net op het platform zijn. Lager laat nieuwe accounts eerder chatten en laat meer spam door.</string>
+    <string name="spam_setting_follow_age_gate_days_label">Jongste volg-datum die vrij mag chatten</string>
+    <string name="spam_setting_follow_age_gate_days_explanation">Chat van een volger die minder dan dit aantal dagen geleden volgde wordt verwijderd. 0 zet het uit. Mensen die niet volgen worden door deze grens niet vastgehouden, en vaste kijkers en hoger nooit.</string>
+    <string name="spam_setting_follow_age_gate_days_cost">Hoger blokkeert accounts die volgen en dan spammen, maar laat elke verse volger wachten. Lager laat nieuwe volgers eerder chatten en laat meer spam door.</string>
+    <string name="spam_setting_account_gate_holds_for_review_label">Tegengehouden berichten bewaren voor een moderator</string>
+    <string name="spam_setting_account_gate_holds_for_review_explanation">Aan: een verwijderd bericht wacht in de moderatiewachtrij, waar een moderator het kan lezen en beslissen. Uit: het bericht wordt verwijderd en er wordt niets bewaard.</string>
+    <string name="spam_setting_account_gate_holds_for_review_cost">Aan betekent dat een moderator meer te lezen heeft. Uit betekent dat een eerlijke nieuwkomer het zwijgen wordt opgelegd zonder dat het bericht terug te halen is.</string>
     <string name="spam_setting_qualify_no_standing_share_label">Aandeel vreemden dat het een campagne maakt</string>
     <string name="spam_setting_qualify_no_standing_share_explanation">Wanneer veel accounts tegelijk hetzelfde posten, is dit hoeveel van die groep mensen zonder status in jouw kanaal moeten zijn voordat het als gecoordineerde spam geldt in plaats van een grap van de community.</string>
     <string name="spam_setting_qualify_no_standing_share_cost">Lager vangt campagnes eerder, maar gaat copypasta als aanval behandelen. Hoger betekent dat een campagne bijna volledig uit vreemden moet bestaan voordat er iets gebeurt.</string>
@@ -5968,6 +5977,7 @@
     <string name="spam_setting_dequalify_below_qualify">Het vrijpleitaandeel moet onder het campagne-aandeel blijven, zodat een groep op de grens niet heen en weer kan schieten.</string>
     <string name="spam_group_master">Hoofdschakelaars</string>
     <string name="spam_group_trust">Vertrouwen</string>
+    <string name="spam_group_newcomers">Nieuwe accounts en nieuwe volgers</string>
     <string name="spam_group_content">Berichtinhoud</string>
     <string name="spam_group_campaign">Gecoordineerde campagnes</string>
     <string name="spam_group_bursts">Plotselinge activiteit</string>

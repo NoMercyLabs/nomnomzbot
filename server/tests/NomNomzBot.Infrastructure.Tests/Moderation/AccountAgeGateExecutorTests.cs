@@ -88,7 +88,9 @@ public class AccountAgeGateExecutorTests
         SpamEnforcementOutcome outcome = await RunAsync(Decision(false), Verdict(holds: true));
 
         outcome.DeletedMessage.Should().BeTrue();
-        await _twitch.Received(1).DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+        await _twitch
+            .Received(1)
+            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
         await _queue
             .Received(1)
             .EnqueueHeldMessageAsync(
@@ -121,9 +123,7 @@ public class AccountAgeGateExecutorTests
 
         outcome.DeletedMessage.Should().BeFalse();
         outcome.Skipped.Should().Be("dry run");
-        await _twitch
-            .DidNotReceiveWithAnyArgs()
-            .DeleteChatMessageAsync(default, default!, default);
+        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!, default);
         await _queue
             .DidNotReceiveWithAnyArgs()
             .EnqueueHeldMessageAsync(default, default!, default!, default!, default!, default!);

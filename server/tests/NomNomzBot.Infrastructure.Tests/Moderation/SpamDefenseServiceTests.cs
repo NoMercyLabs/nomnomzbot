@@ -1471,6 +1471,7 @@ public class SpamDefenseServiceTests : IDisposable
     [Fact]
     public async Task AnAccountTooYoungForNewcomer_SkipsTheLookup()
     {
+        SeedAccount("brand-new", ageDays: 2);
         ITwitchChannelsApi api = FollowerApi(Now.AddDays(-10));
 
         SpamTrustTier tier = await TierOf(api, new FollowStateCache(_time), "brand-new");

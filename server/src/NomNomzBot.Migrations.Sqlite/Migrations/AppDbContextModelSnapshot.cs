@@ -8460,6 +8460,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<int>("AccountAgeGateDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AccountGateHoldsForReview")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("ActionDelaySeconds")
                         .HasColumnType("INTEGER");
 
@@ -8488,6 +8494,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("FollowAgeGateDays")
+                        .HasColumnType("INTEGER");
 
                     b.Property<double>("FollowSpikeFactor")
                         .HasColumnType("REAL");
