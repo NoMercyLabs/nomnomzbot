@@ -102,6 +102,13 @@ public sealed class AutoModerationHandlerHeatTests
             .Returns(Result.Success(new ModerationActionResult(true, null)));
 
         ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
+        twitch
+            .DeleteChatMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);

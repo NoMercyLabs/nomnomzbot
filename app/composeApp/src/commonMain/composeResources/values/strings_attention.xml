@@ -51,6 +51,8 @@
     <string name="attention_song_lost_title_many">%1$d song requests were lost</string>
     <string name="attention_song_lost_message">“%1$s” for %2$s left the player queue before it played. Any cost was refunded.</string>
     <string name="attention_song_lost_unnamed_message">A request left the player queue before it played. Any cost was refunded.</string>
+    <string name="attention_automod_delete_failed_title">AutoMod could not delete a message</string>
+    <string name="attention_automod_delete_failed_message">The rule “%1$s” tried to delete a message from %2$s, but Twitch refused. The message stays in chat. Make sure the bot is a moderator in your channel. Failed deletions in the last day: %3$s.</string>
     <string name="attention_bot_not_moderator_title">%1$s is not a moderator in your channel</string>
     <string name="attention_bot_not_moderator_message">Type /mod %1$s in your Twitch chat. Twitch limits what a bot without the moderator role can do.</string>
     <string name="attention_spotify_blocked_title">Spotify paused your music until %1$s</string>
