@@ -136,6 +136,39 @@ class AttentionSurfaceTest {
         onNodeWithText("Kritiek · 1").assertExists()
     }
 
+    private val deleteFailed: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "automod-delete-failed:abc",
+            kind = "automod_delete_failed",
+            severity = "warning",
+            titleKey = "attention_automod_delete_failed_title",
+            messageKey = "attention_automod_delete_failed_message",
+            parameters = mapOf("ruleName" to "no links", "userName" to "spammer_one", "count" to "3"),
+            deepLinkRoute = "moderation",
+        )
+
+    @Test
+    fun aFailedAutoModDeleteNamesTheRuleAndTheChatter_inBothLocales() = runComposeUiTest {
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(deleteFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("AutoMod could not delete a message").assertExists()
+        onNodeWithText("The rule “no links” tried to delete a message from spammer_one", substring = true)
+            .assertExists()
+        onNodeWithText("Failed deletions in the last day: 3", substring = true).assertExists()
+    }
+
+    @Test
+    fun aFailedAutoModDeleteRendersInDutch() = runComposeUiTest {
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(deleteFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("AutoMod kon een bericht niet verwijderen").assertExists()
+        onNodeWithText("De regel “no links” probeerde een bericht van spammer_one", substring = true).assertExists()
+    }
+
     private val operatorActing: ActionRequiredItem =
         ActionRequiredItem(
             id = "security-notice:n1",
