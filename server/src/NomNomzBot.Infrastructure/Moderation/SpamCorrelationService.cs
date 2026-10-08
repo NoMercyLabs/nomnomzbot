@@ -85,16 +85,7 @@ public sealed class SpamCorrelationService
         DateTimeOffset now = _time.GetUtcNow();
         CohortThresholds thresholds = ThresholdsFrom(settings);
 
-        SpamCampaignRecord? record = await _db
-            .SpamCampaigns.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(
-                c =>
-                    c.BroadcasterId == broadcasterId
-                    && c.Skeleton == skeleton
-                    && c.DeletedAt == null
-                    && c.ExpiresAt > now.UtcDateTime,
-                ct
-            );
+        SpamCampaignRecord? record = await FindActiveRecordAsync(broadcasterId, skeleton, now, ct);
 
         CampaignCohort cohort;
         if (record is null)
@@ -110,26 +101,17 @@ public sealed class SpamCorrelationService
         }
         else
         {
-            cohort = CampaignCohort.Rehydrate(
-                record.Skeleton,
-                AsUtc(record.FirstSeenAt),
-                AsUtc(record.ExpiresAt),
-                Split(record.MemberAccountIds),
-                Split(record.StandingAccountIds),
-                Split(record.ActionedAccountIds),
-                record.Verdict,
-                record.IsDequalified,
-                record.QualifiedAt is null ? null : AsUtc(record.QualifiedAt.Value),
-                record.MayContributeToNetwork,
-                thresholds
-            );
+            cohort = Rehydrate(record, thresholds);
         }
 
         bool wasDequalified = cohort.IsDequalified;
         CohortVerdict verdict = cohort.Observe(accountId, tier, now);
+
+        // Only PERMISSION to act is decided here. Whether an account was actually actioned is not known
+        // until the enforcement arm has run and the platform has answered, so it is recorded afterwards
+        // by RecordActionedAsync — never assumed from permission. An account listed as actioned that the
+        // bot never touched would be unbanned by a later reversal, lifting a moderator's own ban.
         bool mayAct = cohort.MayActOn(accountId, now);
-        if (mayAct)
-            cohort.RecordAction(accountId);
 
         // A reversal is produced only on the OBSERVATION that flipped the latch. Emitting it on every
         // later message would re-issue unbans for accounts already restored.
@@ -155,6 +137,76 @@ public sealed class SpamCorrelationService
 
         return new CohortObservation(verdict, mayAct, reversal, restoration);
     }
+
+    /// <summary>
+    /// Record that the bot's own enforcement really actioned <paramref name="accountId"/> at the
+    /// platform, so a later de-qualification knows exactly what is the bot's to undo.
+    ///
+    /// <para>Call this only after the platform confirmed the timeout or ban — never in dry run, never
+    /// when enforcement chose no action, never when it failed. The reversal lifts every account listed
+    /// here and nobody else, so an account the bot did not touch (a moderator's ban, an enforcement that
+    /// failed) must not be on the list.</para>
+    ///
+    /// <para>The cohort still has the final say: the account must be a member of an active campaign that
+    /// may act on it right now. A report that fails that check is dropped rather than trusted.</para>
+    /// </summary>
+    public async Task RecordActionedAsync(
+        Guid broadcasterId,
+        string skeleton,
+        string accountId,
+        SpamDefenseSettings settings,
+        CancellationToken ct = default
+    )
+    {
+        DateTimeOffset now = _time.GetUtcNow();
+        SpamCampaignRecord? record = await FindActiveRecordAsync(broadcasterId, skeleton, now, ct);
+        if (record is null)
+            return;
+
+        CampaignCohort cohort = Rehydrate(record, ThresholdsFrom(settings));
+        if (!cohort.MayActOn(accountId, now))
+            return;
+
+        cohort.RecordAction(accountId);
+        record.ActionedAccountIds = Join(cohort.ActionedAccounts);
+        record.ActionedCount = cohort.ActionedAccounts.Count;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task<SpamCampaignRecord?> FindActiveRecordAsync(
+        Guid broadcasterId,
+        string skeleton,
+        DateTimeOffset now,
+        CancellationToken ct
+    ) =>
+        await _db
+            .SpamCampaigns.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                c =>
+                    c.BroadcasterId == broadcasterId
+                    && c.Skeleton == skeleton
+                    && c.DeletedAt == null
+                    && c.ExpiresAt > now.UtcDateTime,
+                ct
+            );
+
+    private static CampaignCohort Rehydrate(
+        SpamCampaignRecord record,
+        CohortThresholds thresholds
+    ) =>
+        CampaignCohort.Rehydrate(
+            record.Skeleton,
+            AsUtc(record.FirstSeenAt),
+            AsUtc(record.ExpiresAt),
+            Split(record.MemberAccountIds),
+            Split(record.StandingAccountIds),
+            Split(record.ActionedAccountIds),
+            record.Verdict,
+            record.IsDequalified,
+            record.QualifiedAt is null ? null : AsUtc(record.QualifiedAt.Value),
+            record.MayContributeToNetwork,
+            thresholds
+        );
 
     /// <summary>
     /// Promote a confirmed campaign into the corpus, or withdraw it when the cohort is exonerated.
