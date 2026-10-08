@@ -2701,6 +2701,16 @@ than each consumer needing their own clone-and-customize pass.
   Home's entries are gone; pressing a registered key runs its handler once; `?` typed in a text field does not open
   the sheet.
 
+- **S-QUOTE-REPLY** [idea, later; owner 2026-10-08] `!quote add` as a chat reply quotes the replied-to message and credits its author.
+  Owner, verbatim: "add the !quote creation on reply and credit the user automatically".
+  Today the streamer types the text and `- @QTkittE` by hand (stream 2026-10-08). With a Twitch reply
+  (`reply-parent-msg-body`, `reply-parent-user-login`), bare `!quote add` stores the parent message as the
+  quote and its sender as the author, with the current game and date. Same on every platform that has
+  replies; a plain `!quote add <text>` keeps working.
+  Files: `QuoteBuiltin.cs`, the chat message reply metadata, quote tests.
+  Done-when: a test sends `!quote add` as a reply to QTkittE's message and asserts a stored quote with that text,
+  author QTkittE and the live game, and the bot line names the author.
+
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
 - **S100-remaining** Custom data sources truth — drop or wire `InboundWebhookEndpointId` (U·E3);
