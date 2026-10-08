@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -52,7 +53,8 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
         bool autoTimeoutOn,
         int timeoutSeconds = 600,
         bool subjectIsModerator = false,
-        bool timeoutFails = false
+        bool timeoutFails = false,
+        IInboundOriginModerator? origin = null
     )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
@@ -136,6 +138,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
             db,
             moderation,
             queue,
+            origin ?? Substitute.For<IInboundOriginModerator>(),
             bus,
             NullLogger<HeatThresholdAutoTimeoutHandler>.Instance
         );
@@ -152,15 +155,155 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
         return (handler, moderation);
     }
 
-    private static UserHeatThresholdCrossedEvent Crossing(string twitchUserId, Guid userId) =>
+    private static UserHeatThresholdCrossedEvent Crossing(
+        string twitchUserId,
+        Guid userId,
+        string? provider = null
+    ) =>
         new()
         {
             BroadcasterId = Channel,
             SubjectUserId = userId,
             SubjectTwitchUserId = twitchUserId,
+            SubjectProvider = provider ?? "twitch",
             HeatScore = 85m,
             Threshold = 80,
         };
+
+    private static IInboundOriginModerator OriginSupporting(
+        string provider,
+        InboundModerationOutcome outcome
+    )
+    {
+        IInboundOriginModerator origin = Substitute.For<IInboundOriginModerator>();
+        origin.Supports(provider).Returns(true);
+        origin
+            .TimeoutUserAsync(
+                Arg.Any<Guid>(),
+                provider,
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(outcome);
+        return origin;
+    }
+
+    [Theory]
+    [InlineData("kick")]
+    [InlineData("youtube")]
+    public async Task WhenEnabled_ANonTwitchCrossingTimesOutOnItsOwnPlatform_NeverThroughTwitch(
+        string provider
+    )
+    {
+        IInboundOriginModerator origin = OriginSupporting(
+            provider,
+            InboundModerationOutcome.Done()
+        );
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            IModerationService moderation,
+            _,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(autoTimeoutOn: true, timeoutSeconds: 900, origin: origin);
+
+        await handler.HandleAsync(Crossing("k-77", ViewerUserId, provider));
+
+        await origin
+            .Received(1)
+            .TimeoutUserAsync(
+                Channel,
+                provider,
+                "k-77",
+                900,
+                Arg.Is<string?>(reason => reason != null && reason.Contains("heat")),
+                Arg.Any<CancellationToken>()
+            );
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutAsync(default!, default, default!, default);
+        bus.Published.OfType<UserHeatAutoTimeoutFailedEvent>().Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(InboundModerationStatus.Failed)]
+    [InlineData(InboundModerationStatus.NotSupported)]
+    public async Task WhenEnabled_ANonTwitchTimeoutThatDidNotHappen_IsReportedAsAFailure_NeverAsDone(
+        InboundModerationStatus status
+    )
+    {
+        InboundModerationOutcome outcome =
+            status == InboundModerationStatus.Failed
+                ? InboundModerationOutcome.Failed("Kick refused: missing scope")
+                : InboundModerationOutcome.NotSupported("Kick cannot time out");
+        IInboundOriginModerator origin = OriginSupporting("kick", outcome);
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            IModerationService moderation,
+            _,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(autoTimeoutOn: true, origin: origin);
+
+        await handler.HandleAsync(Crossing("k-77", ViewerUserId, "kick"));
+
+        UserHeatAutoTimeoutFailedEvent failed = bus
+            .Published.OfType<UserHeatAutoTimeoutFailedEvent>()
+            .Single();
+        failed.Error.Should().Be(outcome.Reason);
+        failed.SubjectTwitchUserId.Should().Be("k-77");
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutAsync(default!, default, default!, default);
+    }
+
+    [Fact]
+    public async Task WhenEnabled_ANonTwitchCrossingOnAPlatformNoModeratorSupports_IsAFailure_NotATwitchTimeout()
+    {
+        IInboundOriginModerator origin = Substitute.For<IInboundOriginModerator>();
+        origin.Supports("kick").Returns(false);
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            IModerationService moderation,
+            _,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(autoTimeoutOn: true, origin: origin);
+
+        await handler.HandleAsync(Crossing("k-77", ViewerUserId, "kick"));
+
+        bus.Published.OfType<UserHeatAutoTimeoutFailedEvent>().Should().HaveCount(1);
+        await origin
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutUserAsync(default, default!, default!, default);
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutAsync(default!, default, default!, default);
+    }
+
+    [Fact]
+    public async Task WhenEnabled_ATwitchCrossingStillUsesTheTwitchPath_AndNeverTheSeam()
+    {
+        IInboundOriginModerator origin = Substitute.For<IInboundOriginModerator>();
+        (HeatThresholdAutoTimeoutHandler handler, IModerationService moderation, _, _) =
+            await BuildWithStateAsync(autoTimeoutOn: true, origin: origin);
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        await moderation
+            .Received(1)
+            .TimeoutAsync(
+                Channel.ToString(),
+                OwnerUserId,
+                ViewerTwitchId,
+                600,
+                Arg.Any<string?>(),
+                null,
+                Arg.Any<CancellationToken>()
+            );
+        await origin
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutUserAsync(default, default!, default!, default);
+    }
 
     [Fact]
     public async Task WhenEnabled_ACrossingTimesTheViewerOut_ForTheConfiguredLength()

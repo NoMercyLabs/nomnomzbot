@@ -11,9 +11,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -50,6 +52,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
     private readonly IApplicationDbContext _db;
     private readonly IModerationService _moderation;
     private readonly IModerationQueueService _queue;
+    private readonly IInboundOriginModerator _origin;
     private readonly IEventBus _bus;
     private readonly ILogger<HeatThresholdAutoTimeoutHandler> _logger;
 
@@ -57,6 +60,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
         IApplicationDbContext db,
         IModerationService moderation,
         IModerationQueueService queue,
+        IInboundOriginModerator origin,
         IEventBus bus,
         ILogger<HeatThresholdAutoTimeoutHandler> logger
     )
@@ -64,6 +68,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
         _db = db;
         _moderation = moderation;
         _queue = queue;
+        _origin = origin;
         _bus = bus;
         _logger = logger;
     }
@@ -113,32 +118,54 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
                 ? config.Value.HeatTimeoutSeconds
                 : DefaultTimeoutSeconds;
 
-        // Issued as the broadcaster (operatorUserId = the channel owner): this is the channel's own
-        // automation, not a moderator's personal action, and no dashboard user is in the loop.
-        Guid ownerUserId = await _db
-            .Channels.Where(c => c.Id == broadcasterId)
-            .Select(c => c.OwnerUserId)
-            .FirstOrDefaultAsync(ct);
-        if (ownerUserId == Guid.Empty)
-            return;
+        string reason =
+            $"Automatic: moderation heat reached {@event.HeatScore:0} (threshold {@event.Threshold}).";
 
-        Result<ModerationActionResult> result = await _moderation.TimeoutAsync(
-            broadcasterId.ToString(),
-            ownerUserId,
-            @event.SubjectTwitchUserId,
-            seconds,
-            $"Automatic: moderation heat reached {@event.HeatScore:0} (threshold {@event.Threshold}).",
-            null,
-            ct
-        );
+        // A viewer is actioned on the platform their heat came from. Twitch rides the Twitch moderation
+        // service; any other platform goes through the inbound-origin seam, which says honestly when it
+        // could not act.
+        string? error;
+        if (
+            string.Equals(
+                @event.SubjectProvider,
+                AuthEnums.Platform.Twitch,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            // Issued as the broadcaster (operatorUserId = the channel owner): this is the channel's own
+            // automation, not a moderator's personal action, and no dashboard user is in the loop.
+            Guid ownerUserId = await _db
+                .Channels.Where(c => c.Id == broadcasterId)
+                .Select(c => c.OwnerUserId)
+                .FirstOrDefaultAsync(ct);
+            if (ownerUserId == Guid.Empty)
+                return;
 
-        if (result.IsFailure)
+            Result<ModerationActionResult> result = await _moderation.TimeoutAsync(
+                broadcasterId.ToString(),
+                ownerUserId,
+                @event.SubjectTwitchUserId,
+                seconds,
+                reason,
+                null,
+                ct
+            );
+            error = result.IsFailure
+                ? result.ErrorMessage ?? "The platform refused the timeout."
+                : null;
+        }
+        else
+            error = await TimeoutViaOriginAsync(@event, seconds, reason, ct);
+
+        if (error is not null)
         {
             _logger.LogWarning(
-                "Heat auto-timeout failed for {TwitchUserId} in {BroadcasterId}: {Error}",
+                "Heat auto-timeout failed for {UserId} on {Provider} in {BroadcasterId}: {Error}",
                 @event.SubjectTwitchUserId,
+                @event.SubjectProvider,
                 broadcasterId,
-                result.ErrorMessage
+                error
             );
             await _bus.PublishAsync(
                 new UserHeatAutoTimeoutFailedEvent
@@ -147,7 +174,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
                     SubjectUserId = @event.SubjectUserId,
                     SubjectTwitchUserId = @event.SubjectTwitchUserId,
                     SubjectUsername = username,
-                    Error = result.ErrorMessage ?? "The platform refused the timeout.",
+                    Error = error,
                     HeatScore = @event.HeatScore,
                     Threshold = @event.Threshold,
                 },
@@ -164,6 +191,33 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
                 @event.HeatScore,
                 @event.Threshold
             );
+    }
+
+    /// <summary>
+    /// Times the viewer out on the platform the crossing came from. Returns null when the platform did it,
+    /// otherwise the reason it did not; an unsupported platform is a failure, never claimed as done.
+    /// </summary>
+    private async Task<string?> TimeoutViaOriginAsync(
+        UserHeatThresholdCrossedEvent @event,
+        int seconds,
+        string reason,
+        CancellationToken ct
+    )
+    {
+        if (!_origin.Supports(@event.SubjectProvider))
+            return $"No chat platform is connected for {@event.SubjectProvider}, so the timeout was not applied.";
+
+        InboundModerationOutcome outcome = await _origin.TimeoutUserAsync(
+            @event.BroadcasterId,
+            @event.SubjectProvider,
+            @event.SubjectTwitchUserId,
+            seconds,
+            reason,
+            ct
+        );
+        return outcome.Status == InboundModerationStatus.Done
+            ? null
+            : outcome.Reason ?? $"{@event.SubjectProvider} did not apply the timeout.";
     }
 
     private async Task FlagForHumanAsync(
@@ -202,6 +256,13 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
         CancellationToken ct
     )
     {
+        Guid ownerUserId = await _db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.OwnerUserId)
+            .FirstOrDefaultAsync(ct);
+        if (ownerUserId != Guid.Empty && ownerUserId == subjectUserId)
+            return true;
+
         string? broadcasterTwitchId = await _db
             .Channels.Where(c => c.Id == broadcasterId)
             .Select(c => c.TwitchChannelId)

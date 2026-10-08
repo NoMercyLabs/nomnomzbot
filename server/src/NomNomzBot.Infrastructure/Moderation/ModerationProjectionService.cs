@@ -126,6 +126,7 @@ public sealed class ModerationProjectionService(
             HeatDeltaFor(actionType, policy),
             occurredAtUtc,
             policy,
+            provider,
             ct
         );
         await db.SaveChangesAsync(ct);
@@ -201,6 +202,7 @@ public sealed class ModerationProjectionService(
             heatDelta: 0m,
             clock.GetUtcNow().UtcDateTime,
             await trustPolicy.GetAsync(broadcasterId, ct),
+            AuthEnums.Platform.Twitch,
             ct
         );
         await db.SaveChangesAsync(ct);
@@ -291,6 +293,7 @@ public sealed class ModerationProjectionService(
                 heatDelta: 0m,
                 clock.GetUtcNow().UtcDateTime,
                 rebuildPolicy,
+                AuthEnums.Platform.Twitch,
                 ct
             );
         await db.SaveChangesAsync(ct);
@@ -377,6 +380,7 @@ public sealed class ModerationProjectionService(
         decimal heatDelta,
         DateTime nowUtc,
         TrustPolicy policy,
+        string subjectProvider,
         CancellationToken ct
     )
     {
@@ -437,6 +441,7 @@ public sealed class ModerationProjectionService(
                     BroadcasterId = broadcasterId,
                     SubjectUserId = subjectUserId,
                     SubjectTwitchUserId = subjectTwitchUserId,
+                    SubjectProvider = subjectProvider,
                     HeatScore = after,
                     Threshold = threshold,
                 },
