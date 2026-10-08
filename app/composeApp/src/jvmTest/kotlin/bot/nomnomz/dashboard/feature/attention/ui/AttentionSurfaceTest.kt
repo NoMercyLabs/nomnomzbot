@@ -208,6 +208,102 @@ class AttentionSurfaceTest {
         onNodeWithText("De regel “no links” probeerde een bericht van spammer_one", substring = true).assertExists()
     }
 
+    private fun sharedBan(reason: String, parameters: Map<String, String>): ActionRequiredItem =
+        ActionRequiredItem(
+            id = "shared-ban:$reason:abc",
+            kind = "shared_ban_not_applied",
+            severity = "warning",
+            titleKey = "attention_shared_ban_title",
+            messageKey = "attention_shared_ban_${reason}_message",
+            parameters = parameters,
+            deepLinkRoute = "moderation",
+        )
+
+    @Test
+    fun aSharedBanFromAnUntrustedChannelNamesTheViewerAndTheCount_inBothLocales() = runComposeUiTest {
+        val item: ActionRequiredItem =
+            sharedBan("origin_not_trusted", mapOf("count" to "2", "targetName" to "raider_one"))
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(item), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("A shared ban was not applied").assertExists()
+        onNodeWithText("raider_one was banned in a channel you do not trust", substring = true).assertExists()
+        onNodeWithText("in the last day: 2", substring = true).assertExists()
+    }
+
+    @Test
+    fun aSharedBanOutsideASharedSessionRendersInDutch() = runComposeUiTest {
+        val item: ActionRequiredItem =
+            sharedBan("no_shared_session", mapOf("count" to "1", "targetName" to "raider_one"))
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(item), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Een gedeelde ban is niet toegepast").assertExists()
+        onNodeWithText("raider_one is verbannen", substring = true).assertExists()
+        onNodeWithText("gedeelde chat", substring = true).assertExists()
+    }
+
+    @Test
+    fun aSharedBanTwitchRefusedQuotesTwitchsReason() = runComposeUiTest {
+        val item: ActionRequiredItem =
+            sharedBan(
+                "twitch_ban_failed",
+                mapOf("count" to "1", "targetName" to "raider_one", "detail" to "missing scope"),
+            )
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(item), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Twitch refused the ban for raider_one: missing scope", substring = true).assertExists()
+    }
+
+    @Test
+    fun aSharedBanTwitchRefusedWithoutAReasonDropsTheQuote() = runComposeUiTest {
+        val item: ActionRequiredItem =
+            sharedBan("twitch_ban_failed", mapOf("count" to "1", "targetName" to "raider_two"))
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(item), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Twitch refused the ban for raider_two.", substring = true).assertExists()
+        onNodeWithText("raider_two:", substring = true).assertDoesNotExist()
+    }
+
+    private val filterFailed: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "filter-action-failed:abc",
+            kind = "chat_filter_action_failed",
+            severity = "warning",
+            titleKey = "attention_filter_action_failed_title",
+            messageKey = "attention_filter_action_failed_message",
+            parameters =
+                mapOf("filter" to "no links", "username" to "spammer_one", "action" to "timeout", "reason" to "missing scope"),
+            deepLinkRoute = "moderation",
+        )
+
+    @Test
+    fun aFailedFilterActionNamesTheFilterTheChatterTheActionAndTheReason_inBothLocales() = runComposeUiTest {
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(filterFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("The no links filter could not act on spammer_one").assertExists()
+        onNodeWithText("timeout", substring = true).assertExists()
+        onNodeWithText("missing scope", substring = true).assertExists()
+    }
+
+    @Test
+    fun aFailedFilterActionRendersInDutch() = runComposeUiTest {
+        setContent {
+            Pinned("nl") { AttentionSurface(items = listOf(filterFailed), onNavigate = {}, onDismiss = {}) }
+        }
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Het filter no links kon niets doen met spammer_one").assertExists()
+        onNodeWithText("missing scope", substring = true).assertExists()
+    }
+
     private val operatorActing: ActionRequiredItem =
         ActionRequiredItem(
             id = "security-notice:n1",
