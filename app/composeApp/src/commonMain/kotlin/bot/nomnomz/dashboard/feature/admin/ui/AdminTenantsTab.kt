@@ -44,6 +44,13 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionConfirm
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionDismiss
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
+import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
+import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
+import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
@@ -244,20 +251,14 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
     suspendFor?.let { tenant ->
         SuspendDialog(
             onDismiss = { suspendFor = null },
-            onConfirm = { newStatus, reason ->
-                scope.launch { controller.suspendTenant(tenant.id, newStatus, reason) }
-                suspendFor = null
-            },
+            onConfirm = { newStatus, reason -> controller.suspendTenant(tenant.id, newStatus, reason).toDialogResult() },
         )
     }
 
     reinstateFor?.let { tenant ->
         ReinstateDialog(
             onDismiss = { reinstateFor = null },
-            onConfirm = { justification ->
-                scope.launch { controller.reinstateTenant(tenant.id, justification) }
-                reinstateFor = null
-            },
+            onConfirm = { justification -> controller.reinstateTenant(tenant.id, justification).toDialogResult() },
         )
     }
 
@@ -644,11 +645,14 @@ private fun DetailLine(text: String) {
 }
 
 @Composable
-private fun SuspendDialog(onDismiss: () -> Unit, onConfirm: (newStatus: String, reason: String) -> Unit) {
+private fun SuspendDialog(onDismiss: () -> Unit, onConfirm: suspend (newStatus: String, reason: String) -> DialogResult) {
     val spacing = LocalSpacing.current
     var reason: String by remember { mutableStateOf("") }
+    // Both confirms share one state: while either is in flight the other is locked, and a failure shows once.
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
+    val canConfirm: Boolean = reason.isNotBlank() && !state.pending
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!state.pending) onDismiss() }) {
         DialogTitle(text = stringResource(Res.string.admin_tenant_suspend_title))
         DialogDescription(text = stringResource(Res.string.admin_tenant_suspend_desc))
         AppTextField(
@@ -657,15 +661,17 @@ private fun SuspendDialog(onDismiss: () -> Unit, onConfirm: (newStatus: String, 
             label = stringResource(Res.string.admin_tenant_reason),
             modifier = Modifier.fillMaxWidth(),
         )
+        state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
         Spacer(modifier = Modifier.height(spacing.s1))
         DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            OutlinedButton(onClick = { onConfirm(STATUS_BANNED, reason) }, enabled = reason.isNotBlank()) {
-                Text(text = stringResource(Res.string.admin_tenant_ban))
-            }
+            DialogActionDismiss(state = state, label = stringResource(Res.string.admin_cancel), onDismiss = onDismiss)
+            OutlinedButton(
+                onClick = { state.run { onConfirm(STATUS_BANNED, reason) } },
+                enabled = canConfirm,
+            ) { Text(text = stringResource(Res.string.admin_tenant_ban)) }
             Button(
-                onClick = { onConfirm(STATUS_SUSPENDED, reason) },
-                enabled = reason.isNotBlank(),
+                onClick = { state.run { onConfirm(STATUS_SUSPENDED, reason) } },
+                enabled = canConfirm,
                 variant = ButtonVariant.Destructive,
             ) { Text(text = stringResource(Res.string.admin_tenant_suspend)) }
         }
@@ -673,11 +679,12 @@ private fun SuspendDialog(onDismiss: () -> Unit, onConfirm: (newStatus: String, 
 }
 
 @Composable
-private fun ReinstateDialog(onDismiss: () -> Unit, onConfirm: (justification: String) -> Unit) {
+private fun ReinstateDialog(onDismiss: () -> Unit, onConfirm: suspend (justification: String) -> DialogResult) {
     val spacing = LocalSpacing.current
     var justification: String by remember { mutableStateOf("") }
+    val state: DialogActionState = rememberDialogActionState(onDone = onDismiss)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!state.pending) onDismiss() }) {
         DialogTitle(text = stringResource(Res.string.admin_tenant_reinstate_title))
         DialogDescription(text = stringResource(Res.string.admin_tenant_reinstate_desc))
         AppTextField(
@@ -686,12 +693,16 @@ private fun ReinstateDialog(onDismiss: () -> Unit, onConfirm: (justification: St
             label = stringResource(Res.string.admin_tenant_justification),
             modifier = Modifier.fillMaxWidth(),
         )
+        state.failure?.let { failure: DialogResult.Failed -> DialogActionError(failure) }
         Spacer(modifier = Modifier.height(spacing.s1))
         DialogFooter {
-            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
-            Button(onClick = { onConfirm(justification) }, enabled = justification.isNotBlank()) {
-                Text(text = stringResource(Res.string.admin_tenant_reinstate))
-            }
+            DialogActionDismiss(state = state, label = stringResource(Res.string.admin_cancel), onDismiss = onDismiss)
+            DialogActionConfirm(
+                state = state,
+                label = stringResource(Res.string.admin_tenant_reinstate),
+                enabled = justification.isNotBlank(),
+                action = { onConfirm(justification) },
+            )
         }
     }
 }

@@ -1129,32 +1129,27 @@ class AdminController(
         _state.value = _state.value.copy(selectedTenant = null)
     }
 
-    suspend fun suspendTenant(broadcasterId: String, newStatus: String, reason: String) {
-        when (val result: ApiResult<Unit> = platformAdminApi.suspendTenant(broadcasterId, SuspendTenantBody(newStatus, reason))) {
-            is ApiResult.Ok -> {
-                loadTenants(
-                    search = _state.value.tenantSearch,
-                    status = _state.value.tenantStatusFilter,
-                    page = _state.value.tenantsPage,
-                )
-                if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+    /** The dialog shows a failure inline, so none is toasted here. */
+    suspend fun suspendTenant(broadcasterId: String, newStatus: String, reason: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = platformAdminApi.suspendTenant(broadcasterId, SuspendTenantBody(newStatus, reason))
+        if (result is ApiResult.Ok) reloadTenantsAfterStatusChange(broadcasterId)
+        return result
     }
 
-    suspend fun reinstateTenant(broadcasterId: String, justification: String) {
-        when (val result: ApiResult<Unit> = platformAdminApi.reinstateTenant(broadcasterId, ReinstateTenantBody(justification))) {
-            is ApiResult.Ok -> {
-                loadTenants(
-                    search = _state.value.tenantSearch,
-                    status = _state.value.tenantStatusFilter,
-                    page = _state.value.tenantsPage,
-                )
-                if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
-            }
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
-        }
+    /** The dialog shows a failure inline, so none is toasted here. */
+    suspend fun reinstateTenant(broadcasterId: String, justification: String): ApiResult<Unit> {
+        val result: ApiResult<Unit> = platformAdminApi.reinstateTenant(broadcasterId, ReinstateTenantBody(justification))
+        if (result is ApiResult.Ok) reloadTenantsAfterStatusChange(broadcasterId)
+        return result
+    }
+
+    private suspend fun reloadTenantsAfterStatusChange(broadcasterId: String) {
+        loadTenants(
+            search = _state.value.tenantSearch,
+            status = _state.value.tenantStatusFilter,
+            page = _state.value.tenantsPage,
+        )
+        if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
     }
 
     suspend fun beginTenantAccess(broadcasterId: String, justification: String, breakGlass: Boolean) {
