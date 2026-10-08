@@ -1386,6 +1386,7 @@ public static class DependencyInjection
             Obs.Transport.ClientObsSocketFactory
         >();
         services.AddSingleton<Obs.Transport.DirectObsTransport>();
+        services.AddSingleton<Obs.Bridge.ObsBridgeRoundTrip>();
         services.AddSingleton<Obs.Bridge.BridgeObsTransport>();
         services.AddSingleton<
             Application.Obs.Services.IObsTransport,

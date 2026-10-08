@@ -3768,6 +3768,9 @@
     <string name="admin_flag_override_confirm_enable">Kanaal %1$s krijgt de vlag geforceerd AAN, wat de globale uitrol ook zegt. Na opslaan staat hij in deze lijst.</string>
     <string name="admin_flag_override_confirm_disable">Kanaal %1$s krijgt de vlag geforceerd UIT, wat de globale uitrol ook zegt. Na opslaan staat hij in deze lijst.</string>
     <string name="admin_flag_override_confirm">Override instellen</string>
+    <string name="admin_flag_override_clear_title">Override voor %1$s wissen?</string>
+    <string name="admin_flag_override_clear_message">Kanaal %1$s volgt voor deze vlag weer de globale uitrol.</string>
+    <string name="admin_flag_override_clear_confirm">Wissen</string>
     <string name="admin_flag_kill_switch_title">%1$s uitschakelen?</string>
     <string name="admin_flag_kill_switch_message_counted">Dit schakelt de flag platformbreed uit. %1$d actief kanaal/kanalen zonder override verliezen hem meteen, waaronder: %2$s.</string>
     <string name="admin_flag_kill_switch_message_none">Dit schakelt de flag platformbreed uit. Geen enkel actief kanaal wordt er nu door bestuurd — elk kanaal heeft al een override, of er zijn er nog geen.</string>

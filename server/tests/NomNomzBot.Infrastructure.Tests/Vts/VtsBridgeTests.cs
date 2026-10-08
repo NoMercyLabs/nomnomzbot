@@ -93,7 +93,15 @@ public sealed class VtsBridgeTests
                 return Task.CompletedTask;
             });
 
-        BridgeVtsTransport transport = new(registry, pusher, commands, new FakeTimeProvider());
+        BridgeVtsTransport transport = new(
+            new ObsBridgeRoundTrip(
+                registry,
+                pusher,
+                commands,
+                new FakeTimeProvider(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
+        );
         Result<string> result = await transport.RequestAsync(
             Channel,
             "ModelLoadRequest",
@@ -112,10 +120,17 @@ public sealed class VtsBridgeTests
     {
         IObsBridgePusher pusher = Substitute.For<IObsBridgePusher>();
         BridgeVtsTransport transport = new(
-            new ObsBridgeRegistry(new FakeCache(), new RecordingEventBus(), new FakeTimeProvider()),
-            pusher,
-            new(),
-            new FakeTimeProvider()
+            new ObsBridgeRoundTrip(
+                new ObsBridgeRegistry(
+                    new FakeCache(),
+                    new RecordingEventBus(),
+                    new FakeTimeProvider()
+                ),
+                pusher,
+                new(),
+                new FakeTimeProvider(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
         );
 
         Result<string> result = await transport.RequestAsync(Channel, "ModelLoadRequest", "{}");
@@ -154,10 +169,17 @@ public sealed class VtsBridgeTests
         db.SaveChanges();
 
         BridgeVtsTransport bridge = new(
-            new ObsBridgeRegistry(new FakeCache(), new RecordingEventBus(), new FakeTimeProvider()),
-            Substitute.For<IObsBridgePusher>(),
-            new(),
-            new FakeTimeProvider()
+            new ObsBridgeRoundTrip(
+                new ObsBridgeRegistry(
+                    new FakeCache(),
+                    new RecordingEventBus(),
+                    new FakeTimeProvider()
+                ),
+                Substitute.For<IObsBridgePusher>(),
+                new(),
+                new FakeTimeProvider(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
         );
         DirectVtsTransport direct = new(
             Substitute.For<NomNomzBot.Infrastructure.Obs.Transport.IObsSocketFactory>(),

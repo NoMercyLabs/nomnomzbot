@@ -744,8 +744,9 @@ class AdminController(
         body: AdminSetFeatureFlagOverrideRequest,
     ): ApiResult<Unit> = reloadAfterDialogWrite { api.setFeatureFlagOverride(flagKey, broadcasterId, body) }
 
-    suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
-        writeThenReload { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
+    /** Hands the outcome back to the confirm dialog, which shows a failure inline and stays open (no toast). */
+    suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> =
+        reloadAfterDialogWrite { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
 
     /**
      * Turns what an operator typed into the channel an override targets: a channel id as-is, otherwise an

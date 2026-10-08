@@ -21,6 +21,29 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
+
+Owner, verbatim: "THIS is a dropgame: https://github.com/CodingGarden/SeedlingDrop https://github.com/CodingGarden/ChristmasDrop" / "i like the drop game to be interchangable with other assets or versions, so make the logic generic and configurable and make the assets responsive and dynamically changable. for example i like a birds nest with an eagle that drops 'meat' (the user) to the nest... this is not now but needs to be prepared for" / "can we tweak the luck chance? ... give the lucky feather holder more drop luck" / "settings like always, look at PixelPush for their config options to see what we can onboard" / "do we calculate the random path with a seed or something? how do you intend to do this server side and how much would this cost saas?"
+
+Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec/drop-game.md`. Replaces S082. Every partial or missing benchmark row is a slice below. SaaS operation is reserved to NoMercy Labs; self-hosting is always free.
+
+- **S-DROP-SEED** The server draws a 64-bit seed per drop, computes the landing from it, and sends `{seed, spawnX, landingX}`; the overlay path ends exactly at `landingX`. Done-when: unit test re-runs the generator from a persisted seed and gets the same `landingX`; a measured per-drop CPU and bytes line replaces the estimate in the spec.
+- **S-DROP-SCORING** A drop gets a graded 0-100 score from its distance to the target, besides hit or miss. Done-when: test lands at center = 100, at the band edge = 0, and the score is in the frame and the result row.
+- **S-DROP-SETTINGS** One dashboard form edits `DropRules` (command word, fixed or random target, mode, timers, volumes, hide-until-drop, announce template); values validate on save and persist in the `drop_game` `GameConfig`. Done-when: E2E change the command word and `!drop` stops while the new word starts a drop.
+- **S-DROP-THEMEPACK** Theme packs: `pack.json` loader, slot rendering (background, foreground, carrier, payload, target, landed with grow-by-score, sounds) and the default `parachute` pack. Done-when: E2E renders `parachute` from its manifest with no art path in widget code.
+- **S-DROP-RESPONSIVE** The overlay draws on a 1920x1080 stage and rescales live. Done-when: E2E at 1280x720 and 3840x2160 shows the same layout, and a resize mid-flight does not jump the drop.
+- **S-DROP-PACK-EAGLE** The `eagle-nest` pack (flyover eagle, meat payload, nest target) built on the pack format with no server change; swap without reload. Done-when: E2E swaps packs with a drop in flight, the flight finishes in the old pack, the next drop uses the new one. Needs art from the designer; the placeholder SVG pack ships until then.
+- **S-DROP-LUCK** Lucky Feather holder luck from channel data (`luck.holder_boost`, `luck.holder_source`, `luck.max_boost`), frame flag `boosted`, feather shown on the payload. Done-when: test over 10,000 seeded drops shows the holder lands closer by the expected factor and boost 0 equals no holder; changing the setting changes the result without a deploy.
+- **S-DROP-MODES** Single, group, queue and raid modes; `!resetdrop`, `!queuedrop`, `!startdrop`, `!cleardrop` for mods. Done-when: test queue three drops, start, all fly together; reset cancels and refunds the stakes.
+- **S-DROP-REDEEM** Channel-point redemption, group redemption, bit cheer and the ready cooldown start a drop. Done-when: a fired redemption event starts one drop, and a second inside `cooldown_s` is refused with a chat reply.
+- **S-DROP-CUSTOM-IMAGE** `!drop <emoji>`, `!drop me`, `!drop <channel emote>`; the server fetches and caches the image. Done-when: test each argument yields the right image ref in the frame and no foreign host is requested by the overlay.
+- **S-DROP-PHYSICS** Seeded sway, wind gusts and optional drop-to-drop collisions as `physics` rules, drawn by the client from the seed. Done-when: same seed gives the same sway on two runs; collisions off gives identical landings to collisions on.
+- **S-DROP-SCORES** Persist landing scores per event and platform; chat commands top, recent, high, low; on-screen leaderboard of best unique players. Done-when: test lands five drops and each command answers from the stored rows.
+- **S-DROP-PERSIST** Landed items stay on screen for `landed_ttl_s`, and a new drop that hits a landed item knocks it off when the pack sets it. Done-when: E2E lands an item, hits it with a second drop, the first falls off.
+- **S-DROP-RELOAD** `GetDropState` hub method returns the session snapshot with `serverNow`; a reloaded overlay resumes flights from the seed. Done-when: E2E reloads the overlay mid-flight and the drop resumes within 100 ms of the expected position.
+- **S-DROP-AUDIO** Effects and notification volume settings per pack sound slot. Done-when: E2E at volume 0 plays nothing and at 50 plays at half gain.
+- **S-DROP-ANNOUNCE** Optional chat announcement from a template with variables (user, score), off by default. Done-when: test a landing posts exactly the rendered template once.
+
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
 
 Owner, verbatim: "so basically the code editing is not good enough and lacks too many features. the
@@ -2916,7 +2939,7 @@ than each consumer needing their own clone-and-customize pass.
   UF·N4: The bottom-of-sidebar identity block is gone. The profile menu (language, reconnect, preview as
   viewer, sign out) lives in the channel header's dropdown.
 - **S081** Widget component splits (W·§7/§8 i11) after S058; `WidgetGalleryItem` file-set storage first.
-- **S082** Drop game redesign 🔒 mechanic; stacked-transition chat style 🔒 reference (W·§8 i5/i8).
+- **S082** Stacked-transition chat style 🔒 reference (W·§8 i5/i8). The drop game redesign moved to the S-DROP-* slices (OWNER REQUEST 2026-10-07).
 - **S083** Render-manifest + per-page hub event-class subscriptions.
 - **S084** Remaining per-widget nits (W·§8 i10), the 15 code scripts test-run on the live channel, S
   LOW/informational list.

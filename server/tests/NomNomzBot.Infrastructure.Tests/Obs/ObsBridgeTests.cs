@@ -97,10 +97,17 @@ public sealed class ObsBridgeTests
     {
         IObsBridgePusher pusher = Substitute.For<IObsBridgePusher>();
         BridgeObsTransport transport = new(
-            new ObsBridgeRegistry(new FakeCache(), new RecordingEventBus(), new FakeTimeProvider()),
-            pusher,
-            new(),
-            new FakeTimeProvider()
+            new ObsBridgeRoundTrip(
+                new ObsBridgeRegistry(
+                    new FakeCache(),
+                    new RecordingEventBus(),
+                    new FakeTimeProvider()
+                ),
+                pusher,
+                new(),
+                new FakeTimeProvider(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
         );
 
         Result<ObsResponse> result = await transport.SendAsync(
@@ -150,7 +157,15 @@ public sealed class ObsBridgeTests
                 return Task.CompletedTask;
             });
 
-        BridgeObsTransport transport = new(registry, pusher, commands, new FakeTimeProvider());
+        BridgeObsTransport transport = new(
+            new ObsBridgeRoundTrip(
+                registry,
+                pusher,
+                commands,
+                new FakeTimeProvider(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
+        );
         Result<ObsResponse> result = await transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
@@ -169,6 +184,64 @@ public sealed class ObsBridgeTests
             );
         // A duplicate ack for a settled id is a no-op (idempotent CommandId).
         commands.Complete(Channel, pushedCommand, new(false, null, "late")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_leader_that_never_acks_is_evicted_and_the_command_reaches_the_live_bridge()
+    {
+        // Live 2026-10-08 12:08 UTC: the streamer's bridge reconnected (new connection), but the OLD socket
+        // stayed registered as leader until SignalR noticed it was dead 45 s later. The BSOD mute pushed to
+        // the dead leader, timed out, and the mic never muted. The dead leader must lose the lead right away.
+        FakeTimeProvider clock = new();
+        ObsBridgeRegistry registry = new(new FakeCache(), new RecordingEventBus(), clock);
+        await registry.RegisterAsync(Channel, "dead-leader", T0);
+        await registry.RegisterAsync(Channel, "live-conn", T0.AddMinutes(16));
+
+        ObsBridgeCommandBook commands = new();
+        IObsBridgePusher pusher = Substitute.For<IObsBridgePusher>();
+        List<string> pushedTo = [];
+        pusher
+            .PushExecuteAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                string target = ci.ArgAt<string>(0);
+                pushedTo.Add(target);
+                if (target == "live-conn")
+                    commands.Complete(Channel, ci.ArgAt<Guid>(1), new(true, null, null));
+                else
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(100);
+                        clock.Advance(TimeSpan.FromSeconds(16)); // the dead socket never answers
+                    });
+                return Task.CompletedTask;
+            });
+
+        BridgeObsTransport transport = new(
+            new ObsBridgeRoundTrip(
+                registry,
+                pusher,
+                commands,
+                clock,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ObsBridgeRoundTrip>.Instance
+            )
+        );
+        Result<ObsResponse> result = await transport.SendAsync(
+            Channel,
+            Guid.CreateVersion7(),
+            new("SetInputMute", null)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        pushedTo.Should().Equal(["dead-leader", "live-conn"]);
+        (await registry.GetLeaderAsync(Channel))
+            .Should()
+            .Be("live-conn", "a leader that does not answer is evicted");
     }
 
     [Fact]

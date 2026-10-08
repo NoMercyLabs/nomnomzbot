@@ -22,25 +22,13 @@ namespace NomNomzBot.Infrastructure.Obs.Bridge;
 /// </summary>
 public sealed class BridgeObsTransport : IObsTransport
 {
-    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(15);
     private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web);
 
-    private readonly IObsBridgeRegistry _registry;
-    private readonly IObsBridgePusher _pusher;
-    private readonly ObsBridgeCommandBook _commands;
-    private readonly TimeProvider _clock;
+    private readonly ObsBridgeRoundTrip _roundTrip;
 
-    public BridgeObsTransport(
-        IObsBridgeRegistry registry,
-        IObsBridgePusher pusher,
-        ObsBridgeCommandBook commands,
-        TimeProvider clock
-    )
+    public BridgeObsTransport(ObsBridgeRoundTrip roundTrip)
     {
-        _registry = registry;
-        _pusher = pusher;
-        _commands = commands;
-        _clock = clock;
+        _roundTrip = roundTrip;
     }
 
     public async Task<Result<ObsResponse>> SendAsync(
@@ -102,35 +90,28 @@ public sealed class BridgeObsTransport : IObsTransport
         CancellationToken ct
     )
     {
-        string? leader = await _registry.GetLeaderAsync(broadcasterId, ct);
-        if (leader is null)
-            return Result.Failure<ObsResponse>(
+        ObsBridgeRoundTripOutcome outcome = await _roundTrip.SendAsync(
+            broadcasterId,
+            commandId,
+            payload,
+            ct
+        );
+        return outcome.State switch
+        {
+            ObsBridgeRoundTripState.Acked => Result.Success(ToObsResponse(outcome.Ack!)),
+            ObsBridgeRoundTripState.Offline => Result.Failure<ObsResponse>(
                 "No OBS bridge is connected for this channel.",
                 "OBS_BRIDGE_OFFLINE"
-            );
-
-        Task<ObsBridgeAck> ack = _commands.BeginAsync(broadcasterId, commandId);
-        try
-        {
-            await _pusher.PushExecuteAsync(leader, commandId, payload, ct);
-            ObsBridgeAck answered = await ack.WaitAsync(CommandTimeout, _clock, ct);
-            return Result.Success(ToObsResponse(answered));
-        }
-        catch (TimeoutException)
-        {
-            _commands.Abandon(commandId);
-            return Result.Failure<ObsResponse>(
+            ),
+            ObsBridgeRoundTripState.Timeout => Result.Failure<ObsResponse>(
                 "The OBS bridge did not answer within the timeout.",
                 "OBS_TIMEOUT"
-            );
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            return Result.Failure<ObsResponse>(
+            ),
+            _ => Result.Failure<ObsResponse>(
                 "The OBS bridge disconnected mid-command.",
                 "OBS_BRIDGE_OFFLINE"
-            );
-        }
+            ),
+        };
     }
 
     private static ObsResponse ToObsResponse(ObsBridgeAck ack)
