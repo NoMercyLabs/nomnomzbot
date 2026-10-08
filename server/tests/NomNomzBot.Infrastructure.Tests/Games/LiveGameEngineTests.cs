@@ -198,11 +198,11 @@ public sealed class LiveGameEngineTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(ChatUnbanOutcome.Success);
 
-        public Task DeleteMessageAsync(
+        public Task<bool> DeleteMessageAsync(
             Guid broadcasterId,
             string messageId,
             CancellationToken cancellationToken = default
-        ) => Task.CompletedTask;
+        ) => Task.FromResult(true);
     }
 
     /// <summary>Forwards every call to a real <see cref="IGameService"/> except settlement, which always fails —

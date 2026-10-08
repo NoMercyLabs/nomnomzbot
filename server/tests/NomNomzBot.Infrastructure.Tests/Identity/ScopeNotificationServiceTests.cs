@@ -405,11 +405,11 @@ internal sealed class SpyChatProvider : IChatProvider
         CancellationToken cancellationToken = default
     ) => Task.FromResult(ChatUnbanOutcome.Success);
 
-    public Task DeleteMessageAsync(
+    public Task<bool> DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
-    ) => Task.CompletedTask;
+    ) => Task.FromResult(true);
 }
 
 /// <summary>A bot-readiness stub so the notice path can be exercised with the bot reachable or not.</summary>

@@ -153,8 +153,7 @@ public sealed class InboundOriginModeratorTests
             .TimeoutUserAsync(Tenant, "u-1", 600, "spam", Arg.Any<CancellationToken>());
         Assert.Empty(ModerationCalls(twitch));
 
-        kick.TimeoutUserAsync(Tenant, "u-2", 60, null, Arg.Any<CancellationToken>())
-            .Returns(false);
+        kick.TimeoutUserAsync(Tenant, "u-2", 60, null, Arg.Any<CancellationToken>()).Returns(false);
         InboundModerationOutcome failed = await moderator.TimeoutUserAsync(
             Tenant,
             AuthEnums.Platform.Kick,
@@ -210,8 +209,7 @@ public sealed class InboundOriginModeratorTests
             .DidNotReceive()
             .BanUserAsync(Tenant, "u-7", Arg.Any<string?>(), Arg.Any<CancellationToken>());
         await kick.Received(1).BanUserAsync(Tenant, "u-7", null, Arg.Any<CancellationToken>());
-        await kick
-            .DidNotReceive()
+        await kick.DidNotReceive()
             .BanUserAsync(Tenant, "u-9", Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
