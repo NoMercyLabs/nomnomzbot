@@ -754,7 +754,9 @@
     <string name="analytics_viewer_loading">Profiel laden…</string>
     <string name="analytics_viewer_error">Kon het profiel van deze kijker niet laden.</string>
     <string name="analytics_viewer_messages">Berichten</string>
-    <string name="analytics_viewer_watch_hours">Kijkuren</string>
+    <string name="watch_time_hours_minutes">%1$du %2$dm</string>
+    <string name="watch_time_minutes">%1$dm</string>
+    <string name="analytics_viewer_watch_hours">Kijktijd</string>
     <string name="analytics_viewer_commands">Commando's gebruikt</string>
     <string name="analytics_viewer_redemptions">Inwisselingen</string>
     <string name="analytics_viewer_follower">Volger</string>
@@ -3249,7 +3251,7 @@
     <string name="participant_home_no_title">Geen streamtitel ingesteld</string>
     <string name="participant_home_playing">Speelt %1$s</string>
     <string name="participant_stat_messages">Berichten</string>
-    <string name="participant_stat_watch_hours">Kijkuren</string>
+    <string name="participant_stat_watch_hours">Kijktijd</string>
     <string name="participant_stat_commands">Commando's gebruikt</string>
     <string name="participant_stat_channels">Kanalen</string>
     <string name="participant_sr_now_playing">Nu te horen</string>
@@ -3476,7 +3478,7 @@
     <string name="community_more_actions">Meer acties voor %1$s</string>
     <string name="community_stats_title">Kijker statistieken — %1$s</string>
     <string name="community_stats_messages">Berichten</string>
-    <string name="community_stats_watch_hours">Kijkuren</string>
+    <string name="community_stats_watch_hours">Kijktijd</string>
     <string name="community_stats_commands_used">Commando's gebruikt</string>
     <string name="community_stats_redemptions">Inwisselingen</string>
     <string name="community_stats_follower">Volger</string>

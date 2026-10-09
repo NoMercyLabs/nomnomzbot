@@ -757,7 +757,9 @@
     <string name="analytics_viewer_loading">Loading profile…</string>
     <string name="analytics_viewer_error">Couldn't load this viewer's profile.</string>
     <string name="analytics_viewer_messages">Messages</string>
-    <string name="analytics_viewer_watch_hours">Watch hours</string>
+    <string name="watch_time_hours_minutes">%1$dh %2$dm</string>
+    <string name="watch_time_minutes">%1$dm</string>
+    <string name="analytics_viewer_watch_hours">Watch time</string>
     <string name="analytics_viewer_commands">Commands used</string>
     <string name="analytics_viewer_redemptions">Redemptions</string>
     <string name="analytics_viewer_follower">Follower</string>
@@ -3259,7 +3261,7 @@
     <string name="participant_home_playing">Playing %1$s</string>
     <!-- Activity stat tiles (shared with Me). -->
     <string name="participant_stat_messages">Messages</string>
-    <string name="participant_stat_watch_hours">Watch hours</string>
+    <string name="participant_stat_watch_hours">Watch time</string>
     <string name="participant_stat_commands">Commands used</string>
     <string name="participant_stat_channels">Channels</string>
     <!-- Now Playing / Queue. -->
@@ -3491,7 +3493,7 @@
     <string name="community_more_actions">More actions for %1$s</string>
     <string name="community_stats_title">Viewer Stats — %1$s</string>
     <string name="community_stats_messages">Messages</string>
-    <string name="community_stats_watch_hours">Watch hours</string>
+    <string name="community_stats_watch_hours">Watch time</string>
     <string name="community_stats_commands_used">Commands used</string>
     <string name="community_stats_redemptions">Redemptions</string>
     <string name="community_stats_follower">Follower</string>

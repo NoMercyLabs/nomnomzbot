@@ -18,6 +18,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Infrastructure.Analytics;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -283,10 +284,9 @@ public class UserService : IUserService
             cancellationToken
         );
 
-        int watchStreakCount = await _db.WatchStreaks.CountAsync(
-            w => w.UserId == twitchUserId,
-            cancellationToken
-        );
+        long watchSeconds = await _db
+            .ViewerProfiles.Where(p => p.ViewerUserId == userGuid)
+            .SumAsync(p => p.TotalWatchSeconds, cancellationToken);
 
         int moderatorChannels = await _db.ChannelModerators.CountAsync(
             m => m.UserId == userGuid,
@@ -302,7 +302,7 @@ public class UserService : IUserService
 
         UserStatsDto dto = new(
             messageCount,
-            0,
+            watchSeconds / 3600.0,
             channelsCount,
             0,
             user.CreatedAt,
@@ -318,11 +318,17 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        Guid.TryParse(userId, out Guid userGuid);
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Errors.NotFound<List<UserChannelAppearanceDto>>("User", userId);
+
+        string? twitchUserId = await _db
+            .Users.Where(u => u.Id == userGuid)
+            .Select(u => u.TwitchUserId)
+            .FirstOrDefaultAsync(cancellationToken);
 
         // Channels the user has sent messages in
         var messageData = await _db
-            .ChatMessages.Where(m => m.UserId == userId)
+            .ChatMessages.Where(m => m.UserId == twitchUserId)
             .GroupBy(m => m.BroadcasterId)
             .Select(g => new
             {
@@ -338,9 +344,19 @@ public class UserService : IUserService
             .Select(cm => cm.ChannelId)
             .ToListAsync(cancellationToken);
 
+        var watchData = await _db
+            .ViewerProfiles.Where(p => p.ViewerUserId == userGuid)
+            .GroupBy(p => p.BroadcasterId)
+            .Select(g => new { ChannelId = g.Key, Seconds = g.Sum(p => p.TotalWatchSeconds) })
+            .ToListAsync(cancellationToken);
+
         List<Guid> allChannelIds =
         [
-            .. messageData.Select(c => c.ChannelId).Union(modChannelIds).Distinct(),
+            .. messageData
+                .Select(c => c.ChannelId)
+                .Union(modChannelIds)
+                .Union(watchData.Select(w => w.ChannelId))
+                .Distinct(),
         ];
 
         if (allChannelIds.Count == 0)
@@ -351,25 +367,18 @@ public class UserService : IUserService
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(cancellationToken);
 
-        var watchStreaks = await _db
-            .WatchStreaks.Where(w => w.UserId == userId && allChannelIds.Contains(w.BroadcasterId))
-            .Select(w => new { w.BroadcasterId, w.CurrentStreak })
-            .ToListAsync(cancellationToken);
-
         List<UserChannelAppearanceDto> result =
         [
             .. channelNames.Select(ch =>
             {
                 var msgs = messageData.FirstOrDefault(m => m.ChannelId == ch.Id);
-                var streak = watchStreaks.FirstOrDefault(w => w.BroadcasterId == ch.Id);
+                var watch = watchData.FirstOrDefault(w => w.ChannelId == ch.Id);
 
                 string followDate = msgs is not null
                     ? msgs.FirstSeen.ToString("yyyy-MM-dd")
                     : "N/A";
 
-                string watchTime = streak is not null
-                    ? $"{streak.CurrentStreak} day streak"
-                    : "N/A";
+                string watchTime = WatchTimeFormatter.Format(watch?.Seconds ?? 0);
 
                 return new UserChannelAppearanceDto(
                     ch.Id.ToString(),

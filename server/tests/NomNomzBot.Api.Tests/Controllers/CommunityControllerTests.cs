@@ -75,7 +75,7 @@ public sealed class CommunityControllerTests
     {
         CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
 
-        // A followed viewer WITH analytics: 7200 watch seconds (= 2 whole hours) and 5 commands used.
+        // A followed viewer WITH analytics: fractional hours must survive the DTO.
         db.Users.Add(
             new()
             {
@@ -92,7 +92,7 @@ public sealed class CommunityControllerTests
                 BroadcasterId = Broadcaster,
                 ViewerUserId = Guid.CreateVersion7(),
                 ViewerTwitchUserId = "twitch-777",
-                TotalWatchSeconds = 7200,
+                TotalWatchSeconds = 7500,
                 TotalCommandsUsed = 5,
                 TotalMessages = 42,
             }
@@ -156,7 +156,7 @@ public sealed class CommunityControllerTests
             m.Id == "twitch-777"
         );
         // The consequence of the fix: real aggregate values, not the old hardcoded 0.
-        withProfile.WatchHours.Should().Be(2); // 7200s / 3600 = 2 whole hours
+        withProfile.WatchHours.Should().BeApproximately(7500 / 3600.0, 0.000001);
         withProfile.CommandsUsed.Should().Be(5);
 
         CommunityController.CommunityUserDto withoutProfile = members.Single(m =>

@@ -1171,7 +1171,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     profile = loaded.Value;
             }
             vars.TryAdd($"{prefix}.messages", (profile?.TotalMessages ?? 0).ToString());
-            vars.TryAdd($"{prefix}.watchtime", FormatWatchTime(profile?.TotalWatchSeconds ?? 0));
+            vars.TryAdd(
+                $"{prefix}.watchtime",
+                Analytics.WatchTimeFormatter.Format(profile?.TotalWatchSeconds ?? 0)
+            );
             vars.TryAdd(
                 $"{prefix}.firstseen",
                 profile?.FirstSeenAt?.ToString("yyyy-MM-dd") ?? "unknown"
@@ -1245,13 +1248,6 @@ public sealed partial class TemplateResolver : ITemplateResolver
             .Select(u => u.Id)
             .FirstOrDefaultAsync(ct);
         return id == Guid.Empty ? null : id;
-    }
-
-    private static string FormatWatchTime(long totalSeconds)
-    {
-        long hours = totalSeconds / 3600;
-        long minutes = totalSeconds % 3600 / 60;
-        return hours > 0 ? $"{hours}h {minutes}m" : $"{minutes}m";
     }
 
     private async Task<string?> ResolveTwitchChannelIdAsync(
