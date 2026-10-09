@@ -108,7 +108,9 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
         {
             ["stats.user"] = label,
             ["stats.messages"] = messages.ToString(),
-            ["stats.watchtime"] = FormatWatchTime(watchSeconds),
+            ["stats.watchtime"] = NomNomzBot.Infrastructure.Analytics.WatchTimeFormatter.Format(
+                watchSeconds
+            ),
             ["stats.points"] = points.ToString(),
             ["stats.rank"] = rank?.ToString() ?? "unranked",
             ["stats.rankpart"] = rank is not null ? $" (rank #{rank})" : string.Empty,
@@ -213,13 +215,6 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
             ct
         );
         return richer + 1;
-    }
-
-    private static string FormatWatchTime(long totalSeconds)
-    {
-        long hours = totalSeconds / 3600;
-        long minutes = totalSeconds % 3600 / 60;
-        return hours > 0 ? $"{hours}h {minutes}m" : $"{minutes}m";
     }
 }
 

@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -35,23 +36,26 @@ public sealed class WatchSessionProjectionTests
     private static int _seq;
 
     private static (WatchSessionProjection Sut, AuthDbContext Db) Build(
-        string? streamId = "stream1"
+        string? streamId = "stream1",
+        AuthDbContext? context = null,
+        ILiveWindowResolver? liveWindow = null
     )
     {
-        AuthDbContext db = AuthTestBuilder.NewContext();
+        AuthDbContext db = context ?? AuthTestBuilder.NewContext();
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
         IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
-        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-        live.GetCoveringStreamIdAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<DateTime>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(streamId);
+        ILiveWindowResolver live = liveWindow ?? Substitute.For<ILiveWindowResolver>();
+        if (liveWindow is null)
+            live.GetCoveringStreamIdAsync(
+                    Arg.Any<Guid>(),
+                    Arg.Any<DateTime>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(streamId);
         return (new(db, new(db, userService), live), db);
     }
 
@@ -83,6 +87,59 @@ public sealed class WatchSessionProjectionTests
             at,
             at
         );
+
+    [Fact]
+    public async Task Live_activity_spans_survive_offline_gap_and_projection_restart()
+    {
+        FakeTimeProvider clock = new(T0);
+        string databaseName = $"watch-session-restart-{Guid.NewGuid():N}";
+        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+        live.GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                DateTime at = call.ArgAt<DateTime>(1);
+                return at < T0.AddMinutes(5) ? "stream-one"
+                    : at >= T0.AddMinutes(10) && at < T0.AddMinutes(20) ? "stream-two"
+                    : null;
+            });
+
+        AuthDbContext firstDb = AuthTestBuilder.NewContext(databaseName);
+        (WatchSessionProjection first, _) = Build(context: firstDb, liveWindow: live);
+        await first.ApplyAsync(Chat("viewer-one", clock.GetUtcNow().UtcDateTime));
+        clock.Advance(TimeSpan.FromSeconds(30));
+        await first.ApplyAsync(Chat("viewer-two", clock.GetUtcNow().UtcDateTime));
+        clock.Advance(TimeSpan.FromSeconds(60));
+        await first.ApplyAsync(Chat("viewer-two", clock.GetUtcNow().UtcDateTime));
+        clock.Advance(TimeSpan.FromSeconds(30));
+        await first.ApplyAsync(Chat("viewer-one", clock.GetUtcNow().UtcDateTime));
+        clock.Advance(TimeSpan.FromMinutes(6));
+        await first.ApplyAsync(Chat("viewer-one", clock.GetUtcNow().UtcDateTime)); // offline
+
+        AuthDbContext secondDb = AuthTestBuilder.NewContext(databaseName);
+        (WatchSessionProjection second, _) = Build(context: secondDb, liveWindow: live);
+        clock.Advance(TimeSpan.FromMinutes(2));
+        await second.ApplyAsync(Chat("viewer-one", clock.GetUtcNow().UtcDateTime));
+        clock.Advance(TimeSpan.FromMinutes(3));
+        await second.ApplyAsync(Chat("viewer-one", clock.GetUtcNow().UtcDateTime));
+
+        secondDb
+            .ViewerProfiles.Single(p => p.ViewerTwitchUserId == "viewer-one")
+            .TotalWatchSeconds.Should()
+            .Be(300);
+        secondDb
+            .ViewerProfiles.Single(p => p.ViewerTwitchUserId == "viewer-two")
+            .TotalWatchSeconds.Should()
+            .Be(60);
+        secondDb
+            .WatchSessions.Select(s => s.DurationSeconds)
+            .OrderBy(s => s)
+            .Should()
+            .Equal(60, 120, 180);
+    }
 
     [Fact]
     public async Task Opens_and_extends_a_session_and_confirms_presence_after_60s()
