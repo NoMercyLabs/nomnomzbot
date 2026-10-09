@@ -1134,13 +1134,24 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 RequesterOfPlayingTrack(_queueStore, broadcasterId, fresh.Track.TrackUri)
             );
 
+        // A reader that arrives right after "nothing playing" gets the same answer: without this every
+        // Stream Deck key / overlay / chat command on a silent channel sent its own Spotify call.
+        if (!isBackgroundPoll && _nowPlayingCache.IsKnownEmpty(tenantId, ReaderCacheFreshness))
+            return null;
+
         TrackInfo? track = await provider.GetCurrentTrackAsync(
             tenantId,
             cancellationToken,
             isBackgroundPoll
         );
         if (track is null)
+        {
+            // Only a healthy connection's "nothing playing" is worth repeating; a dead token or a refusal
+            // must stay retryable the moment it recovers.
+            if (await GetActiveProviderAuthStatusAsync(broadcasterId, cancellationToken) is null)
+                _nowPlayingCache.SetEmpty(tenantId, DateTimeOffset.UtcNow);
             return null;
+        }
 
         _nowPlayingCache.Set(tenantId, track, DateTimeOffset.UtcNow);
 

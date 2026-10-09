@@ -157,10 +157,13 @@ public sealed class SpotifyMusicProvider
         DateTimeOffset now = _timeProvider.GetUtcNow();
         DateTimeOffset until = now + retryAfter;
         _cooldowns.CoolUntil(broadcasterId, now, until);
+        SpotifyCallCounts calls = _cooldowns.CallsInLastHour(broadcasterId, now);
         _logger.LogWarning(
-            "Spotify rate limited broadcaster {BroadcasterId}, cooling until {Until:O}",
+            "Spotify rate limited broadcaster {BroadcasterId}, cooling until {Until:O}; calls in the last hour: {Background} background, {Interactive} interactive",
             broadcasterId,
-            until
+            until,
+            calls.Background,
+            calls.Interactive
         );
     }
 
@@ -1833,6 +1836,7 @@ public sealed class SpotifyMusicProvider
         CancellationToken cancellationToken
     )
     {
+        await _cooldowns.RestoreAsync(broadcasterId, _timeProvider.GetUtcNow(), cancellationToken);
         if (CoolingResponse(broadcasterId) is { } cooling)
             return cooling;
 
@@ -1844,6 +1848,12 @@ public sealed class SpotifyMusicProvider
 
         try
         {
+            _cooldowns.RecordCall(
+                broadcasterId,
+                _timeProvider.GetUtcNow(),
+                request.Options.TryGetValue(SpotifyRequestTags.IsBackgroundPoll, out bool poll)
+                    && poll
+            );
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 RecordRateLimit(broadcasterId, response);

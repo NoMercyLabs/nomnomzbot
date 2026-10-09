@@ -33,14 +33,32 @@ public interface INowPlayingCache
     /// <summary>The cached snapshot, or null if there is none or it is older than <paramref name="maxAge"/> —
     /// callers decide their own staleness tolerance rather than this cache guessing one.</summary>
     NowPlayingSnapshot? TryGet(Guid broadcasterId, TimeSpan maxAge);
+
+    /// <summary>Records that the provider just answered "nothing playing" (or gave no answer).</summary>
+    void SetEmpty(Guid broadcasterId, DateTimeOffset observedAt);
+
+    /// <summary>Whether the provider answered "nothing playing" no longer than <paramref name="maxAge"/> ago.</summary>
+    bool IsKnownEmpty(Guid broadcasterId, TimeSpan maxAge);
 }
 
 public sealed class NowPlayingCache : INowPlayingCache
 {
     private readonly ConcurrentDictionary<Guid, NowPlayingSnapshot> _state = new();
 
-    public void Set(Guid broadcasterId, TrackInfo track, DateTimeOffset observedAt) =>
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _empty = new();
+
+    public void Set(Guid broadcasterId, TrackInfo track, DateTimeOffset observedAt)
+    {
         _state[broadcasterId] = new NowPlayingSnapshot(track, observedAt);
+        _empty.TryRemove(broadcasterId, out _);
+    }
+
+    public void SetEmpty(Guid broadcasterId, DateTimeOffset observedAt) =>
+        _empty[broadcasterId] = observedAt;
+
+    public bool IsKnownEmpty(Guid broadcasterId, TimeSpan maxAge) =>
+        _empty.TryGetValue(broadcasterId, out DateTimeOffset at)
+        && DateTimeOffset.UtcNow - at <= maxAge;
 
     public NowPlayingSnapshot? TryGet(Guid broadcasterId, TimeSpan maxAge)
     {
