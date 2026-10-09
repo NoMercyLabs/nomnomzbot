@@ -137,5 +137,6 @@ public sealed record SoundPlaybackDto(
     string PlaybackUrl,
     int Volume,
     int DurationMs,
-    string? Handle = null
+    string? Handle = null,
+    bool Synced = false
 );

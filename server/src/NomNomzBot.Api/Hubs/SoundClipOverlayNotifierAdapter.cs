@@ -33,7 +33,7 @@ internal sealed class SoundClipOverlayNotifierAdapter : ISoundClipOverlayNotifie
     ) =>
         _notifier.PlaySoundAsync(
             broadcasterId.ToString(),
-            new(playback.PlaybackUrl, playback.Volume, playback.Handle),
+            new(playback.PlaybackUrl, playback.Volume, playback.Handle, playback.Synced),
             ct
         );
 

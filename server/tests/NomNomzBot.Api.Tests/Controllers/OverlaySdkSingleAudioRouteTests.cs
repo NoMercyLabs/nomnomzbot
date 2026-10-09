@@ -92,6 +92,60 @@ public sealed class OverlaySdkSingleAudioRouteTests
     }
 
     [Fact]
+    public void A_synced_clip_starts_at_its_cue_while_an_unrelated_tts_line_is_playing()
+    {
+        OverlaySdkRuntime page = OverlaySdkRuntime.Connected();
+        page.Deliver("TtsSpeak", new { text = "unrelated", audioUrl = "https://x/tts.mp3" });
+        page.Deliver("TtsSpeak", new { text = "another reward", audioUrl = "https://x/other.mp3" });
+        page.AudioPlays.Should().Be(1);
+
+        page.Deliver(
+            "PlaySound",
+            new
+            {
+                playbackUrl = "https://x/bsod.mp3",
+                volume = 80,
+                synced = true,
+            }
+        );
+
+        page.AudioPlays.Should().Be(2);
+        page.Text("__elements[0].playing").Should().Be("true");
+        page.Text("__elements[1].playing").Should().Be("false");
+        page.Text("__elements[2].playing").Should().Be("true");
+        page.Evaluate("__elements[0].fire('ended')");
+        page.AudioPlays.Should().Be(3);
+        page.Text("__elements[1].playing").Should().Be("true");
+        page.Text("__elements[2].playing").Should().Be("true");
+    }
+
+    [Fact]
+    public void A_synced_tts_line_starts_at_its_cue_without_draining_the_shared_queue()
+    {
+        OverlaySdkRuntime page = OverlaySdkRuntime.Connected();
+        page.Deliver("TtsSpeak", new { text = "unrelated", audioUrl = "https://x/first.mp3" });
+
+        page.Deliver(
+            "TtsSpeak",
+            new
+            {
+                text = "cue",
+                audioUrl = "https://x/cue.mp3",
+                synced = true,
+            }
+        );
+
+        page.AudioPlays.Should().Be(2);
+        page.Text("__elements[0].playing").Should().Be("true");
+        page.Text("__elements[1].playing").Should().Be("true");
+        page.Deliver("TtsSpeak", new { text = "queued", audioUrl = "https://x/queued.mp3" });
+        page.AudioPlays.Should().Be(2);
+        page.Evaluate("__elements[0].fire('ended')");
+        page.AudioPlays.Should().Be(3);
+        page.Text("__elements[1].playing").Should().Be("true");
+    }
+
+    [Fact]
     public void The_page_joins_with_the_sdk_version_it_was_served_with()
     {
         OverlaySdkRuntime page = OverlaySdkRuntime.Connected();

@@ -826,6 +826,7 @@
     "pipeline.play_sound.clip.help",
     "pipeline.play_sound.description",
     "pipeline.play_sound.handle.help",
+    "pipeline.play_sound.synced.help",
     "pipeline.play_sound.volume.help",
     "pipeline.play_sound.wait_for_finish.help",
     "pipeline.play_track_once.description",

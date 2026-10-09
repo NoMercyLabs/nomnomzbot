@@ -244,7 +244,7 @@ public record WidgetActionResponse(
 // ─── Sound overlay ────────────────────────────────────────────────────────────
 
 /// <summary>Payload the overlay receives to start playback of a clip on its audio bus.</summary>
-public record PlaySoundPayload(string PlaybackUrl, int Volume, string? Handle);
+public record PlaySoundPayload(string PlaybackUrl, int Volume, string? Handle, bool Synced = false);
 
 /// <summary>Payload the overlay receives to stop in-progress clip playback.</summary>
 public record StopSoundPayload(string? Handle, bool All);
@@ -264,7 +264,8 @@ public record TtsSpeakPayload(
     string? CueId,
     TtsSpeakOptions? Options,
     string? Locale = null,
-    string? AudioUrl = null
+    string? AudioUrl = null,
+    bool Synced = false
 );
 
 /// <summary>Pushed to the audio page to skip, clear, pause or resume the TTS queue.</summary>

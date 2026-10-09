@@ -56,15 +56,13 @@ public sealed class OverlaySdkSoundClipStopTests
     [Fact]
     public void Starting_an_unhandled_clip_stops_whichever_unhandled_clip_is_already_playing()
     {
-        string play = PlaySoundBody();
+        OverlaySdkRuntime page = OverlaySdkRuntime.Connected();
+        page.Deliver("PlaySound", new { playbackUrl = "https://x/first.mp3", volume = 80 });
+        page.Deliver("PlaySound", new { playbackUrl = "https://x/second.mp3", volume = 80 });
 
-        int pauseCall = play.IndexOf("currentSound.pause()", StringComparison.Ordinal);
-        int createCall = play.IndexOf("createElement(\"audio\")", StringComparison.Ordinal);
-
-        pauseCall.Should().BeGreaterThan(-1, "the previous clip must be stopped, not left running");
-        // Order is the behaviour: the old clip is paused BEFORE the new element is even created, so there is
-        // never a moment where two unhandled clips are both alive.
-        pauseCall.Should().BeLessThan(createCall);
+        page.AudioPlays.Should().Be(2);
+        page.Text("__elements[0].playing").Should().Be("false");
+        page.Text("__elements[1].playing").Should().Be("true");
     }
 
     [Fact]
