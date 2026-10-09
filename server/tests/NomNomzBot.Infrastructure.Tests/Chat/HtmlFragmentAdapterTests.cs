@@ -174,4 +174,32 @@ public sealed class HtmlFragmentAdapterTests
             .Contain(@"<img src=""https://cdn/Kappa/3x"" alt=""Kappa"" class=""emote"">")
             .And.Contain(@"<img width=""400"" src=""https://media.giphy.com/media/x/giphy.gif"">");
     }
+
+    [Fact]
+    public async Task Several_marquees_with_an_emote_each_stay_in_one_html_fragment()
+    {
+        ChatDecorationContext context = Context(
+            standing: true,
+            enabled: true,
+            Text(@"<div style=""width:400px""><marquee direction=""right"" width=""400"">"),
+            Emote("Top"),
+            Text(@"</marquee><marquee direction=""up"" width=""28"" height=""144"">"),
+            Emote("Left"),
+            Text(@"</marquee><marquee direction=""down"" width=""28"" height=""144"">"),
+            Emote("Right"),
+            Text(@"</marquee><marquee direction=""left"" width=""400"">"),
+            Emote("Bottom"),
+            Text("</marquee></div>")
+        );
+        HtmlFragmentAdapter adapter = new();
+
+        await adapter.DecorateAsync(context);
+
+        string html = context.Fragments.Should().ContainSingle().Subject.Text;
+        html.Split("<img").Length.Should().Be(5, "four emotes, one img each");
+        html.Should()
+            .Contain(@"direction=""up""")
+            .And.Contain(@"direction=""left""")
+            .And.EndWith("</div>");
+    }
 }

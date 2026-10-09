@@ -10,6 +10,7 @@
 
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.ValueObjects;
@@ -94,26 +95,62 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
         return true;
     }
 
-    // Collects fragments from the opening-tag fragment forward up to and including the first text fragment that closes it
-    // (or to the end if none does). Returns the span plus the index of the first fragment after it.
+    // Collects fragments from the opening-tag fragment forward until every tag opened in the span is closed again
+    // (or to the end if none does), so a frame of several marquees stays one span. Returns the span plus the index of
+    // the first fragment after it.
     private static (List<ChatMessageFragment> Span, int NextIndex) CollectHtmlSpan(
         List<ChatMessageFragment> fragments,
         int startIndex
     )
     {
         List<ChatMessageFragment> span = [fragments[startIndex]];
-        bool foundClose = HasClosingHtmlTag(fragments[startIndex].Text);
+        int depth = TagDepthDelta(fragments[startIndex].Text);
         int j = startIndex + 1;
 
-        while (j < fragments.Count && !foundClose)
+        while (j < fragments.Count && depth > 0)
         {
             span.Add(fragments[j]);
-            if (fragments[j].Type == "text" && HasClosingHtmlTag(fragments[j].Text))
-                foundClose = true;
+            if (fragments[j].Type == "text")
+                depth += TagDepthDelta(fragments[j].Text);
             j++;
         }
 
         return (span, j);
+    }
+
+    private static readonly HashSet<string> VoidTags =
+    [
+        "br",
+        "hr",
+        "img",
+        "wbr",
+        "col",
+        "source",
+        "track",
+    ];
+
+    private static readonly Regex TagPattern = new(
+        @"<(/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*?(/?)>",
+        RegexOptions.Compiled
+    );
+
+    // Opening tags minus closing tags in the text; void and self-closed tags do not count. A fragment that only
+    // closes (a stray "</b>") still counts as one close, as before.
+    private static int TagDepthDelta(string text)
+    {
+        int delta = 0;
+        foreach (Match match in TagPattern.Matches(text))
+        {
+            if (match.Groups[1].Value.Length > 0)
+                delta--;
+            else if (
+                match.Groups[3].Value.Length == 0
+                && !VoidTags.Contains(match.Groups[2].Value.ToLowerInvariant())
+            )
+                delta++;
+        }
+
+        return delta;
     }
 
     // Concatenates a span into one HTML string: text kept verbatim (it carries the tags), each emote emitted as an <img>
