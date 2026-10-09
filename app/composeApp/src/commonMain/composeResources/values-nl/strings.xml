@@ -5460,6 +5460,7 @@
     <string name="pipeline_play_sound_handle_help">Een naam voor deze afspeelactie, zodat een latere stop_sound-stap dit specifieke fragment kan stoppen in plaats van alle fragmenten.</string>
     <string name="pipeline_play_sound_volume_help">Het afspeelvolume voor dit fragment, van 0 (stil) tot 100 (volledig volume). Leeg laten om de eigen standaardwaarde van het fragment te gebruiken.</string>
     <string name="pipeline_play_sound_wait_for_finish_help">Pauzeert de rest van de pipeline totdat dit fragment klaar is met afspelen, in plaats van direct door te gaan.</string>
+    <string name="pipeline_play_sound_synced_help">Start dit geluid bij het visuele moment, buiten de gedeelde audiowachtrij.</string>
     <string name="pipeline_play_track_once_track_uri_help">Het nummer dat nu wordt afgespeeld. Wat er al speelde, wordt automatisch hervat zodra dit nummer afgelopen is.</string>
     <string name="pipeline_playlist_add_already_message_help">Het chatbericht dat wordt verstuurd als het nummer al in de afspeellijst staat. Leeg zegt niets.</string>
     <string name="pipeline_playlist_add_message_help">Het chatbericht dat wordt verstuurd nadat het nummer is toegevoegd. Leeg gebruikt de standaardtekst.</string>

@@ -188,6 +188,21 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
+    public async Task A_synced_clip_reaches_only_the_audio_page()
+    {
+        Pages pages = TwoPages();
+
+        await pages.Notifier.PlaySoundAsync(
+            Broadcaster.ToString(),
+            new("https://x/cue.mp3", 80, null, true)
+        );
+
+        await pages.Audio.Received(1).PlaySound(Arg.Is<PlaySoundPayload>(p => p.Synced));
+        await pages.Caption.DidNotReceiveWithAnyArgs().PlaySound(default!);
+        pages.Clients.DidNotReceiveWithAnyArgs().Group(default!);
+    }
+
+    [Fact]
     public async Task A_youtube_play_event_reaches_only_the_selected_audio_connection()
     {
         Pages pages = TwoPages();

@@ -240,6 +240,15 @@ public sealed class OverlaySdkController : ControllerBase
           var currentSound = null;
 
           function playSound(payload) {
+            // A visual cue owns its timing. It plays on this Audio page, outside the unrelated TTS/clip lane.
+            if (payload.synced && !payload.handle) {
+              var synced = document.createElement("audio");
+              synced.src = payload.playbackUrl;
+              var syncedVolume = payload.volume == null ? NaN : Number(payload.volume);
+              synced.volume = Math.max(0, Math.min(100, isFinite(syncedVolume) ? syncedVolume : 100)) / 100;
+              synced.play().catch(function (e) { report("audio playback blocked: " + ((e && e.message) || e)); });
+              return;
+            }
             var replaced = false;
             if (payload.handle) {
               var existingHandled = soundHandles[payload.handle];
@@ -405,6 +414,10 @@ public sealed class OverlaySdkController : ControllerBase
               tts.src = payload.audioUrl;
               var vol = (payload.options || {}).volume;
               tts.volume = vol == null ? 1 : Math.max(0, Math.min(1, Number(vol)));
+              if (payload.synced) {
+                tts.play().catch(function (e) { report("tts playback blocked: " + ((e && e.message) || e)); });
+                return;
+              }
               ttsQueue.push(tts);
               if (ttsQueue.length === 1) playNextTts();
               return;

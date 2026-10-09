@@ -52,6 +52,11 @@ public sealed class PlaySoundAction : ICommandAction
                 Description: new("pipeline.play_sound.wait_for_finish.help")
             ),
             new(
+                "synced",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.play_sound.synced.help")
+            ),
+            new(
                 "handle",
                 PipelineActionFieldKind.Text,
                 Description: new("pipeline.play_sound.handle.help")
@@ -82,6 +87,9 @@ public sealed class PlaySoundAction : ICommandAction
             )
             || action.GetInt("wait_for_finish") == 1;
         string? handle = action.GetString("handle");
+        bool synced =
+            string.Equals(action.GetString("synced"), "true", StringComparison.OrdinalIgnoreCase)
+            || action.GetInt("synced") == 1;
 
         Result<SoundPlaybackDto> resolveResult = await _clips.ResolveForPlaybackAsync(
             ctx.BroadcasterId,
@@ -93,7 +101,7 @@ public sealed class PlaySoundAction : ICommandAction
         if (!resolveResult.IsSuccess)
             return ActionResult.Failure(resolveResult.ErrorMessage ?? "Sound clip not found.");
 
-        SoundPlaybackDto playback = resolveResult.Value with { Handle = handle };
+        SoundPlaybackDto playback = resolveResult.Value with { Handle = handle, Synced = synced };
         await _overlay.PlaySoundAsync(ctx.BroadcasterId, playback, ctx.CancellationToken);
 
         if (waitForFinish && playback.DurationMs > 0)

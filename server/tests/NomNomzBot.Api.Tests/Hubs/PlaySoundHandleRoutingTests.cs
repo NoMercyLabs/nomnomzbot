@@ -71,4 +71,47 @@ public sealed class PlaySoundHandleRoutingTests
         sent.PlaybackUrl.Should().Be("/clip.mp3");
         sent.Volume.Should().Be(80);
     }
+
+    [Fact]
+    public async Task A_synced_play_sound_step_reaches_the_audio_page_as_a_synced_payload()
+    {
+        ISoundClipService clips = Substitute.For<ISoundClipService>();
+        clips
+            .ResolveForPlaybackAsync(
+                Channel,
+                "crash",
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new SoundPlaybackDto(Guid.NewGuid(), "/crash.mp3", 80, 0)));
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        PlaySoundAction action = new(clips, new SoundClipOverlayNotifierAdapter(widgets));
+
+        ActionResult result = await action.ExecuteAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                TriggeredByUserId = "viewer-9",
+                TriggeredByDisplayName = "viewer",
+                MessageId = "m1",
+                RawMessage = "!crash",
+                CancellationToken = default,
+            },
+            new()
+            {
+                Type = "play_sound",
+                Parameters = new Dictionary<string, JsonElement>
+                {
+                    ["clip"] = JsonSerializer.SerializeToElement("crash"),
+                    ["synced"] = JsonSerializer.SerializeToElement(true),
+                },
+            }
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        PlaySoundPayload sent = (PlaySoundPayload)
+            widgets.ReceivedCalls().Single().GetArguments()[1]!;
+        sent.Synced.Should().BeTrue();
+        sent.PlaybackUrl.Should().Be("/crash.mp3");
+    }
 }
