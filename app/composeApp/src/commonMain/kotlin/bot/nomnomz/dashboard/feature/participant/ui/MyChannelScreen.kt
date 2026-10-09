@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.participant.ui
 
+import bot.nomnomz.dashboard.core.time.watchHoursText
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -153,7 +155,7 @@ private fun ActivityTiles(activity: UserActivity) {
         StatTile(stringResource(Res.string.participant_stat_messages), activity.messageCount.toString())
         StatTile(
             stringResource(Res.string.participant_stat_watch_hours),
-            ((activity.watchHours * 10).toLong() / 10.0).toString(),
+            watchHoursText(activity.watchHours),
         )
         StatTile(stringResource(Res.string.participant_stat_commands), activity.commandsUsed.toString())
         StatTile(stringResource(Res.string.participant_stat_channels), activity.channelsCount.toString())

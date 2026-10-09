@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.community.ui
 
+import bot.nomnomz.dashboard.core.time.watchTimeText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -726,7 +728,7 @@ private fun ActivitySection(profile: ViewerProfileSummary) {
             return@ProfileCard
         }
         activity?.let {
-            ProfileFact(label = stringResource(Res.string.community_stats_watch_hours), value = (it.totalWatchSeconds / 3600.0).toFixed1())
+            ProfileFact(label = stringResource(Res.string.community_stats_watch_hours), value = watchTimeText(it.totalWatchSeconds))
             ProfileFact(label = stringResource(Res.string.community_profile_command_usage_total), value = it.totalMessages.toString())
             ProfileFact(label = stringResource(Res.string.community_stats_commands_used), value = it.totalCommandsUsed.toString())
             ProfileFact(label = stringResource(Res.string.community_stats_redemptions), value = it.totalRedemptions.toString())
@@ -1112,10 +1114,4 @@ private fun ProfileFact(label: String, value: String) {
         Text(text = label, style = typography.sm, color = tokens.mutedForeground)
         Text(text = value, style = typography.sm, color = tokens.foreground, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-}
-
-/** Format a [Double] to one decimal place without JVM-only String.format (mirrors the old Community dialog). */
-private fun Double.toFixed1(): String {
-    val scaled: Long = (this * 10).toLong()
-    return "${scaled / 10}.${kotlin.math.abs(scaled % 10)}"
 }

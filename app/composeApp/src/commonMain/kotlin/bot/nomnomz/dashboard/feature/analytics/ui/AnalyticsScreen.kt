@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.analytics.ui
 
+import bot.nomnomz.dashboard.core.time.watchTimeText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardActions
@@ -927,7 +929,7 @@ private fun ViewersSection(
                                 CompactViewerRow(
                                     name = label,
                                     watchLabel = watchLabel,
-                                    watch = watchHoursLabel(entry.totalWatchSeconds),
+                                    watch = watchTimeText(entry.totalWatchSeconds),
                                     messagesLabel = messagesLabel,
                                     messages = entry.totalMessages.toString(),
                                     lastSeenLabel = lastSeenLabel,
@@ -937,7 +939,7 @@ private fun ViewersSection(
                             } else {
                                 ViewerListRow(
                                     name = label,
-                                    watch = watchHoursLabel(entry.totalWatchSeconds),
+                                    watch = watchTimeText(entry.totalWatchSeconds),
                                     messages = entry.totalMessages.toString(),
                                     lastSeen = entry.lastSeenAt?.take(10) ?: "—",
                                     isHeader = false,
@@ -1165,7 +1167,7 @@ private fun ViewerDetailCard(
                     val yes: String = stringResource(Res.string.community_stats_yes)
                     val no: String = stringResource(Res.string.community_stats_no)
                     ViewerStatRow(stringResource(Res.string.analytics_viewer_messages), profile.totalMessages.toString())
-                    ViewerStatRow(stringResource(Res.string.analytics_viewer_watch_hours), watchHoursLabel(profile.totalWatchSeconds))
+                    ViewerStatRow(stringResource(Res.string.analytics_viewer_watch_hours), watchTimeText(profile.totalWatchSeconds))
                     ViewerStatRow(stringResource(Res.string.analytics_viewer_commands), profile.totalCommandsUsed.toString())
                     ViewerStatRow(stringResource(Res.string.analytics_viewer_redemptions), profile.totalRedemptions.toString())
                     ViewerStatRow(stringResource(Res.string.analytics_viewer_follower), if (profile.isFollower) yes else no)
@@ -1188,7 +1190,7 @@ private fun ViewerDetailCard(
                         detail.engagement.takeLast(14).forEach { day: ViewerEngagementDay ->
                             ViewerStatRow(
                                 day.activityDate.take(10),
-                                stringResource(Res.string.analytics_viewer_engagement_day, day.messageCount, watchHoursLabel(day.watchSeconds)),
+                                stringResource(Res.string.analytics_viewer_engagement_day, day.messageCount, watchTimeText(day.watchSeconds)),
                             )
                         }
                     }
@@ -1229,12 +1231,6 @@ private fun ViewerStatRow(label: String, value: String) {
         Text(text = label, style = typography.sm, color = tokens.mutedForeground, modifier = Modifier.padding(end = spacing.s2))
         Text(text = value, style = typography.sm, color = tokens.cardForeground)
     }
-}
-
-/** Whole/one-decimal watch-hours from a second count, without JVM-only String.format. */
-private fun watchHoursLabel(seconds: Long): String {
-    val tenths: Long = (seconds * 10) / 3600
-    return "${tenths / 10}.${tenths % 10}h"
 }
 
 /** Map a [ViewerSort] key to its localized metric-name label. */
