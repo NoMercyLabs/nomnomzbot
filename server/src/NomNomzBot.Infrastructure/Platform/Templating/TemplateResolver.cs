@@ -1173,9 +1173,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             vars.TryAdd($"{prefix}.messages", (profile?.TotalMessages ?? 0).ToString());
             vars.TryAdd(
                 $"{prefix}.watchtime",
-                NomNomzBot.Infrastructure.Analytics.WatchTimeFormatter.Format(
-                    profile?.TotalWatchSeconds ?? 0
-                )
+                Analytics.WatchTimeFormatter.Format(profile?.TotalWatchSeconds ?? 0)
             );
             vars.TryAdd(
                 $"{prefix}.firstseen",

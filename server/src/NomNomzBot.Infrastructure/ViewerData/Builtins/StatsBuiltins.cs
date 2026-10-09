@@ -108,9 +108,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
         {
             ["stats.user"] = label,
             ["stats.messages"] = messages.ToString(),
-            ["stats.watchtime"] = NomNomzBot.Infrastructure.Analytics.WatchTimeFormatter.Format(
-                watchSeconds
-            ),
+            ["stats.watchtime"] = Analytics.WatchTimeFormatter.Format(watchSeconds),
             ["stats.points"] = points.ToString(),
             ["stats.rank"] = rank?.ToString() ?? "unranked",
             ["stats.rankpart"] = rank is not null ? $" (rank #{rank})" : string.Empty,
@@ -204,7 +202,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
                 "NOT_FOUND",
                 mention
             )
-            : Result.Success((known.Id, known.DisplayName ?? mention));
+            : Result.Success((known.Id, known.DisplayName));
     }
 
     /// <summary>Dense rank in the channel's single currency: 1 + the number of richer wallets.</summary>

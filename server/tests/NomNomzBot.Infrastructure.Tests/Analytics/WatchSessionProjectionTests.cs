@@ -144,7 +144,7 @@ public sealed class WatchSessionProjectionTests
     [Fact]
     public async Task Opens_and_extends_a_session_and_confirms_presence_after_60s()
     {
-        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        (WatchSessionProjection sut, AuthDbContext db) = Build();
 
         await sut.ApplyAsync(Chat("t1", T0));
         await sut.ApplyAsync(Chat("t1", T0.AddSeconds(90)));
@@ -161,7 +161,7 @@ public sealed class WatchSessionProjectionTests
     [Fact]
     public async Task Folds_the_session_watch_time_into_the_viewer_profile_total()
     {
-        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        (WatchSessionProjection sut, AuthDbContext db) = Build();
 
         await sut.ApplyAsync(Chat("t1", T0));
         await sut.ApplyAsync(Chat("t1", T0.AddSeconds(90)));
@@ -175,7 +175,7 @@ public sealed class WatchSessionProjectionTests
     [Fact]
     public async Task Watch_time_accumulates_across_multiple_events_in_the_session()
     {
-        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        (WatchSessionProjection sut, AuthDbContext db) = Build();
 
         await sut.ApplyAsync(Chat("t1", T0));
         await sut.ApplyAsync(Chat("t1", T0.AddSeconds(30)));
@@ -189,7 +189,7 @@ public sealed class WatchSessionProjectionTests
     [Fact]
     public async Task Reset_zeroes_the_folded_watch_time_on_the_profile()
     {
-        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        (WatchSessionProjection sut, AuthDbContext db) = Build();
         await sut.ApplyAsync(Chat("t1", T0));
         await sut.ApplyAsync(Chat("t1", T0.AddSeconds(120)));
         db.ViewerProfiles.Single().TotalWatchSeconds.Should().Be(120);
@@ -203,7 +203,7 @@ public sealed class WatchSessionProjectionTests
     [Fact]
     public async Task Does_not_confirm_presence_for_a_quick_burst()
     {
-        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        (WatchSessionProjection sut, AuthDbContext db) = Build();
 
         await sut.ApplyAsync(Chat("t1", T0));
         await sut.ApplyAsync(Chat("t1", T0.AddSeconds(10)));
@@ -226,7 +226,7 @@ public sealed class WatchSessionProjectionTests
     [Fact]
     public async Task Reset_clears_the_sessions_for_replay()
     {
-        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        (WatchSessionProjection sut, AuthDbContext db) = Build();
         await sut.ApplyAsync(Chat("t1", T0));
         db.WatchSessions.Should().ContainSingle();
 
