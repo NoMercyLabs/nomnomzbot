@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Controllers;
 using NomNomzBot.Api.Tests.Authentication;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
@@ -55,6 +56,8 @@ public sealed class ActionDefinitionEndpointTests : IAsyncLifetime
                 services.AddSingleton(Substitute.For<IModerationEscalationService>());
                 services.AddSingleton(Substitute.For<IMassBanConsentService>());
                 services.AddSingleton(Substitute.For<ITwitchChatApi>());
+                services.AddSingleton(Substitute.For<ITwitchUsersApi>());
+                services.AddSingleton(Substitute.For<IShoutoutQueue>());
                 services.AddSingleton(Substitute.For<ITwitchModerationApi>());
                 services.AddSingleton(Substitute.For<ITemplateHelperValidator>());
             }

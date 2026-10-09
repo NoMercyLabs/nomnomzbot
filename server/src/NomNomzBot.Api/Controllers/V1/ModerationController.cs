@@ -18,6 +18,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -55,6 +56,8 @@ public class ModerationController : BaseController
     private readonly ITemplateHelperValidator _templateHelperValidator;
     private readonly IModerationHistoryService _history;
     private readonly IMassBanConsentService _massBan;
+    private readonly IShoutoutQueue _shoutoutQueue;
+    private readonly ITwitchUsersApi _twitchUsers;
 
     public ModerationController(
         IModerationService moderationService,
@@ -71,7 +74,9 @@ public class ModerationController : BaseController
         ITwitchModerationApi twitchModeration,
         ITemplateHelperValidator templateHelperValidator,
         IModerationHistoryService history,
-        IMassBanConsentService massBan
+        IMassBanConsentService massBan,
+        IShoutoutQueue shoutoutQueue,
+        ITwitchUsersApi twitchUsers
     )
     {
         _massBan = massBan;
@@ -89,6 +94,8 @@ public class ModerationController : BaseController
         _chatApi = chatApi;
         _templateHelperValidator = templateHelperValidator;
         _history = history;
+        _shoutoutQueue = shoutoutQueue;
+        _twitchUsers = twitchUsers;
     }
 
     // ─── Ban (this channel, or every channel the operator moderates) ───────────
@@ -1827,10 +1834,11 @@ public class ModerationController : BaseController
 
     public record ShoutoutRequest(string TargetTwitchUserId);
 
-    /// <summary>Send a Twitch shoutout for another channel from the broadcaster's channel.</summary>
+    /// <summary>Send or queue a Twitch shoutout for another channel from the broadcaster's channel.</summary>
     [RequireAction("moderation:shoutout")]
     [HttpPost("shoutout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Shoutout(
         string channelId,
         [FromBody] ShoutoutRequest request,
@@ -1840,25 +1848,64 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        Result result = await _chatApi.SendShoutoutAsync(
-            broadcasterId,
-            request.TargetTwitchUserId,
+        await _shoutoutQueue.RecoverAsync(ct);
+        bool queueBehindPending = _shoutoutQueue.Peek(broadcasterId) is not null;
+        if (!queueBehindPending)
+        {
+            Result result = await _chatApi.SendShoutoutAsync(
+                broadcasterId,
+                request.TargetTwitchUserId,
+                ct
+            );
+            if (result.IsSuccess)
+            {
+                _db.ChannelEvents.Add(
+                    new ChannelEvent
+                    {
+                        Id = Guid.CreateVersion7().ToString(),
+                        ChannelId = broadcasterId,
+                        Type = "bot.shoutout.sent",
+                        Data = JsonSerializer.Serialize(
+                            new { toUserId = request.TargetTwitchUserId }
+                        ),
+                    }
+                );
+                await _db.SaveChangesAsync(ct);
+                return NoContent();
+            }
+            if (
+                result.ErrorCode is not (TwitchErrorCodes.RateLimited or TwitchErrorCodes.Transport)
+            )
+                return TwitchResultResponse(result);
+        }
+
+        Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByIdsAsync(
+            [request.TargetTwitchUserId],
             ct
         );
-        if (result.IsFailure)
-            return TwitchResultResponse(result);
+        if (lookup.IsFailure)
+            return TwitchResultResponse(lookup);
+        TwitchUser? target = lookup.Value.FirstOrDefault();
+        if (target is null)
+            return NotFoundResponse("Shoutout target was not found on Twitch.");
 
-        _db.ChannelEvents.Add(
-            new ChannelEvent
-            {
-                Id = Guid.CreateVersion7().ToString(),
-                ChannelId = broadcasterId,
-                Type = "bot.shoutout.sent",
-                Data = JsonSerializer.Serialize(new { toUserId = request.TargetTwitchUserId }),
-            }
+        Guid? actorUserId = Guid.TryParse(_currentUser.UserId, out Guid actorId) ? actorId : null;
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+        await _shoutoutQueue.EnqueueAsync(
+            new QueuedShoutout(
+                broadcasterId,
+                target,
+                string.Empty,
+                false,
+                TimeSpan.FromMinutes(2),
+                TimeSpan.FromMinutes(60),
+                now,
+                ActorUserId: actorUserId,
+                NotBefore: queueBehindPending ? null : now.AddMinutes(2)
+            ),
+            ct
         );
-        await _db.SaveChangesAsync(ct);
-        return NoContent();
+        return Accepted();
     }
 
     public record ShoutoutTemplateDto(string? Template);

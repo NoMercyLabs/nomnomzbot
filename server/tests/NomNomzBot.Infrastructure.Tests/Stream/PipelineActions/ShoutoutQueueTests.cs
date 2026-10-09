@@ -324,6 +324,41 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
+    public async Task Dashboard_shoutout_waits_for_the_rate_limit_then_sends_only_the_native_call()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        DateTimeOffset now = rig.Clock.GetUtcNow();
+        await rig.Queue.EnqueueAsync(
+            new QueuedShoutout(
+                Channel,
+                User(ManualId),
+                string.Empty,
+                false,
+                GlobalCooldown,
+                TimeSpan.FromMinutes(60),
+                now,
+                ActorUserId: Moderator,
+                NotBefore: now.Add(GlobalCooldown)
+            ),
+            CancellationToken.None
+        );
+
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+        rig.Db.ChannelEvents.Single().Type.Should().Be("bot.shoutout.pending");
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
+        rig.Db.ChannelEvents.Single().Type.Should().Be("bot.shoutout.sent");
+        rig.Queue.Peek(Channel).Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_restart_preserves_order_for_items_queued_at_the_same_clock_time()
     {
         Rig rig = await BuildAsync(durable: true);

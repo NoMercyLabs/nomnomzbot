@@ -946,7 +946,7 @@ The keys are seeded global `ActionDefinitions` (schema B.3) with `Plane=Manageme
 | DELETE | `/shared-bans/trusted/{trustedChannelId}` | — | 204 | management / LeadModerator · `moderation:sharedban:write` |
 | GET | `/shield` | — | `StatusResponseDto<Object>` | management / Moderator · `moderation:shieldmode:read` |
 | PATCH | `/shield` | `SetShieldRequest` | `StatusResponseDto<Object>` | management / LeadModerator · `moderation:shieldmode:write` |
-| POST | `/shoutout` | `ShoutoutRequest` | 204 | management / Moderator · `moderation:shoutout` |
+| POST | `/shoutout` | `ShoutoutRequest` | 204 sent, 202 queued behind a pending shoutout or Twitch cooldown | management / Moderator · `moderation:shoutout` |
 | GET | `/shoutout-overrides` | — | `StatusResponseDto<List<ShoutoutOverrideDto>>` | management / Moderator · `moderation:read` |
 | PUT | `/shoutout-overrides` | `UpsertShoutoutOverrideRequest` | 204 | management / Moderator · `moderation:shoutout` |
 | DELETE | `/shoutout-overrides/{targetTwitchUserId}` | `kind` (query) | 204 | management / Moderator · `moderation:shoutout` |

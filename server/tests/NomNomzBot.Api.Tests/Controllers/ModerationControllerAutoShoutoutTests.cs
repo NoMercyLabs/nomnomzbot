@@ -12,14 +12,18 @@ using System.Reflection;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Infrastructure.Stream;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -31,7 +35,12 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// </summary>
 public sealed class ModerationControllerAutoShoutoutTests
 {
-    private static ModerationController Build(ApiTestDbContext db, ITwitchChatApi? chat = null) =>
+    private static ModerationController Build(
+        ApiTestDbContext db,
+        ITwitchChatApi? chat = null,
+        IShoutoutQueue? shoutoutQueue = null,
+        ITwitchUsersApi? users = null
+    ) =>
         new(
             Substitute.For<IModerationService>(),
             Substitute.For<IOperatorNetworkBanService>(),
@@ -47,7 +56,9 @@ public sealed class ModerationControllerAutoShoutoutTests
             Substitute.For<ITwitchModerationApi>(),
             Substitute.For<ITemplateHelperValidator>(),
             Substitute.For<IModerationHistoryService>(),
-            Substitute.For<IMassBanConsentService>()
+            Substitute.For<IMassBanConsentService>(),
+            shoutoutQueue ?? Substitute.For<IShoutoutQueue>(),
+            users ?? Substitute.For<ITwitchUsersApi>()
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name, bool autoShoutout)
@@ -103,6 +114,56 @@ public sealed class ModerationControllerAutoShoutoutTests
         await controller.Shoutout(channelId.ToString(), new("1001"), CancellationToken.None);
 
         (await db.ChannelEvents.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Rate_limited_dashboard_shoutout_waits_in_the_durable_queue()
+    {
+        await using ApiTestDbContext db = ApiTestDbContext.New();
+        Guid channelId = SeedChannel(db, "streamer", autoShoutout: true);
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(channelId, "1001", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Twitch rate limit", TwitchErrorCodes.RateLimited));
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        IServiceScopeFactory scopeFactory = services
+            .BuildServiceProvider()
+            .GetRequiredService<IServiceScopeFactory>();
+        ShoutoutQueue queue = new(scopeFactory);
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    new(
+                        "1001",
+                        "target",
+                        "Target",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        0,
+                        DateTimeOffset.UnixEpoch
+                    ),
+                ])
+            );
+        ModerationController controller = Build(db, chat, queue, users);
+
+        IActionResult result = await controller.Shoutout(
+            channelId.ToString(),
+            new("1001"),
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<AcceptedResult>();
+        Domain.Identity.Entities.ChannelEvent pending = await db.ChannelEvents.SingleAsync();
+        pending.Type.Should().Be("bot.shoutout.pending");
+        pending.Data.Should().Contain("\"Target\":");
+        pending.Data.Should().Contain("\"Id\":\"1001\"");
+        pending.Data.Should().Contain("\"Announcement\":\"\"");
+        pending.Data.Should().Contain("\"NotBefore\":");
     }
 
     private static async Task<bool> ReadAsync(ModerationController controller, Guid channelId)

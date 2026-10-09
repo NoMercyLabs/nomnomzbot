@@ -24,5 +24,7 @@ public sealed record QueuedShoutout(
     TimeSpan PerUserCooldown,
     DateTimeOffset EnqueuedAt,
     string Announcement = "",
-    bool Speak = false
+    bool Speak = false,
+    Guid? ActorUserId = null,
+    DateTimeOffset? NotBefore = null
 );

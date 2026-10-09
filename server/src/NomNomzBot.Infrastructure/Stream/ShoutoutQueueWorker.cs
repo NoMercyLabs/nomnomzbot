@@ -99,6 +99,8 @@ public sealed class ShoutoutQueueWorker : BackgroundService
 
                 ChannelContext? channel = _registry.Get(broadcasterId);
                 DateTimeOffset now = _timeProvider.GetUtcNow();
+                if (head.NotBefore is { } notBefore && now < notBefore)
+                    continue;
                 if (
                     _nextRetryAt.TryGetValue(
                         (broadcasterId, head.Target.Id),
@@ -220,6 +222,9 @@ public sealed class ShoutoutQueueWorker : BackgroundService
     {
         if (item.IsRaid)
             return OutboundSanction.ChannelConfiguration(RaidSanction);
+
+        if (item.ActorUserId is { } actorUserId)
+            return OutboundSanction.UserAction(ShoutoutActionKey, actorUserId);
 
         IApplicationDbContext db = services.GetRequiredService<IApplicationDbContext>();
         Guid? actor = await db

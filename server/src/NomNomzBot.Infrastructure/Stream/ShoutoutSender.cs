@@ -131,12 +131,14 @@ public sealed class ShoutoutSender : IShoutoutSender
             .Channels.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.BroadcasterId, cancellationToken);
 
-        Result announceResult = await _chat.SendAnnouncementAsync(
-            request.BroadcasterId,
-            request.Announcement,
-            color: null,
-            cancellationToken
-        );
+        Result announceResult = string.IsNullOrEmpty(request.Announcement)
+            ? Result.Success()
+            : await _chat.SendAnnouncementAsync(
+                request.BroadcasterId,
+                request.Announcement,
+                color: null,
+                cancellationToken
+            );
         if (announceResult.IsFailure)
             _logger.LogWarning(
                 "Shoutout announcement failed for {UserId}: {Error}",
