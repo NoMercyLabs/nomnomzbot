@@ -297,7 +297,7 @@ public sealed class ShoutoutAnnounceNowTests
         await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         QueuedShoutout queued = rig.Queue.Peek(Channel)!;
         queued.Target.Id.Should().Be(TargetId);
-        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await rig.BotChat.ReceivedWithAnyArgs(1).SendMessageAsync(default, default!);
     }
 
     [Fact]

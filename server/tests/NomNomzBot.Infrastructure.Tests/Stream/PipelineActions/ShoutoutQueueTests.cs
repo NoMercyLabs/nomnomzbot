@@ -497,6 +497,35 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
+    public async Task A_queued_chat_shoutout_tells_chat_once_that_it_waits()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+
+        await rig
+            .BotChat.Received(1)
+            .SendMessageAsync(
+                Channel,
+                Arg.Is<string>(text => text.Contains("Name" + ManualId)),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_queued_raid_shoutout_does_not_talk_in_chat()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+
+        await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
+
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+    }
+
+    [Fact]
     public async Task A_raid_inside_the_global_cooldown_waits_then_runs_in_full_when_the_cooldown_passes()
     {
         Rig rig = await BuildAsync();
@@ -922,7 +951,7 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_queued_shoutout_posts_no_chat_reply_or_announcement()
+    public async Task A_queued_shoutout_posts_no_announcement_and_one_queued_reply_for_the_chat_request()
     {
         Rig rig = await BuildAsync();
         StampGlobalCooldown(rig);
@@ -932,7 +961,7 @@ public sealed class ShoutoutQueueTests
         await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
         await rig.Action.ExecuteAsync(Raid(), Step(RaiderId));
 
-        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await rig.BotChat.ReceivedWithAnyArgs(1).SendMessageAsync(default, default!);
         await AssertNothingSentAsync(rig);
         manual.RepliedToChat.Should().BeFalse();
     }

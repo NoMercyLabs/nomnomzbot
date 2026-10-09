@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -60,6 +61,7 @@ public sealed class ShoutoutAction : ICommandAction
     private const string FallbackGame = "something awesome";
     private const string DefaultTemplate =
         "Go check out {target.name}! Follow the channel to catch the next stream.";
+    private const string QueuedFallback = "Shoutout for {target.name} is queued.";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
     // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
@@ -75,6 +77,7 @@ public sealed class ShoutoutAction : ICommandAction
     private readonly IChannelRegistry _registry;
     private readonly IShoutoutQueue _queue;
     private readonly IShoutoutSender _sender;
+    private readonly IChatProvider _chat;
     private readonly ITemplateResolver _templateResolver;
     private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _timeProvider;
@@ -130,6 +133,7 @@ public sealed class ShoutoutAction : ICommandAction
         IChannelRegistry registry,
         IShoutoutQueue queue,
         IShoutoutSender sender,
+        IChatProvider chat,
         ITemplateResolver templateResolver,
         IBuiltinResponseComposer composer,
         TimeProvider timeProvider,
@@ -142,6 +146,7 @@ public sealed class ShoutoutAction : ICommandAction
         _registry = registry;
         _queue = queue;
         _sender = sender;
+        _chat = chat;
         _templateResolver = templateResolver;
         _composer = composer;
         _timeProvider = timeProvider;
@@ -273,6 +278,8 @@ public sealed class ShoutoutAction : ICommandAction
                 ),
                 ctx.CancellationToken
             );
+            if (added && !isRaid && !string.IsNullOrWhiteSpace(ctx.MessageId))
+                await TellChatQueuedAsync(ctx, target);
             return ActionResult.Success(added ? "queued (cooldown)" : "already queued (cooldown)");
         }
 
@@ -298,7 +305,48 @@ public sealed class ShoutoutAction : ICommandAction
             ),
             ctx.CancellationToken
         );
+        if (queued && !isRaid && !string.IsNullOrWhiteSpace(ctx.MessageId))
+            await TellChatQueuedAsync(ctx, target);
         return ActionResult.Success(queued ? "queued (rate limit)" : "already queued (rate limit)");
+    }
+
+    // A chat shoutout that waits for Twitch's cooldown says so in chat, in the channel's tone, so the
+    // requester knows it was not lost. A failed send is logged and never fails the shoutout.
+    private async Task TellChatQueuedAsync(PipelineExecutionContext ctx, TwitchUser target)
+    {
+        try
+        {
+            ShoutoutTemplateSelection selection = await _sender.SelectTemplateAsync(
+                ctx.BroadcasterId,
+                target,
+                string.Empty,
+                ctx.CancellationToken
+            );
+            Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
+            {
+                ["target"] = target.Login,
+                ["target.id"] = target.Id,
+                ["target.name"] = target.DisplayName,
+            };
+            string text = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = ctx.BroadcasterId,
+                    Personality = selection.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
+                    Slot = BuiltinResponseSlots.Shoutout.Queued,
+                    NeutralFallback = QueuedFallback,
+                    Variables = seed,
+                },
+                ctx.CancellationToken
+            );
+            if (!string.IsNullOrWhiteSpace(text))
+                await _chat.SendMessageAsync(ctx.BroadcasterId, text, ctx.CancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not tell chat that a shoutout is queued");
+        }
     }
 
     private readonly record struct TargetState(string Game, string Title, bool IsLive);
