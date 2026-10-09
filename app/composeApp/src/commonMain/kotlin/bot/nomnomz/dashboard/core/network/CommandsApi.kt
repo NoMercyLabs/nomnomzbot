@@ -124,6 +124,7 @@ data class CreateCommandBody(
     val description: String? = null,
     val aliases: List<String>? = null,
     val isEnabled: Boolean = true,
+    val speakWithTts: Boolean = false,
 )
 
 /**
@@ -151,6 +152,7 @@ data class UpdateCommandBody(
     val description: String? = null,
     val aliases: List<String>? = null,
     val isEnabled: Boolean? = null,
+    val speakWithTts: Boolean? = null,
 )
 
 /**
@@ -168,6 +170,7 @@ data class CommandSummary(
     val tier: String = "template",
     val minPermissionLevel: String = "Everyone",
     val isEnabled: Boolean = false,
+    val speakWithTts: Boolean = false,
     val prefixMode: String = "Default",
     val customPrefix: String? = null,
     val matchMode: String = "StartsWith",

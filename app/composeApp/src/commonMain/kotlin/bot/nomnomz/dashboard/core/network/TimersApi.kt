@@ -105,6 +105,7 @@ data class CreateTimerRequest(
     val isEnabled: Boolean = true,
     // When true the timer fires once then disables itself, instead of looping on the interval.
     val fireOnce: Boolean = false,
+    val speakWithTts: Boolean = false,
     // Optional pipeline to run every interval (the current rotation message rides as `{timer.message}`). Null =
     // message-only timer. Maps to CreateTimerDto.pipelineId.
     val pipelineId: String? = null,
@@ -125,6 +126,7 @@ data class UpdateTimerRequest(
     val isEnabled: Boolean? = null,
     // Toggle one-shot mode (fire once then disable) vs looping. Null = leave unchanged.
     val fireOnce: Boolean? = null,
+    val speakWithTts: Boolean? = null,
     // Bind (or rebind) the timer's pipeline. Null = leave unchanged (partial patch); a non-empty id sets it.
     // Clearing a binding back to none is a follow-up (the DTO can't distinguish "clear" from "unchanged" here).
     val pipelineId: String? = null,
@@ -145,6 +147,7 @@ data class TimerDetail(
     val minChatActivity: Int = 0,
     val isEnabled: Boolean = false,
     val fireOnce: Boolean = false,
+    val speakWithTts: Boolean = false,
     val pipelineId: String? = null,
     // ISO-8601 UTC instant (matches TimerDto.LastFiredAt), null when the timer has never fired. Read-only —
     // the edit dialog surfaces it, it is never sent back on a write.

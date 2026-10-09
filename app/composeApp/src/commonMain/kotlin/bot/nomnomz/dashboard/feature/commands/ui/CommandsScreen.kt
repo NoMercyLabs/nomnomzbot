@@ -785,6 +785,7 @@ private fun CommandFormDialog(
     var cooldownPerUser: Boolean by remember { mutableStateOf(editor.cooldownPerUser) }
     var userCooldown: String by remember { mutableStateOf(editor.userCooldownSeconds.toString()) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
+    var speakWithTts: Boolean by remember { mutableStateOf(editor.speakWithTts) }
 
     var tierMenuOpen: Boolean by remember { mutableStateOf(false) }
     var permMenuOpen: Boolean by remember { mutableStateOf(false) }
@@ -860,6 +861,7 @@ private fun CommandFormDialog(
             description = description,
             aliases = aliases.toList(),
             isEnabled = enabled,
+            speakWithTts = speakWithTts,
         )
 
     // A code command needs its wrapping pipeline bound first; every other tier submits straight away.
@@ -1193,6 +1195,11 @@ private fun CommandFormDialog(
             checked = enabled,
             onCheckedChange = { enabled = it },
         )
+        SwitchRow(
+            label = stringResource(Res.string.commands_dialog_speak_with_tts),
+            checked = speakWithTts,
+            onCheckedChange = { speakWithTts = it },
+        )
     }
 
     if (testRunDialogOpen) {
@@ -1344,6 +1351,7 @@ private data class CommandEditor(
     val description: String,
     val aliases: List<String>,
     val isEnabled: Boolean,
+    val speakWithTts: Boolean,
     // The fun-command preset an edited command was seeded from; null on create and for a channel-written command.
     val presetKey: String? = null,
 ) {
@@ -1367,6 +1375,7 @@ private data class CommandEditor(
                 description = "",
                 aliases = emptyList(),
                 isEnabled = true,
+                speakWithTts = false,
             )
 
         fun edit(command: CommandSummary): CommandEditor =
@@ -1388,6 +1397,7 @@ private data class CommandEditor(
                 description = command.description.orEmpty(),
                 aliases = command.aliases,
                 isEnabled = command.isEnabled,
+                speakWithTts = command.speakWithTts,
                 presetKey = command.presetKey,
             )
     }

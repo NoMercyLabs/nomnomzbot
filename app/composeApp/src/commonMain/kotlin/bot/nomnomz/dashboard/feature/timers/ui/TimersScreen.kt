@@ -263,10 +263,10 @@ fun TimersScreen(
             onDismiss = { editTarget = null },
             // The dialog stays open until the write answers: it closes itself on success and shows the
             // reason inline on failure (FormDialog).
-            onConfirm = { name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId ->
+            onConfirm = { name, messages, interval, minChatActivity, enabled, fireOnce, speakWithTts, pipelineId ->
                 when (target) {
                     is TimerEditTarget.New ->
-                        controller.createTimer(name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId)
+                        controller.createTimer(name, messages, interval, minChatActivity, enabled, fireOnce, speakWithTts, pipelineId)
                     is TimerEditTarget.Edit ->
                         controller.updateTimer(
                             target.timer.id,
@@ -276,6 +276,7 @@ fun TimersScreen(
                             minChatActivity,
                             enabled,
                             fireOnce,
+                            speakWithTts,
                             pipelineId,
                         )
                 }
@@ -614,6 +615,7 @@ private fun TimerEditDialog(
         minChatActivity: Int,
         enabled: Boolean,
         fireOnce: Boolean,
+        speakWithTts: Boolean,
         pipelineId: String?,
     ) -> DialogResult,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
@@ -646,6 +648,7 @@ private fun TimerEditDialog(
     }
     var enabled: Boolean by remember(detail) { mutableStateOf(detail?.isEnabled ?: existing?.isEnabled ?: true) }
     var fireOnce: Boolean by remember(detail) { mutableStateOf(detail?.fireOnce ?: existing?.fireOnce ?: false) }
+    var speakWithTts: Boolean by remember(detail) { mutableStateOf(detail?.speakWithTts ?: false) }
     var pipelineId: String? by remember(detail) { mutableStateOf(detail?.pipelineId) }
 
     val intervalMinutes: Int? = interval.toIntOrNull()?.takeIf { it in 1..MAX_INTERVAL_MINUTES }
@@ -662,7 +665,7 @@ private fun TimerEditDialog(
 
     // Dirty = any field differs from what the form was seeded with (re-baselined when the detail loads).
     val currentValues: List<Any?> =
-        listOf(name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId)
+        listOf(name, messages, interval, minChatActivity, enabled, fireOnce, speakWithTts, pipelineId)
     val baseline: List<Any?> = remember(detail) { currentValues }
 
     FormDialog(
@@ -680,6 +683,7 @@ private fun TimerEditDialog(
                 minChatActivity.toIntOrNull() ?: 0,
                 enabled,
                 fireOnce,
+                speakWithTts,
                 pipelineId,
             )
         },
@@ -818,6 +822,20 @@ private fun TimerEditDialog(
             Switch(
                 checked = enabled,
                 onCheckedChange = { enabled = it },
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.timers_dialog_speak_with_tts),
+                color = tokens.cardForeground,
+            )
+            Switch(
+                checked = speakWithTts,
+                onCheckedChange = { speakWithTts = it },
             )
         }
         // One-shot: fire once at the interval, then the timer disables itself instead of looping.

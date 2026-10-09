@@ -268,6 +268,7 @@ class TimersController(
         minChatActivity: Int,
         enabled: Boolean,
         fireOnce: Boolean,
+        speakWithTts: Boolean = false,
         pipelineId: String?,
     ): DialogResult {
         val channelId: String = resolveChannelId() ?: return DialogResult.Failed(_writeError.value)
@@ -279,6 +280,7 @@ class TimersController(
                 minChatActivity = minChatActivity,
                 isEnabled = enabled,
                 fireOnce = fireOnce,
+                speakWithTts = speakWithTts,
                 pipelineId = pipelineId,
             )
         return dialogWrite { timersApi.create(channelId, request) }
@@ -293,6 +295,7 @@ class TimersController(
         minChatActivity: Int,
         enabled: Boolean,
         fireOnce: Boolean,
+        speakWithTts: Boolean = false,
         pipelineId: String?,
     ): DialogResult {
         val channelId: String = resolveChannelId() ?: return DialogResult.Failed(_writeError.value)
@@ -304,6 +307,7 @@ class TimersController(
                 minChatActivity = minChatActivity,
                 isEnabled = enabled,
                 fireOnce = fireOnce,
+                speakWithTts = speakWithTts,
                 // A null pipelineId is dropped by the serializer (explicitNulls=false), so "None" on a bound
                 // timer needs the empty sentinel to actually unbind — the backend maps it to null.
                 pipelineId = pipelineId ?: EMPTY_PIPELINE_ID,

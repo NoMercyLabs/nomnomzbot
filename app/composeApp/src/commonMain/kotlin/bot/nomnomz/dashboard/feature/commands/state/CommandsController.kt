@@ -428,6 +428,7 @@ data class CommandInput(
     val description: String?,
     val aliases: List<String>,
     val isEnabled: Boolean,
+    val speakWithTts: Boolean = false,
 )
 
 // Create sends only the fields that carry a value — blanks and empty lists fall back to the backend defaults.
@@ -449,6 +450,7 @@ private fun CommandInput.toCreateBody(): CreateCommandBody =
         description = description?.takeIf { it.isNotBlank() },
         aliases = aliases.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() },
         isEnabled = isEnabled,
+        speakWithTts = speakWithTts,
     )
 
 // Edit is a full-form patch: every editable field is sent so the backend applies exactly what the dialog shows.
@@ -472,6 +474,7 @@ private fun CommandInput.toUpdateBody(): UpdateCommandBody =
         description = description.orEmpty(),
         aliases = aliases.filter { it.isNotBlank() },
         isEnabled = isEnabled,
+        speakWithTts = speakWithTts,
     )
 
 /** The Commands page render state. */

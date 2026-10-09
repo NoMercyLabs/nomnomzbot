@@ -959,6 +959,7 @@
     <string name="commands_dialog_name_label">Naam of trigger</string>
     <string name="commands_dialog_response_label">Antwoord</string>
     <string name="commands_dialog_enabled_label">Ingeschakeld</string>
+    <string name="commands_dialog_speak_with_tts">Lees dit antwoord voor met TTS</string>
     <string name="commands_dialog_create">Aanmaken</string>
     <string name="commands_dialog_save">Opslaan</string>
     <string name="commands_dialog_cancel">Annuleren</string>
@@ -1096,6 +1097,7 @@
     <string name="timers_dialog_min_chat_activity">Min. chatberichten tussen keren</string>
     <string name="timers_dialog_min_chat_activity_hint">Alleen afvuren als er sinds de vorige keer zoveel chatberichten zijn geweest. Leeg = altijd afvuren.</string>
     <string name="timers_dialog_enabled">Ingeschakeld</string>
+    <string name="timers_dialog_speak_with_tts">Lees dit antwoord voor met TTS</string>
     <string name="timers_dialog_fire_once">Eén keer uitvoeren</string>
     <string name="timers_dialog_fire_once_hint">Verstuurt één keer en schakelt zichzelf daarna uit in plaats van te herhalen.</string>
     <string name="timers_badge_once">Eén keer</string>
