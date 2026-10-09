@@ -53,6 +53,38 @@ public sealed class TimerManagementServiceTests
         new() { Name = name, Messages = ["hi"] };
 
     [Fact]
+    public async Task Speak_with_tts_round_trips_and_existing_timers_stay_silent()
+    {
+        (TimerManagementService sut, RecordingEventBus _, CommandsTestDbContext db) = BuildWithDb();
+        TimerDto existing = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
+        existing.SpeakWithTts.Should().BeFalse();
+        db.Timers.Single().SpeakWithTts.Should().BeFalse();
+
+        TimerDto spoken = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateTimerDto
+                {
+                    Name = "spoken",
+                    Messages = ["hello"],
+                    SpeakWithTts = true,
+                }
+            )
+        ).Value;
+        spoken.SpeakWithTts.Should().BeTrue();
+
+        TimerDto updated = (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                spoken.Id,
+                new UpdateTimerDto { SpeakWithTts = false }
+            )
+        ).Value;
+        updated.SpeakWithTts.Should().BeFalse();
+        (await sut.GetAsync(Channel.ToString(), spoken.Id)).Value.SpeakWithTts.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Create_publishes_ChannelConfigChangedEvent_for_the_timers_domain()
     {
         (TimerManagementService sut, RecordingEventBus bus) = Build();

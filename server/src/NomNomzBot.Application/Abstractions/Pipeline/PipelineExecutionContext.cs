@@ -50,6 +50,12 @@ public sealed class PipelineExecutionContext
     /// <see cref="PipelineExecutionResult.RepliedToChat"/> so a failed run is not answered twice.</summary>
     public bool RepliedToChat { get; set; }
 
+    /// <summary>Null keeps standalone pipeline behavior; false skips explicit speech; true speaks chat replies.</summary>
+    public bool? SpeakWithTts { get; init; }
+
+    /// <summary>True when the owning pipeline has no explicit play_tts step.</summary>
+    public bool AutoSpeakChatReplies { get; init; }
+
     /// <summary>Set by the <c>break</c> action; consumed by the innermost enclosing <c>loop</c> block.
     /// Outside a loop (<see cref="LoopDepth"/> == 0) it is an honest no-op — the engine never sets it
     /// (pipeline-control-flow.md D3).</summary>

@@ -25,6 +25,7 @@ public class TimerConfiguration : IEntityTypeConfiguration<DomainTimer>
         builder.Property(e => e.IntervalMinutes).IsRequired().HasDefaultValue(30);
         builder.Property(e => e.MinChatActivity).IsRequired().HasDefaultValue(0);
         builder.Property(e => e.IsEnabled).IsRequired().HasDefaultValue(true);
+        builder.Property(e => e.SpeakWithTts).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.ConfigSchemaVersion).IsRequired().HasDefaultValue(1);
 
         builder.Property(e => e.Messages).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");

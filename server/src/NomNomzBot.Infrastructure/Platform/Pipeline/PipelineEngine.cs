@@ -267,6 +267,14 @@ public sealed class PipelineEngine : IPipelineEngine
             RawMessage = request.RawMessage,
             CancellationToken = ct,
             Trace = request.CollectTrace ? new() : null,
+            SpeakWithTts = request.SpeakWithTts,
+            AutoSpeakChatReplies =
+                request.SpeakWithTts == true
+                && !(
+                    isTreeRun
+                        ? treeRows!.Any(step => step.ActionType == "play_tts")
+                        : definition!.Steps.Any(step => step.Action.Type == "play_tts")
+                ),
         };
 
         // Seed initial variables
@@ -841,6 +849,9 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct
     )
     {
+        if (ctx.SpeakWithTts == false && action.Type == "play_tts")
+            return ActionResult.Success();
+
         ICommandAction? executor = _actions.FirstOrDefault(a =>
             string.Equals(a.ActionType, action.Type, StringComparison.OrdinalIgnoreCase)
         );
@@ -853,7 +864,23 @@ public sealed class PipelineEngine : IPipelineEngine
         }
 
         ActionDefinition resolvedAction = await ResolveTemplatedFieldsAsync(executor, ctx, action);
-        return await executor.ExecuteAsync(ctx, resolvedAction);
+        ActionResult result = await executor.ExecuteAsync(ctx, resolvedAction);
+        if (
+            result.Succeeded
+            && ctx.AutoSpeakChatReplies
+            && (action.Type is "send_message" or "send_reply")
+            && !string.IsNullOrWhiteSpace(result.Output)
+        )
+        {
+            ctx.Variables["tts.reply"] = result.Output;
+            ActionDefinition speech = new()
+            {
+                Type = "play_tts",
+                Parameters = new() { ["text"] = JsonSerializer.SerializeToElement("{tts.reply}") },
+            };
+            await ExecuteActionAsync(ctx, speech, ct);
+        }
+        return result;
     }
 
     /// <summary>

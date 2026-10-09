@@ -64,6 +64,48 @@ public sealed class CommandNamePrefixGuardTests
         return (sut, db);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Template_reply_sends_chat_and_queues_tts_only_when_enabled(bool speakWithTts)
+    {
+        (CommandService sut, CommandsTestDbContext db) = Build();
+        await sut.CreateAsync(
+            Channel.ToString(),
+            new CreateCommandDto
+            {
+                Name = "spoken",
+                TemplateResponse = "hello viewer",
+                SpeakWithTts = speakWithTts,
+            }
+        );
+        IPipelineEngine engine = Substitute.For<IPipelineEngine>();
+
+        IInboundOriginChatSender chat = await DispatchAsync(
+            db.Commands.Single(),
+            "!spoken",
+            engine
+        );
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                "hello viewer",
+                Arg.Any<CancellationToken>()
+            );
+        await engine
+            .Received(speakWithTts ? 1 : 0)
+            .ExecuteAsync(
+                Arg.Is<PipelineRequest>(request =>
+                    request.PipelineJson.Contains("play_tts")
+                    && request.InitialVariables["tts.reply"] == "hello viewer"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ─── S1: the exact live-database shape is fixed at the source ────────────
 
     [Fact]
@@ -256,7 +298,8 @@ public sealed class CommandNamePrefixGuardTests
     /// </summary>
     private static async Task<IInboundOriginChatSender> DispatchAsync(
         NomNomzBot.Domain.Commands.Entities.Command persisted,
-        string chatText
+        string chatText,
+        IPipelineEngine? engine = null
     )
     {
         ChannelContext ctx = new()
@@ -272,6 +315,7 @@ public sealed class CommandNamePrefixGuardTests
         {
             Name = persisted.Name,
             TemplateResponses = templateResponses,
+            SpeakWithTts = persisted.SpeakWithTts,
             GlobalCooldown = 0,
             UserCooldown = 0,
             MinPermissionLevel = persisted.MinPermissionLevel,
@@ -337,7 +381,7 @@ public sealed class CommandNamePrefixGuardTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
             chat,
-            Substitute.For<IPipelineEngine>(),
+            engine ?? Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             templates,
             Substitute.For<IEventBus>(),

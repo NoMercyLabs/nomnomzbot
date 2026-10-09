@@ -13,10 +13,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
+using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
@@ -83,6 +86,194 @@ public class InfraPipelineEngineTests
             MessageId = "msg1",
             RawMessage = "",
         };
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task Command_reply_switch_controls_exactly_one_tts_action(
+        bool speakWithTts,
+        int expectedSpeech
+    )
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => Task.FromResult((string)call[0]));
+        ICommandAction speech = Substitute.For<ICommandAction>();
+        speech.ActionType.Returns("play_tts");
+        speech
+            .ExecuteAsync(Arg.Any<PipelineExecutionContext>(), Arg.Any<ActionDefinition>())
+            .Returns(ActionResult.Success());
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
+            Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
+        PipelineEngine engine = new(
+            db,
+            registry,
+            [
+                new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(
+                    chat,
+                    resolver
+                ),
+                speech,
+            ],
+            [],
+            resolver,
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
+        PipelineRequest request = new()
+        {
+            BroadcasterId = TestChannel,
+            TriggeredByUserId = "viewer",
+            TriggeredByDisplayName = "Viewer",
+            PipelineJson = """{"steps":[{"action":{"type":"send_message","message":"hello"}}]}""",
+            SpeakWithTts = speakWithTts,
+        };
+
+        await engine.ExecuteAsync(request);
+
+        await chat.Received(1).SendMessageAsync(TestChannel, "hello", Arg.Any<CancellationToken>());
+        await speech
+            .Received(expectedSpeech)
+            .ExecuteAsync(
+                Arg.Any<PipelineExecutionContext>(),
+                Arg.Is<ActionDefinition>(action => action.GetString("text") == "{tts.reply}")
+            );
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task Existing_explicit_tts_step_obeys_command_switch(
+        bool speakWithTts,
+        int expectedSpeech
+    )
+    {
+        ICommandAction speech = Substitute.For<ICommandAction>();
+        speech.ActionType.Returns("play_tts");
+        speech
+            .ExecuteAsync(Arg.Any<PipelineExecutionContext>(), Arg.Any<ActionDefinition>())
+            .Returns(ActionResult.Success());
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
+            Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        PipelineEngine engine = new(
+            db,
+            registry,
+            [speech],
+            [],
+            resolver,
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
+        PipelineRequest request = new()
+        {
+            BroadcasterId = TestChannel,
+            TriggeredByUserId = "viewer",
+            TriggeredByDisplayName = "Viewer",
+            PipelineJson = """{"steps":[{"action":{"type":"play_tts","text":"hello"}}]}""",
+            SpeakWithTts = speakWithTts,
+        };
+
+        await engine.ExecuteAsync(request);
+
+        await speech
+            .Received(expectedSpeech)
+            .ExecuteAsync(Arg.Any<PipelineExecutionContext>(), Arg.Any<ActionDefinition>());
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task Reply_switch_queues_the_sent_text_through_play_tts(
+        bool speakWithTts,
+        int expectedSpeech
+    )
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                IDictionary<string, string> variables = call.ArgAt<IDictionary<string, string>>(1);
+                return Task.FromResult(
+                    template == "{tts.reply}" ? variables["tts.reply"] : template
+                );
+            });
+        ITtsDispatchService dispatch = Substitute.For<ITtsDispatchService>();
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        5,
+                        100,
+                        "audio"
+                    )
+                )
+            );
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
+            Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
+        PipelineEngine engine = new(
+            db,
+            registry,
+            [
+                new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(
+                    chat,
+                    resolver
+                ),
+                new PlayTtsAction(resolver, dispatch),
+            ],
+            [],
+            resolver,
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
+        PipelineRequest request = new()
+        {
+            BroadcasterId = TestChannel,
+            TriggeredByUserId = "viewer",
+            TriggeredByDisplayName = "Viewer",
+            PipelineJson = """{"steps":[{"action":{"type":"send_message","message":"hello"}}]}""",
+            SpeakWithTts = speakWithTts,
+        };
+
+        await engine.ExecuteAsync(request);
+
+        await chat.Received(1).SendMessageAsync(TestChannel, "hello", Arg.Any<CancellationToken>());
+        await dispatch
+            .Received(expectedSpeech)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(speak => speak.Text == "hello"),
+                Arg.Any<CancellationToken>()
+            );
+    }
 
     // ─── Basic execution ──────────────────────────────────────────────────────
 

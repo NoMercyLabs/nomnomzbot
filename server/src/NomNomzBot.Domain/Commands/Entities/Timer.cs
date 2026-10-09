@@ -59,6 +59,9 @@ public class Timer : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Whether the selected timer message is also spoken.</summary>
+    public bool SpeakWithTts { get; set; }
+
     /// <summary>UTC time the timer last sent a message.</summary>
     public DateTime? LastFiredAt { get; set; }
 

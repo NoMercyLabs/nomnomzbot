@@ -38,6 +38,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Games;
+using NomNomzBot.Infrastructure.Tts.PipelineActions;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 
@@ -468,6 +469,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     MessageId = @event.MessageId,
                     RawMessage = @event.Message,
                     InitialVariables = variables,
+                    SpeakWithTts = command.SpeakWithTts,
                 };
 
                 PipelineExecutionResult pipelineResult = await _pipeline.ExecuteAsync(
@@ -583,6 +585,16 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 bool templateSent = await SendResponseAsync(@event, resolved, cancellationToken);
                 if (!templateSent)
                     await SendBuiltinFailureNoticeAsync(@event, ctx, cancellationToken);
+                else if (command.SpeakWithTts && !string.IsNullOrWhiteSpace(resolved))
+                    await ReplyTtsPipeline.QueueAsync(
+                        _pipeline,
+                        @event.BroadcasterId,
+                        @event.UserId,
+                        @event.UserDisplayName,
+                        @event.Provider,
+                        resolved,
+                        cancellationToken
+                    );
 
                 await PublishExecutedAsync(@event, command.Name, templateSent, cancellationToken);
             }

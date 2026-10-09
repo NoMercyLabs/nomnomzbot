@@ -172,6 +172,7 @@ public class CommandService : ICommandService
             Description = request.Description,
             Aliases = request.Aliases ?? [],
             IsEnabled = request.IsEnabled,
+            SpeakWithTts = request.SpeakWithTts,
         };
 
         _db.Commands.Add(command);
@@ -312,6 +313,8 @@ public class CommandService : ICommandService
             command.Aliases = request.Aliases;
         if (request.IsEnabled.HasValue)
             command.IsEnabled = request.IsEnabled.Value;
+        if (request.SpeakWithTts.HasValue)
+            command.SpeakWithTts = request.SpeakWithTts.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
@@ -431,6 +434,7 @@ public class CommandService : ICommandService
             )
             {
                 PresetKey = c.PresetKey,
+                SpeakWithTts = c.SpeakWithTts,
             })
             .ToListAsync(cancellationToken);
 
@@ -688,6 +692,7 @@ public class CommandService : ICommandService
         )
         {
             PresetKey = c.PresetKey,
+            SpeakWithTts = c.SpeakWithTts,
         };
 
     /// <summary>The recorded shape of a <see cref="AuditRecordType"/> row — one destructive command-authoring event.</summary>

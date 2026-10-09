@@ -26,7 +26,10 @@ public sealed record TimerDto(
     int NextMessageIndex,
     DateTime CreatedAt,
     DateTime UpdatedAt
-);
+)
+{
+    public bool SpeakWithTts { get; init; }
+}
 
 /// <summary>Lightweight timer info for list views.</summary>
 public sealed record TimerListItem(
@@ -64,6 +67,8 @@ public sealed record CreateTimerDto
 
     /// <summary>When true the timer fires once and then disables itself, instead of looping on the interval.</summary>
     public bool FireOnce { get; init; }
+
+    public bool SpeakWithTts { get; init; }
 }
 
 /// <summary>Request to update an existing timer.</summary>
@@ -86,4 +91,6 @@ public sealed record UpdateTimerDto
 
     /// <summary>When set, toggles one-shot mode (fire once then disable) vs looping.</summary>
     public bool? FireOnce { get; init; }
+
+    public bool? SpeakWithTts { get; init; }
 }

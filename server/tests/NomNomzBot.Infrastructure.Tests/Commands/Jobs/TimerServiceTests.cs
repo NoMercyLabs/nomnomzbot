@@ -230,6 +230,30 @@ public sealed class TimerServiceTests
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
     }
 
+    [Fact]
+    public async Task Spoken_message_timer_sends_chat_and_queues_exactly_one_resolved_reply()
+    {
+        Harness h = Build();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["hello chat!"]);
+        timer.SpeakWithTts = true;
+        h.Db.SaveChanges();
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
+        await h
+            .Engine.Received(1)
+            .ExecuteAsync(
+                Arg.Is<PipelineRequest>(request =>
+                    request.PipelineJson.Contains("play_tts")
+                    && request.InitialVariables["tts.reply"] == "hello chat!"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     /// <summary>
     /// Z1 — zero-downtime deploys deliberately run two instances against one database; without a lease
     /// both would send every due timer's message, doubling it in chat. Two TimerService instances share

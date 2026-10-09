@@ -87,6 +87,9 @@ public class Command : SoftDeletableEntity, ITenantScoped
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Whether a template reply is also sent through the TTS pipeline.</summary>
+    public bool SpeakWithTts { get; set; }
+
     /// <summary>True for built-in platform commands; false for broadcaster-authored ones.</summary>
     public bool IsPlatform { get; set; }
 

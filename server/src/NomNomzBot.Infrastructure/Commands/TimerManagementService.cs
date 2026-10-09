@@ -191,6 +191,7 @@ public class TimerManagementService : ITimerManagementService
             MinChatActivity = request.MinChatActivity,
             IsEnabled = request.IsEnabled,
             FireOnce = request.FireOnce,
+            SpeakWithTts = request.SpeakWithTts,
         };
 
         _db.Timers.Add(timer);
@@ -262,6 +263,8 @@ public class TimerManagementService : ITimerManagementService
             timer.IsEnabled = request.IsEnabled.Value;
         if (request.FireOnce.HasValue)
             timer.FireOnce = request.FireOnce.Value;
+        if (request.SpeakWithTts.HasValue)
+            timer.SpeakWithTts = request.SpeakWithTts.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcaster, timer.Id, "updated", cancellationToken);
@@ -376,5 +379,8 @@ public class TimerManagementService : ITimerManagementService
             t.NextMessageIndex,
             t.CreatedAt,
             t.UpdatedAt
-        );
+        )
+        {
+            SpeakWithTts = t.SpeakWithTts,
+        };
 }

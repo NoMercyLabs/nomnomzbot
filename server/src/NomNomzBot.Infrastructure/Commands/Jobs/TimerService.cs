@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using Timer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Commands.Jobs;
@@ -184,7 +185,7 @@ public sealed class TimerService : BackgroundService
 
         bool fired = timer.PipelineId is { } pipelineId
             ? await FirePipelineAsync(db, pipelineEngine, timer, pipelineId, channelCtx, ct)
-            : await FireMessageAsync(chat, timer, channelCtx, ct);
+            : await FireMessageAsync(chat, pipelineEngine, timer, channelCtx, ct);
         if (!fired)
             return;
 
@@ -205,6 +206,7 @@ public sealed class TimerService : BackgroundService
     /// <summary>The classic timer: sends the next round-robin chat line. True when a line was sent.</summary>
     private async Task<bool> FireMessageAsync(
         IChatProvider chat,
+        IPipelineEngine pipelineEngine,
         Timer timer,
         ChannelContext channelCtx,
         CancellationToken ct
@@ -246,6 +248,17 @@ public sealed class TimerService : BackgroundService
             );
             return false;
         }
+
+        if (timer.SpeakWithTts)
+            await ReplyTtsPipeline.QueueAsync(
+                pipelineEngine,
+                timer.BroadcasterId,
+                channelCtx.TwitchChannelId,
+                channelCtx.ChannelName,
+                null,
+                message,
+                ct
+            );
 
         _logger.LogInformation(
             "Timer {Name} fired in channel {BroadcasterId}: \"{Message}\"",
@@ -329,6 +342,7 @@ public sealed class TimerService : BackgroundService
             MessageId = string.Empty,
             RawMessage = string.Empty,
             InitialVariables = variables,
+            SpeakWithTts = timer.SpeakWithTts,
         };
 
         PipelineExecutionResult result = await pipelineEngine.ExecuteAsync(request, ct);

@@ -73,6 +73,35 @@ public sealed class CommandServiceTests
         new() { Name = name, TemplateResponse = "hi there" };
 
     [Fact]
+    public async Task Speak_with_tts_round_trips_through_create_update_and_list()
+    {
+        (CommandService sut, RecordingEventBus _) = Build();
+
+        CommandDto created = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateCommandDto
+                {
+                    Name = "spoken",
+                    TemplateResponse = "hello",
+                    SpeakWithTts = true,
+                }
+            )
+        ).Value;
+        created.SpeakWithTts.Should().BeTrue();
+
+        CommandDto updated = (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                "spoken",
+                new UpdateCommandDto { SpeakWithTts = false }
+            )
+        ).Value;
+        updated.SpeakWithTts.Should().BeFalse();
+        (await sut.GetAsync(Channel.ToString(), "spoken")).Value.SpeakWithTts.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Create_publishes_ChannelConfigChangedEvent_for_the_commands_domain()
     {
         (CommandService sut, RecordingEventBus bus) = Build();

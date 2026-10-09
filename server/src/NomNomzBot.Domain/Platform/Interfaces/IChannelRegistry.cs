@@ -350,6 +350,8 @@ public class CachedCommand
     /// <summary>Template responses (round-robin). Empty for pipeline/code tier commands.</summary>
     public required string[] TemplateResponses { get; init; }
 
+    public bool SpeakWithTts { get; init; }
+
     public required int GlobalCooldown { get; init; }
     public required int UserCooldown { get; init; }
 

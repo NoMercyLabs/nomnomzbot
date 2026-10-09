@@ -1462,6 +1462,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("SpeakWithTts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("TemplateResponse")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
@@ -2375,6 +2380,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SpeakWithTts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");

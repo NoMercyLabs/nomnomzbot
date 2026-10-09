@@ -39,6 +39,8 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
 
         builder.Property(e => e.IsEnabled).HasDefaultValue(true);
 
+        builder.Property(e => e.SpeakWithTts).HasDefaultValue(false);
+
         builder.Property(e => e.Description).HasMaxLength(500);
 
         builder.Property(e => e.CooldownSeconds).IsRequired();
