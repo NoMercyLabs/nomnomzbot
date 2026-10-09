@@ -556,7 +556,7 @@ public sealed class ShoutoutQueueTests
     }
 
     [Fact]
-    public async Task A_manual_shoutout_inside_only_the_per_user_cooldown_waits_for_the_native_call()
+    public async Task A_manual_shoutout_inside_the_per_user_cooldown_announces_and_speaks_without_native_delivery()
     {
         Rig rig = await BuildAsync();
         rig.ChannelCtx.LastShoutoutPerUser[ManualId] = rig.Clock.GetUtcNow();
@@ -564,21 +564,33 @@ public sealed class ShoutoutQueueTests
         ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
         result.Succeeded.Should().BeTrue();
-        result.Output.Should().Be("queued (cooldown)");
-        await AssertNothingSentAsync(rig);
-        rig.Queue.Peek(Channel)!.Target.Id.Should().Be(ManualId);
+        result.Output.Should().Be("announced (per-user cooldown)");
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+        rig.Queue.Peek(Channel).Should().BeNull();
+        rig.ChannelCtx.LastGlobalShoutout.Should().BeNull();
+        rig.Db.ChannelEvents.Should()
+            .ContainSingle(e =>
+                e.Type == "bot.shoutout.sent"
+                && e.Data != null
+                && e.Data.Contains("\"toUserId\":\"111001\"")
+                && e.Data.Contains("\"source\":\"announce-only\"")
+            );
+        ActionResult duplicate = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        duplicate.Output.Should().Be("already announced (per-user cooldown)");
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
         rig.Clock.Advance(TimeSpan.FromMinutes(60));
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
-        await rig
-            .Chat.Received(1)
-            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         await AssertAnnouncedAsync(rig, ManualId);
         await AssertSpokenForAsync(rig, ManualId);
         rig.Queue.Peek(Channel).Should().BeNull();
     }
 
     [Fact]
-    public async Task A_manual_shoutout_inside_both_cooldowns_waits_for_the_per_user_window()
+    public async Task A_manual_shoutout_inside_both_cooldowns_announces_without_queueing_a_native_call()
     {
         Rig rig = await BuildAsync();
         StampGlobalCooldown(rig);
@@ -586,18 +598,18 @@ public sealed class ShoutoutQueueTests
 
         ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
 
-        result.Output.Should().Be("queued (cooldown)");
-        await AssertAnnouncedNowNativeWaitingAsync(rig);
+        result.Output.Should().Be("announced (per-user cooldown)");
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Queue.Peek(Channel).Should().BeNull();
 
         rig.Clock.Advance(GlobalCooldown);
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
 
-        await AssertNothingSentAsync(rig);
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         rig.Clock.Advance(TimeSpan.FromMinutes(58));
         await rig.Worker.ProcessDueAsync(CancellationToken.None);
-        await rig
-            .Chat.Received(1)
-            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        await rig.Chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
         await AssertAnnouncedAsync(rig, ManualId);
         await AssertSpokenForAsync(rig, ManualId);
     }

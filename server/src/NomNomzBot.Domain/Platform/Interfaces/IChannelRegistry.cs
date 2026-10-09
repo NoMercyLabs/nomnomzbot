@@ -257,6 +257,10 @@ public class ChannelContext
 
     // Track last shoutout sent to each user: key = userId, value = DateTimeOffset
     public ConcurrentDictionary<string, DateTimeOffset> LastShoutoutPerUser { get; } = new();
+    public ConcurrentDictionary<
+        string,
+        DateTimeOffset
+    > LastManualShoutoutAnnouncementPerUser { get; } = new();
     public DateTimeOffset? LastGlobalShoutout { get; set; }
 
     // Session chatters seen since bot joined: key = userId, value = displayName

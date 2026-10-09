@@ -108,21 +108,23 @@ public sealed class ShoutoutSender : IShoutoutSender
 
         // rawUserId is the Twitch id of the channel to shout out. The sub-client resolves this channel's
         // tenant Guid → Twitch id internally and sends the shoutout as its own moderator.
-        Result result = await _chat.SendShoutoutAsync(
-            request.BroadcasterId,
-            rawUserId,
-            cancellationToken
-        );
-
-        if (result.IsFailure)
-            return NativeFailureOutcome(result, rawUserId);
-
-        ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
-        if (channelCtx is not null)
+        if (!request.SkipNative)
         {
-            DateTimeOffset now = _timeProvider.GetUtcNow();
-            channelCtx.LastGlobalShoutout = now;
-            channelCtx.LastShoutoutPerUser[rawUserId] = now;
+            Result result = await _chat.SendShoutoutAsync(
+                request.BroadcasterId,
+                rawUserId,
+                cancellationToken
+            );
+            if (result.IsFailure)
+                return NativeFailureOutcome(result, rawUserId);
+
+            ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
+            if (channelCtx is not null)
+            {
+                DateTimeOffset now = _timeProvider.GetUtcNow();
+                channelCtx.LastGlobalShoutout = now;
+                channelCtx.LastShoutoutPerUser[rawUserId] = now;
+            }
         }
 
         // The native Helix shoutout carries no visible text. Post the channel's custom announcement only
@@ -146,7 +148,13 @@ public sealed class ShoutoutSender : IShoutoutSender
                 announceResult.ErrorMessage
             );
 
-        await RecordAsync(request.BroadcasterId, rawUserId, cancellationToken);
+        if (!request.SkipNative || announceResult.IsSuccess)
+            await RecordAsync(
+                request.BroadcasterId,
+                rawUserId,
+                request.SkipNative,
+                cancellationToken
+            );
 
         // TTS is opt-in per invocation (old-bot parity: manual !so speaks it, an automated
         // presence-detection shoutout stays silent by simply never passing tts:true) and best-effort — a
@@ -188,12 +196,15 @@ public sealed class ShoutoutSender : IShoutoutSender
                 ? ActionResult.RetryableFailure(failure)
                 : ActionResult.Failure(failure);
         }
-        return ActionResult.Success($"shoutout sent to {rawUserId}");
+        return ActionResult.Success(
+            request.SkipNative ? $"announced (per-user cooldown)" : $"shoutout sent to {rawUserId}"
+        );
     }
 
     private async Task RecordAsync(
         Guid broadcasterId,
         string targetUserId,
+        bool announceOnly,
         CancellationToken cancellationToken
     )
     {
@@ -204,7 +215,11 @@ public sealed class ShoutoutSender : IShoutoutSender
                 ChannelId = broadcasterId,
                 Type = "bot.shoutout.sent",
                 Data = JsonSerializer.Serialize(
-                    new { toUserId = targetUserId, source = "pipeline" }
+                    new
+                    {
+                        toUserId = targetUserId,
+                        source = announceOnly ? "announce-only" : "pipeline",
+                    }
                 ),
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }

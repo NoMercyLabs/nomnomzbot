@@ -367,6 +367,8 @@ public interface ITwitchChatApi
 | `GetUserChatColorAsync` / `UpdateUserChatColorAsync` | `GET` / `PUT /chat/color` — the tenant's own name color (named color or hex). Update requires `user:manage:chat_color`. |
 | `GetPinnedMessagesAsync` / `PinMessageAsync` / `UpdatePinnedMessageAsync` / `UnpinMessageAsync` | The pinned-message lifecycle — read the current pin (`not_found` when none), pin for an optional duration, change the remaining duration, unpin. Mutations require `moderator:manage:chat_messages`. |
 
+A chat-triggered manual shoutout during Twitch's 60-minute per-target window posts its announcement and bot-voice TTS immediately without calling `SendShoutoutAsync` again. A two-minute local announcement cooldown prevents repeated chat output to the same target. The two-minute global native window still holds a full shoutout in the durable queue until it can be sent, then announced and spoken.
+
 ### 3.3d `ITwitchChatAssetsApi` — chatters, emotes, badges, shared chat
 
 ```csharp

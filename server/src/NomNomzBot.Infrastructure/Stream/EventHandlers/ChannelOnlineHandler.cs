@@ -146,6 +146,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         channelCtx.CurrentGame = gameName;
         channelCtx.SessionChatters.Clear();
         channelCtx.LastShoutoutPerUser.Clear();
+        channelCtx.LastManualShoutoutAnnouncementPerUser.Clear();
         channelCtx.LastGlobalShoutout = null;
 
         _logger.LogInformation(

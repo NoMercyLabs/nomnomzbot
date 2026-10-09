@@ -223,6 +223,34 @@ public sealed class ShoutoutAction : ICommandAction
             now
         );
 
+        if (perUserActive && !isRaid && !string.IsNullOrWhiteSpace(ctx.MessageId))
+        {
+            if (channelCtx is not null)
+            {
+                lock (channelCtx.LastManualShoutoutAnnouncementPerUser)
+                {
+                    if (
+                        channelCtx.LastManualShoutoutAnnouncementPerUser.TryGetValue(
+                            target.Id,
+                            out DateTimeOffset lastAnnouncement
+                        )
+                        && now - lastAnnouncement < DefaultGlobalCooldown
+                    )
+                        return ActionResult.Success("already announced (per-user cooldown)");
+                    channelCtx.LastManualShoutoutAnnouncementPerUser[target.Id] = now;
+                }
+            }
+
+            string announcement = await ComposeAnnouncementAsync(ctx, action, target);
+            ActionResult announced = await _sender.SendAsync(
+                new(ctx.BroadcasterId, target, announcement, Speak: true, SkipNative: true),
+                ctx.CancellationToken
+            );
+            if (!announced.Succeeded && channelCtx is not null)
+                channelCtx.LastManualShoutoutAnnouncementPerUser.TryRemove(target.Id, out _);
+            return announced;
+        }
+
         // A waiting queue also holds back a run that is already past the cooldown, so the order stays fair.
         if (
             ShoutoutCooldowns.GlobalActive(channelCtx, globalCooldown, now)
