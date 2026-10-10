@@ -204,25 +204,18 @@ The ideal: you and the moderators you chose decide who gets banned in your chann
 Works now:
 
 - The mass ban works for Twitch through the bot's server. The dashboard has no mass ban screen yet.
-- A mass ban reaches a channel in four cases only. It is the moderator's own channel, or it is under attack.
-- The other two cases: you switched mass bans on, or the moderator recorded your yes with a note.
-- Every switch starts off. It stays set until someone changes it.
-- The moderator can leave out channels for one mass ban.
-- A live channel waits. The streamer, a lead moderator or an editor can type "!allow massban" to let it go ahead.
-- "!disallow massban" stops it. With no answer, the ban happens when the stream ends.
+- The channel switches, the wait in live channels and the chat answers work as part 2.2 describes.
 - In Twitch shared chat, a ban can reach a partner channel. The partner must switch this on and trust your channel.
-- There is no central ban list to subscribe to or to import.
 
 Not built yet:
 
 - The limit to the people you entrust. Today any moderator can start a mass ban.
-- Your refusal winning over a moderator's recorded yes.
-- Ban requests and decision cards for channels that are off.
+- Your refusal winning over a moderator's switch.
+- Ban requests and decision cards.
 - The count of rejected or undone bans for each moderator.
 - Mass bans on Kick and YouTube.
 
-One more fact: the owner of a NomNomzBot server can ban one account in every channel on that server.
-That step needs a written reason, and it can be lifted. Chapter 3 says more.
+One exception: the owner of a NomNomzBot server can ban one account in every channel on that server. Chapter 3 says more.
 
 ### 2.1 Why it matters
 
@@ -233,33 +226,21 @@ Many streamers fight the same trolls. A ban tool shared across channels looks li
 - A list name alone can hurt a person, even when nobody acts on it.
 - A wrong ban is the worst result of a safety tool. **We build so that a viewer never gets banned for the wrong reason.**
 
-So NomNomzBot keeps the final word in each channel. Your own moderators can switch mass bans on for you.
-Any other help arrives as a question, never as an order.
-
 ### 2.2 What this means for you
 
-#### No central ban list
-
-NomNomzBot has no central ban list. You cannot subscribe to a list from another channel. You cannot import a list of names.
-
-Each channel keeps its own bans. A mass ban reaches only the channels where it is switched on.
-
-#### One click, in the channels your moderator picks
+#### One click, in the channels that are switched on
 
 Many moderators help in a lot of channels. They should not ban the same troll in each channel by hand.
-
 So a person with the mass ban power bans an account in many channels with one click.
 
-- The mass ban reaches only the channels where the moderator switched it on.
-- The moderator has one switch for each channel that they moderate.
-- Every switch starts off. The moderator uses their own judgement for each channel.
-- A switch saves at once. It stays set until the moderator changes it.
+- The mass ban always reaches the moderator's own channel and a channel under attack.
+- Other channels need a switch. You have one for your channel. The moderator has one for each channel they moderate.
+- Every switch starts off. A switch saves at once and stays set until someone changes it.
+- The moderator uses their own judgement for each channel.
 - If your channel does not use NomNomzBot, the moderator switches it on only with your word.
+- The moderator can leave out a channel for a single ban.
 
-#### You can always say no
-
-You can refuse mass bans for your channel. Your refusal wins over every moderator switch.
-You can change your mind at any time.
+Each channel keeps its own bans. There is no central list to subscribe to or to import.
 
 #### Each channel shows its state
 
@@ -273,8 +254,6 @@ Before a mass ban, the moderator sees every channel and its state.
 | Refused | The streamer said no. No ban here. |
 | No moderator rights | The bot cannot ban in this channel. |
 
-The moderator can also leave out one channel for a single ban.
-
 #### When the ban happens
 
 | Channel | When the ban happens |
@@ -284,16 +263,13 @@ The moderator can also leave out one channel for a single ban.
 | An offline channel | At once. |
 | A live channel | It waits. The bot posts one formal notice in the chat. |
 
-In a live channel, a lead moderator or the streamer answers in chat.
+In a live channel, the streamer, a lead moderator or an editor answers in chat.
 The command "!allow massban" lets the ban go ahead. The command "!disallow massban" stops it.
 With no answer, the ban happens when the stream ends.
 
 If the bot is not in that chat, it joins only to listen for the answer. It leaves when the stream ends.
 
 #### A ban request for channels that are off
-
-When mass bans are off in your channel, a mass ban does not ban here.
-If your channel uses NomNomzBot, it gets a ban request instead.
 
 | What happens | Who does it |
 |---|---|
@@ -310,8 +286,7 @@ The decision card gives you the facts in one place. You do not need to ask anyon
 - Who asks: the moderator who sends the request, and their channel.
 - Why: the reason they give.
 - The evidence: the last messages of the account, so you can read what they said.
-- One main choice: "Ban here too".
-- A second choice: reject the request.
+- One main choice, "Ban here too", and a second choice to reject.
 
 A ban request is only for hate, insults or harm. A personal quarrel on another stream is never a reason.
 
@@ -320,17 +295,12 @@ A ban request is only for hate, insults or harm. A personal quarrel on another s
 When you make someone your moderator, you trust them. You trust them to ban only people you also do not want.
 A mass ban rests on that same trust. We call this "entrust".
 
-- You can refuse mass bans for your channel at any time.
+- You can refuse mass bans for your channel at any time. Your refusal wins over every moderator switch.
 - When you remove a moderator, their mass bans no longer reach your channel.
-- The bot counts the bans of each moderator that channels reject or undo.
-- You can see that count for each of your moderators.
+- The bot counts the bans of each moderator that channels reject or undo. You can see that count for each of your moderators.
 
-#### Opt-in, off by default
-
-Every safety feature that reaches across channels is opt-in. It is off until someone turns it on.
-
+Every other safety feature that reaches across channels is opt-in too.
 Nothing changes in your channel because another streamer turns a feature on.
-Your refusal always wins over a moderator switch.
 
 #### Real bans that the platform can see
 
@@ -340,7 +310,7 @@ This matters. Each accepted request adds a ban that the platform itself records.
 
 #### Good evidence, not mass reports
 
-We do not mass-report accounts. On Twitch, many reports of one account do not speed up the review. Mass reports also become a second tool for grudges.
+On Twitch, many reports of one account do not speed up the review. Mass reports also become a second tool for grudges.
 
 Instead, the bot helps you use the platform's own report flow well:
 
@@ -352,7 +322,7 @@ Instead, the bot helps you use the platform's own report flow well:
 
 - We will not keep a central ban list.
 - We will not ban in your channel after you refused mass bans.
-- We will not let a mass ban reach your channel unless one of your own moderators switched it on.
+- Outside an attack, we will not ban in your channel unless you or your own moderator switched mass bans on.
 - We will not switch on mass bans for every channel of a moderator at once.
 - We will not mass-report accounts.
 - We will not hide who asked for a ban, or why.
