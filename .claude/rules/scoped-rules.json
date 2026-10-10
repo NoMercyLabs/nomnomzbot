@@ -488,6 +488,32 @@
    "covers": [
     "feedback-shared-paper-plain-goals.md"
    ]
+  },
+  {
+   "id": "owner-words-not-inferred",
+   "paths": [
+    "**/.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md",
+    "**/.claude/docs/design/*research*.md"
+   ],
+   "brief": [
+    "[Oo]wner, verbatim",
+    "[Mm]ass ban",
+    "[Mm]assban",
+    "[Ss]ettled"
+   ],
+   "text": "A plan or research line that derives a rule from an owner quote is never settled text. Write the owner's words verbatim; label every derivation 'Arc's reading:' (not settled, the owner must confirm) or 'Proposal, not settled:'. Never write 'So:' after a quote, and never let a reading narrow what the owner asked for (the 10-05 hold-everything and the 10-10 restrict-first drift both came from an unlabelled reading). Gate: python scripts/check-owner-words.py.",
+   "source": "Stoney 2026-10-10, on the shared-doc line \"We will not turn on a cross-channel feature for you\": \"this means that i do not get the one click ban from all channels i mod for option that i desire as a mod of 32 channels. can we at least allow this feature with channel toggles for what channels get this? or at minimum mark them. i feel that the don't ban legit users rule prevents the power we sometimes need.\"",
+   "check": {
+    "match": [
+     "**/.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md",
+     "**/.claude/docs/design/*research*.md"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-owner-words.py"
+   },
+   "covers": [
+    "feedback-owner-words-not-inferred.md"
+   ]
   }
  ],
  "dispatch": [
