@@ -77,7 +77,9 @@ Order: spec first (rule settle-specs-before-implementing), then one vertical sli
 - **S-USER-HUB** One tabbed "users" area that merges Community and Moderation. Its home tab is an info
   page on user standing and actions needed (like the streamer home dashboard). Other tabs: people, roles,
   permissions, bans, mass ban, notes, history, protection. The user card shows account age, channel
-  history and shared mod notes. Done-when: the spec names every tab and its endpoints, and the old
+  history and shared mod notes. No document settles the tab list yet. The spec also covers the benchmark mod-feed signals (suspicious,
+  raider, first-time, returning), watch phrases with colour and sound, per-channel mod tool profiles, and
+  configurable mod buttons and keys. Done-when: the spec names every tab and its endpoints, and the old
   Community and Moderation routes lead into it.
 - **S-MOD-NUKE-SCREEN** Nuke from the dashboard: phrase or regex, action, scrollback, radiation, the
   report, and rollback. Done-when: E2E nukes a test phrase on the dev box and rollback lifts it.
@@ -190,10 +192,445 @@ viewers spam" should not trigger the ban because they say best viewers"
   federation design are written, checked against the code, and settled with the owner.
   Written: `moderation-safety-research-2026-10-10.md` section 10 (findings F1-F10, owner questions Q1-Q8).
   Fix slices, in order: S-TOKEN-REVOKE-ON-DISCONNECT (RevokeTokenAsync has no caller; disconnect and erasure
-  only revoke locally), S-TOKEN-KILL-SWITCH, S-TOKEN-KEY-CUSTODY, S-TOKEN-AUDIT (adds the hourly Twitch
-  validate and the `user.authorization.revoke` handler, both missing), S-TOKEN-LEAST-SCOPE,
-  S-FEDERATION-SIGNED-REQUESTS (inbound gateway exists; no outbound sender). Each slice's done-when is in
+  only revoke locally; Twitch, Discord and Google can revoke, Spotify has no revoke call, so we delete the copy
+  and tell the streamer to remove the app in Spotify), S-TOKEN-KILL-SWITCH, S-TOKEN-KEY-CUSTODY (AES-256-GCM, a key-id column so a key rotation re-wraps
+  lazily, and an atomic save of each rotated refresh token), S-TOKEN-AUDIT (adds the hourly Twitch
+  validate and the `user.authorization.revoke` handler, both missing; the revoke event needs the conduit transport), S-TOKEN-LEAST-SCOPE (`TwitchScopeRegistry`
+  already builds the 70-scope catalogue, 57 from the Helix clients and 13 residual; emit it with a reason per
+  scope), S-FEDERATION-SIGNED-REQUESTS (inbound gateway exists; no outbound sender; the signing key moves
+  from config to the vault; sign method, path, body digest, origin and destination; a tight replay window
+  and a nonce), S-TOKEN-BRIDGE-SEAL, S-TOKEN-USE-AUDIT, S-TOKEN-DP-RING-REMOVE (all three below). Each slice's done-when is in
   section 10.6.
+
+Gap slices from the research of 2026-10-10 (paper: `moderation-safety-research-2026-10-10.md`; the gap
+research behind these slices is being folded into the paper, and the paper must name each slice ID below).
+Order: the safety of our own tools first, then the output surfaces, then the rest. Anything marked "not
+checked" in a slice stays open until the slice reads it.
+
+- **S-MOD-BAN-RATE-STEPUP** A stolen or rogue session can start a very large ban with no second check.
+  Mass ban needs only the plain Mod floor (`ActionDefinitionSeeder.cs:203`) and takes up to 1000 targets per
+  request (`MassBanConsentService.cs:29`). The only HTTP limit is 120 writes a minute per principal
+  (`WriteCheapRateLimitPolicy.cs:23-35`), which is not a ban budget. A grep for step-up, MFA, re-auth and
+  new-device finds nothing for ban, mass ban, nuke or network ban. Fix: (a) a rolling ban budget per
+  operator and per channel in a time window, lower for a Mod than for a Lead, and a plain Mod cannot start a
+  mass ban at all (own action key, higher floor, not delegable); (b) at the limit the batch is held and the
+  streamer is asked, never silently refused or punished; (c) a step-up check (fresh sign-in check, passkey or
+  authenticator code, not SMS) before mass ban, nuke and network ban; (d) a new-device or new-location notice to
+  the user; (e) a per-channel switch "require the step-up", like Discord's `mfa_level`. Benchmarks: Discord
+  anti-nuke bots count bans per actor per window and quarantine, and Discord can require 2FA for moderation
+  actions (sources: the Discord developer docs and the Security Bot anti-nuke docs). Done-when: tests prove that a Mod session cannot
+  start a mass ban; that the (limit+1)th ban in the window is held and the streamer gets a notice; that a
+  mass ban without a fresh step-up is refused and the same call with one passes; and that a first sign-in
+  from a new device raises the notice.
+- **S-MOD-IMPERSONATION-LIMITS** An impersonation token (the `act` claim) can call ban, mass ban and nuke with
+  the target's rights. No authorization code reads that claim to limit what it may do (grep for the actor
+  claim found only `CurrentUserService.cs:50-70`). The audit row names who started the session, but the
+  per-action mod-log rows most likely carry the target as actor (inferred; not checked in code). The
+  streamer notice is an inbox item only (`SecurityNoticeSource.cs:30-45`). Fix: an act-as token may never
+  start mass ban, nuke, network ban or role changes (or needs the streamer's yes in the dashboard); every
+  moderation record written under an act-as token stores the operator behind it; the streamer notice also
+  goes out by a second channel. Done-when: a test with an act-as token gets a refusal on each of those
+  actions, a read-only call still works, and a ban made under an act-as token stores the operator id on its
+  record.
+- **S-MOD-NUKE-CAPS-AUDIT** The nuke confirmation is a flag the client sends (`NetworkNukeService.cs:49-70`),
+  with no count cap and no cooling-off, so a thief passes it. The network ban with all moderated channels
+  loops every moderated channel with no cap and no audit row (`OperatorNetworkBanService.cs:200-240`);
+  only a log line is written on failure. No alert reaches the channel owners when either lands. Fix: the
+  confirmation is a server-issued, single-use token tied to the previewed blast radius; a cap on channels
+  and targets per request and a pause between legs; an audit row and an event per leg for the network ban,
+  naming the requester and any act-as operator; a notice to every affected streamer. Done-when: a test
+  sends a nuke with a client-set flag and no server token and nothing runs; a request above the cap is
+  held; a network ban writes one audit row per channel, including the failed ones; and each affected
+  streamer gets a notice.
+- **S-MOD-ATTACKED-PROOF** "Attacked" channels come from the request body (`MassBanChannelPlanner.cs:73-76`
+  and `:197-199`). The requester can pick the mode that skips the live hold, so the hold is no guard. Also
+  no notice reaches the streamer for attacked, own or offline batches, and the opt-in "streamer's word" is
+  free text (`MassBanConsentService.cs:149-201`). Fix: the server decides "attacked" from its own signals
+  (spike, raid, lockdown, the streamer's own marking) and ignores the body; every path sends the streamer a
+  notice; the "streamer's word" is a recorded, checkable fact (who, when, which channel), not a note. Done-when:
+  a test sends a request that claims "attacked" for a quiet channel and the live hold still applies; a
+  batch on an own, offline or attacked channel produces a streamer notice; an opt-in with a free-text note
+  alone does not count.
+- **S-MOD-REVOKE-SESSIONS** No admin can end all sessions of a user. A grep in the API for revoke-all or force
+  logout finds none; only the user can sign out everywhere (`AuthController.cs:1368-1408`). The network
+  block (`ActionAuthorizationService.cs:60-75`) stops actions but leaves the access token alive for up to
+  an hour and leaves API keys alive. Fix: an admin action that revokes every session and refresh lineage of
+  a user, revokes the user's automation API keys, and optionally does it together with the network block;
+  it is audited and the user is told. Also: when a streamer's token goes dead after a takeover and
+  Twitch's own recovery steps, the bot shows the reconnect state and stops acting on stale authority.
+  Done-when: a test revokes a user, and the next request with the old access token is refused, the refresh
+  token is dead, and the API key fails; the audit row exists.
+- **S-MOD-MASSBAN-FLOOR** Mass ban sits behind a low action key, so a plain Mod can start a batch of up to
+  1000 targets (`ModerationController.cs:337`; the seeded floor is Mod at `ActionDefinitionSeeder.cs:203`,
+  while the nuke row is Lead and Critical at `:214`). Fix: give mass ban its own action key above plain Mod,
+  seeded Critical and not delegable, the same way as the nuke row. Done-when: a test seeds the rows and
+  asserts a plain Mod is refused, a Lead is allowed, and the mass-ban row is Critical and not delegable.
+  Takes over part (a) of S-MOD-BAN-RATE-STEPUP. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-NOTICE-ALL-PATHS** The streamer notice code covers part of the mass-ban flow only
+  (`MassBanConsentService.cs:342-397`, `MassBanExecutor.cs:231`, `MassBanFailureSource.cs`,
+  `SecurityNoticeSource.cs:30-45`). The paper names the attacked, own, offline, nuke, network-ban and
+  impersonation-start paths as needing one too. Wick tells the owner on every use of power
+  (https://docs.wickbot.com/intro/features/). Fix: one notice call on every moderation-power path, with
+  actor, count and time. Done-when: a test walks each of the six paths and asserts a notice row with actor,
+  count and time; a path with no notice fails the test. S-MOD-ATTACKED-PROOF relies on this notice. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-ACTOR-AUDIT** A leg that runs on the streamer's token shows the streamer as the moderator at the
+  platform, so our own row must name the real requester and the act-as operator
+  (`MassBanChannelPlanner.cs:182`, `MassBanExecutor.cs:203-211`, `OperatorNetworkBanService.cs:200-240`,
+  `CurrentUserService.cs:50-70`; Twitch Ban User rule: https://dev.twitch.tv/docs/api/reference/#ban-user).
+  Fix: store requester and act-as operator on every leg and show both in the mod log. Done-when: a test
+  stores a Mod as requester on a streamer-token batch; an act-as ban stores target and operator; the mod log
+  shows both. Confirmed: under act-as the stored row names the impersonated subject and never the operator
+  (`ModerationController.cs:139`, `:150-156`; `ICurrentUserService.cs:23-28`), and a pipeline ban names the
+  broadcaster, never the key or device that fired it. S-MOD-IMPERSONATION-LIMITS relies on the operator stored here. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-APIKEY-LIMITS** An automation API key can live for ever (`AutomationApiTokenService.cs:120`,
+  ExpiresAt is optional, and no validator caps it; existing no-expiry keys need a migration path), the authenticator has no strange-use check
+  (`AutomationTokenAuthenticator.cs:40-80`), and a key can run ban pipelines
+  (`AutomationCommandService.cs:43-46,110`) whose ban step records no sanction hit (`BanAction.cs`).
+  Security Bot limits bans per time window for the same reason
+  (https://docs.securitybot.gg/anti-nuke/anti-nuke). Fix: a maximum key life, an alert on strange use, and a
+  ban budget on ban steps run by a key. Done-when: a key with no expiry gets the maximum; an expired key is
+  refused; a key-run ban pipeline stops at the budget. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-OPTIN-VISIBILITY** The opt-in keeps only a free-text note (`MassBanConsentService.cs:149-201`),
+  and the batch list shows a person their own batches only (`MassBanConsentService.cs:222-260`,
+  ListBatchesAsync), so the streamer cannot see who opted in or which mod made a batch in their channel.
+  Fix: the opt-in stores actor and time; the streamer lists every batch made in their channels. Done-when: a
+  test asserts opt-in stores actor and time, the streamer's list shows a mod's batch, and a mod's list shows
+  no other channel's batch. S-MOD-ATTACKED-PROOF reads the opt-in proof stored here. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-OWNER-WATCH** Nobody tells the owner when the mod list changes, and a channel whose token dies has
+  no way back (`AuthEnums.cs:110`, needs_reauth; Twitch account-hacked help:
+  https://help.twitch.tv/s/article/account-hacked). The paper's lesson 9 says the real incidents are
+  hijacked streamers, so the risk from a bad mod is an inference. Fix: a notice to owner and co-owners when
+  the mod list changes, and a path that survives a channel that goes dark and returns. Done-when: a fake
+  mod-added event writes a notice; a dead token marks needs_reauth and asks the owner to reconnect; a new
+  token restores the channel. A channel that returns asks for a reconnect and never resumes on its own; a test
+  delivers a user_removed revoke, sees needs_reauth and the chat notice, and a routine refresh does not clear it. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-OUTBOUND-FILTER** Only the speech filter checks output, and it holds 24 mild words and does no
+  leet, spacing or look-alike handling (`TtsProfanityCensor.cs:28-77`). Every other surface that repeats
+  viewer text or names has no filter: follow, raid, sub and reward alerts, event-response chat, command
+  echoes of `{args}`, reward input (`RewardBroadcastHandler.cs:76`), media titles, Discord relay text, the
+  no-match echo of the voice command (`VoiceBuiltin.cs:519-521`), and the whisper command. The explicit gate
+  the music interface documents (`IMusicProvider.cs:313`) is not implemented anywhere. Fix: one outbound
+  filter at the one seam every bot line crosses (`ChatPlatformRouter.cs:212-262`), reused by the speech
+  gate, the alert queue and the overlay broadcasters. It is slur-aware, with a stored list the streamer can
+  extend, and it normalises leet and spaced spelling and look-alike letters before matching. Per channel
+  action on a hit: replace the word, hide the whole line, or drop the alert. Implement the explicit-song
+  gate as part of it. Done-when: tests send leet and spaced forms of a listed word through the speech gate,
+  an alert name, a command echo and a reward input and each is blocked or masked; a clean word that holds a
+  listed one inside it (the "class" case) still passes; an explicit song is refused when the gate is on.
+- **S-MOD-ECHO-AFTER-FILTER** The command handler never reads the chat-filter result, so after the filter
+  deletes a viewer line the command still runs and the bot echoes `{args}` in its own voice
+  (`ChatMessageHandler.cs:573-585`). The two handlers run one after another in assembly-scan order, with no
+  contract (`EventBus.cs:64-69`, `AssemblyScanExtensions.cs:167-183`); in the 2026-10-09 Debug build the
+  filter ran first by compiler order only. `IEventHandler` has no order member and no test pins the order (`IEventHandler.cs:18-22`). The filter
+  also publishes no deleted-line event
+  (`ChatFilterExecutionHandler.cs:241` is its only publish), so the overlay keeps a deleted line until the
+  platform echoes the delete (that echo path: not checked). Fix: an explicit order, and a shared "this
+  message was filtered" signal that the command handler checks; the filter publishes the deleted-line event
+  so overlays drop the line at once. Done-when: a test that registers both handlers sends a filtered message
+  with a command and no bot echo goes out, with the order set in code and not by scan; and a filter delete
+  retracts the line on the overlay without a platform event.
+- **S-MOD-TEMPLATE-ESCAPE** The template resolver substitutes raw viewer values with no escaping
+  (`TemplateResolver.cs:146-160`), then runs the transforms over the result (`:99`, `:165`). A viewer value
+  that holds a transform tag is run, so a viewer can reshape their own text or make the bot echo letters.
+  An unknown transform name prints an error into chat each time and logs an error each time (`:362`,
+  `:367`). Fix: viewer values are inserted after the transforms run (or escaped so they are never parsed);
+  an unknown transform leaves the text as it was and logs once at a low level. Done-when: a test with a
+  viewer value that contains a transform tag outputs it as plain text, and an unknown transform name never
+  reaches chat.
+- **S-MOD-TTS-STANDING** Two places give speech the wrong standing. Event-response speech passes
+  "broadcaster" on purpose (`EventResponseExecutor.cs:336`, doc `:307-313`), so the minimum-permission floor
+  never applies to names and text from viewers. The reply pipeline seeds only the reply text
+  (`ReplyTtsPipeline.cs:25-39`, `PipelineEngine.cs:281-282`), so command replies run as bits 0 and
+  "everyone" and a channel with a bits or permission floor may reject every reply, also from a mod
+  (read from code, not run). Fix: pass the real standing of the viewer whose action caused the line, and
+  seed the reply pipeline with the requester's role and bits; where the broadcaster standing stays on
+  purpose, say so in a test name. Done-when: a test with a channel floor above everyone shows an event
+  response from a viewer below the floor is not spoken, a mod's command reply is spoken, and a viewer's
+  reply below the floor is not.
+- **S-MOD-FILTER-WORDLIST** The only word list is 24 mild words in the speech filter
+  (`TtsProfanityCensor.cs:28-77`). StreamElements and Sound Alerts both give the streamer a list, actions
+  and a strength setting
+  (https://support.streamelements.com/hc/en-us/articles/10474807584914-Tip-Moderation,
+  https://support.soundalerts.com/article/text-to-speech-tts). Fix: a default slur and hate list, custom
+  wildcard words per channel, the actions replace, hide and disable, and a strength setting. Done-when:
+  tests assert each action changes the output as named, a custom wildcard word is masked, and the default
+  list holds slurs. S-MOD-OUTBOUND-FILTER reads this list; the list is owned here. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-ALERT-NAME-HOLD** Follow and raid alerts show the viewer name with no check
+  (`FollowBroadcastHandlers.cs:48-90`, `RaidBroadcastHandler.cs:44-79`, `AlertQueueService.cs`), and a bot
+  wave arrives as a spike (`FollowBotSweepService.cs:102`). A study found 99.6 percent of bot names are
+  random strings (https://arxiv.org/html/2301.03946v1). Fix: alerts pass a name check; hateful names and
+  spike arrivals go to a hold-for-approval queue; deny masks the name. Done-when: a held follow alert shows
+  no name on the overlay, a deny shows a masked name, and a spike holds all alerts. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-OVERLAY-CHAT-GATE** The overlay and widget chat feed gets the raw message with no wait for the
+  chat filter (`DashboardBroadcastHandler.cs:29,107,130,137-141,147-159`, raw `evt.Message`). Fix: the
+  overlay chat line waits for the filter result. Done-when: a test deletes a line with the chat filter and
+  asserts no ChatMessage reaches the overlay feed or the widget route. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-LOCKDOWN-OUTPUT** Lockdown only changes chat settings
+  (`Domain/Moderation/SpamDefense/Lockdown.cs:20-42`, `TwitchLockdownAdapter.cs:56-59`,
+  `LockdownBroadcastHandlers.cs:8-40`), so alerts, TTS and overlay chat keep running. The same study found
+  streamers turned alerts off as their panic button (https://arxiv.org/html/2301.03946v1).
+  S-MOD-LOCKDOWN-MULTI covers other platforms; this slice covers outputs. Fix: lockdown also stops alerts,
+  TTS and overlay chat. Done-when: with lockdown on, a follow event shows no alert and a TTS request is
+  refused; with lockdown off, both work. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-TEXT-GATE** Viewer and tool text goes out unchecked in `RewardRedeemedHandler.cs:217` and in
+  `LiveOpsController.cs:109-124` (poll) and `:203-210` (prediction). Twitch limits are poll title 60, choice
+  25, prediction title 45 and outcome 25; a CANCELED redemption refunds; only the app that made a reward may
+  update its redemption. Fix: check redemption, poll and prediction text before use; for bot-owned rewards
+  cancel with a refund and a visible reason. Done-when: blocked-term input gives one CANCELED call, one
+  saved reason, one viewer message and no TTS or overlay text; clean input is unchanged; another app's
+  reward gets no status call; a poll title with a blocked term returns 400 with zero Helix calls; the three
+  length limits are enforced. Takes over part (c) of S-MOD-OTHER-HARMS. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-DECISION-CARD** The decision card (who asked, the reason, the origin channel, the account's last
+  messages there, one primary "Ban here too" with reject as the secondary) exists only as guard (k) inside
+  the spec-first slice S-MASSBAN-ABUSE-GUARDS. It has no build slice. Commit `700a4e7f2` added the text, and
+  a grep of the plan and the paper finds no slice that builds it. Fix: build the card as the channel-side
+  inbox item for a restricted account: it reads the request evidence, shows the last N messages from the
+  event journal, and the primary action ends in a real Twitch ban while reject lifts the restriction. It
+  follows the Sleak rules (one primary action, concentric radius, scarce accent). Done-when: a test request
+  from another channel shows the card with the reason and the last N messages, "Ban here too" bans on
+  Twitch and the card leaves the inbox, and reject lifts the restriction and bans nobody.
+- **S-MOD-FILTER-KINDS** The chat filter has 3 kinds. Caps, emote, symbol, repeat, length and zalgo have no
+  filter (a grep of Domain and Infrastructure moderation finds only escalation, risk, lockdown and the
+  message normaliser); `S-CHATFILTER-ENUM-WIRE` covers only the enum text and `S-CHATFILTER-HOLD` only
+  the hold action. Zalgo may be covered by the cosmetic-abuse signal (not read). Fix: add the missing kinds
+  as filter kinds with stored limits per channel, and test them through the same dashboard test as
+  S-MOD-FILTER-TEST. Done-when: for each new kind, a test sends a message just under and just over the limit
+  and only the second is acted on, and the dashboard shows the kind with an editable limit.
+- **S-MOD-YOUTUBE-GAPS** Bans and deletes made on YouTube outside our bot are invisible to us. A recursive grep
+  of the server for the YouTube banned-user item, the deleted-message item and the tombstone finds nothing
+  (`YouTubeLiveChatEventTranslator.cs:54-126` lists only money and member types). There is no code for
+  `liveChatModerators` (list, insert, delete); `S-COVERAGE-REMAINDER` names that gap without a test. A ban
+  or unban costs 200 of the 10,000 daily quota units, a delete costs 20, a list call costs 5, so 500
+  deletes use the whole day (per the YouTube quota-cost page). Fix: translate the
+  banned-user and tombstone items into the same canonical events Kick already emits; add the moderator
+  calls; a per-channel and per-day quota budget that holds moderation work before it starves polling and
+  shows the streamer what remains. Done-when: a test with a recorded banned-user chat item produces the
+  canonical ban event and a mod-log row; a test with a tombstone retracts the line on the overlay; the
+  budget refuses the call that would pass the cap and says so in the dashboard.
+- **S-MOD-EVENTSUB-CONSUMERS** Five subscribed and translated topics have no consumer: the automod settings
+  update, the automod terms update, the chat settings update, the held-message hold and the held-message
+  update. They reach only the raw event journal (`NotificationDispatcher.cs:104-117` journals every
+  event). The moderation action topic has consumers only for delete and raid, and warning and shield mode
+  reach only a history row or a dashboard push, not the mod log. A chat-settings change made outside our bot
+  is therefore invisible in the lockdown view. Fix: a typed consumer for each, writing a mod-log row and a
+  dashboard push so the change shows live. Done-when: for each of the five topics and for warning, shield
+  begin and shield end, a test sends the event and finds a mod-log row and a hub push; a chat-settings change
+  from Twitch shows in the lockdown view without a reload.
+- **S-MOD-RATE-HEADERS** Mass-ban pacing is a constant: 25 targets every 5 seconds, no pause between calls
+  (`MassBanExecutionWorker.cs:24-29`, `MassBanExecutor.cs:70-88`), up to 300 bans a minute for one
+  broadcaster, with no per-broadcaster counter. The code reads no rate-limit header and the 429 retry is
+  only a safety net (`MassBanRetryPolicy.cs:25-40`). Twitch publishes no number for Ban User (the 800 in
+  the docs is an example); Kick publishes no limits at all and lists no 429 for moderation. The Helix transport hands no
+  header to callers (`TwitchHelixTransport.cs:175-185`, `:374-404`); the headers are read in
+  `TwitchRateLimitHandler.cs:56-59` and `:79-96`, which feed `ITwitchRateLimiter`, so pacing reads the limiter
+  state. Twitch also sets hard caps per endpoint (shoutout 2 min and 60 min per target, announcement 2 s, VIP
+  10 per 10 s, raid 10 per 10 min, whisper 3 per s and 40 new recipients a day); the queue sizes each one. Fix: pace from the live remaining-and-reset
+  headers and the retry hint, keep a per-broadcaster counter, treat 429 as retryable on every Kick call,
+  and read a live limit header once on a throwaway channel to close the number. Done-when: a test with a
+  response that reports few remaining calls slows the next tick and stops at zero until the reset; a 429
+  with a retry hint waits that long; two batches on one broadcaster share one counter.
+- **S-MOD-ROUTER-UNBAN** The unified router has three actions and no Unban or moderator-add
+  (`IInboundOriginModerator.cs`), and YouTube bans are tracked in `YouTubeLiveChatBanLedger`. Fix: add Unban
+  and a moderator-add contract to the router. Done-when: an Unban test on Twitch, Kick and YouTube asserts
+  the platform call per origin; a YouTube unban of a ban made outside our bot returns a plain error. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-CAPABILITY-FLAGS** The dashboard cannot say what a platform allows. Kick has no chat-mode,
+  blocked-term or hold-queue API and X Live has none of the controls (https://docs.kick.com/apis/moderation,
+  https://docs.x.com/x-api/llms.txt; contract in `IInboundOriginModerator.cs`). Fix: a capability table per
+  platform; the dashboard shows not available with the reason and a manual instruction for mods on Kick and
+  YouTube; a release check reads the X docs. Done-when: the Kick capability response marks chat modes,
+  blocked terms and hold queue unavailable with a reason and the dashboard shows no switch for them; X Live
+  shows all unavailable. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-OWN-ACTION-LOG** Kick has no unban or delete event and YouTube has no unban event
+  (https://docs.kick.com/events/event-types), so our own actions must write the mod log. Kick ingest handles
+  only the later webhook (`KickWebhookIngest.cs:595`). Fix: write the mod-log row when our bot acts on Kick
+  and YouTube. Done-when: a bot ban on Kick writes one row, a bot unban closes it, and the later
+  moderation.banned webhook adds no second row. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-PLATFORM-INBOUND-FILTER** Kick and YouTube have no AutoMod or blocked-terms API
+  (https://docs.kick.com/apis/moderation; Kick client `KickApiClient.cs:92-146`), so a filter for their chat
+  must run inside the bot. Fix: bot-side blocked terms and hold logic for Kick and YouTube chat, with a
+  logged degraded state when YouTube quota is low. Done-when: a Kick message with a blocked term is deleted
+  through the delete endpoint and logged; YouTube with low quota degrades to a logged state and does not
+  delete. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-CROSS-PLATFORM-BAN** A ban across platforms must use only identity links proven by login
+  (`IExternalLoginService.cs:13-22`; `UserIdentityService.cs:78,154,320`, where MergeIdentitiesAsync has no
+  production caller). Fix: the cross-platform ban names only proven ids, shows the blast radius per
+  platform, and a merge caller must give proof. Done-when: proven Twitch and Kick links ban both ids; an
+  unlinked chatter with the same name is not banned; a merge without proof is refused. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-PROJECTION-PROVIDER** The projection rebuild hard-codes Twitch
+  (`ModerationProjectionService.cs:253` and `:296`; related lines `:77` and `:102`), so Kick and YouTube
+  history rebuilds against the wrong provider. Fix: rebuild uses the provider stored with each action, and UserUnbannedEvent, WarningSentEvent,
+  WarningAcknowledgedEvent and AutoModMessageUpdatedEvent gain a Provider field that their handlers pass on
+  (only the Twitch translators and ModerationQueueService publish them today); a test shows a Kick unban
+  resolves the Kick user.
+  Done-when: a rebuild from stored Kick and YouTube actions resolves each subject by its own provider and
+  writes one history row per action. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-RISK-WEIGHTS** The six account-risk multipliers are fixed numbers in code
+  (`AccountRisk.cs:128-133`: 1.6, 1.3, 1.1, 1.2, 1.15, 1.4). The settings catalogue has no key for them
+  (`SpamDefenseSettings.cs:226-290`), while the spec says every threshold is a stored, editable setting
+  (`spec/spam-defense.md` section 6) and the rule says values like these are channel data. Trust
+  thresholds and watch-hour bars are already editable. Fix: move the six into the settings catalogue with
+  these defaults, per channel. Done-when: a test changes one weight for a channel and the risk score of the
+  same account changes by that factor there and not in another channel; a default channel is unchanged.
+- **S-MOD-OTHER-HARMS** Four harms the first paper missed, each with its own answer (research of 2026-10-10). (a) Self-harm in chat: post the Twitch Crisis help page link and alert the mods; the
+  bot gives no advice itself. (b) Swatting and IRL safety: a help page for streamers, since Twitch cannot
+  call the police for a streamer; no location data leaves the bot, and an IRL preset applies the four chat
+  settings Twitch names for IRL streams. (c) Poll and prediction titles and
+  redemption text: AutoMod does not document that it checks them, so we run our own check through the
+  outbound filter of S-MOD-OUTBOUND-FILTER. (d) Minors in chat: link the Twitch parents guide and add a
+  mod-visible flag, no profiling; under-18 streamers get a strict "teen streamer" preset (strictest AutoMod,
+  verified chat, and the S-SAFETY-DOXX check on the streamer's own lines too). Done-when: a test message with a crisis phrase posts the help link once
+  and alerts the mods; a poll title with a listed word is refused; the help pages exist and are linked from
+  the protection status page.
+- **S-MOD-DOX-TERMS** Twitch's Add Blocked Term has no Private flag, so every mod sees a term
+  (https://dev.twitch.tv/docs/api/reference/), and a streamer's address would be shown to all of them.
+  Twitch's page on doxxing and swatting:
+  https://safety.twitch.tv/s/article/Preventing-Doxxing-Swatting-and-other-IRL-Harm. Fix: a private,
+  encrypted store for the streamer's address and names; the bot scans chat with spacing and leet
+  normalisation; it deletes the message and alerts privately without the matched text. Done-when: with the
+  fake term 123 Example Street, three spelling variants each give one Delete Chat Messages call and one
+  private alert; the alert, log and dashboard payload hold no part of the term; the stored column differs
+  from clear text; Hello chat triggers nothing. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-PHRASE-ALERT** Crisis phrases and the openers of an adult talking to a minor need a private alert
+  to humans and never an automatic punishment (Twitch Crisis Prevention:
+  https://safety.twitch.tv/s/article/Crisis-Prevention; Guide for Parents:
+  https://safety.twitch.tv/s/article/Guide-Parents-Educators). Fix: optional crisis and minor-opener phrase
+  lists that raise a private alert with a link to the message. Done-when: a fixture crisis message and a
+  fixture opener each emit one private alert with a link and zero ban, timeout, delete-user or DM calls; a
+  joke fixture gives only an alert; with the setting off there is no alert. Takes over part (a) of
+  S-MOD-OTHER-HARMS. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-CLIP-WATCH** No clip event exists, Get Clips has no creator filter, and Twitch has no clip delete
+  API (Helix reference changelog newest entry 2026-10-01: https://dev.twitch.tv/docs/api/reference/); our
+  clip code only creates clips (`LiveOpsController.cs:389-398`, `ITwitchClipsApi.cs:23-68`). Fix: poll Get
+  Clips with a started_at cursor, flag clips from a user just timed out or from a new account, and say
+  plainly that deletion is done in the Twitch dashboard. Done-when: a fake Get Clips with 3 clips, one by a
+  user timed out 5 minutes ago, gives one flag row with creator, title and URL; a second poll adds no row;
+  zero Ban User calls; the payload carries the delete in Twitch text. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-MOD-LOAD** Volunteer mods burn out from hate content and a long queue (Cai and Wohn 2022; a field
+  experiment with an appeal tool cut queue load by about 70 percent: AppealMod). We have per-viewer notes
+  only; there is no channel-level shift note (a grep for shift, handoff and team note finds only the
+  per-viewer migration `20261006120132_MergeModNotesIntoRecords.cs`). Fix: shifts and on-call for mods, a
+  short shift note for the next mod on the home tab, and queue load signals (items waiting, oldest wait,
+  per-mod share) with a way to hide or blur hateful text until the mod chooses to read it. Done-when: a
+  test leaves a shift note and the next mod's home tab returns it; the load signal rises and falls with
+  queue size; a blurred item shows its text only after the mod's click.
+- **S-MOD-PASSTHROUGH-TESTS** Three built things are missing the test that proves them (status research,
+  2026-10-10). (a) S-SPAM-CONTEXT-TRUST: the rule is built (`SpamEnforcement.cs:98-129`) and unit-tested at
+  the decision layer, but no test sends the exact quoting message ("i am tired of those best viewers spam")
+  through the chat path as an established viewer; add it. (b) The AutoMod screen sends all 8 fields from
+  the app (`TrustAutomationSection.kt:863-880`), but the server accepts a partial body
+  (`ModerationController.cs:1588-1640`, `TwitchModerationApi.cs:1177-1213`) and the 5-category map of
+  Twitch's help page is not in the UI; the server must reject or fill a partial body, and the UI shows the
+  5 categories. (c) S-LIVE-EVERYWHERE: 116 controllers, 101 with writes (486 write actions); 50 push to a live
+  hub, 48 push nothing (158 writes) and 3 push only to an overlay. Community, Roles, Permits, ChannelFederation,
+  Discord, Games and Sound are among the pages without a push, and AdminHub carries no admin page write
+  (only channel online, offline and tenant suspension, `AdminBroadcastHandlers.cs`); add
+  the script that lists every page with its hub event. Done-when: (a) the quoting message from an
+  established viewer takes no action and the same phrase from a fresh account in a campaign still bans;
+  (b) a test that changes one category keeps every other field, on the server and in the app; (c) the
+  script exists and fails on a page without a live event.
+
+Build slices the paper names (its section 7) that had no plan entry. The four S-MASSBAN ones build guards
+of S-MASSBAN-ABUSE-GUARDS and wait for that spec to settle.
+
+- **S-MASSBAN-ENTRUST** Build guard (j) of S-MASSBAN-ABUSE-GUARDS once its spec settles. A streamer entrusts
+  or withdraws named mods for their channel, and a mod's request reaches only channels whose streamer
+  entrusted that mod. Done-when: entrust, reload and read back from the server; a request never reaches a
+  channel that did not entrust the mod. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MASSBAN-RESTRICT-FIRST** Build guards (h) and (i) of S-MASSBAN-ABUSE-GUARDS. A request restricts the
+  account in each entrusting channel; accept ends in a real Twitch ban, reject lifts the restriction; the
+  requester's own channel bans at once. Done-when: a test shows channel B with the account restricted and not
+  banned until a mod in B accepts. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MASSBAN-REQUESTER-RECORD** Build guard (d) of S-MASSBAN-ABUSE-GUARDS. Count rejects and reversals per
+  requester; the streamer sees the record before entrusting; repeats revoke the grant (the count is owner
+  question Q5 of the paper). Done-when: a test where the set number of reversals revokes the grant, and the
+  record shows on the entrust screen. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MASSBAN-OWNER-OVERRIDE** Build guard (f) of S-MASSBAN-ABUSE-GUARDS. The system owner skips the accept
+  step for one batch; the override is named, recorded on the batch and shown to every affected channel.
+  Done-when: a test override batch bans at once and every affected channel sees the override note. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-ANNOUNCE-RATELIMIT** Ban, unban and mod-change chat lines ship on (legacy parity), but repeated
+  attack notices draw more attackers (paper lesson L6, Kick). Rate-limit the bot's ban and attack notices in
+  chat during a raid. Done-when: a test raid of 50 bans posts at most the set number of notices. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-EVIDENCE-PACK** One-click evidence for Twitch's own report flow: the account's messages with their
+  times and the channel. Viewer report triage is built; the evidence pack was not found in code. Done-when: a
+  mod opens the pack from a user card and it holds the last messages with times. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-WRONG-ACTION-REPORT** A "this was wrong" button on every automatic action. It undoes the action and
+  logs a false positive for rule tuning. Only spam detections have an overturn route today
+  (`SpamDefenseController.cs:211-213`). Done-when: pressing it on a test auto-timeout lifts the timeout on
+  Twitch and adds a row to the false-positive log. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-ZERO-MOD-PRESET** A safe default for a channel with no mods: stricter filters, auto-lockdown on, and
+  a nudge to add a mod. Done-when: a channel with no mods shows the preset on first setup and the protection
+  card names it. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-TWITCH-ONLY-SETTINGS** One card that lists every Twitch setting our bot cannot set (paper section
+  3.2), each with a link and a one-line why. Done-when: the card lists all settings in paper section 3.2 and
+  each link opens the right Twitch page. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-SAFETY-DOXX** Queue a chat message that looks like an address or a phone number for a mod. It never
+  auto-bans. Done-when: a test message with a phone number is queued; a stream schedule time is not. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-SAFETY-FAKE-NAME** Flag a new chatter whose name copies the streamer, a mod or "support" words. It flags
+  and never bans; a regular with a similar name is exempt. Done-when: a fresh account named like the streamer
+  is flagged to mods; a regular with a similar name is not. Paper: `moderation-safety-research-2026-10-10.md`.
+
+Slices from the closing reads of the paper (its section 15.1).
+
+- **S-TOKEN-BRIDGE-SEAL** The VTS and OBS bridge tokens are stored in plain text and looked up by equality,
+  and the token rides in the URL query. Store a hash for the lookup, and move the token out of the URL where
+  the bridge client allows it. Done-when: a test stores a bridge token, finds no plain copy in the row, and
+  still pairs the bridge. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-TOKEN-USE-AUDIT** `IamAuditLog` records staff permission checks, not token reads
+  (`PlatformIamService.cs:69`). Add a vault read record that names the principal, the connection and the
+  reason. Done-when: a test reads a streamer token through the vault and finds one audit row naming all three.
+  Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-TOKEN-DP-RING-REMOVE** The Data Protection ring is registered (`DependencyInjection.cs:928`) but nothing
+  in `server/src` uses it. Remove the registration, or mark it reserved, so it is not counted as a key store.
+  Done-when: the ring is gone or documented, and the build and auth tests pass. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-FILTER-LOOKALIKE** Regex and Blocklist chat filters skip the MessageNormalizer, so look-alike
+  letters and spacing slip past. Run them on the normalised text in both ChatFilterExecutionHandler and
+  ChatFilterService.TestPattern, so the filter test matches live. Done-when: a blocked word written with
+  look-alike letters is caught live and in the filter test. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-MODERATE-DETAIL** ChannelModerateTranslator reads the detail object named after the action.
+  Blocked-term actions carry `automod_terms`, unban requests carry `unban_request`, and slow and followers
+  carry a number, not a user, so that detail is lost. Map all 33 V2 actions. Done-when: a test per action
+  shows the target or the setting value on the published event. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-SUPPORT-EVENT-SUBJECT** The admin support page lists journal rows by ActorUserId, and the bus capture
+  never sets it (`EventStoreSubscriber.cs:47-56`), so moderation and chat events never show there. Stamp a
+  subject id on capture, or query by the payload subject. Done-when: a ban of a test user shows on that user's
+  support page. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-CHAT-HTML-IMAGE-ALLOW** The opt-in chat HTML fragment allows img and marquee with any https source
+  (`ChatHtmlSanitizer.cs:94-95`, `:118`, `:191-192`). Add an image-host allow-list. Done-when: an image from a
+  host not on the list is stripped; one on the list renders. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-BLOCK-READBACK** Twitch does not document that Block User removes a follow. After a block, read the
+  follow state back and show the real result. Done-when: a live test on a throwaway account pair records the
+  real follow state after a block. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-POWERUP-STATUS** Power-up redemptions are received (`BotLifecycleService.cs:106`) and listed
+  (`TwitchBitsApi.cs:97`), but Twitch has no call to fulfil or cancel one. The dashboard shows their status as
+  read-only. Done-when: the redemption list shows Power-ups with no fulfil or cancel button. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-CLIP-TITLE-CHECK** Twitch documents AutoMod review for edited captions only, not clip titles. Run
+  our banned-term and spam check on clip titles the bot reads or writes. Done-when: a clip title with a listed
+  word is refused by the bot. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MOD-WHISPER-FALLBACK** Twitch blocks whispers from strangers and lets a parent turn whispers off for a
+  teen, so a bot whisper can fail with no sign. Fall back to a chat reply, and show the streamer a "not
+  delivered" state. Done-when: a whisper to a blocked receiver falls back and shows the state. Paper:
+  `moderation-safety-research-2026-10-10.md`.
+- **S-SAFETY-SHARED-RAID-DEFENCE** One raid-defence setting per community drives both Twitch (followers-only,
+  verified chat) and the linked Discord (join-age gate, filters). Done-when: turning it on sets both sides and
+  the protection page shows both. Paper: `moderation-safety-research-2026-10-10.md`.
 
 ## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
 
@@ -757,7 +1194,15 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   Also wires JoinBurstFactor (it triggers the lockdown).
 - [ ] **S-SAFETY-ROOM-MODES** lockdown room controls are Twitch-only. Done-when: slow, followers-only,
   members-only and blocked terms act on YouTube and Kick where their APIs offer them (lockdown
-  capability map), and on X Live once it is a platform.
+  capability map), and on X Live once it is a platform. Extended by S-MOD-LOCKDOWN-MULTI (2026-10-10
+  research): the lockdown folder holds only the Twitch adapter (`TwitchLockdownAdapter.cs:56-59`). Kick has
+  no chat-mode API; YouTube can only report members-only start and end and has no call to set slow or
+  emote-only mode; X Live has no chat-moderation API (re-read the X docs before each release). The
+  lockdown must say plainly, per platform, what it can and cannot lock. It also does not touch alerts,
+  speech or overlay chat (`Lockdown.cs:20-42`); add those three as lockdown controls, because a hate raid
+  keeps speaking names while chat is locked. Done-when (added): a test lockdown on a Kick channel and on a
+  YouTube channel reports each control as applied or as "not available on this platform" with the reason,
+  and a test lockdown holds queued alerts and speech.
 - [ ] **S-SAFETY-MONITOR** the streamer is never told when protection is not running. Done-when: one
   "Protection status" surface (and an actionable-error inbox entry) shows, live from hub pushes: bot
   lost moderator status (today a Debug log, `BotLifecycleService.cs:381`), spam defence still in dry
@@ -2173,6 +2618,14 @@ than each consumer needing their own clone-and-customize pass.
   Done-when: an API test with one item of each kind returns them oldest first with kind, age and expiry. A
   UI test renders the TTS row with the censored span highlighted. A filtered-empty list reads "All clear"
   with a timestamp, never an empty card.
+  Extended by S-MOD-QUEUE-ONE-LIST (2026-10-10 research): confirmed not built. The only queue read is the
+  AutoMod list (`ModerationController.cs:1661`, `ModerationQueueService.cs:208-240`), it filters on one status
+  and sorts newest first (`:230`), the opposite of this slice. Unban requests (`ModerationController.cs:998`)
+  and viewer reports (`:1488`, `:1510`) have their own routes, TTS and media-share items are in no queue
+  read, and the app stacks separate cards with separate row types (`ModerationScreen.kt:1114`, `:1149`,
+  `:1184-1188`). A grep for a unified queue type finds nothing. The oldest-first order is the point: the
+  longest-waiting item is read first. Done-when (added): the same API test fails today on order (newest
+  first) and passes once the one list is oldest first across all five kinds.
 - **S-UF-M6b** [fix] The Queue updates from hub pushes; nothing loads once.
   Build: every kind pushes add, resolve and expire to the Queue (and to the Home dialog). That includes
   a pushed `tts_queue_changed` and a `media_share_submitted` event, so a second moderator's approval
