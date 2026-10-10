@@ -96,6 +96,10 @@ These sentences are binding inputs. The new layout must satisfy each one.
 - 2026-06-16, role order: "viewer -> sub -> vip -> mod -> super mod -> channel editor -> broadcaster, artist and staf are real roles too".
 - 2026-10-11 (answer to the Commands floor question in section 11): "moderators get granted the permission to manage stream and channel behaviors".
   Arc's reading: every page that shapes how the stream and the channel behave has a Moderator manage floor: Live (Stream, OBS, VTube Studio, editing the Deck), Build (all of it), Loyalty, and Music & Voice (the TTS Provider tab stays Editor). Setup, Connect, People: Rules and role assignment keep their floors. A broadcaster can still raise any action for their channel (ChannelActionOverride, ActionDefinitionSeeder.cs:131-132).
+- 2026-10-11 (answer to the risk raised on four actions): "we will leave the risky items to the channel manager and up".
+  Arc's reading: the channel manager is the Editor role. Content labels and branded content (legal statements in the streamer's name), ads and raids stay at Editor.
+- 2026-10-11: "and we are V0 so no backwards compattible bullshit tangled in the code".
+  Arc's reading: the restructure replaces the old routes outright. It has no alias map, no redirect of the previous page links and no mapping of saved pins. Scripts/check-no-compat.py blocks such code at commit.
 
 Settled rules from `spec/frontend-ia.md` and `PRODUCT-ALIGNMENT.md` that this paper keeps (Lane L3):
 
@@ -140,7 +144,7 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 |---|---|---|---|---|
 | Chat | One channel; All my channels (was Multi-Chat) | Moderator | Moderator | Shield mode toggle in the header (owner 2026-09-08). Platform chips filter Twitch, Kick, YouTube, X. |
 | Deck | Grid; Edit | Moderator | Moderator (each button has its own floor) | NEW. Section 4. |
-| Stream | Info & presets; Interactions; Schedule | Moderator | Moderator | Info & presets: title, category, tags, per platform, with "All platforms". Interactions: polls, predictions, raids, ads, markers, clips, goals, hype train, charity, Guest Star. Schedule: was its own page. |
+| Stream | Info & presets; Interactions; Schedule | Moderator | Moderator (content labels, branded content, ads, raids: Editor) | Info & presets: title, category, tags, per platform, with "All platforms". Interactions: polls, predictions, raids, ads, markers, clips, goals, hype train, charity, Guest Star. Schedule: was its own page. |
 | OBS | Live control; Advanced | Moderator | Moderator | Scenes, sources, recording, replay. The connection moves to Integrations. Without a connection, the page shows the connect step inline. |
 | VTube Studio | Hotkeys; Expressions | Moderator | Moderator | The same inline-connect pattern. |
 | Analytics | Stream; Chat; Growth | Moderator | read-only | |
@@ -270,7 +274,7 @@ A Deck button is a generic primitive: it binds to one action from the existing a
 
 - Each button carries its own floor. A Moderator sees the buttons at or below their role. A button above their role is not shown.
 - Editing the Deck needs Moderator (owner 2026-10-11).
-- A button with a risky action (ban wave, raid, ad) asks for a second tap.
+- A button with a risky action (ban wave, raid, ad) asks for a second tap. Raid and ad buttons need Editor (owner 2026-10-11).
 - A button shows its live state from the event stream (for example, "Shield on", the current scene, the song playing).
 - The layout is stored per channel, with an optional private layout per user. It needs one small table in BOTH migration sets (Postgres and SQLite).
 
@@ -320,7 +324,7 @@ The ranking comes from the owner's persona order, the benchmark (section 10) and
 |---|---|---|---|---|---|
 | Chat and Shield toggle | own chat client | yes | yes | yes | yes |
 | Deck | no | moderator buttons, and edit | moderator buttons, and edit | all, and edit | all, and edit |
-| Stream info and interactions | no | edit | edit | edit | edit |
+| Stream info and interactions | no | edit, except content labels, branded content, ads and raids | edit, except content labels, branded content, ads and raids | edit | edit |
 | Build pages | public commands list | edit | edit | edit | edit |
 | Scripts | no | yes | yes | yes | yes |
 | People: Queue, Viewers, History | own standing only | yes | yes | yes | yes |
@@ -348,11 +352,11 @@ The ranking comes from the owner's persona order, the benchmark (section 10) and
 
 ## 8. Moving from today to the new layout
 
-- Every old address keeps working. An alias map sends each old `#/<slug>` to its new page and tab.
+- V0 (owner 2026-10-11): the new routes replace the previous ones outright. There is no alias map and no redirect code.
 - The new address shape: `#/c/<login>/<page>[/<tab>]`, so a link always opens the right channel.
-- Saved pins and expanded groups are mapped to the new names.
+- Saved pins and expanded groups start from the role defaults (section 3.3). They are not carried over.
 - No user is logged out (standing rule: never log out for a schema or scope change).
-- A test proves that all 45 old addresses resolve.
+- A test proves that every page and tab in section 3.2 opens at its new address.
 - `spec/frontend-ia.md`, `FEATURES-BY-SIDEBAR.md` and `FEATURES.md` are updated in the same slice.
 
 ### 8.1 Empty states and first use
@@ -452,7 +456,7 @@ Each conflict was found between the specs, the plan and the code (Lane L3). The 
 | S080 profile menu contents vs the newer plan | The newer plan: identity, theme, language, My data, Admin | The newer decision wins. |
 | OBS connection on the OBS page | Integrations, with the connect step inline on OBS when not connected | Feature pages carry no wire-up controls. |
 | Commands manage floor Moderator today | Moderator for every command | Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". The server already has commands:write at Moderator (ActionDefinitionSeeder.cs:139). |
-| 35 server actions sit at Editor, among them stream presets and schedule, title, category, tags, language, extensions, content labels, branded content, predictions, raids, ads, music settings, economy and bundles (ActionDefinitionSeeder.cs) | Moderator for the stream and channel behavior actions (slice S-IA-MOD-FLOORS) | Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". Connect wiring (webhooks, egress, integrations, API tokens, EventSub) stays at Editor. |
+| 35 server actions sit at Editor, among them stream presets and schedule, title, category, tags, language, extensions, content labels, branded content, predictions, raids, ads, music settings, economy and bundles (ActionDefinitionSeeder.cs) | Moderator for the stream and channel behavior actions (slice S-IA-MOD-FLOORS) | Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". Connect wiring (webhooks, egress, integrations, API tokens, EventSub) stays at Editor. Owner 2026-10-11: "we will leave the risky items to the channel manager and up": content labels, branded content, ads and raids stay at Editor. |
 
 ## 12. Defects found while researching
 
@@ -480,7 +484,7 @@ The order prevents shuffling: the spec and the addresses land first, so every la
 
 **Step 2: the base (two slices, in order)**
 
-- S-IA-ROUTES: the new page and tab list, the alias map for every old address, the `#/c/<login>/<page>[/<tab>]` address, saved pins and groups mapped. A test proves all 45 old addresses resolve. No logout.
+- S-IA-ROUTES: the new page and tab list and the `#/c/<login>/<page>[/<tab>]` address replace the previous routes, with no alias map (V0). A test opens every page and tab. No logout.
 - S-IA-NAV: the new groups in the sidebar, the new names (Lead Moderator, Channel Points, Overlays, Random responses, Individual permissions), Admin moved into the profile menu with the chrome swap.
 
 **Step 3: parallel lanes (each lane owns its own feature folders; at most 2 build at a time)**
@@ -493,7 +497,7 @@ The order prevents shuffling: the spec and the addresses land first, so every la
 - S-IA-DECK: the Deck table in both migration sets, the API, the page, the phone grid, the desktop pop-out, the Home top 8, the Stream Deck plugin reads the same Deck.
 - S-IA-STREAM: Live, Stream with 3 tabs, per platform; Home Prep embeds the same editor.
 - S-IA-MEDIA: Music with Song requests as a tab; TTS with 4 tabs; Media Share; OBS and VTube Studio with tabs and inline connect.
-- S-IA-MOD-FLOORS: the server lowers the stream and channel behavior actions from Editor to Moderator, and the app shows the same floors.
+- S-IA-MOD-FLOORS: the server lowers the stream and channel behavior actions from Editor to Moderator, and the app shows the same floors. Content labels, branded content, ads and raids stay at Editor.
 - S-IA-SETUP: Integrations as the one credential home; Ko-fi to Supporters; Automation renamed "API & devices"; Settings with 6 tabs; My data in the profile menu; the web sign-in hides "Backend URL".
 - S-IA-GAPS: the server operations that need a screen, as placed in the placement ledger.
 

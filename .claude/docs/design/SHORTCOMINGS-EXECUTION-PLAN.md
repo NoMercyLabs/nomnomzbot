@@ -37,11 +37,21 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
   S072 group list. Done-when: Stoney says yes to the spec, and every row of the placement ledger names a
   page and tab that the spec lists.
 - **S-IA-ROUTES** The new page and tab list in the app router, the address `#/c/<login>/<page>[/<tab>]`,
-  and an alias map for every old address, saved pin and saved group. Done-when: a test opens all 45 old
-  addresses and lands on the new page and tab, and a signed-in user keeps the session (no logout).
+  replacing the previous routes outright: V0, no alias map and no redirect code (owner 2026-10-11: "and we are V0 so no backwards compattible bullshit tangled in the code").
+  Saved pins start from the role defaults. Done-when: a test opens every page and tab of the spec at its new
+  address, and a signed-in user keeps the session (no logout).
 - **S-IA-GUARD** A script that fails when a page or tab has no row in the placement ledger, or when a
   ledger row names a page with no route. It runs in slice-check for app slices. Done-when: the script
   fails on a planted unplaced page and passes on the real tree.
+- **S-GATE-DRY** No clone check exists today: slice-check.ps1 gates ReSharper CodeRedundancy and LanguageUsage
+  only (lines 277-282), and the app has no lint. Add a clone check on the slice's touched C# and Kotlin files
+  against the whole tree, wired into slice-check.ps1 and the app gate. The tool is picked by a benchmark first
+  (jscpd, ReSharper, detekt). Done-when: a test slice that copies an existing 15-line block fails the gate and
+  names both places, and a clean slice passes.
+- **S-GATE-YAGNI** slice-check.ps1 deliberately skips unused symbols mid-slice (lines 279-281). At commit the
+  slice is complete, so a NEW symbol with no caller is speculative code. Add a commit-time check: a type, member
+  or parameter added by the slice with no caller and no test fails, naming file and line. Done-when: a test slice
+  with an unused new method fails, and the same slice with its caller passes.
 - **S-IA-NAV** The sidebar shows the new groups (Home, Live, Build, People, Loyalty, Music & Voice,
   Connect, Setup). New names: Lead Moderator, Channel Points, Overlays, Random responses, Individual
   permissions. Admin and My data move into the profile menu. Done-when: a UI test per role shows the
@@ -70,10 +80,12 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
   Music tab, and OBS shows the connect step when the link is down.
 - **S-IA-MOD-FLOORS** Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". Lower these actions in ActionDefinitionSeeder.cs from Editor
   to Moderator: stream:preset, stream:schedule, channel:title, channel:game, channel:tags, channel:language,
-  channel:extensions, channel:ccl, channel:brandedcontent, live-ops:predictions, live-ops:raids, live-ops:ads,
+  channel:extensions, live-ops:predictions,
   live-ops:schedule, music:config, moderation:chatcolor, every economy write (economy:games:write is Broadcaster
   today), bundles:export and bundles:import.
-  Webhooks, egress, integrations, API tokens, EventSub and whispers stay at Editor. The app shows the same floors as the
+  Webhooks, egress, integrations, API tokens, EventSub and whispers stay at Editor. Owner 2026-10-11: "we will leave the risky items to the channel manager and up":
+  channel:ccl, channel:brandedcontent, live-ops:ads and live-ops:raids stay at Editor, and the Deck raid and ad
+  buttons need Editor. The app shows the same floors as the
   server: today the app hides Code Scripts from a Moderator, while code:script:author is already Moderator.
   Done-when: a test per action shows a Moderator passes the gate and a VIP is refused, the seeder updates an
   existing install, and a broadcaster override can still raise each one.
