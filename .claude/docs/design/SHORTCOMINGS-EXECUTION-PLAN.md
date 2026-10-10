@@ -100,6 +100,38 @@ Settled:
 - IA: Community and Moderation fold into one clear users area (S-USER-HUB). Every tab puts its key facts and
   actions at the top. The user profile card shows avatar, name, and everything about that user in this
   channel, including the suspicious flag.
+Owner, 2026-10-10, verbatim: "here is some feedback from one of the streamers caught tonight by that user, and
+we agree that this is a dangerous tool that can be abused for self-gain. WE MUST ENSURE THAT USERS NEVER GET
+BANNED FOR THE WRONG REASON"
+
+Chat with thecodedrift (streamer hit by turk_bert), 2026-10-10, quoted from the owner's screenshot:
+thecodedrift: "So unlike shared ban lists, it just propagates the ban?" / "Yep, and one bad node can ruin the
+trust layer" / "I'd use twitch shared ban lists as a first layer, adding a user puts them on monitor, and then
+have your bot whisper mods and say "new bans are awaiting your decision", drive the accept through a 3rd party
+dashboard. this way everything is explicitly approved which nips the abuse vectors straight away" / "it's the
+auto-ban that causes issues. But flag+notify is usually just as effective".
+Stoney_Eagle: "mods with this power should be aware of the consequenses of abusing it" / "a dispute on
+someone's stream should never result in using that tool" / "so basically we need to join our heads together and
+decide which mods can be objective with this power" / "a system that sends a message in chat that says: this
+user is marked. could work" / "but i do want to have hate raids and follow bots and best viewer spam to be
+autoban" / "i have a trust scoring system that looks at your ban status on all channels part of the system and
+based on that it either lets things slide or acts" / "an established viewer mentioning "i am tired of those best
+viewers spam" should not trigger the ban because they say best viewers"
+
+- **S-MASSBAN-ABUSE-GUARDS** Spec first. Hard goal: no user is ever banned for the wrong reason. Draft for the
+  owner to settle: (a) a cross-channel ban from a moderator flags the account in the other channels and asks
+  each channel's mods to accept (whisper or dashboard inbox, plus Twitch shared-ban monitor where available);
+  only the moderator's own channels and channels whose broadcaster chose auto-accept ban at once; (b) every
+  request carries evidence (the message, the channel, the time) that the accepting mod sees; (c) the
+  mass-ban power is a named grant per person, never a whole role, with a consequence notice on grant;
+  (d) a ban that a target disputes and that is reversed counts against the requester, and repeated reversals
+  revoke the grant; (e) every batch is reversible in one action. Auto-ban stays only for hate raids, follow
+  bots and "best viewers" spam. Done-when: the spec is settled and a test proves a cross-channel request in a
+  non-auto-accept channel bans nobody until a mod there accepts.
+- **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
+  spam phrase ("i am tired of those best viewers spam") is never banned. Done-when: a test with that exact
+  message from an established viewer takes no action, and the same phrase from a fresh account in a spam
+  campaign still bans.
 - **S-LIVE-EVERYWHERE** Every dashboard page updates live from server pushes, with no stale or delayed state.
   Done-when: a script lists every page and the hub event that refreshes it; each page is shown changing live
   on the dev box after a change made elsewhere.
