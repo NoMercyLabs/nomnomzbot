@@ -33,7 +33,8 @@ and moderation into a tabbed interface with a main info page about user standing
 streamer home dashboard but everything for managing users and their roles, permissions, and EVERYTHING user
 account"
 
-Benchmark (rule research-is-a-benchmark): `benchmarks/moderation-tools.md`.
+Benchmark (rule research-is-a-benchmark): `benchmarks/moderation-tools.md`. Research paper and the one plan
+for moderation and safety: `moderation-safety-research-2026-10-10.md`.
 
 Found live 2026-10-10 (the turk_bert / not_turk_bert ban, run by hand through the API because no screen
 exists): 32 of 34 channels banned; geennoob and kipp_it_100 stayed `held_until_offline`. Both do not use
