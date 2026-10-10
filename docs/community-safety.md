@@ -644,11 +644,11 @@ The bot notices this and stops using that key.
 NomNomzBot runs in three ways.
 Each way puts your keys in a different place.
 
-| Way to run | Where it runs | Whose keys it keeps | Trade-off |
-|---|---|---|---|
-| One app on your computer | Your own computer | Only yours | Your keys never leave your computer. You keep the computer safe and the app running. |
-| Your own server | A server at home, on your network or at a friend's | A small group's | Good for a team. Whoever runs the server can reach every key on it. Pick someone you trust. |
-| Hosted service | Servers that NoMercy Labs runs | Every streamer who chose it | No setup for you. But one place keeps many keys, so it is the biggest target. |
+| Way to run | Where it runs | Whose keys it keeps | What you win | What you take on |
+|---|---|---|---|---|
+| One app on your computer | Your own computer | Only yours | Your keys never leave your computer. Nobody else can reach them. | You keep the computer safe. The bot runs only while the app runs. |
+| Your own server | A server at home, on your network or at a friend's | A small group's | Good for a team. You choose who holds the keys. | Whoever runs the server can reach every key on it. Pick someone you trust. |
+| Hosted service | Servers that NoMercy Labs runs | Every streamer who chose it | No setup for you. | One place keeps many keys, so it is the biggest target. |
 
 **Self-hosting your own bot is always free.**
 Running NomNomzBot as a hosted service for other people is reserved to NoMercy Labs under the license.
