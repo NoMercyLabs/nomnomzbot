@@ -601,3 +601,257 @@ Kept blocked or changed outside the order:
 - YouTube: https://support.google.com/youtube/answer/9826490
 - Mastodon: https://docs.joinmastodon.org/admin/moderation/
 - Bluesky: https://atproto.com/guides/labels ; https://atproto.com/guides/moderation ; https://atproto.com/guides/subscriptions ; https://atproto.com/guides/using-ozone ; https://github.com/bluesky-social/ozone ; https://bsky.social/about/blog/4-13-2023-moderation ; https://bsky.social/about/blog/03-12-2024-stackable-moderation ; https://bsky.network/blog/blueskys-moderation-architecture ; https://bsky.social/about/blog/09-18-2024-trust-safety-update ; https://bsky.social/about/blog/09-19-2025-building-healthier-social-media ; https://www.bsky.social/about/blog/11-19-2025-moderation-updates ; https://bsky.app/profile/safety.bsky.app/post/3lmwf4534jc2s ; https://github.com/bluesky-social/social-app/issues/7076 ; https://techcrunch.com/2023/12/01/bluesky-rolls-out-automated-moderation-tools-plus-user-and-moderation-lists/ ; https://techcrunch.com/2024/09/18/bluesky-addresses-trust-and-safety-concerns-around-abuse-spam-and-more ; https://techcrunch.com/2024/12/13/bluesky-is-at-a-crossroads-as-users-petition-to-ban-newcomer-over-anti-trans-views ; https://techcrunch.com/2025/01/17/bluesky-saw-17x-increase-in-moderation-reports-in-2024-after-rapid-growth
+
+---
+
+## 10. Account safety: the tokens we hold, and the three hosting models
+
+### 10.0 Why this section exists
+
+The owner wrote this on 2026-10-10 at 19:36 (PLAN, slice S-TOKEN-CUSTODY-THREAT, `SHORTCOMINGS-EXECUTION-PLAN.md:177-185`). Verbatim:
+
+> "one thing that i am concerned about is the fact that i hold your account access with permanent refresh token cycles. i do encrypt them but i am sooo fucking scared something is going to happen and i loose control"
+>
+> "specially if big streamers join in then i become an attack vector"
+>
+> "the bot is build from the ground up to support 3 hosting models, self-contained into one locally run application, a split model where you host it on docker or some other server on your network or at a friend. or the saas hosted version where i do the hosting. this last one concerns me the most."
+>
+> "i can have webhooks and communication hooks so streamers can still self-host everything and join the community aspect of the bot but that is something i am not skilled enough for yet"
+>
+> "i know im a badass when it comes to programming but i know enough to know that i don't know anything yet"
+
+Answer in one line: the worry is right. The hosted model is the weakest one. The fix is in two parts. Make a stolen token die fast. Keep big streamers' tokens off the hosted service.
+
+How to read this section:
+
+- Code paths start at `server/src/NomNomzBot.`. So `Infrastructure/X.cs` means `server/src/NomNomzBot.Infrastructure/X.cs`.
+- Code facts were read this run unless the text says "from the code note". The code note is `research/token-custody-code.md`. A line number from the code note was not re-read.
+- "not checked" means nobody read the source this run.
+- A web fact marked [sum] came from a small-model summary. It stays "not checked" until someone reads the page.
+- No secret value appears in this section.
+- The hosted (saas) mode is a RESTRICTED option. Only NoMercy Labs may run it for third parties. Self-hosting your own bot is always free (`CLAUDE.md`, Critical Rules).
+
+### 10.1 What we hold
+
+All rows read from the code note, section 3, unless another cite is given.
+
+| Provider | Token | Scopes asked | Where stored | How protected |
+|---|---|---|---|---|
+| Twitch (streamer) | Access and refresh token | Login: `user:read:email`, `user:read:chat`, `user:write:chat`, `user:read:moderated_channels` (`Infrastructure/Identity/AuthService.cs:89`). It then widens with each missing scope. The full catalogue is about 79 scopes (`AuthService.cs:183`). | Table `IntegrationToken` (`Domain/Integrations/Entities/IntegrationToken.cs`). Scopes in plain text in `IntegrationConnection`. | AES-256-GCM envelope per (provider, subject). Key per subject, wrapped by one root key. |
+| Twitch (bot account) | Access and refresh token | `user:read:chat`, `user:write:chat`, `user:bot`, `chat:read`, `chat:edit`, `user:read:whispers` (`AuthService.cs:101`) | Same table. `BroadcasterId` is null for a shared bot. | Same. |
+| Twitch (our app) | Client id and client secret | Not applicable | Config or env. Saved copies are sealed (`ProviderCredentialService`). `docker-compose.yml:60-130` passes the secrets as plain env vars. | Env var: none. Saved copy: same envelope. |
+| Spotify | Access and refresh token (PKCE) | Playback, library, and (progressive) `streaming` (`Infrastructure/Integrations/OAuthProviderRegistry.cs:61-92`) | `IntegrationToken` | Same envelope. |
+| Kick and kick_bot | Access and refresh token. Kick rotates the refresh token on each refresh (`Infrastructure/Integrations/Kick/KickAccessTokenProvider.cs:34`). | `user:read`, `chat:write`, `moderation:ban`, `moderation:chat_message:manage`, `events:subscribe` | `IntegrationToken` | Same envelope. |
+| YouTube | Access and refresh token. Also an API key in env. | `youtube`, `youtube.force-ssl`, `youtube.readonly` (`OAuthProviderRegistry.cs:215-240`) | `IntegrationToken`. API key in env. | Same envelope. The env key has none. |
+| Patreon | Access and refresh token | Nine scopes, including `w:campaigns.webhook` (`OAuthProviderRegistry.cs:147`) | `IntegrationToken` | Same envelope. |
+| Shopify, Treatstream | Access token | `read_orders`; `userinfo` | `IntegrationToken` | Same envelope. |
+| Discord | One static platform bot token. Per-channel OAuth tokens are stored but not used as the bot credential. | Bot token: not checked. OAuth scope list: not checked. | Platform vault first, then config (`Discord/Gateway/DiscordRestBotGateway.cs:35`). | Vault copy sealed. Config copy none. |
+| Other secrets | TTS keys, webhook secrets, VTS plugin token, custom-data and supporter secrets | Not applicable | Sealed columns, such as `TtsConfig.AzureApiKeyCipher`. Column names only: that each is sealed on write is not checked. | Same envelope. |
+| Old `Service` rows | Access, refresh, client secret as text columns | Text column | `Domain/Platform/Entities/Service.cs:34-48`. The music mirror seals them (`MusicProviderTokenMirror.cs:91-96`). Other writers: not checked. | Partly. Not checked. |
+| Our own keys | JWT secret; Data Protection key ring; federation signing key | Not applicable | JWT: file `jwt-secret.bin` (`Platform/Security/SelfHostSecretStore.cs:60-62`). Ring: `<DataDir>/dataprotection-keys`. Federation key: config PEM (`Infrastructure/Federation/FederationEventSigner.cs:128-150`). | Windows: DPAPI. Linux: plain file with owner-only mode. Federation key: none. |
+
+Revoke at the provider today:
+
+| Provider | Revoke call exists? | Called? |
+|---|---|---|
+| Twitch | Yes: `Infrastructure/Platform/Auth/TwitchAuthService.cs:365-411`. It sends the access token only (`:392`). | No caller. Only the interface (`Application/Abstractions/Auth/ITwitchAuthService.cs:28`) and the class mention it. |
+| Kick, YouTube | Endpoint is in the descriptor (`OAuthProviderRegistry.cs:99,129,220`) | No. Nothing reads `RevokeEndpoint` outside the registry (grep, this run). |
+| Spotify, Patreon, others | Descriptor says none (`:66,152,182,203`) | Not applicable |
+| Discord | Not found | Not applicable |
+
+### 10.2 What an attacker gets, per hosting model
+
+First, the facts that hold in every model:
+
+- One call chain seals every token: `ITokenProtector`, then `ISubjectKeyService`, then `IKeyVault` (code note s.1; `Infrastructure/DependencyInjection.cs:927`).
+- There is one `IKeyVault` class, `OsSecureStoreKeyVault`. It has no branch per hosting mode (`DependencyInjection.cs:927`).
+- The comment at `DependencyInjection.cs:925-926` names an Azure Managed-HSM branch for SaaS. Grep finds no such class. So the branch is not in code.
+- Root key (KEK) order: (1) `Encryption:Key` from config, run through HKDF-SHA256 with no salt (`Infrastructure/Platform/Security/OsSecureStoreKeyVault.cs:143-156`); (2) on Windows, a DPAPI file; (3) on Linux or macOS with no config key, the app throws and does not start (`:176-180`).
+- One root key serves all tenants of one deployment (code note s.2).
+- The database also holds plain-text facts: provider, account name, granted scopes (`Domain/Integrations/Entities/IntegrationConnection.cs`; code note s.3.1).
+
+| | Self-contained (one local app) | Split (Docker, own server or a friend's) | Hosted (saas, restricted) |
+|---|---|---|---|
+| Whose tokens | One person's | A small group's | Every streamer on the service |
+| Root key lives | Windows: DPAPI file bound to the Windows user (`Platform/Security/DpapiKekStore.cs:59,64`). If `Encryption:Key` is set, that wins. | Env var `Encryption__Key` (`docker-compose.yml:80`) | Same code path as split. An HSM branch is named in a comment but missing (`DependencyInjection.cs:925-926`). |
+| Attacker has the database only | Ciphertext, wrapped keys, plain scope lists. No tokens. | Same | Same, for all streamers. They also learn who uses the bot and which scopes each granted. |
+| Attacker has the host or container | Code that runs as the same Windows user can unseal the root key. Another Windows user cannot. | Root key in the container env, ring and any JWT file on the volume in plain form (`Platform/Security/DataProtectionRegistration.cs:31-38`, `SelfHostSecretStore.cs:60-62`). Host access gives root key plus database. That opens every token. | Same, for every streamer. |
+| Attacker has the root key only | Useless without the database. | Useless without a database copy. With any copy, every key opens, because HKDF has no salt (`OsSecureStoreKeyVault.cs:148-154`). | Same, for every streamer. |
+| Blast radius | One person | One group | All streamers. Big streamers make it a prize. |
+| Revoke speed after a breach | Slow. No kill switch. Twitch has no bulk revoke in the pages read (`research/token-custody-practice.md` row 23). | Same | Same, and scale makes it worse. |
+
+Check on the dev box (read-only ssh, 2026-10-10, from the code note s.8 and the orchestrator): it runs the config-key mode. The env var name `Encryption__Key` is set. No `/app/data/keys` folder exists. One `dataprotection-keys` file exists. No value was read.
+
+### 10.3 Findings, ranked by harm
+
+The rank is a judgement. The facts under it are cited.
+
+| # | Finding | Evidence | Harm |
+|---|---|---|---|
+| F1 | A disconnect does not revoke the token at the provider. The refresh token and the access token keep working until they expire or the user cancels them in the provider's settings. | `Infrastructure/Identity/IntegrationTokenVault.cs:342-377` soft-deletes locally and sets `Status=Revoked`. Callers: `IntegrationOAuthService.cs:336`, `AuthService.cs:1030,1250`, `Api/Controllers/V1/IntegrationsController.cs:269`, `Discord/DiscordGuildService.cs:305`, `Marketplace/MarketplacePublisherTokenService.cs:82`. Erasure also revokes locally only (`Identity/ErasureService.cs:568-577`, from the code note for the rest). `RevokeTokenAsync` has no caller (grep this run). Twitch confidential refresh tokens do not expire (https://dev.twitch.tv/docs/authentication/refresh-tokens/). | A user who clicks Disconnect believes the bot lost access. A thief with a copy keeps access. Twitch also demands deletion on revocation (Developer Agreement, "Deletion"). |
+| F2 | One root key opens every tenant. On Docker and on hosted, it is a plain env var. | `OsSecureStoreKeyVault.cs:143-156`, `docker-compose.yml:80`, `:176-180` (no Linux secure store). The start guard rejects only the exact public dev key (`Api/Configuration/StartupSecretGuard.cs:43-51`; the key is in `.env.example:39`). It does not test length or strength of another value. | Host access or one leaked env file opens all tokens. This is the owner's "attack vector". |
+| F3 | No kill switch. Nothing revokes all tokens. The only admin key action re-wraps keys. Twitch gives no bulk revoke. | Admin action `security/rotate-encryption-key` (`Api/Controllers/V1/AdminController.cs:369`) is key rotation, not token revocation. Twitch revoke doc covers one access token (https://dev.twitch.tv/docs/authentication/revoke-tokens/). A community leader says it leaves the refresh token alive (https://discuss.dev.twitch.com/t/removing-my-app-from-a-twitch-users-connections-with-twitchs-revoke-oauth-api/32614). That is a forum post, not Twitch. The effect of a new client secret on user tokens is undocumented. The New Secret button has timed out for developers, and Twitch has ticketed it (https://github.com/twitchdev/issues/issues/1196, https://github.com/twitchdev/issues/issues/1050). | On breach day we cannot cut access quickly. |
+| F4 | Scopes grow with use, up to about 79. | `AuthService.cs:181-186` (catalogue size), `Infrastructure/Identity/TwitchScopeRegistry.cs`. The exact list was not checked. | A stolen broadcaster token can do more as the channel uses more features. |
+| F5 | No record of who read a token and why. | `KeyUsageBindings` lists what a key protects, not each read (`Platform/Security/SubjectKeyService.cs:177-236`). The vault logs only a warning on a failed decrypt (`IntegrationTokenVault.cs:428,480`). Whether `IamAuditLog` covers token use: not checked. | A quiet theft by our own process or an insider leaves no trace. |
+| F6 | No hourly token check and no disconnect signal in the server code. | Grep for `id.twitch.tv` in non-test C# finds `authorize`, `token`, `revoke` and `device`, and no `validate` (this run). Grep for `user.authorization.revoke` finds nothing. A library call could hide a validate: not checked. Twitch says an app "must validate the OAuth token when it starts and on an hourly basis" and may throttle or revoke the key if not (https://dev.twitch.tv/docs/authentication/validate-tokens/). | Possible breach of the Twitch rules. We learn late that a user cut the link. |
+| F7 | On Linux, two files sit in plain form on the data volume. | Data Protection ring (`DataProtectionRegistration.cs:31-38`). JWT secret file, mode owner-only (`SelfHostSecretStore.cs:60-62`). Which features use the ring: not checked. | A volume copy gives the ring and the JWT secret. A JWT secret lets the holder forge sessions (my inference). |
+| F8 | Platform app secrets travel as plain env vars. | `docker-compose.yml:60-130`. Twitch refresh needs the client secret (https://dev.twitch.tv/docs/authentication/refresh-tokens/). | A leaked env file gives the secret. With a stolen refresh token it gives refresh power. |
+| F9 | A wrong root key does not stop the app. It mints a new data key and the old secrets are lost. | `Platform/Security/SubjectKeyService.cs:160-190`, gated to `UNWRAP_FAILED`. A shredded key is never re-keyed. | Loss of availability, not theft. Users must sign in again. It is silent apart from a log line. |
+| F10 | The federation signing key is a config PEM, and no sender uses it. | `FederationEventSigner.cs:128-150`. The signer is referenced only by the inbound gateway and DI (grep this run). No outbound sender class found. Outbound transport and peer key storage: not checked. | The design in 10.5 has a gap to close first. |
+
+### 10.4 What others do, and known incidents
+
+Rules from Twitch (read from the page text; `research/token-custody-practice.md` s.2):
+
+- Treat tokens like passwords (https://dev.twitch.tv/docs/authentication/).
+- The Developer Agreement says keep Keys secret and do not "sell, transfer, or sub-license them". It also says report a security incident in writing to legal@twitch.tv and start remediation at once (https://legal.twitch.com/en/legal/developer-agreement/).
+- Access and refresh tokens die when: they expire; the user changes the password; Twitch revokes them; the user clicks Disconnect in the Twitch settings (https://dev.twitch.tv/docs/authentication/).
+- A public-client refresh token expires after 30 days and works once (https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/). A user report says reuse of a spent public-client refresh token kills the whole grant (https://github.com/twitchdev/issues/issues/903). That is a user report, not an official rule.
+
+Incidents (all re-read this run in `research/token-custody-practice-2.md` s.B):
+
+| Incident | What happened | Lesson for us | Source |
+|---|---|---|---|
+| Heroku and Travis CI, Apr 2022 | An attacker used stolen OAuth tokens held by two apps to call the GitHub API. They listed orgs, chose targets and cloned private repos. GitHub revoked the tokens tied to its own use. | A fleet of user tokens is a target. The stolen tokens did the harm. | https://github.blog/news-insights/company-news/security-alert-stolen-oauth-user-tokens/ |
+| Twitch, Oct 2021 | A server configuration change let a third party in. Source documents and some payout data left. Twitch reset all stream keys. The post does not mention OAuth tokens. | The provider itself reset secrets "out of an abundance of caution". We need that button. | https://blog.twitch.tv/en/2021/10/15/updates-on-the-twitch-security-incident/ |
+| StreamElements, Mar 2025 | A hacker claimed 210,000 customers' contact data via a former third-party provider. StreamElements says none of its servers were breached. The infostealer story is the hacker's claim. Tokens were not mentioned. | Data can leak through a partner. Not a token case. | https://www.bleepingcomputer.com/news/security/streamelements-discloses-third-party-data-breach-after-hacker-leaks-data/ |
+| Twitch extension, Sep 2026 | A browser extension sent the user's Twitch web-session token to its proxy in the URL. The proxy logs held it in clear text. This was a web-session token, not a bot token. | Never put a token in a URL or a log. | https://www.bleepingcomputer.com/news/security/twitch-extension-with-30k-installs-exposes-users-oauth-tokens/ |
+
+No leak of a chat-bot service's Twitch tokens was found. Not checked beyond the searches in the research notes.
+
+How rivals handle it:
+
+| Product | What it publishes | Source |
+|---|---|---|
+| Nightbot, StreamElements | Generic security wording. No token detail. | https://nightbot.tv/privacy ; https://streamelements.com/privacy |
+| Fossabot | For its import feature, tokens stay in memory and are discarded. Its own platform tokens: not stated on the page read. | https://fossadev.com/privacy |
+| Streamer.bot (local app) | Tokens sit in a settings file on the user's PC and never leave the app. Under the YouTube part only. The Twitch part says "Documentation Needed". | https://streamer.bot/privacy ; https://docs.streamer.bot/en/Quick-Start/Twitch |
+| Firebot (local app) | Tokens go to a JSON file in the user's profile. No encryption found in `account-access.ts` (other files: not checked). | https://github.com/crowbartools/Firebot |
+| Streamlabs, Moobot | Nothing found on token storage. Moobot's page showed only a login shell. | https://streamlabs.com/privacy |
+
+Pattern: hosted bots publish no custody detail. Local bots keep the token on the user's own disk. A clear public custody statement would stand out.
+
+General practice (all [sum]: not checked until someone reads the page):
+
+- Do not keep keys next to the secrets they protect, except when the keys are themselves encrypted (OWASP Secrets Management cheat sheet, 4.2 and 7.3).
+- Keep the root key in a KMS or HSM. Only the KMS can decrypt, and customer-managed keys log to an audit trail (AWS KMS concepts).
+- Give a token the minimum scope (RFC 9700 s2.3). Revoking a refresh token should also kill its access tokens (RFC 7009).
+- Log who asked for a secret and when it was used (OWASP 2.6). Have a breach runbook: revoke first, then replace, then notify (OWASP 9.2; GitHub 2022 above).
+
+### 10.5 The federation design, in plain words
+
+The idea: a big streamer runs their own bot. Their tokens stay on their own machine. Our hosted service never sees them. They still join the community features.
+
+Four rules:
+
+1. Each self-hosted bot keeps its own tokens. They never leave that machine.
+2. Instances exchange signed requests. A request says what to do, never how to log in.
+3. Each channel's own bot acts after its own channel decides. The decision is local and opt-in.
+4. The hosted service holds tokens only for streamers who chose hosting. It never needs a big streamer's tokens.
+
+Why this works on Twitch. The Ban User call checks the token's own user against the channel. The `moderator_id` must match the user in the token, and a user who is not a moderator of the channel gets 403 (https://dev.twitch.tv/docs/api/reference/#ban-user, read raw in `research/token-custody-practice.md` s.7). The call does not look at which server sent it. So channel B's own bot can ban in channel B after a signed request from another instance. The central service needs no token for B. The 403 proves only that the bot is a moderator. It does not prove the ban is wise. So the receiving bot must still decide, as the decision card in section 7 already says.
+
+What already exists in code (from the code note s.7; not all re-read):
+
+- Peer registration, trust and revoke: `Api/Controllers/V1/FederationController.cs`.
+- Per-channel opt-in, default deny, LeadModerator only: `ChannelFederationController.cs`.
+- RSA signing of a sorted-key JSON envelope: `Infrastructure/Federation/FederationEventSigner.cs:23-51`.
+- Inbound gateway: signature check, bind to trusted peer, replay guard, opt-in gate, journal (`FederationInboundGateway.cs:24-30`).
+- What is missing or unchecked: an outbound sender (none found, F10), the signing key in the sealed vault (it is a config PEM), peer key rotation.
+
+Why signed requests and not a full federation protocol. Twitch EventSub already uses the simple form: HMAC-SHA256 over message id, timestamp and body, with a time-safe compare (https://dev.twitch.tv/docs/eventsub/handling-webhook-events/, read raw). ActivityPub, Matrix and Mastodon-style signatures are larger. Their facts are [sum] and not checked: https://www.w3.org/TR/activitypub/ , https://docs.joinmastodon.org/spec/security/ , https://spec.matrix.org/latest/server-server-api/ . Our need is one narrow action. The existing RSA signer fits.
+
+Twitch rule that shapes it: Keys may not be sold, transferred or sub-licensed (Developer Agreement). So we must not hand our client secret to self-hosters. Each self-host either registers its own Twitch app or signs users in some other way. Which one is open question Q2.
+
+The smallest first step a small team can build:
+
+1. Pick one message type: the mass-ban request from section 7.
+2. Fields: sender instance, requester, target account, reason, evidence summary, timestamp, nonce. No token. No scope.
+3. The sender signs with its instance key (existing signer). It posts to each peer that is opted in.
+4. The receiver verifies, checks replay and opt-in (existing gateway), and shows the decision card.
+5. On "Ban here too", the receiver's own bot calls Ban User with its own token.
+6. A test with two instances proves it, and proves no field of the message holds a token.
+
+Before step 3 someone must check whether an outbound sender exists. Grep found none.
+
+### 10.6 Fix slices
+
+Order of work, with reasons. Each slice has the evidence it rests on.
+
+| ID | What it does | Done-when | Evidence |
+|---|---|---|---|
+| S-TOKEN-REVOKE-ON-DISCONNECT | On every disconnect and on erasure, call the provider's revoke endpoint before the local revoke. Use Twitch `oauth2/revoke`, Kick `oauth/revoke`, Google `revoke` (descriptors exist). A provider failure never blocks the local revoke. It queues a retry and shows the user "also disconnect on the provider's settings page", with the link. | Tests with a fake provider: each disconnect path posts to the right endpoint with the right token; a failed post still leaves the connection revoked and queues a retry; erasure does the same. A live test on a throwaway Twitch app and a test account, never a real channel: after the revoke call, does the refresh token still return new tokens? The result goes into this section, because Twitch does not document it (research notes A1: docs silent, a community leader says no). If the refresh token lives, the slice also tells the user to disconnect in Twitch settings. | F1 |
+| S-TOKEN-KEY-CUSTODY | Stop the root key from being only an env var. Accept it from a secret file. Make the start guard reject a short or low-entropy key. Add a second `IKeyVault` for hosted that keeps the root key in a KMS or HSM. Raise an incident entry, not only a log line, when a data key fails to unwrap. | Tests: a short key is refused outside Development; a key read from a file opens the same data as the env value. The hosted vault is tested against a fake KMS. A drill on the dev box moves the root key and proves no token was lost. | F2, F7, F8, F9. The KMS part rests on [sum] sources (not checked) and on the missing HSM branch in code. Thinner evidence than the rest. |
+| S-TOKEN-LEAST-SCOPE | Build a table of every scope we request, the feature that needs it, and the harm class. Request a scope only while its feature is on. Show the streamer which scopes are held. | A script lists every requested scope with its feature and harm class and fails on an unmapped scope. A test shows a scope for a disabled feature is not requested. | F4; RFC 9700 s2.3 ([sum], not checked) |
+| S-TOKEN-KILL-SWITCH | One admin action and one per-channel action: validate, revoke at the provider, mark `needs_reauth`, notify the owner. Plus a written breach runbook: revoke first, then investigate, then email legal@twitch.tv. The runbook records the rotate-secret route and its New Secret timeout risk, and a second route. | A drill on the dev box with a throwaway app: every connection ends unusable, and the elapsed time for N connections is written down. The runbook names who sends the Twitch email. | F3; Developer Agreement; GitHub 2022 |
+| S-TOKEN-AUDIT | Write one audit row for each token read: who, which component, why, when. Never the value. Add the hourly Twitch validate and a handler for the `user.authorization.revoke` EventSub type, so a user disconnect marks the connection revoked at once. | A test shows each `GetAccessTokenAsync` writes a row with no secret in it. A test shows a validate failure marks the connection `needs_reauth`. The subscription type name is checked against https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/ first. | F5, F6. OWASP 2.6 ([sum], not checked). The exact EventSub type name came from a forum post and is not checked. |
+| S-FEDERATION-SIGNED-REQUESTS | Build the first step in 10.5: an outbound sender for the mass-ban request, the signing key moved into the sealed vault, a key rotation path for peers. | Two instances run on the dev box. A signed request from A shows a decision card on B. "Ban here too" makes B's own bot call Ban User. A request with a bad signature, a replay, or a missing opt-in does nothing. No message field holds a token. | F10; Helix Ban User reference; existing gateway |
+
+Suggested order: REVOKE-ON-DISCONNECT, KILL-SWITCH, KEY-CUSTODY, AUDIT, LEAST-SCOPE, FEDERATION. The first two cut the harm of any breach. The rest shrink what a breach can reach. Federation is last because it needs the mass-ban slices from section 7 first.
+
+### 10.7 Open questions for the owner
+
+| # | Question | Recommendation |
+|---|---|---|
+| Q1 | Does the hosted service refuse tokens of big streamers? By what rule: follower count, or the streamer's own choice? | Own choice, with a clear default of "self-host or split" for large channels. A size cut-off is easy to game and hard to explain. |
+| Q2 | Does each self-host register its own Twitch app, or sign in some other way? The Developer Agreement bans passing Keys on. | Own app per self-host. |
+| Q3 | May we create a throwaway Twitch app and a test account for the live tests (revoke vs refresh token; New Secret effect)? Only you can make them. | Yes. These tests decide the kill-switch design. |
+| Q4 | Accept the cost of a cloud KMS or HSM for the hosted mode? | Yes, if hosted ever runs for third parties. Not needed for self-host. |
+| Q5 | If the provider revoke fails, does the disconnect still complete locally? | Yes, and retry. |
+| Q6 | Who sends the written security incident mail to legal@twitch.tv? | You, with a template in the runbook. |
+| Q7 | A wrong root key today mints new keys and loses old tokens. Should it stop the app instead? | Stop the app on hosted. Keep self-heal on self-contained. Your call. |
+| Q8 | Do you agree with the slice order in 10.6? | Yes. |
+
+### 10.x Sources
+
+New in this section. Tags: raw = read as page text; forum = community post; sum = small-model summary, not checked.
+
+Twitch (raw unless marked):
+
+- https://dev.twitch.tv/docs/authentication/
+- https://dev.twitch.tv/docs/authentication/refresh-tokens/
+- https://dev.twitch.tv/docs/authentication/revoke-tokens/
+- https://dev.twitch.tv/docs/authentication/validate-tokens/
+- https://dev.twitch.tv/docs/authentication/register-app/
+- https://dev.twitch.tv/docs/authentication/scopes/
+- https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/
+- https://dev.twitch.tv/docs/eventsub/handling-webhook-events/
+- https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/ (named for a check, not yet read for the revoke type)
+- https://dev.twitch.tv/docs/api/reference/#ban-user
+- https://legal.twitch.com/en/legal/developer-agreement/
+- https://blog.twitch.tv/en/2021/10/15/updates-on-the-twitch-security-incident/
+
+Community and issue trackers (forum, user reports):
+
+- https://discuss.dev.twitch.com/t/removing-my-app-from-a-twitch-users-connections-with-twitchs-revoke-oauth-api/32614
+- https://github.com/twitchdev/issues/issues/903
+- https://github.com/twitchdev/issues/issues/1050
+- https://github.com/twitchdev/issues/issues/1196
+
+Incidents:
+
+- https://github.blog/news-insights/company-news/security-alert-stolen-oauth-user-tokens/
+- https://www.bleepingcomputer.com/news/security/streamelements-discloses-third-party-data-breach-after-hacker-leaks-data/
+- https://www.bleepingcomputer.com/news/security/twitch-extension-with-30k-installs-exposes-users-oauth-tokens/
+
+Other bots (raw):
+
+- https://nightbot.tv/privacy
+- https://fossadev.com/privacy
+- https://streamelements.com/privacy
+- https://streamlabs.com/privacy
+- https://streamer.bot/privacy
+- https://docs.streamer.bot/en/Quick-Start/Twitch
+- https://github.com/crowbartools/Firebot
+
+Practice and protocols (all [sum], not checked):
+
+- https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+- https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html
+- https://www.rfc-editor.org/rfc/rfc9700.html
+- https://www.rfc-editor.org/rfc/rfc7009.html
+- https://www.w3.org/TR/activitypub/
+- https://docs.joinmastodon.org/spec/security/
+- https://spec.matrix.org/latest/server-server-api/
+
+Research notes (session scratchpad, `research/`): token-custody-code, token-custody-practice, token-custody-practice-2.

@@ -188,6 +188,12 @@ viewers spam" should not trigger the ban because they say best viewers"
   design for self-hosted bots that join the community features (mass ban, trust) through signed messages, so
   the hosted service never needs to hold a big streamer's tokens. Done-when: the threat model and the
   federation design are written, checked against the code, and settled with the owner.
+  Written: `moderation-safety-research-2026-10-10.md` section 10 (findings F1-F10, owner questions Q1-Q8).
+  Fix slices, in order: S-TOKEN-REVOKE-ON-DISCONNECT (RevokeTokenAsync has no caller; disconnect and erasure
+  only revoke locally), S-TOKEN-KILL-SWITCH, S-TOKEN-KEY-CUSTODY, S-TOKEN-AUDIT (adds the hourly Twitch
+  validate and the `user.authorization.revoke` handler, both missing), S-TOKEN-LEAST-SCOPE,
+  S-FEDERATION-SIGNED-REQUESTS (inbound gateway exists; no outbound sender). Each slice's done-when is in
+  section 10.6.
 
 ## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
 
