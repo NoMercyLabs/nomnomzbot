@@ -65,10 +65,10 @@ Works now:
 - A moderator can restrict an account on Twitch through the bot. The bot does not restrict an account by itself yet.
 - The spam check never bans. It deletes a message, warns, or times out an account.
 - The spam check never acts on a regular by itself. It only flags their message for a moderator.
-- Good standing from other channels already counts in the spam check. The part on standing below explains how.
+- Good standing from other channels counts. The spam check never times out a viewer with 25 hours of watch time on one NomNomzBot server.
+- You can change the 25 hours for your channel.
 - The spam check starts in trial mode. It acts on nobody until you switch trial mode off.
 - The spam check records the reason for each decision.
-- The warn-first ladder is built. It is off until you turn it on.
 - A mass ban reaches only the channels where it is switched on. Chapter 2 explains how.
 
 Not built yet:
@@ -77,7 +77,6 @@ Not built yet:
 - Chat filters that spare regulars. Today chat filters spare only the streamer and moderators.
 - Trial mode and a test screen for chat filters.
 - Ban requests and decision cards.
-- Your refusal winning over a moderator who switched mass bans on for your channel.
 - Lower standing for accounts that other channels banned.
 
 ### 1.1 Why it matters
@@ -138,11 +137,6 @@ Bans count the other way. A viewer banned in many of those channels has a weaker
 Then the bot looks more closely at what the account does in your chat.
 A ban elsewhere never punishes the account in your chat by itself.
 
-Today, watch time already counts.
-A viewer with 25 hours of watch time on one NomNomzBot server is safe from the spam check.
-That spam check then never times out or bans them. You can change the 25 hours for your channel.
-Bans in other channels do not lower standing yet.
-
 #### Automatic action only for clear attacks
 The bot acts by itself only when the attack is clear and the bot is very sure.
 A guess is never enough to punish a person.
@@ -173,11 +167,7 @@ Every automatic action also has a one-click "this was wrong" button.
 
 #### A ban elsewhere reaches you only by choice
 
-A ban in another channel reaches your channel only by choice.
-One of your own moderators can switch mass bans on for your channel. You can refuse, and your refusal wins.
-
-When mass bans are off in your channel, another channel can only send a ban request.
-You see a decision card with the reason and the last messages. You decide.
+A ban in another channel reaches your channel only by choice. Chapter 2 explains how.
 
 #### New rules start in a trial mode
 
@@ -191,7 +181,6 @@ You can also test a rule on sample messages before you save it.
 - We will not ban an account only because its name looks like another name.
 - We will not punish a regular automatically.
 - We will not let another channel ban in your channel. Only your own moderators can switch that on, and you can refuse.
-- We will not keep a central ban list that others push into your channel.
 - We will not let viewers vote to ban a person. A crowd can be wrong.
 - We will not hide our rules or the reason for an action.
 
@@ -511,7 +500,7 @@ So **one lockdown action protects chat and everything the bot shows and says**.
 - The bot posts fewer notices in chat, so the attackers get no stage.
 - A sudden wave can start the lockdown by itself, and the lockdown ends by itself on a timer.
 
-Each platform gives different controls. Where a platform does not let a bot lock chat, the dashboard says so plainly. It never shows a switch that does nothing.
+Each platform gives different controls. Where a platform does not let a bot lock chat, the dashboard says so plainly.
 
 ### 4.4 Raids get checked as they arrive
 
@@ -703,7 +692,7 @@ Works now:
 - For Twitch, the bot asks for a base set of access. It asks for more only when a feature needs it.
 - For Spotify, YouTube and Kick, the bot asks for all the access it may need, in one step.
 - The dashboard shows when a feature lacks access. It also shows when a connection ran out or was cut.
-- We lock every key before we store it. Each account has its own lock.
+- The key locks in part 6.4 work.
 - Disconnect and leaving delete our copy of the key for good.
 - All three ways to run the bot use the same program. The desktop app is a dashboard only. It does not run the bot.
 
@@ -781,12 +770,10 @@ Your keys stay on your own machine.
 - Your channel decides. Then your own bot acts with your own key.
 
 The hosted service does not need the key of a streamer who runs their own bot.
-Running NomNomzBot as a hosted service for other people is reserved to NoMercy Labs under the license.
 
 ### 6.7 You can leave at any time
 
-- When you leave, we delete your keys. Our copy can never be opened again.
-- We also ask the platform to cancel those keys.
+- When you leave, we delete your keys and ask the platform to cancel them.
 - Nothing locks you in.
 
 ### 6.8 What we will not do
@@ -859,7 +846,6 @@ The dashboard says plainly what each platform allows.
 | has no such tool, but the bot can do the same job | The bot's own version, marked as the bot's own. |
 
 The dashboard never shows a switch that does nothing.
-It never pretends to control a setting that only the platform controls.
 
 ### 7.4 On means it works
 
@@ -1045,10 +1031,8 @@ It protects the chat, but it does not police the people in it.
 
 Works now:
 
-- The spam check never acts on a regular by itself.
 - The warn-first ladder: a warning, then timeouts of 1 minute, 10 minutes, 1 hour and 1 day, then a ban.
 - The ladder is off until you turn it on.
-- The spam check starts in trial mode.
 - The spam check and the age gate have defaults that you can change.
 
 Not built yet:
