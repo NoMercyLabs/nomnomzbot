@@ -67,13 +67,14 @@ Other products teach the same lessons:
 - A shared ban list can turn into a tool for personal revenge.
 - Automatic filters make mistakes. Good tools give a simple way to report a wrong decision.
 
-So we design every safety feature to protect the innocent viewer first. Speed and power come second.
+So we design every safety feature to protect the innocent viewer first.
+We do that with a reason, a record and an undo on every strong tool. We do not take power away from your team.
 
 ### 1.2 What this means for you
 
 #### Silence first, decide second
 
-When an account looks dangerous, the bot first makes it quiet. Then a person decides what happens next.
+When the bot is not sure about an account, it first makes the account quiet. Then a person decides what happens next.
 
 On Twitch, the bot can restrict the account. Its messages then show only to moderators.
 
@@ -106,7 +107,7 @@ A guess is never enough to punish a person.
 
 | How sure the bot is | What the bot does |
 |---|---|
-| Very sure, and the attack is clear, such as a hate raid or a spam wave | Acts by itself and shows you why. |
+| Very sure, and the attack is clear, such as a hate raid, a spam wave or a follow bot wave | Bans the attackers by itself and shows you why. |
 | Less sure | Flags the message. A moderator decides. |
 
 #### Warn before you punish
@@ -128,12 +129,12 @@ Every automatic action also has a one-click "this was wrong" button.
 - Undo puts things back the way they were.
 - "This was wrong" also tells you which rule made the mistake, so you can fix it.
 
-#### A ban elsewhere is not proof
+#### A ban elsewhere reaches you only by choice
 
-A ban in another channel never causes a ban in your channel on its own.
-Another channel can have different rules. It can also make a mistake.
+A ban in another channel reaches your channel only by choice.
+One of your own moderators can switch mass bans on for your channel. You can refuse, and your refusal wins.
 
-When another channel wants an account banned here, it sends a ban request.
+When mass bans are off in your channel, another channel can only send a ban request.
 You see a decision card with the reason and the last messages. You decide.
 
 #### New rules start in a trial mode
@@ -147,14 +148,14 @@ You can also test a rule on sample messages before you save it.
 
 - We will not ban an account only because its name looks like another name.
 - We will not punish a regular automatically.
-- We will not let one channel ban viewers in your channel. Your channel decides.
+- We will not let another channel ban in your channel. Only your own moderators can switch that on, and you can refuse.
 - We will not keep a central ban list that others push into your channel.
 - We will not let viewers vote to ban a person. A crowd can be wrong.
 - We will not hide our rules or the reason for an action.
 
 ## 2. Your channel, your call
 
-The ideal: you decide who gets banned in your channel. No other channel, list or moderator decides for you.
+The ideal: you and the moderators you chose decide who gets banned in your channel. No other channel or list decides for you.
 
 ### 2.1 Why it matters
 
@@ -165,7 +166,8 @@ Many streamers fight the same trolls. A ban tool shared across channels looks li
 - A list name alone can hurt a person, even when nobody acts on it.
 - A wrong ban is the worst result of a safety tool. **We build so that a viewer never gets banned for the wrong reason.**
 
-So NomNomzBot keeps the final word in each channel. Help from other channels arrives as a question, never as an order.
+So NomNomzBot keeps the final word in each channel. Your own moderators can switch mass bans on for you.
+Any other help arrives as a question, never as an order.
 
 ### 2.2 What this means for you
 
@@ -173,23 +175,66 @@ So NomNomzBot keeps the final word in each channel. Help from other channels arr
 
 NomNomzBot has no central ban list. You cannot subscribe to a list from another channel. You cannot import a list of names.
 
-Each channel keeps its own bans. Other channels can only send you a ban request.
+Each channel keeps its own bans. A mass ban reaches only the channels where it is switched on.
 
-#### A ban from another channel is a ban request
+#### One click, in the channels your moderator picks
 
-A moderator in another channel can ask you to ban an account. That arrives in your channel as a ban request. It never arrives as a ban.
+Many moderators help in a lot of channels. They should not ban the same troll in each channel by hand.
+
+So a person with the mass ban power bans an account in many channels with one click.
+
+- The mass ban reaches only the channels where the moderator switched it on.
+- The moderator has one switch for each channel that they moderate.
+- Every switch starts off. The moderator uses their own judgement for each channel.
+- A switch saves at once. It stays set until the moderator changes it.
+- If your channel does not use NomNomzBot, the moderator switches it on only with your word.
+
+#### You can always say no
+
+You can refuse mass bans for your channel. Your refusal wins over every moderator switch.
+You can change your mind at any time.
+
+#### Each channel shows its state
+
+Before a mass ban, the moderator sees every channel and its state.
+
+| State | What it means |
+|---|---|
+| On | The ban happens in this channel. |
+| On, but live | The ban waits. The next part explains how. |
+| Off | No ban here. A channel that uses NomNomzBot gets a ban request instead. |
+| Refused | The streamer said no. No ban here. |
+| No moderator rights | The bot cannot ban in this channel. |
+
+The moderator can also leave out one channel for a single ban.
+
+#### When the ban happens
+
+| Channel | When the ban happens |
+|---|---|
+| The moderator's own channel | At once. |
+| A channel under attack | At once. |
+| An offline channel | At once. |
+| A live channel | It waits. The bot posts one formal notice in the chat. |
+
+In a live channel, a lead moderator or the streamer answers in chat.
+The command "!allow massban" lets the ban go ahead. The command "!disallow massban" stops it.
+With no answer, the ban happens when the stream ends.
+
+If the bot is not in that chat, it joins only to listen for the answer. It leaves when the stream ends.
+
+#### A ban request for channels that are off
+
+When mass bans are off in your channel, a mass ban does not ban here.
+If your channel uses NomNomzBot, it gets a ban request instead.
 
 | What happens | Who does it |
 |---|---|
-| A moderator sends a ban request for an account. | The moderator in the other channel. |
-| The bot restricts the account in your channel while you decide, where the platform allows it. | NomNomzBot. |
+| A moderator starts a mass ban. | A person with the mass ban power. |
+| Your channel has mass bans off, so it gets a ban request. | NomNomzBot. |
 | You see a decision card and choose. | You, or the team you trust. |
 | You accept, so the account gets a real ban in your channel. | NomNomzBot, for you. |
-| You reject, so the bot lifts the restriction. | NomNomzBot, for you. |
-
-The restriction keeps the account quiet while you decide. So waiting costs you nothing during a live stream.
-
-If the moderator withdraws the request, the bot lifts the restriction again.
+| You reject, so nothing happens in your channel. | NomNomzBot, for you. |
 
 #### The decision card
 
@@ -203,25 +248,21 @@ The decision card gives you the facts in one place. You do not need to ask anyon
 
 A ban request is only for hate, insults or harm. A personal quarrel on another stream is never a reason.
 
-#### You entrust your moderators
+#### You entrust the mass ban power
 
-You choose which moderators can send ban requests into your channel. We call this "entrust".
+The mass ban power goes to a person by name. We call this "entrust".
 
-- You entrust each moderator by name.
-- You can withdraw that trust at any time, with one action.
-- When you withdraw trust, that moderator can no longer reach your channel.
-- A moderator who does not have your trust cannot send you a request at all.
-- The bot keeps a record of each moderator's requests that channels reject or reverse.
-- You see that record before you entrust a moderator.
-- A moderator who keeps sending wrong requests loses the power to send them.
+- You entrust each person by name.
+- You can take that trust back at any time, with one action.
+- The bot counts the bans of each person that channels reject or undo.
+- You see that count before you entrust a person.
 
 #### Opt-in, off by default
 
-Every safety feature that reaches across channels is opt-in. It is off until you turn it on.
+Every safety feature that reaches across channels is opt-in. It is off until someone turns it on.
 
-Nothing changes in your channel because another streamer turns a feature on. Your choice always wins over a request from another channel.
-
-One exception exists, and we state it openly. The system owner can skip the accept step for one batch. The bot names the system owner and shows the override to every channel it touches.
+Nothing changes in your channel because another streamer turns a feature on.
+Your refusal always wins over a moderator switch.
 
 #### Real bans that the platform can see
 
@@ -242,9 +283,9 @@ Instead, the bot helps you use the platform's own report flow well:
 ### 2.3 What we will not do
 
 - We will not keep a central ban list.
-- We will not let one channel ban an account in your channel without your choice.
-- We will not let a moderator reach your channel without your trust.
-- We will not turn on a cross-channel feature for you.
+- We will not ban in your channel after you refused mass bans.
+- We will not let a mass ban reach your channel unless one of your own moderators switched it on.
+- We will not switch on mass bans for every channel of a moderator at once.
 - We will not mass-report accounts.
 - We will not hide who asked for a ban, or why.
 
@@ -270,19 +311,18 @@ A mass ban is for accounts that spread hate, insults or harm. **It is never a to
 
 ### 3.3 The power goes to a named person
 
-The streamer gives the mass ban power to one named person. The power never comes with a whole role.
+The streamer entrusts the mass ban power to a person by name. The power never comes with a whole role.
 
-- Only a lead moderator, or someone higher, can receive this power.
 - A plain moderator role never includes it.
 - The streamer can take the power back at any time.
 
-### 3.4 The person who asks owns the request
+### 3.4 The person who asks owns the ban
 
-Each ban request carries the name of the person who asks. That person owns the request and its result.
+Each mass ban carries the name of the person who starts it. That person owns the ban and its result.
 
-- The request shows who asks, why, and the last messages of the account.
-- A ban that is reversed after a dispute counts against the person who asked.
-- If this happens again and again, that person loses the power.
+- The ban shows who started it, why, and the last messages of the account.
+- The history counts the bans of each person that channels reject or undo.
+- The streamer sees that count before they entrust a person, and can take the power back.
 
 This keeps the power with people who use it with care.
 
@@ -291,7 +331,7 @@ This keeps the power with people who use it with care.
 A mistake must never be permanent. You can undo a full batch of bans in one action.
 
 - One action reverses every ban in the batch, in every channel.
-- If a request is withdrawn, the account is free again in each channel that has not decided yet.
+- If a ban request is withdrawn, it leaves the inbox of each channel that has not decided yet.
 
 ### 3.6 A history shows everything
 
@@ -328,7 +368,6 @@ The system owner can step in during an emergency. The owner always acts by name 
 
 - The step-in shows in the history, with the owner's name and the reason.
 - The streamer gets a notice for each step-in.
-- The owner can skip the accept step for one batch. Every channel it touches sees that override.
 - When the owner signs in to a channel to give support, that sign-in never starts a mass ban.
 
 ### 3.10 A stolen account does limited harm
@@ -912,14 +951,14 @@ The table lists every gap we know. The most harmful gap is at the top. Where the
 
 | Gap | What it means for you | Our answer |
 |---|---|---|
-| Hate raid | A wave of accounts enters your chat to attack people for who they are. | One lockdown makes your chat and the bot's output safe at once. The bot cannot stop a raid at the door, so set raid filters on the platform. |
-| No reason comes with a ban from another channel | Each channel bans the same attacker by hand. The platform shows where an account is banned, but not why. | A ban request restricts the account and shows your team a decision card with the reason. The bot cannot read the platform's own shared ban list. |
-| Moderation power can be misused | A moderator can ban someone over a private dispute. The platform puts no brake on this. | Only moderators you entrust can send ban requests, and each request needs a reason. Actions taken on the platform's own site reach your log only afterward. |
+| Hate raid | A wave of accounts enters your chat to attack people for who they are. | One lockdown makes your chat and the bot's output safe at once. The bot bans the accounts that clearly take part. The bot cannot stop a raid at the door, so set raid filters on the platform. |
+| No reason comes with a ban from another channel | Each channel bans the same attacker by hand. The platform shows where an account is banned, but not why. | A mass ban carries its reason and the last messages. Channels with mass bans off get a decision card with the reason. The bot cannot read the platform's own shared ban list. |
+| Moderation power can be misused | A moderator can ban someone over a private dispute. The platform puts no brake on this. | Only people you entrust hold the mass ban power, and each ban needs a reason. You can refuse mass bans. Actions taken on the platform's own site reach your log only afterward. |
 | Scam links | Fake gifts and harmful links steal the accounts of your viewers. The platform's link block is all or nothing, and trusted chatters skip it. | Our own link filter checks short links and lookalike sites, even from trusted chatters. A new account that posts a link gets a closer look. |
 | Copycat account | A name copies you, a moderator or platform support, and asks viewers for their logins. | The bot spots names made to look like yours or your team's. Report fake channels outside your chat on the platform. |
 | Personal details in chat | Someone posts a home address or a phone number. It can spread far beyond your chat. | A moderator reviews any message that looks like an address or a phone number. The bot never bans on this guess alone. |
-| Follow bots and fake viewers | Thousands of fake accounts follow you, or fake viewers fill your count. This can hurt your standing. | The bot spots a follow wave and lets you restore any real follower it caught. Fake viewers stay out of its sight. |
-| Spam campaign | Many new accounts post the same sales pitch again and again. | The bot matches near-copies of known pitches. A regular who quotes the phrase stays safe, because trust counts. |
+| Follow bots and fake viewers | Thousands of fake accounts follow you, or fake viewers fill your count. This can hurt your standing. | The bot bans the fake accounts of a follow wave. It leaves out followers with a chat history. You undo any other ban with one click. Fake viewers stay out of its sight. |
+| Spam campaign | Many new accounts post the same sales pitch again and again. | The bot matches near-copies of known pitches and bans the spam accounts. A regular who quotes the phrase stays safe, because trust counts. |
 | Channel with no moderators | A small channel often has no moderator and weak default filters. | A channel with no moderators starts with a stricter safe setup. Only you can add moderators, so the bot asks you to. |
 | Reports go into a black box | You report an account and never learn the result. | The bot collects the evidence and opens the platform's own report form for you. It cannot send the report or show the result. |
 | Weak way back after a wrong ban | A viewer gets one unban request per channel, and a denial is final. | Unban requests arrive in one queue. Every automatic action has an undo button and names who acted. |
@@ -942,11 +981,11 @@ The table lists every gap we know. The most harmful gap is at the top. Where the
 | Alert | A message on the stream when something happens, such as a new follower. |
 | Authenticator app | A phone app that shows a short code to prove that you are you. |
 | AutoMod | The Twitch tool that holds back a chat message for a moderator to review. |
-| Ban request | A request from one channel to ban an account in other channels. The other channel decides. |
+| Ban request | A request to ban an account in a channel where mass bans are off. That channel decides. |
 | Copycat account | An account with a name made to look like the streamer, a moderator or platform support. |
 | Dashboard | The NomNomzBot web page where a streamer and the team manage the channel. |
 | Decision card | The card a streamer sees for a ban request: who asks, why, and the last messages of the account. |
-| Entrust | A streamer names a moderator they trust to send ban requests into their channel. |
+| Entrust | A streamer gives the mass ban power to a person they trust, by name. |
 | Follow bot | A fake account that follows a channel in a large wave. |
 | Hate raid | A wave of accounts that enters a chat to attack people for who they are. |
 | Hosted service | NomNomzBot run on servers of NoMercy Labs for other streamers. Only NoMercy Labs may run it. |

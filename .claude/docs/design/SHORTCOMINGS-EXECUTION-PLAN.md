@@ -55,9 +55,18 @@ Order: spec first (rule settle-specs-before-implementing), then one vertical sli
   each channel's status, one primary destructive "Ban everywhere" with the blast radius shown before
   confirming, then the per-channel result. Done-when: E2E bans a test account on the dev box and the
   screen shows the server's batch counts.
-- **S-MASSBAN-OPTIN-TOGGLES** One persistent opt-in toggle per moderated channel (moderator side, with the
-  streamer's-word note) and the streamer's own opt-in for their channel. Done-when: toggle, reload, the
-  state is read back from the server; a not-opted-in channel is never banned.
+- **S-MASSBAN-OPTIN-TOGGLES** Owner, 2026-10-10, verbatim, on the shared-doc line "We will not turn on a cross-channel feature for
+  you": "this means that i do not get the one click ban from all channels i mod for option that i desire as
+  a mod of 32 channels. can we at least allow this feature with channel toggles for what channels get this?
+  or at minimum mark them. i feel that the don't ban legit users rule prevents the power we sometimes need.
+  and i need confirmation on what we do with hate raids, follow bot infuxes and cheap viewer spam."
+  Settled (with the owner answer 2 below): one click bans in every channel the moderator switched on. One
+  switch per moderated channel, off at the start, set by the moderator's own judgement, saved on the click
+  and kept across sessions. The broadcaster's refusal wins over any moderator switch. Every channel on the
+  screen shows its mark: on, off (gets a ban request if it runs NomNomzBot), refused by the streamer, live
+  (waits for `!allow massban`), or no moderator rights. One ban can still leave out a single channel.
+  Done-when: switch, reload, the state is read back from the server; a switched-off channel is never
+  banned; a refusal wins over a switch that is on; each mark shows on the screen from the server state.
 - **S-MASSBAN-HOLD-RELEASE** A held channel the bot cannot hear has no way out but the stream ending.
   Owner design: the bot joins a live held channel only to listen for `!allow massban`, and leaves when
   the stream goes offline.
@@ -129,16 +138,15 @@ viewers spam" should not trigger the ban because they say best viewers"
   mass-ban power is a named grant per person, never a whole role, with a consequence notice on grant;
   (d) a ban that a target disputes and that is reversed counts against the requester, and repeated reversals
   revoke the grant; (e) every batch is reversible in one action. Auto-ban stays only for hate raids, follow
-  bots and "best viewers" spam. Done-when: the spec is settled and a test proves a cross-channel request in a
-  non-auto-accept channel bans nobody until a mod there accepts.
+  bots and "best viewers" spam. (The done-when is in the correction below.)
   Owner, 2026-10-10, verbatim: "that is because i VETO'd the decition as system owner and i vouch to not abuse
   my powers, and stand by my community. mass bans are for accounts that only spread hate and insults or cause
-  harm to the community". So: (f) the system owner may skip the accept step for one batch with an explicit
+  harm to the community". Arc's reading (withdrawn below): (f) the system owner may skip the accept step for one batch with an explicit
   override; the override is recorded on the batch, named, and visible to every affected channel; (g) a mass
   ban is only for accounts that spread hate and insults or cause harm to the community; the request form
   makes the requester pick that ground and attach the evidence, and offers no other ground.
   thecodedrift, 2026-10-10, quoted from the owner's screenshot: "Even a ban propagating out as /restrict does a
-  lot" / "a troll that gets no airtime is really effective". So: (h) while a channel has not yet accepted, the
+  lot" / "a troll that gets no airtime is really effective". Arc's reading (withdrawn below): (h) while a channel has not yet accepted, the
   account is set to restricted there at once (Twitch suspicious-user status: messages hidden from viewers,
   shown to mods), so the troll gets no airtime and nobody is banned without a decision. Accept turns it into a
   ban; reject lifts the restriction. Verify the live Helix endpoint for setting suspicious status before the
@@ -146,7 +154,7 @@ viewers spam" should not trigger the ban because they say best viewers"
   Chat, 2026-10-10, quoted from the owner's screenshot: thecodedrift: "Yeah, to avoid filling ban lists
   unnecessarily" / Stoney_Eagle: "right, i think we SHOULD fill the list. just so twitch starts paying attention
   about the fact that we joined forces to do THEIR job". Owner, verbatim: "streamers can "entrust" a mod with
-  this power." So: (i) restriction is the waiting state only; an accepted request always ends as a real Twitch
+  this power." Arc's reading (partly withdrawn below): (i) restriction is the waiting state only; an accepted request always ends as a real Twitch
   ban, so the ban lists fill; (j) the mass-ban power is granted per channel by that channel's streamer, who
   "entrusts" a named mod; a mod's request reaches only channels whose streamer entrusted that mod, and the
   streamer can withdraw the trust at any time. Auto-accept is dropped: restrict-first silences at once, so
@@ -165,14 +173,47 @@ viewers spam" should not trigger the ban because they say best viewers"
   fuck that guy"" / Stoney_Eagle: "that is my primary goal, close the gaps twitch leaves open. i am tired of
   playing whack-a-mole on 32 channels and if i want to ban someone across all of them then i need to go to
   every one of them and manually do so." / thecodedrift: "NoMercy Bot - The Effortless Enforcer".
-  So: (k) the decision card in each channel is the core of the feature: who asked, the reason, the origin
+  Arc's reading: (k) the decision card in each channel is the core of the feature: who asked, the reason, the origin
   channel, the account's last N messages there, and one primary "Ban here too" action (reject as the
   secondary); (l) no central list: each ban is a request from one named mod to channels that trust that
   mod, decided per channel, so no single list can become a vendetta tool.
+  Owner, 2026-10-10, verbatim, on the shared-doc line "We will not turn on a cross-channel feature for
+  you": "this means that i do not get the one click ban from all channels i mod for option that i desire as
+  a mod of 32 channels. can we at least allow this feature with channel toggles for what channels get this?
+  or at minimum mark them. i feel that the don't ban legit users rule prevents the power we sometimes need.
+  and i need confirmation on what we do with hate raids, follow bot infuxes and cheap viewer spam."
+  Correction, 2026-10-10: the readings above narrowed the owner's ask. Owner answer 2 already settled the
+  reach (the moderator's per-channel switch, the broadcaster's refusal wins). Withdrawn: (a) the accept step
+  for switched-on channels, (d) the automatic loss of the power, (f) the owner override (no step left to skip),
+  (h) restrict-first as the gate, and in (j) the dropped auto-accept and the entrust-gated reach.
+  Settled: one click bans in every switched-on channel; the refusal wins; own, attacked and offline channels
+  ban at once and a live channel waits for `!allow massban` (memory of 2026-10-05); a switched-off channel
+  that runs NomNomzBot gets the decision card (k); (g) the hate, insults or harm ground; (i) every ban is a
+  real Twitch ban; (e) one-action undo; (b) the evidence on every batch.
+  Proposal, not settled: lead moderators and up hold the power, and a streamer entrusts a named mod below
+  that (owner answer 1 and the "entrust" quote); a switched-off channel's account is restricted while its
+  team decides on the card.
+  Done-when: the spec is settled, and tests show a switched-on offline channel bans at once, a switched-off
+  channel bans nobody and gets a card, and a refusal wins over a switch.
 - **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
   spam phrase ("i am tired of those best viewers spam") is never banned. Done-when: a test with that exact
   message from an established viewer takes no action, and the same phrase from a fresh account in a spam
   campaign still bans.
+- **S-SPAM-AUTOBAN** Owner, verbatim: "but i do want to have hate raids and follow bots and best viewer spam to
+  be autoban". Today nothing bans on its own: a high-confidence spam line is deleted, then the channel's
+  violation ladder acts, or else a timeout of the channel's heat length, 600 s when none is set
+  (`SpamEnforcementExecutor.cs:118-139`, `:51`, `:292-301`). Fix: a high-confidence hate-raid line and a
+  line in a confirmed spam campaign end in a Twitch ban for an account below established standing; the
+  immune and shielded tiers keep their shields, and dry run acts on nobody. Done-when: a fresh account's
+  hate-raid line and campaign line each end in a Twitch ban, and the same lines from an established viewer
+  ban nobody (S-SPAM-CONTEXT-TRUST).
+- **S-FOLLOWBOT-AUTOBAN** Same owner quote. Today a follow spike ends in reversible blocks and never a ban
+  (`FollowBotSweepService.cs:36-38`). Fix: ban each account the sweep proves, with the reason "follow bot";
+  an account with chat history or standing in a channel of the system is left out (owner: "i have a trust
+  scoring system that looks at your ban status on all channels part of the system and based on that it
+  either lets things slide or acts"); one action undoes the batch or one ban. Risk: a real follower caught
+  in a wave sees a ban, where a block was silent. Done-when: a fresh wave is banned, a chatter in the same
+  wave is spared, and undo lifts one ban.
 - **S-LIVE-EVERYWHERE** Every dashboard page updates live from server pushes, with no stale or delayed state.
   Done-when: a script lists every page and the hub event that refreshes it; each page is shown changing live
   on the dev box after a change made elsewhere.
@@ -263,8 +304,9 @@ checked" in a slice stays open until the slice reads it.
 - **S-MOD-MASSBAN-FLOOR** Mass ban sits behind a low action key, so a plain Mod can start a batch of up to
   1000 targets (`ModerationController.cs:337`; the seeded floor is Mod at `ActionDefinitionSeeder.cs:203`,
   while the nuke row is Lead and Critical at `:214`). Fix: give mass ban its own action key above plain Mod,
-  seeded Critical and not delegable, the same way as the nuke row. Done-when: a test seeds the rows and
-  asserts a plain Mod is refused, a Lead is allowed, and the mass-ban row is Critical and not delegable.
+  seeded Critical like the nuke row; a plain Mod reaches it only through the streamer's entrust
+  (S-MASSBAN-ENTRUST). Done-when: a test seeds the rows and asserts a plain Mod is refused, an entrusted
+  Mod and a Lead are allowed, and the mass-ban row is Critical.
   Takes over part (a) of S-MOD-BAN-RATE-STEPUP. Paper: `moderation-safety-research-2026-10-10.md`.
 - **S-MOD-NOTICE-ALL-PATHS** The streamer notice code covers part of the mass-ban flow only
   (`MassBanConsentService.cs:342-397`, `MassBanExecutor.cs:231`, `MassBanFailureSource.cs`,
@@ -391,11 +433,12 @@ checked" in a slice stays open until the slice reads it.
   messages there, one primary "Ban here too" with reject as the secondary) exists only as guard (k) inside
   the spec-first slice S-MASSBAN-ABUSE-GUARDS. It has no build slice. Commit `700a4e7f2` added the text, and
   a grep of the plan and the paper finds no slice that builds it. Fix: build the card as the channel-side
-  inbox item for a restricted account: it reads the request evidence, shows the last N messages from the
-  event journal, and the primary action ends in a real Twitch ban while reject lifts the restriction. It
+  inbox item for a ban request in a channel whose moderator did not switch mass bans on: it reads the
+  request evidence, shows the last N messages from the event journal, and the primary action ends in a real
+  Twitch ban while reject closes the request. It
   follows the Sleak rules (one primary action, concentric radius, scarce accent). Done-when: a test request
   from another channel shows the card with the reason and the last N messages, "Ban here too" bans on
-  Twitch and the card leaves the inbox, and reject lifts the restriction and bans nobody.
+  Twitch and the card leaves the inbox, and reject closes the card and bans nobody.
 - **S-MOD-FILTER-KINDS** The chat filter has 3 kinds. Caps, emote, symbol, repeat, length and zalgo have no
   filter (a grep of Domain and Infrastructure moderation finds only escalation, risk, lockdown and the
   message normaliser); `S-CHATFILTER-ENUM-WIRE` covers only the enum text and `S-CHATFILTER-HOLD` only
@@ -539,25 +582,17 @@ checked" in a slice stays open until the slice reads it.
   (b) a test that changes one category keeps every other field, on the server and in the app; (c) the
   script exists and fails on a page without a live event.
 
-Build slices the paper names (its section 7) that had no plan entry. The four S-MASSBAN ones build guards
+Build slices the paper names (its section 7) that had no plan entry. The two S-MASSBAN ones build parts
 of S-MASSBAN-ABUSE-GUARDS and wait for that spec to settle.
 
-- **S-MASSBAN-ENTRUST** Build guard (j) of S-MASSBAN-ABUSE-GUARDS once its spec settles. A streamer entrusts
-  or withdraws named mods for their channel, and a mod's request reaches only channels whose streamer
-  entrusted that mod. Done-when: entrust, reload and read back from the server; a request never reaches a
-  channel that did not entrust the mod. Paper: `moderation-safety-research-2026-10-10.md`.
-- **S-MASSBAN-RESTRICT-FIRST** Build guards (h) and (i) of S-MASSBAN-ABUSE-GUARDS. A request restricts the
-  account in each entrusting channel; accept ends in a real Twitch ban, reject lifts the restriction; the
-  requester's own channel bans at once. Done-when: a test shows channel B with the account restricted and not
-  banned until a mod in B accepts. Paper: `moderation-safety-research-2026-10-10.md`.
-- **S-MASSBAN-REQUESTER-RECORD** Build guard (d) of S-MASSBAN-ABUSE-GUARDS. Count rejects and reversals per
-  requester; the streamer sees the record before entrusting; repeats revoke the grant (the count is owner
-  question Q5 of the paper). Done-when: a test where the set number of reversals revokes the grant, and the
-  record shows on the entrust screen. Paper: `moderation-safety-research-2026-10-10.md`.
-- **S-MASSBAN-OWNER-OVERRIDE** Build guard (f) of S-MASSBAN-ABUSE-GUARDS. The system owner skips the accept
-  step for one batch; the override is named, recorded on the batch and shown to every affected channel.
-  Done-when: a test override batch bans at once and every affected channel sees the override note. Paper:
-  `moderation-safety-research-2026-10-10.md`.
+- **S-MASSBAN-ENTRUST** Owner, verbatim: "streamers can "entrust" a mod with this power." Build the
+  named-mod power once S-MASSBAN-ABUSE-GUARDS settles: a streamer entrusts or withdraws a named mod, and
+  only a person who holds the power can start a batch (who holds it by role is the open proposal there).
+  It does not limit reach; the per-channel switch does. Done-when: entrust, reload and read back from the
+  server; a mod without the power cannot start a batch. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MASSBAN-REQUESTER-RECORD** Count rejected ban requests and undone batches per requester. The streamer
+  sees the count before entrusting and takes the power back by hand; nothing revokes it on its own (guard
+  (d) is withdrawn). Done-when: a test undoes a batch and the requester's count rises on the entrust screen. Paper: `moderation-safety-research-2026-10-10.md`.
 - **S-MOD-ANNOUNCE-RATELIMIT** Ban, unban and mod-change chat lines ship on (legacy parity), but repeated
   attack notices draw more attackers (paper lesson L6, Kick). Rate-limit the bot's ban and attack notices in
   chat during a raid. Done-when: a test raid of 50 bans posts at most the set number of notices. Paper:

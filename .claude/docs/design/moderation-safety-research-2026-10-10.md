@@ -58,8 +58,8 @@ Words used one way only:
 
 | Order | Goal | Main slices |
 |---|---|---|
-| 1 | Prevent misuse of our own tools (the incident) | S-MOD-TOOLS-SPEC, S-MASSBAN-ABUSE-GUARDS, S-MOD-MASSBAN-FLOOR, S-MASSBAN-ENTRUST, S-MASSBAN-RESTRICT-FIRST, S-MOD-DECISION-CARD, S-MASSBAN-RETRY |
-| 2 | Oversight and audit | S-MASSBAN-HISTORY, S-MASSBAN-REQUESTER-RECORD, S-MASSBAN-OWNER-OVERRIDE, S-MOD-WRONG-ACTION-REPORT, S-SAFETY-MONITOR |
+| 1 | Prevent misuse of our own tools (the incident) | S-MOD-TOOLS-SPEC, S-MASSBAN-ABUSE-GUARDS, S-MOD-MASSBAN-FLOOR, S-MASSBAN-ENTRUST, S-MASSBAN-OPTIN-TOGGLES, S-MOD-DECISION-CARD, S-MASSBAN-RETRY |
+| 2 | Oversight and audit | S-MASSBAN-HISTORY, S-MASSBAN-REQUESTER-RECORD, S-MOD-WRONG-ACTION-REPORT, S-SAFETY-MONITOR |
 | 3 | Protect the stream live | S-MOD-LOCKDOWN, S-SPAM-LOCKDOWN-WIRE, S-RAID-VET, S-SPAM-CONTEXT-TRUST, S-UF-M7a |
 | 4 | Help moderators decide | S-SUSPICIOUS-USERS, S-UF-M1a, S-UF-M6a, S-MOD-EVIDENCE-PACK |
 | 5 | Protect viewers | S-FILTER-LINKPOLICY (wider), S-SAFETY-FAKE-NAME, S-SAFETY-DOXX, S-MOD-FILTER-TEST |
@@ -256,7 +256,7 @@ Status: **have** (built), **partial** (built in part, or built but not reachable
 | 1 | Nuke: delete, timeout or ban everyone who said a phrase or regex in the last N seconds | Fossabot (1-600 s, radiation), StreamElements | partial: the dashboard has a nuke action, a batch list and a revert (`ModerationScreen.kt:2635`, `:1593`, `:692`, `:778`). The server nuke bans ONE named user in every channel where the actor is LeadModerator or higher (`NetworkNukeService.cs:47`, `:60-130`). `MatchTerm` is stored and never used to scan chat. A phrase, regex or last-N-seconds nuke is missing. No per-batch list of who was hit: `NetworkNukeBatch` (`ModerationApi.kt:1410`) holds counts only. Slice S-MOD-NUKE-SCREEN | code read this run; PLAN S-MOD-NUKE-SCREEN (:82) |
 | 2 | Nuke rollback and a report of who was hit | Fossabot (ROLLBACK, COPY JSON) | partial: the reversal is built (`NetworkNukeService.cs:155-207`; route `ModerationController.cs:1196`). The per-channel who-was-hit report is missing on the server and in the app: no route lists the legs (`NetworkNukeDtos.cs:14-28`) | code read this run; S-MOD-NUKE-SCREEN |
 | 3 | Nuke by username pattern, with a warning about innocent users | StreamElements | missing (confirmed) | R: third-party; code read this run |
-| 4 | Ban one account in many channels | Moobot batch tool (own channel only), none across channels | partial (confirmed): the API exists (`ModerationController.cs:171`, `:215`, `:258-312`, `:337`). The app has no mass-ban client. No restrict-first step exists in `MassBan/` | code read this run; PLAN:49-53 |
+| 4 | Ban one account in many channels | Moobot batch tool (own channel only), none across channels | partial (confirmed): the API exists (`ModerationController.cs:171`, `:215`, `:258-312`, `:337`). The app has no mass-ban client. | code read this run; PLAN:49-53 |
 | 5 | Decision card with the reason and last messages, per channel | none found | missing. No build slice existed. New slice S-MOD-DECISION-CARD (PLAN:298). Today only guard (k) of S-MASSBAN-ABUSE-GUARDS holds the idea | PLAN S-MOD-DECISION-CARD (:298); guard (k) (:166-168) |
 | 6 | Lookalike letters folded before matching | Fossabot, Moobot | have. `MessageNormalizer.cs` holds a curated UTS #39 subset plus NFKD. It is used at `SpamDefenseService.cs:419` and `LinkDetector.cs:364`. Tests exist (`MessageNormalizerTests.cs:32-96`); this research did not run them. Open: whether the chat filters (`ChatFilterExecutionHandler`) fold with it | code read this run |
 | 7 | Phrase groups and per-phrase severity | Fossabot, Moobot | partial, exact: 3 kinds (Regex, Blocklist, LinkPolicy) and 5 actions (Delete, Timeout, Hold, Flag, Escalate). One action and one timeout apply per FILTER. No per-phrase severity and no phrase groups. S-CHATFILTER-HOLD and S-CHATFILTER-ENUM-WIRE do not add groups | code read this run; PLAN S-CHATFILTER-HOLD (:1195) |
@@ -332,7 +332,7 @@ PLAN line numbers moved while this paper was written (about +1 above line 700, +
 |---|---|---|---|---|
 | D01 | DOC/2026-06-16-moderation.md:6 (via R) | One mod dashboard, Moderator and up; what a mod sees scales with level. | Yes | Every product read has a mod surface; FrankerFaceZ and 7TV add one on top of Twitch (R: ffz-7tv-mod). |
 | D02 | DOC/2026-06-16-moderation.md:9-12 (via R) | One action queue, user context, opt-in filters per channel, mod audit log. | Yes | Twitch Mod View, Ozone and Fossabot all have these (R: twitch-native-help, bluesky-lists, third-party). |
-| D03 | DOC/2026-06-16-moderation.md:15 (via R) | No cross-channel ban by default. | Yes, stronger | Restrict-first makes the default "silence, then ask" (PLAN:137-142). |
+| D03 | DOC/2026-06-16-moderation.md:15 (via R) | No cross-channel ban by default. | Yes | Each channel is off until one of its moderators switches it on, and the streamer's refusal wins (S-MASSBAN-OPTIN-TOGGLES). |
 | D04 | DOC/2026-06-16-moderation.md:16 (via R) | Shared-chat ban propagates directly to an opted-in partner. | Changed | See K3. A ban into another channel is a request, even in Shared Chat. |
 | D05 | DOC/2026-06-16-moderation.md:17 (via R) | Shared ban and trust lists between trusted channels, opt-in. | Changed | Guard (l): no central list (PLAN:166-168). Lists became vendetta tools on Bluesky (L1-L3). A shared ban arrives as a request, never as a ban. |
 | D06 | DOC/2026-06-16-moderation.md:20 (via R) | Network nuke: LeadModerator and up, one confirmation, audited, reversible. | Changed | See K2. Audited and reversible stay. Authority moves to a named grant plus entrust. |
@@ -343,14 +343,14 @@ PLAN line numbers moved while this paper was written (about +1 above line 700, +
 | D11 | docs/bot-capabilities.md:85 (via R) | Roles and Permits page is Broadcaster only. | Yes | Entrust is a broadcaster act, so it fits on this page. |
 | D12 | FEATURES.md:54 (via R) | Persona priority: streamer, then moderator of many, then viewer. | Yes | The decision card puts the streamer's choice first (PLAN:165-166). |
 | D13 | FEATURES.md:317-329 (via R) | Community data is real platform data only. | Yes | House rule. |
-| D14 | PLAN:95-96 (D-MB1) | A lead moderator and up releases a hold with `!allow massban`. | Changed | The hold is replaced by restrict-first. `!allow massban` becomes the chat form of "Ban here too". Who may accept: question Q2. |
+| D14 | PLAN:95-96 (D-MB1) | A lead moderator and up releases a hold with `!allow massban`. | Yes | Kept for live channels: own, attacked and offline channels ban at once, and a live switched-on channel waits for `!allow massban` (the S-MASSBAN-ABUSE-GUARDS correction of 2026-10-10). |
 | D15 | PLAN:96-98 (D-MB2) | The requester picks channels with toggles; the broadcaster's opt-out wins. | Changed | See C10. The toggles stay, but list only channels that entrusted this mod. Opt-out becomes "withdraw trust". |
 | D16 | PLAN:99-101 (D-MB3) | Community and Moderation fold into one user hub. | Yes | Owner answer 3 (PLAN:88-93). |
-| D17 | PLAN:122-125 guard (a) | Own channels and auto-accept channels ban at once. | Changed | Auto-accept was dropped by guard (j) (PLAN:149-150). See C4. |
+| D17 | PLAN:122-125 guard (a) | Own channels and auto-accept channels ban at once. | Changed | A switched-on channel bans at once with no accept step, and the streamer can refuse (the S-MASSBAN-ABUSE-GUARDS correction of 2026-10-10). See C4. |
 | D18 | PLAN:125-126 guard (b) | Every request carries evidence. | Yes | Core of the decision card (PLAN:165-166). |
 | D19 | PLAN:126-127 guard (c) | Mass-ban power is a named grant, never a role. | Yes | The code checks the wrong permission today. See C11. |
 | D20 | PLAN:127-128 guard (d) | A reversed disputed ban counts against the requester; repeats revoke. | Yes | Fossabot bans misusers of its nuke (L7). The count: question Q5. |
-| D21 | PLAN:128-130 guard (e) | Every batch reverses in one action. Auto-ban only for hate raids, follow bots and "best viewers" spam. | Yes, narrowed | S-SPAM-CONTEXT-TRUST keeps regulars safe (PLAN:169-172). Follow bots: see K9 and Q1. |
+| D21 | PLAN:128-130 guard (e) | Every batch reverses in one action. Auto-ban only for hate raids, follow bots and "best viewers" spam. | Yes, narrowed | S-SPAM-CONTEXT-TRUST keeps regulars safe (PLAN:169-172). Follow bots: auto-ban, settled in Q1 (S-FOLLOWBOT-AUTOBAN). |
 | D22 | PLAN:133-135 guard (f) | The system owner may skip the accept step for one batch, named and visible. | Yes | The owner's VETO (PLAN:131-133). Bluesky also keeps a baseline layer above the lists (R: bluesky-lists). |
 | D23 | PLAN:135-136 guard (g) | A mass ban is only for hate, insults or harm. | Yes | Kick warns against counter-action (L4). |
 | D24 | PLAN:137-142 guard (h) | Restrict in each channel while it decides. | Yes, now verified | Helix "Add Suspicious Status to Chat User" exists, scope `moderator:manage:suspicious_users` (R: twitch-native). It needs a mod token in that channel. |
@@ -362,7 +362,7 @@ PLAN line numbers moved while this paper was written (about +1 above line 700, +
 | D30 | SD1 (via R) | Split action by confidence. | Yes | Auto-ban rests on high confidence only (K9). |
 | D31 | SD7 (via R) | Every action is explainable. | Yes | Sery_Bot publishes no thresholds (L17). |
 | D32 | SD8 (via R) | Established regulars are immune; only a flag. | Yes | Owner's "best viewers" quote (PLAN:118-119). |
-| D33 | SD9 (via R) | Presence is never an offence. | Yes, one open point | Follow bots: Q1. |
+| D33 | SD9 (via R) | Presence is never an offence. | Changed | A proven follow-bot account is banned; an account with chat history or standing is left out (Q1, S-FOLLOWBOT-AUTOBAN). |
 | D34 | SD10 (via R) | Risk multiplies, never adds. | Yes | No research against it. |
 | D35 | SD11 (via R) | Portable standing is positive evidence first. | Changed in part | See C5: a ban elsewhere may raise the watch level, never cause a ban alone. |
 | D36 | SD12 (via R) | We cannot hold a message on hosted platforms. | Yes | Rename the word (C3). |
@@ -387,15 +387,15 @@ PLAN line numbers moved while this paper was written (about +1 above line 700, +
 
 | # | Conflict (via R: internal-settled-2) | Winner | Doc line that must change |
 |---|---|---|---|
-| K1 | User-flow M5 bans directly in every channel. | Restrict-first and entrust (PLAN:137-150). | DOC/user-flow-behavioral-spec-2026-10-03.md:573-589 (M5) and :1036 (X2 Confirm ladder row). |
-| K2 | 2026-06-16: LeadModerator and up bans everywhere at once. | Named grant plus entrust plus restrict-first. | DOC/2026-06-16-moderation.md:20. |
-| K3 | Shared-chat ban propagates directly. | Restrict-first in the partner channel, plus a decision card. A partner auto-accept for one live session: Q4. | DOC/2026-06-16-moderation.md:16. |
+| K1 | User-flow M5 bans directly in every channel. | Switched-on channels ban at once and a live one waits; switched-off channels get a decision card (the S-MASSBAN-ABUSE-GUARDS correction of 2026-10-10). | DOC/user-flow-behavioral-spec-2026-10-03.md:573-589 (M5) and :1036 (X2 Confirm ladder row). |
+| K2 | 2026-06-16: LeadModerator and up bans everywhere at once. | Proposal, not settled: lead moderator and up plus a named entrust, across switched-on channels. | DOC/2026-06-16-moderation.md:20. |
+| K3 | Shared-chat ban propagates directly. | A decision card in the partner channel, unless a moderator switched mass bans on there. A partner auto-accept for one live session: Q4. | DOC/2026-06-16-moderation.md:16. |
 | K4 | `moderation:nuke` granted by the origin broadcaster only. | Two grants: the origin grant (who may ask) and entrust per target (who is trusted there). | docs/bot-capabilities.md:72-80; SPEC/moderation.md:392. |
 | K5 | SuperMod vs LeadModerator. | LeadModerator. | docs/bot-capabilities.md:33; FEATURES.md:49; FEATURES-BY-SIDEBAR.md:138; run S-LEADMOD-APP-RENAME (PLAN:3043). More "SuperMod" text remains in code and app: `IOperatorNetworkBanService.cs:21`, `NetworkNukeService.cs:248`, `ISharedBanService.cs:19-21`, app `ModerationApi.kt:287`, `ModerationController.kt:357` and `:725`, `ModerationScreen.kt:592`, `RolesApi.kt:218`, `ViewerProfileController.kt:297`. Add these to S-LEADMOD-APP-RENAME. Order 45 is text and UI only. |
 | K6 | History treats bans as per-channel records only. | S-MASSBAN-HISTORY shows requests, per-channel decisions and overrides. | DOC/owner-punch-list-2026-09-08.md s.12 (`:325`). That section does not say bans are per-channel only. The conflict is this paper's own inference, so read s.12 before you change it. |
 | K7 | Ban here: 10 s Undo only. | Keep for local bans. A cross-channel request is undone by withdrawing it, which lifts the restriction. | DOC/user-flow-behavioral-spec-2026-10-03.md:582 (add the withdraw rule). |
 | K8 | Reason chips include Spam, Bot, Off-topic. | Local actions keep all chips. The mass-ban picker offers only hate, insults, harm. | DOC/user-flow-behavioral-spec-2026-10-03.md:547 (add the mass-ban rule). |
-| K9 | SD0 test asserts zero bans; owner wants auto-ban. | Auto-ban only at high confidence, only for hate raids and "best viewers" spam, never for Trusted and up. The SD0 test stays for medium confidence. Follow bots: Q1. | SPEC/spam-defense.md:740-743 (the SD0 test; name the confidence level; `:734-738` is the SD11 test); :756-759 SD9 test after Q1. |
+| K9 | SD0 test asserts zero bans; owner wants auto-ban. | Auto-ban only at high confidence, only for hate raids and "best viewers" spam, never for Trusted and up. The SD0 test stays for medium confidence. Follow bots: auto-ban (Q1). Build: S-SPAM-AUTOBAN, S-FOLLOWBOT-AUTOBAN. | SPEC/spam-defense.md:740-743 (the SD0 test; name the confidence level; `:734-738` is the SD11 test); :756-759 SD9 test after Q1. |
 | K10 | Trust is positive-only vs "looks at your ban status on all channels". | A ban elsewhere may raise the watch level (Monitor). It never bans alone. | SPEC/spam-defense.md s.6.1 (`:611`; Semi-Trusted, SD11 text at `:97`). The quote "looks at your ban status on all channels" was NOT FOUND in `spam-defense.md`. It matches the owner's words at PLAN:117-118. |
 | K11 | "Approve and trust for this stream" is a third trust idea. | No conflict. Keep three names: trust tier, stream trust, entrust. | None. |
 | K12 | Punch list: bans are a text blob. | Half stale. The ban list is now structured (`ModerationController.cs:574-577` returns `List<BannedUserDto>`) and a typed `ModerationHistoryEntry` table exists (`ModerationHistoryEntry.cs:29-97`). But the Community ban list still reads Configuration keys `ban:<userId>` (`CommunityController.cs:584-594`, `:714-716`, `:984-993`). | DOC/owner-punch-list-2026-09-08.md s.3 (change the first half only). |
@@ -410,11 +410,11 @@ C1, C2, C5, C8 and C15 are the same as K9, K2/K4, K10, K5 and K1.
 | # | Conflict (via R: internal-settled) | Winner | Doc line that must change |
 |---|---|---|---|
 | C3 | "Hold" has three meanings. | Mass ban: "waiting for a decision" (restricted). Chat filters: "queue". Spam spec SD12: "cannot hold a message" stays as plain English. | PLAN:60 (S-MASSBAN-HOLD-RELEASE text), PLAN:1174 (S-CHATFILTER-HOLD text), SPEC/moderation.md. |
-| C4 | Guard (a) keeps auto-accept; guard (j) drops it. | Guard (j). | PLAN:123-125 (delete the auto-accept clause). |
+| C4 | Guard (a) keeps auto-accept; guard (j) drops it. | Neither: the per-channel switch decides. | Done: the S-MASSBAN-ABUSE-GUARDS correction of 2026-10-10 withdraws both. |
 | C6 | Trust weights fixed in the spec; editable in the shipped code. Partly wrong. The "fixed" sentence is OWNER-QUESTIONS `:192`; the spam spec (`:597`) says every threshold is an editable setting. In code, `TrustThresholds` and `SemiTrustedWatchHours` are editable (`SpamDefenseSettings.cs:40-46`), but six AccountRisk multipliers are hard-coded (`AccountRisk.cs:128-133`). | Editable with defaults, as every spam knob is. New slice S-MOD-RISK-WEIGHTS (PLAN:344) makes the six multipliers settings. | OWNER-QUESTIONS `:192` (the "fixed" sentence). |
 | C7 | Nuke reversal: 24 h in the spec, no limit in the code. | Open: Q6. | PLAN:3260 after Q6. |
 | C9 | 10-05: only live channels hold. 10-10: every other channel waits for a decision. | 10-10 (newer). Restriction silences at once, so waiting costs nothing in a live chat. | Memory feedback-massban-bans-happen-live-only-holds.md; `MassBanChannelPlanner.cs:216-224`. The code is the 10-05 rule today, so a code slice is needed for the 10-10 rule (orders 6 and 8). |
-| C10 | Three consent models: opt-in (10-06), opt-out (10-10 answer 2), entrust (10-10 guard j). | Entrust (newest, most specific). The requester's toggles pick among entrusting channels. "Opt-out" = withdraw trust. | PLAN:57-59 (S-MASSBAN-OPTIN-TOGGLES); PLAN:96-98; memory feedback-massban-opt-in-only.md. |
+| C10 | Three consent models: opt-in (10-06), opt-out (10-10 answer 2), entrust (10-10 guard j). | The moderator's switch per channel (owner answer 2, confirmed 2026-10-10). The broadcaster's refusal wins. Entrust names who holds the power, not where it reaches. | PLAN:57-59 (S-MASSBAN-OPTIN-TOGGLES); PLAN:96-98; memory feedback-massban-opt-in-only.md. |
 | C11 | The mass-ban endpoint checks `moderation:ban` (Moderator floor). | The named `moderation:nuke` grant. New slice S-MOD-MASSBAN-FLOOR. | `ModerationController.cs:337` (confirmed: checks `moderation:ban`). `moderation:nuke` is seeded in `ActionDefinitionSeeder.cs:214` and used by the nuke routes (`:1179`, `:1196`, `:1211`). |
 | C12 | PLAN says nothing consumes suspicious-user events; handlers exist (`SuspiciousUserHandlers.cs:23`, `:44`). Lockdown is half built. | The code. | PLAN S-SUSPICIOUS-USERS (:790-793; rewrite the gap to the UI and ledger check); PLAN S-SPAM-LOCKDOWN-WIRE (:755-757; automatic trigger only). |
 | C13 | Floors per tab in the user hub are not stated. | Each S-USER-HUB tab names its floor. Followers, Subscribers and Donations tiles stay Editor and up. The words "money tiles" are not in PLAN S075 (:2537-2545). | PLAN S-USER-HUB (:77-80; add floors to the done-when). |
@@ -433,9 +433,9 @@ Build order runs top to bottom, number 1 first. It follows PRODUCT-ALIGNMENT D8:
 | 1 | S-MOD-TOOLS-SPEC (PLAN:49-53) | One spec for the moderator-of-many surface, built from this paper. | The spec is committed; every section 8 answer is in it; every gap maps to a slice. | Owner request 2026-10-10 |
 | 2 | S-MASSBAN-ABUSE-GUARDS (PLAN:121) | Settle guards (a)-(l) as amended in section 6. | As in PLAN:129-130: a request to a channel that has not accepted bans nobody. | PLAN:104 |
 | 3 | S-MOD-MASSBAN-FLOOR (in PLAN; was MASSBAN-GRANT-GATE) | The mass-ban endpoint checks the named `moderation:nuke` grant. | A test: a Moderator without the grant gets refused; with the grant, the request goes out. | Guard (c); C11 |
-| 4 | S-MASSBAN-ENTRUST (new) | A streamer entrusts or withdraws named mods for their channel. | Entrust, reload, read back from the server. A request never reaches a channel that did not entrust the mod. | Guard (j) |
-| 5 | S-MASSBAN-OPTIN-TOGGLES (PLAN:58-60, changed) | The requester's per-channel toggles list only entrusting channels. | As in PLAN:58-59, plus: a withdrawn trust removes the toggle live. | Owner answer 2; C10 |
-| 6 | S-MASSBAN-RESTRICT-FIRST (new) | A request restricts the account in each entrusting channel. Accept bans. Reject lifts the restriction. The requester's own channel bans at once. | A test: channel B shows the account restricted, no ban, until a mod in B accepts. | Guards (a), (h), (i) |
+| 4 | S-MASSBAN-ENTRUST (new) | A streamer entrusts or withdraws a named mod; only a holder of the power starts a batch. | Entrust, reload, read back from the server. A mod without the power cannot start a batch. | Owner "entrust" quote |
+| 5 | S-MASSBAN-OPTIN-TOGGLES (PLAN:58-60, changed) | One switch per moderated channel, off at the start, saved on the click; the refusal wins; each channel shows its mark. | Reload reads back; a switched-off channel is never banned; the refusal wins; the marks show. | Owner answer 2; C10 |
+| 6 | S-SPAM-AUTOBAN (new) | A high-confidence hate-raid line and a confirmed campaign line ban an account below established standing. Shields and dry run stay. | A fresh account's lines each end in a Twitch ban; an established viewer bans nobody. | Owner auto-ban quote |
 | 7 | S-MASSBAN-SKIP-BANNED (PLAN:65) | Skip a channel where the account is already banned. | As in PLAN:65-66. | Incident fault 2 |
 | 8 | S-MOD-DECISION-CARD (in PLAN; was MASSBAN-DECISION-CARD) | The card in each channel: requester, ground, origin channel, last N messages, "Ban here too" (primary) and "Reject". Shown in the dashboard inbox; `!allow massban` is its chat form. | E2E on the dev box: a request appears live on channel B's card; "Ban here too" bans on Twitch; the history row shows who decided. | Guard (k); thecodedrift (PLAN:157-162) |
 | 9 | S-MASSBAN-HOLD-RELEASE (PLAN:60, folded) | Folded into order 8: a channel without our bot decides on the dashboard card. | Order 8 passes for a channel where the bot is not in chat. | Incident fault 1 |
@@ -447,8 +447,8 @@ Build order runs top to bottom, number 1 first. It follows PRODUCT-ALIGNMENT D8:
 | Order | Slice | What it does | Done-when | Rests on |
 |---|---|---|---|---|
 | 12 | S-MASSBAN-HISTORY (PLAN:69, wider) | Batches, per-channel decisions, who decided, overrides, reversal. | As in PLAN:68-69, plus each decision row names the deciding mod. | K6 |
-| 13 | S-MASSBAN-REQUESTER-RECORD (new) | Counts rejects and reversals per requester. The streamer sees the record before entrusting. Repeats revoke the grant. | A test: the set number of reversals revokes the grant; the record shows on the entrust screen. | Guard (d); Q5 |
-| 14 | S-MASSBAN-OWNER-OVERRIDE (new) | The system owner skips the accept step for one batch. The override is named, recorded and shown to every affected channel. | A test: an override batch bans at once and every affected channel sees the override note. | Guard (f) |
+| 13 | S-MASSBAN-REQUESTER-RECORD (new) | Counts rejected requests and undone batches per requester. The streamer sees the count and takes the power back by hand. | A test: an undone batch raises the count on the entrust screen. | Q5 withdrawn |
+| 14 | S-FOLLOWBOT-AUTOBAN (new) | A proven follow-bot account is banned with the reason "follow bot". Chatters and accounts with standing are left out. | A fresh wave is banned, a chatter is spared, undo lifts one ban. | Q1 |
 | 15 | S-MOD-WRONG-ACTION-REPORT (new) | A "this was wrong" button on every automatic action. It undoes the action and logs a false positive for tuning. | Pressing it on a test auto-timeout lifts the timeout on Twitch and adds a row to the false-positive log. | L15; owner rule PLAN:104 |
 | 16 | S-SAFETY-MONITOR (PLAN:740) with S-MOD-PROTECTION-STATUS (PLAN:72) | One live protection-status card. | As in PLAN:741-744 and PLAN:72-73. | Goal 2026-10-08 |
 | 17 | S-NETBLOCK-LEGS (PLAN:753), S-NETBLOCK-REACH (PLAN:758) | Store failed legs, back off retries, never lift a ban the streamer placed. | As in PLAN:753-761. | Owner rule PLAN:104 |
@@ -461,7 +461,7 @@ Build order runs top to bottom, number 1 first. It follows PRODUCT-ALIGNMENT D8:
 | 19 | S-MOD-LOCKDOWN (PLAN:75, wider) | Manual start and end with a timer. Owns the M7 spike banner (S-UF-M7a, PLAN:2702) and turns Shield Mode on. | As in PLAN:74-75, plus the banner starts the same lockdown. | K14 |
 | 20 | S-RAID-VET (PLAN:783-789) | Raider card and a hold-in-lockdown setting for unknown or banned raiders. | As in PLAN:765-768. | Finding 7 |
 | 21 | S-SPAM-CONTEXT-TRUST (PLAN:169) | Trust and context weigh every auto-ban. | As in PLAN:170-172. | PLAN:118-119 |
-| 22 | S-SPAM-FOLLOWBOT-WIRE (BUILT; named in the spam spec header only) | The follow-bot track is wired: `FollowSpikeHandler.cs:26` to `FollowBotSweepService.cs:92`, `:102`, `:122`; routes `SpamDefenseController.cs:161`, `:189`; app `SpamDefenseApi.kt:46-96`. No build work. Open: prove it on a live box, and decide Q1 (block only or ban). Fix the stale spec header. | A follow spike test blocks the bots, bans nobody (unless Q1 says ban), and a batch restore works. Run it live once. | SD9; Q1; C14 |
+| 22 | S-SPAM-FOLLOWBOT-WIRE (BUILT; named in the spam spec header only) | The follow-bot track is wired: `FollowSpikeHandler.cs:26` to `FollowBotSweepService.cs:92`, `:102`, `:122`; routes `SpamDefenseController.cs:161`, `:189`; app `SpamDefenseApi.kt:46-96`. No build work. Open: prove it on a live box, and build the ban step (S-FOLLOWBOT-AUTOBAN, Q1 settled). Fix the stale spec header. | A follow spike test bans the proven bots, spares a chatter, and a batch undo works. Run it live once. | SD9; Q1; C14 |
 | 23 | S-SPAM-SEED-CORPUS (BUILT; named in the spam spec header only) | The spam signature store is seeded on every boot: `SpamCorpusSeeder.cs:31` is an `ISeeder` run by `SeedRunner` (`Program.cs:685-696`). No build work. Fix the stale spec header (`spam-defense.md:26-34`). | A live-box check shows the seeded signatures after a fresh boot. | C14 |
 | 24 | S-MOD-ANNOUNCE-RATELIMIT (new) | Rate-limit the bot's ban and attack notices in chat during a raid. | A test raid of 50 bans posts at most the set number of notices. | L6 |
 | 25 | S-MOD-ZERO-MOD-PRESET (new) | A safe default for a channel with no mods: stricter filters, auto-lockdown on, and a nudge to add a mod. | A channel with no mods shows the preset on first setup and the protection card names it. | Shortcoming 9 |
@@ -557,12 +557,12 @@ Kept blocked or changed outside the order:
 | 3 | open | `ModerationController.cs:337` checks `moderation:ban` |
 | 4 | open | No "entrust" in the server code |
 | 5 | partly built | The old opt-in model is built. The toggles screen is open |
-| 6 | open | No restrict-first step in `MassBan/` |
+| 6 | open | The app has no mass-ban client (benchmark row 4) |
 | 7 | built | `MassBanExecutor.cs:153`, `:223-224`: `IsAlreadyBanned` counts as success |
 | 8, 9, 10 | open | No mass-ban code in the app |
 | 11 | built on the server | `MassBanRetryPolicy.cs:25` (MaxAttempts 5); migration `20261008051818_AddMassBanTargetRetry`. The app has no result display |
 | 12 | endpoint built, UI open | See section 5.2 rows 1-2 |
-| 13, 14 | open | No requester record, no owner override |
+| 13, 14 | open | No requester record; a follow-bot wave ends in blocks, never a ban |
 | 15 | partial | Overturn route for spam detections only (`SpamDefenseController.cs:211-213`). Slice S-MOD-WRONG-ACTION-REPORT |
 | 16 | backend built, app card not found | `ModerationController.cs:635-640` GetProtectionStatus |
 | 18 | open | No automatic lockdown caller |
@@ -611,13 +611,13 @@ New slices named in this pass, all in PLAN: S-MOD-DECISION-CARD (:298, for order
 
 | # | Question | Recommendation |
 |---|---|---|
-| Q1 | Follow bots: auto-ban (your words, PLAN:116-117) or block only (SD9)? | Block only. Kick warns that mass-banning followers puts the account at risk (L4). |
+| Q1 | Follow bots: auto-ban (your words, PLAN:116-117) or block only (SD9)? | Settled 2026-10-10: auto-ban (S-FOLLOWBOT-AUTOBAN), chatters left out. Risk kept in view: Kick warns that mass-banning followers puts the account at risk (L4). |
 | Q2 | Who in a target channel may press "Ban here too"? LeadModerator and up (your answer 1), or any mod? | LeadModerator and up, plus the streamer. |
-| Q3 | A channel without our bot: may a mod still vouch for the streamer (your 10-06 words), or must the streamer entrust with their own click? | The streamer's own click. |
+| Q3 | A channel without our bot: may a mod still vouch for the streamer (your 10-06 words), or must the streamer entrust with their own click? | Settled 2026-10-10: the mod's own judgement per channel, with the streamer's word for a channel without our bot. The streamer can refuse. |
 | Q4 | In a live Shared Chat session, may a partner streamer choose "accept this session's bans at once"? | Yes, as the partner's own choice, for that session only. |
-| Q5 | How many reversed bans revoke a mass-ban grant, and over what time? | A channel setting with a default; the number is yours. |
+| Q5 | How many reversed bans revoke a mass-ban grant, and over what time? | Withdrawn 2026-10-10: nothing revokes the power on its own; the count is shown (S-MASSBAN-REQUESTER-RECORD). |
 | Q6 | Nuke reversal: 24 hours (spec) or no limit (code)? | No limit. A wrong ban should always be undoable. |
-| Q7 | A request nobody decides: how long does the restriction stay? | A default of 7 days, then it lifts and the requester is told. |
+| Q7 | A request nobody decides: how long does the restriction stay? | Open only if the restriction proposal in S-MASSBAN-ABUSE-GUARDS settles. Then a default of 7 days, after which it lifts and the requester is told. |
 | Q8 | The app display name for LeadModerator? | "Lead Moderator", the Twitch name (R: twitch-native-help). |
 | Q9 | May a ban in other channels raise a viewer to Monitor here? | Yes, Monitor only, never a ban. |
 | Q10 | Your idea "this user is marked" in chat (PLAN:115-116): post it publicly? | Mods only. A public mark is the list harm (L2) and draws attackers (L6). |
