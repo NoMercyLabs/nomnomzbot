@@ -148,6 +148,24 @@ viewers spam" should not trigger the ban because they say best viewers"
   "entrusts" a named mod; a mod's request reaches only channels whose streamer entrusted that mod, and the
   streamer can withdraw the trust at any time. Auto-accept is dropped: restrict-first silences at once, so
   every ban outside the requester's own channel waits for a mod decision there (owner override excepted).
+  Chat, 2026-10-10 19:04-19:07, quoted from the owner's screenshot. Stoney_Eagle: "the powers in my hand are
+  to make it auto cleanup permanently banned accounts" / thecodedrift: "I think you're on the right track. I'm
+  just saying if you centralize ban authority, you'll both be targeted and hated because you cannot trust
+  every leaf in the node" / "Bluesky went through this with ban lists, where a few centralized "lists"
+  suddenly became personal vendetta tools" / Stoney_Eagle: "i am considering taking the community aspect that
+  i already have gained with all the friendly streamers a bit further. instead of just being happy to hangout
+  with eachother and doing the whole shoutout, make it a stronger community hub" / thecodedrift: "Totally. I
+  just think the secret sauce is letting the streamer see what the ban was for and then going "yep, I want to
+  ban for that too"" / "That's something twitch isn't doing, and should, and would be incredibly valuable" /
+  "My shared ban lists can auto-restrict, and twitch's ban evasion tool is okay. What's missing is me knowing
+  why someone was banned from stoney's channel, seeing the last N messages, and with one click going "yeah,
+  fuck that guy"" / Stoney_Eagle: "that is my primary goal, close the gaps twitch leaves open. i am tired of
+  playing whack-a-mole on 32 channels and if i want to ban someone across all of them then i need to go to
+  every one of them and manually do so." / thecodedrift: "NoMercy Bot - The Effortless Enforcer".
+  So: (k) the decision card in each channel is the core of the feature: who asked, the reason, the origin
+  channel, the account's last N messages there, and one primary "Ban here too" action (reject as the
+  secondary); (l) no central list: each ban is a request from one named mod to channels that trust that
+  mod, decided per channel, so no single list can become a vendetta tool.
 - **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
   spam phrase ("i am tired of those best viewers spam") is never banned. Done-when: a test with that exact
   message from an established viewer takes no action, and the same phrase from a fresh account in a spam
