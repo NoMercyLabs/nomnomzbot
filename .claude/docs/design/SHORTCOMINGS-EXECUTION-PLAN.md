@@ -128,6 +128,12 @@ viewers spam" should not trigger the ban because they say best viewers"
   revoke the grant; (e) every batch is reversible in one action. Auto-ban stays only for hate raids, follow
   bots and "best viewers" spam. Done-when: the spec is settled and a test proves a cross-channel request in a
   non-auto-accept channel bans nobody until a mod there accepts.
+  Owner, 2026-10-10, verbatim: "that is because i VETO'd the decition as system owner and i vouch to not abuse
+  my powers, and stand by my community. mass bans are for accounts that only spread hate and insults or cause
+  harm to the community". So: (f) the system owner may skip the accept step for one batch with an explicit
+  override; the override is recorded on the batch, named, and visible to every affected channel; (g) a mass
+  ban is only for accounts that spread hate and insults or cause harm to the community; the request form
+  makes the requester pick that ground and attach the evidence, and offers no other ground.
 - **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
   spam phrase ("i am tired of those best viewers spam") is never banned. Done-when: a test with that exact
   message from an established viewer takes no action, and the same phrase from a fresh account in a spam
