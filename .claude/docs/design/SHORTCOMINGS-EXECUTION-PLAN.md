@@ -83,10 +83,26 @@ Order: spec first (rule settle-specs-before-implementing), then one vertical sli
 - **S-MOD-FILTER-TEST** Test a chat filter against a sample message before saving. Done-when: the test
   result matches what the filter does in chat.
 
-🔒 Open owner questions for S-MOD-TOOLS-SPEC: who may release a hold in a channel the bot is not in (the
-moderator who asked, or nobody until offline); whether opt-ins can be scoped to one ban (the 2026-10-10
-grant was "for these 2 accounts" and was removed again after the run); where the screen sits (Moderation
-page section, or its own page for the moderator of many).
+Owner answers 2026-10-10, verbatim: "1: leadmods and up." / "2: opt outs should be an option for the
+broadcaster to make, and mods can use their own judgement on what channels the mass ban should cover, so the
+toggles should persist across sessions and changes should persist at toggle time." / "3: community and
+moderation are both very large pages that can be nicely folded into "een overzichtelijke" view that is easy to
+follow and all important information and actions are at the top of each page. we must be able to see every bit
+of information about the user in a proper user profile card with avatar name and everything going on with that
+user relative to the channel, if they are marked as suspicious and all. EVERYTHING must update live and fast,
+that includes all other pages on the dashboard, no delayed states"
+
+Settled:
+- Release of a hold in a channel the bot joined only to listen: lead moderator and up may type `!allow massban`.
+- Coverage: the moderator picks the channels by judgement with one toggle per channel. Each toggle saves on
+  the click and persists across sessions. The broadcaster can opt the channel out; an opt-out wins over any
+  moderator toggle.
+- IA: Community and Moderation fold into one clear users area (S-USER-HUB). Every tab puts its key facts and
+  actions at the top. The user profile card shows avatar, name, and everything about that user in this
+  channel, including the suspicious flag.
+- **S-LIVE-EVERYWHERE** Every dashboard page updates live from server pushes, with no stale or delayed state.
+  Done-when: a script lists every page and the hub event that refreshes it; each page is shown changing live
+  on the dev box after a change made elsewhere.
 
 ## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
 
