@@ -2,7 +2,7 @@
 
 **Audience:** streamers and moderators on Twitch, Kick, YouTube and X Live.
 **Owner:** NoMercy Labs.
-**Date:** 2026-10-10. Version 1.
+**Date:** 2026-10-10. Version 2. The Today lists match the bot on this date.
 
 ## Contents
 
@@ -38,7 +38,7 @@ This document explains how we think about that job.
 ### What this document is not
 
 - It is not a manual. It does not explain buttons or settings.
-- It is not a progress report. Some parts are built. Other parts are in progress.
+- It is not a full progress report. Each chapter starts with a short Today list instead.
 - It is not a promise about dates.
 
 ### How to read it
@@ -48,10 +48,37 @@ Chapter 1 is the rule that wins over every other rule.
 The last chapter lists the gaps that platforms leave open, and our answer to each one.
 The glossary at the end explains the special words.
 
+Each chapter starts with a Today list for 2026-10-10.
+It says what works now, and the main parts that are not built yet.
+The rest of the chapter describes our goal.
+A goal that the Today list does not name as working is not proven yet.
+
 ## 1. Never punish the wrong person
 
 The ideal: no viewer ever loses their place in a chat for something they did not do.
 This is rule one. It comes before every other goal in this document.
+
+**Today, 2026-10-10.**
+
+Works now:
+
+- A moderator can restrict an account on Twitch through the bot. The bot does not restrict an account by itself yet.
+- The spam check never bans. It deletes a message, warns, or times out an account.
+- The spam check never acts on a regular by itself. It only flags their message for a moderator.
+- Good standing from other channels already counts in the spam check. The part on standing below explains how.
+- The spam check starts in trial mode. It acts on nobody until you switch trial mode off.
+- The spam check records the reason for each decision.
+- The warn-first ladder is built. It is off until you turn it on.
+- A mass ban reaches only the channels where it is switched on. Chapter 2 explains how.
+
+Not built yet:
+
+- Automatic bans for hate raids, spam waves and follow bot waves.
+- Chat filters that spare regulars. Today chat filters spare only the streamer and moderators.
+- Trial mode and a test screen for chat filters.
+- Ban requests and decision cards.
+- Your refusal winning over a moderator who switched mass bans on for your channel.
+- Lower standing for accounts that other channels banned.
 
 ### 1.1 Why it matters
 
@@ -100,8 +127,23 @@ At most, the bot puts a flag on a message so a moderator can look.
 
 This matters most when a regular talks about an attack. A viewer who complains about spam can use the same words as the spam.
 
-#### Automatic action only for clear attacks
+#### Good standing in other channels counts too
 
+Many channels run NomNomzBot. So the bot can know a viewer from many chats, not only from yours.
+A viewer with a long, good history in those channels has earned trust in the community.
+The bot gives that viewer the benefit of the doubt, also on their first visit to your chat.
+At most, the bot flags their message for a moderator.
+
+Bans count the other way. A viewer banned in many of those channels has a weaker standing.
+Then the bot looks more closely at what the account does in your chat.
+A ban elsewhere never punishes the account in your chat by itself.
+
+Today, watch time already counts.
+A viewer with 25 hours of watch time on one NomNomzBot server is safe from the spam check.
+That spam check then never times out or bans them. You can change the 25 hours for your channel.
+Bans in other channels do not lower standing yet.
+
+#### Automatic action only for clear attacks
 The bot acts by itself only when the attack is clear and the bot is very sure.
 A guess is never enough to punish a person.
 
@@ -156,6 +198,31 @@ You can also test a rule on sample messages before you save it.
 ## 2. Your channel, your call
 
 The ideal: you and the moderators you chose decide who gets banned in your channel. No other channel or list decides for you.
+
+**Today, 2026-10-10.**
+
+Works now:
+
+- The mass ban works for Twitch through the bot's server. The dashboard has no mass ban screen yet.
+- A mass ban reaches a channel in four cases only. It is the moderator's own channel, or it is under attack.
+- The other two cases: you switched mass bans on, or the moderator recorded your yes with a note.
+- Every switch starts off. It stays set until someone changes it.
+- The moderator can leave out channels for one mass ban.
+- A live channel waits. The streamer, a lead moderator or an editor can type "!allow massban" to let it go ahead.
+- "!disallow massban" stops it. With no answer, the ban happens when the stream ends.
+- In Twitch shared chat, a ban can reach a partner channel. The partner must switch this on and trust your channel.
+- There is no central ban list to subscribe to or to import.
+
+Not built yet:
+
+- The limit to the people you entrust. Today any moderator can start a mass ban.
+- Your refusal winning over a moderator's recorded yes.
+- Ban requests and decision cards for channels that are off.
+- The count of rejected or undone bans for each moderator.
+- Mass bans on Kick and YouTube.
+
+One more fact: the owner of a NomNomzBot server can ban one account in every channel on that server.
+That step needs a written reason, and it can be lifted. Chapter 3 says more.
 
 ### 2.1 Why it matters
 
@@ -294,6 +361,28 @@ Instead, the bot helps you use the platform's own report flow well:
 
 The ideal: your team gets strong tools against hate and harm. Each strong tool has firm limits, a named owner and a full record.
 
+**Today, 2026-10-10.**
+
+Works now:
+
+- One mass ban holds at most 1000 accounts.
+- Each person can make at most 120 changes a minute.
+- A network ban removes one account from every channel where you are a lead moderator or higher.
+- Only a lead moderator or higher can use a network ban. One action undoes it.
+- The system owner can ban one account in every channel on the server. It needs a written reason and can be lifted.
+- When a ban in a mass ban fails, the moderator who started it gets a notice.
+
+Not built yet:
+
+- Reasons limited to hate, insults and harm. Today the moderator types any reason.
+- One action that undoes a whole mass ban.
+- Limits for each channel over an hour, and the second check with an authenticator app.
+- The bot deciding if a channel is under attack. Today the moderator names the channel.
+- A notice to the streamer for each strong action.
+- A block on mass bans while the system owner is signed in to a channel for support.
+- Ending every sign-in and every program key of one person at once.
+- Program keys that always run out. Today a program key can have no end date.
+
 ### 3.1 Why it matters
 
 A mass ban can remove an account from many channels in seconds. That power protects a community during an attack.
@@ -392,6 +481,29 @@ We expect that an account can be stolen. So one stolen account, or one misused p
 
 The ideal: an attack ends in seconds, and your stream stays safe even when no moderator is online. The bot acts fast, but it never stops being fair.
 
+**Today, 2026-10-10.**
+
+Works now:
+
+- The spam check catches near-copies of spam pitches, also with look-alike letters.
+- It deletes, warns or times out. A timeout lasts 10 minutes by default.
+- An age gate can remove messages from brand new accounts. It is off by default.
+- During a follow bot wave, the bot blocks the fake accounts. You can undo each block.
+- A lockdown makes Twitch chat stricter. A moderator starts it through the bot's server. The dashboard has no lockdown button yet.
+- The dashboard has a switch for Shield Mode, the safety mode of Twitch.
+- You can list the sites whose links are always fine.
+- Viewers can report a chatter from the dashboard chat. The report goes to a queue for moderators.
+- Notes on an account are shared with the whole team.
+
+Not built yet:
+
+- A lockdown that starts by itself, or that covers alerts, TTS and the overlay.
+- Lockdown on Kick and YouTube.
+- Raid checks, copycat name checks and checks for personal details.
+- The stricter setup for channels with no moderators, and the status card.
+- One queue that also holds TTS and media requests, and the note for the next moderator.
+- Checks for short links, look-alike sites and links from new accounts.
+
 ### 4.1 What we protect you from
 
 These are the attacks we plan for first. The most harmful attack is at the top.
@@ -485,6 +597,21 @@ Chapter 1 sets our first rule: nobody gets banned for the wrong reason. Speed ne
 - We will not let a lockdown leave your alerts, overlay or TTS open to attackers.
 
 ## 5. The bot never repeats the harm
+
+**Today, 2026-10-10.**
+
+Works now:
+
+- TTS skips a short built-in list of 24 mild words.
+
+Not built yet:
+
+- The one safety check for every line the bot shows or speaks, and its word list.
+- Keeping a removed message out of commands and the overlay.
+- Full protection of viewer text in templates. Today viewer text can still use nine text tools, such as upper case.
+- Those text tools change only the text. They cannot make the bot act.
+- The viewer's own trust level in every place. Some TTS lines still give viewer text the streamer's level.
+- A lockdown that makes the bot's output go quiet.
 
 ### 5.1 The ideal
 
@@ -599,6 +726,23 @@ On a platform where we cannot lock a part, the dashboard tells you so in plain w
 The ideal: the bot acts for you, but your accounts stay under your control.
 You decide what the bot may do, and you can stop it at any time.
 
+**Today, 2026-10-10.**
+
+Works now:
+
+- For Twitch, the bot asks for a base set of access. It asks for more only when a feature needs it.
+- For Spotify, YouTube and Kick, the bot asks for all the access it may need, in one step.
+- The dashboard shows when a feature lacks access. It also shows when a connection ran out or was cut.
+- We lock every key before we store it. Each account has its own lock.
+- Disconnect and leaving delete our copy of the key for good.
+- All three ways to run the bot use the same program. The desktop app is a dashboard only. It does not run the bot.
+
+Not built yet:
+
+- Asking the platform to cancel a key. Until then, cancel access in the platform's own settings too.
+- The record of each key use, the frequent key check and the emergency stop.
+- Signed requests out of your bot. Today your bot can receive signed requests, but not send them.
+
 ### 6.1 Why the bot holds a key
 
 To act for you, a bot must keep an access key to your platform account.
@@ -646,7 +790,7 @@ Each way puts your keys in a different place.
 
 | Way to run | Where it runs | Whose keys it keeps | What you win | What you take on |
 |---|---|---|---|---|
-| One app on your computer | Your own computer | Only yours | Your keys never leave your computer. Nobody else can reach them. | You keep the computer safe. The bot runs only while the app runs. |
+| On your own computer | Your own computer | Only yours | Your keys never leave your computer. Nobody else can reach them. | You keep the computer safe. The bot runs only while your computer runs it. |
 | Your own server | A server at home, on your network or at a friend's | A small group's | Good for a team. You choose who holds the keys. | Whoever runs the server can reach every key on it. Pick someone you trust. |
 | Hosted service | Servers that NoMercy Labs runs | Every streamer who chose it | No setup for you. | One place keeps many keys, so it is the biggest target. |
 
@@ -687,6 +831,25 @@ Running NomNomzBot as a hosted service for other people is reserved to NoMercy L
 
 The ideal: you manage your channel on every platform from one dashboard.
 The dashboard always tells you the truth, and it is always up to date.
+
+**Today, 2026-10-10.**
+
+Works now:
+
+- The bot connects to Twitch, Kick and YouTube. X Live does not connect yet.
+- Bans and timeouts made in the Twitch tools show in the history.
+- Kick bans and timeouts show too. Kick unbans do not show yet.
+- The dashboard shows when its live link to the bot breaks, and when it comes back.
+- 22 of the 70 areas of the bot send live updates. Other pages show new facts when you open them again.
+- A mass ban runs at 25 bans every 5 seconds. A failed ban gets up to five tries.
+
+Not built yet:
+
+- The list of what each platform allows, on every screen.
+- Progress for each platform during a large ban.
+- The warning before a daily budget runs out.
+- YouTube bans made outside the bot, and chat setting changes made on a platform.
+- Linked accounts and account suggestions across platforms.
 
 ### 7.1 One dashboard for all your platforms
 
@@ -784,6 +947,16 @@ Some platforms also give each bot a fixed daily budget of actions.
 
 The ideal: every chat has real people, and some get hurt in ways a ban cannot fix.
 The bot helps people find real help fast, and it brings a human in.
+
+**Today, 2026-10-10.**
+
+Works now:
+
+- Twitch unban requests show in the dashboard. A moderator decides each one.
+
+Not built yet:
+
+- Everything else in this chapter.
 
 ### 8.1 Why it matters
 
@@ -898,6 +1071,20 @@ A banned viewer deserves a fair way to ask for a second chance.
 The ideal: safety exists so people can have fun together.
 It protects the chat, but it does not police the people in it.
 
+**Today, 2026-10-10.**
+
+Works now:
+
+- The spam check never acts on a regular by itself.
+- The warn-first ladder: a warning, then timeouts of 1 minute, 10 minutes, 1 hour and 1 day, then a ban.
+- The ladder is off until you turn it on.
+- The spam check starts in trial mode.
+- The spam check and the age gate have defaults that you can change.
+
+Not built yet:
+
+- Chat filters that spare regulars, and trial mode for chat filters.
+
 ### 9.1 Why it matters
 
 A chat full of fear is not a community.
@@ -954,23 +1141,23 @@ Every platform leaves gaps in its safety tools. A bot can close some of these ga
 
 The table lists every gap we know. The most harmful gap is at the top. Where the bot cannot help, we say so and point you to the platform.
 
-| Gap | What it means for you | Our answer |
-|---|---|---|
-| Hate raid | A wave of accounts enters your chat to attack people for who they are. | One lockdown makes your chat and the bot's output safe at once. The bot bans the accounts that clearly take part. The bot cannot stop a raid at the door, so set raid filters on the platform. |
-| No reason comes with a ban from another channel | Each channel bans the same attacker by hand. The platform shows where an account is banned, but not why. | A mass ban carries its reason and the last messages. Channels with mass bans off get a decision card with the reason. The bot cannot read the platform's own shared ban list. |
-| Moderation power can be misused | A moderator can ban someone over a private dispute. The platform puts no brake on this. | Each mass ban rests on your trust in your moderators, and each ban needs a reason. You can refuse mass bans. Actions taken on the platform's own site reach your log only afterward. |
-| Scam links | Fake gifts and harmful links steal the accounts of your viewers. The platform's link block is all or nothing, and trusted chatters skip it. | Our own link filter checks short links and lookalike sites, even from trusted chatters. A new account that posts a link gets a closer look. |
-| Copycat account | A name copies you, a moderator or platform support, and asks viewers for their logins. | The bot spots names made to look like yours or your team's. Report fake channels outside your chat on the platform. |
-| Personal details in chat | Someone posts a home address or a phone number. It can spread far beyond your chat. | A moderator reviews any message that looks like an address or a phone number. The bot never bans on this guess alone. |
-| Follow bots and fake viewers | Thousands of fake accounts follow you, or fake viewers fill your count. This can hurt your standing. | The bot bans the fake accounts of a follow wave. It leaves out followers with a chat history. You undo any other ban with one click. Fake viewers stay out of its sight. |
-| Spam campaign | Many new accounts post the same sales pitch again and again. | The bot matches near-copies of known pitches and bans the spam accounts. A regular who quotes the phrase stays safe, because trust counts. |
-| Channel with no moderators | A small channel often has no moderator and weak default filters. | A channel with no moderators starts with a stricter safe setup. Only you can add moderators, so the bot asks you to. |
-| Reports go into a black box | You report an account and never learn the result. | The bot collects the evidence and opens the platform's own report form for you. It cannot send the report or show the result. |
-| Weak way back after a wrong ban | A viewer gets one unban request per channel, and a denial is final. | Unban requests arrive in one queue. Every automatic action has an undo button and names who acted. |
-| Moderators work alone | Moderators plan in other apps, and one person often covers a whole night. | Shared notes on each account and one review queue keep the team together. A hand-over note passes on each shift. |
-| Abuse in private messages | Scammers send private messages to your viewers. | Viewers can report to the bot in a private message, and the bot posts a short safety notice. It cannot see messages between other people. |
-| Settings the bot cannot reach | Phone checks for chatters, link blocking and raid filters exist only on the platform's own site. | The dashboard lists each one as set on the platform. It gives a direct link and a short reason. |
-| Youth safety | Harm to a minor needs the platform's own safety team at once. | The bot sends a moderator straight to the platform's report form. It cannot check ages, and we never handle these cases ourselves. |
+| Gap | What it means for you | Our answer | Today |
+|---|---|---|---|
+| Hate raid | A wave of accounts enters your chat to attack people for who they are. | One lockdown makes your chat and the bot's output safe at once. The bot bans the accounts that clearly take part. The bot cannot stop a raid at the door, so set raid filters on the platform. | A person starts a lockdown of Twitch chat. No automatic bans yet. |
+| No reason comes with a ban from another channel | Each channel bans the same attacker by hand. The platform shows where an account is banned, but not why. | A mass ban carries its reason and the last messages. Channels with mass bans off get a decision card with the reason. The bot cannot read the platform's own shared ban list. | The Twitch mass ban works, with no dashboard screen yet. Decision cards are not built. |
+| Moderation power can be misused | A moderator can ban someone over a private dispute. The platform puts no brake on this. | Each mass ban rests on your trust in your moderators, and each ban needs a reason. You can refuse mass bans. Actions taken on the platform's own site reach your log only afterward. | Only switched-on channels get a mass ban. Any moderator can start one. Refusal is not built. |
+| Scam links | Fake gifts and harmful links steal the accounts of your viewers. The platform's link block is all or nothing, and trusted chatters skip it. | Our own link filter checks short links and lookalike sites, even from trusted chatters. A new account that posts a link gets a closer look. | Your list of safe sites works. The other link checks are not built. |
+| Copycat account | A name copies you, a moderator or platform support, and asks viewers for their logins. | The bot spots names made to look like yours or your team's. Report fake channels outside your chat on the platform. | Not built yet. |
+| Personal details in chat | Someone posts a home address or a phone number. It can spread far beyond your chat. | A moderator reviews any message that looks like an address or a phone number. The bot never bans on this guess alone. | Not built yet. |
+| Follow bots and fake viewers | Thousands of fake accounts follow you, or fake viewers fill your count. This can hurt your standing. | The bot bans the fake accounts of a follow wave. It leaves out followers with a chat history. You undo any other ban with one click. Fake viewers stay out of its sight. | The bot blocks follow bots, and you can undo each block. It does not ban them. |
+| Spam campaign | Many new accounts post the same sales pitch again and again. | The bot matches near-copies of known pitches and bans the spam accounts. A regular who quotes the phrase stays safe, because trust counts. | Works, in trial mode first. It deletes, warns or times out, but never bans. Regulars stay safe. |
+| Channel with no moderators | A small channel often has no moderator and weak default filters. | A channel with no moderators starts with a stricter safe setup. Only you can add moderators, so the bot asks you to. | Not built yet. |
+| Reports go into a black box | You report an account and never learn the result. | The bot collects the evidence and opens the platform's own report form for you. It cannot send the report or show the result. | Not built yet. |
+| Weak way back after a wrong ban | A viewer gets one unban request per channel, and a denial is final. | Unban requests arrive in one queue. Every automatic action has an undo button and names who acted. | Twitch unban requests show in the dashboard. A moderator decides each one. |
+| Moderators work alone | Moderators plan in other apps, and one person often covers a whole night. | Shared notes on each account and one review queue keep the team together. A hand-over note passes on each shift. | Shared notes work. One queue and hand-over notes are not built. |
+| Abuse in private messages | Scammers send private messages to your viewers. | Viewers can report to the bot in a private message, and the bot posts a short safety notice. It cannot see messages between other people. | Viewers can report a chatter from the dashboard. Reports by private message are not built. |
+| Settings the bot cannot reach | Phone checks for chatters, link blocking and raid filters exist only on the platform's own site. | The dashboard lists each one as set on the platform. It gives a direct link and a short reason. | Not built yet. |
+| Youth safety | Harm to a minor needs the platform's own safety team at once. | The bot sends a moderator straight to the platform's report form. It cannot check ages, and we never handle these cases ourselves. | Not built yet. |
 
 ### 10.1 What we will not do
 
@@ -990,6 +1177,7 @@ The table lists every gap we know. The most harmful gap is at the top. Where the
 | Copycat account | An account with a name made to look like the streamer, a moderator or platform support. |
 | Dashboard | The NomNomzBot web page where a streamer and the team manage the channel. |
 | Decision card | The card a streamer sees for a ban request: who asks, why, and the last messages of the account. |
+| Editor | A Twitch role that the streamer gives to someone who helps run the channel. |
 | Entrust | The trust a streamer gives by making someone a moderator. A mass ban uses that trust. |
 | Follow bot | A fake account that follows a channel in a large wave. |
 | Hate raid | A wave of accounts that enters a chat to attack people for who they are. |
@@ -1003,7 +1191,9 @@ The table lists every gap we know. The most harmful gap is at the top. Where the
 | Regular | A viewer with a long, good history in the channel. |
 | Restrict | A Twitch status. The account's messages show only to moderators until someone decides. |
 | Self-hosting | Running your own copy of the bot on your own computer or server. It is always free. |
+| Shield Mode | The Twitch safety mode. It makes the chat stricter in one step. |
 | Signed request | A message from one bot to another with a mark that proves which bot sent it. |
+| Standing | How much the bot trusts a viewer, from their history in your channel and in other channels. |
 | Stream delay | A setting that shows the stream to viewers a few seconds or minutes late. |
 | Swatting | A false emergency call that sends armed police to a person's home. |
 | System owner | The person who runs the NomNomzBot server that many channels use. |
