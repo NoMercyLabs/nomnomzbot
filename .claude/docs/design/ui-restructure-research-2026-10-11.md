@@ -94,6 +94,8 @@ These sentences are binding inputs. The new layout must satisfy each one.
 - 2026-10-10 (slice S-USER-HUB): community and moderation become one tabbed interface.
 - 2026-06-23: "Use the same terminology as twitch does please so lead moderator and not super moderator."
 - 2026-06-16, role order: "viewer -> sub -> vip -> mod -> super mod -> channel editor -> broadcaster, artist and staf are real roles too".
+- 2026-10-11 (answer to the Commands floor question in section 11): "moderators get granted the permission to manage stream and channel behaviors".
+  Arc's reading: every page that shapes how the stream and the channel behave has a Moderator manage floor: Live (Stream, OBS, VTube Studio, editing the Deck), Build (all of it), Loyalty, and Music & Voice (the TTS Provider tab stays Editor). Setup, Connect, People: Rules and role assignment keep their floors. A broadcaster can still raise any action for their channel (ChannelActionOverride, ActionDefinitionSeeder.cs:131-132).
 
 Settled rules from `spec/frontend-ia.md` and `PRODUCT-ALIGNMENT.md` that this paper keeps (Lane L3):
 
@@ -137,24 +139,24 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 | Page | Tabs or modes | Read | Manage | Notes |
 |---|---|---|---|---|
 | Chat | One channel; All my channels (was Multi-Chat) | Moderator | Moderator | Shield mode toggle in the header (owner 2026-09-08). Platform chips filter Twitch, Kick, YouTube, X. |
-| Deck | Grid; Edit | Moderator | Editor (each button has its own floor) | NEW. Section 4. |
-| Stream | Info & presets; Interactions; Schedule | Moderator | Editor | Info & presets: title, category, tags, per platform, with "All platforms". Interactions: polls, predictions, raids, ads, markers, clips, goals, hype train, charity, Guest Star. Schedule: was its own page. |
-| OBS | Live control; Advanced | Moderator | Editor | Scenes, sources, recording, replay. The connection moves to Integrations. Without a connection, the page shows the connect step inline. |
-| VTube Studio | Hotkeys; Expressions | Moderator | Editor | The same inline-connect pattern. |
+| Deck | Grid; Edit | Moderator | Moderator (each button has its own floor) | NEW. Section 4. |
+| Stream | Info & presets; Interactions; Schedule | Moderator | Moderator | Info & presets: title, category, tags, per platform, with "All platforms". Interactions: polls, predictions, raids, ads, markers, clips, goals, hype train, charity, Guest Star. Schedule: was its own page. |
+| OBS | Live control; Advanced | Moderator | Moderator | Scenes, sources, recording, replay. The connection moves to Integrations. Without a connection, the page shows the connect step inline. |
+| VTube Studio | Hotkeys; Expressions | Moderator | Moderator | The same inline-connect pattern. |
 | Analytics | Stream; Chat; Growth | Moderator | read-only | |
 
 **Build** (one place to make a command, an overlay or an action: the owner's 2026-09-08 ask)
 
 | Page | Tabs or modes | Read | Manage | Notes |
 |---|---|---|---|---|
-| Commands | Custom; Built-in | Moderator | Moderator (simple reply commands) / Editor (commands with actions) | Built-in: the 36 built-in commands, each with its own floor. |
-| Event Responses | by event type | Moderator | Editor | Absorbs Alerts. One page answers every stream event (follow, sub, raid, cheer, reward, donation). |
-| Triggers & Timers | Chat triggers; Voice triggers; Timers | Moderator | Editor | Three small pages become three tabs. |
-| Pipelines | List; Editor | Moderator | Editor | |
-| Scripts | the editor itself | Broadcaster | Broadcaster | Opens straight into the code editor, with the file list and the test helpers inside it (owner 2026-09-08). |
-| Overlays | Gallery; My overlays | Moderator | Editor | Was "Widgets". The 23 widget kinds. Each overlay shows its OBS URL and a test button. |
-| Library | Sounds; Files; Random responses; Quotes | Moderator | Editor | Sounds was Sound Clips. Files was Assets. Random responses was Pick Lists. Every picker in Build can upload inline. |
-| Gallery | Templates; Bundles | Moderator | Editor | Bundles moves here from Setup. Every create flow also has "Start from a template". |
+| Commands | Custom; Built-in | Moderator | Moderator | Built-in: the 36 built-in commands, each with its own floor. |
+| Event Responses | by event type | Moderator | Moderator | Absorbs Alerts. One page answers every stream event (follow, sub, raid, cheer, reward, donation). |
+| Triggers & Timers | Chat triggers; Voice triggers; Timers | Moderator | Moderator | Three small pages become three tabs. |
+| Pipelines | List; Editor | Moderator | Moderator | |
+| Scripts | the editor itself | Moderator | Moderator | Opens straight into the code editor, with the file list and the test helpers inside it (owner 2026-09-08). The server already lets a Moderator write scripts (ActionDefinitionSeeder.cs:174-179). |
+| Overlays | Gallery; My overlays | Moderator | Moderator | Was "Widgets". The 23 widget kinds. Each overlay shows its OBS URL and a test button. |
+| Library | Sounds; Files; Random responses; Quotes | Moderator | Moderator | Sounds was Sound Clips. Files was Assets. Random responses was Pick Lists. Every picker in Build can upload inline. |
+| Gallery | Templates; Bundles | Moderator | Moderator | Bundles moves here from Setup. Every create flow also has "Start from a template". |
 
 **People** (S-USER-HUB: one screen; the sidebar children are its tabs)
 
@@ -171,17 +173,17 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 
 | Page | Tabs | Read | Manage | Notes |
 |---|---|---|---|---|
-| Channel Points | Rewards; Redemptions | Moderator | Editor | Was "Rewards". |
-| Economy | Currency; Store; Savings jars; Leaderboards | Moderator | Editor | |
-| Games | Games; Live sessions | Moderator | Editor | Game starts are also Deck buttons. |
+| Channel Points | Rewards; Redemptions | Moderator | Moderator | Was "Rewards". |
+| Economy | Currency; Store; Savings jars; Leaderboards | Moderator | Moderator | |
+| Games | Games; Live sessions | Moderator | Moderator | Game starts are also Deck buttons. |
 | Giveaways | Active; History | Moderator | Moderator | |
 
 **Music & Voice**
 
 | Page | Tabs | Read | Manage | Notes |
 |---|---|---|---|---|
-| Music | Now playing; Song requests; Settings | Moderator | Moderator (queue) / Editor (settings) | Song Requests becomes a tab. |
-| TTS | Live; Voices; Rules; Provider | Moderator | Moderator (Live queue) / Editor (rest) | Owner 2026-09-08: tabs split by type. |
+| Music | Now playing; Song requests; Settings | Moderator | Moderator | Song Requests becomes a tab. |
+| TTS | Live; Voices; Rules; Provider | Moderator | Moderator (Provider tab: Editor) | Owner 2026-09-08: tabs split by type. |
 | Media Share | Queue; Settings | Moderator | Moderator | |
 
 **Connect**
@@ -267,7 +269,7 @@ A Deck button is a generic primitive: it binds to one action from the existing a
 ### 4.2 Rules
 
 - Each button carries its own floor. A Moderator sees the buttons at or below their role. A button above their role is not shown.
-- Editing the Deck needs Editor.
+- Editing the Deck needs Moderator (owner 2026-10-11).
 - A button with a risky action (ban wave, raid, ad) asks for a second tap.
 - A button shows its live state from the event stream (for example, "Shield on", the current scene, the song playing).
 - The layout is stored per channel, with an optional private layout per user. It needs one small table in BOTH migration sets (Postgres and SQLite).
@@ -317,15 +319,15 @@ The ranking comes from the owner's persona order, the benchmark (section 10) and
 | Need | Viewer | Moderator | Lead Moderator | Editor | Broadcaster |
 |---|---|---|---|---|---|
 | Chat and Shield toggle | own chat client | yes | yes | yes | yes |
-| Deck | no | moderator buttons | moderator buttons | all, and edit | all, and edit |
-| Stream info and interactions | no | read, run polls | read, run polls | edit | edit |
-| Build pages | public commands list | read; simple reply commands | read; simple reply commands | edit | edit |
-| Scripts | no | no | no | no | yes |
+| Deck | no | moderator buttons, and edit | moderator buttons, and edit | all, and edit | all, and edit |
+| Stream info and interactions | no | edit | edit | edit | edit |
+| Build pages | public commands list | edit | edit | edit | edit |
+| Scripts | no | yes | yes | yes | yes |
 | People: Queue, Viewers, History | own standing only | yes | yes | yes | yes |
 | People: Rules | no | read | edit | read | edit |
 | People: Roles | no | read | assign Moderator, VIP | read | all |
-| Loyalty | points, store, games | run giveaways | run giveaways | edit | edit |
-| Music & Voice | request songs, pick TTS voice | queue control | queue control | settings | settings |
+| Loyalty | points, store, games | edit | edit | edit | edit |
+| Music & Voice | request songs, pick TTS voice | queue control and settings (not TTS Provider) | queue control and settings (not TTS Provider) | settings | settings |
 | Connect | no | Discord read | Discord edit | Custom events, API read | all |
 | Setup | no | Settings read | Settings read | Settings read | all |
 | My data | yes | yes | yes | yes | yes |
@@ -449,7 +451,8 @@ Each conflict was found between the specs, the plan and the code (Lane L3). The 
 | Templates page vs create flows | Gallery page plus "Start from a template" in every create flow | Templates are found where you create. |
 | S080 profile menu contents vs the newer plan | The newer plan: identity, theme, language, My data, Admin | The newer decision wins. |
 | OBS connection on the OBS page | Integrations, with the connect step inline on OBS when not connected | Feature pages carry no wire-up controls. |
-| Commands manage floor Moderator today | Moderator for simple reply commands; Editor for commands with actions | A reply command is chat help; an action command changes the channel. Needs Stoney's yes in S-IA-SPEC. |
+| Commands manage floor Moderator today | Moderator for every command | Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". The server already has commands:write at Moderator (ActionDefinitionSeeder.cs:139). |
+| 35 server actions sit at Editor, among them stream presets and schedule, title, category, tags, language, extensions, content labels, branded content, predictions, raids, ads, music settings, economy and bundles (ActionDefinitionSeeder.cs) | Moderator for the stream and channel behavior actions (slice S-IA-MOD-FLOORS) | Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". Connect wiring (webhooks, egress, integrations, API tokens, EventSub) stays at Editor. |
 
 ## 12. Defects found while researching
 
@@ -463,6 +466,7 @@ Each was seen live or read in code on 2026-10-11. Each has a slice.
 - The whole sign-in screen is one live region, so a screen reader may re-read it on each change (S-KMP-A11Y).
 - The a11y tree box is 0 by 0. Browser find matches text, but the highlight is invisible (S-KMP-CMP112 fixes the box).
 - The UI says "Super Mod" (S-IA-NAV).
+- The app hides Code Scripts from a Moderator (nav floor Broadcaster), but the server lets a Moderator write scripts (ActionDefinitionSeeder.cs:179). The app and the server must show the same floors (S-IA-MOD-FLOORS).
 - 48 of 70 app controllers do not refresh live (S-IA-LIVE-EVERYWHERE).
 - `https://nomnomz.bot/` returns 404. The public domain has no landing page yet. This is a deploy item, not a UI item; it is listed for Stoney.
 
@@ -489,6 +493,7 @@ The order prevents shuffling: the spec and the addresses land first, so every la
 - S-IA-DECK: the Deck table in both migration sets, the API, the page, the phone grid, the desktop pop-out, the Home top 8, the Stream Deck plugin reads the same Deck.
 - S-IA-STREAM: Live, Stream with 3 tabs, per platform; Home Prep embeds the same editor.
 - S-IA-MEDIA: Music with Song requests as a tab; TTS with 4 tabs; Media Share; OBS and VTube Studio with tabs and inline connect.
+- S-IA-MOD-FLOORS: the server lowers the stream and channel behavior actions from Editor to Moderator, and the app shows the same floors.
 - S-IA-SETUP: Integrations as the one credential home; Ko-fi to Supporters; Automation renamed "API & devices"; Settings with 6 tabs; My data in the profile menu; the web sign-in hides "Backend URL".
 - S-IA-GAPS: the server operations that need a screen, as placed in the placement ledger.
 

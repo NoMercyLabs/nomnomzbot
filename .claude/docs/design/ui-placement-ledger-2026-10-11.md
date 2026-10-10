@@ -11,32 +11,32 @@ One row per today route (46 including Admin) and per participant page (6).
 | Dashboard | Home | Home | Home | Streamer: Prep (offline) and Live (on air); Moderator: Mod home; Viewer: My channels | Everyone | per card | S-IA-ROLE-HOMES |
 | Chat | Chat | Live | Chat | One channel (Shield mode toggle in header) | Moderator | Moderator | S-IA-NAV |
 | MultiChat | Chat | Live | Chat | All my channels | Moderator | Moderator | S-IA-NAV |
-| Commands | Chat | Build | Commands | Custom; Built-in | Moderator | Moderator (simple reply) / Editor (with actions) | S-IA-NAV |
-| ChatTriggers | Chat | Build | Triggers & Timers | Chat triggers | Moderator | Editor | S-IA-TRIGGERS |
-| VoiceTriggers | Chat | Build | Triggers & Timers | Voice triggers | Moderator | Editor | S-IA-TRIGGERS |
-| EventResponses | Chat | Build | Event Responses | by event type | Moderator | Editor | S-IA-NAV |
-| Timers | Chat | Build | Triggers & Timers | Timers | Moderator | Editor | S-IA-TRIGGERS |
-| Quotes | Chat | Build | Library | Quotes | Moderator | Editor | S-IA-LIBRARY |
-| PickLists | Chat | Build | Library | Random responses | Moderator | Editor | S-IA-LIBRARY |
-| Pipelines | Chat | Build | Pipelines | List; Editor | Moderator | Editor | S-IA-NAV |
-| Widgets (sidebar: Overlays) | Chat | Build | Overlays | Gallery; My overlays | Moderator | Editor | S-IA-GALLERY |
-| CodeScripts | Chat | Build | Scripts | the editor itself (no list page) | Broadcaster | Broadcaster | S-IA-SCRIPTS |
+| Commands | Chat | Build | Commands | Custom; Built-in | Moderator | Moderator | S-IA-NAV |
+| ChatTriggers | Chat | Build | Triggers & Timers | Chat triggers | Moderator | Moderator | S-IA-TRIGGERS |
+| VoiceTriggers | Chat | Build | Triggers & Timers | Voice triggers | Moderator | Moderator | S-IA-TRIGGERS |
+| EventResponses | Chat | Build | Event Responses | by event type | Moderator | Moderator | S-IA-NAV |
+| Timers | Chat | Build | Triggers & Timers | Timers | Moderator | Moderator | S-IA-TRIGGERS |
+| Quotes | Chat | Build | Library | Quotes | Moderator | Moderator | S-IA-LIBRARY |
+| PickLists | Chat | Build | Library | Random responses | Moderator | Moderator | S-IA-LIBRARY |
+| Pipelines | Chat | Build | Pipelines | List; Editor | Moderator | Moderator | S-IA-NAV |
+| Widgets (sidebar: Overlays) | Chat | Build | Overlays | Gallery; My overlays | Moderator | Moderator | S-IA-GALLERY |
+| CodeScripts | Chat | Build | Scripts | the editor itself (no list page) | Moderator | Moderator | S-IA-SCRIPTS |
 | Moderation | Moderation | People | People | Overview | Moderator | read-only | S-IA-PEOPLE |
 | ModerationQueue | Moderation | People | People | Queue | Moderator | Moderator | S-IA-PEOPLE |
 | ModerationRules | Moderation | People | People | Rules | Moderator | Lead Moderator | S-IA-PEOPLE |
 | ModerationHistory | Moderation | People | People | History | Moderator | read-only | S-IA-PEOPLE |
-| Rewards | Loyalty | Loyalty | Channel Points | Rewards; Redemptions | Moderator | Editor | S-IA-NAV |
-| Economy | Loyalty | Loyalty | Economy | Currency; Store; Savings jars; Leaderboards | Moderator | Editor | S-IA-NAV |
-| Games | Loyalty | Loyalty | Games | Games; Live sessions | Moderator | Editor | S-IA-NAV |
+| Rewards | Loyalty | Loyalty | Channel Points | Rewards; Redemptions | Moderator | Moderator | S-IA-NAV |
+| Economy | Loyalty | Loyalty | Economy | Currency; Store; Savings jars; Leaderboards | Moderator | Moderator | S-IA-NAV |
+| Games | Loyalty | Loyalty | Games | Games; Live sessions | Moderator | Moderator | S-IA-NAV |
 | Giveaways | Loyalty | Loyalty | Giveaways | Active; History | Moderator | Moderator | S-IA-NAV |
-| Music | Music | Music & Voice | Music | Now playing; Settings | Moderator | Moderator (queue) / Editor (settings) | S-IA-MEDIA |
-| SongRequests | Music | Music & Voice | Music | Song requests | Moderator | Moderator (queue) / Editor (settings) | S-IA-MEDIA |
-| SoundClips | Music | Build | Library | Sounds | Moderator | Editor | S-IA-LIBRARY |
-| Assets | Music | Build | Library | Files | Moderator | Editor | S-IA-LIBRARY |
+| Music | Music | Music & Voice | Music | Now playing; Settings | Moderator | Moderator | S-IA-MEDIA |
+| SongRequests | Music | Music & Voice | Music | Song requests | Moderator | Moderator | S-IA-MEDIA |
+| SoundClips | Music | Build | Library | Sounds | Moderator | Moderator | S-IA-LIBRARY |
+| Assets | Music | Build | Library | Files | Moderator | Moderator | S-IA-LIBRARY |
 | MediaShare | Music | Music & Voice | Media Share | Queue; Settings | Moderator | Moderator | S-IA-MEDIA |
-| Tts | Music | Music & Voice | TTS | Live; Voices; Rules; Provider | Moderator | Moderator (Live queue) / Editor (rest) | S-IA-MEDIA |
-| Alerts | Stream | Build | Event Responses | by event type (Alerts absorbed) | Moderator | Editor | S-IA-NAV |
-| Schedule | Stream | Live | Stream | Schedule | Moderator | Editor | S-IA-STREAM |
+| Tts | Music | Music & Voice | TTS | Live; Voices; Rules; Provider | Moderator | Moderator (Provider tab: Editor) | S-IA-MEDIA |
+| Alerts | Stream | Build | Event Responses | by event type (Alerts absorbed) | Moderator | Moderator | S-IA-NAV |
+| Schedule | Stream | Live | Stream | Schedule | Moderator | Moderator | S-IA-STREAM |
 | Analytics | Stream | Live | Analytics | Stream; Chat; Growth | Moderator | read-only | S-IA-NAV |
 | Community | Community | People | People | Viewers | Moderator | Moderator | S-IA-PEOPLE |
 | Discord | Connect | Connect | Discord | - | Moderator | Lead Moderator (UI label "Super Mod" is wrong) | S-IA-NAV |
@@ -44,10 +44,10 @@ One row per today route (46 including Admin) and per participant page (6).
 | Federation | Connect | Connect | Federation | - | Broadcaster | Broadcaster | - |
 | CustomEvents | Connect | Connect | Custom Events | - | Moderator | Editor | - |
 | Supporters | Connect | Connect | Supporters | - (owns Ko-fi and the other supporter feeds) | Moderator | Broadcaster | S-IA-SETUP |
-| Obs | Connect | Live | OBS | Live control; Advanced (connection form moves to Integrations) | Moderator | Editor | S-IA-NAV, S-IA-SETUP |
-| Vts | Connect | Live | VTube Studio | Hotkeys; Expressions (connection moves to Integrations) | Moderator | Editor | S-IA-NAV, S-IA-SETUP |
+| Obs | Connect | Live | OBS | Live control; Advanced (connection form moves to Integrations) | Moderator | Moderator | S-IA-NAV, S-IA-SETUP |
+| Vts | Connect | Live | VTube Studio | Hotkeys; Expressions (connection moves to Integrations) | Moderator | Moderator | S-IA-NAV, S-IA-SETUP |
 | Automation | Connect | Connect | API & devices | API tokens; Stream Deck pairing; device codes | Editor | Broadcaster | S-IA-NAV |
-| Bundles | Setup | Build | Gallery | Bundles | Moderator | Editor | S-IA-GALLERY |
+| Bundles | Setup | Build | Gallery | Bundles | Moderator | Moderator | S-IA-GALLERY |
 | Integrations | Setup | Setup | Integrations | - (the one home of every credential) | Broadcaster | Broadcaster | S-IA-SETUP |
 | Roles | Setup | People | People | Roles (with Individual permissions) | Moderator | Broadcaster (assign Moderator and VIP: Lead Moderator) | S-IA-PEOPLE |
 | Features | Setup | Setup | Features | - | Broadcaster | Broadcaster | - |
