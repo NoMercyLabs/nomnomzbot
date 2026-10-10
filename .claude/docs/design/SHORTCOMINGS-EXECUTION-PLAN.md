@@ -21,6 +21,96 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-11 — UI restructure from the ground up, one-shot plan, and the KMP verdict
+
+Owner, verbatim: "cool, now that this research is done. i like you to do the same full deep research on restucturing and reorganizing the user interface from the ground up. all the features in the bot need to have a proper place and it must be prepared for so it can be executed in one shot without errors or contstant shuffling. i want all features to have a documented place in proper hirarchy, importance and organization by who uses it and so its ensured that everything is right in front of you when you need it the most or when you want to create some shenanigans on stream with all of its features. every viewer, mod and streamer differences all layed out. and then finally i want a verdict if kotlin multi platform still the right language and framework is for the goal of serving hundred thousands of users at once. do not leave a stone unturned and store everything you find along the way and give me a full report and plan at the end"
+
+Benchmark (rule research-is-a-benchmark): `benchmarks/dashboard-ia.md`. Research paper and the one plan:
+`ui-restructure-research-2026-10-11.md`. Every page, tab, server operation, event and viewer feature with its
+new place: `ui-placement-ledger-2026-10-11.md`.
+
+Order: S-IA-SPEC first (needs Stoney's yes), then S-IA-ROUTES with S-IA-GUARD, then S-IA-NAV, then the lanes
+in parallel (at most 2 building), then the finishing slices. The KMP and scale slices run at any time.
+
+- **S-IA-SPEC** Write `spec/frontend-ia.md` from paper sections 3 to 8 and 11: groups, pages, tabs, floors,
+  pins, the Deck, role homes and the conflict table. `FEATURES-BY-SIDEBAR.md` follows it. It replaces the
+  S072 group list. Done-when: Stoney says yes to the spec, and every row of the placement ledger names a
+  page and tab that the spec lists.
+- **S-IA-ROUTES** The new page and tab list in the app router, the address `#/c/<login>/<page>[/<tab>]`,
+  and an alias map for every old address, saved pin and saved group. Done-when: a test opens all 45 old
+  addresses and lands on the new page and tab, and a signed-in user keeps the session (no logout).
+- **S-IA-GUARD** A script that fails when a page or tab has no row in the placement ledger, or when a
+  ledger row names a page with no route. It runs in slice-check for app slices. Done-when: the script
+  fails on a planted unplaced page and passes on the real tree.
+- **S-IA-NAV** The sidebar shows the new groups (Home, Live, Build, People, Loyalty, Music & Voice,
+  Connect, Setup). New names: Lead Moderator, Channel Points, Overlays, Random responses, Individual
+  permissions. Admin and My data move into the profile menu. Done-when: a UI test per role shows the
+  groups and rows that role may see, and no screen says Super Mod.
+- **S-IA-PEOPLE** The People screen with 6 tabs (Overview, Queue, Viewers, History, Rules, Roles). It is
+  the placement of S-USER-HUB; Roles moves in from Setup. Done-when: the old Community, Moderation and
+  Roles addresses open the right People tab, and every tab loads live data.
+- **S-IA-LIBRARY** Library with tabs Sounds, Files, Random responses and Quotes. Sound Clips and Assets merge into it.
+  Upload works inline in every file picker. Done-when: one upload from a picker shows in Library, and the
+  old Sound Clips, Assets, Pick Lists and Quotes addresses open their tab.
+- **S-IA-TRIGGERS** Triggers & Timers with tabs Chat triggers, Voice triggers and Timers. Event Responses
+  absorbs Alerts. Done-when: the old Alerts address opens Event Responses, and each tab saves and reloads.
+- **S-IA-SCRIPTS** Scripts opens straight into the editor with the file list beside it. Done-when: one
+  click from the sidebar shows an editable script.
+- **S-IA-GALLERY** Gallery with tabs Templates and Bundles, and "Start from a template" in every create
+  flow. Done-when: each create flow offers the templates of its kind, and installing one creates the item.
+- **S-IA-DECK** The Deck: a table in both migration sets, the API, the Deck page, the phone grid, the
+  desktop pop-out window, the top 8 on Home Live, and the Stream Deck plugin reading the same Deck.
+  Done-when: a button made on the Deck page fires from the phone grid, the pop-out and Home, and the
+  action shows in the channel.
+- **S-IA-STREAM** Live, Stream with tabs Info & presets, Interactions and Schedule, per platform. Home Prep embeds
+  the same Stream Info editor component. Done-when: a title change on Home Prep and on the Stream page
+  both reach every connected platform, from one component.
+- **S-IA-MEDIA** Music with Song requests as a tab; TTS with 4 tabs; Media Share; OBS and VTube Studio with
+  tabs and an inline connect step when not connected. Done-when: the old Song Requests address opens the
+  Music tab, and OBS shows the connect step when the link is down.
+- **S-IA-SETUP** Integrations is the one home for credentials, including the Twitch app credentials.
+  Ko-fi moves to Supporters. Automation is renamed API & devices. Settings gets 6 tabs. The web sign-in
+  hides the Backend URL field (desktop only, UF F7). Done-when: no credential field shows outside
+  Integrations, and the web sign-in shows no Backend URL.
+- **S-IA-GAPS** Give every server operation that has no app call a screen, at the place the placement
+  ledger names (largest: Automation data plane 0 of 18, Auth 8 of 27, Admin 74 of 93, Discord 17 of 26,
+  Egress allowlist 0 of 5, Channels 12 of 18). Done-when: a census script shows 0 operations without a
+  place, or each one has a not-doing reason in the ledger.
+- **S-IA-PINS** Default pins per role, stored on the account. Done-when: a pin set on one device shows on
+  another device after sign-in.
+- **S-IA-PALETTE** Ctrl+K searches pages, tabs, Deck buttons, commands, viewers and channels. Done-when:
+  each of the 6 kinds opens or runs from the palette in a UI test.
+- **S-IA-ROLE-HOMES** Home for each role: the streamer Prep and Live layouts, the moderator home and the
+  viewer home. Public viewer pages stay plain HTML. Done-when: a UI test per role shows that role's home,
+  and Home switches to Live when the stream goes live.
+- **S-IA-COMPACT** Phone bottom bar with a More sheet; icon rail on medium screens. Done-when: every page
+  is reachable at phone and tablet width in a UI test.
+- **S-IA-PLATFORM** Platform chips on every page with platform data; an action a platform cannot do shows
+  disabled with the reason. Done-when: a Kick-only channel shows no Twitch-only action as enabled.
+- **S-IA-LIVE-EVERYWHERE** Every page refreshes live on a config or data change. Done-when: a script shows
+  70 of 70 controllers subscribe (22 of 70 today).
+- **S-IA-STARTER** A new channel gets starter commands, event responses and a starter Deck. Done-when: a
+  fresh channel shows them on first sign-in, and each one works.
+- **S-KMP-FONTS** Fonts sent compressed; a language font loads only when that language shows;
+  `composeApp.js` cacheable. Done-when: the first visit to the live site measures 11 MB or less (46 MB on
+  2026-10-11).
+- **S-KMP-CMP112** Upgrade Compose Multiplatform 1.9.0 to 1.12.1 and Kotlin 2.2.21 to 2.3.20. Retest the
+  wasm workarounds (font fallback, shadow root overlays, WebSockets). Done-when: the app builds and all
+  app tests pass, and the a11y root box is no longer 0 by 0 in a live check.
+- **S-KMP-FALLBACK** A browser without WasmGC gets a clear "browser not supported" page, or the JS
+  compatibility build. Done-when: an old browser profile shows the page, not a blank screen; Safari tested
+  on a Mac.
+- **S-KMP-A11Y** Every field has an accessible name, screens have heading roles, and no whole-screen live
+  region. Done-when: a live a11y tree check shows names on every field, and zoom to 200 percent is tested
+  by hand.
+- **S-KMP-BASEHREF** `/app/` works the same as `/app` (index.html gets a base tag or the server
+  redirects). Done-when: both addresses load the app in a live check.
+- **S-SCALE-BACKPLANE** SignalR with a Redis backplane and MessagePack, so many server nodes share one
+  realtime hub; EventSub conduits on by default for multi-node. Done-when: two API nodes behind the proxy
+  deliver one event to a client on either node, in a test.
+
+---
+
 ## OWNER REQUEST 2026-10-10 — mass ban and the moderation tools, worked out properly in the dashboard
 
 Owner, verbatim: "where is the place where i can enter a username and kick them off all channels?" /
