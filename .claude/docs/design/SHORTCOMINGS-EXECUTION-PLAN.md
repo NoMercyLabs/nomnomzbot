@@ -21,6 +21,73 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-10 — mass ban and the moderation tools, worked out properly in the dashboard
+
+Owner, verbatim: "where is the place where i can enter a username and kick them off all channels?" /
+"dude... i want to ban someone off all channels i manage for  easily, i had tasked you with this feature" /
+"make sure i get to opt in channels with persistent toggle status" / "don't rush to a hortfix, the whole
+thing needs to be worked out properly including the moderation tools in the dashboard" /
+"basically we need to start listening for the !allow massban when it's needed and then leave when the stream
+goes offline and then only join when a massban is needed live on stream" / "i think we need to combine community
+and moderation into a tabbed interface with a main info page about user standing and actions needed, like the
+streamer home dashboard but everything for managing users and their roles, permissions, and EVERYTHING user
+account"
+
+Benchmark (rule research-is-a-benchmark): `benchmarks/moderation-tools.md`.
+
+Found live 2026-10-10 (the turk_bert / not_turk_bert ban, run by hand through the API because no screen
+exists): 32 of 34 channels banned; geennoob and kipp_it_100 stayed `held_until_offline`. Both do not use
+the bot, so `!allow massban` typed there is never heard (`MassBanChannelPlanner.cs:254`), and the hold
+also fired where the owner had already banned both accounts. The dashboard has no client for 15 channel
+moderation endpoints (counted from `server/openapi/v1.json` against `core/network/*.kt`): mass ban (6:
+preview, request, batches, opt-ins list/put/delete), the streamer's own mass-ban opt-in (2), the ban
+list and unban (2), protection status (1), spam lockdown (3), chat-filter test (1).
+
+Order: spec first (rule settle-specs-before-implementing), then one vertical slice each.
+
+- **S-MOD-TOOLS-SPEC** Benchmark 3+ products for cross-channel bans and mod dashboards (rule
+  research-is-a-benchmark), then settle one spec for the moderator-of-many surface: where it lives in the
+  IA, the flows (type a username or pick from chat, reason, preview the blast radius, confirm, watch the
+  result), holds, release and reversal. Settles the open questions below with the owner. Done-when: the
+  spec is committed and every gap below maps to a slice.
+- **S-MASSBAN-SCREEN** Username (resolved through community lookup), reason, the channel preview with
+  each channel's status, one primary destructive "Ban everywhere" with the blast radius shown before
+  confirming, then the per-channel result. Done-when: E2E bans a test account on the dev box and the
+  screen shows the server's batch counts.
+- **S-MASSBAN-OPTIN-TOGGLES** One persistent opt-in toggle per moderated channel (moderator side, with the
+  streamer's-word note) and the streamer's own opt-in for their channel. Done-when: toggle, reload, the
+  state is read back from the server; a not-opted-in channel is never banned.
+- **S-MASSBAN-HOLD-RELEASE** A held channel the bot cannot hear has no way out but the stream ending.
+  Owner design: the bot joins a live held channel only to listen for `!allow massban`, and leaves when
+  the stream goes offline.
+  Done-when: the spec's release path works for a bot-less live channel, and the screen shows each held
+  channel and why it waits.
+- **S-MASSBAN-SKIP-BANNED** Do not hold or notify a channel where every target is already banned (check
+  the channel's ban list first). Done-when: test with an already-banned target posts no notice and
+  reports the channel done.
+- **S-MASSBAN-HISTORY** Batches list with per-account outcome and Twitch's reason, plus reversal (un-ban
+  the batch). Done-when: the screen lists the 2026-10-10 batches and their counts match the API.
+- **S-MOD-BANLIST** The channel ban list with search and unban. Done-when: unban from the list lifts the
+  ban on Twitch and the row leaves the list.
+- **S-MOD-PROTECTION-STATUS** Show `protection-status` (joins S-SAFETY-MONITOR). Done-when: a channel
+  with the bot not modded shows that state.
+- **S-MOD-LOCKDOWN** Start and end a spam lockdown from the dashboard, with its timer. Done-when: start,
+  the chat settings change on Twitch, end restores them.
+- **S-USER-HUB** One tabbed "users" area that merges Community and Moderation. Its home tab is an info
+  page on user standing and actions needed (like the streamer home dashboard). Other tabs: people, roles,
+  permissions, bans, mass ban, notes, history, protection. The user card shows account age, channel
+  history and shared mod notes. Done-when: the spec names every tab and its endpoints, and the old
+  Community and Moderation routes lead into it.
+- **S-MOD-NUKE-SCREEN** Nuke from the dashboard: phrase or regex, action, scrollback, radiation, the
+  report, and rollback. Done-when: E2E nukes a test phrase on the dev box and rollback lifts it.
+- **S-MOD-FILTER-TEST** Test a chat filter against a sample message before saving. Done-when: the test
+  result matches what the filter does in chat.
+
+🔒 Open owner questions for S-MOD-TOOLS-SPEC: who may release a hold in a channel the bot is not in (the
+moderator who asked, or nobody until offline); whether opt-ins can be scoped to one ban (the 2026-10-10
+grant was "for these 2 accounts" and was removed again after the run); where the screen sits (Moderation
+page section, or its own page for the moderator of many).
+
 ## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
 
 Owner, verbatim: "THIS is a dropgame: https://github.com/CodingGarden/SeedlingDrop https://github.com/CodingGarden/ChristmasDrop" / "i like the drop game to be interchangable with other assets or versions, so make the logic generic and configurable and make the assets responsive and dynamically changable. for example i like a birds nest with an eagle that drops 'meat' (the user) to the nest... this is not now but needs to be prepared for" / "can we tweak the luck chance? ... give the lucky feather holder more drop luck" / "settings like always, look at PixelPush for their config options to see what we can onboard" / "do we calculate the random path with a seed or something? how do you intend to do this server side and how much would this cost saas?"
