@@ -562,13 +562,13 @@ Chapter 1 sets our first rule: nobody gets banned for the wrong reason. Speed ne
 Works now:
 
 - TTS skips a short built-in list of 24 mild words.
+- Viewer text in a template can only change how text looks, such as upper case. It cannot make the bot act.
 
 Not built yet:
 
 - The one safety check for every line the bot shows or speaks, and its word list.
 - Keeping a removed message out of commands and the overlay.
-- Full protection of viewer text in templates. Today viewer text can still use nine text tools, such as upper case.
-- Those text tools change only the text. They cannot make the bot act.
+- Full protection of viewer text in templates, so it cannot even change how text looks.
 - The viewer's own trust level in every place. Some TTS lines still give viewer text the streamer's level.
 - A lockdown that makes the bot's output go quiet.
 
