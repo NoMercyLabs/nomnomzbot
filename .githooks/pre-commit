@@ -16,4 +16,6 @@ if git diff --cached --name-only --diff-filter=ACMR -- 'docs/sdk/*.md' 'docs/sdk
     exit 1
   }
 fi
+# V0: no added line may plan or add backwards-compat code (owner 2026-10-11).
+python "$(git rev-parse --show-toplevel)/scripts/check-no-compat.py" || exit 1
 exit 0
