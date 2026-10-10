@@ -145,6 +145,11 @@ public sealed class SystemCredentialsProvider(
             _ => PascalCase(provider),
         };
 
+    // Fields are snake_case (bot_token); config keys are PascalCase (Discord:BotToken, from Discord__BotToken).
     private static string PascalCase(string value) =>
-        string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
+        string.Concat(
+            value
+                .Split('_', StringSplitOptions.RemoveEmptyEntries)
+                .Select(part => char.ToUpperInvariant(part[0]) + part[1..])
+        );
 }

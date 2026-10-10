@@ -43,7 +43,7 @@ public sealed class SystemCredentialsProviderTests
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
-        services.AddSingleton<ITokenProtector>(protector);
+        services.AddSingleton(protector);
         ServiceProvider sp = services.BuildServiceProvider();
         SystemCredentialsProvider provider = new(
             sp.GetRequiredService<IServiceScopeFactory>(),
@@ -216,7 +216,7 @@ public sealed class SystemCredentialsProviderTests
     }
 
     [Fact]
-    public async Task GetValueAsync_ReadsNonSecretDbValue_ThenConfig()
+    public async Task GetValueAsync_DbValueWinsOverConfig()
     {
         IConfiguration config = Config(("Twitch:BotUsername", "config-bot"));
         (SystemCredentialsProvider provider, AuthDbContext db, _) = Build(config);
@@ -230,14 +230,28 @@ public sealed class SystemCredentialsProviderTests
         );
         await db.SaveChangesAsync();
 
-        // DB row wins.
-        (await provider.GetValueAsync("twitch", "bot_username"))
-            .Should()
-            .Be("db-bot");
-        // Config fallback for an unset field (PascalCased section + field).
-        (await provider.GetValueAsync("twitch", "bot_username", default))
-            .Should()
-            .Be("db-bot");
+        (await provider.GetValueAsync("twitch", "bot_username")).Should().Be("db-bot");
+    }
+
+    /// <summary>
+    /// With no DB row, a snake_case field resolves to the PascalCase key the compose env vars produce
+    /// (<c>Discord__BotToken</c> → <c>Discord:BotToken</c>), not to <c>Discord:Bot_token</c>.
+    /// </summary>
+    [Theory]
+    [InlineData("discord", "bot_token", "Discord:BotToken")]
+    [InlineData("youtube", "api_key", "YouTube:ApiKey")]
+    [InlineData("twitch", "bot_username", "Twitch:BotUsername")]
+    [InlineData("twitch", "client_id", "Twitch:ClientId")]
+    public async Task GetValueAsync_FallsBackToThePascalCaseConfigKey(
+        string providerName,
+        string field,
+        string configKey
+    )
+    {
+        IConfiguration config = Config((configKey, "from-config"));
+        (SystemCredentialsProvider provider, _, _) = Build(config);
+
+        (await provider.GetValueAsync(providerName, field)).Should().Be("from-config");
     }
 
     [Fact]
