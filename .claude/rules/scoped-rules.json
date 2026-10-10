@@ -463,6 +463,31 @@
    "covers": [
     "feedback-research-needs-coverage-ledger.md"
    ]
+  },
+  {
+   "id": "plain-english-shared-docs",
+   "paths": [
+    "**/docs/community-safety.md"
+   ],
+   "brief": [
+    "[Ss]hare with (other )?streamers",
+    "[Ss]hared (paper|document|doc)",
+    "community-safety\\.md",
+    "[Pp]lain English",
+    "[Rr]esearch paper"
+   ],
+   "text": "A document for other streamers is a statement of goals and ideals, organized by topic and by importance (most important first), not a technical spec. It holds no file references, line cites, slice IDs, code, or wording from the owner's chats. Write it in Simplified Technical English: at most 20 words per sentence, one idea per sentence, active voice, present tense, plain words, every acronym in the glossary. Front matter per the documentation skill: Audience:, Owner:, Date: lines, a '## Contents' section and a Glossary. A paper or chapter of this kind is written by one Opus (or Fable) worker per chapter, never one Sonnet agent for the whole document. Gate: python scripts/check-plain-english.py.",
+   "source": "Stoney 2026-10-10: \"you are giving a MASSIVE task to sonnet... dude! i want a reliable paper that follows my rules and uses the wording patterns from our dyslexia rules and the documentation skill\"; \"the document is to share with other streamers and should not contain file references or wording made from our chats, it must contain the design goals and ideals on how we approach this community based streamer safety feature and tooling, not a technical spec\"; \"make sure you organize it by topic and importance\"",
+   "check": {
+    "match": [
+     "**/docs/community-safety.md"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-plain-english.py"
+   },
+   "covers": [
+    "feedback-shared-paper-plain-goals.md"
+   ]
   }
  ],
  "dispatch": [
