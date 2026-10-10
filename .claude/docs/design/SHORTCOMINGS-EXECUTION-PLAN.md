@@ -140,6 +140,14 @@ viewers spam" should not trigger the ban because they say best viewers"
   shown to mods), so the troll gets no airtime and nobody is banned without a decision. Accept turns it into a
   ban; reject lifts the restriction. Verify the live Helix endpoint for setting suspicious status before the
   spec settles (not checked).
+  Chat, 2026-10-10, quoted from the owner's screenshot: thecodedrift: "Yeah, to avoid filling ban lists
+  unnecessarily" / Stoney_Eagle: "right, i think we SHOULD fill the list. just so twitch starts paying attention
+  about the fact that we joined forces to do THEIR job". Owner, verbatim: "streamers can "entrust" a mod with
+  this power." So: (i) restriction is the waiting state only; an accepted request always ends as a real Twitch
+  ban, so the ban lists fill; (j) the mass-ban power is granted per channel by that channel's streamer, who
+  "entrusts" a named mod; a mod's request reaches only channels whose streamer entrusted that mod, and the
+  streamer can withdraw the trust at any time. Auto-accept is dropped: restrict-first silences at once, so
+  every ban outside the requester's own channel waits for a mod decision there (owner override excepted).
 - **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
   spam phrase ("i am tired of those best viewers spam") is never banned. Done-when: a test with that exact
   message from an established viewer takes no action, and the same phrase from a fresh account in a spam
