@@ -173,6 +173,20 @@ viewers spam" should not trigger the ban because they say best viewers"
 - **S-LIVE-EVERYWHERE** Every dashboard page updates live from server pushes, with no stale or delayed state.
   Done-when: a script lists every page and the hub event that refreshes it; each page is shown changing live
   on the dev box after a change made elsewhere.
+- **S-TOKEN-CUSTODY-THREAT** Owner worry, verbatim (chat, 2026-10-10 19:36): "one thing that i am concerned
+  about is the fact that i hold your account access with permanent refresh token cycles. i do encrypt them but i
+  am sooo fucking scared something is going to happen and i loose control" / "specially if big streamers join in
+  then i become an attack vector" / "the bot is build from the ground up to support 3 hosting models,
+  self-contained into one locally run application, a split model where you host it on docker or some other
+  server on your network or at a friend. or the saas hosted version where i do the hosting. this last one
+  concerns me the most." / "i can have webhooks and communication hooks so streamers can still self-host
+  everything and join the community aspect of the bot but that is something i am not skilled enough for yet" /
+  "i know im a badass when it comes to programming but i know enough to know that i don't know anything yet".
+  Work: a threat model for every token the bot holds, per hosting model (what an attacker gets from the
+  database alone, from the host, from the key; blast radius per scope; how fast every token is revoked), and a
+  design for self-hosted bots that join the community features (mass ban, trust) through signed messages, so
+  the hosted service never needs to hold a big streamer's tokens. Done-when: the threat model and the
+  federation design are written, checked against the code, and settled with the owner.
 
 ## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
 
