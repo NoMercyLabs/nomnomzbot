@@ -440,6 +440,29 @@
     "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
     "command": "python scripts/check-editor-inputs.py"
    }
+  },
+  {
+   "id": "research-coverage-ledger",
+   "paths": [
+    "**/.claude/docs/design/*research*.md"
+   ],
+   "brief": [
+    "[Rr]esearch paper",
+    "[Dd]eep research",
+    "[Ll]eave no stone"
+   ],
+   "text": "Research/audit work is done only against a coverage ledger: every source listed with N of M checked, not an empty personal to-do list. A research paper (.claude/docs/design/*research*.md) ends with a 'Coverage ledger' section: a 'Closed N of M' line and a table Topic | Origin | Status | Section | Reason with at least 15 topics; status is closed (names the paper section) or blocked (gives the reason); 'not checked' appears nowhere outside a blocked ledger row.",
+   "source": "memory feedback-research-needs-coverage-ledger.md; Stoney 2026-10-10: \"and you are sure you covered all bases?\" (the moderation paper was called done with 31 'not checked' items and whole topics missing)",
+   "check": {
+    "match": [
+     "**/.claude/docs/design/*research*.md"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-research-coverage.py"
+   },
+   "covers": [
+    "feedback-research-needs-coverage-ledger.md"
+   ]
   }
  ],
  "dispatch": [
@@ -536,14 +559,6 @@
    "source": "memory feedback-verify-agent-gate-claims.md",
    "covers": [
     "feedback-verify-agent-gate-claims.md"
-   ]
-  },
-  {
-   "id": "research-coverage-ledger",
-   "text": "Research/audit work is done only against a coverage ledger: every source listed with N of M checked, not an empty personal to-do list.",
-   "source": "memory feedback-research-needs-coverage-ledger.md",
-   "covers": [
-    "feedback-research-needs-coverage-ledger.md"
    ]
   },
   {
