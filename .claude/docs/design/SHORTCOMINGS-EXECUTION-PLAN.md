@@ -134,6 +134,12 @@ viewers spam" should not trigger the ban because they say best viewers"
   override; the override is recorded on the batch, named, and visible to every affected channel; (g) a mass
   ban is only for accounts that spread hate and insults or cause harm to the community; the request form
   makes the requester pick that ground and attach the evidence, and offers no other ground.
+  thecodedrift, 2026-10-10, quoted from the owner's screenshot: "Even a ban propagating out as /restrict does a
+  lot" / "a troll that gets no airtime is really effective". So: (h) while a channel has not yet accepted, the
+  account is set to restricted there at once (Twitch suspicious-user status: messages hidden from viewers,
+  shown to mods), so the troll gets no airtime and nobody is banned without a decision. Accept turns it into a
+  ban; reject lifts the restriction. Verify the live Helix endpoint for setting suspicious status before the
+  spec settles (not checked).
 - **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
   spam phrase ("i am tired of those best viewers spam") is never banned. Done-when: a test with that exact
   message from an established viewer takes no action, and the same phrase from a fresh account in a spam
