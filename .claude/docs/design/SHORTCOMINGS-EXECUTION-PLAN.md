@@ -190,9 +190,15 @@ viewers spam" should not trigger the ban because they say best viewers"
   ban at once and a live channel waits for `!allow massban` (memory of 2026-10-05); a switched-off channel
   that runs NomNomzBot gets the decision card (k); (g) the hate, insults or harm ground; (i) every ban is a
   real Twitch ban; (e) one-action undo; (b) the evidence on every batch.
-  Proposal, not settled: lead moderators and up hold the power, and a streamer entrusts a named mod below
-  that (owner answer 1 and the "entrust" quote); a switched-off channel's account is restricted while its
-  team decides on the card.
+  Owner, 2026-10-10, verbatim: "to answer in simple terms, dukasoft and i are moderators on many channels
+  and we are entrusted with the power of being mod on all those channels, we should have the proper
+  standing in the community to act faithfully and only mass ban when the user is objectively a
+  net-negative for the community as a whole. twitch has shared ban lists and all that that streamers
+  actually use for this reason. "i trust you to only ban people that i also don't want in my channel""
+  Arc's reading: the moderator role in a channel is the streamer's trust for that channel, so a
+  moderator needs no second grant; the ground is an account that is objectively a net-negative for the
+  community as a whole. Neither earlier proposal was chosen: no lead-only floor, no restriction while a
+  card waits. `!allow massban` stays lead mod and up (owner answer 1).
   Done-when: the spec is settled, and tests show a switched-on offline channel bans at once, a switched-off
   channel bans nobody and gets a card, and a refusal wins over a switch.
 - **S-SPAM-CONTEXT-TRUST** Auto-ban must weigh the trust score and context: an established viewer quoting a
@@ -303,10 +309,11 @@ checked" in a slice stays open until the slice reads it.
   token is dead, and the API key fails; the audit row exists.
 - **S-MOD-MASSBAN-FLOOR** Mass ban sits behind a low action key, so a plain Mod can start a batch of up to
   1000 targets (`ModerationController.cs:337`; the seeded floor is Mod at `ActionDefinitionSeeder.cs:203`,
-  while the nuke row is Lead and Critical at `:214`). Fix: give mass ban its own action key above plain Mod,
-  seeded Critical like the nuke row; a plain Mod reaches it only through the streamer's entrust
-  (S-MASSBAN-ENTRUST). Done-when: a test seeds the rows and asserts a plain Mod is refused, an entrusted
-  Mod and a Lead are allowed, and the mass-ban row is Critical.
+  while the nuke row is Lead and Critical at `:214`). Fix: give mass ban its own action key, seeded Critical
+  like the nuke row so it gets the audit and the second check; a moderator of a channel may start a batch
+  that reaches that channel (Arc's reading of the owner trust quote in S-MASSBAN-ABUSE-GUARDS). Done-when:
+  a test seeds the rows and asserts the mass-ban row is Critical, a moderator of the channel is allowed,
+  and a person who is not a moderator there is refused.
   Takes over part (a) of S-MOD-BAN-RATE-STEPUP. Paper: `moderation-safety-research-2026-10-10.md`.
 - **S-MOD-NOTICE-ALL-PATHS** The streamer notice code covers part of the mass-ban flow only
   (`MassBanConsentService.cs:342-397`, `MassBanExecutor.cs:231`, `MassBanFailureSource.cs`,
@@ -502,11 +509,16 @@ checked" in a slice stays open until the slice reads it.
   logged degraded state when YouTube quota is low. Done-when: a Kick message with a blocked term is deleted
   through the delete endpoint and logged; YouTube with low quota degrades to a logged state and does not
   delete. Paper: `moderation-safety-research-2026-10-10.md`.
-- **S-MOD-CROSS-PLATFORM-BAN** A ban across platforms must use only identity links proven by login
-  (`IExternalLoginService.cs:13-22`; `UserIdentityService.cs:78,154,320`, where MergeIdentitiesAsync has no
-  production caller). Fix: the cross-platform ban names only proven ids, shows the blast radius per
-  platform, and a merge caller must give proof. Done-when: proven Twitch and Kick links ban both ids; an
-  unlinked chatter with the same name is not banned; a merge without proof is refused. Paper:
+- **S-MOD-CROSS-PLATFORM-BAN** Owner, 2026-10-10, verbatim, on the shared doc's cross-platform section: "section 7.1 makes totally no
+  sense, someone who intents to do bad will never tie their other platforms together..."
+  Links proven by login (`IExternalLoginService.cs:13-22`; `UserIdentityService.cs:78,154,320`, where
+  MergeIdentitiesAsync has no production caller) come from good viewers; an attacker never makes one.
+  Proposal, not settled: a link carries standing to every platform; one ban action holds several accounts
+  that the moderator picks, and each account is banned for its own messages on its own platform; the
+  dashboard suggests look-alike accounts (same name, same message at about the same time) and a suggestion
+  bans nobody; a merge caller must give proof. Done-when: one action bans a picked Twitch and a picked Kick
+  account, each with its own evidence; a suggested account is not banned until it is picked; a linked
+  regular's standing protects them on Kick; a merge without proof is refused. Paper:
   `moderation-safety-research-2026-10-10.md`.
 - **S-MOD-PROJECTION-PROVIDER** The projection rebuild hard-codes Twitch
   (`ModerationProjectionService.cs:253` and `:296`; related lines `:77` and `:102`), so Kick and YouTube
@@ -585,11 +597,11 @@ checked" in a slice stays open until the slice reads it.
 Build slices the paper names (its section 7) that had no plan entry. The two S-MASSBAN ones build parts
 of S-MASSBAN-ABUSE-GUARDS and wait for that spec to settle.
 
-- **S-MASSBAN-ENTRUST** Owner, verbatim: "streamers can "entrust" a mod with this power." Build the
-  named-mod power once S-MASSBAN-ABUSE-GUARDS settles: a streamer entrusts or withdraws a named mod, and
-  only a person who holds the power can start a batch (who holds it by role is the open proposal there).
-  It does not limit reach; the per-channel switch does. Done-when: entrust, reload and read back from the
-  server; a mod without the power cannot start a batch. Paper: `moderation-safety-research-2026-10-10.md`.
+- **S-MASSBAN-ENTRUST** Owner, verbatim: "streamers can "entrust" a mod with this power." and the trust
+  quote in S-MASSBAN-ABUSE-GUARDS. Arc's reading: making someone a moderator is the entrust; the streamer
+  takes it back with the refusal or by removing the moderator. Build: the entrust screen shows each
+  moderator's requester count and the refusal switch. Done-when: a refusal set there stops the next batch
+  for that channel, and a removed moderator can no longer start a batch. Paper: `moderation-safety-research-2026-10-10.md`.
 - **S-MASSBAN-REQUESTER-RECORD** Count rejected ban requests and undone batches per requester. The streamer
   sees the count before entrusting and takes the power back by hand; nothing revokes it on its own (guard
   (d) is withdrawn). Done-when: a test undoes a batch and the requester's count rises on the entrust screen. Paper: `moderation-safety-research-2026-10-10.md`.
@@ -2943,7 +2955,8 @@ than each consumer needing their own clone-and-customize pass.
   per-platform viewers + total.
   UF·M5: The ban control carries a checkbox 'Ban across all linked platforms of this person', on by
   default, listing the platforms by name ('Twitch, Kick'), and one press bans every linked identity (spec
-  M5).
+  M5). An attacker never links accounts; the ban of unlinked accounts the moderator picks is
+  S-MOD-CROSS-PLATFORM-BAN.
 - **S-VIEWER-RESTRICTION-D1** `ChannelModerationStanding` is per platform (`Provider` + raw `UserId`
   + `Standing`), so a Twitch mute does not mute the same human's Kick identity. `moderation.md` J.12
   (D1) is `ChannelViewerRestriction` keyed on `Users.Id` with
