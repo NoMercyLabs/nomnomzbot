@@ -1860,7 +1860,7 @@ public class ModerationController : BaseController
             RawMessage = string.Empty,
             CancellationToken = ct,
         };
-        NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition definition = new()
+        Application.Abstractions.Pipeline.ActionDefinition definition = new()
         {
             Type = "shoutout",
             Parameters = new()

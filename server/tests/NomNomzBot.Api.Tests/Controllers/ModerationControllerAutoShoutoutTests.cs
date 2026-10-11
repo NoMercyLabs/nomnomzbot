@@ -85,7 +85,7 @@ public sealed class ModerationControllerAutoShoutoutTests
         action.ActionType.Returns("shoutout");
         action
             .ExecuteAsync(Arg.Any<PipelineExecutionContext>(), Arg.Any<ActionDefinition>())
-            .Returns(NomNomzBot.Application.Abstractions.Pipeline.ActionResult.Success(output));
+            .Returns(Application.Abstractions.Pipeline.ActionResult.Success(output));
         ModerationController controller = Build(db, action);
 
         IActionResult result = await controller.Shoutout(

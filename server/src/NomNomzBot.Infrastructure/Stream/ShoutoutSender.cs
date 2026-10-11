@@ -110,7 +110,7 @@ public sealed class ShoutoutSender : IShoutoutSender
         bool replayUncertain = false;
         string? attemptId = null;
 
-        if (!request.SkipNative && request.DeliveryKey is not null)
+        if (request is { SkipNative: false, DeliveryKey: not null })
         {
             attemptId = AttemptId(request.DeliveryKey);
             if (await _db.ChannelEvents.AnyAsync(e => e.Id == attemptId, cancellationToken))
