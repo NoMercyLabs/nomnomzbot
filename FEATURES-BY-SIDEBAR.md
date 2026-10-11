@@ -1,198 +1,164 @@
-# NomNomzBot — Features by Sidebar Order × Audience (Streamer vs Moderator)
+# NomNomzBot — Features by Sidebar Group and Floor
 
-> The management-sidebar subset of `FEATURES.md`, re-sorted two ways:
-> 1. **Primary sort — the live sidebar order** as shipped in `ShellNav.pages`
->    (`app/composeApp/.../feature/shell/nav/ShellNav.kt`): groups Home → Chat → Moderation → Loyalty →
->    Music → Stream → Community → Connect → **Setup** (pinned).
-> 2. **Secondary sort — audience lean** within each group: **🎥 Streamer** features first, then
->    **🤝 Shared**, then **🛡️ Moderator**.
+> The management-sidebar subset of `FEATURES.md`, sorted by the new sidebar of
+> `.claude/docs/design/spec/frontend-ia.md` (the approved restructure of 2026-10-11).
 >
-> **How the lean is decided (not a guess).** Each page carries a **read floor** and a **manage floor** in
-> `ShellNav`. The *manage* floor is the tell:
-> - **manage = Moderator** → a **🛡️ Moderator** tool (mods act on it live, out of the box).
-> - **manage = Editor** → **🤝 Shared**: mods read it, the streamer/editor configures it.
-> - **manage = SuperMod / Broadcaster**, or a read-only owner page → a **🎥 Streamer** (owner) tool.
+> The shipped sidebar (`ShellNav.pages`, old groups Home, Chat, Moderation, Loyalty, Music, Stream,
+> Community, Connect, Setup) stays in the app until the slices S-IA-ROUTES, S-IA-PEOPLE and the
+> related build slices land. This file describes the target. The spec replaces the old group list.
 >
-> Legend: **🎥 Streamer** = leans owner/config · **🛡️ Moderator** = leans live moderation · **🤝 Shared** =
-> both, config vs. live-use split.
+> **Floors.** Each page has a read floor (lowest role that sees it) and a manage floor (lowest role that
+> changes it). Role names, low to high: Viewer, Subscriber, VIP, Artist, Moderator, Lead Moderator,
+> Editor, Broadcaster. Users never see numbered permission levels. Floors are defaults. A broadcaster can
+> raise or lower an action for the channel. Below its read floor, a page is hidden. Below its manage floor,
+> an action is disabled with the reason.
 >
-> Audited against the shipped route enum, `ShellNav.pages`, `ShellContent`, all Compose feature roots
-> and API facades on 2026-09-04. Embedded cards, participant/admin pages and public/companion surfaces
-> are called out separately so they are not mistaken for management-sidebar rows.
+> **Owner decisions of 2026-10-11 that set floors (verbatim).**
+> "moderators get granted the permission to manage stream and channel behaviors".
+> "we will leave the risky items to the channel manager and up".
+> Arc's reading: content labels, branded content, ads and raids stay at Editor. Slice S-IA-MOD-FLOORS
+> moves the other stream and channel actions to Moderator in the server.
 
 ---
 
 ## Audience summary (at a glance)
 
+Proposal, not settled: the audience lean below is Arc's reading of the manage floors in the spec.
+
 | Lean | Pages |
 |---|---|
-| 🎥 **Streamer** | Overlays, Alerts, Schedule, Pipelines, Code Scripts, Analytics, Channel Points, Economy, Enforcement Rules, Event Responses, Sound Clips, Assets, Discord, Webhooks, Federation, Custom Events, Supporters, OBS, VTube Studio, Automation, Bundles, Integrations, Roles & Permits, Features, Settings |
-| 🤝 **Shared** | Dashboard, Commands, Chat Triggers, Timers, Pick Lists, Games, Giveaways, Music, Song Requests, TTS |
-| 🛡️ **Moderator** | Chat, Multi-Chat, Quotes, Moderation, Review Queue, History, Media Share, Viewers |
+| Streamer (owner) | Integrations, Features, Settings, Webhooks, Federation, Supporters, API & devices |
+| Shared (moderator manages day to day, streamer shapes) | Home, Deck, Stream, OBS, VTube Studio, Commands, Event Responses, Triggers & Timers, Pipelines, Scripts, Overlays, Library, Gallery, Channel Points, Economy, Games, Giveaways, Music, TTS, Media Share, Custom Events, Discord |
+| Moderator | Chat, People (Overview, Queue, Viewers, History), Analytics (read) |
 
 ---
 
 ## HOME
 
-| Page | Lean | Read / Manage floor | What it does |
+| Page | Modes | Read / Manage | What it does |
 |---|---|---|---|
-| **Dashboard** | 🤝 Shared | Moderator / read-only (live-ops quick-actions = Broadcaster) | Live home: chat, stream/stats, top commands, first-run shortcuts, activity replay to widgets, alerts and attention inbox. Held AutoMod messages can be allowed/blocked/timed out/banned or turned into blocked terms. Streamer runs title/game/tags, Twitch polls/predictions, raids, ads, markers, clips and schedule; an embedded card runs bot-native chat polls. |
-
-> **Embedded, not a sidebar row:** **Chat Polls** is a card on Dashboard (`HomeScreen` →
-> `ChatPollsCard`). It creates/monitors/closes bot-run text polls and is distinct from Twitch-native
-> live-ops polls. There is deliberately no `ShellRoute.ChatPolls`.
+| **Home** | Streamer: Prep (offline) and Live (on air). Moderator: Mod home. Viewer: My channels | Everyone / per card | One page shaped by role and stream state. Live: stream health in the header, the attention inbox, the top 8 Deck buttons, the activity feed and a full-height chat column. Prep: the Stream info editor, the schedule and the checklist before going live. Embedded: Chat Polls card (bot-run text polls, distinct from Twitch polls). |
 
 ---
 
-## CHAT
+## LIVE
 
-*🎥 Streamer → 🤝 Shared → 🛡️ Moderator*
+Things you use while the stream runs, with chat open.
 
-| Page | Lean | Read / Manage floor | What it does |
+| Page | Tabs | Read / Manage | What it does |
 |---|---|---|---|
-| **Event Responses** | 🎥 Streamer | Moderator / Editor | Follow/sub/raid/cheer/gift responses as chat, overlay or pipeline actions; bind/create pipelines, target widgets, insert variables, toggle and reset defaults. |
-| **Commands** | 🤝 Shared | Moderator / Moderator | Custom commands (T1 text / T2 pipeline / T3 code), cooldowns and permission floors; built-in enable/disable + response overrides; live use counts. Mods manage day-to-day; deeper tiers are owner work. |
-| **Chat Triggers** | 🤝 Shared | Moderator / Editor | Keyword/pattern auto-replies. Mods read; editor/streamer authors. |
-| **Timers** | 🤝 Shared | Moderator / Editor | Recurring messages/pipelines by interval and/or message count; enable/disable and test the attached pipeline. |
-| **Pick Lists** | 🤝 Shared | Moderator / Editor | Reusable random/sequential list picker builtin, with dashboard preview draws. |
-| **Chat** | 🛡️ Moderator | Moderator / Moderator | Live chat console — send/reply/delete as you or the bot, announcements, chat settings, emote composer + autocomplete, moderation, third-party-emote/badge/cheermote/link-preview decoration. |
-| **Multi-Chat** | 🛡️ Moderator | Moderator / read-only | Provider-merged multi-channel feed for a mod watching several channels. |
-| **Quotes** | 🛡️ Moderator | Moderator / Editor | Quote book CRUD + recall command (mods add quotes live). |
-
-> **Also in Chat (viewer-facing, not sidebar rows):** **chat-message decoration** — 7TV/BTTV/FFZ
-> emotes, badges, cheermotes and link previews in the feed — and a per-viewer **emoji/emote style
-> preference** (`feature/emoji`), an appearance setting for how emotes render.
+| **Chat** | One channel (Shield mode toggle in header); All my channels | Moderator / Moderator | Live chat console: send, reply and delete as you or the bot, announcements, chat settings, emote composer, moderation, third-party emotes, badges, cheermotes and link previews. "All my channels" was Multi-Chat. Platform chips filter Twitch, Kick, YouTube and X. |
+| **Deck** | Grid; Edit | Moderator / Moderator (each button has its own floor) | New. Buttons bound to catalogue actions: pipelines, sounds, TTS, event tests, overlays, chat modes, OBS scenes, VTube hotkeys, games, timers, music. Risky buttons ask for a second tap. Raid and ad buttons need Editor. |
+| **Stream** | Info & presets; Interactions; Schedule | Moderator / Moderator (content labels, branded content, ads, raids: Editor) | Title, category and tags per platform. Polls, predictions, raids, ads, markers, clips, goals, hype train, charity, Guest Star. The stream schedule. |
+| **OBS** | Live control; Advanced | Moderator / Moderator | Scenes, sources, recording, replay, input mute and volume, event triggers. The connection lives in Integrations. |
+| **VTube Studio** | Hotkeys; Expressions | Moderator / Moderator | Model, hotkey and expression control and event triggers. |
+| **Analytics** | Stream; Chat; Growth | Moderator / read-only | Daily and summary dashboards, stream drill-down, viewer engagement and watch streaks. |
 
 ---
 
-## MODERATION
+## BUILD
 
-*🎥 Streamer → 🛡️ Moderator*
+Things you make once. The bot then runs them.
 
-| Page | Lean | Read / Manage floor | What it does |
+| Page | Tabs | Read / Manage | What it does |
 |---|---|---|---|
-| **Enforcement Rules** | 🎥 Streamer | Moderator / **Editor** | AutoMod (own + Twitch levels), blocked terms, chat filters, rules, trust policy, spam-defense knobs, escalation ladder, shared/network bans. Setting policy is a different act from applying it. |
-| **Moderation** (live desk) | 🛡️ Moderator | Moderator / Moderator | Stats, shield mode, bans, moderators, warnings, announcements, shoutouts/personalized templates and per-user context/notes/trust. |
-| **Review Queue** | 🛡️ Moderator | Moderator / Moderator | Unban requests, viewer reports + evidence, AutoMod queue, spam review/detections/campaigns, follow-bot blocks. |
-| **History** | 🛡️ Moderator | Moderator / Moderator | Mod log, nuke batches (cross-channel mass ban + reversal). |
+| **Commands** | Custom; Built-in | Moderator / Moderator | Custom commands (text, pipeline, code), cooldowns and permission floors. The 36 built-in commands, each with its own floor and response override. |
+| **Event Responses** | by event type | Moderator / Moderator | Follow, sub, raid, cheer, reward and donation responses as chat, overlay or pipeline actions. Absorbs Alerts. |
+| **Triggers & Timers** | Chat triggers; Voice triggers; Timers | Moderator / Moderator | Keyword auto-replies, voice triggers, recurring messages by interval or message count. |
+| **Pipelines** | List; Editor | Moderator / Moderator | Visual builder with conditions, branches, loops, validation, test runs and per-run history. |
+| **Scripts** | the editor itself | Moderator / Moderator | Sandboxed multi-file code editor with the file list and test helpers inside it, SDK types, versions, publish and rollback. |
+| **Overlays** | Gallery; My overlays | Moderator / Moderator | Was Widgets. Install, configure, clone to edit, code editor, test events, OBS URL and manifest. |
+| **Library** | Sounds; Files; Random responses; Quotes | Moderator / Moderator | Replaces Sound Clips, Assets, Pick Lists and Quotes. Every picker in Build can upload inline. |
+| **Gallery** | Templates; Bundles | Moderator / Moderator | New. Templates and bundles (export, import with conflict policy, marketplace). Every create flow also offers Start from a template. |
+
+---
+
+## PEOPLE
+
+One page with six tabs (slice S-USER-HUB, built by S-IA-PEOPLE). Replaces Community, Moderation, Review Queue, History and Roles.
+
+| Tab | Read / Manage | What it does |
+|---|---|---|
+| **Overview** | Moderator / read-only | Standing of the chat, actions needed, active holds, mass-ban batches. |
+| **Queue** | Moderator / Moderator | One queue: held messages, AutoMod queue, reports, appeals, unban requests, spam review and follow-bot blocks. |
+| **Viewers** | Moderator / Moderator | Searchable viewer list and the viewer card: identity on every linked platform, history, notes, points, roles, per-user settings, export and erase. Real provider data only. |
+| **History** | Moderator / read-only | Every moderation action: by whom, on which platform. Nuke batches. |
+| **Rules** | Moderator / Lead Moderator | AutoMod, blocked terms, chat filters, trust policy, spam defense, escalation, mass-ban settings and opt-in. |
+| **Roles (with Individual permissions)** | Moderator / Broadcaster (assign Moderator and VIP: Lead Moderator) | Role memberships, the action-permission matrix, permit grants and per-user overrides. Moved from Setup. |
+
+Proposal, not settled: the Rules and Roles manage floors conflict with the Editor column of the paper. See spec section 15.
 
 ---
 
 ## LOYALTY
 
-*🎥 Streamer → 🤝 Shared*
-
-| Page | Lean | Read / Manage floor | What it does |
+| Page | Tabs | Read / Manage | What it does |
 |---|---|---|---|
-| **Channel Points** | 🎥 Streamer | Moderator / Editor (create/delete reward = **Broadcaster**) | Reward CRUD, Twitch sync/import/recreate, leaderboard, live redemption queue (fulfill/refund) and redemption countdown timers. |
-| **Economy** | 🎥 Streamer | Moderator / Editor (payout/earn rules = **Broadcaster**) | Currency/earning rules, account search + ledgers + adjust/freeze, transfers, store/catalog + refunds, savings-jar membership/movements and configurable leaderboards/opt-outs. |
-| **Games** | 🤝 Shared | Moderator / Editor | Chat games + interactive overlay games; per-game config, 18+ consent, play history, live catalog and session start/cancel. Streamer configures, viewers play, mods can run. |
-| **Giveaways** | 🤝 Shared | Moderator / Moderator (code pools = **Broadcaster**) | CRUD/open/close, entries, draw/redraw and winners; masked prize-code pools/import/assignment. Mods run draws; code reveal is owner-only. |
+| **Channel Points** | Rewards; Redemptions | Moderator / Moderator | Reward CRUD, Twitch sync, live redemption queue (fulfill or refund). |
+| **Economy** | Currency; Store; Savings jars; Leaderboards | Moderator / Moderator | Currency and earning rules, ledgers, transfers, store and refunds, savings jars, leaderboards and opt-outs. |
+| **Games** | Games; Live sessions | Moderator / Moderator | Chat games and interactive overlay games, per-game config, play history, session start and cancel. A game start is also a Deck button. |
+| **Giveaways** | Active; History | Moderator / Moderator | Open, close, entries, draw, redraw and winners. Prize-code pools are masked. |
 
 ---
 
-## MUSIC
+## MUSIC & VOICE
 
-*🎥 Streamer → 🤝 Shared → 🛡️ Moderator*
-
-| Page | Lean | Read / Manage floor | What it does |
+| Page | Tabs | Read / Manage | What it does |
 |---|---|---|---|
-| **Sound Clips** | 🎥 Streamer | Moderator / Editor | Soundboard / sound clips played via commands/pipeline/overlay. |
-| **Assets** | 🎥 Streamer | Moderator / Editor | Overlay/widget media library (shares the sound-clip gates). |
-| **Music** | 🤝 Shared | Moderator / Editor (queue = Moderator) | Play/pause/skip-next, queue add/remove, seek/shuffle/repeat, devices + transfer, playlists/play-context, track blocklist and live now-playing (Spotify/YouTube). |
-| **Song Requests** | 🤝 Shared | Moderator / Editor (**queue moderation = Moderator**) | Queue pause/resume/skip/remove/promote/ban, blocklist, trust/fair-queue config, public SR-page token + rotation. |
-| **TTS** | 🤝 Shared | Moderator / Editor (**approval queue = Moderator**) | Voice catalog/test, per-viewer voice + `!voice`, approval queue, profanity filters, BYOK provider keys, lexicon, overlay test and playback pause/resume/skip/clear. |
-| **Media Share** | 🛡️ Moderator | Moderator / Moderator | Viewer-submitted media queue — mods moderate; overlay playback. |
-
----
-
-## STREAM
-
-*🎥 Streamer (this whole group is owner/creative work)*
-
-| Page | Lean | Read / Manage floor | What it does |
-|---|---|---|---|
-| **Overlays / Widgets** | 🎥 Streamer | Moderator / Editor | Catalogue/gallery install, enable/rename/configure, clone-to-edit, project/code editor + compile/version/rollback, update checks, test events, reviewer workflow, token rotation and OBS manifest. |
-| **Alerts** | 🎥 Streamer | Moderator / Editor | Focused create/edit/toggle/delete view of on-air alert messages; pipeline-bound alerts point back to Event Responses/Pipelines. |
-| **Schedule** | 🎥 Streamer | Moderator / Editor | Live-ops stream schedule (segments + vacation). |
-| **Pipelines** | 🎥 Streamer | Moderator / Editor | Visual builder (conditions, branches, loops, try/control flow), validation/test runs, dependency previews and paged per-run execution history. |
-| **Code Scripts** | 🎥 Streamer | **Broadcaster / Broadcaster** | Sandboxed multi-file project editor, SDK types, tests, versions/publish/rollback, enable/disable and dependency-aware deletion. Owner-only. |
-| **Analytics** | 🎥 Streamer | Moderator / read-only | Daily/summary/top-viewer dashboards, stream drill-down, searchable viewer engagement + watch streaks and analytics opt-out. |
-
----
-
-## COMMUNITY
-
-| Page | Lean | Read / Manage floor | What it does |
-|---|---|---|---|
-| **Viewers** | 🛡️ Moderator | Moderator / Moderator | Searchable viewer list/top chatters + drill-in: standing, trust, activity, roles, moderation, analytics/streaks, custom data, personal messages and subject export/erase — real provider data only. |
+| **Music** | Now playing; Song requests; Settings | Moderator / Moderator | Transport, queue, devices, playlists, blocklist, live now-playing, song request queue moderation, trust and fair-queue config, public request page token. |
+| **TTS** | Live; Voices; Rules; Provider | Moderator / Moderator (Provider tab: Editor) | Playback pause, resume, skip and clear. Voice catalog and per-viewer voice. Filters and lexicon. Provider keys. |
+| **Media Share** | Queue; Settings | Moderator / Moderator | Viewer-submitted media queue and overlay playback. |
 
 ---
 
 ## CONNECT
 
-*🎥 Streamer (external wiring is owner work; a couple have mod-usable live controls)*
+Other services that send things in or receive things out.
 
-| Page | Lean | Read / Manage floor | What it does |
-|---|---|---|---|
-| **Discord** | 🎥 Streamer | Moderator / **SuperMod** | Guild consent/link, notification rules + preview, guild discovery, self-assign notify/currently-live roles, postable role buttons and dispatch log. |
-| **Webhooks** | 🎥 Streamer | **Broadcaster / Broadcaster** | Inbound verified ingest + token rotation using Ko-fi/GitHub/Fourthwall/Shopify/Patreon/Buy Me a Coffee/generic adapters; outbound signed delivery with catalogue, test, secret rotation, re-enable, log and manual retry/dead-letter. |
-| **Federation** | 🎥 Streamer | **Broadcaster / Broadcaster** | Peer registration/trust/revoke, mTLS/key management, signed events and per-channel opt-in. |
-| **Custom Events** | 🎥 Streamer | Moderator / Editor | User-defined/preset event sources → pipeline/overlay, with source search, sample tests and fetched-payload field mapping. |
-| **Supporters** | 🎥 Streamer | Moderator / **Broadcaster** | Patreon / Shopify / TreatStream ingest → alerts + economy. Connect/disconnect owner-only. |
-| **OBS** | 🎥 Streamer | **Broadcaster** / Broadcaster (scene/input control = Moderator) | Connection probe, bridge setup/status/token rotation, scenes, input mute/volume, stream/record control and OBS event triggers. |
-| **VTube Studio** | 🎥 Streamer | Moderator / **Broadcaster** (model/hotkey control = Moderator) | Connection/authorization, bridge-token rotation, model inventory, model/hotkey/expression control and event triggers. |
-| **Automation** | 🎥 Streamer | **Editor** / **Broadcaster** | Scoped external API tokens (create/rotate/revoke), event catalogue, expiring device pairing and REST + WebSocket data plane. |
+| Page | Read / Manage | What it does |
+|---|---|---|
+| **Discord** | Moderator / Lead Moderator | Guild link, notification rules, self-assign roles, role buttons and dispatch log. The label is Lead Moderator, never Super Mod. |
+| **Webhooks** | Broadcaster / Broadcaster | Generic inbound and outbound webhooks. Ko-fi moved to Supporters. |
+| **Custom Events** | Moderator / Editor | Custom event sources to pipeline or overlay, with sample tests and field mapping. |
+| **Supporters** | Moderator / Broadcaster | Ko-fi, Patreon, Shopify and TreatStream feeds to alerts and economy. |
+| **Federation** | Broadcaster / Broadcaster | Peer registration, trust, keys and per-channel opt-in. |
+| **API & devices** | Editor / Broadcaster | Was Automation. API tokens, Stream Deck pairing and device codes. |
 
 ---
 
-## SETUP *(pinned, configure-once owner area)*
+## SETUP *(pinned to the bottom, starts collapsed)*
 
-*🎥 Streamer / owner — plus signed-in self-service data rights*
-
-| Page | Lean | Read / Manage floor | What it does |
+| Page | Tabs | Read / Manage | What it does |
 |---|---|---|---|
-| **Bundles** | 🎥 Streamer | Moderator / Editor (publish = Broadcaster) | Export, inspect/import with conflict policy, uninstall preview, marketplace browse/install/publish/status and publisher token. |
-| **Integrations** | 🎥 Streamer | **Broadcaster / Broadcaster** | Spotify/Discord/YouTube/TTS OAuth, Twitch/Kick bot accounts, reconnect/disconnect, BYOC Twitch client setup and EventSub subscription reconcile. |
-| **Roles & Permits** | 🎥 Streamer | **Broadcaster / Broadcaster** | Role memberships, action-permission matrix (lower safe-action floors), permit grants. |
-| **Features** | 🎥 Streamer | **Broadcaster / Broadcaster** | Per-channel feature toggles. |
-| **Settings** | 🎥 Streamer | Moderator / per-section | Bot basics/personality, engagement automations, Bot Account, Appearance, channel lifecycle, Twitch scope diagnostics/re-grant, Billing + resource limits, event-journal export/import/rebuild and danger actions. |
-| **My Data** | 👤 Self | **Moderator** route / self-service actions | GDPR download, erasure preview/request/status, participation opt-out and consent grant/withdrawal — always the signed-in user's own data. |
+| **Integrations** | - | Broadcaster / Broadcaster | The one home of every credential: Twitch app credentials, the bot account, Spotify, OBS, VTube Studio, Discord, YouTube, Kick and the TTS providers. EventSub reconcile. |
+| **Features** | - | Broadcaster / Broadcaster | Per-channel feature toggles. |
+| **Settings** | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone | Moderator / Broadcaster | Channel basics and bot behavior. Billing is a seventh tab in saas mode only. `saas` mode is a RESTRICTED option: it is reserved to NoMercy Labs under the licence. Self-hosting your own bot is always free. |
 
 ---
 
 ## Not management-sidebar rows
 
-- **Participant rung:** My Channel, Now Playing/song submission, Leaderboards + opt-in/out, Points &
-  Store, Games, and Me/profile/pronouns/activity. `My Standing` is information within these views, not
-  a seventh `ParticipantPage`. The current `My Data` sidebar route floors at Moderator and is not in
-  `ParticipantNav`; the GDPR API itself is signed-in self-service.
-- **Platform Admin:** overview/live registry, channels, users, system health, feature flags, billing/
-  invite/tier/founder operations, IAM users/service accounts/roles, tenant suspend/reinstate/break-glass,
-  audit, spam defaults and provider credentials. It is IAM-gated and appended separately from
-  `ShellNav.pages`.
-- **Public surfaces:** tokenized song requests, OBS overlays/widgets, OAuth relay, device-pairing
-  approval, OBS bridge, Discord interactions, and inbound provider/billing/webhook endpoints.
-- **Companion/developer surfaces:** Stream Deck's concrete music controls, Automation REST/WebSocket,
-  widget/overlay SDK types and runtime, IPC developer mode, imports/templates, notifications,
-  diagnostics and EventSub/event-journal operations. See `FEATURES.md` §§18–23.
+- **Profile menu:** My data (GDPR download, erasure, consent; always the signed-in user's own data;
+  floor Everyone), linked accounts, theme, language and Switch to Admin (platform admins only).
+- **Viewer shell** (separate from the operator shell): My channels, Now playing, Leaderboards, Points and
+  store, Games, Me.
+- **Platform Admin:** 23 tabs, unchanged. Entering swaps the whole chrome. IAM-gated, reached from the
+  profile menu and Ctrl+K.
+- **Public surfaces:** tokenized song requests, the public commands page, leaderboards, OBS overlays,
+  OAuth relay, device-pairing approval, OBS bridge, Discord interactions and inbound provider endpoints.
+- **Companion surfaces:** the Stream Deck plugin shows the Deck through `POST /automation/v1/invoke`.
+  See `FEATURES.md` sections 18 to 23.
 
 ---
 
-## Notes on the classification
+## Notes
 
-- **The manage floor is the objective signal**, not opinion: a page mods can *mutate* out of the box
-  (`manage = Moderator`) is a moderator tool; a page only editors/broadcasters mutate is owner
-  configuration that mods merely read.
-- **"Shared" is real**, not a cop-out: Commands, Music, Song Requests, TTS, Games and Giveaways all
-  have a *live* half a mod uses and a *config* half the streamer owns — the floors encode exactly that
-  split (e.g. Song Requests reads/configures at Editor but **queue moderation** drops to Moderator).
-- **Every Stream, Connect and Setup page leans Streamer** because they are creative/wire-up surfaces —
-  the two exceptions with mod-usable live controls (OBS scene switch, VTS model control) are noted inline.
-- **Admin (Plane C)** and the **participant/viewer rung** are separate surfaces (not in the management
-  sidebar) — see `FEATURES.md` §16–§17.
+- **Pins.** Each role gets 8 default pins. The choice is stored on the account. Spec section 3.5.
+- **Search.** Ctrl+K indexes pages, tabs, Deck buttons, commands, overlays, pipelines, scripts, viewers,
+  channels and Admin pages. It respects floors.
+- **Counts.** The broadcaster sees 34 sidebar rows plus 3 Setup rows. 11 old pages became tabs.
+- **V0.** The new routes replace the old ones. There are no alias routes and no redirects.
 
 ---
 
-*Ordering source: `ShellNav.pages` (`app/composeApp/.../feature/shell/nav/ShellNav.kt`) and its
-`ShellContent` route mapping. Full cross-surface descriptions live in `FEATURES.md`.*
+*Source: `.claude/docs/design/spec/frontend-ia.md`. Full cross-surface descriptions live in `FEATURES.md`.*
