@@ -52,15 +52,14 @@ Cause (read in the code): the mention colour comes only from a 2-hour cache of t
 
 Owner, verbatim: "i like the ability of having special commands for reply messages, like adding a quote credited to the user when i reply with !quote, this is vip and up. and other things need to be able to easily get a reply command to make it easier"
 
-Done already: `QuoteBuiltin.AddFromBareReplyOrReadAsync` stores the parent line credited to its author. A command sent as a reply now reaches it (Twitch puts "@parent " in front of the text; the handler strips that one mention).
+Done already: `QuoteBuiltin.AddFromBareReplyOrReadAsync` stores the parent line credited to its author. A command sent as a reply now reaches it (Twitch puts "@parent " in front of the text; the handler strips that one mention). `quotes:read` and `quotes:write` are VIP and up.
 
 Arc's reading (not settled):
-- Adding a quote is VIP and up by default. Today `quotes:write` defaults to Moderator with a VIP floor.
 - Every command and pipeline can read the reply parent (message, user, id), and a command target defaults to the reply parent.
 
 ### S-REPLY-COMMANDS — commands act on the message you reply to
-- **Input:** `ChatMessageReceivedEvent` reply fields, the command context and pipeline variables, `QuoteBuiltin`, `ActionDefinitionSeeder` (`quotes:write`).
-- **Done-when:** live, a VIP replies `!quote` to a chat line and the quote list shows that line credited to its author; a viewer's reply `!quote` is refused; a custom command reads the reply parent's user and message as variables.
+- **Input:** `ChatMessageReceivedEvent` reply fields, the command context and pipeline variables.
+- **Done-when:** live, a VIP replies `!quote` to a chat line and the quote list shows that line credited to its author; a custom command reads the reply parent's user and message as variables.
 
 ---
 

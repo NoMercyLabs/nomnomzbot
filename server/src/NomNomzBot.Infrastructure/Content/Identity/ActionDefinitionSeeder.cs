@@ -440,12 +440,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("reward:redemption:fulfill", Mod);
         M("reward:redemption:refund", Mod);
 
-        // Quotes (quotes.md §5) — reading + curating (add/edit) DEFAULT to Moderator but the broadcaster MAY
-        // lower them to Vip (floor Vip) so a trusted VIP can help build the quote library. Deleting is
-        // low-but-real data loss, so quotes:delete stays Moderator with a Moderator FLOOR — it can never be
-        // lowered to VIP. The DELETE route carries quotes:delete; POST/PUT carry quotes:write.
-        MFloor("quotes:read", Mod, Vip);
-        MFloor("quotes:write", Mod, Vip);
+        // Quotes (quotes.md §5) — reading + curating (add/edit, including a `!quote` reply) are VIP and up out
+        // of the box. Deleting is low-but-real data loss, so quotes:delete stays Moderator with a Moderator
+        // FLOOR — it can never be lowered to VIP. The DELETE route carries quotes:delete; POST/PUT carry
+        // quotes:write.
+        M("quotes:read", Vip);
+        M("quotes:write", Vip);
         M("quotes:delete", Mod);
 
         // Pick-lists (the generic {list.pick.<name>} primitive) — mirrors Quotes: reading + curating

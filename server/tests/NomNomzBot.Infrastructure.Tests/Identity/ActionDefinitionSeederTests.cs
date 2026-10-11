@@ -219,8 +219,6 @@ public sealed class ActionDefinitionSeederTests
     [InlineData("pipelines:validate")]
     [InlineData("eventresponses:read")]
     [InlineData("timers:read")]
-    [InlineData("quotes:read")]
-    [InlineData("quotes:write")]
     [InlineData("sounds:read")]
     [InlineData("reward:read")]
     [InlineData("music:config:read")]
@@ -245,6 +243,44 @@ public sealed class ActionDefinitionSeederTests
         row.DefaultLevel.Should().Be(10, "the default stays at the Moderator base — not lowered");
         row.FloorLevel.Should().Be(4, "the broadcaster may lower it as far as the Vip(4) floor");
         row.FloorTier.Should().Be(DangerTier.Low);
+    }
+
+    [Theory]
+    [InlineData("quotes:read")]
+    [InlineData("quotes:write")]
+    public async Task Seeds_quote_read_and_add_at_default_vip_and_floor_vip(string key)
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a => a.ActionKey == key);
+        // "adding a quote credited to the user when i reply with !quote, this is vip and up": a VIP can read and
+        // add out of the box. A plain viewer stays below the Vip(4) floor.
+        row.Plane.Should().Be(AuthPlane.Management);
+        row.DefaultLevel.Should().Be(4, "adding and reading quotes is VIP and up by default");
+        row.FloorLevel.Should().Be(4, "the broadcaster cannot open it to a plain viewer");
+        row.FloorTier.Should().Be(DangerTier.Low);
+    }
+
+    [Fact]
+    public async Task Reseed_moves_an_existing_quote_write_row_from_moderator_to_vip()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == "quotes:write"
+        );
+        row.DefaultLevel = 10; // the old shipped default
+        await db.SaveChangesAsync();
+
+        await SeedAsync(db);
+
+        ActionDefinition resynced = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == "quotes:write"
+        );
+        resynced
+            .DefaultLevel.Should()
+            .Be(4, "a re-seed carries the new shipped default to existing installs");
     }
 
     [Fact]

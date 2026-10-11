@@ -82,9 +82,9 @@ public sealed record QuoteDto(Guid Id, int Number, string Text, string? QuotedDi
 **Built-in `!quote`** (`IBuiltinCommand`, `BuiltinKey="quote"`, toggle row `ChannelBuiltinCommands` G.2a):
 - `!quote` → `GetRandomAsync`, renders `#{number}: "{text}" — {quotedDisplayName} ({contextGame})`.
 - `!quote <n>` → `GetAsync(n)`.
-- `!quote add <text>` → `AddAsync` (floor **Moderator**); replies with the new `#number`.
-- `!quote edit <n> <text>` / `!quote del <n>` → `EditAsync`/`DeleteAsync` (floor **Moderator**).
-- Default min-permission: read sub-commands `Everyone`, mutating sub-commands `Moderator` (per-channel overridable via the built-in toggle).
+- `!quote add <text>` → `AddAsync` (`quotes:write`, **Vip**); replies with the new `#number`. Sent as a reply with no text, it stores the replied-to line credited to its author.
+- `!quote edit <n> <text>` → `EditAsync` (`quotes:write`, **Vip**); `!quote del <n>` → `DeleteAsync` (`quotes:delete`, **Moderator**).
+- Default min-permission: read sub-commands `Everyone`; the mutating sub-commands self-gate on `quotes:write` / `quotes:delete`.
 
 **Pipeline action `post_quote`** (`ICommandAction`, canonical contract): config `{ number:int? }` — null → random, else that quote; writes the rendered line to `ctx.Variables["quote"]` and (when used as a message step) posts it. Lets a timer run quote-of-the-day. Fails closed (`ActionResult.Fail`) if the channel has no quotes.
 
@@ -96,14 +96,14 @@ Controller `QuotesController`, `[Route("api/v{version:apiVersion}/quotes")]`. `[
 
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|
-| GET | `/` | `QuoteSearch`+`PageRequestDto` | `PaginatedResponse<QuoteDto>` | management / Moderator · `quotes:read` |
-| GET | `/random` | — | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:read` |
-| GET | `/{number}` | — | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:read` |
-| POST | `/` | `AddQuoteRequest` | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:write` |
-| PUT | `/{number}` | `EditQuoteRequest` | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:write` |
+| GET | `/` | `QuoteSearch`+`PageRequestDto` | `PaginatedResponse<QuoteDto>` | management / Vip · `quotes:read` |
+| GET | `/random` | — | `StatusResponseDto<QuoteDto>` | management / Vip · `quotes:read` |
+| GET | `/{number}` | — | `StatusResponseDto<QuoteDto>` | management / Vip · `quotes:read` |
+| POST | `/` | `AddQuoteRequest` | `StatusResponseDto<QuoteDto>` | management / Vip · `quotes:write` |
+| PUT | `/{number}` | `EditQuoteRequest` | `StatusResponseDto<QuoteDto>` | management / Vip · `quotes:write` |
 | DELETE | `/{number}` | — | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:delete` |
 
-Seed in `roles-permissions.md` (management): **`quotes:read`** and **`quotes:write`** default to Moderator with a **Vip floor** (the broadcaster may lower them so a trusted VIP can read and curate — add/edit); **`quotes:delete`** is Moderator with a **Moderator floor** (deleting is data loss, so it can never be lowered to VIP). The DELETE route carries `quotes:delete`; POST/PUT carry `quotes:write`.
+Seed in `roles-permissions.md` (management): **`quotes:read`** and **`quotes:write`** are **Vip** (default and floor): a VIP and up reads and curates — add/edit, including `!quote` sent as a reply — out of the box (owner, 2026-10-11: "this is vip and up"); **`quotes:delete`** is Moderator with a **Moderator floor** (deleting is data loss, so it can never be lowered to VIP). The DELETE route carries `quotes:delete`; POST/PUT carry `quotes:write`.
 
 ---
 

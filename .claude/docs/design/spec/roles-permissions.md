@@ -691,8 +691,8 @@ These are the `[GLOBAL, seed]` rows the seeders (`ActionDefinitionSeeder`, `IamC
 | reward:redemption:read | Moderator(10) | Low | true |
 | reward:redemption:fulfill | Moderator(10) | Low | true |
 | reward:redemption:refund | Moderator(10) | Low | true |
-| quotes:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
-| quotes:write | **Default Moderator(10), Floor Vip(4)** | Low | true |
+| quotes:read | Vip(4) | Low | true |
+| quotes:write | Vip(4) | Low | true |
 | quotes:delete | Moderator(10) | Low | true |
 | picklists:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | picklists:write | **Default Moderator(10), Floor Vip(4)** | Low | true |

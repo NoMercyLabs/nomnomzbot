@@ -272,7 +272,6 @@ public sealed class GateEndToEndTests
     [InlineData("pipelines:validate")]
     [InlineData("eventresponses:read")]
     [InlineData("timers:read")]
-    [InlineData("quotes:read")]
     [InlineData("sounds:read")]
     [InlineData("reward:read")]
     [InlineData("music:config:read")]
@@ -282,7 +281,6 @@ public sealed class GateEndToEndTests
     [InlineData("widget:read")]
     [InlineData("chat:read")]
     [InlineData("dashboard:read")]
-    [InlineData("quotes:write")] // curating a quote (add/edit) — the one non-destructive write with a VIP floor
     public async Task A_lowerable_action_defaults_to_moderator_and_the_broadcaster_can_open_it_to_a_vip(
         string lowerableKey
     )
@@ -325,6 +323,20 @@ public sealed class GateEndToEndTests
         viewerAfter
             .Value.Should()
             .BeFalse("a plain viewer resolves to level 0, still below the Vip(4) floor");
+    }
+
+    [Theory]
+    [InlineData("quotes:read")]
+    [InlineData("quotes:write")]
+    public async Task A_vip_can_read_and_add_quotes_by_default_and_a_plain_viewer_cannot(string key)
+    {
+        Fixture f = await BuildAsync();
+
+        Result<bool> vip = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, key);
+        Result<bool> viewer = await f.Gate2.AuthorizeActionAsync(PlainViewer, Channel, key);
+
+        vip.Value.Should().BeTrue($"'{key}' defaults to VIP and up");
+        viewer.Value.Should().BeFalse($"'{key}' stays above a plain viewer");
     }
 
     [Theory]

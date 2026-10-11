@@ -299,10 +299,10 @@ Progressive unlocks (a sub-only lane, sub leaderboards, higher pending limits) a
 from the caller's standing — never by hiding the whole page.
 
 **Effective-level surfacing (broadcaster-lowered pages).** The participant rung is the default for a caller
-who holds **no** management-page capability — out of the box a VIP/sub clears no management page (the §3
-defaults floor at `Moderator`), so nothing management leaks. But when the broadcaster **lowers** a management
-page's action to a level the caller's standing clears (e.g. drops `quotes:read`/`quotes:write` to `Vip` —
-both seed with a `Vip` floor), that caller now holds that page's read capability, so the page **surfaces to
+who holds **no** management-page capability — out of the box a VIP clears only Quotes (`quotes:read`/`quotes:write`
+seed at `Vip`) and a sub clears no management page (every other §3 default floors at `Moderator`), so nothing
+else leaks. When the broadcaster **lowers** a management page's action to a level the caller's standing clears
+(e.g. drops `timers:read` to `Vip` — it seeds with a `Vip` floor), that caller now holds that page's read capability, so the page **surfaces to
 them** and its read works — the lowering has a visible effect. The rung fork is therefore on the caller's **effective held-capabilities**, not on holding a
 `ManagementRole`: the shell renders the management rung when the caller can reach **≥1** management page
 (showing exactly the pages they hold), else the participant rung. A caller with a real `ManagementRole`
@@ -400,9 +400,9 @@ one answer, so a lowered action reaches the UI. Mechanics:
 - **Action gating** — within a visible page, mutating controls are **disabled with a reason tooltip** (not
   hidden) when the caller does not hold that action's **effective** manage capability — so a Mod browsing
   Commands sees the list but the "New command" button is disabled ("Requires Editor"). A page may carry
-  **several action keys at different floors**: e.g. Quotes gates add/edit on `quotes:write` (Editor by
-  default, **broadcaster-lowerable**) but delete on `quotes:delete` (Moderator, a moderation-grade floor), so
-  a caller granted quote-editing via a lowered `quotes:write` still cannot delete. Visibility-hide for
+  **several action keys at different floors**: e.g. Quotes gates add/edit on `quotes:write` (Vip by
+  default) but delete on `quotes:delete` (Moderator, a moderation-grade floor), so a VIP who adds quotes
+  still cannot delete. Visibility-hide for
   *pages*, disable-with-reason for *actions* — consistent, never silent.
 - **Source of truth** — the gate reads the caller's **resolved held-capability set** for the active channel
   from the unfloored `/effective/me` self-introspection (the same envelope that already carries the caller's
