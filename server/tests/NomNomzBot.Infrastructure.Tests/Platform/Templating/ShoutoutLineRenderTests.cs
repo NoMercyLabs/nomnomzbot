@@ -12,10 +12,12 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NSubstitute;
 
@@ -74,6 +76,7 @@ public sealed class ShoutoutLineRenderTests
 
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
+        services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         ServiceProvider provider = services.BuildServiceProvider();
         _registry = Substitute.For<IChannelRegistry>();
         _resolver = new(
