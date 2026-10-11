@@ -18,5 +18,6 @@ public sealed record ShoutoutRequest(
     TwitchUser Target,
     string Announcement,
     bool Speak,
-    bool SkipNative = false
+    bool SkipNative = false,
+    string? DeliveryKey = null
 );

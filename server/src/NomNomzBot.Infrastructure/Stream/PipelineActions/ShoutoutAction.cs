@@ -274,18 +274,25 @@ public sealed class ShoutoutAction : ICommandAction
                     perUserCooldown,
                     now,
                     Announcement: announcement,
-                    Speak: action.GetBool("tts", isRaid)
+                    Speak: action.GetBool("tts", isRaid),
+                    ActorUserId: ctx.ActorUserId
                 ),
                 ctx.CancellationToken
             );
-            if (added && !isRaid && !string.IsNullOrWhiteSpace(ctx.MessageId))
+            if (added && CanReplyInChat(ctx, isRaid))
                 await TellChatQueuedAsync(ctx, target);
             return ActionResult.Success(added ? "queued (cooldown)" : "already queued (cooldown)");
         }
 
         string immediateAnnouncement = await ComposeAnnouncementAsync(ctx, action, target);
         ActionResult sent = await _sender.SendAsync(
-            new(ctx.BroadcasterId, target, immediateAnnouncement, action.GetBool("tts", isRaid)),
+            new(
+                ctx.BroadcasterId,
+                target,
+                immediateAnnouncement,
+                action.GetBool("tts", isRaid),
+                DeliveryKey: ShoutoutSender.DeliveryKey(ctx.BroadcasterId, target.Id, now)
+            ),
             ctx.CancellationToken
         );
         if (!sent.Retryable)
@@ -301,14 +308,20 @@ public sealed class ShoutoutAction : ICommandAction
                 perUserCooldown,
                 now,
                 Announcement: immediateAnnouncement,
-                Speak: action.GetBool("tts", isRaid)
+                Speak: action.GetBool("tts", isRaid),
+                ActorUserId: ctx.ActorUserId
             ),
             ctx.CancellationToken
         );
-        if (queued && !isRaid && !string.IsNullOrWhiteSpace(ctx.MessageId))
+        if (queued && CanReplyInChat(ctx, isRaid))
             await TellChatQueuedAsync(ctx, target);
         return ActionResult.Success(queued ? "queued (rate limit)" : "already queued (rate limit)");
     }
+
+    // Only a chat request has a message to answer. A raid, an automated run and a dashboard request
+    // (the operator is the actor) wait in the queue without a line in chat.
+    private static bool CanReplyInChat(PipelineExecutionContext ctx, bool isRaid) =>
+        !isRaid && ctx.ActorUserId is null && !string.IsNullOrWhiteSpace(ctx.MessageId);
 
     // A chat shoutout that waits for Twitch's cooldown says so in chat, in the channel's tone, so the
     // requester knows it was not lost. A failed send is logged and never fails the shoutout.

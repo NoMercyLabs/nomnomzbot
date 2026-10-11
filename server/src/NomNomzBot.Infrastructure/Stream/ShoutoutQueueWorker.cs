@@ -109,13 +109,17 @@ public sealed class ShoutoutQueueWorker : BackgroundService
                     && now < retryAt
                 )
                     continue;
+                bool nativeAttempted = await WasAttemptedAsync(head, cancellationToken);
                 if (
-                    ShoutoutCooldowns.GlobalActive(channel, head.GlobalCooldown, now)
-                    || ShoutoutCooldowns.PerUserActive(
-                        channel,
-                        head.Target.Id,
-                        head.PerUserCooldown,
-                        now
+                    !nativeAttempted
+                    && (
+                        ShoutoutCooldowns.GlobalActive(channel, head.GlobalCooldown, now)
+                        || ShoutoutCooldowns.PerUserActive(
+                            channel,
+                            head.Target.Id,
+                            head.PerUserCooldown,
+                            now
+                        )
                     )
                 )
                     continue;
@@ -156,11 +160,25 @@ public sealed class ShoutoutQueueWorker : BackgroundService
                 && target.GetString() == item.Target.Id
                 && document.RootElement.TryGetProperty("source", out JsonElement source)
                 && source.ValueKind == JsonValueKind.String
-                && source.GetString() == "pipeline"
+                && source.GetString() is "pipeline" or "replay-uncertain"
             )
                 return true;
         }
         return false;
+    }
+
+    private async Task<bool> WasAttemptedAsync(
+        QueuedShoutout item,
+        CancellationToken cancellationToken
+    )
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        string attemptId = ShoutoutSender.AttemptId(
+            ShoutoutSender.DeliveryKey(item.BroadcasterId, item.Target.Id, item.EnqueuedAt)
+        );
+        return await db.ChannelEvents.AnyAsync(e => e.Id == attemptId, cancellationToken);
     }
 
     private async Task RunAsync(QueuedShoutout item, CancellationToken cancellationToken)
@@ -176,13 +194,23 @@ public sealed class ShoutoutQueueWorker : BackgroundService
             );
             IShoutoutSender sender = scope.ServiceProvider.GetRequiredService<IShoutoutSender>();
             result = await sender.SendAsync(
-                new(item.BroadcasterId, item.Target, item.Announcement, item.Speak),
+                new(
+                    item.BroadcasterId,
+                    item.Target,
+                    item.Announcement,
+                    item.Speak,
+                    DeliveryKey: ShoutoutSender.DeliveryKey(
+                        item.BroadcasterId,
+                        item.Target.Id,
+                        item.EnqueuedAt
+                    )
+                ),
                 cancellationToken
             );
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            result = ActionResult.Failure(ex.Message);
+            result = ActionResult.RetryableFailure(ex.Message);
         }
 
         if (result.Succeeded)

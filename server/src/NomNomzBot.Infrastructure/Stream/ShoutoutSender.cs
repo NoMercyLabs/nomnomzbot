@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -105,10 +107,33 @@ public sealed class ShoutoutSender : IShoutoutSender
     {
         TwitchUser target = request.Target;
         string rawUserId = target.Id;
+        bool replayUncertain = false;
+        string? attemptId = null;
+
+        if (!request.SkipNative && request.DeliveryKey is not null)
+        {
+            attemptId = AttemptId(request.DeliveryKey);
+            if (await _db.ChannelEvents.AnyAsync(e => e.Id == attemptId, cancellationToken))
+                replayUncertain = true;
+            else
+            {
+                _db.ChannelEvents.Add(
+                    new ChannelEvent
+                    {
+                        Id = attemptId,
+                        ChannelId = request.BroadcasterId,
+                        Type = "bot.shoutout.native-attempt",
+                        Data = JsonSerializer.Serialize(new { toUserId = rawUserId }),
+                        CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
+                    }
+                );
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         // rawUserId is the Twitch id of the channel to shout out. The sub-client resolves this channel's
         // tenant Guid → Twitch id internally and sends the shoutout as its own moderator.
-        if (!request.SkipNative)
+        if (!request.SkipNative && !replayUncertain)
         {
             Result result = await _chat.SendShoutoutAsync(
                 request.BroadcasterId,
@@ -116,7 +141,21 @@ public sealed class ShoutoutSender : IShoutoutSender
                 cancellationToken
             );
             if (result.IsFailure)
+            {
+                if (attemptId is not null)
+                {
+                    ChannelEvent? attempt = await _db.ChannelEvents.FindAsync(
+                        [attemptId],
+                        cancellationToken
+                    );
+                    if (attempt is not null)
+                    {
+                        _db.ChannelEvents.Remove(attempt);
+                        await _db.SaveChangesAsync(cancellationToken);
+                    }
+                }
                 return NativeFailureOutcome(result, rawUserId);
+            }
 
             ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
             if (channelCtx is not null)
@@ -148,11 +187,13 @@ public sealed class ShoutoutSender : IShoutoutSender
                 announceResult.ErrorMessage
             );
 
-        if (!request.SkipNative || announceResult.IsSuccess)
+        if (announceResult.IsSuccess)
             await RecordAsync(
                 request.BroadcasterId,
                 rawUserId,
-                request.SkipNative,
+                replayUncertain ? "replay-uncertain"
+                    : request.SkipNative ? "announce-only"
+                    : "pipeline",
                 cancellationToken
             );
 
@@ -161,7 +202,7 @@ public sealed class ShoutoutSender : IShoutoutSender
         // synthesis/dispatch failure never fails the shoutout itself. The announcement is the bot's own text, so
         // it speaks in the channel's one bot voice (the default TtsSpeaker.Bot); the target is only the
         // attribution on the request, never the voice. A raid speaks by default (old-bot parity); an explicit tts:false still wins.
-        if (request.Speak && channel is not null)
+        if (announceResult.IsSuccess && request.Speak && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
                 new(
@@ -197,14 +238,16 @@ public sealed class ShoutoutSender : IShoutoutSender
                 : ActionResult.Failure(failure);
         }
         return ActionResult.Success(
-            request.SkipNative ? $"announced (per-user cooldown)" : $"shoutout sent to {rawUserId}"
+            replayUncertain ? "announced (native outcome unconfirmed)"
+            : request.SkipNative ? "announced (per-user cooldown)"
+            : $"shoutout sent to {rawUserId}"
         );
     }
 
     private async Task RecordAsync(
         Guid broadcasterId,
         string targetUserId,
-        bool announceOnly,
+        string source,
         CancellationToken cancellationToken
     )
     {
@@ -214,13 +257,7 @@ public sealed class ShoutoutSender : IShoutoutSender
                 Id = Guid.CreateVersion7().ToString(),
                 ChannelId = broadcasterId,
                 Type = "bot.shoutout.sent",
-                Data = JsonSerializer.Serialize(
-                    new
-                    {
-                        toUserId = targetUserId,
-                        source = announceOnly ? "announce-only" : "pipeline",
-                    }
-                ),
+                Data = JsonSerializer.Serialize(new { toUserId = targetUserId, source }),
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }
         );
@@ -233,6 +270,18 @@ public sealed class ShoutoutSender : IShoutoutSender
         return IsTransient(native.ErrorCode)
             ? ActionResult.RetryableFailure(failure)
             : ActionResult.Failure(failure);
+    }
+
+    internal static string DeliveryKey(
+        Guid broadcasterId,
+        string targetId,
+        DateTimeOffset queuedAt
+    ) => $"{broadcasterId:N}:{targetId}:{queuedAt.UtcTicks}";
+
+    internal static string AttemptId(string deliveryKey)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(deliveryKey));
+        return "so-try-" + Convert.ToHexString(hash.AsSpan(0, 16));
     }
 
     // A rate limit or a dropped connection passes by itself; a missing scope or token never does.

@@ -51,13 +51,11 @@ public class ModerationController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
-    private readonly ITwitchChatApi _chatApi;
     private readonly ITwitchModerationApi _twitchModeration;
     private readonly ITemplateHelperValidator _templateHelperValidator;
     private readonly IModerationHistoryService _history;
     private readonly IMassBanConsentService _massBan;
-    private readonly IShoutoutQueue _shoutoutQueue;
-    private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IEnumerable<ICommandAction> _actions;
 
     public ModerationController(
         IModerationService moderationService,
@@ -70,13 +68,11 @@ public class ModerationController : BaseController
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
-        ITwitchChatApi chatApi,
         ITwitchModerationApi twitchModeration,
         ITemplateHelperValidator templateHelperValidator,
         IModerationHistoryService history,
         IMassBanConsentService massBan,
-        IShoutoutQueue shoutoutQueue,
-        ITwitchUsersApi twitchUsers
+        IEnumerable<ICommandAction> actions
     )
     {
         _massBan = massBan;
@@ -91,11 +87,9 @@ public class ModerationController : BaseController
         _currentUser = currentUser;
         _db = db;
         _timeProvider = timeProvider;
-        _chatApi = chatApi;
         _templateHelperValidator = templateHelperValidator;
         _history = history;
-        _shoutoutQueue = shoutoutQueue;
-        _twitchUsers = twitchUsers;
+        _actions = actions;
     }
 
     // ─── Ban (this channel, or every channel the operator moderates) ───────────
@@ -1834,11 +1828,13 @@ public class ModerationController : BaseController
 
     public record ShoutoutRequest(string TargetTwitchUserId);
 
-    /// <summary>Send or queue a Twitch shoutout for another channel from the broadcaster's channel.</summary>
+    public record ShoutoutOutcomeDto(string Path);
+
+    /// <summary>Run the same announcement, TTS and queue path as a manual chat shoutout.</summary>
     [RequireAction("moderation:shoutout")]
     [HttpPost("shoutout")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<StatusResponseDto<ShoutoutOutcomeDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<ShoutoutOutcomeDto>>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Shoutout(
         string channelId,
         [FromBody] ShoutoutRequest request,
@@ -1848,64 +1844,50 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        await _shoutoutQueue.RecoverAsync(ct);
-        bool queueBehindPending = _shoutoutQueue.Peek(broadcasterId) is not null;
-        if (!queueBehindPending)
+        ICommandAction? action = _actions.FirstOrDefault(a => a.ActionType == "shoutout");
+        if (action is null)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        PipelineExecutionContext context = new()
         {
-            Result result = await _chatApi.SendShoutoutAsync(
-                broadcasterId,
-                request.TargetTwitchUserId,
-                ct
-            );
-            if (result.IsSuccess)
+            BroadcasterId = broadcasterId,
+            TriggeredByUserId = _currentUser.UserId ?? string.Empty,
+            ActorUserId = Guid.TryParse(_currentUser.UserId, out Guid actorUserId)
+                ? actorUserId
+                : null,
+            TriggeredByDisplayName = string.Empty,
+            MessageId = Guid.CreateVersion7().ToString(),
+            RawMessage = string.Empty,
+            CancellationToken = ct,
+        };
+        NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition definition = new()
+        {
+            Type = "shoutout",
+            Parameters = new()
             {
-                _db.ChannelEvents.Add(
-                    new ChannelEvent
-                    {
-                        Id = Guid.CreateVersion7().ToString(),
-                        ChannelId = broadcasterId,
-                        Type = "bot.shoutout.sent",
-                        Data = JsonSerializer.Serialize(
-                            new { toUserId = request.TargetTwitchUserId }
-                        ),
-                    }
-                );
-                await _db.SaveChangesAsync(ct);
-                return NoContent();
-            }
-            if (
-                result.ErrorCode is not (TwitchErrorCodes.RateLimited or TwitchErrorCodes.Transport)
-            )
-                return TwitchResultResponse(result);
-        }
-
-        Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByIdsAsync(
-            [request.TargetTwitchUserId],
-            ct
+                ["user_id"] = JsonSerializer.SerializeToElement(request.TargetTwitchUserId),
+                ["tts"] = JsonSerializer.SerializeToElement(true),
+            },
+        };
+        Application.Abstractions.Pipeline.ActionResult result = await action.ExecuteAsync(
+            context,
+            definition
         );
-        if (lookup.IsFailure)
-            return TwitchResultResponse(lookup);
-        TwitchUser? target = lookup.Value.FirstOrDefault();
-        if (target is null)
-            return NotFoundResponse("Shoutout target was not found on Twitch.");
+        if (!result.Succeeded)
+            return BadRequestResponse(result.ErrorMessage ?? "Shoutout failed.");
 
-        Guid? actorUserId = Guid.TryParse(_currentUser.UserId, out Guid actorId) ? actorId : null;
-        DateTimeOffset now = _timeProvider.GetUtcNow();
-        await _shoutoutQueue.EnqueueAsync(
-            new QueuedShoutout(
-                broadcasterId,
-                target,
-                string.Empty,
-                false,
-                TimeSpan.FromMinutes(2),
-                TimeSpan.FromMinutes(60),
-                now,
-                ActorUserId: actorUserId,
-                NotBefore: queueBehindPending ? null : now.AddMinutes(2)
-            ),
-            ct
-        );
-        return Accepted();
+        string output = result.Output ?? string.Empty;
+        string path =
+            output.StartsWith("already queued", StringComparison.Ordinal) ? "already_queued"
+            : output.StartsWith("queued", StringComparison.Ordinal) ? "queued"
+            : output.StartsWith("already announced", StringComparison.Ordinal) ? "already_announced"
+            : output.StartsWith("announced", StringComparison.Ordinal) ? "announce_only"
+            : output.StartsWith("shoutout sent", StringComparison.Ordinal) ? "sent"
+            : string.Empty;
+        if (path.Length == 0)
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        StatusResponseDto<ShoutoutOutcomeDto> response = new() { Data = new(path) };
+        return path is "queued" or "already_queued" ? Accepted(response) : Ok(response);
     }
 
     public record ShoutoutTemplateDto(string? Template);

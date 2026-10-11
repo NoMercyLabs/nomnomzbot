@@ -22,6 +22,7 @@ public sealed class PipelineExecutionContext
     /// <summary>The tenant (channel) Guid this execution belongs to (schema §1.1, internal key).</summary>
     public required Guid BroadcasterId { get; init; }
     public required string TriggeredByUserId { get; init; }
+    public Guid? ActorUserId { get; init; }
 
     /// <summary>The provider key (<c>AuthEnums.Platform</c>) the <see cref="TriggeredByUserId"/> belongs to, when it is a
     /// platform user id (a chat trigger). <c>null</c> means the id is internal or there is no actor.</summary>
