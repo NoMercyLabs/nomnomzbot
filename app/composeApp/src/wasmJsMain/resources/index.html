@@ -8,6 +8,12 @@
 <head>
     <meta charset="UTF-8">
     <!--
+      Every asset below is a relative path. The server hands this same file to /app and to /app/, and a relative
+      path resolves against the page address: from /app it reaches /composeApp.js, from /app/ it reaches
+      /app/composeApp.js, which does not exist. The base tag pins them all to the site root.
+    -->
+    <base href="/">
+    <!--
       viewport-fit=cover lets the page paint into the notch/home-indicator area; the safe-area padding below
       keeps content out of it. Zoom is deliberately NOT disabled (no maximum-scale / user-scalable=no) - a
       dashboard someone cannot pinch-zoom is a dashboard some people cannot read.

@@ -12,7 +12,6 @@ using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -765,46 +764,7 @@ try
     // Must run before UseStaticFiles so the wasm/js/css bytes it writes are compressed on the way out.
     app.UseResponseCompression();
 
-    FileExtensionContentTypeProvider staticContentTypes = new()
-    {
-        Mappings = { [".wasm"] = "application/wasm" },
-    };
-    app.UseStaticFiles(
-        new StaticFileOptions
-        {
-            ContentTypeProvider = staticContentTypes,
-            // The Compose resource bundle ships files with no registered MIME type (e.g. the .cvr string tables the
-            // dashboard's i18n loads). Static files refuses unknown extensions by default, which 404s them and breaks
-            // the app's resource loading; serve them as octet-stream instead. Safe because the web root holds only
-            // the public dashboard bundle.
-            ServeUnknownFileTypes = true,
-            DefaultContentType = "application/octet-stream",
-            // Make a plain reload ALWAYS serve the current build — no manual hard-refresh, ever — WITHOUT paying a
-            // revalidation round trip per asset. Three tiers (owner report 2026-09-21: a cold dashboard load pulled
-            // ~62 MB through the Cloudflare tunnel and stalled past the boot watchdog, because every asset was
-            // `no-cache` and therefore private to the browser — the edge cached nothing, `cf-cache-status: DYNAMIC`):
-            //
-            //   entry points  composeApp.js / index.html keep stable names across builds → `no-store`, so the build
-            //                 the browser runs is always the deployed one.
-            //   immutable     content-addressed `.wasm` modules and the font faces. A `.wasm` name carries its own
-            //                 content hash, and a font face's bytes never change under the same name — a different
-            //                 face is a different file. These are the bulk (~35 MB of fonts alone), so they get a
-            //                 year and `immutable`: no revalidation, and `public` lets the CDN serve them from the
-            //                 edge instead of reaching back through the tunnel.
-            //   revalidated   everything else in the bundle (drawables, `.cvr` i18n tables, source maps) DOES change
-            //                 with a build under a stable name, so it stays must-revalidate — but now `public`, so
-            //                 the edge may hold it and answer with a 304 rather than forwarding to origin.
-            //
-            // Fonts are deliberately in the immutable tier, not the revalidated one: they are why a cold load was
-            // 62 MB, and a font swap ships as a new filename.
-            OnPrepareResponse = ctx =>
-            {
-                ctx.Context.Response.Headers.CacheControl = StaticAssetCachePolicy.For(
-                    ctx.File.Name
-                );
-            },
-        }
-    );
+    app.UseDashboardStaticFiles();
 
     // The code editor is a real page (HTML/CSS/JS), not DOM assembled from a string inside the Wasm client:
     // the dashboard hands it a project over postMessage and it runs in an iframe. Served from the project's
@@ -1008,19 +968,7 @@ try
     // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's
     // entry document, so a browser hitting / (or a client-side deep link) loads the Compose/Wasm app shell. Returns
     // 404 when no dashboard is bundled (empty web root), preserving the API-only behavior.
-    app.MapFallbackToFile(
-        "index.html",
-        new StaticFileOptions
-        {
-            // index.html is served HERE (the SPA fallback), not by UseStaticFiles above, so it needs its OWN
-            // Cache-Control. Without it the shell goes out with no cache header, the browser heuristic-caches it,
-            // and a normal reload keeps loading the OLD app after a deploy — the "force refresh" trap. no-store +
-            // must-revalidate makes every load re-fetch index.html, which then pulls the current (also no-cache)
-            // composeApp.js and the content-hashed .wasm. A plain reload now always lands the latest deploy.
-            OnPrepareResponse = ctx =>
-                ctx.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate",
-        }
-    );
+    app.MapDashboardFallback();
 
     app.Run();
 }
