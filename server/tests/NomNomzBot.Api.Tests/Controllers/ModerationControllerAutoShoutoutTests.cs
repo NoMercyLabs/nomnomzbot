@@ -12,18 +12,14 @@ using System.Reflection;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Infrastructure.Stream;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -37,9 +33,7 @@ public sealed class ModerationControllerAutoShoutoutTests
 {
     private static ModerationController Build(
         ApiTestDbContext db,
-        ITwitchChatApi? chat = null,
-        IShoutoutQueue? shoutoutQueue = null,
-        ITwitchUsersApi? users = null
+        ICommandAction? shoutoutAction = null
     ) =>
         new(
             Substitute.For<IModerationService>(),
@@ -52,13 +46,11 @@ public sealed class ModerationControllerAutoShoutoutTests
             Substitute.For<ICurrentUserService>(),
             db,
             TimeProvider.System,
-            chat ?? Substitute.For<ITwitchChatApi>(),
             Substitute.For<ITwitchModerationApi>(),
             Substitute.For<ITemplateHelperValidator>(),
             Substitute.For<IModerationHistoryService>(),
             Substitute.For<IMassBanConsentService>(),
-            shoutoutQueue ?? Substitute.For<IShoutoutQueue>(),
-            users ?? Substitute.For<ITwitchUsersApi>()
+            shoutoutAction is null ? [] : [shoutoutAction]
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name, bool autoShoutout)
@@ -77,15 +69,24 @@ public sealed class ModerationControllerAutoShoutoutTests
         return id;
     }
 
-    [Fact]
-    public async Task Direct_shoutout_records_the_target_for_auto_deduplication()
+    [Theory]
+    [InlineData("shoutout sent to 1001", "sent", false)]
+    [InlineData("announced (per-user cooldown)", "announce_only", false)]
+    [InlineData("queued (rate limit)", "queued", true)]
+    public async Task Dashboard_shoutout_reports_the_path_run(
+        string output,
+        string expectedPath,
+        bool accepted
+    )
     {
         await using ApiTestDbContext db = ApiTestDbContext.New();
         Guid channelId = SeedChannel(db, "streamer", autoShoutout: true);
-        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
-        chat.SendShoutoutAsync(channelId, "1001", Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        ModerationController controller = Build(db, chat);
+        ICommandAction action = Substitute.For<ICommandAction>();
+        action.ActionType.Returns("shoutout");
+        action
+            .ExecuteAsync(Arg.Any<PipelineExecutionContext>(), Arg.Any<ActionDefinition>())
+            .Returns(NomNomzBot.Application.Abstractions.Pipeline.ActionResult.Success(output));
+        ModerationController controller = Build(db, action);
 
         IActionResult result = await controller.Shoutout(
             channelId.ToString(),
@@ -93,77 +94,21 @@ public sealed class ModerationControllerAutoShoutoutTests
             CancellationToken.None
         );
 
-        result.Should().BeOfType<NoContentResult>();
-        Domain.Identity.Entities.ChannelEvent row = await db.ChannelEvents.SingleAsync(e =>
-            e.ChannelId == channelId
-        );
-        row.Type.Should().Be("bot.shoutout.sent");
-        row.Data.Should().Contain("\"toUserId\":\"1001\"");
-    }
-
-    [Fact]
-    public async Task Failed_direct_shoutout_creates_no_deduplication_record()
-    {
-        await using ApiTestDbContext db = ApiTestDbContext.New();
-        Guid channelId = SeedChannel(db, "streamer", autoShoutout: true);
-        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
-        chat.SendShoutoutAsync(channelId, "1001", Arg.Any<CancellationToken>())
-            .Returns(Result.Failure("Twitch rejected the shoutout"));
-        ModerationController controller = Build(db, chat);
-
-        await controller.Shoutout(channelId.ToString(), new("1001"), CancellationToken.None);
-
-        (await db.ChannelEvents.CountAsync()).Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Rate_limited_dashboard_shoutout_waits_in_the_durable_queue()
-    {
-        await using ApiTestDbContext db = ApiTestDbContext.New();
-        Guid channelId = SeedChannel(db, "streamer", autoShoutout: true);
-        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
-        chat.SendShoutoutAsync(channelId, "1001", Arg.Any<CancellationToken>())
-            .Returns(Result.Failure("Twitch rate limit", TwitchErrorCodes.RateLimited));
-        ServiceCollection services = new();
-        services.AddSingleton<IApplicationDbContext>(db);
-        IServiceScopeFactory scopeFactory = services
-            .BuildServiceProvider()
-            .GetRequiredService<IServiceScopeFactory>();
-        ShoutoutQueue queue = new(scopeFactory);
-        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
-        users
-            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success<IReadOnlyList<TwitchUser>>([
-                    new(
-                        "1001",
-                        "target",
-                        "Target",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        0,
-                        DateTimeOffset.UnixEpoch
-                    ),
-                ])
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(accepted ? 202 : 200);
+        response
+            .Value.Should()
+            .BeOfType<StatusResponseDto<ModerationController.ShoutoutOutcomeDto>>()
+            .Subject.Data!.Path.Should()
+            .Be(expectedPath);
+        await action
+            .Received(1)
+            .ExecuteAsync(
+                Arg.Is<PipelineExecutionContext>(ctx => ctx.BroadcasterId == channelId),
+                Arg.Is<ActionDefinition>(definition =>
+                    definition.GetString("user_id") == "1001" && definition.GetBool("tts")
+                )
             );
-        ModerationController controller = Build(db, chat, queue, users);
-
-        IActionResult result = await controller.Shoutout(
-            channelId.ToString(),
-            new("1001"),
-            CancellationToken.None
-        );
-
-        result.Should().BeOfType<AcceptedResult>();
-        Domain.Identity.Entities.ChannelEvent pending = await db.ChannelEvents.SingleAsync();
-        pending.Type.Should().Be("bot.shoutout.pending");
-        pending.Data.Should().Contain("\"Target\":");
-        pending.Data.Should().Contain("\"Id\":\"1001\"");
-        pending.Data.Should().Contain("\"Announcement\":\"\"");
-        pending.Data.Should().Contain("\"NotBefore\":");
     }
 
     private static async Task<bool> ReadAsync(ModerationController controller, Guid channelId)

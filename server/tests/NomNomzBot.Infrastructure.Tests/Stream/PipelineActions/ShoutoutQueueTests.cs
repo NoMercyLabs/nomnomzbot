@@ -354,7 +354,8 @@ public sealed class ShoutoutQueueTests
             .Chat.Received(1)
             .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
         await rig.Chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
-        rig.Db.ChannelEvents.Single().Type.Should().Be("bot.shoutout.sent");
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.sent").Should().Be(1);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.native-attempt").Should().Be(1);
         rig.Queue.Peek(Channel).Should().BeNull();
     }
 
@@ -441,6 +442,74 @@ public sealed class ShoutoutQueueTests
             .Chat.Received(1)
             .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
         await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_crash_after_native_send_replays_the_announcement_without_sending_twice()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        StampGlobalCooldown(rig);
+        await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        int nativeCalls = 0;
+        rig.Chat.SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                nativeCalls++;
+                if (nativeCalls == 1)
+                    throw new InvalidOperationException("crash after Twitch accepted the send");
+                return Result.Success();
+            });
+
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+        ShoutoutQueue restartedQueue = new(rig.ScopeFactory);
+        ShoutoutQueueWorker restartedWorker = ShoutoutTestFactory.Worker(
+            restartedQueue,
+            rig.Chat,
+            rig.Registry,
+            rig.Db,
+            rig.Tts,
+            rig.Clock,
+            rig.Sanctions
+        );
+        rig.Clock.Advance(TimeSpan.FromMinutes(60));
+        await restartedWorker.ProcessDueAsync(CancellationToken.None);
+
+        nativeCalls.Should().Be(1);
+        await AssertAnnouncedAsync(rig, ManualId);
+        await AssertSpokenForAsync(rig, ManualId);
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_failed_announcement_retries_without_repeating_the_native_send()
+    {
+        Rig rig = await BuildAsync(durable: true);
+        int announcementCalls = 0;
+        rig.Chat.SendAnnouncementAsync(
+                Channel,
+                Line(ManualId),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ =>
+                ++announcementCalls == 1
+                    ? Result.Failure("connection dropped", TwitchErrorCodes.Transport)
+                    : Result.Success()
+            );
+
+        ActionResult result = await rig.Action.ExecuteAsync(Manual(), Step(ManualId));
+        result.Output.Should().StartWith("queued");
+        rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(1);
+        rig.Clock.Advance(GlobalCooldown);
+        await rig.Worker.ProcessDueAsync(CancellationToken.None);
+
+        await rig
+            .Chat.Received(1)
+            .SendShoutoutAsync(Channel, ManualId, Arg.Any<CancellationToken>());
+        announcementCalls.Should().Be(2);
         await AssertSpokenForAsync(rig, ManualId);
         rig.Db.ChannelEvents.Count(e => e.Type == "bot.shoutout.pending").Should().Be(0);
     }
@@ -964,6 +1033,28 @@ public sealed class ShoutoutQueueTests
         await rig.BotChat.ReceivedWithAnyArgs(1).SendMessageAsync(default, default!);
         await AssertNothingSentAsync(rig);
         manual.RepliedToChat.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_queued_dashboard_shoutout_posts_no_chat_line_but_still_queues()
+    {
+        Rig rig = await BuildAsync();
+        StampGlobalCooldown(rig);
+        PipelineExecutionContext dashboard = new()
+        {
+            BroadcasterId = Channel,
+            TriggeredByUserId = "operator-1",
+            ActorUserId = Guid.NewGuid(),
+            TriggeredByDisplayName = string.Empty,
+            MessageId = Guid.CreateVersion7().ToString(),
+            RawMessage = string.Empty,
+        };
+
+        ActionResult result = await rig.Action.ExecuteAsync(dashboard, Step(ManualId));
+
+        result.Output.Should().StartWith("queued");
+        rig.Queue.Peek(Channel).Should().NotBeNull();
+        await rig.BotChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]

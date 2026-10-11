@@ -303,6 +303,33 @@ public sealed class AutoShoutoutSchedulerTests
         rig.Announcements.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("pipeline")]
+    [InlineData("announce-only")]
+    [InlineData("replay-uncertain")]
+    public async Task Any_manual_route_blocks_auto_shoutout_for_the_same_stream(string source)
+    {
+        Rig rig = await BuildAsync();
+        rig.Db.ChannelEvents.Add(
+            new NomNomzBot.Domain.Identity.Entities.ChannelEvent
+            {
+                Id = Guid.NewGuid().ToString(),
+                ChannelId = Channel,
+                Type = "bot.shoutout.sent",
+                Data = JsonSerializer.Serialize(new { toUserId = StreamerA, source }),
+                CreatedAt = StreamStart.AddMinutes(2).UtcDateTime,
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+        await rig.TickAtAsync(72);
+        await rig.ChatAsync(StreamerA);
+        await rig.TickAtAsync(77);
+
+        rig.Shoutouts.Should().Be(0);
+        rig.Announcements.Should().Be(0);
+        rig.Db.ChannelEvents.Should().NotContain(e => e.Type == "bot.shoutout.auto-pending");
+    }
+
     [Fact]
     public async Task Shoutout_record_survives_scheduler_restart_in_same_stream()
     {
