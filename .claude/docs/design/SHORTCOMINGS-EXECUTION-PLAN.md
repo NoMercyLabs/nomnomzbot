@@ -138,8 +138,6 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
 - **S-KMP-A11Y** Every field has an accessible name, screens have heading roles, and no whole-screen live
   region. Done-when: a live a11y tree check shows names on every field, and zoom to 200 percent is tested
   by hand.
-- **S-KMP-BASEHREF** `/app/` works the same as `/app` (index.html gets a base tag or the server
-  redirects). Done-when: both addresses load the app in a live check.
 - **S-SCALE-BACKPLANE** SignalR with a Redis backplane and MessagePack, so many server nodes share one
   realtime hub; EventSub conduits on by default for multi-node. Done-when: two API nodes behind the proxy
   deliver one event to a client on either node, in a test.
