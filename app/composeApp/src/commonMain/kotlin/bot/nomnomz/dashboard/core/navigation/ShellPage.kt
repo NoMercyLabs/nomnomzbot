@@ -22,7 +22,7 @@ enum class ShellPage(val slug: String, val tabs: List<String>) {
     EventResponses("event-responses", listOf("responses", "alert-queue")),
     Library("library", listOf("sounds", "files", "random-responses", "quotes")),
     Pipelines("pipelines", emptyList()),
-    Overlays("overlays", emptyList()),
+    Overlays("overlays", listOf("gallery", "my-overlays")),
     Scripts("scripts", emptyList()),
     People("people", listOf("overview", "queue", "viewers", "history", "rules", "roles")),
     ChannelPoints("channel-points", emptyList()),

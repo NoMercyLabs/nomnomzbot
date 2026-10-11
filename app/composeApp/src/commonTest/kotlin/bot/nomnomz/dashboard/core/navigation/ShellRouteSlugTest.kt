@@ -160,6 +160,21 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_overlays_page_has_gallery_and_my_overlays_tabs_and_the_bare_address_opens_my_overlays() {
+        assertEquals(listOf("gallery", "my-overlays"), ShellPage.Overlays.tabs)
+        assertEquals(ShellRoute.OverlaysGallery, ShellRouteSlug.parse("overlays/gallery"))
+        assertEquals(ShellRoute.OverlaysMine, ShellRouteSlug.parse("overlays/my-overlays"))
+        // The address parser has no data on how many overlays the streamer has, so the bare address opens
+        // My overlays, whose empty state leads to the Gallery.
+        assertEquals(ShellRoute.OverlaysMine, ShellRouteSlug.parse("overlays"))
+        assertEquals("overlays/gallery", ShellRouteSlug.of(ShellRoute.OverlaysGallery))
+        assertEquals(
+            listOf(ShellRoute.OverlaysGallery, ShellRoute.OverlaysMine),
+            ShellRoute.tabsOf(ShellPage.Overlays),
+        )
+    }
+
+    @Test
     fun parsing_ignores_surrounding_whitespace_and_case() {
         val route: ShellRoute = ShellRoute.PeopleHistory
         val canonical: String = ShellRouteSlug.of(route)

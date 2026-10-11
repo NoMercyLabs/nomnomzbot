@@ -199,7 +199,6 @@ import nomnomzbot.composeapp.generated.resources.widgets_rollback_action
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_action
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_clone_action
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_clone_action_short
-import nomnomzbot.composeapp.generated.resources.widgets_gallery_close
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_empty
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_error
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_filter_all
@@ -211,7 +210,7 @@ import nomnomzbot.composeapp.generated.resources.widgets_gallery_load_more
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_load_more_error
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_retry
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_search
-import nomnomzbot.composeapp.generated.resources.widgets_gallery_title
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_subtitle
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_first_party
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_unverified
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_verified
@@ -227,7 +226,14 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 // edited (the compile-on-save code editor), rolled back to a past version, or deleted — deletion is destructive
 // (its browser-source URL stops resolving once gone), so it confirms first.
 @Composable
-fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReviewer: Boolean = false, hubEvents: SharedFlow<HubEvent>? = null) {
+fun WidgetsScreen(
+    controller: WidgetsController,
+    role: ManagementRole?,
+    isReviewer: Boolean = false,
+    hubEvents: SharedFlow<HubEvent>? = null,
+    section: OverlaysSection = OverlaysSection.Mine,
+    onOpenSection: (OverlaysSection) -> Unit = {},
+) {
     val state: WidgetsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
@@ -237,7 +243,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     // (frontend-ia.md §3, Stream group). A caller below it still sees each overlay and can copy its
     // browser-source URL, but every write control (enable/disable, rename, clone, edit-code, rollback, delete)
     // renders disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Overlays)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.OverlaysMine)
 
     // Localized editor feedback strings, resolved here (a Composable) and threaded into the controller's compile
     // callback — the controller is a plain state holder with no access to Compose resources.
@@ -252,7 +258,6 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     var pendingRollback: PendingRollback? by remember { mutableStateOf(null) }
     var pendingReset: WidgetSummary? by remember { mutableStateOf(null) }
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
-    var showGalleryDialog: Boolean by remember { mutableStateOf(false) }
     var showSubmitDialog: Boolean by remember { mutableStateOf(false) }
     var showReviewQueue: Boolean by remember { mutableStateOf(false) }
     var showRotateTokenConfirm: Boolean by remember { mutableStateOf(false) }
@@ -278,19 +283,47 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        WidgetsHeader(
-            isReviewer = isReviewer,
-            manage = manage,
-            onGallery = { showGalleryDialog = true },
-            onSubmit = { showSubmitDialog = true },
-            onReview = { showReviewQueue = true },
-            onRotateToken = { showRotateTokenConfirm = true },
-            onCreate = { showCreateDialog = true },
-        )
+        when (section) {
+            OverlaysSection.Gallery ->
+                GalleryHeader(
+                    isReviewer = isReviewer,
+                    onSubmit = { showSubmitDialog = true },
+                    onReview = { showReviewQueue = true },
+                )
+            OverlaysSection.Mine ->
+                WidgetsHeader(
+                    manage = manage,
+                    isEmpty = state is WidgetsState.Empty,
+                    onGallery = { onOpenSection(OverlaysSection.Gallery) },
+                    onRotateToken = { showRotateTokenConfirm = true },
+                    onCreate = { showCreateDialog = true },
+                )
+        }
 
-        when (val current: WidgetsState = state) {
+        if (section == OverlaysSection.Gallery) {
+            GalleryBrowse(
+                manage = manage,
+                loadGallery = { request -> controller.listGallery(request) },
+                onInstall = { item ->
+                    val installed: DialogResult = controller.installFromGallery(item.id).toDialogResult()
+                    if (installed == DialogResult.Done) onOpenSection(OverlaysSection.Mine)
+                    installed
+                },
+                onClone = { item ->
+                    when (val cloned: ApiResult<WidgetSummary> = controller.cloneFromGallery(item.id)) {
+                        is ApiResult.Ok -> {
+                            onOpenSection(OverlaysSection.Mine)
+                            scope.launch { controller.editWidgetCode(cloned.value, editorMessages) }
+                            DialogResult.Done
+                        }
+                        is ApiResult.Failure -> DialogResult.Failed(cloned.error.message)
+                    }
+                },
+            )
+        } else when (val current: WidgetsState = state) {
             is WidgetsState.Loading -> CenteredMessage(stringResource(Res.string.widgets_loading))
-            is WidgetsState.Empty -> CenteredMessage(stringResource(Res.string.widgets_empty))
+            is WidgetsState.Empty ->
+                EmptyOverlays(onOpenGallery = { onOpenSection(OverlaysSection.Gallery) })
             is WidgetsState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is WidgetsState.Ready ->
@@ -461,24 +494,6 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         )
     }
 
-    if (showGalleryDialog) {
-        GalleryBrowseDialog(
-            manage = manage,
-            loadGallery = { request -> controller.listGallery(request) },
-            onInstall = { item -> controller.installFromGallery(item.id).toDialogResult() },
-            onClone = { item ->
-                when (val cloned: ApiResult<WidgetSummary> = controller.cloneFromGallery(item.id)) {
-                    is ApiResult.Ok -> {
-                        scope.launch { controller.editWidgetCode(cloned.value, editorMessages) }
-                        DialogResult.Done
-                    }
-                    is ApiResult.Failure -> DialogResult.Failed(cloned.error.message)
-                }
-            },
-            onDismiss = { showGalleryDialog = false },
-        )
-    }
-
     if (showSubmitDialog) {
         WidgetSubmitDialog(
             submit = { body -> controller.submitToGallery(body) },
@@ -497,15 +512,14 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     }
 }
 
-// The page header: title + subtitle, with the overlay actions beside the title when they fit and wrapped
-// beneath it when they do not (the layout follows the header's own width, see PageHeader).
+// The My overlays header: title + subtitle, with the overlay actions beside the title when they fit and wrapped
+// beneath it when they do not (the layout follows the header's own width, see PageHeader). Create is the one
+// primary action, except on an empty page where the empty state's button to the Gallery takes that place.
 @Composable
 internal fun WidgetsHeader(
-    isReviewer: Boolean,
     manage: ManageDecision,
+    isEmpty: Boolean,
     onGallery: () -> Unit,
-    onSubmit: () -> Unit,
-    onReview: () -> Unit,
     onRotateToken: () -> Unit,
     onCreate: () -> Unit,
 ) {
@@ -513,55 +527,60 @@ internal fun WidgetsHeader(
         title = stringResource(Res.string.shell_nav_overlays),
         subtitle = stringResource(Res.string.widgets_subtitle),
     ) {
-        WidgetsHeaderActions(
-            isReviewer = isReviewer,
-            manage = manage,
-            onGallery = onGallery,
-            onSubmit = onSubmit,
-            onReview = onReview,
-            onRotateToken = onRotateToken,
-            onCreate = onCreate,
-        )
+        // Browsing the gallery is a public read, so it stays ungated; the Install / Clone controls on the
+        // Gallery tab carry the Editor write gate.
+        if (!isEmpty) {
+            Button(onClick = onGallery, variant = ButtonVariant.Outline) {
+                Text(stringResource(Res.string.widgets_gallery_action))
+            }
+        }
+        ManageGate(manage) {
+            Button(onClick = onRotateToken, variant = ButtonVariant.Outline) {
+                Text(stringResource(Res.string.widgets_rotate_token_action))
+            }
+        }
+        ManageGate(manage) {
+            Button(onClick = onCreate, variant = if (isEmpty) ButtonVariant.Outline else ButtonVariant.Default) {
+                Text(stringResource(Res.string.widgets_create_action))
+            }
+        }
     }
 }
 
-// The Gallery / Submit / Review / Rotate token / Create actions as plain (non-scoped) composables.
+// The Gallery header: the catalogue's own actions. Both are quiet; the page's one task is the Install on a card.
 @Composable
-private fun WidgetsHeaderActions(
-    isReviewer: Boolean,
-    manage: ManageDecision,
-    onGallery: () -> Unit,
-    onSubmit: () -> Unit,
-    onReview: () -> Unit,
-    onRotateToken: () -> Unit,
-    onCreate: () -> Unit,
-) {
-    // Browsing the gallery is a public read, so it stays ungated; the Install / Clone controls inside
-    // the dialog carry the Editor write gate.
-    Button(onClick = onGallery, variant = ButtonVariant.Outline) {
-        Text(stringResource(Res.string.widgets_gallery_action))
-    }
-    // Submitting a community widget is open to any signed-in user (it lands in the review queue,
-    // not the live catalogue) — the backend validates the SHA/URL and gates the eventual verify.
-    Button(onClick = onSubmit, variant = ButtonVariant.Outline) {
-        Text(stringResource(Res.string.widgets_submit_action))
-    }
-    // The review queue only appears for a platform reviewer (gallery:review). The backend is the real
-    // gate — a non-reviewer's list is scoped to their own items and every review write 403s.
-    if (isReviewer) {
-        Button(onClick = onReview, variant = ButtonVariant.Outline) {
-            Text(stringResource(Res.string.widgets_review_action))
+internal fun GalleryHeader(isReviewer: Boolean, onSubmit: () -> Unit, onReview: () -> Unit) {
+    PageHeader(
+        title = stringResource(Res.string.shell_nav_overlays),
+        subtitle = stringResource(Res.string.widgets_gallery_subtitle),
+    ) {
+        // Submitting a community widget is open to any signed-in user (it lands in the review queue,
+        // not the live catalogue) — the backend validates the SHA/URL and gates the eventual verify.
+        Button(onClick = onSubmit, variant = ButtonVariant.Outline) {
+            Text(stringResource(Res.string.widgets_submit_action))
+        }
+        // The review queue only appears for a platform reviewer (gallery:review). The backend is the real
+        // gate — a non-reviewer's list is scoped to their own items and every review write 403s.
+        if (isReviewer) {
+            Button(onClick = onReview, variant = ButtonVariant.Outline) {
+                Text(stringResource(Res.string.widgets_review_action))
+            }
         }
     }
-    ManageGate(manage) {
-        Button(onClick = onRotateToken, variant = ButtonVariant.Outline) {
-            Text(stringResource(Res.string.widgets_rotate_token_action))
-        }
-    }
-    ManageGate(manage) {
-        Button(onClick = onCreate) {
-            Text(stringResource(Res.string.widgets_create_action))
-        }
+}
+
+// The My overlays empty state: the message and the one primary button that leads to the Gallery.
+@Composable
+private fun EmptyOverlays(onOpenGallery: () -> Unit) {
+    val spacing = LocalSpacing.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        CenteredMessage(stringResource(Res.string.widgets_empty))
+        Button(onClick = onOpenGallery) { Text(stringResource(Res.string.widgets_gallery_action)) }
     }
 }
 
@@ -1532,25 +1551,24 @@ private fun WidgetVersionRow(
     }
 }
 
-// The gallery browse surface (widgets-overlays.md §5c), reachable from the Overlays header. Lists the public,
-// verified widget catalogue with an optional framework filter; each item can be installed into the channel or
-// cloned into an editable copy. Fetches its own list on open + on every filter change (loading / error / empty /
-// list). Install / Clone are Editor-gated (the page's manage floor); browsing itself is a public read.
+// The Gallery tab body (widgets-overlays.md §5c). Lists the public, verified widget catalogue with an optional
+// framework filter; each item can be installed into the channel or cloned into an editable copy. Fetches its own
+// list on open + on every filter change (loading / error / empty / list). Install / Clone are Editor-gated (the
+// page's manage floor); browsing itself is a public read.
 @Composable
-internal fun GalleryBrowseDialog(
+internal fun GalleryBrowse(
     manage: ManageDecision,
     loadGallery: suspend (GalleryListRequest) -> ApiResult<GalleryPage>,
     onInstall: suspend (GalleryItemSummary) -> DialogResult,
     onClone: suspend (GalleryItemSummary) -> DialogResult,
-    onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // Install / Clone stay on this dialog until the server answers: it closes on success, and on a failure the
-    // reason shows inline while the browse state (search, filter, pages) is kept.
-    val action: DialogActionState = rememberDialogActionState(onDone = onDismiss)
+    // Install / Clone keep the Gallery in place until the server answers; a failure shows inline while the
+    // browse state (search, filter, pages) is kept. The caller moves to My overlays on success.
+    val action: DialogActionState = rememberDialogActionState(onDone = {})
 
     var selectedFramework: String? by remember { mutableStateOf(null) }
     var searchText: String by remember { mutableStateOf("") }
@@ -1574,16 +1592,6 @@ internal fun GalleryBrowseDialog(
 
     val allLabel: String = stringResource(Res.string.widgets_gallery_filter_all)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(Res.string.widgets_gallery_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-            )
-        },
-        text = {
             ScrollArea(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -1685,11 +1693,6 @@ internal fun GalleryBrowseDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_gallery_close)) }
-        },
-    )
 }
 
 // One gallery catalogue entry: its name + description, a badge row (framework · trust tier · install count), and

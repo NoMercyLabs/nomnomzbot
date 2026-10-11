@@ -11,11 +11,13 @@
 package bot.nomnomz.dashboard.feature.widgets.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.Dp
@@ -37,11 +39,10 @@ class WidgetsHeaderNarrowTest {
     private val actionLabels: List<String> =
         listOf(
             "Galerij bekijken",
-            "Widget indienen",
-            "Beoordelingswachtrij",
             "Kanaaltoken vernieuwen",
             "Overlay aanmaken",
         )
+    private val galleryLabels: List<String> = listOf("Widget indienen", "Beoordelingswachtrij")
 
     @Composable
     private fun Dutch(paneWidth: Int, content: @Composable () -> Unit) {
@@ -51,24 +52,25 @@ class WidgetsHeaderNarrowTest {
     private fun assertHeaderFits(paneWidth: Int) = runComposeUiTest {
         setContent {
             Dutch(paneWidth) {
-                WidgetsHeader(
-                    isReviewer = true,
-                    manage = ManageDecision.Allowed,
-                    onGallery = {},
-                    onSubmit = {},
-                    onReview = {},
-                    onRotateToken = {},
-                    onCreate = {},
-                )
+                Column {
+                    WidgetsHeader(
+                        manage = ManageDecision.Allowed,
+                        isEmpty = false,
+                        onGallery = {},
+                        onRotateToken = {},
+                        onCreate = {},
+                    )
+                    GalleryHeader(isReviewer = true, onSubmit = {}, onReview = {})
+                }
             }
         }
         waitForIdle()
-        for (label: String in actionLabels) {
+        for (label: String in actionLabels + galleryLabels) {
             val bounds: DpRect = onNodeWithText(label, useUnmergedTree = true).getUnclippedBoundsInRoot()
             val height: Dp = bounds.bottom - bounds.top
             assertTrue(height <= 24.dp, "${paneWidth}dp: \"$label\" wraps, it is $height tall (one line is at most 24dp)")
         }
-        val title: DpRect = onNodeWithText("Overlays", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val title: DpRect = onAllNodesWithText("Overlays", useUnmergedTree = true)[0].getUnclippedBoundsInRoot()
         val titleWidth: Dp = title.right - title.left
         assertTrue(titleWidth >= 80.dp, "${paneWidth}dp: the title is only $titleWidth wide")
     }

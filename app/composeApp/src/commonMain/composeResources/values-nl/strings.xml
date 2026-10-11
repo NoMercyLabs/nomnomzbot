@@ -183,6 +183,8 @@
     <string name="shell_nav_song_requests">Songverzoeken</string>
     <string name="shell_nav_tts">TTS</string>
     <string name="shell_nav_overlays">Overlays</string>
+    <string name="shell_nav_overlays_gallery">Galerij</string>
+    <string name="shell_nav_overlays_mine">Mijn overlays</string>
     <string name="shell_nav_alerts">Meldingenwachtrij</string>
     <string name="shell_nav_analytics">Statistieken</string>
     <string name="shell_nav_stream_info">Info &amp; presets</string>
@@ -1840,7 +1842,7 @@
     <string name="widgets_rollback_confirm">Terugdraaien</string>
     <string name="widgets_rollback_dismiss">Annuleren</string>
     <string name="widgets_gallery_action">Galerij bekijken</string>
-    <string name="widgets_gallery_title">Widgetgalerij</string>
+    <string name="widgets_gallery_subtitle">Bekijk kant-en-klare overlays en voeg ze toe aan je kanaal.</string>
     <string name="widgets_gallery_loading">Galerij laden…</string>
     <string name="widgets_gallery_empty">Geen galerijwidgets beschikbaar</string>
     <string name="widgets_gallery_search">Zoek op naam of omschrijving</string>
@@ -1848,7 +1850,6 @@
     <string name="widgets_gallery_load_more_error">Kon geen extra widgets laden: %1$s</string>
     <string name="widgets_gallery_retry">Probeer het opnieuw</string>
     <string name="widgets_gallery_error">Kon de galerij niet laden: %1$s</string>
-    <string name="widgets_gallery_close">Sluiten</string>
     <string name="widgets_gallery_filter_all">Alle</string>
     <string name="widgets_gallery_install_count">%1$s installaties</string>
     <string name="widgets_gallery_install_action">%1$s installeren</string>

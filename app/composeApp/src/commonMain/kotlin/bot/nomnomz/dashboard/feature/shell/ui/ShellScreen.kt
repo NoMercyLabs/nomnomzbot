@@ -145,6 +145,7 @@ import bot.nomnomz.dashboard.feature.songrequests.ui.SongRequestsScreen
 import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
 import bot.nomnomz.dashboard.feature.tts.ui.TtsScreen
 import bot.nomnomz.dashboard.feature.tts.ui.TtsSection
+import bot.nomnomz.dashboard.feature.widgets.ui.OverlaysSection
 import bot.nomnomz.dashboard.feature.widgets.ui.WidgetsScreen
 import bot.nomnomz.dashboard.feature.features.ui.FeaturesScreen
 import bot.nomnomz.dashboard.feature.webhooks.ui.WebhooksScreen
@@ -216,6 +217,8 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_stream_interactions
 import nomnomzbot.composeapp.generated.resources.shell_nav_assets
 import nomnomzbot.composeapp.generated.resources.shell_nav_sound
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
+import nomnomzbot.composeapp.generated.resources.shell_nav_overlays_gallery
+import nomnomzbot.composeapp.generated.resources.shell_nav_overlays_mine
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.shell_nav_pick_lists
 import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
@@ -832,12 +835,19 @@ private fun ShellContent(
                     hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.EventResponsesAlertQueue -> AlertsScreen(controller = graph.alertsController)
-            ShellRoute.Overlays ->
+            ShellRoute.OverlaysGallery,
+            ShellRoute.OverlaysMine ->
                 WidgetsScreen(
                     controller = graph.widgetsController,
                     role = role,
                     isReviewer = isReviewer,
                     hubEvents = graph.dashboardHubClient.events,
+                    section = if (selected == ShellRoute.OverlaysGallery) OverlaysSection.Gallery else OverlaysSection.Mine,
+                    onOpenSection = { target ->
+                        onNavigate(
+                            if (target == OverlaysSection.Gallery) ShellRoute.OverlaysGallery else ShellRoute.OverlaysMine
+                        )
+                    },
                 )
             ShellRoute.Features -> FeaturesScreen(
                     controller = graph.featuresController,
@@ -1664,7 +1674,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.LibrarySounds -> SoundClipsGlyph
         ShellRoute.LibraryFiles -> AssetsGlyph
         ShellRoute.TtsLive, ShellRoute.TtsVoices, ShellRoute.TtsRules, ShellRoute.TtsProvider -> TtsGlyph
-        ShellRoute.Overlays -> WidgetsGlyph
+        ShellRoute.OverlaysGallery, ShellRoute.OverlaysMine -> WidgetsGlyph
         ShellRoute.EventResponsesAlertQueue -> AlertsGlyph
         ShellRoute.StreamInfo, ShellRoute.StreamInteractions, ShellRoute.StreamSchedule -> TimersGlyph
         ShellRoute.Analytics -> AnalyticsGlyph
@@ -1718,7 +1728,8 @@ private fun ShellRoute.label(): String =
             ShellRoute.TtsVoices -> Res.string.shell_nav_tts_voices
             ShellRoute.TtsRules -> Res.string.shell_nav_tts_rules
             ShellRoute.TtsProvider -> Res.string.shell_nav_tts_provider
-            ShellRoute.Overlays -> Res.string.shell_nav_overlays
+            ShellRoute.OverlaysGallery -> Res.string.shell_nav_overlays_gallery
+            ShellRoute.OverlaysMine -> Res.string.shell_nav_overlays_mine
             ShellRoute.EventResponsesAlertQueue -> Res.string.shell_nav_alerts
             ShellRoute.Discord -> Res.string.shell_nav_discord
             ShellRoute.StreamInfo -> Res.string.shell_nav_stream_info

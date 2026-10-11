@@ -186,6 +186,8 @@
     <string name="shell_nav_song_requests">Song Requests</string>
     <string name="shell_nav_tts">TTS</string>
     <string name="shell_nav_overlays">Overlays</string>
+    <string name="shell_nav_overlays_gallery">Gallery</string>
+    <string name="shell_nav_overlays_mine">My overlays</string>
     <string name="shell_nav_alerts">Alert queue</string>
     <string name="shell_nav_analytics">Analytics</string>
     <string name="shell_nav_stream_info">Info &amp; presets</string>
@@ -1843,7 +1845,7 @@
     <string name="widgets_rollback_confirm">Roll back</string>
     <string name="widgets_rollback_dismiss">Cancel</string>
     <string name="widgets_gallery_action">Browse gallery</string>
-    <string name="widgets_gallery_title">Widget gallery</string>
+    <string name="widgets_gallery_subtitle">Browse ready-made overlays and add them to your channel.</string>
     <string name="widgets_gallery_loading">Loading the gallery…</string>
     <string name="widgets_gallery_empty">No gallery widgets available</string>
     <string name="widgets_gallery_search">Search by name or description</string>
@@ -1851,7 +1853,6 @@
     <string name="widgets_gallery_load_more_error">Could not load more widgets: %1$s</string>
     <string name="widgets_gallery_retry">Try again</string>
     <string name="widgets_gallery_error">Could not load the gallery: %1$s</string>
-    <string name="widgets_gallery_close">Close</string>
     <string name="widgets_gallery_filter_all">All</string>
     <string name="widgets_gallery_install_count">%1$s installs</string>
     <string name="widgets_gallery_install_action">Install %1$s</string>

@@ -320,7 +320,8 @@ class ShellNavTest {
         val commandsGroup: NavGroup = ShellNav.pages.first { it.route == ShellRoute.Commands }.group
 
         assertEquals(NavGroup.Build, commandsGroup)
-        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Overlays }.group)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.OverlaysGallery }.group)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.OverlaysMine }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Scripts }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Pipelines }.group)
     }
@@ -359,7 +360,8 @@ class ShellNavTest {
             ),
             liveRoutes,
         )
-        assertFalse(liveRoutes.contains(ShellRoute.Overlays))
+        assertFalse(liveRoutes.contains(ShellRoute.OverlaysGallery))
+        assertFalse(liveRoutes.contains(ShellRoute.OverlaysMine))
         assertFalse(liveRoutes.contains(ShellRoute.Scripts))
         assertFalse(liveRoutes.contains(ShellRoute.Pipelines))
     }
@@ -370,11 +372,15 @@ class ShellNavTest {
         // changes. Overlays keeps its Moderator-read/Editor-manage floor; Code Scripts keeps its
         // Broadcaster-only floor (a sandboxed code editor is not a Moderator-grade surface just because it
         // now sits beside Commands).
-        val widgets: NavPage = ShellNav.pages.first { it.route == ShellRoute.Overlays }
+        val widgetPages: List<NavPage> =
+            ShellNav.pages.filter { it.route == ShellRoute.OverlaysGallery || it.route == ShellRoute.OverlaysMine }
         val codeScripts: NavPage = ShellNav.pages.first { it.route == ShellRoute.Scripts }
 
-        assertEquals(ManagementRole.Moderator, widgets.readFloor)
-        assertEquals(ManagementRole.Editor, widgets.manageFloor)
+        assertEquals(2, widgetPages.size)
+        widgetPages.forEach { widgets ->
+            assertEquals(ManagementRole.Moderator, widgets.readFloor)
+            assertEquals(ManagementRole.Editor, widgets.manageFloor)
+        }
         // S-IA-MOD-FLOORS: the server floors code:script:author at Moderator, so the app shows it to a Moderator.
         assertEquals(ManagementRole.Moderator, codeScripts.readFloor)
         assertEquals(ManagementRole.Moderator, codeScripts.manageFloor)
@@ -382,7 +388,8 @@ class ShellNavTest {
         val moderatorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Moderator).map { it.route }.toSet()
         assertTrue(moderatorVisible.contains(ShellRoute.Scripts), "a Moderator clears code:script:author")
         val editorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Editor).map { it.route }.toSet()
-        assertTrue(editorVisible.contains(ShellRoute.Overlays), "an Editor must still see Overlays in its new group")
+        assertTrue(editorVisible.contains(ShellRoute.OverlaysGallery), "an Editor must still see the Overlays Gallery")
+        assertTrue(editorVisible.contains(ShellRoute.OverlaysMine), "an Editor must still see My overlays")
         assertTrue(editorVisible.contains(ShellRoute.Scripts))
     }
 
@@ -408,8 +415,8 @@ class ShellNavTest {
         // canManage is the actual consequence a screen renders (button enabled vs. disabled-with-reason) —
         // assert it, not just the raw manageFloor field, so a regression in canManage's own logic would fail
         // this test even if the floors above stayed correct.
-        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Overlays))
-        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Overlays), "Moderator is below Overlays' Editor manage floor")
+        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.OverlaysMine))
+        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.OverlaysMine), "Moderator is below Overlays' Editor manage floor")
         assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Scripts))
         assertFalse(ShellNav.canManage(null, ShellRoute.Scripts))
     }

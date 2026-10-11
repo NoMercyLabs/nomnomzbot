@@ -95,7 +95,8 @@ object ShellNav {
             NavPage(ShellRoute.TriggersTimers, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
             NavPage(ShellRoute.Pipelines, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "pipelines:read"),
             NavPage(ShellRoute.Scripts, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "code:script:author"),
-            NavPage(ShellRoute.Overlays, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
+            NavPage(ShellRoute.OverlaysGallery, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
+            NavPage(ShellRoute.OverlaysMine, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
             // Library: Sounds and Files share the sound-clip action pair (sounds:read / sounds:write).
             NavPage(ShellRoute.LibrarySounds, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
             NavPage(ShellRoute.LibraryFiles, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
@@ -167,7 +168,11 @@ object ShellNav {
                     .filter { it.group == group }
                     .groupBy { it.route.page }
                     .map { (page: ShellPage, routes: List<NavPage>) ->
-                        NavRow(page, routes.minBy { page.tabs.indexOf(it.route.tab).coerceAtLeast(0) }.route)
+                        NavRow(
+                            page,
+                            routes.firstOrNull { it.route == ShellRoute.defaultFor(page) }?.route
+                                ?: routes.minBy { page.tabs.indexOf(it.route.tab).coerceAtLeast(0) }.route,
+                        )
                     }
             if (rows.isEmpty()) null else NavSection(group, rows)
         }

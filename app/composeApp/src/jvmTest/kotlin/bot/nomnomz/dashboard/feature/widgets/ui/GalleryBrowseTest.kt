@@ -34,7 +34,7 @@ import kotlin.test.assertEquals
 // The gallery browse dialog must say what is happening: loading while a fetch runs, "empty" only after a
 // fetch that finished with nothing, and an inline error (with a retry) when "Load more" fails.
 @OptIn(ExperimentalTestApi::class)
-class GalleryBrowseDialogTest {
+class GalleryBrowseTest {
     private val firstItem = GalleryItemSummary(id = "g-1", name = "Alert box", framework = "vue")
     private val emptyText: String = "No gallery widgets available"
     private val loadingText: String = "Loading the gallery…"
@@ -45,12 +45,11 @@ class GalleryBrowseDialogTest {
         setContent {
             AppEnvironment(tag = "en") {
                 NomNomzTheme {
-                    GalleryBrowseDialog(
+                    GalleryBrowse(
                         manage = ManageDecision.Allowed,
                         loadGallery = loadGallery,
                         onInstall = { DialogResult.Done },
                         onClone = { DialogResult.Done },
-                        onDismiss = {},
                     )
                 }
             }

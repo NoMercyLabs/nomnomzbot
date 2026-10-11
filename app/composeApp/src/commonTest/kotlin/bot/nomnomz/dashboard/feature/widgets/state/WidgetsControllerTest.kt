@@ -1173,7 +1173,12 @@ internal class RecordingWidgetsApi(
         installedChannelId = channelId
         if (writeResult is ApiResult.Failure) return writeResult
         val widget =
-            WidgetSummary(id = "installed-$galleryItemId", name = "Gallery Widget", source = "verified_gallery")
+            WidgetSummary(
+                id = "installed-$galleryItemId",
+                name = "Gallery Widget",
+                source = "verified_gallery",
+                overlayUrl = "https://overlays.example/o/installed-$galleryItemId",
+            )
         store += widget
         return ApiResult.Ok(widget)
     }

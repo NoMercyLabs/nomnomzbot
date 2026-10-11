@@ -31,7 +31,8 @@ enum class ShellRoute(val page: ShellPage, val tab: String?) {
     LibraryRandomResponses(ShellPage.Library, "random-responses"),
     LibraryQuotes(ShellPage.Library, "quotes"),
     Pipelines(ShellPage.Pipelines, null),
-    Overlays(ShellPage.Overlays, null),
+    OverlaysGallery(ShellPage.Overlays, "gallery"),
+    OverlaysMine(ShellPage.Overlays, "my-overlays"),
     Scripts(ShellPage.Scripts, null),
     PeopleOverview(ShellPage.People, "overview"),
     PeopleQueue(ShellPage.People, "queue"),
@@ -76,8 +77,15 @@ enum class ShellRoute(val page: ShellPage, val tab: String?) {
         /** The route of [page] and [tab], or null when the page has no such tab. */
         fun of(page: ShellPage, tab: String?): ShellRoute? = entries.firstOrNull { it.page == page && it.tab == tab }
 
-        /** The route a page opens on: its first tab, or the page itself when it has none. */
-        fun defaultFor(page: ShellPage): ShellRoute = of(page, page.tabs.firstOrNull()) ?: error("no route for $page")
+        /**
+         * The route a page opens on: its first tab, or the page itself when it has none. Overlays opens My overlays
+         * instead: the route parser cannot know whether the streamer has an overlay, so it lands where the
+         * overlays are and the empty state there leads to the Gallery.
+         */
+        fun defaultFor(page: ShellPage): ShellRoute {
+            val landing: String? = if (page == ShellPage.Overlays) "my-overlays" else page.tabs.firstOrNull()
+            return of(page, landing) ?: error("no route for $page")
+        }
 
         /** The routes of a page's tabs, in the page's tab order. */
         fun tabsOf(page: ShellPage): List<ShellRoute> = page.tabs.mapNotNull { of(page, it) }
