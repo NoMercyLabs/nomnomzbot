@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 
@@ -71,7 +72,7 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
 
         return await _templates.ResolveAsync(
             template,
-            variables,
+            ChatMentionName.ForChat(variables),
             request.BroadcasterId,
             cancellationToken
         );

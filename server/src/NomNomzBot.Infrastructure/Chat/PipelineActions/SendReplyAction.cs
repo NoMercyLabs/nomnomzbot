@@ -57,7 +57,7 @@ public sealed class SendReplyAction : ICommandAction
         string resolved = PipelineChatLine.Cut(
             await _resolver.ResolveAsync(
                 template,
-                ctx.Variables,
+                ChatMentionName.ForChat(ctx.Variables),
                 ctx.BroadcasterId,
                 ctx.CancellationToken
             )

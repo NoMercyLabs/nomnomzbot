@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
@@ -180,7 +181,7 @@ public sealed class PlaylistAddAction : ICommandAction
     {
         string resolved = await _resolver.ResolveAsync(
             template,
-            seed,
+            ChatMentionName.ForChat(seed),
             ctx.BroadcasterId,
             ctx.CancellationToken
         );

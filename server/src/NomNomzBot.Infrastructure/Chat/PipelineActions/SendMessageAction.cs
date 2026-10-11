@@ -11,6 +11,7 @@
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.PipelineActions;
@@ -65,7 +66,7 @@ public sealed class SendMessageAction : ICommandAction
         string resolved = PipelineChatLine.Cut(
             await _resolver.ResolveAsync(
                 template,
-                ctx.Variables,
+                ChatMentionName.ForChat(ctx.Variables),
                 ctx.BroadcasterId,
                 ctx.CancellationToken
             )

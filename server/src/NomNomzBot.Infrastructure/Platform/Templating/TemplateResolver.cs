@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -142,6 +143,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
         // Resolve built-in variable groups lazily
         await ResolveBuiltInsAsync(vars, needed, broadcasterId, cancellationToken);
+
+        // A chat render names viewers by login when the display name would not link (non-Latin names).
+        if (ChatMentionName.IsChatRender(vars))
+            ChatMentionName.ApplyToVariables(vars);
 
         // Final substitution — a pronoun-grammar placeholder whose own first letter is uppercase
         // (e.g. {Subject}, {User.Subject}, {Target.GenderedTerm}) capitalizes the resolved value.

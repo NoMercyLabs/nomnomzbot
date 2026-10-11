@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
@@ -286,7 +287,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
 
         string message = await _templateResolver.ResolveAsync(
             messageTemplate,
-            variables,
+            ChatMentionName.ForChat(variables),
             broadcasterId,
             ct
         );

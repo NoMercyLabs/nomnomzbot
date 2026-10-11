@@ -572,7 +572,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
                 string resolved = await _templateResolver.ResolveAsync(
                     response,
-                    variables,
+                    ChatMentionName.ForChat(variables),
                     @event.BroadcasterId,
                     cancellationToken
                 );
@@ -1485,7 +1485,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         string resolved = await _templateResolver.ResolveAsync(
             trigger.Response,
-            variables,
+            ChatMentionName.ForChat(variables),
             @event.BroadcasterId,
             ct
         );

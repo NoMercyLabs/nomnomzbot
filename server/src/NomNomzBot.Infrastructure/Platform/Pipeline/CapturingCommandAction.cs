@@ -12,6 +12,7 @@ using System.Text.Json;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Infrastructure.TestRun;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -65,7 +66,7 @@ public sealed class CapturingCommandAction(
             {
                 string resolved = await resolver.ResolveAsync(
                     template,
-                    ctx.Variables,
+                    ChatMentionName.ForChat(ctx.Variables),
                     ctx.BroadcasterId,
                     ctx.CancellationToken
                 );
