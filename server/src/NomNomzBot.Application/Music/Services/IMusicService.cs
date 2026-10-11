@@ -185,6 +185,17 @@ public interface IMusicService
     );
 
     /// <summary>
+    /// Removes the request at <paramref name="position"/> and reads the provider's LIVE queue: when the
+    /// provider still lists the track (it has no remove call), the track is armed to be skipped as it starts.
+    /// Songs the streamer queued by hand are never touched.
+    /// </summary>
+    Task<RequestRetraction> RetractRequestAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Moves the queued item at <paramref name="position"/> to the front of the queue — a moderator's
     /// "play this one next" dashboard action. Returns false when there is no queue for the channel or
     /// <paramref name="position"/> is out of range.

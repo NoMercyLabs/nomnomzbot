@@ -1310,6 +1310,12 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<RequestRetraction> RetractRequestAsync(
+            string broadcasterId,
+            int position,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<Result> SeekAsync(
             string broadcasterId,
             int positionMs,

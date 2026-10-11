@@ -604,8 +604,8 @@ public sealed class MusicPipelineActionsTests
                 )
             );
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(
             music,
@@ -622,7 +622,7 @@ public sealed class MusicPipelineActionsTests
         result.Output.Should().Be("removed: First Pick");
         await music
             .Received(1)
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>());
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -650,7 +650,7 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Succeeded.Should().BeTrue();
-        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().RetractRequestAsync(default!, default);
     }
 
     [Fact]
@@ -676,7 +676,7 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Succeeded.Should().BeTrue();
-        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().RetractRequestAsync(default!, default);
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
@@ -695,8 +695,8 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, [new("Mine", "A", null, 100, "Bamo", 0, "P4XT")]));
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(
             music,
@@ -765,7 +765,7 @@ public sealed class MusicPipelineActionsTests
                 Arg.Any<CancellationToken>()
             );
         // Someone else's pending request must survive — undo affects the caller's track only.
-        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().RetractRequestAsync(default!, default);
     }
 
     [Fact]
@@ -876,8 +876,8 @@ public sealed class MusicPipelineActionsTests
                 )
             );
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(
             music,
@@ -913,8 +913,8 @@ public sealed class MusicPipelineActionsTests
                 )
             );
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 2, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 2, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(
             music,
@@ -932,11 +932,11 @@ public sealed class MusicPipelineActionsTests
         result.Output.Should().Be("removed: Newest Pick");
         await music
             .Received(1)
-            .RemoveFromQueueAsync(ChannelId.ToString(), 2, Arg.Any<CancellationToken>());
+            .RetractRequestAsync(ChannelId.ToString(), 2, Arg.Any<CancellationToken>());
         // Nobody else's request was touched.
         await music
             .DidNotReceive()
-            .RemoveFromQueueAsync(
+            .RetractRequestAsync(
                 ChannelId.ToString(),
                 Arg.Is<int>(p => p != 2),
                 Arg.Any<CancellationToken>()
@@ -975,7 +975,7 @@ public sealed class MusicPipelineActionsTests
         ctx.RepliedToChat.Should().BeTrue();
         await music
             .DidNotReceive()
-            .RemoveFromQueueAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+            .RetractRequestAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     // Legacy !wrongsong reply texts (WrongSong.cs), each addressed to the caller.
@@ -988,8 +988,8 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, [new("First Pick", "A", null, 100, "Bamo")]));
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(
             music,
@@ -1018,8 +1018,8 @@ public sealed class MusicPipelineActionsTests
                 new MusicQueue(null, [new("First Pick", "A", null, 100, "Bamo", InFlight: true)])
             );
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.RemovedWillSkip);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(
             music,
@@ -1268,8 +1268,8 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, [new("Mine", "A", null, 100, "Bamo", 0, "P4XT")]));
         music
-            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
-            .Returns(true);
+            .RetractRequestAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(RequestRetraction.Removed);
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(music, db, chat, NullLogger<SongWrongAction>.Instance);
 

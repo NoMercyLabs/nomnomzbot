@@ -1503,6 +1503,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string broadcasterId,
         int position,
         CancellationToken cancellationToken = default
+    ) =>
+        await RetractRequestAsync(broadcasterId, position, cancellationToken)
+        != RequestRetraction.NotRemoved;
+
+    public async Task<RequestRetraction> RetractRequestAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
     )
     {
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
@@ -1513,6 +1521,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 ? snapshotBeforeRemove[position].Item
                 : null;
         bool removed = queue is not null && queue.RemoveAt(position);
+        bool willSkip = false;
 
         if (removed)
         {
@@ -1522,16 +1531,29 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             // (never hand over a second one while something is in flight) blocks the whole queue forever,
             // with nothing left to ever clear it (SongRequestQueueReconciler only clears it by matching
             // this exact track against a real playback change, which never arrives for one removed here).
-            if (
+            bool wasInFlight =
                 removedEntry is not null
-                && ReferenceEquals(_queueStore.GetInFlight(broadcasterId), removedEntry)
-            )
+                && ReferenceEquals(_queueStore.GetInFlight(broadcasterId), removedEntry);
+            if (wasInFlight)
             {
                 _queueStore.SetInFlight(broadcasterId, null);
+            }
 
-                // Spotify cannot delete from its own queue, so the removed track still plays. Arm a
-                // marker; SongRetractionSkipHandler skips it the moment it starts.
-                _queueStore.ArmRetraction(broadcasterId, removedEntry.TrackUri);
+            // Spotify cannot delete from its own queue, so a removed track it still holds would play.
+            // Our in-flight pointer is only a belief about that (it is cleared by a restart, a false
+            // drop, a hand-over race), so Spotify's LIVE queue decides: arm a marker and
+            // SongRetractionSkipHandler skips exactly this track when it starts. Songs the streamer
+            // queued by hand are never touched.
+            if (removedEntry is not null)
+            {
+                willSkip = await IsHeldByProviderAsync(
+                    broadcasterId,
+                    removedEntry,
+                    wasInFlight,
+                    cancellationToken
+                );
+                if (willSkip)
+                    _queueStore.ArmRetraction(broadcasterId, removedEntry.TrackUri);
             }
 
             await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
@@ -1543,7 +1565,54 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             }
         }
 
-        return removed;
+        if (!removed)
+            return RequestRetraction.NotRemoved;
+
+        return willSkip ? RequestRetraction.RemovedWillSkip : RequestRetraction.Removed;
+    }
+
+    /// <summary>
+    /// Whether the provider still holds <paramref name="entry"/> in its own queue, read live. An in-flight
+    /// entry is held by definition; for anything else the provider's queue answers. When that queue cannot
+    /// be read the answer is "no" — nothing is armed on a guess, because a stray marker would skip a later
+    /// legitimate play of the same song.
+    /// </summary>
+    private async Task<bool> IsHeldByProviderAsync(
+        string broadcasterId,
+        SongRequestEntry entry,
+        bool wasInFlight,
+        CancellationToken cancellationToken
+    )
+    {
+        if (wasInFlight)
+            return true;
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return false;
+
+        try
+        {
+            IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+            IReadOnlyList<TrackInfo>? providerQueue = provider is null
+                ? null
+                : await provider.GetQueueAsync(tenantId, cancellationToken);
+            return providerQueue?.Any(t => IsSameTrack(t.TrackUri, entry.TrackUri)) == true;
+        }
+        catch (Exception ex)
+            when (ex
+                    is PremiumRequiredException
+                        or NoActiveDeviceException
+                        or MusicAuthenticationFailedException
+                        or MusicForbiddenException
+            )
+        {
+            _logger.LogWarning(
+                ex,
+                "Could not read the provider queue to retract '{Track}' for {BroadcasterId}.",
+                entry.TrackName,
+                broadcasterId
+            );
+            return false;
+        }
     }
 
     public async Task<bool> PromoteToTopAsync(

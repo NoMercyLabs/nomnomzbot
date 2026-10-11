@@ -143,18 +143,18 @@ public sealed class SongWrongAction : ICommandAction
                 StringComparison.OrdinalIgnoreCase
             );
 
-        bool removed = await _music.RemoveFromQueueAsync(
+        RequestRetraction retraction = await _music.RetractRequestAsync(
             broadcasterId,
             position,
             ctx.CancellationToken
         );
-        if (!removed)
+        if (retraction == RequestRetraction.NotRemoved)
             return ActionResult.Failure("failed to remove the request from the queue");
 
         await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
         await SendAsync(
             ctx,
-            item.InFlight
+            retraction == RequestRetraction.RemovedWillSkip
                 ? $"@{ctx.TriggeredByDisplayName} Will skip {item.TrackName} by {item.Artist} when it starts."
                 : $"@{ctx.TriggeredByDisplayName} Removed {item.TrackName} by {item.Artist} from the queue."
         );
