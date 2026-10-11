@@ -163,6 +163,7 @@ import nomnomzbot.composeapp.generated.resources.commands_dialog_shadow_warning_
 import nomnomzbot.composeapp.generated.resources.commands_dialog_shadow_warning_title
 import nomnomzbot.composeapp.generated.resources.commands_row_shadows_builtin
 import nomnomzbot.composeapp.generated.resources.commands_dialog_save
+import nomnomzbot.composeapp.generated.resources.commands_dialog_speak_with_tts
 import nomnomzbot.composeapp.generated.resources.commands_dialog_tier_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_user_cooldown_label
 import nomnomzbot.composeapp.generated.resources.commands_edit_action

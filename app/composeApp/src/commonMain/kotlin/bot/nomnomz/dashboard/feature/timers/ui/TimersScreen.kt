@@ -144,6 +144,7 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_create_n
 import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_new_name
 import nomnomzbot.composeapp.generated.resources.timers_dialog_name
 import nomnomzbot.composeapp.generated.resources.timers_dialog_save
+import nomnomzbot.composeapp.generated.resources.timers_dialog_speak_with_tts
 import nomnomzbot.composeapp.generated.resources.timers_disabled
 import nomnomzbot.composeapp.generated.resources.timers_edit
 import nomnomzbot.composeapp.generated.resources.timers_edit_action
