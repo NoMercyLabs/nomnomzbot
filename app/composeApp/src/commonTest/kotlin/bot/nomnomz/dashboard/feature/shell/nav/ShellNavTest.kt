@@ -76,12 +76,11 @@ class ShellNavTest {
         assertEquals(
             listOf(
                 NavGroup.Home,
-                NavGroup.Chat,
-                NavGroup.Moderation,
+                NavGroup.Live,
+                NavGroup.Build,
+                NavGroup.People,
                 NavGroup.Loyalty,
-                NavGroup.Music,
-                NavGroup.Stream,
-                NavGroup.Community,
+                NavGroup.MusicVoice,
                 NavGroup.Connect,
                 NavGroup.Setup,
             ),
@@ -283,23 +282,32 @@ class ShellNavTest {
     fun overlays_and_code_scripts_and_pipelines_share_the_commands_group() {
         val commandsGroup: NavGroup = ShellNav.pages.first { it.route == ShellRoute.Commands }.group
 
-        assertEquals(NavGroup.Chat, commandsGroup)
+        assertEquals(NavGroup.Build, commandsGroup)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Overlays }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Scripts }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Pipelines }.group)
     }
 
     @Test
-    fun stream_group_keeps_only_the_broadcast_facing_pages_after_the_reorg() {
-        val streamRoutes: Set<ShellRoute> = ShellNav.pages.filter { it.group == NavGroup.Stream }.map { it.route }.toSet()
+    fun live_group_holds_only_the_broadcast_facing_pages() {
+        val liveRoutes: Set<ShellRoute> = ShellNav.pages.filter { it.group == NavGroup.Live }.map { it.route }.toSet()
 
-        // Overlays, Code Scripts and Pipelines moved OUT — Stream is not merged away, it just sheds the
-        // build-workflow tools; Alerts/Schedule/Analytics stay exactly where they were (EventResponses already
-        // shipped under Chat before this reorg — untouched here, out of this slice's scope).
-        assertEquals(setOf(ShellRoute.EventResponsesAlerts, ShellRoute.StreamSchedule, ShellRoute.Analytics), streamRoutes)
-        assertFalse(streamRoutes.contains(ShellRoute.Overlays))
-        assertFalse(streamRoutes.contains(ShellRoute.Scripts))
-        assertFalse(streamRoutes.contains(ShellRoute.Pipelines))
+        // Live is what you use while the stream runs. The build-workflow tools sit in Build, and Alerts is an
+        // event-response tab, so none of them is in Live.
+        assertEquals(
+            setOf(
+                ShellRoute.ChatChannel,
+                ShellRoute.ChatAll,
+                ShellRoute.StreamSchedule,
+                ShellRoute.Obs,
+                ShellRoute.VtubeStudio,
+                ShellRoute.Analytics,
+            ),
+            liveRoutes,
+        )
+        assertFalse(liveRoutes.contains(ShellRoute.Overlays))
+        assertFalse(liveRoutes.contains(ShellRoute.Scripts))
+        assertFalse(liveRoutes.contains(ShellRoute.Pipelines))
     }
 
     @Test

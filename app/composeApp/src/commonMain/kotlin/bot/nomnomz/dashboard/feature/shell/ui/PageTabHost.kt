@@ -31,9 +31,10 @@ fun PageTabHost(
     label: @Composable (ShellRoute) -> String,
     onSelect: (ShellRoute) -> Unit,
     modifier: Modifier = Modifier,
+    isOpenable: (ShellRoute) -> Boolean = { true },
     content: @Composable (Modifier) -> Unit,
 ) {
-    val tabs: List<ShellRoute> = ShellRoute.tabsOf(selected.page)
+    val tabs: List<ShellRoute> = ShellRoute.tabsOf(selected.page).filter(isOpenable)
     if (tabs.size < 2) {
         content(modifier)
         return

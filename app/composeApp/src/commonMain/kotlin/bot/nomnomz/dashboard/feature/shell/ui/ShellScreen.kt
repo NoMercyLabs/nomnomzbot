@@ -151,8 +151,11 @@ import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.participant.ui.ParticipantShell
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.core.navigation.ShellPage
 import bot.nomnomz.dashboard.feature.shell.nav.NavGroup
 import bot.nomnomz.dashboard.feature.shell.nav.NavPage
+import bot.nomnomz.dashboard.feature.shell.nav.NavRow
+import bot.nomnomz.dashboard.feature.shell.nav.NavSection
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
@@ -165,15 +168,14 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
 import nomnomzbot.composeapp.generated.resources.language_system_default
-import nomnomzbot.composeapp.generated.resources.shell_group_chat
-import nomnomzbot.composeapp.generated.resources.shell_group_community
+import nomnomzbot.composeapp.generated.resources.shell_group_build
 import nomnomzbot.composeapp.generated.resources.shell_group_connect
 import nomnomzbot.composeapp.generated.resources.shell_group_home
+import nomnomzbot.composeapp.generated.resources.shell_group_live
 import nomnomzbot.composeapp.generated.resources.shell_group_loyalty
-import nomnomzbot.composeapp.generated.resources.shell_group_moderation
-import nomnomzbot.composeapp.generated.resources.shell_group_music
+import nomnomzbot.composeapp.generated.resources.shell_group_music_voice
+import nomnomzbot.composeapp.generated.resources.shell_group_people
 import nomnomzbot.composeapp.generated.resources.shell_group_setup
-import nomnomzbot.composeapp.generated.resources.shell_group_stream
 import nomnomzbot.composeapp.generated.resources.shell_hub_state_connected
 import nomnomzbot.composeapp.generated.resources.shell_hub_state_disconnected
 import nomnomzbot.composeapp.generated.resources.shell_hub_state_reconnecting
@@ -189,6 +191,11 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_voice_triggers
 import nomnomzbot.composeapp.generated.resources.shell_nav_commands
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
 import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
+import nomnomzbot.composeapp.generated.resources.shell_nav_gallery
+import nomnomzbot.composeapp.generated.resources.shell_nav_library
+import nomnomzbot.composeapp.generated.resources.shell_nav_people
+import nomnomzbot.composeapp.generated.resources.shell_nav_stream
+import nomnomzbot.composeapp.generated.resources.shell_nav_triggers_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_discord
 import nomnomzbot.composeapp.generated.resources.shell_nav_economy
 import nomnomzbot.composeapp.generated.resources.shell_nav_games
@@ -343,7 +350,9 @@ fun ShellScreen(
     val allowedRoutes: Set<ShellRoute> =
         remember(visiblePages, user?.isAdmin) {
             val visible: Set<ShellRoute> = visiblePages.map { it.route }.toSet()
-            if (user?.isAdmin == true) visible + ShellRoute.Admin else visible
+            // My data and Admin open from the profile menu: My data for everyone, Admin for platform admins.
+            val withMyData: Set<ShellRoute> = visible + ShellRoute.MyData
+            if (user?.isAdmin == true) withMyData + ShellRoute.Admin else withMyData
         }
     // The safe landing route when the requested one isn't allowed: Home when the caller can open it (every
     // Moderator+ can), else their first visible page — a VIP who only holds `commands:read` lands on Commands, not
@@ -491,6 +500,8 @@ fun ShellScreen(
         PageTabHost(
             selected = selected,
             label = { tab -> tab.label() },
+            // A tab this role cannot open (e.g. Roles for a moderator) is not offered.
+            isOpenable = { tab -> tab in allowedRoutes },
             onSelect = { requestedRoute = it },
             modifier = Modifier.weight(1f).fillMaxWidth(),
             content = pageContent,
@@ -858,10 +869,9 @@ private fun Sidebar(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    val visible: List<NavPage> = ShellNav.visiblePagesFor(role, heldActionKeys)
-    val groups: Map<NavGroup, List<NavPage>> =
-        visible.filter { it.group != NavGroup.Setup }.groupBy { it.group }
-    val pinned: List<NavPage> = visible.filter { it.group == NavGroup.Setup }
+    val sections: List<NavSection> = ShellNav.sidebarFor(role, heldActionKeys)
+    val groups: List<NavSection> = sections.filter { it.group != NavGroup.Setup }
+    val pinned: List<NavRow> = sections.filter { it.group == NavGroup.Setup }.flatMap { it.rows }
 
     Column(
         modifier = Modifier
@@ -894,14 +904,15 @@ private fun Sidebar(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
-            groups.forEach { (group, pages) ->
+            groups.forEach { section ->
+                val group: NavGroup = section.group
                 SidebarSection(
                     label = group.label(),
-                    pages = pages,
+                    rows = section.rows,
                     selected = selected,
                     expanded = sectionExpanded[group] ?: true,
                     onToggleExpanded =
-                        if (pages.size > 2) {
+                        if (section.rows.size > 2) {
                             { sectionExpanded[group] = !(sectionExpanded[group] ?: true) }
                         } else null,
                     onSelect = onSelect,
@@ -914,7 +925,7 @@ private fun Sidebar(
             Separator(modifier = Modifier.padding(vertical = spacing.s2))
             SidebarSection(
                 label = NavGroup.Setup.label(),
-                pages = pinned,
+                rows = pinned,
                 selected = selected,
                 // Setup is a rarely-touched config group — start it collapsed.
                 expanded = sectionExpanded[NavGroup.Setup] ?: false,
@@ -926,15 +937,12 @@ private fun Sidebar(
             )
         }
 
-        if (isAdmin) {
-            Separator(modifier = Modifier.padding(vertical = spacing.s2))
-            NavItem(route = ShellRoute.Admin, selected = ShellRoute.Admin == selected) { onSelect(ShellRoute.Admin) }
-        }
-
         Separator(modifier = Modifier.padding(top = spacing.s2, bottom = spacing.s2))
         ProfileBlock(
             user = user,
             role = role,
+            isAdmin = isAdmin,
+            onOpenRoute = onSelect,
             languageController = languageController,
             onLogout = onLogout,
             onReconnect = onReconnect,
@@ -1077,7 +1085,7 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
 @Composable
 private fun SidebarSection(
     label: String,
-    pages: List<NavPage>,
+    rows: List<NavRow>,
     selected: ShellRoute,
     expanded: Boolean,
     onToggleExpanded: (() -> Unit)?,
@@ -1114,14 +1122,14 @@ private fun SidebarSection(
                 modifier = Modifier.size(spacing.s4).rotate(chevronRotation),
             )
         }
-    } else if (pages.size > 1) {
+    } else if (rows.size > 1) {
         SidebarGroupLabel(label = label)
     }
-    // A single-entry group (Home, Moderation, Community) drops its label and shows just the page.
+    // A single-row group (Home, People) drops its label and shows just the page.
 
-    // Pages that belong to a titled group (collapsible header or plain label) are indented so they
-    // read as children of that header; a single-entry group's lone page stays at the root indent.
-    val hasHeader: Boolean = onToggleExpanded != null || pages.size > 1
+    // Rows that belong to a titled group (collapsible header or plain label) are indented so they
+    // read as children of that header; a single-row group's lone row stays at the root indent.
+    val hasHeader: Boolean = onToggleExpanded != null || rows.size > 1
 
     // shadcn Collapsible motion: a plain height expand/collapse — 200ms ease-out, no fade or spring.
     AnimatedVisibility(
@@ -1139,8 +1147,8 @@ private fun SidebarSection(
             modifier = if (hasHeader) Modifier.padding(start = spacing.s3) else Modifier,
             verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
-            pages.forEach { page ->
-                NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
+            rows.forEach { row ->
+                NavItem(row = row, selected = row.page == selected.page) { onSelect(row.route) }
             }
         }
     }
@@ -1165,7 +1173,7 @@ private fun SidebarGroupLabel(label: String) {
 }
 
 @Composable
-private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
+private fun NavItem(row: NavRow, selected: Boolean, onClick: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1187,9 +1195,9 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
             hovered -> tokens.sidebarAccentForeground
             else -> tokens.sidebarForeground
         }
-    // ShellRoute.label() is a total function over a closed enum (always a non-blank stringResource) —
+    // ShellPage.label() is a total function over a closed enum (always a non-blank stringResource) —
     // routed through a local val so it never renders through a raw property-chain assignment shape.
-    val routeLabel: String = route.label()
+    val pageLabel: String = row.page.label()
 
     Row(
         modifier = Modifier
@@ -1206,13 +1214,13 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Icon(
-            painter = painterResource(route.icon()),
+            painter = painterResource(row.route.icon()),
             contentDescription = null,
             tint = content,
             modifier = Modifier.size(spacing.s4),
         )
         Text(
-            text = routeLabel,
+            text = pageLabel,
             style = typography.sm,
             color = content,
             maxLines = 2,
@@ -1229,6 +1237,8 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
 private fun ProfileBlock(
     user: SessionUser?,
     role: ManagementRole?,
+    isAdmin: Boolean,
+    onOpenRoute: (ShellRoute) -> Unit,
     languageController: LanguageController,
     onLogout: () -> Unit,
     onReconnect: (() -> Unit)?,
@@ -1288,6 +1298,36 @@ private fun ProfileBlock(
             Column(modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2)) {
                 Text(text = name, style = typography.sm, color = tokens.popoverForeground)
                 Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
+            }
+            Separator()
+            // My data and Admin live here, not in the sidebar: they are about the person, not the channel.
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = ShellRoute.MyData.label(),
+                        style = typography.sm,
+                        color = tokens.popoverForeground,
+                    )
+                },
+                onClick = {
+                    open = false
+                    onOpenRoute(ShellRoute.MyData)
+                },
+            )
+            if (isAdmin) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = ShellRoute.Admin.label(),
+                            style = typography.sm,
+                            color = tokens.popoverForeground,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        onOpenRoute(ShellRoute.Admin)
+                    },
+                )
             }
             Separator()
             AppLanguage.entries.forEach { language ->
@@ -1660,19 +1700,61 @@ private fun ShellRoute.label(): String =
         }
     )
 
+// The sidebar row name of a page (one row per page; a page's tabs are named by [ShellRoute.label]).
+@Composable
+private fun ShellPage.label(): String =
+    stringResource(
+        when (this) {
+            ShellPage.Home -> Res.string.shell_nav_dashboard
+            ShellPage.Chat -> Res.string.shell_nav_chat
+            ShellPage.Commands -> Res.string.shell_nav_commands
+            ShellPage.TriggersTimers -> Res.string.shell_nav_triggers_timers
+            ShellPage.EventResponses -> Res.string.shell_nav_event_responses
+            ShellPage.Library -> Res.string.shell_nav_library
+            ShellPage.Pipelines -> Res.string.shell_nav_pipelines
+            ShellPage.Overlays -> Res.string.shell_nav_overlays
+            ShellPage.Scripts -> Res.string.shell_nav_code_scripts
+            ShellPage.People -> Res.string.shell_nav_people
+            ShellPage.ChannelPoints -> Res.string.shell_nav_rewards
+            ShellPage.Economy -> Res.string.shell_nav_economy
+            ShellPage.Games -> Res.string.shell_nav_games
+            ShellPage.Giveaways -> Res.string.shell_nav_giveaways
+            ShellPage.Music -> Res.string.shell_nav_music
+            ShellPage.Tts -> Res.string.shell_nav_tts
+            ShellPage.MediaShare -> Res.string.shell_nav_mediashare
+            ShellPage.Stream -> Res.string.shell_nav_stream
+            ShellPage.Analytics -> Res.string.shell_nav_analytics
+            ShellPage.Obs -> Res.string.shell_nav_obs
+            ShellPage.VtubeStudio -> Res.string.shell_nav_vts
+            ShellPage.Discord -> Res.string.shell_nav_discord
+            ShellPage.Webhooks -> Res.string.shell_nav_webhooks
+            ShellPage.Federation -> Res.string.shell_nav_federation
+            ShellPage.CustomEvents -> Res.string.shell_nav_custom_events
+            ShellPage.Supporters -> Res.string.shell_nav_supporters
+            ShellPage.ApiDevices -> Res.string.shell_nav_automation
+            ShellPage.Gallery -> Res.string.shell_nav_gallery
+            ShellPage.Integrations -> Res.string.shell_nav_integrations
+            ShellPage.Features -> Res.string.shell_nav_features
+            ShellPage.Settings -> Res.string.shell_nav_settings
+            ShellPage.MyData -> Res.string.shell_nav_mydata
+            ShellPage.Admin -> Res.string.shell_nav_admin
+        }
+    )
+
 @Composable
 private fun NavGroup.label(): String =
-    when (this) {
-        NavGroup.Home -> stringResource(Res.string.shell_group_home)
-        NavGroup.Chat -> stringResource(Res.string.shell_group_chat)
-        NavGroup.Moderation -> stringResource(Res.string.shell_group_moderation)
-        NavGroup.Loyalty -> stringResource(Res.string.shell_group_loyalty)
-        NavGroup.Music -> stringResource(Res.string.shell_group_music)
-        NavGroup.Stream -> stringResource(Res.string.shell_group_stream)
-        NavGroup.Community -> stringResource(Res.string.shell_group_community)
-        NavGroup.Connect -> stringResource(Res.string.shell_group_connect)
-        NavGroup.Setup -> stringResource(Res.string.shell_group_setup)
-    }
+    stringResource(
+        when (this) {
+            NavGroup.Home -> Res.string.shell_group_home
+            NavGroup.Live -> Res.string.shell_group_live
+            NavGroup.Build -> Res.string.shell_group_build
+            NavGroup.People -> Res.string.shell_group_people
+            NavGroup.Loyalty -> Res.string.shell_group_loyalty
+            NavGroup.MusicVoice -> Res.string.shell_group_music_voice
+            NavGroup.Connect -> Res.string.shell_group_connect
+            NavGroup.Setup -> Res.string.shell_group_setup
+        }
+    )
 
 @Composable
 private fun ManagementRole?.label(): String =

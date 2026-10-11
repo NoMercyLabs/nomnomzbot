@@ -157,15 +157,20 @@
     <string name="setup_field_youtube_clientId_label">Client ID</string>
     <string name="setup_field_youtube_clientSecret_label">Client Secret</string>
     <string name="shell_group_home">Home</string>
-    <string name="shell_group_chat">Chat</string>
-    <string name="shell_group_moderation">Moderation</string>
+    <string name="shell_group_live">Live</string>
+    <string name="shell_group_build">Build</string>
+    <string name="shell_group_people">People</string>
     <string name="shell_group_loyalty">Loyalty</string>
-    <string name="shell_group_music">Audio</string>
-    <string name="shell_group_stream">Stream</string>
-    <string name="shell_group_community">Community</string>
+    <string name="shell_group_music_voice">Music &amp; Voice</string>
     <string name="shell_group_connect">Connect</string>
     <string name="shell_group_setup">Setup</string>
-    <string name="shell_nav_dashboard">Dashboard</string>
+    <string name="shell_nav_dashboard">Home</string>
+    <string name="shell_nav_people">People</string>
+    <string name="shell_nav_stream">Stream</string>
+    <string name="shell_nav_library">Library</string>
+    <string name="shell_nav_gallery">Gallery</string>
+    <string name="shell_nav_triggers_timers">Triggers &amp; Timers</string>
+    <string name="shell_nav_roles_individual">Individual permissions</string>
     <string name="shell_nav_commands">Commands</string>
     <string name="shell_nav_chat_triggers">Chat Triggers</string>
     <string name="shell_nav_voice_triggers">Voice Triggers</string>
@@ -2171,9 +2176,9 @@
     <string name="multichat_ban_confirm">Ban</string>
     <string name="multichat_ban_dismiss">Cancel</string>
     <string name="shell_nav_quotes">Quotes</string>
-    <string name="shell_nav_pick_lists">Random Responses</string>
+    <string name="shell_nav_pick_lists">Random responses</string>
     <string name="shell_nav_discord">Discord</string>
-    <string name="shell_nav_roles">Roles &amp; permits</string>
+    <string name="shell_nav_roles">Roles</string>
     <string name="shell_nav_music">Music</string>
     <string name="shell_nav_pipelines">Pipelines</string>
 
@@ -3334,7 +3339,7 @@
     <string name="shell_nav_features">Features</string>
     <string name="shell_nav_webhooks">Webhooks</string>
     <string name="shell_nav_federation">Federation</string>
-    <string name="shell_nav_code_scripts">Code Scripts</string>
+    <string name="shell_nav_code_scripts">Scripts</string>
 
     <!-- Features page -->
     <string name="features_title">Features</string>
@@ -4408,7 +4413,7 @@
     <string name="feedback_asset_save_failed">Couldn't save the asset: %1$s</string>
 
     <!-- Custom Events -->
-    <string name="shell_nav_custom_events">Custom Data Sources</string>
+    <string name="shell_nav_custom_events">Custom Events</string>
     <string name="custom_events_subtitle">Connect external data feeds (heart rate, sensors, APIs) to pipeline triggers and template variables.</string>
     <string name="custom_events_loading">Loading data sources…</string>
     <string name="custom_events_empty">No custom data sources configured. Use a preset below or create one manually.</string>
@@ -4619,7 +4624,7 @@
     <!-- Connect group: OBS control, VTube Studio, Automation API -->
     <string name="shell_nav_obs">OBS</string>
     <string name="shell_nav_vts">VTube Studio</string>
-    <string name="shell_nav_automation">Automation API</string>
+    <string name="shell_nav_automation">API &amp; devices</string>
 
     <!-- OBS control page -->
     <string name="obs_subtitle">Connect OBS, control scenes, and manage the browser-source bridge.</string>

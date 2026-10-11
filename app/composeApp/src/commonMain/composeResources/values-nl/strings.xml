@@ -154,15 +154,20 @@
     <string name="setup_field_youtube_clientId_label">Client ID</string>
     <string name="setup_field_youtube_clientSecret_label">Client Secret</string>
     <string name="shell_group_home">Home</string>
-    <string name="shell_group_chat">Chat</string>
-    <string name="shell_group_moderation">Moderatie</string>
+    <string name="shell_group_live">Live</string>
+    <string name="shell_group_build">Bouwen</string>
+    <string name="shell_group_people">Mensen</string>
     <string name="shell_group_loyalty">Loyaliteit</string>
-    <string name="shell_group_music">Audio</string>
-    <string name="shell_group_stream">Stream</string>
-    <string name="shell_group_community">Community</string>
+    <string name="shell_group_music_voice">Muziek &amp; Stem</string>
     <string name="shell_group_connect">Verbinden</string>
     <string name="shell_group_setup">Configuratie</string>
-    <string name="shell_nav_dashboard">Dashboard</string>
+    <string name="shell_nav_dashboard">Home</string>
+    <string name="shell_nav_people">Mensen</string>
+    <string name="shell_nav_stream">Stream</string>
+    <string name="shell_nav_library">Bibliotheek</string>
+    <string name="shell_nav_gallery">Galerij</string>
+    <string name="shell_nav_triggers_timers">Triggers &amp; Timers</string>
+    <string name="shell_nav_roles_individual">Individuele rechten</string>
     <string name="shell_nav_commands">Commando's</string>
     <string name="shell_nav_chat_triggers">Chattriggers</string>
     <string name="shell_nav_voice_triggers">Stemtriggers</string>
@@ -2168,7 +2173,7 @@
     <string name="shell_nav_quotes">Quotes</string>
     <string name="shell_nav_pick_lists">Willekeurige antwoorden</string>
     <string name="shell_nav_discord">Discord</string>
-    <string name="shell_nav_roles">Rollen &amp; permits</string>
+    <string name="shell_nav_roles">Rollen</string>
     <string name="shell_nav_music">Muziek</string>
     <string name="shell_nav_pipelines">Pijplijnen</string>
 
@@ -3319,7 +3324,7 @@
     <string name="shell_nav_features">Functies</string>
     <string name="shell_nav_webhooks">Webhooks</string>
     <string name="shell_nav_federation">Federatie</string>
-    <string name="shell_nav_code_scripts">Codescripts</string>
+    <string name="shell_nav_code_scripts">Scripts</string>
 
     <!-- Features page -->
     <string name="features_title">Functies</string>
@@ -4392,7 +4397,7 @@
     <string name="feedback_asset_save_failed">Kon de asset niet opslaan: %1$s</string>
 
     <!-- Custom Events -->
-    <string name="shell_nav_custom_events">Aangepaste Databronnen</string>
+    <string name="shell_nav_custom_events">Aangepaste events</string>
     <string name="custom_events_subtitle">Verbind externe datafeeds (hartslag, sensoren, API's) met pipeline-triggers en sjabloonvariabelen.</string>
     <string name="custom_events_loading">Databronnen laden…</string>
     <string name="custom_events_empty">Geen aangepaste databronnen geconfigureerd. Gebruik een voorinstelling of maak er handmatig één aan.</string>
@@ -4603,7 +4608,7 @@
     <!-- Connect-groep: OBS-besturing, VTube Studio, Automation-API -->
     <string name="shell_nav_obs">OBS</string>
     <string name="shell_nav_vts">VTube Studio</string>
-    <string name="shell_nav_automation">Automation-API</string>
+    <string name="shell_nav_automation">API &amp; apparaten</string>
 
     <!-- OBS-besturingspagina -->
     <string name="obs_subtitle">Verbind OBS, wissel scènes en beheer de browserbron-bridge.</string>
