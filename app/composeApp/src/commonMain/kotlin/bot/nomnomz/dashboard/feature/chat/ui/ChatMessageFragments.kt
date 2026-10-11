@@ -84,7 +84,7 @@ internal fun FlowRowScope.ChatMessageFragments(
                 }
             }
             "mention" -> {
-                val mentionColor: Color = fragment.mention?.color?.toComposeColor() ?: tokens.primary
+                val mentionColor: Color = fragment.mention?.color?.toComposeColor() ?: tokens.mutedForeground
                 Text(
                     text = "@${fragment.mention?.displayName?.takeIf { it.isNotBlank() } ?: fragment.text.removePrefix("@")}",
                     style = typography.sm,
