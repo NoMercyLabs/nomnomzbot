@@ -47,10 +47,6 @@ new place: `ui-placement-ledger-2026-10-11.md`.
 Order: S-IA-SPEC first (Stoney's yes 2026-10-11: "if you are sure that this matches human psychology for dashboards then you have my clearance to execute"), then S-IA-ROUTES with S-IA-GUARD, then S-IA-NAV, then the lanes
 in parallel (at most 2 building), then the finishing slices. The KMP and scale slices run at any time.
 
-- **S-IA-ROUTES** The new page and tab list in the app router, the address `#/c/<login>/<page>[/<tab>]`,
-  replacing the previous routes outright: V0, no alias map and no redirect code (owner 2026-10-11: "and we are V0 so no backwards compattible bullshit tangled in the code").
-  Saved pins start from the role defaults. Done-when: a test opens every page and tab of the spec at its new
-  address, and a signed-in user keeps the session (no logout).
 - **S-IA-GUARD** A script that fails when a page or tab has no row in the placement ledger, or when a
   ledger row names a page with no route. It runs in slice-check for app slices. Done-when: the script
   fails on a planted unplaced page and passes on the real tree.
