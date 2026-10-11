@@ -21,6 +21,21 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-11 — log in by role, on every platform, with only the scopes that role needs
+
+Owner, verbatim: "We need a login as user, login as moderator and login as broadcaster for all platforms and require only the permissions needed at login time to execute on behalf of their role within the bot"
+
+Arc's reading (not settled):
+- Three sign-in choices on every platform (Twitch, Kick, YouTube, X Live): viewer, moderator, broadcaster.
+- Each choice asks the platform only for the scopes that role uses in the bot. A viewer grants identity only; a moderator grants the moderation scopes the bot uses on the moderator's behalf; a broadcaster grants the channel scopes.
+- A role change later (viewer made moderator) asks for the extra scopes in place, by the redirect flow, without a logout (rule never-logout-for-scope-or-schema-changes).
+
+### S-ROLE-LOGIN-SPEC — settle the role-based login spec before any code
+- **Input:** the scope inventory per platform and per role, built from the code (every scope the bot requests today, and every call that needs one, mapped to the role that triggers it).
+- **Done-when:** a spec page lists, per platform and role, the exact scope set with the bot feature that needs each scope, the sign-in screen, and the upgrade path between roles; Stoney accepts it.
+
+---
+
 ## OWNER REQUEST 2026-10-11 — UI restructure from the ground up, one-shot plan, and the KMP verdict
 
 Owner, verbatim: "cool, now that this research is done. i like you to do the same full deep research on restucturing and reorganizing the user interface from the ground up. all the features in the bot need to have a proper place and it must be prepared for so it can be executed in one shot without errors or contstant shuffling. i want all features to have a documented place in proper hirarchy, importance and organization by who uses it and so its ensured that everything is right in front of you when you need it the most or when you want to create some shenanigans on stream with all of its features. every viewer, mod and streamer differences all layed out. and then finally i want a verdict if kotlin multi platform still the right language and framework is for the goal of serving hundred thousands of users at once. do not leave a stone unturned and store everything you find along the way and give me a full report and plan at the end"
