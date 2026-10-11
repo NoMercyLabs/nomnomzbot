@@ -45,7 +45,7 @@ $worktree = $null
 
 if ($AtCommit) {
     $worktree = Join-Path $repo ".scratch/verify-tree-$AtCommit"
-    if (Test-Path $worktree) { git -C $repo worktree remove --force $worktree | Out-Null }
+    if (Test-Path $worktree) { & (Join-Path $PSScriptRoot 'remove-worktree.ps1') -Repo $repo $worktree | Out-Null }
     git -C $repo worktree add -f --detach $worktree $AtCommit | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "could not create a worktree at $AtCommit" }
     $root = $worktree
@@ -131,7 +131,7 @@ if ($IncludeApp -or $appChanged) {
     if ($bad -gt 0) { $failed = $true }
 }
 
-if ($worktree) { git -C $repo worktree remove --force $worktree | Out-Null }
+if ($worktree) { & (Join-Path $PSScriptRoot 'remove-worktree.ps1') -Repo $repo $worktree | Out-Null }
 
 if ($failed) { Write-Host ''; Write-Host 'TREE IS RED'; exit 1 }
 Write-Host ''

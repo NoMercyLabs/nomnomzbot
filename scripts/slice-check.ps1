@@ -296,5 +296,5 @@ try {
 }
 finally {
     Pop-Location
-    if ($worktree) { git -C $repo worktree remove --force $worktree }
+    if ($worktree) { & (Join-Path $PSScriptRoot 'remove-worktree.ps1') -Repo $repo $worktree }
 }
