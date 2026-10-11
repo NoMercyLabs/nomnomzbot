@@ -60,7 +60,7 @@ class TruncatedPrimaryLabelGuardTest {
             "home/ui/AttentionInbox.kt" to 1,
             "home/ui/HomeScreen.kt" to 2,
             "liveops/ui/ScheduleScreen.kt" to 1,
-            "mediashare/ui/MediaShareScreen.kt" to 1,
+            "mediashare/ui/MediaShareQueueScreen.kt" to 1,
             "moderation/ui/ModerationScreen.kt" to 6,
             // S-OBS-04: the request queue's blocked-track section (trackUri + reason, both secondary
             // reference text) moved to Song Requests — Music kept only its own now-playing card sites.

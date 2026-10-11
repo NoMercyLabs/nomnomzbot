@@ -112,7 +112,7 @@ class MediaShareConfigSaveWaitsTest {
         }
         androidx.compose.runtime.CompositionLocalProvider(LocalLifecycleOwner provides owner) {
             NomNomzTheme {
-                AppEnvironment("en") { MediaShareScreen(controller = controller, role = ManagementRole.Broadcaster) }
+                AppEnvironment("en") { MediaShareSettingsScreen(controller = controller, role = ManagementRole.Broadcaster) }
             }
         }
     }

@@ -118,7 +118,8 @@ import bot.nomnomz.dashboard.feature.supporters.ui.SupportersScreen
 import bot.nomnomz.dashboard.feature.obs.ui.ObsScreen
 import bot.nomnomz.dashboard.feature.vts.ui.VtsScreen
 import bot.nomnomz.dashboard.feature.automation.ui.AutomationScreen
-import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareScreen
+import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareQueueScreen
+import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareSettingsScreen
 import bot.nomnomz.dashboard.feature.mydata.ui.MyDataScreen
 import bot.nomnomz.dashboard.feature.bundles.ui.BundlesScreen
 import bot.nomnomz.dashboard.feature.gallery.ui.TemplatesScreen
@@ -226,6 +227,8 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.shell_nav_automation
+import nomnomzbot.composeapp.generated.resources.mediashare_config_title
+import nomnomzbot.composeapp.generated.resources.mediashare_queue_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_mediashare
 import nomnomzbot.composeapp.generated.resources.shell_nav_bundles
 import nomnomzbot.composeapp.generated.resources.shell_nav_templates
@@ -857,12 +860,14 @@ private fun ShellContent(
                 )
             ShellRoute.VtubeStudio -> VtsScreen(controller = graph.vtsController, role = role)
             ShellRoute.ApiDevices -> AutomationScreen(controller = graph.automationController, role = role)
-            ShellRoute.MediaShare ->
-                MediaShareScreen(
+            ShellRoute.MediaShareQueue ->
+                MediaShareQueueScreen(
                     controller = graph.mediaShareController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
+            ShellRoute.MediaShareSettings ->
+                MediaShareSettingsScreen(controller = graph.mediaShareController, role = role)
             ShellRoute.GalleryTemplates -> TemplatesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.GalleryBundles -> BundlesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
@@ -1668,7 +1673,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.Obs -> ObsGlyph
         ShellRoute.VtubeStudio -> VtsGlyph
         ShellRoute.ApiDevices -> AutomationGlyph
-        ShellRoute.MediaShare -> MediaShareGlyph
+        ShellRoute.MediaShareQueue, ShellRoute.MediaShareSettings -> MediaShareGlyph
         ShellRoute.GalleryTemplates -> TemplatesGlyph
         ShellRoute.GalleryBundles -> BundlesGlyph
         ShellRoute.MyData -> MyDataGlyph
@@ -1727,7 +1732,8 @@ private fun ShellRoute.label(): String =
             ShellRoute.Obs -> Res.string.shell_nav_obs
             ShellRoute.VtubeStudio -> Res.string.shell_nav_vts
             ShellRoute.ApiDevices -> Res.string.shell_nav_automation
-            ShellRoute.MediaShare -> Res.string.shell_nav_mediashare
+            ShellRoute.MediaShareQueue -> Res.string.mediashare_queue_title
+            ShellRoute.MediaShareSettings -> Res.string.mediashare_config_title
             ShellRoute.GalleryTemplates -> Res.string.shell_nav_templates
             ShellRoute.GalleryBundles -> Res.string.shell_nav_bundles
             ShellRoute.MyData -> Res.string.shell_nav_mydata

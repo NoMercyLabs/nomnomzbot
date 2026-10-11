@@ -514,9 +514,9 @@ class RowLabelWiredScreensTest {
                 secondaryB = null,
                 idB = "category-bbb",
             ),
-            // MediaShareScreen.kt RequestRow — secondary identity is the request's mediaRef.
+            // MediaShareQueueScreen.kt RequestRow — secondary identity is the request's mediaRef.
             WiredRowCase(
-                screen = "MediaShareScreen.request",
+                screen = "MediaShareQueueScreen.request",
                 typeLabel = "Clip",
                 secondaryA = "https://clip-aaa.example/watch",
                 idA = "request-aaa",

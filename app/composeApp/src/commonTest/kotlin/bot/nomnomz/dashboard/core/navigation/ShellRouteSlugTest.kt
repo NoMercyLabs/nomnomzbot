@@ -69,6 +69,19 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_media_share_page_has_queue_and_settings_tabs_and_the_page_slug_opens_queue() {
+        assertEquals(ShellRoute.MediaShareQueue, ShellRouteSlug.parse("media-share/queue"))
+        assertEquals(ShellRoute.MediaShareSettings, ShellRouteSlug.parse("media-share/settings"))
+        assertEquals(ShellRoute.MediaShareQueue, ShellRouteSlug.parse("media-share"))
+        assertEquals("media-share/queue", ShellRouteSlug.of(ShellRoute.MediaShareQueue))
+        assertEquals("media-share/settings", ShellRouteSlug.of(ShellRoute.MediaShareSettings))
+        assertEquals(
+            listOf(ShellRoute.MediaShareQueue, ShellRoute.MediaShareSettings),
+            ShellRoute.tabsOf(ShellPage.MediaShare),
+        )
+    }
+
+    @Test
     fun a_page_without_tabs_is_its_page_slug_alone() {
         assertEquals("home", ShellRouteSlug.of(ShellRoute.Home))
         assertEquals("commands", ShellRouteSlug.of(ShellRoute.Commands))

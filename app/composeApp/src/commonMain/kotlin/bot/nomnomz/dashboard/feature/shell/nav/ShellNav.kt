@@ -126,8 +126,10 @@ object ShellNav {
             NavPage(ShellRoute.TtsVoices, NavGroup.MusicVoice, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
             NavPage(ShellRoute.TtsRules, NavGroup.MusicVoice, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
             NavPage(ShellRoute.TtsProvider, NavGroup.MusicVoice, ManagementRole.Editor, ManagementRole.Editor, readActionKey = null),
-            // Media Share: mods read + moderate the viewer clip queue; the config write floors at Editor, gated inside.
-            NavPage(ShellRoute.MediaShare, NavGroup.MusicVoice, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),
+            // Media Share, Queue tab: mods read + moderate the viewer clip queue. Settings tab: mods read the config,
+            // the config write floors at Editor.
+            NavPage(ShellRoute.MediaShareQueue, NavGroup.MusicVoice, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),
+            NavPage(ShellRoute.MediaShareSettings, NavGroup.MusicVoice, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "media:read"),
             NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.LeadModerator, readActionKey = "discord:connection:read"),
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.CustomEvents, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),

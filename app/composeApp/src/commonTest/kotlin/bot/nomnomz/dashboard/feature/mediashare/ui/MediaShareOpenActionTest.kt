@@ -56,7 +56,7 @@ class MediaShareOpenActionTest {
             withLifecycle {
                 NomNomzTheme {
                     AppEnvironment("en") {
-                        MediaShareScreen(
+                        MediaShareQueueScreen(
                             controller = controller,
                             role = ManagementRole.Broadcaster,
                             onOpenMedia = { url -> opened.add(url) },
@@ -87,7 +87,7 @@ class MediaShareOpenActionTest {
             withLifecycle {
                 NomNomzTheme {
                     AppEnvironment("en") {
-                        MediaShareScreen(
+                        MediaShareQueueScreen(
                             controller = controller,
                             role = ManagementRole.Broadcaster,
                             onOpenMedia = { url -> opened.add(url) },

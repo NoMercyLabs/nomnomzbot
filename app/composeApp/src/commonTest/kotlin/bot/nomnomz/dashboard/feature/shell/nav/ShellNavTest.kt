@@ -194,9 +194,9 @@ class ShellNavTest {
                 ShellRoute.PeopleHistory,
                 ShellRoute.PeopleViewers,
                 ShellRoute.Giveaways,
-                // Media Share: the mod clip queue moderate actions floor at Moderator (media:moderate); the config
-                // card inside the page gates separately at Editor.
-                ShellRoute.MediaShare,
+                // Media Share: the mod clip queue moderate actions floor at Moderator (media:moderate); the
+                // Settings tab writes the config, which floors at Editor, so it is absent here.
+                ShellRoute.MediaShareQueue,
                 // S-IA-MOD-FLOORS: moderators manage stream and channel behaviors (the server floors these
                 // actions at Moderator): Code Scripts, Economy, Games, Music, Schedule and Bundles.
                 ShellRoute.Scripts,
