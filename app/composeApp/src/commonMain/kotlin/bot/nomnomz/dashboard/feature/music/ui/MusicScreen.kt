@@ -137,7 +137,7 @@ fun MusicScreen(
     // manage floor (frontend-ia.md §3). A caller below it sees now-playing and the queue but every
     // play/pause/skip/remove control renders disabled with "Requires Editor" (§7); the backend re-checks every
     // write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Music)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.MusicNowPlaying)
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {

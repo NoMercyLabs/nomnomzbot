@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -97,6 +98,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.di.AppGraph
 import bot.nomnomz.dashboard.core.navigation.RouteStore
+import bot.nomnomz.dashboard.core.navigation.ShellAddress
+import bot.nomnomz.dashboard.core.navigation.ShellRouteSlug
 import bot.nomnomz.dashboard.feature.alerts.ui.AlertsScreen
 import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
 import bot.nomnomz.dashboard.feature.chat.ui.ChatScreen
@@ -344,7 +347,7 @@ fun ShellScreen(
     // Moderator+ can), else their first visible page — a VIP who only holds `commands:read` lands on Commands, not
     // a Dashboard they can't read. [hasManagementAccess] guaranteed [visiblePages] is non-empty here.
     val fallbackRoute: ShellRoute =
-        if (ShellRoute.Dashboard in allowedRoutes) ShellRoute.Dashboard else visiblePages.first().route
+        if (ShellRoute.Home in allowedRoutes) ShellRoute.Home else visiblePages.first().route
 
     // [requestedRoute] is the raw navigation intent (URL-seeded, sidebar taps, browser Back/Forward); [selected] is
     // what actually renders — coerced to [fallbackRoute] whenever the intent sits on a page the caller can't read.
@@ -358,16 +361,31 @@ fun ShellScreen(
     val identityGeneration: Int by graph.sessionStore.identityGeneration.collectAsStateWithLifecycle()
     val actingAs: ImpersonationInfo? by graph.sessionStore.impersonating.collectAsStateWithLifecycle()
     val routeMemory: ShellRouteMemory =
-        remember(routeStore) { ShellRouteMemory(routeStore::initialRoute, routeStore::save, graph.sessionStore) }
-    var requestedRoute: ShellRoute by remember(identityGeneration) { mutableStateOf(routeMemory.openingRoute()) }
+        remember(routeStore) { ShellRouteMemory(routeStore::initialAddress, routeStore::save, graph.sessionStore) }
+    val openingAddress: ShellAddress = remember(identityGeneration) { routeMemory.openingAddress() }
+    var requestedRoute: ShellRoute by remember(identityGeneration) { mutableStateOf(openingAddress.route) }
     val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute
-    LaunchedEffect(selected, actingAs == null) { routeMemory.save(selected) }
+    // An address names its channel by login. The opening login is applied once the roster has loaded; until then
+    // nothing is saved, so the address bar keeps the login it was opened with.
+    val switcherState: SwitcherState by graph.channelSwitcherController.state.collectAsStateWithLifecycle()
+    var pendingLogin: String? by remember(identityGeneration) { mutableStateOf(openingAddress.login) }
+    LaunchedEffect(switcherState) {
+        if (switcherState !is SwitcherState.Loading) {
+            pendingLogin?.let { graph.channelSwitcherController.selectByLogin(it) }
+            pendingLogin = null
+        }
+    }
+    val activeLogin: String? =
+        (switcherState as? SwitcherState.Ready)?.channels?.firstOrNull { it.id == activeChannelId }?.login
+    LaunchedEffect(selected, actingAs == null, activeLogin, pendingLogin) {
+        if (pendingLogin == null) routeMemory.save(ShellAddress(login = activeLogin, route = selected))
+    }
     // The multi-watch page runs on a DEDICATED hub connection (see AppGraph). Open it (joining the active channel
     // as the socket-opening primary — the controller filters the feed to the channels actually watched) only while
     // that page is selected, and close it on leave so an idle session holds just the one shell socket.
     LaunchedEffect(selected, activeChannelId) {
         val url: String? = graph.sessionStore.baseUrl()
-        if (selected == ShellRoute.MultiChat && activeChannelId != null && url != null) {
+        if (selected == ShellRoute.ChatAll && activeChannelId != null && url != null) {
             graph.multiChatHubClient.connect(
                 url,
                 graph.sessionStore::accessToken,
@@ -379,7 +397,12 @@ fun ShellScreen(
         }
     }
     LaunchedEffect(routeStore) {
-        routeStore.externalChanges.collect { route -> routeMemory.externalMove(route)?.let { requestedRoute = it } }
+        routeStore.externalChanges.collect { address ->
+            routeMemory.externalMove(address)?.let { moved ->
+                moved.login?.let { graph.channelSwitcherController.selectByLogin(it) }
+                requestedRoute = moved.route
+            }
+        }
     }
     // Surface hub signals that affect the whole shell frame regardless of the active page.
     val hubEvents = graph.dashboardHubClient.events
@@ -450,6 +473,30 @@ fun ShellScreen(
     val hubConnectionState: HubConnectionState by
         graph.dashboardHubClient.connectionState.collectAsStateWithLifecycle()
 
+    // The page body, under the tab strip when the page has tabs (see [PageTabHost]).
+    val pageContent: @Composable (Modifier) -> Unit = { contentModifier ->
+        ShellContent(
+            selected = selected,
+            graph = graph,
+            role = role,
+            heldActionKeys = access.heldActionKeys,
+            isReviewer = user?.isAdmin == true,
+            onChannelDeleted = onLogout,
+            onReconnect = profileReconnect,
+            onNavigate = { requestedRoute = it },
+            modifier = contentModifier,
+        )
+    }
+    val pageHost: @Composable ColumnScope.() -> Unit = {
+        PageTabHost(
+            selected = selected,
+            label = { tab -> tab.label() },
+            onSelect = { requestedRoute = it },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            content = pageContent,
+        )
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         // Narrow OR short: a landscape phone is wide enough for the sidebar and far too short for it
         // (844 x 390), so height has to be part of the question or handsets get the monitor layout.
@@ -471,17 +518,7 @@ fun ShellScreen(
                 attentionSurface(
                     Modifier.fillMaxWidth().padding(horizontal = spacing.s6, vertical = spacing.s2)
                 )
-                ShellContent(
-                    selected = selected,
-                    graph = graph,
-                    role = role,
-                    heldActionKeys = access.heldActionKeys,
-                    isReviewer = user?.isAdmin == true,
-                    onChannelDeleted = onLogout,
-                    onReconnect = profileReconnect,
-                    onNavigate = { requestedRoute = it },
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                )
+                pageHost()
             }
 
             Sheet(
@@ -532,17 +569,7 @@ fun ShellScreen(
                     // No top bar on desktop: each screen renders its own PageHeader, so a shell-level
                     // title bar would just duplicate it. The hamburger-bearing bar exists only in the
                     // compact layout below (where the sidebar is a drawer).
-                    ShellContent(
-                        selected = selected,
-                        graph = graph,
-                        role = role,
-                        heldActionKeys = access.heldActionKeys,
-                        isReviewer = user?.isAdmin == true,
-                        onChannelDeleted = onLogout,
-                        onReconnect = profileReconnect,
-                        onNavigate = { requestedRoute = it },
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                    )
+                    pageHost()
                 }
             }
         }
@@ -600,7 +627,7 @@ private fun ShellContent(
         CompositionLocalProvider(LocalWindowSizeClass provides WindowSizeClass.of(maxWidth)) {
         Box(modifier = Modifier.fillMaxSize()) {
         when (selected) {
-            ShellRoute.Dashboard -> HomeScreen(
+            ShellRoute.Home -> HomeScreen(
                 controller = graph.homeController,
                 liveOpsController = graph.liveOpsController,
                 chatPollsController = graph.chatPollsController,
@@ -612,19 +639,19 @@ private fun ShellContent(
                 // moderation Review, first-run checklist steps, analytics "View all") silently did nothing
                 // (owner report 2026-09-10, via the unmanaged-rewards Review button). Unknown name -> no
                 // navigation, same "honest, no navigation over wrong navigation" rule attentionRouteFor uses.
-                onNavigate = { name -> ShellRoute.entries.firstOrNull { it.name == name }?.let(onNavigate) },
+                onNavigate = { slug -> ShellRouteSlug.find(slug)?.let(onNavigate) },
             )
-            ShellRoute.Chat -> ChatScreen(
+            ShellRoute.ChatChannel -> ChatScreen(
                 controller = graph.chatController,
                 role = role,
                 hubEvents = graph.dashboardHubClient.events,
             )
-            ShellRoute.MultiChat -> MultiChatScreen(
+            ShellRoute.ChatAll -> MultiChatScreen(
                 controller = graph.multiChatController,
                 role = role,
                 hubEvents = graph.multiChatHubClient.events,
             )
-            ShellRoute.Community ->
+            ShellRoute.PeopleViewers ->
                 CommunityScreen(
                     controller = graph.communityController,
                     profileController = graph.viewerProfileController,
@@ -639,23 +666,23 @@ private fun ShellContent(
                     repliesController = graph.builtinRepliesController,
                     detailController = graph.builtinDetailController,
                 )
-            ShellRoute.ChatTriggers ->
+            ShellRoute.TriggersChat ->
                 ChatTriggersScreen(controller = graph.chatTriggersController, role = role, templateHelpersApi = graph.templateHelpersApi)
-            ShellRoute.VoiceTriggers ->
+            ShellRoute.TriggersVoice ->
                 VoiceTriggersScreen(controller = graph.voiceTriggersController, role = role)
-            ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role, templateHelpersApi = graph.templateHelpersApi)
-            ShellRoute.Quotes -> QuotesScreen(
+            ShellRoute.EventResponsesResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role, templateHelpersApi = graph.templateHelpersApi)
+            ShellRoute.LibraryQuotes -> QuotesScreen(
                     controller = graph.quotesController,
                     heldActionKeys = heldActionKeys,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.PickLists ->
+            ShellRoute.LibraryRandomResponses ->
                 PickListsScreen(
                     controller = graph.pickListsController,
                     heldActionKeys = heldActionKeys,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.Timers -> TimersScreen(
+            ShellRoute.TriggersTimers -> TimersScreen(
                     controller = graph.timersController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
@@ -663,16 +690,16 @@ private fun ShellContent(
                 )
             // The four moderation pages are the SAME screen with a different active section: they read one
             // controller and one load, and only differ in which sections they render (see [ModerationSection]).
-            ShellRoute.Moderation,
-            ShellRoute.ModerationQueue,
-            ShellRoute.ModerationRules,
-            ShellRoute.ModerationHistory ->
+            ShellRoute.PeopleOverview,
+            ShellRoute.PeopleQueue,
+            ShellRoute.PeopleRules,
+            ShellRoute.PeopleHistory ->
                 ModerationScreen(
                     section =
                         when (selected) {
-                            ShellRoute.ModerationQueue -> ModerationSection.Queue
-                            ShellRoute.ModerationRules -> ModerationSection.Rules
-                            ShellRoute.ModerationHistory -> ModerationSection.History
+                            ShellRoute.PeopleQueue -> ModerationSection.Queue
+                            ShellRoute.PeopleRules -> ModerationSection.Rules
+                            ShellRoute.PeopleHistory -> ModerationSection.History
                             else -> ModerationSection.Desk
                         },
                     controller = graph.moderationController,
@@ -681,30 +708,30 @@ private fun ShellContent(
                     hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController, role = role)
-            ShellRoute.Rewards ->
+            ShellRoute.ChannelPoints ->
                 RewardsScreen(
                     controller = graph.rewardsController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                     templateHelpersApi = graph.templateHelpersApi,
                 )
-            ShellRoute.SongRequests ->
+            ShellRoute.MusicSongRequests ->
                 SongRequestsScreen(
                     controller = graph.songRequestsController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.Music ->
+            ShellRoute.MusicNowPlaying ->
                 MusicScreen(
                     controller = graph.musicController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                     onNavigateToIntegrations = { onNavigate(ShellRoute.Integrations) },
-                    onNavigateToSongRequests = { onNavigate(ShellRoute.SongRequests) },
+                    onNavigateToSongRequests = { onNavigate(ShellRoute.MusicSongRequests) },
                 )
-            ShellRoute.SoundClips ->
+            ShellRoute.LibrarySounds ->
                 SoundScreen(controller = graph.soundController, role = role)
-            ShellRoute.Assets ->
+            ShellRoute.LibraryFiles ->
                 AssetsScreen(controller = graph.assetsController, role = role)
             ShellRoute.Tts ->
                 TtsScreen(
@@ -728,11 +755,11 @@ private fun ShellContent(
                     // navigate the shell there, mirroring onNavigateToIntegrations above.
                     onOpenCodeScript = { scriptId ->
                         graph.codeScriptsController.requestOpen(scriptId)
-                        onNavigate(ShellRoute.CodeScripts)
+                        onNavigate(ShellRoute.Scripts)
                     },
                 )
-            ShellRoute.Schedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
-            ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
+            ShellRoute.StreamSchedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
+            ShellRoute.PeopleRoles -> RolesScreen(controller = graph.rolesController, role = role)
             ShellRoute.Integrations ->
                 IntegrationsScreen(
                     controller = graph.integrationsController,
@@ -758,8 +785,8 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)
-            ShellRoute.Widgets ->
+            ShellRoute.EventResponsesAlerts -> AlertsScreen(controller = graph.alertsController, role = role)
+            ShellRoute.Overlays ->
                 WidgetsScreen(
                     controller = graph.widgetsController,
                     role = role,
@@ -779,7 +806,7 @@ private fun ShellContent(
                     hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
-            ShellRoute.CodeScripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)
+            ShellRoute.Scripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)
             ShellRoute.CustomEvents -> CustomEventsScreen(controller = graph.customEventsController, role = role)
             ShellRoute.Supporters ->
                 SupportersScreen(controller = graph.supportersController, heldActionKeys = heldActionKeys)
@@ -790,15 +817,15 @@ private fun ShellContent(
                     hubEvents = graph.dashboardHubClient.events,
                     backendOrigin = graph.sessionStore.baseUrl(),
                 )
-            ShellRoute.Vts -> VtsScreen(controller = graph.vtsController, role = role)
-            ShellRoute.Automation -> AutomationScreen(controller = graph.automationController, role = role)
+            ShellRoute.VtubeStudio -> VtsScreen(controller = graph.vtsController, role = role)
+            ShellRoute.ApiDevices -> AutomationScreen(controller = graph.automationController, role = role)
             ShellRoute.MediaShare ->
                 MediaShareScreen(
                     controller = graph.mediaShareController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.Bundles -> BundlesScreen(controller = graph.bundlesController, role = role)
+            ShellRoute.GalleryBundles -> BundlesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
             ShellRoute.Admin -> AdminScreen(
                 controller = graph.adminController,
@@ -1527,49 +1554,49 @@ private fun HubDot(state: HubConnectionState) {
 
 private fun ShellRoute.icon(): DrawableResource =
     when (this) {
-        ShellRoute.Dashboard -> DashboardGlyph
-        ShellRoute.Chat -> ChatGlyph
-        ShellRoute.MultiChat -> CommunityGlyph
+        ShellRoute.Home -> DashboardGlyph
+        ShellRoute.ChatChannel -> ChatGlyph
+        ShellRoute.ChatAll -> CommunityGlyph
         ShellRoute.Commands -> CommandsGlyph
-        ShellRoute.ChatTriggers -> EventResponsesGlyph
-        ShellRoute.VoiceTriggers -> VoiceTriggersGlyph
-        ShellRoute.EventResponses -> EventResponsesGlyph
+        ShellRoute.TriggersChat -> EventResponsesGlyph
+        ShellRoute.TriggersVoice -> VoiceTriggersGlyph
+        ShellRoute.EventResponsesResponses -> EventResponsesGlyph
         ShellRoute.Pipelines -> PipelinesGlyph
-        ShellRoute.Timers -> TimersGlyph
-        ShellRoute.Quotes -> QuotesGlyph
-        ShellRoute.PickLists -> PickListsGlyph
-        ShellRoute.CodeScripts -> CodeScriptsGlyph
-        ShellRoute.Moderation -> ModerationGlyph
-        ShellRoute.ModerationQueue -> ModerationQueueGlyph
-        ShellRoute.ModerationRules -> ModerationRulesGlyph
-        ShellRoute.ModerationHistory -> ModerationHistoryGlyph
-        ShellRoute.Rewards -> RewardsGlyph
+        ShellRoute.TriggersTimers -> TimersGlyph
+        ShellRoute.LibraryQuotes -> QuotesGlyph
+        ShellRoute.LibraryRandomResponses -> PickListsGlyph
+        ShellRoute.Scripts -> CodeScriptsGlyph
+        ShellRoute.PeopleOverview -> ModerationGlyph
+        ShellRoute.PeopleQueue -> ModerationQueueGlyph
+        ShellRoute.PeopleRules -> ModerationRulesGlyph
+        ShellRoute.PeopleHistory -> ModerationHistoryGlyph
+        ShellRoute.ChannelPoints -> RewardsGlyph
         ShellRoute.Economy -> EconomyGlyph
         ShellRoute.Games -> GamesGlyph
         ShellRoute.Giveaways -> GiveawaysGlyph
-        ShellRoute.Music -> MusicGlyph
-        ShellRoute.SongRequests -> SongRequestsGlyph
-        ShellRoute.SoundClips -> SoundClipsGlyph
-        ShellRoute.Assets -> AssetsGlyph
+        ShellRoute.MusicNowPlaying -> MusicGlyph
+        ShellRoute.MusicSongRequests -> SongRequestsGlyph
+        ShellRoute.LibrarySounds -> SoundClipsGlyph
+        ShellRoute.LibraryFiles -> AssetsGlyph
         ShellRoute.Tts -> TtsGlyph
-        ShellRoute.Widgets -> WidgetsGlyph
-        ShellRoute.Alerts -> AlertsGlyph
-        ShellRoute.Schedule -> TimersGlyph
+        ShellRoute.Overlays -> WidgetsGlyph
+        ShellRoute.EventResponsesAlerts -> AlertsGlyph
+        ShellRoute.StreamSchedule -> TimersGlyph
         ShellRoute.Analytics -> AnalyticsGlyph
-        ShellRoute.Community -> CommunityGlyph
+        ShellRoute.PeopleViewers -> CommunityGlyph
         ShellRoute.Discord -> DiscordGlyph
         ShellRoute.Integrations -> IntegrationsGlyph
-        ShellRoute.Roles -> RolesGlyph
+        ShellRoute.PeopleRoles -> RolesGlyph
         ShellRoute.Features -> FeaturesGlyph
         ShellRoute.Webhooks -> WebhooksGlyph
         ShellRoute.Federation -> FederationGlyph
         ShellRoute.CustomEvents -> CustomEventsGlyph
         ShellRoute.Supporters -> SupportersGlyph
         ShellRoute.Obs -> ObsGlyph
-        ShellRoute.Vts -> VtsGlyph
-        ShellRoute.Automation -> AutomationGlyph
+        ShellRoute.VtubeStudio -> VtsGlyph
+        ShellRoute.ApiDevices -> AutomationGlyph
         ShellRoute.MediaShare -> MediaShareGlyph
-        ShellRoute.Bundles -> BundlesGlyph
+        ShellRoute.GalleryBundles -> BundlesGlyph
         ShellRoute.MyData -> MyDataGlyph
         ShellRoute.Settings -> SettingsGlyph
         ShellRoute.Admin -> AdminGlyph
@@ -1579,50 +1606,50 @@ private fun ShellRoute.icon(): DrawableResource =
 private fun ShellRoute.label(): String =
     stringResource(
         when (this) {
-            ShellRoute.Dashboard -> Res.string.shell_nav_dashboard
-            ShellRoute.Chat -> Res.string.shell_nav_chat
-            ShellRoute.MultiChat -> Res.string.shell_nav_multichat
+            ShellRoute.Home -> Res.string.shell_nav_dashboard
+            ShellRoute.ChatChannel -> Res.string.shell_nav_chat
+            ShellRoute.ChatAll -> Res.string.shell_nav_multichat
             ShellRoute.Commands -> Res.string.shell_nav_commands
-            ShellRoute.ChatTriggers -> Res.string.shell_nav_chat_triggers
-            ShellRoute.VoiceTriggers -> Res.string.shell_nav_voice_triggers
-            ShellRoute.EventResponses -> Res.string.shell_nav_event_responses
-            ShellRoute.Quotes -> Res.string.shell_nav_quotes
-            ShellRoute.PickLists -> Res.string.shell_nav_pick_lists
-            ShellRoute.Timers -> Res.string.shell_nav_timers
-            ShellRoute.Moderation -> Res.string.shell_nav_moderation
-            ShellRoute.ModerationQueue -> Res.string.shell_nav_moderation_queue
-            ShellRoute.ModerationRules -> Res.string.shell_nav_moderation_rules
-            ShellRoute.ModerationHistory -> Res.string.shell_nav_moderation_history
-            ShellRoute.Rewards -> Res.string.shell_nav_rewards
+            ShellRoute.TriggersChat -> Res.string.shell_nav_chat_triggers
+            ShellRoute.TriggersVoice -> Res.string.shell_nav_voice_triggers
+            ShellRoute.EventResponsesResponses -> Res.string.shell_nav_event_responses
+            ShellRoute.LibraryQuotes -> Res.string.shell_nav_quotes
+            ShellRoute.LibraryRandomResponses -> Res.string.shell_nav_pick_lists
+            ShellRoute.TriggersTimers -> Res.string.shell_nav_timers
+            ShellRoute.PeopleOverview -> Res.string.shell_nav_moderation
+            ShellRoute.PeopleQueue -> Res.string.shell_nav_moderation_queue
+            ShellRoute.PeopleRules -> Res.string.shell_nav_moderation_rules
+            ShellRoute.PeopleHistory -> Res.string.shell_nav_moderation_history
+            ShellRoute.ChannelPoints -> Res.string.shell_nav_rewards
             ShellRoute.Economy -> Res.string.shell_nav_economy
             ShellRoute.Games -> Res.string.shell_nav_games
             ShellRoute.Giveaways -> Res.string.shell_nav_giveaways
-            ShellRoute.SongRequests -> Res.string.shell_nav_song_requests
-            ShellRoute.Music -> Res.string.shell_nav_music
-            ShellRoute.SoundClips -> Res.string.shell_nav_sound
-            ShellRoute.Assets -> Res.string.shell_nav_assets
+            ShellRoute.MusicSongRequests -> Res.string.shell_nav_song_requests
+            ShellRoute.MusicNowPlaying -> Res.string.shell_nav_music
+            ShellRoute.LibrarySounds -> Res.string.shell_nav_sound
+            ShellRoute.LibraryFiles -> Res.string.shell_nav_assets
             ShellRoute.Tts -> Res.string.shell_nav_tts
-            ShellRoute.Widgets -> Res.string.shell_nav_overlays
-            ShellRoute.Alerts -> Res.string.shell_nav_alerts
+            ShellRoute.Overlays -> Res.string.shell_nav_overlays
+            ShellRoute.EventResponsesAlerts -> Res.string.shell_nav_alerts
             ShellRoute.Discord -> Res.string.shell_nav_discord
-            ShellRoute.Schedule -> Res.string.shell_nav_schedule
+            ShellRoute.StreamSchedule -> Res.string.shell_nav_schedule
             ShellRoute.Analytics -> Res.string.shell_nav_analytics
             ShellRoute.Pipelines -> Res.string.shell_nav_pipelines
-            ShellRoute.Community -> Res.string.shell_nav_community
-            ShellRoute.Roles -> Res.string.shell_nav_roles
+            ShellRoute.PeopleViewers -> Res.string.shell_nav_community
+            ShellRoute.PeopleRoles -> Res.string.shell_nav_roles
             ShellRoute.Integrations -> Res.string.shell_nav_integrations
             ShellRoute.Settings -> Res.string.shell_nav_settings
             ShellRoute.Features -> Res.string.shell_nav_features
             ShellRoute.Webhooks -> Res.string.shell_nav_webhooks
             ShellRoute.Federation -> Res.string.shell_nav_federation
-            ShellRoute.CodeScripts -> Res.string.shell_nav_code_scripts
+            ShellRoute.Scripts -> Res.string.shell_nav_code_scripts
             ShellRoute.CustomEvents -> Res.string.shell_nav_custom_events
             ShellRoute.Supporters -> Res.string.shell_nav_supporters
             ShellRoute.Obs -> Res.string.shell_nav_obs
-            ShellRoute.Vts -> Res.string.shell_nav_vts
-            ShellRoute.Automation -> Res.string.shell_nav_automation
+            ShellRoute.VtubeStudio -> Res.string.shell_nav_vts
+            ShellRoute.ApiDevices -> Res.string.shell_nav_automation
             ShellRoute.MediaShare -> Res.string.shell_nav_mediashare
-            ShellRoute.Bundles -> Res.string.shell_nav_bundles
+            ShellRoute.GalleryBundles -> Res.string.shell_nav_bundles
             ShellRoute.MyData -> Res.string.shell_nav_mydata
             ShellRoute.Admin -> Res.string.shell_nav_admin
         }

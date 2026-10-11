@@ -179,7 +179,7 @@ fun TimersScreen(
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Timers)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.TriggersTimers)
 
     LaunchedEffect(Unit) { controller.load() }
 

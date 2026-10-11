@@ -12,33 +12,29 @@ package bot.nomnomz.dashboard.core.navigation
 
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 
-// The single source of truth mapping each [ShellRoute] to the URL slug that survives a web reload (see
-// [RouteStore]). Slugs are an internal, machine-stable contract — never user-facing copy — so they derive
-// deterministically from the route's enum name (lower-cased) rather than a localized label, which keeps the
-// mapping exhaustive for FREE as new routes are added to the enum (no per-route line to forget).
-//
-// Two invariants the round-trip relies on, both proven in ShellRouteSlugTest:
-//   - every slug is unique (the enum names are, lower-casing preserves that), so a slug resolves to one route;
-//   - the landing page [ShellRoute.Dashboard] also answers to the EMPTY slug, so a bare `#/` (or no hash at
-//     all) lands on the dashboard — the same default the shell starts from.
+// The single source of truth mapping each [ShellRoute] to the address slug that survives a web reload (see
+// [RouteStore]): `<page>` for a page without tabs, `<page>/<tab>` for a page with tabs. A page slug alone names
+// the first tab of that page. Slugs are an internal, machine-stable contract, never user-facing copy.
+// Nothing here knows an older address: an address that names no current page is simply unknown.
 object ShellRouteSlug {
 
-    /** The slug written to the URL for [route] — its lower-cased enum name (e.g. SongRequests -> "songrequests"). */
-    fun of(route: ShellRoute): String = route.name.lowercase()
-
-    /**
-     * The route a slug names, or [ShellRoute.Dashboard] when the slug is blank or matches nothing — so an empty
-     * `#/`, a stale slug from a removed route, or a typo all fall back to the landing page instead of failing.
-     */
-    fun parse(slug: String): ShellRoute {
-        val normalized: String = slug.trim().lowercase()
-        if (normalized.isEmpty()) return ShellRoute.Dashboard
-        return BY_SLUG[normalized] ?: ShellRoute.Dashboard
+    /** The slug written to the address for [route]; the tab is always written when the page has tabs. */
+    fun of(route: ShellRoute): String {
+        val tab: String? = route.tab
+        return if (tab == null) route.page.slug else "${route.page.slug}/$tab"
     }
 
-    /** The route a slug names, or null when it names none — for callers where a fallback page would be wrong. */
-    fun find(slug: String): ShellRoute? = BY_SLUG[slug.trim().lowercase()]
+    /** The route a slug names, or [ShellRoute.Home] when the slug is blank or names no page or tab. */
+    fun parse(slug: String): ShellRoute = find(slug) ?: ShellRoute.Home
 
-    private val BY_SLUG: Map<String, ShellRoute> =
-        ShellRoute.entries.associateBy { route -> of(route) }
+    /** The route a slug names, or null when it names none, for callers where a fallback page would be wrong. */
+    fun find(slug: String): ShellRoute? {
+        val segments: List<String> = slug.trim().trim('/').lowercase().split('/')
+        val page: ShellPage = ShellPage.entries.firstOrNull { it.slug == segments.first() } ?: return null
+        return when (segments.size) {
+            1 -> ShellRoute.defaultFor(page)
+            2 -> ShellRoute.of(page, segments[1])
+            else -> null
+        }
+    }
 }

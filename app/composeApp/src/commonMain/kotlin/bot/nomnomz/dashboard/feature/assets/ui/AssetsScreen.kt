@@ -95,7 +95,7 @@ fun AssetsScreen(controller: AssetsController, role: ManagementRole?) {
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Assets)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.LibraryFiles)
 
     var deleteTarget: ChannelAsset? by remember { mutableStateOf(null) }
 

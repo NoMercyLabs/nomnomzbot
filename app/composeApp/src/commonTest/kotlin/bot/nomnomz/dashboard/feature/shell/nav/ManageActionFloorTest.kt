@@ -26,17 +26,17 @@ class ManageActionFloorTest {
     @Test
     fun reward_lifecycle_needs_broadcaster_even_though_the_page_manages_at_editor() {
         // The page floor is Editor (an Editor can edit/toggle a reward)...
-        assertEquals(ManagementRole.Editor, ShellNav.manageFloorFor(ShellRoute.Rewards, ManageAction.Default))
+        assertEquals(ManagementRole.Editor, ShellNav.manageFloorFor(ShellRoute.ChannelPoints, ManageAction.Default))
         // ...but creating/deleting a reward is a Broadcaster-only lifecycle action.
         assertEquals(
             ManagementRole.Broadcaster,
-            ShellNav.manageFloorFor(ShellRoute.Rewards, ManageAction.RewardLifecycle),
+            ShellNav.manageFloorFor(ShellRoute.ChannelPoints, ManageAction.RewardLifecycle),
         )
 
         // An Editor may edit/toggle but NOT create/delete; a Broadcaster may do both.
-        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Rewards, ManageAction.Default))
-        assertFalse(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Rewards, ManageAction.RewardLifecycle))
-        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Rewards, ManageAction.RewardLifecycle))
+        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.ChannelPoints, ManageAction.Default))
+        assertFalse(ShellNav.canManage(ManagementRole.Editor, ShellRoute.ChannelPoints, ManageAction.RewardLifecycle))
+        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.ChannelPoints, ManageAction.RewardLifecycle))
     }
 
     // ── Economy: payout/earn rules = Broadcaster, the rest of the editor = Editor ────────────────────────────
@@ -58,16 +58,16 @@ class ManageActionFloorTest {
 
     @Test
     fun song_queue_moderation_drops_to_moderator_below_the_editor_page_floor() {
-        assertEquals(ManagementRole.Editor, ShellNav.manageFloorFor(ShellRoute.SongRequests, ManageAction.Default))
+        assertEquals(ManagementRole.Editor, ShellNav.manageFloorFor(ShellRoute.MusicSongRequests, ManageAction.Default))
         assertEquals(
             ManagementRole.Moderator,
-            ShellNav.manageFloorFor(ShellRoute.SongRequests, ManageAction.SongQueueModeration),
+            ShellNav.manageFloorFor(ShellRoute.MusicSongRequests, ManageAction.SongQueueModeration),
         )
 
         // A Mod cannot reach the page's Editor-floored config, but CAN moderate the live queue (skip/remove).
-        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.SongRequests, ManageAction.Default))
+        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.MusicSongRequests, ManageAction.Default))
         assertTrue(
-            ShellNav.canManage(ManagementRole.Moderator, ShellRoute.SongRequests, ManageAction.SongQueueModeration),
+            ShellNav.canManage(ManagementRole.Moderator, ShellRoute.MusicSongRequests, ManageAction.SongQueueModeration),
         )
     }
 
@@ -90,7 +90,7 @@ class ManageActionFloorTest {
         ShellNav.pages.forEach { page ->
             assertFalse(ShellNav.canManage(null, page.route, ManageAction.Default))
         }
-        assertFalse(ShellNav.canManage(null, ShellRoute.Rewards, ManageAction.RewardLifecycle))
-        assertFalse(ShellNav.canManage(null, ShellRoute.SongRequests, ManageAction.SongQueueModeration))
+        assertFalse(ShellNav.canManage(null, ShellRoute.ChannelPoints, ManageAction.RewardLifecycle))
+        assertFalse(ShellNav.canManage(null, ShellRoute.MusicSongRequests, ManageAction.SongQueueModeration))
     }
 }

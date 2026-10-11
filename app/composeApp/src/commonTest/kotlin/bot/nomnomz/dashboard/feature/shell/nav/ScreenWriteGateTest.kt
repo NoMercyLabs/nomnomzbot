@@ -44,19 +44,19 @@ class ScreenWriteGateTest {
     fun an_editor_on_rewards_can_edit_and_toggle_but_not_create_or_delete() {
         // The exact split the brief calls out: edit = Editor, create/delete = Broadcaster.
         assertTrue(
-            ShellNav.canManage(ManagementRole.Editor, ShellRoute.Rewards, ManageAction.Default),
+            ShellNav.canManage(ManagementRole.Editor, ShellRoute.ChannelPoints, ManageAction.Default),
             "an Editor must be able to edit/toggle a reward",
         )
         assertFalse(
-            ShellNav.canManage(ManagementRole.Editor, ShellRoute.Rewards, ManageAction.RewardLifecycle),
+            ShellNav.canManage(ManagementRole.Editor, ShellRoute.ChannelPoints, ManageAction.RewardLifecycle),
             "create/delete a reward is Broadcaster-only — disabled for an Editor",
         )
     }
 
     @Test
     fun a_broadcaster_on_rewards_has_every_write_control_enabled() {
-        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Rewards, ManageAction.Default))
-        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Rewards, ManageAction.RewardLifecycle))
+        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.ChannelPoints, ManageAction.Default))
+        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.ChannelPoints, ManageAction.RewardLifecycle))
     }
 
     // ── Song Requests (Music group) — config at Editor, queue moderation drops to Moderator ──────────────────
@@ -64,11 +64,11 @@ class ScreenWriteGateTest {
     @Test
     fun a_moderator_on_song_requests_can_moderate_the_queue_but_not_edit_config() {
         assertFalse(
-            ShellNav.canManage(ManagementRole.Moderator, ShellRoute.SongRequests, ManageAction.Default),
+            ShellNav.canManage(ManagementRole.Moderator, ShellRoute.MusicSongRequests, ManageAction.Default),
             "the page's Editor-floored config is disabled for a Mod",
         )
         assertTrue(
-            ShellNav.canManage(ManagementRole.Moderator, ShellRoute.SongRequests, ManageAction.SongQueueModeration),
+            ShellNav.canManage(ManagementRole.Moderator, ShellRoute.MusicSongRequests, ManageAction.SongQueueModeration),
             "queue moderation (skip/pause/remove) drops to Moderator — enabled for a Mod",
         )
     }
@@ -79,7 +79,7 @@ class ScreenWriteGateTest {
     fun every_management_role_can_act_on_moderation_since_it_floors_at_moderator() {
         ManagementRole.entries.forEach { role ->
             assertTrue(
-                ShellNav.canManage(role, ShellRoute.Moderation),
+                ShellNav.canManage(role, ShellRoute.PeopleOverview),
                 "$role should be able to act on the Moderator-floored Moderation page",
             )
         }
@@ -89,7 +89,7 @@ class ScreenWriteGateTest {
 
     @Test
     fun a_broadcaster_manages_nothing_on_the_read_only_dashboard_and_analytics_pages() {
-        assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Dashboard))
+        assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Home))
         assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Analytics))
     }
 }

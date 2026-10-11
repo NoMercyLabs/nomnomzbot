@@ -36,17 +36,17 @@ class ShellNavTest {
 
         // The Broadcaster-floored pages (Integrations, Roles, OBS) must be hidden from a Mod.
         assertFalse(visible.any { it.route == ShellRoute.Integrations })
-        assertFalse(visible.any { it.route == ShellRoute.Roles })
+        assertFalse(visible.any { it.route == ShellRoute.PeopleRoles })
         assertFalse(visible.any { it.route == ShellRoute.Obs })
         // The Editor-floored Automation (automation:tokens:read = Editor) is also above a Mod.
-        assertFalse(visible.any { it.route == ShellRoute.Automation })
+        assertFalse(visible.any { it.route == ShellRoute.ApiDevices })
         // Everything at the Moderator floor stays visible — incl. Discord (read floor lowered
         // Broadcaster→Moderator, frontend-ia.md §3 Connect), VTube Studio (vts:config:read = Moderator),
         // Moderation, and the Moderator-floored Settings.
-        assertTrue(visible.any { it.route == ShellRoute.Dashboard })
+        assertTrue(visible.any { it.route == ShellRoute.Home })
         assertTrue(visible.any { it.route == ShellRoute.Discord })
-        assertTrue(visible.any { it.route == ShellRoute.Vts })
-        assertTrue(visible.any { it.route == ShellRoute.Moderation })
+        assertTrue(visible.any { it.route == ShellRoute.VtubeStudio })
+        assertTrue(visible.any { it.route == ShellRoute.PeopleOverview })
         assertTrue(visible.any { it.route == ShellRoute.Settings })
         // Exactly the pages floored ABOVE Moderator are dropped — no more, no fewer.
         val abvModerator: Int =
@@ -63,7 +63,7 @@ class ShellNavTest {
         // An Editor sees every page a Moderator sees, plus the single Editor-floored page (Automation API
         // tokens — automation:tokens:read = Editor). No other page sits between the Moderator and Editor floors.
         assertTrue(editor.containsAll(moderator))
-        assertEquals(setOf(ShellRoute.Automation), editor - moderator)
+        assertEquals(setOf(ShellRoute.ApiDevices), editor - moderator)
     }
 
     @Test
@@ -149,27 +149,27 @@ class ShellNavTest {
 
         assertEquals(
             setOf(
-                ShellRoute.Chat,
+                ShellRoute.ChatChannel,
                 ShellRoute.Commands,
-                ShellRoute.Moderation,
+                ShellRoute.PeopleOverview,
                 // The moderation split (S-UX-3): the desk, the queue and history all ACT at Moderator.
                 // ModerationRules is deliberately absent — changing the rules that govern every future
                 // enforcement floors at Editor, so a Mod reads them and cannot rewrite them.
-                ShellRoute.ModerationQueue,
-                ShellRoute.ModerationHistory,
-                ShellRoute.Community,
+                ShellRoute.PeopleQueue,
+                ShellRoute.PeopleHistory,
+                ShellRoute.PeopleViewers,
                 ShellRoute.Giveaways,
                 // Media Share: the mod clip queue moderate actions floor at Moderator (media:moderate); the config
                 // card inside the page gates separately at Editor.
                 ShellRoute.MediaShare,
                 // S-IA-MOD-FLOORS: moderators manage stream and channel behaviors (the server floors these
                 // actions at Moderator): Code Scripts, Economy, Games, Music, Schedule and Bundles.
-                ShellRoute.CodeScripts,
+                ShellRoute.Scripts,
                 ShellRoute.Economy,
                 ShellRoute.Games,
-                ShellRoute.Music,
-                ShellRoute.Schedule,
-                ShellRoute.Bundles,
+                ShellRoute.MusicNowPlaying,
+                ShellRoute.StreamSchedule,
+                ShellRoute.GalleryBundles,
             ),
             manageable,
         )
@@ -185,14 +185,14 @@ class ShellNavTest {
 
         // An Editor can manage the Editor-floored content pages...
         assertTrue(manageable.contains(ShellRoute.Commands))
-        assertTrue(manageable.contains(ShellRoute.Rewards))
+        assertTrue(manageable.contains(ShellRoute.ChannelPoints))
         assertTrue(manageable.contains(ShellRoute.Pipelines))
         // ...and still the Moderator-floored ones (Editor > Moderator on the ladder)...
-        assertTrue(manageable.contains(ShellRoute.Moderation))
+        assertTrue(manageable.contains(ShellRoute.PeopleOverview))
         // ...and the SuperMod-floored Discord (Editor 30 > SuperMod 20, frontend-ia.md §3 Connect)...
         assertTrue(manageable.contains(ShellRoute.Discord))
         // ...but never the Broadcaster-floored pages (Roles, Integrations).
-        assertFalse(manageable.contains(ShellRoute.Roles))
+        assertFalse(manageable.contains(ShellRoute.PeopleRoles))
         assertFalse(manageable.contains(ShellRoute.Integrations))
     }
 
@@ -210,7 +210,7 @@ class ShellNavTest {
 
         assertEquals(expected, manageable)
         // Sanity: a read-only page is never "manageable", even for the Broadcaster.
-        assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Dashboard))
+        assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Home))
         assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Analytics))
     }
 
@@ -281,8 +281,8 @@ class ShellNavTest {
         val commandsGroup: NavGroup = ShellNav.pages.first { it.route == ShellRoute.Commands }.group
 
         assertEquals(NavGroup.Chat, commandsGroup)
-        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Widgets }.group)
-        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.CodeScripts }.group)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Overlays }.group)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Scripts }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Pipelines }.group)
     }
 
@@ -293,9 +293,9 @@ class ShellNavTest {
         // Overlays, Code Scripts and Pipelines moved OUT — Stream is not merged away, it just sheds the
         // build-workflow tools; Alerts/Schedule/Analytics stay exactly where they were (EventResponses already
         // shipped under Chat before this reorg — untouched here, out of this slice's scope).
-        assertEquals(setOf(ShellRoute.Alerts, ShellRoute.Schedule, ShellRoute.Analytics), streamRoutes)
-        assertFalse(streamRoutes.contains(ShellRoute.Widgets))
-        assertFalse(streamRoutes.contains(ShellRoute.CodeScripts))
+        assertEquals(setOf(ShellRoute.EventResponsesAlerts, ShellRoute.StreamSchedule, ShellRoute.Analytics), streamRoutes)
+        assertFalse(streamRoutes.contains(ShellRoute.Overlays))
+        assertFalse(streamRoutes.contains(ShellRoute.Scripts))
         assertFalse(streamRoutes.contains(ShellRoute.Pipelines))
     }
 
@@ -305,8 +305,8 @@ class ShellNavTest {
         // changes. Overlays keeps its Moderator-read/Editor-manage floor; Code Scripts keeps its
         // Broadcaster-only floor (a sandboxed code editor is not a Moderator-grade surface just because it
         // now sits beside Commands).
-        val widgets: NavPage = ShellNav.pages.first { it.route == ShellRoute.Widgets }
-        val codeScripts: NavPage = ShellNav.pages.first { it.route == ShellRoute.CodeScripts }
+        val widgets: NavPage = ShellNav.pages.first { it.route == ShellRoute.Overlays }
+        val codeScripts: NavPage = ShellNav.pages.first { it.route == ShellRoute.Scripts }
 
         assertEquals(ManagementRole.Moderator, widgets.readFloor)
         assertEquals(ManagementRole.Editor, widgets.manageFloor)
@@ -315,27 +315,27 @@ class ShellNavTest {
         assertEquals(ManagementRole.Moderator, codeScripts.manageFloor)
 
         val moderatorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Moderator).map { it.route }.toSet()
-        assertTrue(moderatorVisible.contains(ShellRoute.CodeScripts), "a Moderator clears code:script:author")
+        assertTrue(moderatorVisible.contains(ShellRoute.Scripts), "a Moderator clears code:script:author")
         val editorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Editor).map { it.route }.toSet()
-        assertTrue(editorVisible.contains(ShellRoute.Widgets), "an Editor must still see Overlays in its new group")
-        assertTrue(editorVisible.contains(ShellRoute.CodeScripts))
+        assertTrue(editorVisible.contains(ShellRoute.Overlays), "an Editor must still see Overlays in its new group")
+        assertTrue(editorVisible.contains(ShellRoute.Scripts))
     }
 
     @Test
     fun moderator_manages_the_stream_and_channel_pages_the_server_floors_at_moderator() {
         // Mirrors the 24 actions S-IA-MOD-FLOORS moved to the Moderator floor on the server.
         listOf(
-            ShellRoute.CodeScripts,
+            ShellRoute.Scripts,
             ShellRoute.Economy,
             ShellRoute.Games,
-            ShellRoute.Schedule,
-            ShellRoute.Bundles,
-            ShellRoute.Music,
+            ShellRoute.StreamSchedule,
+            ShellRoute.GalleryBundles,
+            ShellRoute.MusicNowPlaying,
         ).forEach { route ->
             assertTrue(ShellNav.canManage(ManagementRole.Moderator, route), "Moderator manages $route")
         }
         assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Economy, ManageAction.EconomyPayoutRules))
-        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Music, ManageAction.MusicConfig))
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.MusicNowPlaying, ManageAction.MusicConfig))
     }
 
     @Test
@@ -343,9 +343,9 @@ class ShellNavTest {
         // canManage is the actual consequence a screen renders (button enabled vs. disabled-with-reason) —
         // assert it, not just the raw manageFloor field, so a regression in canManage's own logic would fail
         // this test even if the floors above stayed correct.
-        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Widgets))
-        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Widgets), "Moderator is below Overlays' Editor manage floor")
-        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.CodeScripts))
-        assertFalse(ShellNav.canManage(null, ShellRoute.CodeScripts))
+        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Overlays))
+        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Overlays), "Moderator is below Overlays' Editor manage floor")
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Scripts))
+        assertFalse(ShellNav.canManage(null, ShellRoute.Scripts))
     }
 }

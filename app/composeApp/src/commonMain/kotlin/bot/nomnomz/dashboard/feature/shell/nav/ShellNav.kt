@@ -16,56 +16,6 @@ package bot.nomnomz.dashboard.feature.shell.nav
 // page CONTENT (the NavHost screens) lands page-by-page in later slices; this defines what the shell offers
 // and to whom.
 
-/** A sidebar content page (frontend-ia.md §3). Route names mirror frontend.md §5; no new ones are invented. */
-enum class ShellRoute {
-    Dashboard,
-    Chat,
-    MultiChat,
-    Commands,
-    ChatTriggers,
-    VoiceTriggers,
-    EventResponses,
-    Quotes,
-    PickLists,
-    Timers,
-    Moderation,
-    ModerationQueue,
-    ModerationRules,
-    ModerationHistory,
-    Rewards,
-    Economy,
-    Games,
-    Giveaways,
-    SongRequests,
-    Music,
-    SoundClips,
-    Assets,
-    MediaShare,
-    Tts,
-    Widgets,
-    Alerts,
-    Discord,
-    Analytics,
-    Schedule,
-    Pipelines,
-    Community,
-    Roles,
-    Integrations,
-    Features,
-    Webhooks,
-    Federation,
-    CodeScripts,
-    CustomEvents,
-    Supporters,
-    Obs,
-    Vts,
-    Automation,
-    Bundles,
-    Settings,
-    MyData,
-    Admin,
-}
-
 /**
  * The labelled sidebar sections, in their binding IA order (frontend-ia.md §3): eight daily-driver FEATURE
  * groups (top, scrolling) and the pinned, labelled [Setup] owner area at the bottom (divider-separated).
@@ -113,25 +63,25 @@ object ShellNav {
     val pages: List<NavPage> =
         listOf(
             // Top-level single-entry groups render as plain items (no header) — see SidebarSection.
-            NavPage(ShellRoute.Dashboard, NavGroup.Home, ManagementRole.Moderator, null, readActionKey = "dashboard:read"),
-            NavPage(ShellRoute.Chat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "chat:read"),
+            NavPage(ShellRoute.Home, NavGroup.Home, ManagementRole.Moderator, null, readActionKey = "dashboard:read"),
+            NavPage(ShellRoute.ChatChannel, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "chat:read"),
             // Multi-channel watch: a mod monitors several owned/moderated channels' chats at once. Read-only
             // (null manage floor — nothing to mutate here; a mod acts from a channel's own Chat page); it reuses
             // the Chat read floor (chat:read) since it reads chat history.
-            NavPage(ShellRoute.MultiChat, NavGroup.Chat, ManagementRole.Moderator, null, readActionKey = "chat:read"),
+            NavPage(ShellRoute.ChatAll, NavGroup.Chat, ManagementRole.Moderator, null, readActionKey = "chat:read"),
             // Command management (add/edit/delete) is Moderator, mirroring the backend commands:write floor —
             // Twitch mods manage commands out of the box, matching StreamElements/Nightbot/Cloudbot/Fossabot.
             NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "commands:read"),
             // Chat triggers (keyword auto-replies) sit beside Commands in the Chat group; read at Moderator, write
             // at Editor, governed by the `chattriggers:read` action key so a broadcaster can delegate reading.
-            NavPage(ShellRoute.ChatTriggers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "chattriggers:read"),
+            NavPage(ShellRoute.TriggersChat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "chattriggers:read"),
             // Voice triggers (spoken-word counters + overlay stickers) sit beside Chat Triggers — same
             // floors, same `voicetriggers:*` action-key convention.
-            NavPage(ShellRoute.VoiceTriggers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "voicetriggers:read"),
-            NavPage(ShellRoute.EventResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "eventresponses:read"),
-            NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
-            NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),
-            NavPage(ShellRoute.PickLists, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "picklists:read"),
+            NavPage(ShellRoute.TriggersVoice, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "voicetriggers:read"),
+            NavPage(ShellRoute.EventResponsesResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "eventresponses:read"),
+            NavPage(ShellRoute.TriggersTimers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
+            NavPage(ShellRoute.LibraryQuotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),
+            NavPage(ShellRoute.LibraryRandomResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "picklists:read"),
             // Pipelines belongs in Chat per frontend-ia.md §3/§8 ("Pipelines folds into the Chat workspace") —
             // reconciled here after drifting to Stream in 18159a77 (2026-07-03).
             NavPage(ShellRoute.Pipelines, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "pipelines:read"),
@@ -139,37 +89,37 @@ object ShellNav {
             // above): building one command with a custom overlay/script needs both in Commands/Pipelines'
             // group, not a separate Stream group (owner punch list §9, 2026-09-08). Stream keeps only the
             // broadcast-facing pages — Event Responses, Analytics (frontend-ia.md §3 Stream, reconciled).
-            NavPage(ShellRoute.Widgets, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
-            NavPage(ShellRoute.CodeScripts, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "code:script:author"),
+            NavPage(ShellRoute.Overlays, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
+            NavPage(ShellRoute.Scripts, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "code:script:author"),
             // The moderation surface is four pages, one per job (frontend-ia.md §Moderation). They share the
             // `moderation:read` key because they read the same data; only the MANAGE floor differs.
-            NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
-            NavPage(ShellRoute.ModerationQueue, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.PeopleOverview, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.PeopleQueue, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
             // Editor to MANAGE: changing the rules that govern every future enforcement is a different act
             // from applying one, and the other configuration surfaces here already sit at Editor. Reading
             // stays at Moderator so a mod can see the rules they are enforcing.
-            NavPage(ShellRoute.ModerationRules, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "moderation:read"),
-            NavPage(ShellRoute.ModerationHistory, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
-            NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "reward:read"),
+            NavPage(ShellRoute.PeopleRules, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.PeopleHistory, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.ChannelPoints, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "reward:read"),
             NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "economy:config:read"),
             NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "economy:games:read"),
             // Giveaways read+write floor at Moderator (giveaways:read / giveaways:write); the code-pool tools and
             // code reveal are Broadcaster-only, gated per-control inside the page on `giveaways:codes:write`.
             NavPage(ShellRoute.Giveaways, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "giveaways:read"),
-            NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "music:config:read"),
-            NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
-            NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
+            NavPage(ShellRoute.MusicNowPlaying, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "music:config:read"),
+            NavPage(ShellRoute.MusicSongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            NavPage(ShellRoute.LibrarySounds, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
             // Assets (overlay/widget media library) sits beside Sound Clips and mirrors its gates exactly —
             // including the ACTION KEYS: the backend reuses the sound-clip pair (sounds:read / sounds:write).
-            NavPage(ShellRoute.Assets, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
+            NavPage(ShellRoute.LibraryFiles, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
             // Media Share: mods read + moderate the viewer clip queue (media:read / media:moderate, Moderator); the
             // config write floors at Editor (media:write), gated per-control inside the page.
             NavPage(ShellRoute.MediaShare, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),
             NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
-            NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
-            NavPage(ShellRoute.Schedule, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "live-ops:schedule:read"),
+            NavPage(ShellRoute.EventResponsesAlerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            NavPage(ShellRoute.StreamSchedule, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "live-ops:schedule:read"),
             NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null, readActionKey = "analytics:read"),
-            NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "community:read"),
+            NavPage(ShellRoute.PeopleViewers, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "community:read"),
             NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod, readActionKey = "discord:connection:read"),
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
@@ -184,16 +134,16 @@ object ShellNav {
             NavPage(ShellRoute.Obs, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = "obs:config:read"),
             // VTube Studio: read floors at Moderator (vts:config:read); connection config / authorize / rotate are
             // Broadcaster (vts:config:write); model/hotkey/expression control is Moderator (vts:control), gated inside.
-            NavPage(ShellRoute.Vts, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),
+            NavPage(ShellRoute.VtubeStudio, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),
             // Automation API tokens: read floors at Editor (automation:tokens:read); every write is Broadcaster-only
             // and Critical (automation:tokens:write).
-            NavPage(ShellRoute.Automation, NavGroup.Connect, ManagementRole.Editor, ManagementRole.Broadcaster, readActionKey = "automation:tokens:read"),
+            NavPage(ShellRoute.ApiDevices, NavGroup.Connect, ManagementRole.Editor, ManagementRole.Broadcaster, readActionKey = "automation:tokens:read"),
             // Bundles: the installed-list read floors at Moderator (bundles:read); export/import write at Moderator
             // (bundles:export / bundles:import); marketplace publish + the publisher token are Broadcaster, gated
             // per-control inside the page.
-            NavPage(ShellRoute.Bundles, NavGroup.Setup, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "bundles:read"),
+            NavPage(ShellRoute.GalleryBundles, NavGroup.Setup, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "bundles:read"),
             NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
-            NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.PeopleRoles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null, readActionKey = null),
             // My data: the caller's own GDPR self-service (Gate-1). No management action key — it is always the

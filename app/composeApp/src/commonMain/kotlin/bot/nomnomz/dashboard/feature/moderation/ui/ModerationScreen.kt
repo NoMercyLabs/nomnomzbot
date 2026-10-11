@@ -588,7 +588,7 @@ fun ModerationScreen(
     // One decision for the whole page: Moderation gates its write affordance at its single Moderator manage
     // floor (frontend-ia.md §3). A caller below it sees the ban list but the Unban control is disabled with
     // "Requires Moderator" (§7); the backend re-checks every write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Moderation)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.PeopleOverview)
     // Marking a viewer suspicious (monitor / restrict) is a Lead-Moderator (SuperMod) action — a higher floor
     // than the page's Moderator gate (warn / bans). The backend re-checks regardless.
     val suspiciousManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.SuperMod)

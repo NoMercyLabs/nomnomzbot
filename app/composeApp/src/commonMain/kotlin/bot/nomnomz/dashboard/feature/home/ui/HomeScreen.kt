@@ -85,6 +85,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
+import bot.nomnomz.dashboard.core.navigation.ShellRouteSlug
 import bot.nomnomz.dashboard.feature.attention.state.attentionRouteOf
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -299,7 +300,7 @@ fun HomeScreen(
                         if (item.kind == "held_chat_message") {
                             scope.launch { controller.openHeldReview(item) }
                         } else {
-                            attentionRouteOf(item)?.let { route -> onNavigate(route.name) }
+                            attentionRouteOf(item)?.let { route -> onNavigate(ShellRouteSlug.of(route)) }
                         }
                     },
                     onDismissAttention = { item -> scope.launch { controller.dismissAttentionItem(item) } },
@@ -435,7 +436,7 @@ private fun ReadyContent(
                     replayStatus = replayStatus,
                     heldActionKeys = heldActionKeys,
                     onReplay = onReplay,
-                    onViewAll = { onNavigate("Analytics") },
+                    onViewAll = { onNavigate("analytics") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

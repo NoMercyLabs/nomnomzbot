@@ -113,8 +113,8 @@ class AttentionControllerTest {
         assertEquals(listOf("c1", "c2"), grouped.first().second.map { it.id })
         assertEquals(AttentionSeverity.Critical, highestSeverity(items))
         assertNull(highestSeverity(emptyList()))
-        assertEquals(ShellRoute.ModerationQueue, attentionRouteOf(item("h", "warning", "moderationqueue")))
-        assertEquals(ShellRoute.SongRequests, attentionRouteOf(item("s", "info", "songrequests")))
+        assertEquals(ShellRoute.PeopleQueue, attentionRouteOf(item("h", "warning", "people/queue")))
+        assertEquals(ShellRoute.MusicSongRequests, attentionRouteOf(item("s", "info", "music/song-requests")))
         assertNull(attentionRouteOf(item("x", "info", "no-such-page")))
     }
 }

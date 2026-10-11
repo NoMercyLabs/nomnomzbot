@@ -116,7 +116,7 @@ fun ScheduleScreen(
 
     // Writes gate at Editor; the page itself is visible from Moderator (rememberManageDecision uses the page floor,
     // but schedule writes are an Editor action — the backend re-checks live-ops:schedule:write regardless).
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Schedule)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.StreamSchedule)
 
     // The add/edit dialog target: null = closed, a segment = edit, EMPTY_SEGMENT sentinel = add.
     var editorTarget: LiveOpsScheduleSegment? by remember { mutableStateOf(null) }

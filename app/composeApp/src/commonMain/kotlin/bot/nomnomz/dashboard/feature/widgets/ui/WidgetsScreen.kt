@@ -237,7 +237,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     // (frontend-ia.md §3, Stream group). A caller below it still sees each overlay and can copy its
     // browser-source URL, but every write control (enable/disable, rename, clone, edit-code, rollback, delete)
     // renders disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Widgets)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Overlays)
 
     // Localized editor feedback strings, resolved here (a Composable) and threaded into the controller's compile
     // callback — the controller is a plain state holder with no access to Compose resources.

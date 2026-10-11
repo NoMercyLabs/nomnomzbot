@@ -12,7 +12,6 @@
 
 package bot.nomnomz.dashboard.core.navigation
 
-import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import kotlinx.browser.window
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -33,10 +32,10 @@ private const val HASH_PREFIX: String = "#/"
 
 actual class RouteStore actual constructor() {
 
-    actual fun initialRoute(): ShellRoute = ShellRouteSlug.parse(currentSlug())
+    actual fun initialAddress(): ShellAddress = ShellAddress.parse(currentSlug())
 
-    actual fun save(route: ShellRoute) {
-        val target: String = HASH_PREFIX + ShellRouteSlug.of(route)
+    actual fun save(address: ShellAddress) {
+        val target: String = HASH_PREFIX + address.format()
         // Only push when the slug actually changed, so re-selecting the current page doesn't pile up duplicate
         // history entries (which would make one Back press appear to do nothing).
         if (window.location.hash != target) {
@@ -67,8 +66,8 @@ actual class RouteStore actual constructor() {
     }
 
     // Shell routes: popstate events whose slug is non-empty (i.e. `#/<slug>`, not the bare `#/` entry).
-    actual val externalChanges: Flow<ShellRoute> =
-        popstateFlow.filter { it.isNotEmpty() }.map { ShellRouteSlug.parse(it) }
+    actual val externalChanges: Flow<ShellAddress> =
+        popstateFlow.filter { it.isNotEmpty() }.map { ShellAddress.parse(it) }
 
     // Disconnect signal: popstate lands on the bare `#/` entry pushed by [pushConnectEntry], meaning the
     // operator pressed Back from the first shell page — sign them out.

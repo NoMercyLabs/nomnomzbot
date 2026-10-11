@@ -13,12 +13,12 @@ package bot.nomnomz.dashboard.core.navigation
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// Proves the URL <-> route contract the web reload depends on (RouteStore). If a slug collided or stopped
-// round-tripping, a reload would silently land the operator on the wrong page (or always the dashboard) — so
-// these are the behaviours, not the surface. Iterating ShellRoute.entries keeps the proof exhaustive as new
-// routes are added to the enum: a missing/duplicate slug fails here without anyone editing the test.
+// Proves the page/tab address contract the web reload depends on (RouteStore). If a slug collided or stopped
+// round-tripping, a reload would silently land the operator on the wrong page, so these are the behaviours, not
+// the surface. Iterating ShellRoute.entries keeps the proof exhaustive as routes are added.
 class ShellRouteSlugTest {
 
     @Test
@@ -34,32 +34,70 @@ class ShellRouteSlugTest {
     fun slugs_are_unique_per_route() {
         val slugs: List<String> = ShellRoute.entries.map { ShellRouteSlug.of(it) }
 
-        assertEquals(
-            slugs.size,
-            slugs.toSet().size,
-            "duplicate slugs would make a URL ambiguous: $slugs",
-        )
+        assertEquals(slugs.size, slugs.toSet().size, "duplicate slugs would make a URL ambiguous: $slugs")
     }
 
     @Test
-    fun an_empty_slug_falls_back_to_the_dashboard_landing_page() {
-        assertEquals(ShellRoute.Dashboard, ShellRouteSlug.parse(""))
-        assertEquals(ShellRoute.Dashboard, ShellRouteSlug.parse("   "))
+    fun a_page_with_tabs_always_writes_its_tab_into_the_slug() {
+        assertEquals("chat/one-channel", ShellRouteSlug.of(ShellRoute.ChatChannel))
+        assertEquals("chat/all-my-channels", ShellRouteSlug.of(ShellRoute.ChatAll))
+        assertEquals("people/queue", ShellRouteSlug.of(ShellRoute.PeopleQueue))
+        assertEquals("library/random-responses", ShellRouteSlug.of(ShellRoute.LibraryRandomResponses))
+        assertEquals("event-responses/alerts", ShellRouteSlug.of(ShellRoute.EventResponsesAlerts))
+        assertEquals("gallery/bundles", ShellRouteSlug.of(ShellRoute.GalleryBundles))
     }
 
     @Test
-    fun an_unknown_slug_falls_back_to_the_dashboard_landing_page() {
-        // A stale slug from a removed route, or a hand-typed typo, must not break the load.
-        assertEquals(ShellRoute.Dashboard, ShellRouteSlug.parse("not-a-real-page"))
+    fun a_page_without_tabs_is_its_page_slug_alone() {
+        assertEquals("home", ShellRouteSlug.of(ShellRoute.Home))
+        assertEquals("commands", ShellRouteSlug.of(ShellRoute.Commands))
+        assertEquals("api-devices", ShellRouteSlug.of(ShellRoute.ApiDevices))
+        assertEquals("vtube-studio", ShellRouteSlug.of(ShellRoute.VtubeStudio))
+    }
+
+    @Test
+    fun a_page_slug_alone_opens_the_first_tab_of_that_page() {
+        assertEquals(ShellRoute.ChatChannel, ShellRouteSlug.parse("chat"))
+        assertEquals(ShellRoute.PeopleOverview, ShellRouteSlug.parse("people"))
+        assertEquals(ShellRoute.LibrarySounds, ShellRouteSlug.parse("library"))
+        assertEquals(ShellRoute.MusicNowPlaying, ShellRouteSlug.parse("music"))
+    }
+
+    @Test
+    fun an_empty_slug_falls_back_to_home() {
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse(""))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("   "))
+    }
+
+    @Test
+    fun an_unknown_page_or_tab_falls_back_to_home() {
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("not-a-real-page"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("chat/not-a-real-tab"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("commands/extra"))
+    }
+
+    @Test
+    fun an_address_from_before_the_new_layout_lands_on_home() {
+        // V0: the old one-word slugs are not mapped to the new places; they are unknown addresses.
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("songrequests"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("multichat"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("moderationqueue"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("dashboard"))
+        assertNull(ShellRouteSlug.find("songrequests"))
     }
 
     @Test
     fun parsing_ignores_surrounding_whitespace_and_case() {
-        // The address bar can hand back mixed case / stray spaces (e.g. a pasted URL); the same route must resolve.
-        val route: ShellRoute = ShellRoute.Commands
+        val route: ShellRoute = ShellRoute.PeopleHistory
         val canonical: String = ShellRouteSlug.of(route)
 
         assertEquals(route, ShellRouteSlug.parse(canonical.uppercase()))
         assertEquals(route, ShellRouteSlug.parse("  $canonical  "))
+    }
+
+    @Test
+    fun find_returns_null_for_an_unknown_slug_and_the_route_for_a_known_one() {
+        assertNull(ShellRouteSlug.find("nope"))
+        assertEquals(ShellRoute.TriggersTimers, ShellRouteSlug.find("triggers-timers/timers"))
     }
 }

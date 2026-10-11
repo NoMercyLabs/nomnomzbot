@@ -198,9 +198,9 @@ fun SongRequestsScreen(
     val spacing = LocalSpacing.current
 
     val moderate: ManageDecision =
-        rememberManageDecision(role, ShellRoute.SongRequests, ManageAction.SongQueueModeration)
+        rememberManageDecision(role, ShellRoute.MusicSongRequests, ManageAction.SongQueueModeration)
     val configure: ManageDecision =
-        rememberManageDecision(role, ShellRoute.SongRequests, ManageAction.MusicConfig)
+        rememberManageDecision(role, ShellRoute.MusicSongRequests, ManageAction.MusicConfig)
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {

@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.core.navigation
 
-import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import kotlinx.coroutines.flow.Flow
 
 // A minimal URL-sync seam for the shell's selected page (NOT a Navigation Compose NavHost — that is a
@@ -24,11 +23,11 @@ import kotlinx.coroutines.flow.Flow
 //     identical across targets, the shell never branches on platform.
 expect class RouteStore() {
 
-    /** The route to open on first render — parsed from the current URL/saved value, [ShellRoute.Dashboard] when absent. */
-    fun initialRoute(): ShellRoute
+    /** The address to open on first render, parsed from the current URL; Home with no channel when absent. */
+    fun initialAddress(): ShellAddress
 
-    /** Persist [route] as the current location so a reload (web) restores it. A no-op storage write on jvm. */
-    fun save(route: ShellRoute)
+    /** Persist [address] as the current location so a reload (web) restores it. A no-op storage write on jvm. */
+    fun save(address: ShellAddress)
 
     /**
      * Push the connect screen as a history entry (`#/`) so a browser Back press from inside the shell returns
@@ -37,8 +36,8 @@ expect class RouteStore() {
      */
     fun pushConnectEntry()
 
-    /** Routes the user reached OUTSIDE the app — i.e. browser Back/Forward on web. Never emits on jvm. */
-    val externalChanges: Flow<ShellRoute>
+    /** Addresses the user reached OUTSIDE the app, i.e. browser Back/Forward on web. Never emits on jvm. */
+    val externalChanges: Flow<ShellAddress>
 
     /**
      * Fires when the browser Back/Forward lands on the bare `#/` entry pushed by [pushConnectEntry] — the

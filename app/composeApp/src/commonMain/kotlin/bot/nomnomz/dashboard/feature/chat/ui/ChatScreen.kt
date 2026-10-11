@@ -210,7 +210,7 @@ fun ChatScreen(
     val spacing = LocalSpacing.current
     var showAnnounce: Boolean by remember { mutableStateOf(false) }
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Chat)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.ChatChannel)
 
     // Load the initial history once. New lines then arrive over the hub ([subscribeToHub]) in real time — the
     // client keep-alive ping (DashboardHubClient) holds the socket open so the server never times it out, so the

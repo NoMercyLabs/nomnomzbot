@@ -198,9 +198,9 @@ class HomeController(
                 val firstRunSteps: List<FirstRunStep> =
                     if (commandsConfirmedEmpty && pipelinesConfirmedEmpty && integrationsConfirmedEmpty) {
                         listOf(
-                            FirstRunStep(kind = FirstRunStepKind.ConnectIntegration, deepLinkRoute = "Integrations"),
-                            FirstRunStep(kind = FirstRunStepKind.CreateCommand, deepLinkRoute = "Commands"),
-                            FirstRunStep(kind = FirstRunStepKind.CreatePipeline, deepLinkRoute = "Pipelines"),
+                            FirstRunStep(kind = FirstRunStepKind.ConnectIntegration, deepLinkRoute = "integrations"),
+                            FirstRunStep(kind = FirstRunStepKind.CreateCommand, deepLinkRoute = "commands"),
+                            FirstRunStep(kind = FirstRunStepKind.CreatePipeline, deepLinkRoute = "pipelines"),
                         )
                     } else {
                         emptyList()

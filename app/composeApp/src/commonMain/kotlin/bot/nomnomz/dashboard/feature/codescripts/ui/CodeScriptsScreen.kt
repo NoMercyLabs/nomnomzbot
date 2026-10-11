@@ -105,7 +105,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.CodeScripts)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Scripts)
 
     // The inline success message the shared project editor shows on a clean save — resolved here (a Composable)
     // and threaded into the controller's compile callback (the controller has no access to Compose resources).

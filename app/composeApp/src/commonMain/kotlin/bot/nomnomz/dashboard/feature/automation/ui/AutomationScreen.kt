@@ -141,7 +141,7 @@ fun AutomationScreen(controller: AutomationController, role: ManagementRole?) {
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Automation)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.ApiDevices)
 
     var showCreate: Boolean by remember { mutableStateOf(false) }
     var showPair: Boolean by remember { mutableStateOf(false) }

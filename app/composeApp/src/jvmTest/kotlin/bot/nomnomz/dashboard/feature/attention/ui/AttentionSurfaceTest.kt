@@ -57,7 +57,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_song_lost_title",
             messageKey = "attention_song_lost_message",
             parameters = mapOf("trackName" to "Family Ties", "requestedBy" to "viewer_one", "count" to "1"),
-            deepLinkRoute = "songrequests",
+            deepLinkRoute = "music/song-requests",
         )
 
     private val widgetBroken: ActionRequiredItem =
@@ -101,7 +101,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_heat_timeout_failed_title",
             messageKey = "attention_heat_timeout_failed_message",
             parameters = mapOf("username" to "heatedviewer", "error" to "missing scope"),
-            deepLinkRoute = "moderation",
+            deepLinkRoute = "people/overview",
         )
 
     @Test
@@ -132,7 +132,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_unban_request_title",
             messageKey = "attention_unban_request_message",
             parameters = mapOf("username" to "appealingviewer", "text" to "I was wrongly banned"),
-            deepLinkRoute = "moderation",
+            deepLinkRoute = "people/overview",
         )
 
     @Test
@@ -149,7 +149,7 @@ class AttentionSurfaceTest {
         onNodeWithText("Appeal: I was wrongly banned").assertExists()
 
         onNodeWithText("appealingviewer asked to be unbanned").performClick()
-        assertEquals(listOf(ShellRoute.Moderation), navigated)
+        assertEquals(listOf(ShellRoute.PeopleOverview), navigated)
     }
 
     @Test
@@ -214,7 +214,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_automod_delete_failed_title",
             messageKey = "attention_automod_delete_failed_message",
             parameters = mapOf("ruleName" to "no links", "userName" to "spammer_one", "count" to "3"),
-            deepLinkRoute = "moderation",
+            deepLinkRoute = "people/overview",
         )
 
     @Test
@@ -247,7 +247,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_shared_ban_title",
             messageKey = "attention_shared_ban_${reason}_message",
             parameters = parameters,
-            deepLinkRoute = "moderation",
+            deepLinkRoute = "people/overview",
         )
 
     @Test
@@ -311,7 +311,7 @@ class AttentionSurfaceTest {
             messageKey = "attention_filter_action_failed_message",
             parameters =
                 mapOf("filter" to "no links", "username" to "spammer_one", "action" to "timeout", "reason" to "missing scope"),
-            deepLinkRoute = "moderation",
+            deepLinkRoute = "people/overview",
         )
 
     @Test
@@ -343,7 +343,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_mass_ban_failed_title",
             messageKey = "attention_mass_ban_failed_message",
             parameters = mapOf("channelLogin" to "stoney_eagle", "failedCount" to "3", "totalCount" to "12"),
-            deepLinkRoute = "moderation",
+            deepLinkRoute = "people/overview",
         )
 
     @Test
@@ -376,7 +376,7 @@ class AttentionSurfaceTest {
             titleKey = "attention_security_impersonation_started_title",
             messageKey = "attention_security_impersonation_started_message",
             parameters = mapOf("operatorName" to "Support Sam", "targetName" to "Mod Mia", "reason" to "Ticket 4821"),
-            deepLinkRoute = "roles",
+            deepLinkRoute = "people/roles",
         )
 
     @Test
@@ -393,7 +393,7 @@ class AttentionSurfaceTest {
         onNodeWithText("Support Sam opened a support session on your channel. Reason: Ticket 4821").assertExists()
 
         onNodeWithText("A NomNomzBot operator is acting as Mod Mia").performClick()
-        assertEquals(listOf(ShellRoute.Roles), navigated)
+        assertEquals(listOf(ShellRoute.PeopleRoles), navigated)
     }
 
     @Test

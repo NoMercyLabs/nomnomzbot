@@ -185,9 +185,9 @@ fun RewardsScreen(
     // page's Editor floor, but CREATING or DELETING one is a Broadcaster-only lifecycle action. Two decisions,
     // each resolved once and handed to the matching controls — an Editor sees Edit live and New/Delete disabled
     // with "Requires Broadcaster" (§7); the backend re-checks every write.
-    val edit: ManageDecision = rememberManageDecision(role, ShellRoute.Rewards)
+    val edit: ManageDecision = rememberManageDecision(role, ShellRoute.ChannelPoints)
     val lifecycle: ManageDecision =
-        rememberManageDecision(role, ShellRoute.Rewards, ManageAction.RewardLifecycle)
+        rememberManageDecision(role, ShellRoute.ChannelPoints, ManageAction.RewardLifecycle)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the reward pending confirmation, or null when none.

@@ -127,7 +127,7 @@ fun VtsScreen(controller: VtsController, role: ManagementRole?) {
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    val configManage: ManageDecision = rememberManageDecision(role, ShellRoute.Vts)
+    val configManage: ManageDecision = rememberManageDecision(role, ShellRoute.VtubeStudio)
     val controlManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
 
     LaunchedEffect(Unit) { controller.load() }

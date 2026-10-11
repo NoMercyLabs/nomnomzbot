@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.connection.ConnectionProfile
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.SessionTokenStore
 import bot.nomnomz.dashboard.core.connection.SessionTokens
+import bot.nomnomz.dashboard.core.navigation.ShellAddress
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -29,14 +30,16 @@ import kotlin.test.assertNull
 class ShellRouteMemoryTest {
 
     /** The saved route custody (web: the address-bar hash), recording every write. */
-    private class SavedRoute(var current: ShellRoute) {
-        val writes: MutableList<ShellRoute> = mutableListOf()
+    private class SavedRoute(var current: ShellAddress) {
+        val writes: MutableList<ShellAddress> = mutableListOf()
 
-        fun write(route: ShellRoute) {
-            writes += route
-            current = route
+        fun write(address: ShellAddress) {
+            writes += address
+            current = address
         }
     }
+
+    private fun at(route: ShellRoute): ShellAddress = ShellAddress(login = "stoney_eagle", route = route)
 
     private fun memory(store: SessionStore, saved: SavedRoute): ShellRouteMemory =
         ShellRouteMemory(readSaved = { saved.current }, writeSaved = saved::write, sessionStore = store)
@@ -48,46 +51,46 @@ class ShellRouteMemoryTest {
     @Test
     fun the_operator_opens_on_and_saves_their_own_route() {
         val store = SessionStore(NoVault, NoProfile, NoChannel)
-        val saved = SavedRoute(ShellRoute.Admin)
+        val saved = SavedRoute(at(ShellRoute.Admin))
         val routes: ShellRouteMemory = memory(store, saved)
 
-        assertEquals(ShellRoute.Admin, routes.openingRoute())
-        routes.save(ShellRoute.Commands)
-        assertEquals(listOf(ShellRoute.Commands), saved.writes)
-        assertEquals(ShellRoute.Timers, routes.externalMove(ShellRoute.Timers))
+        assertEquals(at(ShellRoute.Admin), routes.openingAddress())
+        routes.save(at(ShellRoute.Commands))
+        assertEquals(listOf(at(ShellRoute.Commands)), saved.writes)
+        assertEquals(at(ShellRoute.TriggersTimers), routes.externalMove(at(ShellRoute.TriggersTimers)))
     }
 
     @Test
     fun while_acting_the_operators_route_is_neither_read_nor_written_nor_followed() {
         val store = SessionStore(NoVault, NoProfile, NoChannel)
-        val saved = SavedRoute(ShellRoute.Admin)
+        val saved = SavedRoute(at(ShellRoute.Admin))
         val routes: ShellRouteMemory = memory(store, saved)
         store.actAsTarget()
 
         // The target opens on their own default page, not the operator's admin console.
-        assertEquals(ShellRoute.Dashboard, routes.openingRoute())
+        assertEquals(ShellAddress(login = null, route = ShellRoute.Home), routes.openingAddress())
         // Every page the target visits stays out of the operator's saved route.
-        routes.save(ShellRoute.Commands)
-        routes.save(ShellRoute.Timers)
+        routes.save(at(ShellRoute.Commands))
+        routes.save(at(ShellRoute.TriggersTimers))
         assertEquals(emptyList(), saved.writes)
-        assertEquals(ShellRoute.Admin, saved.current)
+        assertEquals(at(ShellRoute.Admin), saved.current)
         // Back/Forward through the operator's history does not steer the target's session.
-        assertNull(routes.externalMove(ShellRoute.Admin))
+        assertNull(routes.externalMove(at(ShellRoute.Admin)))
     }
 
     @Test
     fun after_the_act_as_session_ends_the_operators_route_is_live_again() {
         val store = SessionStore(NoVault, NoProfile, NoChannel)
-        val saved = SavedRoute(ShellRoute.Admin)
+        val saved = SavedRoute(at(ShellRoute.Admin))
         val routes: ShellRouteMemory = memory(store, saved)
         store.actAsTarget()
-        routes.save(ShellRoute.Commands)
+        routes.save(at(ShellRoute.Commands))
 
         store.endImpersonation()
 
-        assertEquals(ShellRoute.Admin, routes.openingRoute())
-        routes.save(ShellRoute.Dashboard)
-        assertEquals(listOf(ShellRoute.Dashboard), saved.writes)
+        assertEquals(at(ShellRoute.Admin), routes.openingAddress())
+        routes.save(at(ShellRoute.Home))
+        assertEquals(listOf(at(ShellRoute.Home)), saved.writes)
     }
 
     private object NoVault : SessionTokenStore {

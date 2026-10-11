@@ -143,7 +143,7 @@ fun ChatTriggersScreen(
     // One decision for the whole page: writes gate at the page's Editor manage floor (frontend-ia.md §3, Chat
     // group). A caller below it sees the list but every write control renders disabled with "Requires Editor"
     // (§7); the backend re-checks `chattriggers:write` on every write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.ChatTriggers)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.TriggersChat)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one =
     // edit). The delete-confirm target is the trigger pending confirmation, or null when none.

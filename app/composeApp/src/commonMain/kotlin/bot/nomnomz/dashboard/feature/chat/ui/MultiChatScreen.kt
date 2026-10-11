@@ -132,7 +132,7 @@ fun MultiChatScreen(
     // The write gate for the composer and the inline moderation actions. The route's own read floor (Moderator)
     // already governs whether this page is reachable at all, so there is no separate manage floor to name here —
     // a caller who can see the page can act from it.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.MultiChat)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.ChatAll)
 
     LaunchedEffect(Unit) { controller.load() }
     // Forward live hub pushes into the merged feed for the WHOLE time the page is open, so new messages appear

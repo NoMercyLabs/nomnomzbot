@@ -127,7 +127,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.SoundClips)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.LibrarySounds)
 
     var editTarget: SoundClip? by remember { mutableStateOf(null) }
     var deleteTarget: SoundClip? by remember { mutableStateOf(null) }

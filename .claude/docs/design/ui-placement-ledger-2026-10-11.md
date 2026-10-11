@@ -14,7 +14,7 @@ One row per today route (46 including Admin) and per participant page (6).
 | Commands | Chat | Build | Commands | Custom; Built-in | Moderator | Moderator | S-IA-NAV |
 | ChatTriggers | Chat | Build | Triggers & Timers | Chat triggers | Moderator | Moderator | S-IA-TRIGGERS |
 | VoiceTriggers | Chat | Build | Triggers & Timers | Voice triggers | Moderator | Moderator | S-IA-TRIGGERS |
-| EventResponses | Chat | Build | Event Responses | by event type | Moderator | Moderator | S-IA-NAV |
+| EventResponses | Chat | Build | Event Responses | Responses (interim tab until S-IA-NAV groups by event type) | Moderator | Moderator | S-IA-NAV |
 | Timers | Chat | Build | Triggers & Timers | Timers | Moderator | Moderator | S-IA-TRIGGERS |
 | Quotes | Chat | Build | Library | Quotes | Moderator | Moderator | S-IA-LIBRARY |
 | PickLists | Chat | Build | Library | Random responses | Moderator | Moderator | S-IA-LIBRARY |
@@ -35,7 +35,7 @@ One row per today route (46 including Admin) and per participant page (6).
 | Assets | Music | Build | Library | Files | Moderator | Moderator | S-IA-LIBRARY |
 | MediaShare | Music | Music & Voice | Media Share | Queue; Settings | Moderator | Moderator | S-IA-MEDIA |
 | Tts | Music | Music & Voice | TTS | Live; Voices; Rules; Provider | Moderator | Moderator (Provider tab: Editor) | S-IA-MEDIA |
-| Alerts | Stream | Build | Event Responses | by event type (Alerts absorbed) | Moderator | Moderator | S-IA-NAV |
+| Alerts | Stream | Build | Event Responses | Alerts (interim tab until S-IA-TRIGGERS absorbs it into the by event type grouping) | Moderator | Moderator | S-IA-NAV |
 | Schedule | Stream | Live | Stream | Schedule | Moderator | Moderator | S-IA-STREAM |
 | Analytics | Stream | Live | Analytics | Stream; Chat; Growth | Moderator | read-only | S-IA-NAV |
 | Community | Community | People | People | Viewers | Moderator | Moderator | S-IA-PEOPLE |

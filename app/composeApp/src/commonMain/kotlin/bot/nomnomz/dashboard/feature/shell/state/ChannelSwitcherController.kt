@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.shell.state
 
 import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.navigation.channelIdForLogin
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelProvisioningApi
@@ -90,6 +91,16 @@ class ChannelSwitcherController(
         // theme only updated on the Home page's next load, so a switch left the old accent until a full reload.
         loadedChannels.firstOrNull { it.id == channelId }?.let { onChatColorResolved(it.chatColor) }
         sessionStore.switchChannel(channelId)
+    }
+
+    /**
+     * Switch to the roster channel whose login is [login] (an address names its channel by login). Returns false
+     * and changes nothing when the roster has no such channel, so a stale link never strands the user.
+     */
+    fun selectByLogin(login: String): Boolean {
+        val channelId: String = channelIdForLogin(loadedChannels, login) ?: return false
+        if (sessionStore.activeChannelId.value != channelId) select(channelId)
+        return true
     }
 
     /**

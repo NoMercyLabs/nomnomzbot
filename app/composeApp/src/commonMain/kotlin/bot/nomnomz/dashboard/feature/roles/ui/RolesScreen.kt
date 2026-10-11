@@ -165,7 +165,7 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
     // floor (frontend-ia.md §3) — assigning/removing a management role, granting a capability, revoking a permit.
     // A caller below it sees the members and permits but each write disabled with "Requires Broadcaster" (§7);
     // the backend re-checks every write (and no-escalation) regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Roles)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.PeopleRoles)
 
     LaunchedEffect(Unit) { controller.load() }
 

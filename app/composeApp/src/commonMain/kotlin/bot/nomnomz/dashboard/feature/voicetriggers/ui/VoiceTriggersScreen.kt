@@ -117,7 +117,7 @@ fun VoiceTriggersScreen(controller: VoiceTriggersController, role: ManagementRol
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.VoiceTriggers)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.TriggersVoice)
 
     var editor: TriggerEditor? by remember { mutableStateOf(null) }
     var pendingDelete: VoiceTrigger? by remember { mutableStateOf(null) }

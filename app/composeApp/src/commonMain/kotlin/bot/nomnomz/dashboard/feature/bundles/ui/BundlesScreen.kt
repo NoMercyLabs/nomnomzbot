@@ -164,7 +164,7 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
     val spacing: Spacing = LocalSpacing.current
 
     // Export/import are the page's own Editor floor; publish + publisher token are Broadcaster-only.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Bundles)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.GalleryBundles)
     val managePublish: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
     var tab: Int by remember { mutableStateOf(0) }

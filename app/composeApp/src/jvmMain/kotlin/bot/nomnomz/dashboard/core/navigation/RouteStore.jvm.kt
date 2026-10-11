@@ -20,17 +20,17 @@ import kotlinx.coroutines.flow.emptyFlow
 // the dashboard like a cold start, and [externalChanges] never emits.
 actual class RouteStore actual constructor() {
 
-    private var current: ShellRoute = ShellRoute.Dashboard
+    private var current: ShellAddress = ShellAddress(login = null, route = ShellRoute.Home)
 
-    actual fun initialRoute(): ShellRoute = current
+    actual fun initialAddress(): ShellAddress = current
 
-    actual fun save(route: ShellRoute) {
-        current = route
+    actual fun save(address: ShellAddress) {
+        current = address
     }
 
     actual fun pushConnectEntry() = Unit
 
-    actual val externalChanges: Flow<ShellRoute> = emptyFlow()
+    actual val externalChanges: Flow<ShellAddress> = emptyFlow()
 
     actual val disconnectRequests: Flow<Unit> = emptyFlow()
 }

@@ -139,7 +139,7 @@ fun EventResponsesScreen(
 ) {
     val state: EventResponsesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val manage: ManageDecision = rememberManageDecision(role = role, route = ShellRoute.EventResponses)
+    val manage: ManageDecision = rememberManageDecision(role = role, route = ShellRoute.EventResponsesResponses)
     val spacing = LocalSpacing.current
 
     var editing: EventResponseSummary? by remember { mutableStateOf(null) }
