@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.shell.nav
 
+import bot.nomnomz.dashboard.core.navigation.ShellPage
 import bot.nomnomz.dashboard.feature.shell.ui.channelRoleLabelResource
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_role_lead_moderator
@@ -86,6 +87,18 @@ class ShellNavTest {
             ),
             groupsInOrder,
         )
+    }
+
+    @Test
+    fun music_and_voice_shows_one_music_row_and_no_separate_song_requests_row() {
+        val section: NavSection =
+            ShellNav.sidebarFor(ManagementRole.Editor).single { it.group == NavGroup.MusicVoice }
+
+        val musicRows: List<NavRow> = section.rows.filter { it.page == ShellPage.Music }
+        assertEquals(1, musicRows.size)
+        assertEquals(ShellRoute.MusicNowPlaying, musicRows.single().route)
+        assertTrue(section.rows.none { it.route == ShellRoute.MusicSongRequests })
+        assertEquals(listOf("now-playing", "song-requests"), ShellPage.Music.tabs)
     }
 
     @Test

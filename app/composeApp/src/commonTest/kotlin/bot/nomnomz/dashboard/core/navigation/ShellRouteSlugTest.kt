@@ -45,6 +45,8 @@ class ShellRouteSlugTest {
         assertEquals("library/random-responses", ShellRouteSlug.of(ShellRoute.LibraryRandomResponses))
         assertEquals("event-responses/alert-queue", ShellRouteSlug.of(ShellRoute.EventResponsesAlertQueue))
         assertEquals("gallery/bundles", ShellRouteSlug.of(ShellRoute.GalleryBundles))
+        assertEquals("music/song-requests", ShellRouteSlug.of(ShellRoute.MusicSongRequests))
+        assertEquals(ShellRoute.MusicSongRequests, ShellRouteSlug.parse("music/song-requests"))
     }
 
     @Test
