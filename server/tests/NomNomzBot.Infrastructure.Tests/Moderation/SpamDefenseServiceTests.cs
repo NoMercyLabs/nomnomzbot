@@ -1700,5 +1700,28 @@ public class SpamDefenseServiceTests : IDisposable
         result.Gate.Should().BeNull("the content layer already removed the message");
     }
 
+    [Fact]
+    public async Task The_detection_list_never_returns_a_row_whose_verdict_is_none()
+    {
+        SpamDetection real = AutomaticDetection(Channel, "real-1", "Real", Now.UtcDateTime);
+        SpamDetection zeroSignal = AutomaticDetection(Channel, "calm-1", "Calm", Now.UtcDateTime);
+        zeroSignal.Confidence = SpamConfidence.Zero;
+        zeroSignal.Outcome = SpamOutcome.None;
+        zeroSignal.WouldHaveBeen = SpamOutcome.None;
+        zeroSignal.Reason = "Established viewer; nothing fired.";
+
+        await using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamDetections.AddRange(real, zeroSignal);
+            await seed.SaveChangesAsync();
+        }
+
+        await using AppDbContext read = NewDbContext();
+        IReadOnlyList<SpamDetectionDto> listed = await NewService(read).GetDetectionsAsync(Channel);
+
+        listed.Select(d => d.Id).Should().BeEquivalentTo(new[] { real.Id });
+        listed.Should().OnlyContain(d => d.WouldHaveBeen != SpamOutcome.None);
+    }
+
     public void Dispose() => _connection.Dispose();
 }

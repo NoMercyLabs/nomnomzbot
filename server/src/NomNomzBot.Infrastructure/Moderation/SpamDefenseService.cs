@@ -224,7 +224,11 @@ public sealed class SpamDefenseService : ISpamDefenseService
         return await _db
             .SpamDetections.IgnoreQueryFilters()
             .AsNoTracking()
-            .Where(d => d.BroadcasterId == broadcasterId && d.DeletedAt == null)
+            .Where(d =>
+                d.BroadcasterId == broadcasterId
+                && d.DeletedAt == null
+                && d.WouldHaveBeen != SpamOutcome.None
+            )
             .OrderByDescending(d => d.DetectedAt)
             .Skip(skip)
             .Take(Math.Clamp(pageSize, 1, 200))
