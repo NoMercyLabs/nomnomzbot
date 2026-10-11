@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.core.designsystem.theme
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import nomnomzbot.composeapp.generated.resources.Res
@@ -52,8 +53,18 @@ internal fun FallbackScript.face(colorEmoji: Boolean): FontResource =
 
 // Registers the face of each demanded script (FallbackFontDemand) as a per-glyph fallback. A FontFamily picks ONE
 // face per weight and style and never walks its list per glyph, so the faces cannot simply be listed beside Inter.
+// Returns how many faces have finished loading, so the theme can re-lay out text drawn as boxes before its face
+// arrived (see withFontGeneration).
 @Composable
-internal expect fun PreloadFallbackFonts(colorEmoji: Boolean)
+internal expect fun PreloadFallbackFonts(colorEmoji: Boolean): Int
+
+private const val FONT_GENERATION_SCALE_STEP: Float = 0.0001f
+
+// Compose caches a text layout until one of its inputs changes, and preloading a face changes none of them, so a
+// string already drawn as boxes stays boxes. The font scale is an input every layout reads: nudging it by a
+// hundredth of a percent per loaded face (at most 0.1% across all nine) re-lays out every visible string.
+internal fun Density.withFontGeneration(generation: Int): Density =
+    if (generation == 0) this else Density(density, fontScale * (1f + generation * FONT_GENERATION_SCALE_STEP))
 
 private val FALLBACK_FONT_RETRY_DELAYS_MS: List<Long> = listOf(2_000, 5_000)
 

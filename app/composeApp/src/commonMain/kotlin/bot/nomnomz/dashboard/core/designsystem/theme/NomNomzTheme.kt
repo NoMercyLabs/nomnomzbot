@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 
 // The single theme root (frontend-design-system.md §3). It builds the active `Tokens`
 // from the scheme and provides LocalTokens/LocalScheme/LocalSpacing/LocalTypography.
@@ -86,8 +87,9 @@ fun NomNomzTheme(
         )
     }
 
-    PreloadFallbackFonts(emojiColor)
+    val fontGeneration: Int = PreloadFallbackFonts(emojiColor)
     CompositionLocalProvider(
+        LocalDensity provides LocalDensity.current.withFontGeneration(fontGeneration),
         LocalTokens provides tokens,
         LocalScheme provides scheme,
         LocalSpacing provides DefaultSpacing,

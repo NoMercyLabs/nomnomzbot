@@ -14,4 +14,4 @@ import androidx.compose.runtime.Composable
 
 // Desktop Skia falls back to the operating system's fonts per glyph, so there is nothing to register.
 @Composable
-internal actual fun PreloadFallbackFonts(colorEmoji: Boolean) = Unit
+internal actual fun PreloadFallbackFonts(colorEmoji: Boolean): Int = 0

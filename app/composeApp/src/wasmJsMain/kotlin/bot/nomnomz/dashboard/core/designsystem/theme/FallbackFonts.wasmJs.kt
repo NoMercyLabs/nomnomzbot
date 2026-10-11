@@ -12,10 +12,12 @@ package bot.nomnomz.dashboard.core.designsystem.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.Font
@@ -32,7 +34,8 @@ import org.jetbrains.compose.resources.rememberResourceEnvironment
 // A face is read only after its script was demanded (FallbackFontDemand), so the first visit stays small.
 @OptIn(ExperimentalResourceApi::class)
 @Composable
-internal actual fun PreloadFallbackFonts(colorEmoji: Boolean) {
+internal actual fun PreloadFallbackFonts(colorEmoji: Boolean): Int {
+    var loaded: Int by remember { mutableIntStateOf(0) }
     val resolver: FontFamily.Resolver = LocalFontFamilyResolver.current
     val environment: ResourceEnvironment = rememberResourceEnvironment()
     val demanded: Set<FallbackScript> by FallbackFontDemand.App.scripts.collectAsState()
@@ -42,7 +45,9 @@ internal actual fun PreloadFallbackFonts(colorEmoji: Boolean) {
             LaunchedEffect(face) {
                 val bytes: ByteArray = readFallbackFont { getFontResourceBytes(environment, face) } ?: return@LaunchedEffect
                 resolver.preload(FontFamily(Font(identity = "nnz-fallback-${face.hashCode()}", data = bytes)))
+                loaded++
             }
         }
     }
+    return loaded
 }
