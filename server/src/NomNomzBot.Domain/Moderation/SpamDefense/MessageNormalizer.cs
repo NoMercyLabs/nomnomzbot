@@ -300,13 +300,68 @@ public static class MessageNormalizer
             bool isFormat =
                 CharUnicodeInfo.GetUnicodeCategory(text[i]) == UnicodeCategory.Format
                 || text[i] is '​' or '‌' or '‍' or '﻿' or '⁠';
-            if (isFormat && (IsEmojiLike(text, i - 1) || IsEmojiLike(text, i + 1)))
+            if (
+                isFormat
+                && (IsEmojiLike(text, EmojiBaseBefore(text, i)) || IsEmojiLike(text, i + 1))
+            )
+                continue;
+
+            if (IsEmojiVariationSelector(text, i) || IsEmojiTagCharacter(text, i))
                 continue;
 
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// True for a tag character (U+E0020–E007F, a surrogate pair) inside a tag sequence: a run of tag
+    /// characters that starts right after the black flag U+1F3F4, which is how the England, Scotland and
+    /// Wales flags are written. A tag character anywhere else is still invisible text.
+    /// </summary>
+    private static bool IsEmojiTagCharacter(string text, int index)
+    {
+        if (!IsTagPair(text, index))
+            return false;
+
+        int start = index;
+        while (start >= 2 && IsTagPair(text, start - 2))
+            start -= 2;
+
+        return start >= 2 && text[start - 2] == '\uD83C' && text[start - 1] == '\uDFF4';
+    }
+
+    private static bool IsTagPair(string text, int index) =>
+        index + 1 < text.Length
+        && text[index] == '\uDB40'
+        && text[index + 1] is >= '\uDC20' and <= '\uDC7F';
+
+    private static bool IsVariationSelector(char c) => c is '︎' or '️';
+
+    /// <summary>
+    /// The index of the character a joiner is attached to, looking through a variation selector:
+    /// in <c>🏳️‍🌈</c> the joiner follows U+FE0F, but it joins the flag.
+    /// </summary>
+    private static int EmojiBaseBefore(string text, int index) =>
+        index > 0 && IsVariationSelector(text[index - 1]) ? index - 2 : index - 1;
+
+    /// <summary>
+    /// A variation selector (U+FE0E/U+FE0F) picks the emoji or text look of the character before it:
+    /// <c>✈️</c>, <c>➡️</c>, <c>❤️</c>, and the keycap <c>1️⃣</c> (digit, selector, U+20E3).
+    /// After a letter it is still an invisible character and still a signal.
+    /// </summary>
+    private static bool IsEmojiVariationSelector(string text, int index)
+    {
+        if (!IsVariationSelector(text[index]) || index == 0)
+            return false;
+
+        char previous = text[index - 1];
+        bool isKeycap =
+            previous is (>= '0' and <= '9') or '#' or '*'
+            && index + 1 < text.Length
+            && text[index + 1] == '⃣';
+        return isKeycap || IsEmojiLike(text, index - 1);
     }
 
     /// <summary>

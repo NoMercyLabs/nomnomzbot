@@ -131,6 +131,35 @@ public class MessageNormalizerTests
             .BeFalse("a clean message must not report abuse it does not contain");
     }
 
+    [Theory]
+    [InlineData("goddamnit while i was in the air ( ✈️ ) WSL got aired update")]
+    [InlineData("Hire me! ➡️ contra.com/x")]
+    [InlineData("❤️")]
+    [InlineData("\U0001F468‍\U0001F469‍\U0001F467")] // family ZWJ sequence
+    [InlineData("\U0001F3F3️‍\U0001F308")] // rainbow flag: ZWJ next to a variation selector
+    [InlineData("❤️‍\U0001F525")] // heart on fire
+    [InlineData("\U0001F44D\U0001F3FB")] // skin-tone modifier
+    [InlineData("\U0001F1FA\U0001F1F8")] // regional-indicator flag pair
+    [InlineData("1️⃣")] // keycap
+    [InlineData("\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F")] // England
+    [InlineData("\U0001F3F4\U000E0067\U000E0062\U000E0073\U000E0063\U000E0074\U000E007F")] // Scotland
+    [InlineData("\U0001F3F4\U000E0067\U000E0062\U000E0077\U000E006C\U000E0073\U000E007F")] // Wales
+    public void AnOrdinaryEmoji_IsNeverFlaggedAsCosmeticAbuse(string message)
+    {
+        MessageNormalizer.Normalize(message).StrippedCosmeticAbuse.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("f️ree")] // a lone variation selector after a plain letter
+    [InlineData("vie​wers")] // zero-width space splitting a word
+    [InlineData("à́̂̃̄ b")] // stacked combining marks
+    [InlineData("a️‍b")] // ZWJ hidden behind a selector between letters
+    [InlineData("vie\U000E0067wers")] // a tag character inside a word, no flag base
+    public void InvisibleCharactersInsideWords_StillCountAsCosmeticAbuse(string message)
+    {
+        MessageNormalizer.Normalize(message).StrippedCosmeticAbuse.Should().BeTrue();
+    }
+
     [Fact]
     public void MixedScriptTokens_AreRecordedBeforeFolding_BecauseFoldingDestroysTheEvidence()
     {
