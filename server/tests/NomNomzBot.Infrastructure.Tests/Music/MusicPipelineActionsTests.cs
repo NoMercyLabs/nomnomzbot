@@ -1161,10 +1161,10 @@ public sealed class MusicPipelineActionsTests
         };
 
     [Fact]
-    public async Task Song_wrong_says_too_late_as_a_reply_and_clears_the_callers_newest_request_record()
+    public async Task Song_wrong_for_a_request_that_played_in_an_earlier_stream_says_there_is_nothing_to_retract()
     {
-        // Legacy: the caller's last request is neither playing nor queued, so it already played. The record
-        // is removed and the answer is a REPLY to the triggering message.
+        // Nothing queued and nothing playing: a request of the caller's that sits in history played in an
+        // earlier stream, so there is nothing to skip. The history stays untouched.
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Records.Add(HistoryRow("twitch-42", "Older Song", "Older Artist"));
         db.Records.Add(HistoryRow("twitch-42", "Played Song", "Artist Z"));
@@ -1189,16 +1189,13 @@ public sealed class MusicPipelineActionsTests
             .SendReplyAsync(
                 ChannelId,
                 "msg-1",
-                "@Bamo Too late — Played Song by Artist Z already played.",
+                "@Bamo You haven't requested any songs to retract.",
                 Arg.Any<CancellationToken>()
             );
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
         await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
-        List<string> left = db.Records.AsEnumerable().Select(r => r.UserId + ":" + r.Data).ToList();
-        left.Should().HaveCount(2);
-        left.Should().NotContain(d => d.Contains("Played Song"));
-        left.Should().Contain(d => d.StartsWith("twitch-42:") && d.Contains("Older Song"));
-        left.Should().Contain(d => d.StartsWith("twitch-99:"));
+        await music.DidNotReceiveWithAnyArgs().RetractRequestAsync(default!, default);
+        db.Records.Count().Should().Be(3, "nothing was skipped, so no history record is cleared");
     }
 
     [Fact]
@@ -1258,8 +1255,7 @@ public sealed class MusicPipelineActionsTests
     [Fact]
     public async Task Song_wrong_retracting_a_queued_request_also_clears_its_history_record()
     {
-        // Without this, the NEXT !wrongsong would find the retracted request's record and claim it
-        // "already played" although it never did.
+        // Without this, the retracted request would linger in the caller's history although it never played.
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Records.Add(HistoryRow("twitch-42", "Mine", "A"));
         await db.SaveChangesAsync();

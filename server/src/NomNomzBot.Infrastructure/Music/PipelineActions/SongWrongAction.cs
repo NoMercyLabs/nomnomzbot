@@ -188,15 +188,13 @@ public sealed class SongWrongAction : ICommandAction
     }
 
     /// <summary>
-    /// Removes the caller's newest song-request history record (the legacy bot deleted its record on every
-    /// outcome). With a track name and artist it removes the newest record of THAT track — the one just
-    /// retracted — so a retracted request is never later reported as "already played". Without them it
-    /// removes the newest record outright. Returns what it removed, or <c>null</c> when there was none.
+    /// Removes the caller's newest song-request history record of the given track and artist — the one just
+    /// retracted or skipped. Returns what it removed, or <c>null</c> when there was none.
     /// </summary>
     private async Task<SongRequestHistory?> RemoveNewestHistoryAsync(
         PipelineExecutionContext ctx,
-        string? trackName = null,
-        string? artist = null
+        string? trackName,
+        string? artist
     )
     {
         List<Domain.Platform.Entities.Record> rows = await _db
@@ -215,11 +213,8 @@ public sealed class SongWrongAction : ICommandAction
             if (history is null)
                 continue;
             if (
-                trackName is not null
-                && (
-                    !string.Equals(history.TrackName, trackName, StringComparison.Ordinal)
-                    || !string.Equals(history.Artist, artist, StringComparison.Ordinal)
-                )
+                !string.Equals(history.TrackName, trackName, StringComparison.Ordinal)
+                || !string.Equals(history.Artist, artist, StringComparison.Ordinal)
             )
                 continue;
 
@@ -265,19 +260,8 @@ public sealed class SongWrongAction : ICommandAction
 
         if (!playingIsTheirs)
         {
-            // Neither queued nor playing: if the caller has a request on record it already played (legacy:
-            // "Too late"), and the record is cleared so the next call reaches the one before it.
-            SongRequestHistory? played = await RemoveNewestHistoryAsync(ctx);
-            if (played is not null)
-            {
-                await SendAsync(
-                    ctx,
-                    $"@{ctx.TriggeredByDisplayName} Too late — {played.TrackName} by {played.Artist} already played."
-                );
-                ctx.ShouldStop = true;
-                return ActionResult.Success("the triggering user's last request already played");
-            }
-
+            // Neither queued nor playing: nothing to skip. A request on record played in an earlier stream
+            // (no stream boundary exists here), so it is never reported as "already played".
             await SendAsync(
                 ctx,
                 $"@{ctx.TriggeredByDisplayName} You haven't requested any songs to retract."
