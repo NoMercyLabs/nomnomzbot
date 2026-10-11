@@ -47,6 +47,7 @@ One row per today route (46 including Admin) and per participant page (6).
 | Obs | Connect | Live | OBS | Live control; Advanced (connection form moves to Integrations) | Moderator | Moderator | S-IA-NAV, S-IA-SETUP |
 | Vts | Connect | Live | VTube Studio | Hotkeys; Expressions (connection moves to Integrations) | Moderator | Moderator | S-IA-NAV, S-IA-SETUP |
 | Automation | Connect | Connect | API & devices | API tokens; Stream Deck pairing; device codes | Editor | Broadcaster | S-IA-NAV |
+| Bundles: Marketplace tab | Setup | Build | Gallery | Templates | Moderator | Moderator | S-IA-GALLERY |
 | Bundles | Setup | Build | Gallery | Bundles | Moderator | Moderator | S-IA-GALLERY |
 | Integrations | Setup | Setup | Integrations | - (the one home of every credential) | Broadcaster | Broadcaster | S-IA-SETUP |
 | Roles | Setup | People | People | Roles (with Individual permissions) | Moderator | Broadcaster (assign Moderator and VIP: Broadcaster, `ActionDefinitionSeeder.cs:236-237`) | S-IA-PEOPLE |

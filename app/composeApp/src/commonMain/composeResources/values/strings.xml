@@ -4260,7 +4260,7 @@
     <string name="bundles_manifest_row_type">Bundle</string>
     <string name="bundles_item_row_type">Item</string>
     <string name="bundles_installed_row_type">Bundle</string>
-    <string name="bundles_marketplace_row_type">Listing</string>
+    <string name="templates_row_type">Listing</string>
     <string name="chat_suggestion_row_type">Suggestion</string>
     <string name="scripts_row_type">Script</string>
     <string name="scripts_effect_row_type">Effect</string>
@@ -5004,6 +5004,12 @@
 
     <!-- Bundles + marketplace -->
     <string name="shell_nav_bundles">Bundles</string>
+    <string name="shell_nav_templates">Templates</string>
+    <string name="templates_title">Templates</string>
+    <string name="templates_subtitle">Browse ready-made bundles from the catalogue and install them into your channel.</string>
+    <string name="templates_loading">Loading templates…</string>
+    <string name="templates_error">Couldn't load templates: %1$s</string>
+    <string name="templates_retry">Retry</string>
     <string name="bundles_title">Bundles</string>
     <string name="bundles_subtitle">Package your channel's content into portable bundles, or install one.</string>
     <string name="bundles_loading">Loading bundles…</string>
@@ -5013,7 +5019,6 @@
     <string name="bundles_tab_export">Export</string>
     <string name="bundles_tab_import">Import</string>
     <string name="bundles_tab_installed">Installed</string>
-    <string name="bundles_tab_marketplace">Marketplace</string>
     <string name="bundles_name_label">Bundle name</string>
     <string name="bundles_version_label">Version</string>
     <string name="bundles_description_label">Description</string>
@@ -5046,15 +5051,15 @@
     <string name="bundles_uninstall_title">Uninstall bundle?</string>
     <string name="bundles_uninstall_message">This removes exactly what "%1$s" created on this channel.</string>
     <string name="bundles_uninstall_confirm">Uninstall</string>
-    <string name="bundles_marketplace_search_label">Search</string>
-    <string name="bundles_marketplace_type_label">Type (optional)</string>
-    <string name="bundles_marketplace_browse">Browse</string>
-    <string name="bundles_marketplace_unavailable">The hosted marketplace isn't available yet.</string>
-    <string name="bundles_marketplace_empty">No bundles match your search.</string>
-    <string name="bundles_marketplace_by">by %1$s</string>
-    <string name="bundles_marketplace_rating">★ %1$s</string>
-    <string name="bundles_marketplace_installs">%1$s installs</string>
-    <string name="bundles_install_button">Install</string>
+    <string name="templates_search_label">Search</string>
+    <string name="templates_type_label">Type (optional)</string>
+    <string name="templates_browse">Browse</string>
+    <string name="templates_unavailable">The hosted marketplace isn't available yet.</string>
+    <string name="templates_empty">No bundles match your search.</string>
+    <string name="templates_by">by %1$s</string>
+    <string name="templates_rating">★ %1$s</string>
+    <string name="templates_installs">%1$s installs</string>
+    <string name="templates_install_button">Install</string>
     <string name="bundles_publish_title">Publish</string>
     <string name="bundles_publish_token_desc">A publisher token lets you submit bundles to the marketplace.</string>
     <string name="bundles_publish_token_label">Publisher token</string>

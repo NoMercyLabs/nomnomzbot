@@ -44,9 +44,18 @@ class ShellRouteSlugTest {
         assertEquals("people/queue", ShellRouteSlug.of(ShellRoute.PeopleQueue))
         assertEquals("library/random-responses", ShellRouteSlug.of(ShellRoute.LibraryRandomResponses))
         assertEquals("event-responses/alert-queue", ShellRouteSlug.of(ShellRoute.EventResponsesAlertQueue))
+        assertEquals("gallery/templates", ShellRouteSlug.of(ShellRoute.GalleryTemplates))
         assertEquals("gallery/bundles", ShellRouteSlug.of(ShellRoute.GalleryBundles))
         assertEquals("music/song-requests", ShellRouteSlug.of(ShellRoute.MusicSongRequests))
         assertEquals(ShellRoute.MusicSongRequests, ShellRouteSlug.parse("music/song-requests"))
+    }
+
+    @Test
+    fun the_gallery_page_slug_opens_its_templates_tab_and_the_old_bundles_address_lands_on_home() {
+        assertEquals(ShellRoute.GalleryTemplates, ShellRouteSlug.parse("gallery"))
+        assertEquals(ShellRoute.GalleryBundles, ShellRouteSlug.parse("gallery/bundles"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("bundles"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("setup/bundles"))
     }
 
     @Test

@@ -121,6 +121,7 @@ import bot.nomnomz.dashboard.feature.automation.ui.AutomationScreen
 import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareScreen
 import bot.nomnomz.dashboard.feature.mydata.ui.MyDataScreen
 import bot.nomnomz.dashboard.feature.bundles.ui.BundlesScreen
+import bot.nomnomz.dashboard.feature.gallery.ui.TemplatesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.liveops.ui.ScheduleScreen
@@ -222,6 +223,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.shell_nav_automation
 import nomnomzbot.composeapp.generated.resources.shell_nav_mediashare
 import nomnomzbot.composeapp.generated.resources.shell_nav_bundles
+import nomnomzbot.composeapp.generated.resources.shell_nav_templates
 import nomnomzbot.composeapp.generated.resources.shell_nav_mydata
 import nomnomzbot.composeapp.generated.resources.shell_nav_custom_events
 import nomnomzbot.composeapp.generated.resources.shell_nav_federation
@@ -836,6 +838,7 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
+            ShellRoute.GalleryTemplates -> TemplatesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.GalleryBundles -> BundlesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
             ShellRoute.Admin -> AdminScreen(
@@ -1641,6 +1644,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.VtubeStudio -> VtsGlyph
         ShellRoute.ApiDevices -> AutomationGlyph
         ShellRoute.MediaShare -> MediaShareGlyph
+        ShellRoute.GalleryTemplates -> TemplatesGlyph
         ShellRoute.GalleryBundles -> BundlesGlyph
         ShellRoute.MyData -> MyDataGlyph
         ShellRoute.Settings -> SettingsGlyph
@@ -1694,6 +1698,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.VtubeStudio -> Res.string.shell_nav_vts
             ShellRoute.ApiDevices -> Res.string.shell_nav_automation
             ShellRoute.MediaShare -> Res.string.shell_nav_mediashare
+            ShellRoute.GalleryTemplates -> Res.string.shell_nav_templates
             ShellRoute.GalleryBundles -> Res.string.shell_nav_bundles
             ShellRoute.MyData -> Res.string.shell_nav_mydata
             ShellRoute.Admin -> Res.string.shell_nav_admin

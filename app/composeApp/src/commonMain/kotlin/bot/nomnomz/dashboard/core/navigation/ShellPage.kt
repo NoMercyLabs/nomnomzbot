@@ -42,7 +42,7 @@ enum class ShellPage(val slug: String, val tabs: List<String>) {
     CustomEvents("custom-events", emptyList()),
     Supporters("supporters", emptyList()),
     ApiDevices("api-devices", emptyList()),
-    Gallery("gallery", listOf("bundles")),
+    Gallery("gallery", listOf("templates", "bundles")),
     Integrations("integrations", emptyList()),
     Features("features", emptyList()),
     Settings("settings", emptyList()),

@@ -184,6 +184,7 @@ class ShellNavTest {
                 ShellRoute.Games,
                 ShellRoute.MusicNowPlaying,
                 ShellRoute.StreamSchedule,
+                ShellRoute.GalleryTemplates,
                 ShellRoute.GalleryBundles,
             ),
             manageable,
@@ -299,6 +300,20 @@ class ShellNavTest {
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Overlays }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Scripts }.group)
         assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Pipelines }.group)
+    }
+
+    @Test
+    fun the_build_group_shows_gallery_with_both_tabs_to_a_moderator_and_setup_holds_no_bundles() {
+        val moderator: List<NavPage> = ShellNav.visiblePagesFor(ManagementRole.Moderator)
+
+        listOf(ShellRoute.GalleryTemplates, ShellRoute.GalleryBundles).forEach { route ->
+            val page: NavPage = moderator.first { it.route == route }
+            assertEquals(NavGroup.Build, page.group, "$route sits in Build")
+            assertTrue(ShellNav.canManage(ManagementRole.Moderator, route), "Moderator manages $route")
+        }
+        val setupRoutes: List<ShellRoute> = ShellNav.pages.filter { it.group == NavGroup.Setup }.map { it.route }
+        assertFalse(setupRoutes.contains(ShellRoute.GalleryBundles))
+        assertFalse(setupRoutes.contains(ShellRoute.GalleryTemplates))
     }
 
     @Test

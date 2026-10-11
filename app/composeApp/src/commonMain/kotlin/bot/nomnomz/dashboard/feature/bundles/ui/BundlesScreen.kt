@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -65,7 +64,6 @@ import bot.nomnomz.dashboard.core.network.BundleInspection
 import bot.nomnomz.dashboard.core.network.ExportItemRef
 import bot.nomnomz.dashboard.core.network.ImportPolicy
 import bot.nomnomz.dashboard.core.network.InstalledBundle
-import bot.nomnomz.dashboard.core.network.MarketplaceItem
 import bot.nomnomz.dashboard.feature.bundles.state.BundlesController
 import bot.nomnomz.dashboard.feature.bundles.state.BundlesUiState
 import bot.nomnomz.dashboard.feature.bundles.state.Exportables
@@ -96,22 +94,12 @@ import nomnomzbot.composeapp.generated.resources.bundles_import_note
 import nomnomzbot.composeapp.generated.resources.bundles_installed_row_type
 import nomnomzbot.composeapp.generated.resources.bundles_item_row_type
 import nomnomzbot.composeapp.generated.resources.bundles_manifest_row_type
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_row_type
 import nomnomzbot.composeapp.generated.resources.bundles_import_policy_label
 import nomnomzbot.composeapp.generated.resources.bundles_import_version
-import nomnomzbot.composeapp.generated.resources.bundles_install_button
 import nomnomzbot.composeapp.generated.resources.bundles_installed_at
 import nomnomzbot.composeapp.generated.resources.bundles_installed_empty
 import nomnomzbot.composeapp.generated.resources.bundles_installed_version
 import nomnomzbot.composeapp.generated.resources.bundles_loading
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_browse
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_by
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_empty
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_installs
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_rating
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_search_label
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_type_label
-import nomnomzbot.composeapp.generated.resources.bundles_marketplace_unavailable
 import nomnomzbot.composeapp.generated.resources.bundles_name_label
 import nomnomzbot.composeapp.generated.resources.bundles_policy_overwrite
 import nomnomzbot.composeapp.generated.resources.bundles_policy_rename
@@ -137,7 +125,6 @@ import nomnomzbot.composeapp.generated.resources.bundles_subtitle
 import nomnomzbot.composeapp.generated.resources.bundles_tab_export
 import nomnomzbot.composeapp.generated.resources.bundles_tab_import
 import nomnomzbot.composeapp.generated.resources.bundles_tab_installed
-import nomnomzbot.composeapp.generated.resources.bundles_tab_marketplace
 import nomnomzbot.composeapp.generated.resources.bundles_title
 import nomnomzbot.composeapp.generated.resources.bundles_uninstall
 import nomnomzbot.composeapp.generated.resources.bundles_uninstall_confirm
@@ -151,12 +138,12 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
-// The Bundles page (frontend-ia.md, Connect group; bundles.md §5–§6): portable content packs. Four tabs off one
+// The Bundles page (frontend-ia.md, Connect group; bundles.md §5–§6): portable content packs. Three tabs off one
 // [BundlesController] — Export (pick the channel's own content → a portable ZIP), Import (pick a ZIP, inspect it
-// first, then install under a conflict policy), Installed (what's on the channel, uninstallable), and Marketplace
-// (the OPTIONAL hosted catalogue, with a Broadcaster-gated publish surface). Export/import gate at the page's
-// Editor manage floor; publish + the publisher token gate at Broadcaster. The hosted marketplace can be
-// unavailable — the screen renders an honest empty-state card rather than pretending it failed.
+// first, then install under a conflict policy) and Installed (what's on the channel, uninstallable). The publish
+// card sits under Export, since you publish what you export. Browsing and installing from the hosted catalogue
+// lives on the Templates tab (TemplatesScreen). Export/import gate at the page's Editor manage floor; publish +
+// the publisher token gate at Broadcaster.
 @Composable
 fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
     val state: BundlesUiState by controller.state.collectAsStateWithLifecycle()
@@ -197,20 +184,28 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
                         TabsTrigger(selected = tab == 2, onClick = { tab = 2 }) {
                             Text(text = stringResource(Res.string.bundles_tab_installed))
                         }
-                        TabsTrigger(selected = tab == 3, onClick = { tab = 3 }) {
-                            Text(text = stringResource(Res.string.bundles_tab_marketplace))
-                        }
                     }
 
                     when (tab) {
                         0 ->
-                            ExportTab(
-                                exportables = current.exportables,
-                                manage = manage,
-                                onExport = { items, name, version, description ->
-                                    scope.launch { controller.exportBundle(items, name, version, description) }
-                                },
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                                ExportTab(
+                                    exportables = current.exportables,
+                                    manage = manage,
+                                    onExport = { items, name, version, description ->
+                                        scope.launch { controller.exportBundle(items, name, version, description) }
+                                    },
+                                )
+                                PublishCard(
+                                    hasPublisherToken = current.hasPublisherToken,
+                                    manage = managePublish,
+                                    onSetToken = { token -> scope.launch { controller.setPublisherToken(token) } },
+                                    onClearToken = { scope.launch { controller.clearPublisherToken() } },
+                                    onPublish = { name, version, summary, tags ->
+                                        scope.launch { controller.publish(name, version, summary, tags) }
+                                    },
+                                )
+                            }
                         1 ->
                             ImportTab(
                                 inspection = current.inspection,
@@ -219,29 +214,12 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
                                 onImport = { policy -> scope.launch { controller.importInspected(policy) } },
                                 onCancel = { controller.clearInspection() },
                             )
-                        2 ->
+                        else ->
                             InstalledTab(
                                 installed = current.installed,
                                 manage = manage,
                                 onUninstall = controller::uninstall,
                                 onUninstallBlastRadius = controller::uninstallBlastRadius,
-                            )
-                        else ->
-                            MarketplaceTab(
-                                available = current.marketplaceAvailable,
-                                items = current.marketplace,
-                                hasPublisherToken = current.hasPublisherToken,
-                                manageInstall = manage,
-                                managePublish = managePublish,
-                                onBrowse = { q, type -> scope.launch { controller.browseMarketplace(q, type) } },
-                                onInstall = { itemId, policy ->
-                                    scope.launch { controller.installFromMarketplace(itemId, policy) }
-                                },
-                                onSetToken = { token -> scope.launch { controller.setPublisherToken(token) } },
-                                onClearToken = { scope.launch { controller.clearPublisherToken() } },
-                                onPublish = { name, version, summary, tags ->
-                                    scope.launch { controller.publish(name, version, summary, tags) }
-                                },
                             )
                     }
                 }
@@ -645,169 +623,6 @@ private fun InstalledRow(bundle: InstalledBundle, manage: ManageDecision, onUnin
     }
 }
 
-// ── Marketplace tab ──────────────────────────────────────────────────────────
-
-@Composable
-private fun MarketplaceTab(
-    available: Boolean,
-    items: List<MarketplaceItem>,
-    hasPublisherToken: Boolean,
-    manageInstall: ManageDecision,
-    managePublish: ManageDecision,
-    onBrowse: (q: String?, type: String?) -> Unit,
-    onInstall: (itemId: String, policy: String) -> Unit,
-    onSetToken: (token: String) -> Unit,
-    onClearToken: () -> Unit,
-    onPublish: (name: String, version: String, summary: String, tagsCsv: String) -> Unit,
-) {
-    val spacing: Spacing = LocalSpacing.current
-
-    var query: String by remember { mutableStateOf("") }
-    var type: String by remember { mutableStateOf("") }
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-        FieldPair(
-            verticalAlignment = Alignment.Bottom,
-            first = { fieldModifier ->
-                AppTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    label = stringResource(Res.string.bundles_marketplace_search_label),
-                    modifier = fieldModifier,
-                )
-            },
-            second = { fieldModifier ->
-                AppTextField(
-                    value = type,
-                    onValueChange = { type = it },
-                    label = stringResource(Res.string.bundles_marketplace_type_label),
-                    modifier = fieldModifier,
-                )
-            },
-            action = {
-                Button(
-                    onClick = { onBrowse(query.trim().ifBlank { null }, type.trim().ifBlank { null }) }
-                ) {
-                    Text(text = stringResource(Res.string.bundles_marketplace_browse))
-                }
-            },
-        )
-
-        if (!available) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth().padding(spacing.s6)) {
-                    CenteredMessage(stringResource(Res.string.bundles_marketplace_unavailable))
-                }
-            }
-        } else if (items.isEmpty()) {
-            CenteredMessage(stringResource(Res.string.bundles_marketplace_empty))
-        } else {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    items.forEachIndexed { index, item ->
-                        MarketplaceRow(item = item, manage = manageInstall, onInstall = onInstall)
-                        if (index < items.lastIndex) Separator()
-                    }
-                }
-            }
-        }
-
-        PublishCard(
-            hasPublisherToken = hasPublisherToken,
-            manage = managePublish,
-            onSetToken = onSetToken,
-            onClearToken = onClearToken,
-            onPublish = onPublish,
-        )
-    }
-}
-
-@Composable
-private fun MarketplaceRow(
-    item: MarketplaceItem,
-    manage: ManageDecision,
-    onInstall: (itemId: String, policy: String) -> Unit,
-) {
-    val spacing: Spacing = LocalSpacing.current
-    val tokens: Tokens = LocalTokens.current
-    val typography: Typography = LocalTypography.current
-
-    var policy: String by remember { mutableStateOf(ImportPolicy.Rename) }
-
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            val marketplaceDisplayName: String =
-                resolveRowLabel(
-                    primary = item.name,
-                    secondary = item.author,
-                    typeLabel = stringResource(Res.string.bundles_marketplace_row_type),
-                    discriminatorSource = item.itemId,
-                )
-            Text(
-                text = marketplaceDisplayName,
-                style = typography.base,
-                color = tokens.cardForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = stringResource(Res.string.bundles_marketplace_rating, item.rating.toString()),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                )
-                Text(
-                    text = stringResource(Res.string.bundles_marketplace_installs, item.installs.toString()),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                )
-            }
-        }
-        Text(
-            text = stringResource(Res.string.bundles_marketplace_by, item.author),
-            style = typography.xs,
-            color = tokens.mutedForeground,
-        )
-        if (item.summary.isNotBlank()) {
-            Text(text = item.summary, style = typography.sm, color = tokens.cardForeground)
-        }
-        if (item.capabilities.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(spacing.s1),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
-                item.capabilities.forEach { capability ->
-                    Badge(variant = BadgeVariant.Secondary) { Text(text = capability, style = typography.xs) }
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                ImportPolicy.all.forEach { option ->
-                    ToggleChip(
-                        label = stringResource(policyLabel(option)),
-                        selected = option == policy,
-                        onClick = { policy = option },
-                    )
-                }
-            }
-            ManageGate(decision = manage) { enabled ->
-                Button(onClick = { onInstall(item.itemId, policy) }, enabled = enabled) {
-                    Text(text = stringResource(Res.string.bundles_install_button))
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun PublishCard(
     hasPublisherToken: Boolean,
@@ -964,7 +779,7 @@ private fun PublishDialog(
 // ── shared bits ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
+internal fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Badge(
         variant = if (selected) BadgeVariant.Default else BadgeVariant.Outline,
         selected = selected,
@@ -974,7 +789,7 @@ private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-private fun policyLabel(policy: String): StringResource =
+internal fun policyLabel(policy: String): StringResource =
     when (policy) {
         ImportPolicy.Rename -> Res.string.bundles_policy_rename
         ImportPolicy.Overwrite -> Res.string.bundles_policy_overwrite

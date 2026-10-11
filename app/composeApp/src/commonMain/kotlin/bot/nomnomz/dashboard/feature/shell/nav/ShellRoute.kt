@@ -57,6 +57,7 @@ enum class ShellRoute(val page: ShellPage, val tab: String?) {
     CustomEvents(ShellPage.CustomEvents, null),
     Supporters(ShellPage.Supporters, null),
     ApiDevices(ShellPage.ApiDevices, null),
+    GalleryTemplates(ShellPage.Gallery, "templates"),
     GalleryBundles(ShellPage.Gallery, "bundles"),
     Integrations(ShellPage.Integrations, null),
     Features(ShellPage.Features, null),

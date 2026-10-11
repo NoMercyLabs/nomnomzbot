@@ -100,7 +100,9 @@ object ShellNav {
             NavPage(ShellRoute.LibraryQuotes, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),
             // Gallery, Bundles tab: the installed-list read floors at Moderator (bundles:read); export/import write at
             // Moderator; marketplace publish + the publisher token are Broadcaster, gated per-control inside the page.
-            NavPage(ShellRoute.GalleryBundles, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "bundles:read"),
+            // Gallery, Templates tab: browsing the catalogue reads at the same bundles:read floor as the installed list.
+            NavPage(ShellRoute.GalleryTemplates, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "bundles:read"),
+            NavPage(ShellRoute.GalleryBundles,NavGroup.Build, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "bundles:read"),
             // People: one page, six tabs. The moderation tabs share `moderation:read`; only the MANAGE floor differs.
             NavPage(ShellRoute.PeopleOverview, NavGroup.People, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
             NavPage(ShellRoute.PeopleQueue, NavGroup.People, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),

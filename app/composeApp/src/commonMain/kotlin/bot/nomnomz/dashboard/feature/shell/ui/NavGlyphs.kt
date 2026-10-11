@@ -60,3 +60,4 @@ val AutomationGlyph: DrawableResource = AppIcons.BotFlow
 val MediaShareGlyph: DrawableResource = AppIcons.Share2
 val MyDataGlyph: DrawableResource = AppIcons.Paper
 val BundlesGlyph: DrawableResource = AppIcons.DeliveryBox1
+val TemplatesGlyph: DrawableResource = AppIcons.Bag
