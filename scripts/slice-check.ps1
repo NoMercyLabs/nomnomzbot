@@ -174,6 +174,17 @@ try {
         }
     }
 
+    # The app page registry (ShellPage.kt) and the UI placement ledger must stay in step. An app slice or a
+    # ledger edit runs the placement guard: it fails on a page with no ledger row and on a ledger row whose
+    # slice is closed but whose page is missing from the app.
+    if (@($Paths | Where-Object { ($_ -replace '\\', '/') -match '^(app/|\.claude/docs/design/ui-placement-ledger)' }).Count -gt 0) {
+        [string]$placementRoot = if ($worktree) { $worktree } else { $repo }
+        Write-Host '== check (app page registry vs UI placement ledger) =='
+        Invoke-Native 'the app page list and the UI placement ledger are out of step - see the lines above' {
+            python (Join-Path $placementRoot 'scripts/check-ia-placement.py')
+        }
+    }
+
     Write-Host '== format (slice files only) =='
     # -Paths are given repo-relative. In -AtCommit mode the build runs inside the worktree, so they must
     # be rebased onto the worktree root; formatting the shared tree's copies from here would be wrong.
