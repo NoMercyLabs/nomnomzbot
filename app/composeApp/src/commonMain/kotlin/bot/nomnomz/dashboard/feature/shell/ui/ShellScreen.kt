@@ -258,6 +258,7 @@ fun ShellScreen(
     graph: AppGraph,
     languageController: LanguageController,
     routeStore: RouteStore,
+    routeMemory: ShellRouteMemory,
     user: SessionUser?,
     access: ShellAccess.Resolved,
     onLogout: () -> Unit,
@@ -361,8 +362,6 @@ fun ShellScreen(
     // ShellRouteMemory).
     val identityGeneration: Int by graph.sessionStore.identityGeneration.collectAsStateWithLifecycle()
     val actingAs: ImpersonationInfo? by graph.sessionStore.impersonating.collectAsStateWithLifecycle()
-    val routeMemory: ShellRouteMemory =
-        remember(routeStore) { ShellRouteMemory(routeStore::initialAddress, routeStore::save, graph.sessionStore) }
     val openingAddress: ShellAddress = remember(identityGeneration) { routeMemory.openingAddress() }
     var requestedRoute: ShellRoute by remember(identityGeneration) { mutableStateOf(openingAddress.route) }
     val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute

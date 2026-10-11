@@ -46,6 +46,7 @@ import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.state.resumePendingSetupFinish
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
+import bot.nomnomz.dashboard.feature.shell.state.ShellRouteMemory
 import bot.nomnomz.dashboard.feature.shell.ui.ExitImpersonationButton
 import bot.nomnomz.dashboard.feature.shell.ui.ShellAccessFailedScreen
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
@@ -96,6 +97,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         val spacing = LocalSpacing.current
         val scope = rememberCoroutineScope()
         val routeStore: RouteStore = remember { RouteStore() }
+        // Outlives the shell: a channel switch remounts ShellScreen, and the memory must remember it already
+        // took the channel from the address.
+        val routeMemory: ShellRouteMemory =
+            remember { ShellRouteMemory(routeStore::initialAddress, routeStore::save, graph.sessionStore) }
 
         var booting: Boolean by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
@@ -295,6 +300,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                                 graph = graph,
                                                 languageController = graph.languageController,
                                                 routeStore = routeStore,
+                                                routeMemory = routeMemory,
                                                 user = user,
                                                 access = resolved,
                                                 onLogout = { scope.launch { graph.connectController.logout() } },

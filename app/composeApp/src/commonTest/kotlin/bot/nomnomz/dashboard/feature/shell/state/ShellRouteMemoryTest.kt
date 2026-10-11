@@ -60,6 +60,22 @@ class ShellRouteMemoryTest {
         assertEquals(at(ShellRoute.TriggersTimers), routes.externalMove(at(ShellRoute.TriggersTimers)))
     }
 
+    // Stoney, 2026-10-11: "the dashboard is rapidly cycling between me and qtkitte". A channel switch remounts the
+    // shell while the address still names the old channel; re-reading that login switched back, forever.
+    @Test
+    fun once_the_shell_has_written_its_address_a_reopen_no_longer_picks_the_channel_from_it() {
+        val store = SessionStore(NoVault, NoProfile, NoChannel)
+        val saved = SavedRoute(ShellAddress(login = "qtkitte", route = ShellRoute.Home))
+        val routes: ShellRouteMemory = memory(store, saved)
+
+        assertEquals("qtkitte", routes.openingAddress().login)
+        routes.save(at(ShellRoute.Home))
+
+        assertEquals(ShellAddress(login = null, route = ShellRoute.Home), routes.openingAddress())
+        // Browser Back/Forward still steers the channel.
+        assertEquals("qtkitte", routes.externalMove(ShellAddress("qtkitte", ShellRoute.Home))?.login)
+    }
+
     @Test
     fun while_acting_the_operators_route_is_neither_read_nor_written_nor_followed() {
         val store = SessionStore(NoVault, NoProfile, NoChannel)
