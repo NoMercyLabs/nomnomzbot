@@ -49,7 +49,7 @@ One row per today route (46 including Admin) and per participant page (6).
 | Automation | Connect | Connect | API & devices | API tokens; Stream Deck pairing; device codes | Editor | Broadcaster | S-IA-NAV |
 | Bundles | Setup | Build | Gallery | Bundles | Moderator | Moderator | S-IA-GALLERY |
 | Integrations | Setup | Setup | Integrations | - (the one home of every credential) | Broadcaster | Broadcaster | S-IA-SETUP |
-| Roles | Setup | People | People | Roles (with Individual permissions) | Moderator | Broadcaster (assign Moderator and VIP: Lead Moderator) | S-IA-PEOPLE |
+| Roles | Setup | People | People | Roles (with Individual permissions) | Moderator | Broadcaster (assign Moderator and VIP: Broadcaster, `ActionDefinitionSeeder.cs:236-237`) | S-IA-PEOPLE |
 | Features | Setup | Setup | Features | - | Broadcaster | Broadcaster | - |
 | Settings | Setup | Setup | Settings | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone (Billing in saas mode only, a RESTRICTED option) | Moderator | Broadcaster | S-IA-SETUP |
 | MyData | Setup | Outside the sidebar: profile menu | My data | - | Everyone | Everyone | S-IA-NAV |

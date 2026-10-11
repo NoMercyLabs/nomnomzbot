@@ -233,8 +233,8 @@ One page (slice S-USER-HUB, built by S-IA-PEOPLE). The tabs are the old Communit
 
 ### 3.4 Counts
 
-- The broadcaster sees 34 sidebar rows: Home 1, Live 6, Build 8, People 6, Loyalty 4, Music & Voice 3,
-  Connect 6. Setup adds 3 rows when expanded. The most is 37, instead of 45 plus Admin.
+- The broadcaster sees 29 sidebar rows: Home 1, Live 6, Build 8, People 1 (its 6 tabs are not rows),
+  Loyalty 4, Music & Voice 3, Connect 6. Setup adds 3 rows when expanded. The most is 32, instead of 45 plus Admin.
 - 11 old pages become tabs: Multi-Chat, Schedule, Alerts, Chat Triggers, Voice Triggers, Timers, Sound
   Clips, Assets, Pick Lists, Quotes, Song Requests.
 - My Data and Admin leave the sidebar. Bundles joins Gallery. The 4 Moderation routes and Community
