@@ -12,8 +12,10 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NSubstitute;
 
@@ -139,6 +141,7 @@ public sealed class PronounGrammarTemplateResolverTests
 
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
+        services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         ServiceProvider provider = services.BuildServiceProvider();
 
         _resolver = new(

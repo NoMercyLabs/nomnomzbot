@@ -12,11 +12,13 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.ViewerData.Entities;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.ViewerData;
@@ -48,6 +50,7 @@ public sealed class TemplateResolverTargetDisplayNameTests
     private static TemplateResolver Build(IApplicationDbContext db, ServiceCollection services)
     {
         services.AddSingleton(db);
+        services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         ServiceProvider provider = services.BuildServiceProvider();
         return new(
             provider.GetRequiredService<IServiceScopeFactory>(),

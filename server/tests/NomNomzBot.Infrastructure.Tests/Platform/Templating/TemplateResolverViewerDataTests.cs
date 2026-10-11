@@ -12,12 +12,14 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.ViewerData.Entities;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.ViewerData;
@@ -39,14 +41,13 @@ public sealed class TemplateResolverViewerDataTests
     private static readonly Guid Bob = Guid.Parse("0192b400-0000-7000-8000-00000000a002");
     private static readonly Guid YtViewer = Guid.Parse("0192b400-0000-7000-8000-00000000a003");
 
-    private readonly ViewerDataTestDbContext _db;
     private readonly IViewerAnalyticsService _analytics;
     private readonly TemplateResolver _resolver;
 
     public TemplateResolverViewerDataTests()
     {
-        _db = ViewerDataTestDbContext.New();
-        _db.Users.Add(
+        ViewerDataTestDbContext db = ViewerDataTestDbContext.New();
+        db.Users.Add(
             new()
             {
                 Id = Alice,
@@ -56,7 +57,7 @@ public sealed class TemplateResolverViewerDataTests
                 DisplayName = "Alice",
             }
         );
-        _db.Users.Add(
+        db.Users.Add(
             new()
             {
                 Id = Bob,
@@ -66,7 +67,7 @@ public sealed class TemplateResolverViewerDataTests
                 DisplayName = "Bob",
             }
         );
-        _db.Users.Add(
+        db.Users.Add(
             new()
             {
                 Id = YtViewer,
@@ -76,7 +77,7 @@ public sealed class TemplateResolverViewerDataTests
                 DisplayName = "Carol",
             }
         );
-        _db.UserIdentities.Add(
+        db.UserIdentities.Add(
             new()
             {
                 Id = Guid.NewGuid(),
@@ -86,7 +87,7 @@ public sealed class TemplateResolverViewerDataTests
                 ProviderUsername = "ytcarol",
             }
         );
-        _db.ViewerData.AddRange(
+        db.ViewerData.AddRange(
             new ViewerDatum
             {
                 BroadcasterId = Channel,
@@ -109,7 +110,7 @@ public sealed class TemplateResolverViewerDataTests
                 Value = "started",
             }
         );
-        _db.NamedCounters.Add(
+        db.NamedCounters.Add(
             new()
             {
                 BroadcasterId = Channel,
@@ -117,7 +118,7 @@ public sealed class TemplateResolverViewerDataTests
                 Value = 7,
             }
         );
-        _db.SaveChanges();
+        db.SaveChanges();
 
         _analytics = Substitute.For<IViewerAnalyticsService>();
         _analytics
@@ -125,11 +126,12 @@ public sealed class TemplateResolverViewerDataTests
             .Returns(Result.Failure<ViewerProfileDto>("never seen", "NOT_FOUND"));
 
         ServiceCollection services = new();
-        services.AddSingleton<IApplicationDbContext>(_db);
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         services.AddSingleton<IViewerDataService>(
-            new InfraViewerDataService(_db, TimeProvider.System)
+            new InfraViewerDataService(db, TimeProvider.System)
         );
-        services.AddSingleton<INamedCounterService>(new NamedCounterService(_db));
+        services.AddSingleton<INamedCounterService>(new NamedCounterService(db));
         services.AddSingleton(_analytics);
         ServiceProvider provider = services.BuildServiceProvider();
 

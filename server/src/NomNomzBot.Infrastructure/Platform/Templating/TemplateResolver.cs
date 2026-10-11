@@ -31,7 +31,6 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.CustomEvents;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating;
@@ -909,7 +908,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
             // Include Pronoun so {target.*} grammar vars (and a future target pronoun display) resolve —
             // mirrors the same fix already in place for {user.*} in ResolveUserDbFieldsAsync.
-            string targetLogin = await ResolveTargetLoginAsync(scope, db, targetName, ct);
+            string targetLogin = await ResolveTargetLoginAsync(scope, targetName, ct);
             User? target = await db
                 .Users.Include(u => u.Pronoun)
                 .FirstOrDefaultAsync(u => u.Username == targetLogin, ct);
@@ -1283,18 +1282,16 @@ public sealed partial class TemplateResolver : ITemplateResolver
     /// <summary>
     /// A viewer types the display name they see in chat, which is not always the login (CJK, accents). The
     /// shared mention resolver maps a unique display-name match to its login; anything else comes back as
-    /// the typed text. The scope's resolver is used when registered, else one over the same context.
+    /// the typed text. The scope must register the resolver; a missing registration fails loudly.
     /// </summary>
     private static async Task<string> ResolveTargetLoginAsync(
         IServiceScope scope,
-        IApplicationDbContext db,
         string targetName,
         CancellationToken ct
     )
     {
         IMentionTargetResolver resolver =
-            scope.ServiceProvider.GetService<IMentionTargetResolver>()
-            ?? new MentionTargetResolver(db);
+            scope.ServiceProvider.GetRequiredService<IMentionTargetResolver>();
         return await resolver.ResolveLoginAsync(targetName, ct);
     }
 
@@ -1307,7 +1304,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
     {
         if (string.IsNullOrEmpty(targetName))
             return null;
-        string login = await ResolveTargetLoginAsync(scope, db, targetName, ct);
+        string login = await ResolveTargetLoginAsync(scope, targetName, ct);
         Guid id = await db
             .Users.AsNoTracking()
             .Where(u => u.Username == login)
@@ -1511,7 +1508,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 string message = string.Empty;
                 if (!string.IsNullOrEmpty(targetLogin))
                 {
-                    string login = await ResolveTargetLoginAsync(scope, db, targetLogin, ct);
+                    string login = await ResolveTargetLoginAsync(scope, targetLogin, ct);
                     message =
                         await db
                             .ChatMessages.AsNoTracking()
@@ -1540,7 +1537,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 string message = string.Empty;
                 if (!string.IsNullOrEmpty(targetLogin))
                 {
-                    string login = await ResolveTargetLoginAsync(scope, db, targetLogin, ct);
+                    string login = await ResolveTargetLoginAsync(scope, targetLogin, ct);
                     message =
                         await db
                             .ChatMessages.AsNoTracking()
@@ -1570,7 +1567,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 string message = string.Empty;
                 if (!string.IsNullOrEmpty(targetLogin))
                 {
-                    string login = await ResolveTargetLoginAsync(scope, db, targetLogin, ct);
+                    string login = await ResolveTargetLoginAsync(scope, targetLogin, ct);
                     IQueryable<ChatMessage> quotable = db
                         .ChatMessages.AsNoTracking()
                         .Where(m =>
