@@ -36,6 +36,18 @@ Arc's reading (not settled):
 
 ---
 
+## OWNER REQUEST 2026-10-11 — a tagged user shows in that user's own colour
+
+Owner, verbatim: "usernames that are tagged should bare the color of the user, not my channel color"
+
+Cause (read in the code): the mention colour comes only from a 2-hour cache of the tagged user's own recent chat lines. A tagged user who has not chatted in that window gets no colour, and the chat overlay falls back to the channel accent.
+
+### S-MENTION-USER-COLOR — a mention takes the tagged user's Twitch colour
+- **Input:** `MentionColorAdapter`, `ChatColorMemory`, `chat_box.vue`, the dashboard chat view.
+- **Done-when:** on a cache miss the bot asks Twitch Get User Chat Color for every missed id of the message in one call and caches the answer; a failed call leaves the line rendered; live, a mention of a user who has not chatted shows that user's colour on the overlay and the dashboard.
+
+---
+
 ## OWNER REQUEST 2026-10-11 — UI restructure from the ground up, one-shot plan, and the KMP verdict
 
 Owner, verbatim: "cool, now that this research is done. i like you to do the same full deep research on restucturing and reorganizing the user interface from the ground up. all the features in the bot need to have a proper place and it must be prepared for so it can be executed in one shot without errors or contstant shuffling. i want all features to have a documented place in proper hirarchy, importance and organization by who uses it and so its ensured that everything is right in front of you when you need it the most or when you want to create some shenanigans on stream with all of its features. every viewer, mod and streamer differences all layed out. and then finally i want a verdict if kotlin multi platform still the right language and framework is for the goal of serving hundred thousands of users at once. do not leave a stone unturned and store everything you find along the way and give me a full report and plan at the end"
