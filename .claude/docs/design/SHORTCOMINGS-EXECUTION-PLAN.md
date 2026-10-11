@@ -789,6 +789,13 @@ Slices from the closing reads of the paper (its section 15.1).
   verified chat) and the linked Discord (join-age gate, filters). Done-when: turning it on sets both sides and
   the protection page shows both. Paper: `moderation-safety-research-2026-10-10.md`.
 
+## FINDING 2026-10-11 — overlays miss events (branch audit, proven on master)
+
+Arc's reading: the old branch `worktree-agent-a233e3d68170a3e99` (b77b1f9b5, 9e5a910e0, e91cde144) does not cherry-pick; it conflicts with master's feed-group delivery in 14 files. Master's design stays. Its per-topic groups and `*` firehose are dropped. Two parts are still wanted, re-cut on master:
+
+- **S-OVERLAY-UNDECLARED** A widget whose code listens with `on('<topic>')` for a topic missing from its `EventSubscriptions` gets nothing (`WidgetAlertRouting.Subscribers` reads only `EventSubscriptions`; red test kept at the session scratchpad, "Actually received no matching calls"). Infer the listened topics from the widget source on save, and backfill existing widgets. Done-when: test a widget with `EventSubscriptions = []` whose code calls `on('follow')` receives one `follow` WidgetEvent after save and after the backfill.
+- **S-OVERLAY-RESYNC** An overlay that joins or reconnects gets no state snapshot, so it misses events across a refresh or an API restart (`OverlayHub.JoinWidget`). Send the current state snapshot on join. Done-when: test a rejoining overlay receives the snapshot of the events it missed.
+
 ## OWNER REQUEST 2026-10-07 — the drop game: generic logic, swappable themes, seeded landing
 
 Owner, verbatim: "THIS is a dropgame: https://github.com/CodingGarden/SeedlingDrop https://github.com/CodingGarden/ChristmasDrop" / "i like the drop game to be interchangable with other assets or versions, so make the logic generic and configurable and make the assets responsive and dynamically changable. for example i like a birds nest with an eagle that drops 'meat' (the user) to the nest... this is not now but needs to be prepared for" / "can we tweak the luck chance? ... give the lucky feather holder more drop luck" / "settings like always, look at PixelPush for their config options to see what we can onboard" / "do we calculate the random path with a seed or something? how do you intend to do this server side and how much would this cost saas?"
