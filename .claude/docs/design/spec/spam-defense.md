@@ -446,6 +446,31 @@ chat is written by real viewers. A streamer with an international audience must 
 protected into silencing them. It exists for channels actively under attack, and it is a single
 switch away.
 
+#### What counts as a posted link (owner decision 2026-10-11)
+
+Owner words, verbatim:
+
+> Question: "When should a bare word like asp.net count as a posted link?"
+> Answer: "Always, except tech names"
+>
+> Question: "An image URL inside a chat HTML message (the subscriber HTML feature). Should it count as a posted link?"
+> Answer: "not when HTML is allowed but we do have a need for origin whitelisting so its not a complete wildcard"
+
+Settled rules (from those answers):
+
+- A URL with a scheme, a `www.` prefix, or a domain with a path counts as a posted link.
+- A bare `name.tld` in a sentence counts as a posted link. The exception is a well-known technology name, for example `asp.net`, `node.js`, `vue.js`, `next.js`, `nuxt.js`, `socket.io`, `three.js`, `d3.js`. The list lives in code beside the link detector and is tested.
+- A URL inside an HTML tag attribute (`img` src, `video` src, `source` src, `poster`, `srcset`) does not count as a posted link only when all three hold:
+  - The channel has chat HTML on.
+  - The sender may post HTML (the same gate the HTML fragment feature uses).
+  - The URL's origin is on the allowed-origins list.
+- Any other URL in an attribute counts as a posted link.
+
+Proposal, not settled:
+
+- The allowed-origins list is per channel. It is edited on the chat HTML settings. It also limits rendering: the HTML sanitizer drops any media element whose source origin is not on the list. A media URL from any origin loads inside the streamer's broadcast software and exposes the streamer's IP address to that host.
+- Default list: `static-cdn.jtvnw.net`, `cdn.7tv.app`, `cdn.betterttv.net`, `cdn.frankerfacez.com`, `upload.wikimedia.org`, `i.imgur.com`, `media.giphy.com`, `media.tenor.com`.
+
 ### L5 — Enforcement
 
 Per **SD1**:
