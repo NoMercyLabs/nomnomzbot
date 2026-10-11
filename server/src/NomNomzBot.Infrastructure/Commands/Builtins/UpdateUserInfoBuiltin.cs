@@ -77,10 +77,10 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
                     BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
                     Slot = BuiltinResponseSlots.UpdateUserInfo.OwnInfoOnly,
                     NeutralFallback =
-                        $"@{context.TriggeringUserDisplayName} you can only update your own info, or be a mod to update others.",
+                        $"@{context.TriggeringUserChatName} you can only update your own info, or be a mod to update others.",
                     Variables = new Dictionary<string, string>
                     {
-                        ["user"] = context.TriggeringUserDisplayName,
+                        ["user"] = context.TriggeringUserChatName,
                     },
                 },
                 ct
@@ -99,10 +99,10 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
                     BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
                     Slot = BuiltinResponseSlots.UpdateUserInfo.LoginUnresolved,
                     NeutralFallback =
-                        $"@{context.TriggeringUserDisplayName} could not resolve your Twitch login.",
+                        $"@{context.TriggeringUserChatName} could not resolve your Twitch login.",
                     Variables = new Dictionary<string, string>
                     {
-                        ["user"] = context.TriggeringUserDisplayName,
+                        ["user"] = context.TriggeringUserChatName,
                     },
                 },
                 ct
@@ -126,10 +126,10 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
                     BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
                     Slot = BuiltinResponseSlots.UpdateUserInfo.TwitchUnavailable,
                     NeutralFallback =
-                        $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment.",
+                        $"@{context.TriggeringUserChatName} Twitch did not answer just now — try again in a moment.",
                     Variables = new Dictionary<string, string>
                     {
-                        ["user"] = context.TriggeringUserDisplayName,
+                        ["user"] = context.TriggeringUserChatName,
                     },
                 },
                 ct

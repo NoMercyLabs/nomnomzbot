@@ -260,7 +260,8 @@ public sealed class LiveGameEngine(
         Guid viewerUserId,
         string displayName,
         string message,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? chatName = null
     )
     {
         if (
@@ -319,7 +320,7 @@ public sealed class LiveGameEngine(
                     {
                         await chat.SendMessageAsync(
                             broadcasterId,
-                            $"@{displayName} you can't join — {staked.ErrorMessage}",
+                            $"@{chatName ?? displayName} you can't join — {staked.ErrorMessage}",
                             ct
                         );
                         return;

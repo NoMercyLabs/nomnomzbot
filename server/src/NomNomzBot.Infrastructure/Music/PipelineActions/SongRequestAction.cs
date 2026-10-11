@@ -113,7 +113,7 @@ public sealed class SongRequestAction : ICommandAction
             );
             ctx.RepliedToChat |= await _chat.SendMessageAsync(
                 ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} {refusal}",
+                $"@{ctx.TriggeredByChatName} {refusal}",
                 ctx.CancellationToken
             );
             return ActionResult.Failure(requested.ErrorMessage ?? "failed to add track to queue");
@@ -128,7 +128,7 @@ public sealed class SongRequestAction : ICommandAction
 
         Dictionary<string, string> variables = new()
         {
-            ["user"] = ctx.TriggeredByDisplayName,
+            ["user"] = ctx.TriggeredByChatName,
             ["track.name"] = track.Name,
             ["track.artist"] = track.Artist,
         };
@@ -158,7 +158,7 @@ public sealed class SongRequestAction : ICommandAction
 
         ctx.RepliedToChat |= await _chat.SendMessageAsync(
             ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} {confirmation}",
+            $"@{ctx.TriggeredByChatName} {confirmation}",
             ctx.CancellationToken
         );
         return ActionResult.Success($"queued: {track.Name}");

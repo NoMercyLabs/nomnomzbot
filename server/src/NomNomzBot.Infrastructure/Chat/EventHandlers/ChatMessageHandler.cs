@@ -776,7 +776,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         ReplyOrMentionPlan fallback = ReplyOrMentionComposer.Compose(
             null,
-            @event.UserDisplayName,
+            ChatMentionName.For(@event.UserDisplayName, @event.UserLogin),
             text
         );
         return (

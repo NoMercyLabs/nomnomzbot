@@ -115,7 +115,7 @@ public sealed class HelpBuiltin : IBuiltinCommand
     {
         Dictionary<string, string> variables = new()
         {
-            ["user"] = context.TriggeringUserDisplayName,
+            ["user"] = context.TriggeringUserChatName,
             ["command"] = command,
             ["prefix"] = context.CommandPrefix,
         };

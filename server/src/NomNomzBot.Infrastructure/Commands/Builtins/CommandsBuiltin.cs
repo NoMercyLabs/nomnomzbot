@@ -86,7 +86,7 @@ public sealed class CommandsBuiltin : IBuiltinCommand
                     NeutralFallback = "No commands available.",
                     Variables = new Dictionary<string, string>
                     {
-                        ["user"] = context.TriggeringUserDisplayName,
+                        ["user"] = context.TriggeringUserChatName,
                     },
                 },
                 ct
@@ -103,7 +103,7 @@ public sealed class CommandsBuiltin : IBuiltinCommand
                     $"{string.Join(", ", triggers)} — Use {context.CommandPrefix}help <command> for details.",
                 Variables = new Dictionary<string, string>
                 {
-                    ["user"] = context.TriggeringUserDisplayName,
+                    ["user"] = context.TriggeringUserChatName,
                     ["commands"] = string.Join(", ", triggers),
                     ["prefix"] = context.CommandPrefix,
                 },

@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Commands.Entities;
@@ -872,7 +873,7 @@ public sealed class PipelineEngine : IPipelineEngine
             && !string.IsNullOrWhiteSpace(result.Output)
         )
         {
-            ctx.Variables["tts.reply"] = result.Output;
+            ctx.Variables["tts.reply"] = ChatMentionName.ToSpoken(result.Output, ctx.Variables);
             ActionDefinition speech = new()
             {
                 Type = "play_tts",

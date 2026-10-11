@@ -99,10 +99,7 @@ public sealed class FollowAgeBuiltin : IBuiltinCommand
         params (string Name, string Value)[] extra
     )
     {
-        Dictionary<string, string> variables = new()
-        {
-            ["user"] = context.TriggeringUserDisplayName,
-        };
+        Dictionary<string, string> variables = new() { ["user"] = context.TriggeringUserChatName };
         foreach ((string name, string value) in extra)
             variables[name] = value;
 

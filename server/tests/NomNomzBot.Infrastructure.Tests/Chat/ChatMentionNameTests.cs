@@ -111,6 +111,42 @@ public sealed class ChatMentionNameTests
         string expected
     ) => ChatMentionName.For(display, login).Should().Be(expected);
 
+    [Theory]
+    [InlineData("Go follow @keiraravt now!", "케이라라", "keiraravt", "Go follow @케이라라 now!")]
+    [InlineData(
+        "keiraravt, keiraravt2 and KeiraRavt",
+        "케이라라",
+        "keiraravt",
+        "케이라라, keiraravt2 and 케이라라"
+    )]
+    [InlineData("Hi MoehDev!", "MoehDev", "moehdev", "Hi MoehDev!")]
+    [InlineData(
+        "Go follow twitch.tv/keiraravt!",
+        "케이라라",
+        "keiraravt",
+        "Go follow twitch.tv/keiraravt!"
+    )]
+    public void Spoken_form_puts_the_display_name_back_where_the_chat_line_carries_the_login(
+        string chatLine,
+        string display,
+        string login,
+        string expected
+    ) => ChatMentionName.ToSpoken(chatLine, display, login).Should().Be(expected);
+
+    [Fact]
+    public void Auto_spoken_reply_keeps_the_triggering_users_display_name()
+    {
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = "케이라라",
+            ["user.name"] = "keiraravt",
+        };
+
+        string spoken = ChatMentionName.ToSpoken("@keiraravt, nice swipe!", variables);
+
+        spoken.Should().Be("@케이라라, nice swipe!");
+    }
+
     [Fact]
     public void For_falls_back_to_the_display_name_when_no_login_is_known()
     {

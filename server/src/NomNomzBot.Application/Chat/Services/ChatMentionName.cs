@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
+
 namespace NomNomzBot.Application.Chat.Services;
 
 /// <summary>
@@ -25,6 +27,27 @@ public static class ChatMentionName
         || string.Equals(displayName, login, StringComparison.OrdinalIgnoreCase)
             ? displayName
             : login;
+
+    /// <summary>
+    /// The spoken form of a chat line: the login the chat line carries is put back to the display name,
+    /// so TTS keeps saying what it said before (the display name, then the pronunciation override).
+    /// </summary>
+    public static string ToSpoken(string chatText, string displayName, string? login) =>
+        string.Equals(For(displayName, login), displayName, StringComparison.Ordinal)
+            ? chatText
+            : Regex.Replace(
+                chatText,
+                $"(?<![A-Za-z0-9_/.]){Regex.Escape(login!)}(?![A-Za-z0-9_])",
+                displayName.Replace("$", "$$", StringComparison.Ordinal),
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
+            );
+
+    /// <summary>The spoken form of a chat line for the triggering user held in a pipeline variable bag.</summary>
+    public static string ToSpoken(string chatText, IReadOnlyDictionary<string, string> variables) =>
+        variables.TryGetValue("user", out string? display)
+        && variables.TryGetValue("user.name", out string? login)
+            ? ToSpoken(chatText, display, login)
+            : chatText;
 
     public static Dictionary<string, string> ForChat(IDictionary<string, string> variables)
     {

@@ -87,7 +87,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                 await ReplyAsync(
                     context,
                     BuiltinResponseSlots.AccountAge.AccountUnresolved,
-                    $"@{context.TriggeringUserDisplayName} your account could not be resolved.",
+                    $"@{context.TriggeringUserChatName} your account could not be resolved.",
                     ct
                 )
             );
@@ -106,7 +106,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                     await ReplyAsync(
                         context,
                         BuiltinResponseSlots.AccountAge.TwitchUnavailable,
-                        $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment.",
+                        $"@{context.TriggeringUserChatName} Twitch did not answer just now — try again in a moment.",
                         ct
                     )
                 );
@@ -117,7 +117,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                     await ReplyAsync(
                         context,
                         BuiltinResponseSlots.AccountAge.NotFound,
-                        $"@{context.TriggeringUserDisplayName} could not find your account on Twitch.",
+                        $"@{context.TriggeringUserChatName} could not find your account on Twitch.",
                         ct
                     )
                 );
@@ -131,7 +131,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                 await ReplyAsync(
                     context,
                     BuiltinResponseSlots.AccountAge.Undetermined,
-                    $"@{context.TriggeringUserDisplayName} your account age could not be determined.",
+                    $"@{context.TriggeringUserChatName} your account age could not be determined.",
                     ct
                 )
             );
@@ -160,10 +160,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         params (string Name, string Value)[] extra
     )
     {
-        Dictionary<string, string> variables = new()
-        {
-            ["user"] = context.TriggeringUserDisplayName,
-        };
+        Dictionary<string, string> variables = new() { ["user"] = context.TriggeringUserChatName };
         foreach ((string name, string value) in extra)
             variables[name] = value;
 

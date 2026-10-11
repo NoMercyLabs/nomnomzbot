@@ -127,7 +127,7 @@ public sealed class SongWrongAction : ICommandAction
         {
             await SendAsync(
                 ctx,
-                $"@{ctx.TriggeredByDisplayName} No request of yours with code {requestedCode}."
+                $"@{ctx.TriggeredByChatName} No request of yours with code {requestedCode}."
             );
             ctx.ShouldStop = true;
             return ActionResult.Success($"no request matching code {requestedCode}");
@@ -155,8 +155,8 @@ public sealed class SongWrongAction : ICommandAction
         await SendAsync(
             ctx,
             retraction == RequestRetraction.RemovedWillSkip
-                ? $"@{ctx.TriggeredByDisplayName} Will skip {item.TrackName} by {item.Artist} when it starts."
-                : $"@{ctx.TriggeredByDisplayName} Removed {item.TrackName} by {item.Artist} from the queue."
+                ? $"@{ctx.TriggeredByChatName} Will skip {item.TrackName} by {item.Artist} when it starts."
+                : $"@{ctx.TriggeredByChatName} Removed {item.TrackName} by {item.Artist} from the queue."
         );
         return ActionResult.Success($"removed: {item.TrackName}");
     }
@@ -264,7 +264,7 @@ public sealed class SongWrongAction : ICommandAction
             // (no stream boundary exists here), so it is never reported as "already played".
             await SendAsync(
                 ctx,
-                $"@{ctx.TriggeredByDisplayName} You haven't requested any songs to retract."
+                $"@{ctx.TriggeredByChatName} You haven't requested any songs to retract."
             );
             ctx.ShouldStop = true;
             return ActionResult.Success("no queued request for the triggering user");
@@ -280,10 +280,7 @@ public sealed class SongWrongAction : ICommandAction
         {
             // Say so rather than staying silent: the wrong song is still playing, and a quiet failure reads
             // as "the bot ignored me" while the user waits for it to stop.
-            await SendAsync(
-                ctx,
-                $"@{ctx.TriggeredByDisplayName} Failed to retract your last song."
-            );
+            await SendAsync(ctx, $"@{ctx.TriggeredByChatName} Failed to retract your last song.");
             _logger.LogWarning(
                 "song_wrong: skip failed for {BroadcasterId}: {Error}",
                 ctx.BroadcasterId,
@@ -295,7 +292,7 @@ public sealed class SongWrongAction : ICommandAction
         await RemoveNewestHistoryAsync(ctx, playing!.TrackName, playing.Artist);
         await SendAsync(
             ctx,
-            $"@{ctx.TriggeredByDisplayName} Skipped {playing.TrackName} by {playing.Artist}."
+            $"@{ctx.TriggeredByChatName} Skipped {playing.TrackName} by {playing.Artist}."
         );
         return ActionResult.Success($"skipped: {playing.TrackName}");
     }

@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -210,7 +211,11 @@ public sealed class ShoutoutSender : IShoutoutSender
                     RequestedByUserId: channel.OwnerUserId,
                     RequestedByTwitchUserId: target.Id,
                     RequestedByDisplayName: target.DisplayName,
-                    Text: request.Announcement,
+                    Text: ChatMentionName.ToSpoken(
+                        request.Announcement,
+                        target.DisplayName,
+                        target.Login
+                    ),
                     VoiceIdOverride: null,
                     BitsAmount: 0,
                     CommunityStanding: "broadcaster",

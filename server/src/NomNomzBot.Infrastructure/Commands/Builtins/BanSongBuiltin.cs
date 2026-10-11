@@ -110,7 +110,7 @@ public sealed class BanSongBuiltin(
             "{track.name} banned from being requested again.",
             new Dictionary<string, string>
             {
-                ["user"] = context.TriggeringUserDisplayName,
+                ["user"] = context.TriggeringUserChatName,
                 ["track.name"] = blocked.Value.Title,
             },
             ct

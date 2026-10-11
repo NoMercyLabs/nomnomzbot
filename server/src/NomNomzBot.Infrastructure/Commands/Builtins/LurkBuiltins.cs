@@ -76,10 +76,10 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
                         BuiltinKey = BuiltinResponseSlots.Lurk.Key,
                         Slot = BuiltinResponseSlots.Lurk.AccountUnresolved,
                         NeutralFallback =
-                            $"@{context.TriggeringUserDisplayName} your account could not be resolved.",
+                            $"@{context.TriggeringUserChatName} your account could not be resolved.",
                         Variables = new Dictionary<string, string>
                         {
-                            ["user"] = context.TriggeringUserDisplayName,
+                            ["user"] = context.TriggeringUserChatName,
                         },
                     },
                     ct
@@ -111,11 +111,11 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
                     ? BuiltinResponseSlots.Lurk.Lurking
                     : BuiltinResponseSlots.Lurk.NotLurking,
                 NeutralFallback = _lurking
-                    ? $"@{context.TriggeringUserDisplayName} is now lurking. Enjoy the stream!"
-                    : $"@{context.TriggeringUserDisplayName} is no longer lurking. Welcome back!",
+                    ? $"@{context.TriggeringUserChatName} is now lurking. Enjoy the stream!"
+                    : $"@{context.TriggeringUserChatName} is no longer lurking. Welcome back!",
                 Variables = new Dictionary<string, string>
                 {
-                    ["user"] = context.TriggeringUserDisplayName,
+                    ["user"] = context.TriggeringUserChatName,
                 },
             },
             ct

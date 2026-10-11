@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Identity.Enums;
 
@@ -49,6 +50,10 @@ public sealed class BuiltinCommandContext
 
     /// <summary>Twitch login (lowercase) of the caller — the get-or-create viewer-resolution key.</summary>
     public string TriggeringUserLogin { get; init; } = string.Empty;
+
+    /// <summary>How chat text names the caller: the login when the display name is not the login apart from case, so Twitch links the mention.</summary>
+    public string TriggeringUserChatName =>
+        ChatMentionName.For(TriggeringUserDisplayName, TriggeringUserLogin);
 
     /// <summary>
     /// The id of the chat message that triggered this command, so a builtin can enrich THAT line in the

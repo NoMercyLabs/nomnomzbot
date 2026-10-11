@@ -521,6 +521,91 @@ public sealed class ShoutoutActionTests
     }
 
     [Fact]
+    public async Task A_non_latin_target_is_named_by_login_in_chat_and_by_display_name_in_speech()
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        TwitchUser korean = User("123456", "keiraravt") with { DisplayName = "케이라라" };
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([korean]));
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Task.FromResult("Go follow @keiraravt, they stream great!"));
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(TtsDispatchDisposition.Dispatched, "v", "p", 0, 0, null)
+                )
+            );
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+        ShoutoutAction sut = ShoutoutTestFactory.Create(
+            chat,
+            users,
+            Substitute.For<IChannelRegistry>(),
+            db,
+            resolver,
+            tts,
+            TimeProvider.System
+        );
+
+        await sut.ExecuteAsync(
+            Ctx(),
+            new()
+            {
+                Type = "shoutout",
+                Parameters = new()
+                {
+                    ["user_id"] = JsonSerializer.SerializeToElement("123456"),
+                    ["tts"] = JsonSerializer.SerializeToElement(true),
+                },
+            }
+        );
+
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "Go follow @keiraravt, they stream great!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Text == "Go follow @케이라라, they stream great!"
+                    && !r.Text.Contains("keiraravt")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Tts_true_speaks_the_announcement_but_tts_omitted_stays_silent()
     {
         ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();

@@ -56,7 +56,7 @@ public sealed class BangerBuiltin(
 
         Dictionary<string, string> variables = new()
         {
-            ["user"] = context.TriggeringUserDisplayName,
+            ["user"] = context.TriggeringUserChatName,
             ["track.name"] = nowPlaying.TrackName ?? nowPlaying.TrackUri,
         };
 

@@ -224,7 +224,7 @@ public sealed class SkipBuiltin(
                     "@{user} You don't have a request at position {request.position}.",
                     new Dictionary<string, string>
                     {
-                        ["user"] = context.TriggeringUserDisplayName,
+                        ["user"] = context.TriggeringUserChatName,
                         ["request.position"] = n.ToString(),
                     },
                     ct
@@ -239,7 +239,7 @@ public sealed class SkipBuiltin(
                     BuiltinKey,
                     BuiltinResponseSlots.Skip.RemoveFailed,
                     "@{user} Couldn't remove that request — try again.",
-                    new Dictionary<string, string> { ["user"] = context.TriggeringUserDisplayName },
+                    new Dictionary<string, string> { ["user"] = context.TriggeringUserChatName },
                     ct
                 )
             );
@@ -252,7 +252,7 @@ public sealed class SkipBuiltin(
                 "@{user} Removed your request: {track.name} by {track.artist}",
                 new Dictionary<string, string>
                 {
-                    ["user"] = context.TriggeringUserDisplayName,
+                    ["user"] = context.TriggeringUserChatName,
                     ["track.name"] = item.TrackName,
                     ["track.artist"] = item.Artist,
                 },

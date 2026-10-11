@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
+
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 // ─── Execution context ────────────────────────────────────────────────────────
@@ -28,6 +30,10 @@ public sealed class PipelineExecutionContext
     /// platform user id (a chat trigger). <c>null</c> means the id is internal or there is no actor.</summary>
     public string? TriggeredByPlatform { get; init; }
     public required string TriggeredByDisplayName { get; init; }
+
+    /// <summary>How chat text names the trigger: the login (<c>user.name</c>) when the display name is not the login apart from case, so Twitch links the mention.</summary>
+    public string TriggeredByChatName =>
+        ChatMentionName.For(TriggeredByDisplayName, Variables.GetValueOrDefault("user.name"));
     public required string MessageId { get; init; }
     public string? RedemptionId { get; init; }
     public string? RewardId { get; init; }

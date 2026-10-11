@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
@@ -67,7 +68,8 @@ public sealed class LiveGameInputListener(
             viewerUserId,
             @event.UserDisplayName,
             @event.Message,
-            cancellationToken
+            cancellationToken,
+            ChatMentionName.For(@event.UserDisplayName, @event.UserLogin)
         );
     }
 }

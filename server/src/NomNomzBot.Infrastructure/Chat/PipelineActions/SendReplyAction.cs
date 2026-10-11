@@ -78,7 +78,7 @@ public sealed class SendReplyAction : ICommandAction
         // the response silently.
         ReplyOrMentionPlan fallback = ReplyOrMentionComposer.Compose(
             null,
-            ctx.TriggeredByDisplayName,
+            ctx.TriggeredByChatName,
             resolved
         );
         bool fallbackSent = await _chat.SendMessageAsync(

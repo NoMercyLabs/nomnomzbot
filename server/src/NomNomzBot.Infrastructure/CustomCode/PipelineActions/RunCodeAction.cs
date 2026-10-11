@@ -60,7 +60,7 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
             new Dictionary<string, string>(ctx.Variables),
             string.IsNullOrEmpty(ctx.MessageId)
                 ? null
-                : new ScriptReplyTarget(ctx.MessageId, ctx.TriggeredByDisplayName)
+                : new ScriptReplyTarget(ctx.MessageId, ctx.TriggeredByChatName)
         );
 
         Result<ScriptRunResult> result = await runner.RunAsync(

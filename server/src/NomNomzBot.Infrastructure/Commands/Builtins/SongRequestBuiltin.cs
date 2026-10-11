@@ -128,7 +128,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             "Added {track.name} by {track.artist} to the queue. {track.link}",
             new Dictionary<string, string>
             {
-                ["user"] = context.TriggeringUserDisplayName,
+                ["user"] = context.TriggeringUserChatName,
                 ["track.name"] = track.Name,
                 ["track.artist"] = track.Artist,
                 ["track.link"] = trackLink,
