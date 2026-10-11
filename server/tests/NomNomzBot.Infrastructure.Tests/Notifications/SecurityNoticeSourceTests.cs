@@ -108,7 +108,7 @@ public sealed class SecurityNoticeSourceTests
                     ["reason"] = "Ticket 4821: commands misfire",
                 }
             );
-        item.DeepLinkRoute.Should().Be("roles");
+        item.DeepLinkRoute.Should().Be("people/roles");
     }
 
     [Fact]

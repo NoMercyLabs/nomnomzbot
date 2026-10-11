@@ -66,7 +66,7 @@ public sealed class SharedBanNotAppliedSourceTests
         item.Parameters.Should()
             .Contain("targetName", "Troll")
             .And.Contain("detail", "TWITCH_MISSING_SCOPE: no scope");
-        item.DeepLinkRoute.Should().Be("moderation");
+        item.DeepLinkRoute.Should().Be("people/overview");
     }
 
     [Fact]

@@ -119,7 +119,7 @@ public sealed class ChatFilterActionFailureSource(IApplicationDbContext db, Time
             MessageKey: "attention_filter_action_failed_message",
             Parameters: parameters,
             DetectedAt: newest.OccurredAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: twitchUserId,
             SourceUserName: username,
             Count: failures.Count,

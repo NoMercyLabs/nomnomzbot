@@ -65,7 +65,7 @@ public sealed class BotNotModeratorSource(IBotModeratorStatusReader statusReader
             MessageKey: "attention_bot_not_moderator_message",
             Parameters: new() { ["botName"] = bot.Username },
             DetectedAt: changedAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: bot.TwitchUserId,
             SourceUserName: bot.Username,
             Count: 1,

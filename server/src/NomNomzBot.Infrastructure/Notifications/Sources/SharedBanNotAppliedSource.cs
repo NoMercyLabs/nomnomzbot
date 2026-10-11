@@ -114,7 +114,7 @@ public sealed class SharedBanNotAppliedSource(IApplicationDbContext db, TimeProv
             MessageKey: $"attention_shared_ban_{reason}_message",
             Parameters: parameters,
             DetectedAt: newest.OccurredAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: null,
             SourceUserName: null,
             Count: failures.Count,

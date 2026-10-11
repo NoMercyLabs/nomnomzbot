@@ -90,7 +90,7 @@ public sealed class LostSongRequestSource(IApplicationDbContext db, TimeProvider
                 : "attention_song_lost_unnamed_message",
             Parameters: parameters,
             DetectedAt: newest.OccurredAt,
-            DeepLinkRoute: "songrequests",
+            DeepLinkRoute: "music/song-requests",
             SourceUserId: null,
             SourceUserName: null,
             Count: losses.Count,

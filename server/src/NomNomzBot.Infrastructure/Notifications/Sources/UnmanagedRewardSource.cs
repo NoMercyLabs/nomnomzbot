@@ -70,7 +70,7 @@ public sealed class UnmanagedRewardSource(IApplicationDbContext db) : IActionReq
                 ["pendingCount"] = pendingFinalization.ToString(),
             },
             DetectedAt: unmanaged.Max(r => r.CreatedAt),
-            DeepLinkRoute: "rewards",
+            DeepLinkRoute: "channel-points",
             SourceUserId: null,
             SourceUserName: null,
             Count: unmanaged.Count,

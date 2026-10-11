@@ -98,7 +98,7 @@ public sealed class AutoModDeleteFailedSourceTests
             .Contain("ruleName", "no links")
             .And.Contain("userName", "spammer_one")
             .And.Contain("count", "1");
-        item.DeepLinkRoute.Should().Be("moderation");
+        item.DeepLinkRoute.Should().Be("people/overview");
     }
 
     [Fact]

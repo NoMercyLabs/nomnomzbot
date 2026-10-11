@@ -83,7 +83,7 @@ public sealed class AutoModDeleteFailedSource(IApplicationDbContext db, TimeProv
             MessageKey: "attention_automod_delete_failed_message",
             Parameters: parameters,
             DetectedAt: newest.OccurredAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: null,
             SourceUserName: null,
             Count: failures.Count,

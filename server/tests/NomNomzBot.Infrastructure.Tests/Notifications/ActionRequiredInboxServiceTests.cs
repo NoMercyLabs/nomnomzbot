@@ -115,7 +115,7 @@ public sealed class ActionRequiredInboxServiceTests
         item.Parameters.Should()
             .Contain("username", "chatter123")
             .And.Contain("category", "swearing");
-        item.DeepLinkRoute.Should().Be("moderationqueue");
+        item.DeepLinkRoute.Should().Be("people/queue");
     }
 
     [Fact]
@@ -432,7 +432,7 @@ public sealed class ActionRequiredInboxServiceTests
         item.Kind.Should().Be("unmanaged_rewards");
         item.Severity.Should().Be("info");
         item.Count.Should().Be(2);
-        item.DeepLinkRoute.Should().Be("rewards");
+        item.DeepLinkRoute.Should().Be("channel-points");
         item.DetectedAt.Should().Be(t0.AddMinutes(5), "the item surfaces at its newest reward");
     }
 

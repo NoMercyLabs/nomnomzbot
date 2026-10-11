@@ -96,7 +96,7 @@ public sealed class OwnerActionFailureSourceTests
         db.EventJournals.Add(Failure(Channel, 1, T0, "tts_synthesize", "provider is down"));
         await db.SaveChangesAsync();
 
-        (await ItemsAsync(db)).Should().ContainSingle().Which.DeepLinkRoute.Should().Be("widgets");
+        (await ItemsAsync(db)).Should().ContainSingle().Which.DeepLinkRoute.Should().Be("overlays");
     }
 
     [Fact]

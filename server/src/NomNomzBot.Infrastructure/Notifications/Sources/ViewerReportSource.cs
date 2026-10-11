@@ -80,7 +80,7 @@ public sealed class ViewerReportSource(IApplicationDbContext db) : IActionRequir
             MessageKey: "attention_report_message",
             Parameters: new() { ["username"] = username, ["reason"] = report.Reason },
             DetectedAt: report.CreatedAt,
-            DeepLinkRoute: "moderationqueue",
+            DeepLinkRoute: "people/queue",
             SourceUserId: report.ReportedTwitchUserId,
             SourceUserName: username,
             Count: 1,

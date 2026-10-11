@@ -101,7 +101,7 @@ public sealed class HeatAutoTimeoutFailureSource(IApplicationDbContext db, TimeP
             MessageKey: "attention_heat_timeout_failed_message",
             Parameters: parameters,
             DetectedAt: failure.OccurredAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: twitchUserId,
             SourceUserName: username,
             Count: 1,

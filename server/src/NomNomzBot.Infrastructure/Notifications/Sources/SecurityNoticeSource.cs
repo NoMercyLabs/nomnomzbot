@@ -147,7 +147,7 @@ public sealed class SecurityNoticeSource(IApplicationDbContext db) : IActionRequ
             },
             DetectedAt: notice.CreatedAt,
             // Who can act on the channel lives on the Roles page — the place an owner reviews access.
-            DeepLinkRoute: "roles",
+            DeepLinkRoute: "people/roles",
             SourceUserId: notice.TargetUserId?.ToString(),
             SourceUserName: targetName.Length == 0 ? null : targetName,
             Count: 1,

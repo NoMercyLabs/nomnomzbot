@@ -105,7 +105,7 @@ public sealed class AudioSourceMissingSourceTests
         item.Severity.Should().Be("warning");
         item.TitleKey.Should().Be("attention_audio_source_missing_title");
         item.MessageKey.Should().Be("attention_audio_source_missing_message");
-        item.DeepLinkRoute.Should().Be("widgets");
+        item.DeepLinkRoute.Should().Be("overlays");
         item.DetectedAt.Should().Be(Now.UtcDateTime);
     }
 

@@ -64,7 +64,7 @@ public sealed class ChatFilterActionFailureSourceTests
             .And.Contain("username", "troll")
             .And.Contain("action", "timeout")
             .And.Contain("reason", "not a moderator");
-        item.DeepLinkRoute.Should().Be("moderation");
+        item.DeepLinkRoute.Should().Be("people/overview");
         item.DetectedAt.Should().Be(T0);
     }
 

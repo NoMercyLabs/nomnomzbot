@@ -113,7 +113,7 @@ public sealed class UnbanRequestSourceTests
                     ["text"] = "I am sorry, please unban me",
                 }
             );
-        item.DeepLinkRoute.Should().Be("moderation");
+        item.DeepLinkRoute.Should().Be("people/overview");
         item.SourceUserId.Should().Be("7001");
         item.SourceUserName.Should().Be("BannedBob");
         item.Count.Should().Be(1);

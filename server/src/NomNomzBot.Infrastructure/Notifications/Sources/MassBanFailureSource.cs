@@ -88,7 +88,7 @@ public sealed class MassBanFailureSource(IApplicationDbContext db) : IActionRequ
                 ["totalCount"] = batch.Total.ToString(),
             },
             DetectedAt: batch.CompletedAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: null,
             SourceUserName: null,
             Count: batch.Failed,

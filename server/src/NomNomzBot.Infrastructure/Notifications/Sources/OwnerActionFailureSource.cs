@@ -101,7 +101,7 @@ public sealed class OwnerActionFailureSource(IApplicationDbContext db, TimeProvi
             DetectedAt: failure.OccurredAt,
             DeepLinkRoute: actionType.StartsWith(ObsActionPrefix, StringComparison.Ordinal)
                 ? "obs"
-                : "widgets",
+                : "overlays",
             SourceUserId: null,
             SourceUserName: null,
             Count: 1,

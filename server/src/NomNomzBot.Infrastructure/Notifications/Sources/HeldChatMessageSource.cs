@@ -104,7 +104,7 @@ public sealed class HeldChatMessageSource(IApplicationDbContext db) : IActionReq
             MessageKey: MessageKeyFor(holds.Count, username),
             Parameters: parameters,
             DetectedAt: newest.CreatedAt,
-            DeepLinkRoute: "moderationqueue",
+            DeepLinkRoute: "people/queue",
             SourceUserId: SourceUserKeyOf(newest),
             SourceUserName: username,
             Count: holds.Count,

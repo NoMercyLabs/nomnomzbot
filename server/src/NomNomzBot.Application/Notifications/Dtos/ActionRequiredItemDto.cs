@@ -21,8 +21,8 @@ namespace NomNomzBot.Application.Notifications.Dtos;
 /// name, a failure count). The client renders them in the viewer's language; <see cref="Count"/> drives plurals.
 /// </para>
 /// <para>
-/// <see cref="DeepLinkRoute"/> is the dashboard route slug of the page where the condition is fixed
-/// (<c>integrations</c>, <c>moderationqueue</c>, <c>rewards</c>, ...), the lower-cased shell route name.
+/// <see cref="DeepLinkRoute"/> is the dashboard page address where the condition is fixed, with its tab when the page has tabs
+/// (<c>integrations</c>, <c>people/queue</c>, <c>channel-points</c>, ...).
 /// </para>
 /// <para>
 /// <see cref="Id"/> is the item's stable identity (S-OWN22 T2), the key the dismiss endpoint accepts. Each

@@ -108,7 +108,7 @@ public sealed class WidgetBuildFailureSource(IApplicationDbContext db) : IAction
                 ["version"] = failed.VersionNumber.ToString(),
             },
             DetectedAt: failed.CreatedAt,
-            DeepLinkRoute: "widgets",
+            DeepLinkRoute: "overlays",
             SourceUserId: null,
             SourceUserName: null,
             Count: 1,

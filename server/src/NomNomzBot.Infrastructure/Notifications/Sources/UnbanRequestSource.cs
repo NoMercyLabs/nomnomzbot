@@ -85,7 +85,7 @@ public sealed class UnbanRequestSource(IApplicationDbContext db, IModerationServ
             MessageKey: "attention_unban_request_message",
             Parameters: new() { ["username"] = request.UserName, ["text"] = request.Text },
             DetectedAt: request.CreatedAt,
-            DeepLinkRoute: "moderation",
+            DeepLinkRoute: "people/overview",
             SourceUserId: request.UserId,
             SourceUserName: request.UserName,
             Count: 1,

@@ -92,7 +92,7 @@ public sealed class AudioSourceMissingSource(
                 : "attention_audio_source_missing_message",
             Parameters: new(),
             DetectedAt: clock.GetUtcNow().UtcDateTime,
-            DeepLinkRoute: live ? "tts" : "widgets",
+            DeepLinkRoute: live ? "tts" : "overlays",
             SourceUserId: null,
             SourceUserName: null,
             Count: 1,

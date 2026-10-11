@@ -197,7 +197,7 @@ public sealed class ActionRequiredProducerTests
         item.Severity.Should().Be("warning");
         item.MessageKey.Should().Be("attention_widget_build_failed_message");
         item.Parameters.Should().Contain("widgetName", "Follower goal").And.Contain("version", "2");
-        item.DeepLinkRoute.Should().Be("widgets");
+        item.DeepLinkRoute.Should().Be("overlays");
     }
 
     [Fact]
@@ -316,7 +316,7 @@ public sealed class ActionRequiredProducerTests
         item.Parameters.Should()
             .Contain("trackName", "Family Ties")
             .And.Contain("requestedBy", "viewer_one");
-        item.DeepLinkRoute.Should().Be("songrequests");
+        item.DeepLinkRoute.Should().Be("music/song-requests");
     }
 
     // ─── Heat auto-timeout failures ──────────────────────────────────────────

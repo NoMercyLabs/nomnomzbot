@@ -94,7 +94,7 @@ public sealed class ViewerReportSourceTests
                     ["reason"] = "spamming links",
                 }
             );
-        item.DeepLinkRoute.Should().Be("moderationqueue");
+        item.DeepLinkRoute.Should().Be("people/queue");
         item.SourceUserId.Should().Be("5005");
         item.Count.Should().Be(1);
         items.Value.Select(i => i.Id).Should().Contain($"report:{second.Id}");

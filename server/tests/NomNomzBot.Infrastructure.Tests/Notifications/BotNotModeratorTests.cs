@@ -57,7 +57,7 @@ public sealed class BotNotModeratorTests
         item.TitleKey.Should().Be("attention_bot_not_moderator_title");
         item.MessageKey.Should().Be("attention_bot_not_moderator_message");
         item.Parameters.Should().Contain("botName", BotLogin);
-        item.DeepLinkRoute.Should().Be("moderation");
+        item.DeepLinkRoute.Should().Be("people/overview");
         item.DetectedAt.Should().Be(T0);
         f.Notifier.Signalled.Should().Equal(ChannelId);
     }
