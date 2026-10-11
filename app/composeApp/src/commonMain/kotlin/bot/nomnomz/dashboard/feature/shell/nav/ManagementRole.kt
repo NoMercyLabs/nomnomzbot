@@ -16,7 +16,7 @@ package bot.nomnomz.dashboard.feature.shell.nav
 // backend re-checks every write (frontend-ia.md §7).
 enum class ManagementRole(val level: Int) {
     Moderator(10),
-    SuperMod(20),
+    LeadModerator(20),
     Editor(30),
     Broadcaster(40),
 }

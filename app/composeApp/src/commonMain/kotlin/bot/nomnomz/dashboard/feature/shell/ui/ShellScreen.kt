@@ -56,6 +56,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -230,7 +231,7 @@ import nomnomzbot.composeapp.generated.resources.shell_reconnect_menu
 import nomnomzbot.composeapp.generated.resources.shell_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
-import nomnomzbot.composeapp.generated.resources.shell_role_supermod
+import nomnomzbot.composeapp.generated.resources.shell_role_lead_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
 import nomnomzbot.composeapp.generated.resources.home_attention_error
 import nomnomzbot.composeapp.generated.resources.hub_alert
@@ -1427,12 +1428,17 @@ private fun ChannelRoleBadge(role: String) {
 // null when blank so the badge is omitted. Unknown values are title-cased as a graceful fallback.
 @Composable
 private fun channelRoleLabel(role: String): String? =
+    channelRoleLabelResource(role)?.let { stringResource(it) }
+        ?: role.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() }
+
+// The wire role string ("supermod" stays the server's wire value) to the string resource users see.
+internal fun channelRoleLabelResource(role: String): StringResource? =
     when (role.lowercase()) {
-        "broadcaster" -> stringResource(Res.string.shell_role_broadcaster)
-        "moderator" -> stringResource(Res.string.shell_role_moderator)
-        "editor" -> stringResource(Res.string.shell_role_editor)
-        "supermod" -> stringResource(Res.string.shell_role_supermod)
-        else -> role.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() }
+        "broadcaster" -> Res.string.shell_role_broadcaster
+        "moderator" -> Res.string.shell_role_moderator
+        "editor" -> Res.string.shell_role_editor
+        "supermod" -> Res.string.shell_role_lead_moderator
+        else -> null
     }
 
 @Composable
@@ -1674,7 +1680,7 @@ private fun ManagementRole?.label(): String =
     stringResource(
         when (this) {
             ManagementRole.Moderator -> Res.string.shell_role_moderator
-            ManagementRole.SuperMod -> Res.string.shell_role_supermod
+            ManagementRole.LeadModerator -> Res.string.shell_role_lead_moderator
             ManagementRole.Editor -> Res.string.shell_role_editor
             ManagementRole.Broadcaster -> Res.string.shell_role_broadcaster
             null -> Res.string.shell_role_viewer

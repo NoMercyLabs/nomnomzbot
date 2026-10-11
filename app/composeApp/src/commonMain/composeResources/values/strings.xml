@@ -229,7 +229,7 @@
     <string name="shell_hub_state_disconnected">Realtime connection: offline</string>
     <string name="hub_alert">%1$s</string>
     <string name="shell_role_moderator">Moderator</string>
-    <string name="shell_role_supermod">Super Mod</string>
+    <string name="shell_role_lead_moderator">Lead Moderator</string>
     <string name="shell_role_editor">Editor</string>
     <string name="shell_role_broadcaster">Broadcaster</string>
     <string name="shell_profile_open">Open account menu</string>

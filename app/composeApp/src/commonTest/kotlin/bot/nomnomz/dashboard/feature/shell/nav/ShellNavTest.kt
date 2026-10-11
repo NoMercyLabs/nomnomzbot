@@ -10,6 +10,9 @@
 
 package bot.nomnomz.dashboard.feature.shell.nav
 
+import bot.nomnomz.dashboard.feature.shell.ui.channelRoleLabelResource
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.shell_role_lead_moderator
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -189,7 +192,7 @@ class ShellNavTest {
         assertTrue(manageable.contains(ShellRoute.Pipelines))
         // ...and still the Moderator-floored ones (Editor > Moderator on the ladder)...
         assertTrue(manageable.contains(ShellRoute.PeopleOverview))
-        // ...and the SuperMod-floored Discord (Editor 30 > SuperMod 20, frontend-ia.md §3 Connect)...
+        // ...and the Lead-Moderator-floored Discord (Editor 30 > Lead Moderator 20, frontend-ia.md §3 Connect)...
         assertTrue(manageable.contains(ShellRoute.Discord))
         // ...but never the Broadcaster-floored pages (Roles, Integrations).
         assertFalse(manageable.contains(ShellRoute.PeopleRoles))
@@ -347,5 +350,18 @@ class ShellNavTest {
         assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Overlays), "Moderator is below Overlays' Editor manage floor")
         assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Scripts))
         assertFalse(ShellNav.canManage(null, ShellRoute.Scripts))
+    }
+
+    @Test
+    fun the_wire_role_supermod_is_labelled_lead_moderator_and_the_rung_is_named_lead_moderator() {
+        assertEquals(
+            Res.string.shell_role_lead_moderator,
+            channelRoleLabelResource("supermod"),
+        )
+        assertEquals(20, ManagementRole.valueOf("LeadModerator").level)
+        assertEquals(
+            listOf("Moderator", "LeadModerator", "Editor", "Broadcaster"),
+            ManagementRole.entries.map { it.name },
+        )
     }
 }

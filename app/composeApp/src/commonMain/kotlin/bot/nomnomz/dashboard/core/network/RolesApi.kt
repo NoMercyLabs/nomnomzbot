@@ -214,8 +214,7 @@ class RestRolesApi(private val client: ApiClient) : RolesApi {
  * The Plane-B management ladder (backend `ManagementRole`). The wire form is the enum's integer ordinal (the API
  * registers no string-enum converter, and the OpenAPI declares `ManagementRole` as `{"type": "integer"}`), so
  * each rung pins its [wire] ordinal explicitly — never the ladder [level] (10/20/30/40), which is a separate
- * `LevelValue` field on the membership. `LeadModerator` is the canonical token (the dashboard shell's sidebar
- * gate calls the same rung `SuperMod`; this IAM page speaks the backend vocabulary).
+ * `LevelValue` field on the membership. `LeadModerator` is the canonical token, shared with the dashboard shell's sidebar gate.
  */
 enum class ManagementRole(val wire: Int, val level: Int) {
     Moderator(wire = 0, level = 10),

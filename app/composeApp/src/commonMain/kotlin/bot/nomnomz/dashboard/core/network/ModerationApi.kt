@@ -284,7 +284,7 @@ interface ModerationApi {
     suspend fun nukeBatches(channelId: String): ApiResult<List<NetworkNukeBatch>>
 
     /**
-     * Fan-out ban [NetworkNukeBody.targetTwitchUserId] across every channel the ACTOR holds SuperMod+ on.
+     * Fan-out ban [NetworkNukeBody.targetTwitchUserId] across every channel the ACTOR holds Lead Moderator+ on.
      * [NetworkNukeBody.requireConfirmation] MUST be true — the UI must show a blast-radius confirm first.
      */
     suspend fun networkNuke(channelId: String, body: NetworkNukeBody): ApiResult<NetworkNukeBatch>

@@ -231,12 +231,12 @@ private fun WireStanding.toShellStanding(): ParticipantStanding =
 /**
  * Map the network [bot.nomnomz.dashboard.core.network.ManagementRole]? to the shell's gate enum by ladder [level]
  * (10/20/30/40 — shared by both), so the rung the network layer calls `LeadModerator` lands on the shell's
- * `SuperMod`. Null (a viewer) stays null. An unknown level fails closed to null rather than over-granting.
+ * `LeadModerator`. Null (a viewer) stays null. An unknown level fails closed to null rather than over-granting.
  */
 private fun bot.nomnomz.dashboard.core.network.ManagementRole?.toShellRole(): ManagementRole? =
     when (this?.level) {
         ManagementRole.Moderator.level -> ManagementRole.Moderator
-        ManagementRole.SuperMod.level -> ManagementRole.SuperMod
+        ManagementRole.LeadModerator.level -> ManagementRole.LeadModerator
         ManagementRole.Editor.level -> ManagementRole.Editor
         ManagementRole.Broadcaster.level -> ManagementRole.Broadcaster
         else -> null

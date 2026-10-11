@@ -298,7 +298,7 @@ class ViewerProfileController(
         }
     }
 
-    /** Assign this person's management role (Moderator/SuperMod/Editor/Broadcaster). Roles:manage floor. */
+    /** Assign this person's management role (Moderator/Lead Moderator/Editor/Broadcaster). Roles:manage floor. */
     suspend fun setManagementRole(role: ManagementRole) {
         val channel: String = channelId ?: return failWrite(noChannelError())
         val person: String = userId ?: return failWrite(noChannelError())

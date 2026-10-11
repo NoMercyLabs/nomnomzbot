@@ -354,7 +354,7 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // The shared-ban trust web (J.9). Resilient — a failure (SuperMod-gated read) leaves the card hidden.
+        // The shared-ban trust web (J.9). Resilient — a failure (Lead-Moderator-gated read) leaves the card hidden.
         val sharedBanSettings: SharedBanSettings? =
             when (val result: ApiResult<SharedBanSettings> = moderationApi.sharedBanSettings(channel.id)) {
                 is ApiResult.Failure -> null
@@ -722,7 +722,7 @@ class ModerationController(
         saveAutomod { it.copy(heatTimeoutThreshold = threshold) }
 
     /**
-     * Fan-out ban [targetTwitchUserId] across every channel the operator holds SuperMod+ on (the network nuke,
+     * Fan-out ban [targetTwitchUserId] across every channel the operator holds Lead Moderator+ on (the network nuke,
      * J.2a) — [requireConfirmation] is forced true, so the screen MUST confirm the blast radius first. Reloads on
      * success so the new batch appears in the history. Surfaces the error on failure; no-ops with no channel.
      */

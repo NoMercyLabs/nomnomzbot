@@ -120,7 +120,7 @@ object ShellNav {
             NavPage(ShellRoute.StreamSchedule, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "live-ops:schedule:read"),
             NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null, readActionKey = "analytics:read"),
             NavPage(ShellRoute.PeopleViewers, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "community:read"),
-            NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod, readActionKey = "discord:connection:read"),
+            NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.LeadModerator, readActionKey = "discord:connection:read"),
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.CustomEvents, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),

@@ -589,9 +589,9 @@ fun ModerationScreen(
     // floor (frontend-ia.md §3). A caller below it sees the ban list but the Unban control is disabled with
     // "Requires Moderator" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.PeopleOverview)
-    // Marking a viewer suspicious (monitor / restrict) is a Lead-Moderator (SuperMod) action — a higher floor
+    // Marking a viewer suspicious (monitor / restrict) is a Lead-Moderator action — a higher floor
     // than the page's Moderator gate (warn / bans). The backend re-checks regardless.
-    val suspiciousManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.SuperMod)
+    val suspiciousManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.LeadModerator)
     // Trust weights and Twitch's own AutoMod levels change what the bot does to EVERY viewer, so both sit at the
     // Broadcaster floor (backend keys trust:policy:manage / moderation:automod:twitch:manage). Below it the
     // controls render disabled with the reason, never hidden.
@@ -954,7 +954,7 @@ internal fun BansList(
     var showEscalationDialog: Boolean by remember { mutableStateOf(false) }
     // The nuke batch awaiting a revert confirmation, if any.
     var pendingRevert: NetworkNukeBatch? by remember { mutableStateOf(null) }
-    // Writes on the escalation ladder + shared-ban trust web are Lead-Moderator (SuperMod) actions.
+    // Writes on the escalation ladder + shared-ban trust web are Lead-Moderator actions.
     val superManage: ManageDecision = suspiciousManage
 
     // The ban awaiting confirmation, if any — the screen owns the dialog's open/closed state.
@@ -1563,7 +1563,7 @@ internal fun BansList(
             }
         }
         // Shared-chat bans trust web (J.9) — trust extended to OTHER channels, its own job, not filtering or
-        // enforcement. Rendered only when the SuperMod-gated read succeeded.
+        // enforcement. Rendered only when the Lead-Moderator-gated read succeeded.
         sharedBanSettings?.let { settings ->
             rulesSectionItem(section, RulesGroup.Network, selectedRulesGroup, "shared-bans-header") {
                 Text(
@@ -2225,7 +2225,7 @@ private fun BanRow(
 }
 
 // One pending unban-request appeal: the viewer + their appeal text, with Approve (lifts the ban) / Deny buttons
-// gated at the Lead-Moderator (SuperMod) floor. Deny confirms first (the ban stays); approve acts immediately.
+// gated at the Lead-Moderator floor. Deny confirms first (the ban stays); approve acts immediately.
 @Composable
 private fun UnbanRequestRow(
     request: UnbanRequest,
@@ -2277,7 +2277,7 @@ private fun UnbanRequestRow(
     }
 }
 
-// One open viewer report awaiting triage — a viewer flagged another chatter. A Lead-Moderator (SuperMod) action.
+// One open viewer report awaiting triage — a viewer flagged another chatter. A Lead-Moderator action.
 // Dismiss closes it with no action; Escalate flags it for a moderator to punish separately (it does NOT auto-punish
 // — the mod then acts via the existing ban/timeout tools). The reporter name is shown when the backend supplies it.
 @Composable
@@ -2619,7 +2619,7 @@ private fun UserModerationActions(
         onClearStanding = onClearStanding,
     )
 
-    // Escalation forgiveness (J.11) + the network nuke (J.2a) — both Lead-Moderator (SuperMod) actions.
+    // Escalation forgiveness (J.11) + the network nuke (J.2a) — both Lead-Moderator actions.
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
         ManageGate(decision = suspiciousManage) { enabled ->
             TextButton(onClick = { onForgive(userId) }, enabled = enabled) {
@@ -4762,7 +4762,7 @@ private fun EscalationLadderDialog(
 }
 
 // The shared-ban trust web (J.9): two opt-in switches (accept inbound / share outbound) that persist on toggle,
-// plus the trusted-partner list with add-by-channel-id and per-row delete. Writes are Lead-Moderator (SuperMod).
+// plus the trusted-partner list with add-by-channel-id and per-row delete. Writes are Lead-Moderator.
 @Composable
 private fun SharedBansCard(
     settings: SharedBanSettings,

@@ -20,7 +20,7 @@ import nomnomzbot.composeapp.generated.resources.manage_gate_requires
 import nomnomzbot.composeapp.generated.resources.shell_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
-import nomnomzbot.composeapp.generated.resources.shell_role_supermod
+import nomnomzbot.composeapp.generated.resources.shell_role_lead_moderator
 
 // The bridge between the role/floor model (`ShellNav`) and the design-system write gate (`ManageDecision`).
 // One place owns "is this caller above the floor, and if not, what's the localized reason?" — screens call
@@ -83,7 +83,7 @@ fun rememberManageDecisionForAction(heldActionKeys: Set<String>, actionKey: Stri
 private fun ManagementRole.labelResource(): StringResource =
     when (this) {
         ManagementRole.Moderator -> Res.string.shell_role_moderator
-        ManagementRole.SuperMod -> Res.string.shell_role_supermod
+        ManagementRole.LeadModerator -> Res.string.shell_role_lead_moderator
         ManagementRole.Editor -> Res.string.shell_role_editor
         ManagementRole.Broadcaster -> Res.string.shell_role_broadcaster
     }
