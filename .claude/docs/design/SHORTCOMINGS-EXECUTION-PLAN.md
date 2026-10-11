@@ -73,13 +73,13 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
   permissions. Admin and My data move into the profile menu. Done-when: a UI test per role shows the
   groups and rows that role may see, and no screen says Super Mod.
 - **S-IA-PEOPLE** The People screen with 6 tabs (Overview, Queue, Viewers, History, Rules, Roles). It is
-  the placement of S-USER-HUB; Roles moves in from Setup. Done-when: the old Community, Moderation and
-  Roles addresses open the right People tab, and every tab loads live data.
+  the placement of S-USER-HUB; Roles moves in from Setup. Done-when: each sidebar People row opens its
+  tab, and every tab loads live data.
 - **S-IA-LIBRARY** Library with tabs Sounds, Files, Random responses and Quotes. Sound Clips and Assets merge into it.
-  Upload works inline in every file picker. Done-when: one upload from a picker shows in Library, and the
-  old Sound Clips, Assets, Pick Lists and Quotes addresses open their tab.
+  Upload works inline in every file picker. Done-when: one upload from a picker shows in Library, and
+  each Library tab loads live data.
 - **S-IA-TRIGGERS** Triggers & Timers with tabs Chat triggers, Voice triggers and Timers. Event Responses
-  absorbs Alerts. Done-when: the old Alerts address opens Event Responses, and each tab saves and reloads.
+  absorbs Alerts. Done-when: the alert settings show in Event Responses, and each tab saves and reloads.
 - **S-IA-SCRIPTS** Scripts opens straight into the editor with the file list beside it. Done-when: one
   click from the sidebar shows an editable script.
 - **S-IA-GALLERY** Gallery with tabs Templates and Bundles, and "Start from a template" in every create
@@ -92,8 +92,8 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
   the same Stream Info editor component. Done-when: a title change on Home Prep and on the Stream page
   both reach every connected platform, from one component.
 - **S-IA-MEDIA** Music with Song requests as a tab; TTS with 4 tabs; Media Share; OBS and VTube Studio with
-  tabs and an inline connect step when not connected. Done-when: the old Song Requests address opens the
-  Music tab, and OBS shows the connect step when the link is down.
+  tabs and an inline connect step when not connected. Done-when: the Song requests tab loads live data in
+  Music, and OBS shows the connect step when the link is down.
 - **S-IA-SETUP** Integrations is the one home for credentials, including the Twitch app credentials.
   Ko-fi moves to Supporters. Automation is renamed API & devices. Settings gets 6 tabs. The web sign-in
   hides the Backend URL field (desktop only, UF F7). Done-when: no credential field shows outside
@@ -223,8 +223,7 @@ Order: spec first (rule settle-specs-before-implementing), then one vertical sli
   permissions, bans, mass ban, notes, history, protection. The user card shows account age, channel
   history and shared mod notes. No document settles the tab list yet. The spec also covers the benchmark mod-feed signals (suspicious,
   raider, first-time, returning), watch phrases with colour and sound, per-channel mod tool profiles, and
-  configurable mod buttons and keys. Done-when: the spec names every tab and its endpoints, and the old
-  Community and Moderation routes lead into it.
+  configurable mod buttons and keys. Done-when: the spec names every tab and its endpoints.
 - **S-MOD-NUKE-SCREEN** Nuke from the dashboard: phrase or regex, action, scrollback, radiation, the
   report, and rollback. Done-when: E2E nukes a test phrase on the dev box and rollback lifts it.
 - **S-MOD-FILTER-TEST** Test a chat filter against a sample message before saving. Done-when: the test
