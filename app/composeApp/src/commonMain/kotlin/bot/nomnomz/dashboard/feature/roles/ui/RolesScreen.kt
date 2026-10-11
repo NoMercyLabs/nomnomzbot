@@ -120,7 +120,6 @@ import nomnomzbot.composeapp.generated.resources.roles_permit_type_capability
 import nomnomzbot.composeapp.generated.resources.roles_permit_type_label
 import nomnomzbot.composeapp.generated.resources.roles_permit_type_role
 import nomnomzbot.composeapp.generated.resources.roles_permits_empty
-import nomnomzbot.composeapp.generated.resources.roles_permits_section
 import nomnomzbot.composeapp.generated.resources.roles_remove_action
 import nomnomzbot.composeapp.generated.resources.roles_remove_confirm
 import nomnomzbot.composeapp.generated.resources.roles_remove_dismiss
@@ -145,6 +144,7 @@ import nomnomzbot.composeapp.generated.resources.roles_viewer_search_empty
 import nomnomzbot.composeapp.generated.resources.roles_viewer_search_label
 import nomnomzbot.composeapp.generated.resources.roles_viewer_search_placeholder
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
+import nomnomzbot.composeapp.generated.resources.shell_nav_roles_individual
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -198,7 +198,7 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
 }
 
 @Composable
-private fun RolesContent(
+internal fun RolesContent(
     state: RolesState.Ready,
     manage: ManageDecision,
     searchViewers: suspend (query: String) -> List<UserSearchResult>,
@@ -268,7 +268,7 @@ private fun RolesContent(
                 // The section header carries the reach-a-viewer action: grant a permit (a whole role or a single
                 // capability, optionally expiring) to any viewer the operator searches for.
                 SectionHeader(
-                    label = stringResource(Res.string.roles_permits_section),
+                    label = stringResource(Res.string.shell_nav_roles_individual),
                     manage = manage,
                     actionLabel = stringResource(Res.string.roles_grant_permit_action),
                     onAction = { permitTarget = PermitTarget.Search },

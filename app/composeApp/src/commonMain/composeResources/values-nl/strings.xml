@@ -2696,7 +2696,6 @@
     <string name="roles_retry">Opnieuw</string>
     <string name="roles_action_error">%1$s</string>
     <string name="roles_members_section">Leden</string>
-    <string name="roles_permits_section">Permits</string>
     <string name="roles_permits_empty">Nog geen permits verleend.</string>
     <string name="roles_action_overrides_section">Actierechten overschrijven</string>
     <string name="roles_override_set">Overschrijven</string>

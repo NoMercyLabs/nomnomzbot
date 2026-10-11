@@ -2701,7 +2701,6 @@
     <string name="roles_retry">Retry</string>
     <string name="roles_action_error">%1$s</string>
     <string name="roles_members_section">Members</string>
-    <string name="roles_permits_section">Permits</string>
     <string name="roles_permits_empty">No permits granted yet.</string>
     <string name="roles_action_overrides_section">Action Permission Overrides</string>
     <string name="roles_override_set">Override</string>
