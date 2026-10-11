@@ -835,6 +835,14 @@ Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec
 - **S-DROP-AUDIO** Effects and notification volume settings per pack sound slot. Done-when: E2E at volume 0 plays nothing and at 50 plays at half gain.
 - **S-DROP-ANNOUNCE** Optional chat announcement from a template with variables (user, score), off by default. Done-when: test a landing posts exactly the rendered template once.
 
+## OWNER BUG 2026-10-11 — !wrongsong leaves the song in the Spotify queue
+
+Stoney, verbatim: "!wrongsong removes the song from the fairqueue system but it does not remove it from my current spotify queue, so make it look at the current queue and clear the queue and requeue any manually queued songs if they exist."
+
+### S-WRONGSONG-SPOTIFY — !wrongsong also takes the song out of the Spotify queue
+- Read the live Spotify queue; get the wrong song out of it; put back any song Stoney queued by hand, in its order.
+- Done when: a test drives !wrongsong against a fake Spotify queue with a bot request and a hand-queued song, and the wrong song is gone while the hand-queued song stays in order; proven live on Stoney's Spotify.
+
 ## OWNER BUG 2026-10-08 — the auto shoutout repeats a shoutout that was already given by hand
 
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
