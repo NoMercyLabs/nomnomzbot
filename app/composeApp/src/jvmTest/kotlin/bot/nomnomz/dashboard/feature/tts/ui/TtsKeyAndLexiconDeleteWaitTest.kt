@@ -15,17 +15,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasAnyDescendant
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -54,11 +51,10 @@ class TtsKeyAndLexiconDeleteWaitTest {
     private val key: String = "test-key"
 
     @Test
-    fun a_failed_key_save_keeps_the_typed_key_with_the_reason_beside_save_and_no_toast() = runComposeUiTest {
+    fun a_failed_key_save_keeps_the_typed_key_with_the_reason_beside_save_and_no_toast() = runDesktopComposeUiTest(height = 3000) {
         val api: KeyAndDeleteApi = KeyAndDeleteApi(keyFailure = failure)
         val feedback: CountingFeedback = CountingFeedback()
-        open(api, feedback)
-        openTab("Voices")
+        open(api, feedback, TtsSection.Provider)
         onAllNodes(hasSetTextAction()).onLast().performTextInput(key)
         waitForIdle()
         onAllNodesWithText("Save key").onLast().performClick()
@@ -72,10 +68,9 @@ class TtsKeyAndLexiconDeleteWaitTest {
     }
 
     @Test
-    fun a_successful_key_save_sends_the_key_and_empties_the_field() = runComposeUiTest {
+    fun a_successful_key_save_sends_the_key_and_empties_the_field() = runDesktopComposeUiTest(height = 3000) {
         val api: KeyAndDeleteApi = KeyAndDeleteApi()
-        open(api, CountingFeedback())
-        openTab("Voices")
+        open(api, CountingFeedback(), TtsSection.Provider)
         onAllNodes(hasSetTextAction()).onLast().performTextInput(key)
         waitForIdle()
         onAllNodesWithText("Save key").onLast().performClick()
@@ -86,11 +81,10 @@ class TtsKeyAndLexiconDeleteWaitTest {
     }
 
     @Test
-    fun a_failed_lexicon_delete_keeps_the_confirm_open_with_the_reason_and_no_toast() = runComposeUiTest {
+    fun a_failed_lexicon_delete_keeps_the_confirm_open_with_the_reason_and_no_toast() = runDesktopComposeUiTest(height = 3000) {
         val api: KeyAndDeleteApi = KeyAndDeleteApi(deleteFailure = failure, seed = rule())
         val feedback: CountingFeedback = CountingFeedback()
-        open(api, feedback)
-        openTab("Pronunciation")
+        open(api, feedback, TtsSection.Rules)
         onNodeWithContentDescription("Delete rule brb").performClick()
         waitForIdle()
         onAllNodesWithText("Delete").onLast().performClick()
@@ -103,10 +97,9 @@ class TtsKeyAndLexiconDeleteWaitTest {
     }
 
     @Test
-    fun a_successful_lexicon_delete_deletes_on_the_server_and_closes_the_confirm() = runComposeUiTest {
+    fun a_successful_lexicon_delete_deletes_on_the_server_and_closes_the_confirm() = runDesktopComposeUiTest(height = 3000) {
         val api: KeyAndDeleteApi = KeyAndDeleteApi(seed = rule())
-        open(api, CountingFeedback())
-        openTab("Pronunciation")
+        open(api, CountingFeedback(), TtsSection.Rules)
         onNodeWithContentDescription("Delete rule brb").performClick()
         waitForIdle()
         onAllNodesWithText("Delete").onLast().performClick()
@@ -124,12 +117,7 @@ class TtsKeyAndLexiconDeleteWaitTest {
     private fun ComposeUiTest.typedKey(): String =
         onAllNodes(hasSetTextAction()).onLast().fetchSemanticsNode().config[SemanticsProperties.EditableText].text
 
-    private fun ComposeUiTest.openTab(label: String) {
-        onNode(hasClickAction() and hasAnyDescendant(hasText(label)), useUnmergedTree = true).performClick()
-        waitForIdle()
-    }
-
-    private fun ComposeUiTest.open(api: TtsApi, feedback: CountingFeedback) {
+    private fun ComposeUiTest.open(api: TtsApi, feedback: CountingFeedback, section: TtsSection) {
         val controller: TtsController = TtsController(StubChannelsApi(), api, feedback = feedback)
         val queueController: TtsQueueController = TtsQueueController(StubChannelsApi(), api)
         runBlocking {
@@ -144,6 +132,7 @@ class TtsKeyAndLexiconDeleteWaitTest {
                             controller = controller,
                             queueController = queueController,
                             role = ManagementRole.Broadcaster,
+                            section = section,
                         )
                     }
                 }

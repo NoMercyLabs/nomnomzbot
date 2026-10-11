@@ -67,7 +67,7 @@ class ShellNavTest {
         // An Editor sees every page a Moderator sees, plus the single Editor-floored page (Automation API
         // tokens — automation:tokens:read = Editor). No other page sits between the Moderator and Editor floors.
         assertTrue(editor.containsAll(moderator))
-        assertEquals(setOf(ShellRoute.ApiDevices), editor - moderator)
+        assertEquals(setOf(ShellRoute.ApiDevices, ShellRoute.TtsProvider), editor - moderator)
     }
 
     @Test
@@ -398,6 +398,26 @@ class ShellNavTest {
         assertEquals(
             listOf("Moderator", "LeadModerator", "Editor", "Broadcaster"),
             ManagementRole.entries.map { it.name },
+        )
+    }
+
+    @Test
+    fun a_moderator_sees_the_tts_live_voices_and_rules_tabs_but_not_provider() {
+        val moderator: Set<ShellRoute> =
+            ShellNav.visiblePagesFor(ManagementRole.Moderator).map { it.route }.toSet()
+
+        assertTrue(moderator.containsAll(setOf(ShellRoute.TtsLive, ShellRoute.TtsVoices, ShellRoute.TtsRules)))
+        assertFalse(ShellRoute.TtsProvider in moderator)
+    }
+
+    @Test
+    fun an_editor_sees_all_four_tts_tabs() {
+        val editor: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Editor).map { it.route }.toSet()
+
+        assertTrue(
+            editor.containsAll(
+                setOf(ShellRoute.TtsLive, ShellRoute.TtsVoices, ShellRoute.TtsRules, ShellRoute.TtsProvider),
+            ),
         )
     }
 }

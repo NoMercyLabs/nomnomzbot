@@ -140,6 +140,7 @@ import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import bot.nomnomz.dashboard.feature.songrequests.ui.SongRequestsScreen
 import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
 import bot.nomnomz.dashboard.feature.tts.ui.TtsScreen
+import bot.nomnomz.dashboard.feature.tts.ui.TtsSection
 import bot.nomnomz.dashboard.feature.widgets.ui.WidgetsScreen
 import bot.nomnomz.dashboard.feature.features.ui.FeaturesScreen
 import bot.nomnomz.dashboard.feature.webhooks.ui.WebhooksScreen
@@ -233,6 +234,10 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.shell_nav_supporters
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
+import nomnomzbot.composeapp.generated.resources.shell_nav_tts_live
+import nomnomzbot.composeapp.generated.resources.shell_nav_tts_provider
+import nomnomzbot.composeapp.generated.resources.shell_nav_tts_rules
+import nomnomzbot.composeapp.generated.resources.shell_nav_tts_voices
 import nomnomzbot.composeapp.generated.resources.shell_profile_logout
 import nomnomzbot.composeapp.generated.resources.shell_profile_open
 import nomnomzbot.composeapp.generated.resources.shell_profile_view_as_viewer
@@ -746,11 +751,21 @@ private fun ShellContent(
                 SoundScreen(controller = graph.soundController, role = role)
             ShellRoute.LibraryFiles ->
                 AssetsScreen(controller = graph.assetsController, role = role)
-            ShellRoute.Tts ->
+            ShellRoute.TtsLive,
+            ShellRoute.TtsVoices,
+            ShellRoute.TtsRules,
+            ShellRoute.TtsProvider ->
                 TtsScreen(
                     controller = graph.ttsController,
                     queueController = graph.ttsQueueController,
                     role = role,
+                    section =
+                        when (selected) {
+                            ShellRoute.TtsVoices -> TtsSection.Voices
+                            ShellRoute.TtsRules -> TtsSection.Rules
+                            ShellRoute.TtsProvider -> TtsSection.Provider
+                            else -> TtsSection.Live
+                        },
                 )
             ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
             ShellRoute.Giveaways ->
@@ -1626,7 +1641,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.MusicSongRequests -> SongRequestsGlyph
         ShellRoute.LibrarySounds -> SoundClipsGlyph
         ShellRoute.LibraryFiles -> AssetsGlyph
-        ShellRoute.Tts -> TtsGlyph
+        ShellRoute.TtsLive, ShellRoute.TtsVoices, ShellRoute.TtsRules, ShellRoute.TtsProvider -> TtsGlyph
         ShellRoute.Overlays -> WidgetsGlyph
         ShellRoute.EventResponsesAlertQueue -> AlertsGlyph
         ShellRoute.StreamSchedule -> TimersGlyph
@@ -1677,7 +1692,10 @@ private fun ShellRoute.label(): String =
             ShellRoute.MusicNowPlaying -> Res.string.shell_nav_music
             ShellRoute.LibrarySounds -> Res.string.shell_nav_sound
             ShellRoute.LibraryFiles -> Res.string.shell_nav_assets
-            ShellRoute.Tts -> Res.string.shell_nav_tts
+            ShellRoute.TtsLive -> Res.string.shell_nav_tts_live
+            ShellRoute.TtsVoices -> Res.string.shell_nav_tts_voices
+            ShellRoute.TtsRules -> Res.string.shell_nav_tts_rules
+            ShellRoute.TtsProvider -> Res.string.shell_nav_tts_provider
             ShellRoute.Overlays -> Res.string.shell_nav_overlays
             ShellRoute.EventResponsesAlertQueue -> Res.string.shell_nav_alerts
             ShellRoute.Discord -> Res.string.shell_nav_discord

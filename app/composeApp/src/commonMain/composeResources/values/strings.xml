@@ -828,11 +828,10 @@
     <string name="songrequests_row_description">%1$s, %2$s, requested by %3$s</string>
     <string name="tts_status_enabled">TTS enabled</string>
     <string name="tts_status_disabled">TTS disabled</string>
-    <string name="tts_tab_general">General</string>
-    <string name="tts_tab_voices">Voices</string>
-    <string name="tts_tab_per_viewer">Per-viewer</string>
-    <string name="tts_tab_pronunciation">Pronunciation</string>
-    <string name="tts_tab_queue_and_test">Queue &amp; test</string>
+    <string name="shell_nav_tts_live">Live</string>
+    <string name="shell_nav_tts_voices">Voices</string>
+    <string name="shell_nav_tts_rules">Rules</string>
+    <string name="shell_nav_tts_provider">Provider</string>
     <string name="tts_overlay_title">OBS overlay</string>
     <string name="tts_overlay_url_label">Audio widget for OBS</string>
     <string name="tts_overlay_never_ran">Never ran yet</string>

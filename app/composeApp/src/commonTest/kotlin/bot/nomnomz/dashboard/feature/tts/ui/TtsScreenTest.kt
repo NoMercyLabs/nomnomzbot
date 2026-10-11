@@ -15,6 +15,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.isSelectable
@@ -72,14 +74,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 
-// S-TTS-TABS (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the TTS page used to stack eight unrelated sections
-// (overlay test, global settings, voice browser, BYOK keys, ad-hoc test, per-viewer voice, pronunciation
-// dictionary, live queue) in one long scroll. It is now split into five tabs (General / Voices /
-// Per-viewer / Pronunciation / Queue & test). These prove: each tab renders its own real section content
-// (not a "didn't crash" smoke check — the actual text a section renders), that the tab strip genuinely
-// swaps content rather than accumulating it, that an in-progress edit survives switching away and back
-// (the hoisted state, not the tab body, is what's real), and that the Editor manage-floor gate on the
-// page's one write action (Save) still holds after the split.
+// S-IA-MEDIA: the TTS page is four tabs, each its own address: Live, Voices, Rules and Provider (the ledger
+// row `Tts`). One controller loads the channel's config for all four; every tab edits its own fields and
+// ends with the same Save, which sends the whole config. These prove: each tab renders its own controls and
+// none of the others' (the real text a section renders, not a "didn't crash" smoke check), that each tab's
+// edit reaches the API through Save with the changed value, and that the Editor manage-floor gate on that
+// Save still holds after the split.
 @OptIn(ExperimentalTestApi::class)
 class TtsScreenTest {
 
@@ -92,116 +92,84 @@ class TtsScreenTest {
 
     // ── Each tab renders its own section ─────────────────────────────────────
 
-    @Test
-    fun general_tab_renders_the_status_banner_settings_form_and_save_action() = runComposeUiTest {
+    // A config inside every field's valid range, so Save is gated only by "differs from loaded".
+    private val baseline: TtsConfig = TtsConfig(isEnabled = true, mode = "self_host", maxCharacters = 200, defaultVoiceId = "en-US-Brian")
+
+    private fun ComposeUiTest.showSection(
+        ttsApi: FakeTtsApi,
+        section: TtsSection,
+        role: ManagementRole = ManagementRole.Broadcaster,
+    ) {
+        val controller = TtsController(FakeChannelsApi(), ttsApi)
+        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
+        runBlocking {
+            controller.load()
+            queueController.load()
+        }
         setContent {
-            EnglishContent {
-                GeneralTab(
-                    isEnabled = true,
-                    onEnabledChange = {},
-                    mode = "self_host",
-                    onModeChange = {},
-                    defaultProvider = "edge",
-                    onProviderChange = {},
-                    defaultVoiceId = "",
-                    onVoiceChange = {},
-                    maxLengthText = "200",
-                    onMaxLengthChange = {},
-                    maxLengthValid = true,
-                    minPermission = "everyone",
-                    onPermissionChange = {},
-                    skipBotMessages = false,
-                    onSkipBotMessagesChange = {},
-                    readUsernames = false,
-                    onReadUsernamesChange = {},
-                    profanityCensorEnabled = true,
-                    onProfanityCensorChange = {},
-                    modApprovalRequired = false,
-                    onModApprovalChange = {},
-                    minBitsText = "",
-                    onMinBitsChange = {},
-                    minBitsValid = true,
-                    viewerVoiceSelfService = true,
-                    onViewerVoiceSelfServiceChange = {},
-                    manage = ManageDecision.Allowed,
-                    formEnabled = true,
-                    saving = false,
-                    justSaved = false,
-                    saveError = null,
-                    canSave = true,
-                    onSave = {},
-                )
+            withLifecycle {
+                EnglishContent {
+                    TtsScreen(controller = controller, queueController = queueController, role = role, section = section)
+                }
             }
         }
+        waitForIdle()
+    }
 
-        assertTrue(
-            rendersText("TTS enabled"),
-            "General must render the enabled/disabled status banner",
-        )
-        assertTrue(
-            rendersText("Enable TTS"),
-            "General must render the settings form (the enable toggle's own label)",
-        )
-        assertTrue(
-            onAllNodesWithText("Save").fetchSemanticsNodes().isNotEmpty(),
-            "General must render the Save action for the settings it edits",
-        )
-        // Sections that moved to other tabs must NOT bleed into General.
-        assertTrue(
-            onAllNodesWithText("Bring your own key").fetchSemanticsNodes().isEmpty(),
-            "BYOK moved to the Voices tab — it must not render on General",
-        )
+    // The switch inside a SwitchRow. The row clears its children's semantics for screen readers and names the
+    // switch by its label, so the unmerged tree is searched for the toggle under that label.
+    private fun ComposeUiTest.switchLabelled(label: String): SemanticsNodeInteraction =
+        onNode(isToggleable() and hasAnyAncestor(hasContentDescription(label)), useUnmergedTree = true)
+
+    @Test
+    fun live_renders_the_status_the_enable_switch_the_test_tools_and_the_save_action() = runComposeUiTest {
+        showSection(FakeTtsApi(configResult = ApiResult.Ok(baseline)), TtsSection.Live)
+
+        assertTrue(rendersText("TTS enabled"), "Live must render the enabled/disabled status banner")
+        assertTrue(rendersText("Enable TTS"), "Live must render the enable switch")
+        assertTrue(rendersText("Test voice"), "Live must render the ad-hoc voice test")
+        assertTrue(rendersText("Save"), "Live must render the Save action for the switch it edits")
+        assertTrue(!rendersText("Skip bot messages"), "the rules moved to the Rules tab")
+        assertTrue(!rendersText("Available voices"), "the voice browser moved to the Voices tab")
+        assertTrue(!rendersText("Bring your own key"), "the provider keys moved to the Provider tab")
     }
 
     @Test
-    fun voices_tab_renders_the_voice_browser_results_and_the_byok_keys() = runComposeUiTest {
-        setContent {
-            EnglishContent {
-                VoicesTab(
-                    browser =
-                        VoiceBrowserState(
-                            results =
-                                listOf(
-                                    TtsVoice(
-                                        id = "en-US-Brian",
-                                        displayName = "Brian",
-                                        name = "en-US-Brian",
-                                        locale = "en-US",
-                                        provider = "azure",
-                                    )
-                                ),
-                            total = 1,
-                        ),
-                    currentVoiceId = "",
-                    manage = ManageDecision.Allowed,
-                    onSearch = { _, _, _, _, _, _ -> },
-                    onSelect = {},
-                    onPreviewFallback = {},
-                    byokConfig = TtsConfig(),
-                    saving = false,
-                    onSetByok = { _, _, _ -> DialogResult.Done },
-                    onRemoveByok = {},
-                )
-            }
-        }
+    fun voices_renders_the_voice_browser_and_the_voice_defaults_and_nothing_from_the_other_tabs() = runComposeUiTest {
+        showSection(FakeTtsApi(configResult = ApiResult.Ok(baseline)), TtsSection.Voices)
 
+        assertTrue(rendersText("Available voices"), "Voices must render the voice browser")
         assertTrue(
-            onAllNodesWithText("Available voices").fetchSemanticsNodes().isNotEmpty(),
-            "Voices must render the voice browser",
+            rendersText("Let viewers pick their own voice (!voice)"),
+            "Voices must render the voice defaults",
         )
-        assertTrue(
-            onAllNodesWithText("Brian", substring = true).fetchSemanticsNodes().isNotEmpty(),
-            "the searched voice must actually render on the Voices tab",
-        )
-        assertTrue(
-            onAllNodesWithText("Bring your own key").fetchSemanticsNodes().isNotEmpty(),
-            "Voices must render the BYOK key section",
-        )
-        // The plain settings form must NOT bleed into Voices.
-        assertTrue(
-            onAllNodesWithText("Enable TTS").fetchSemanticsNodes().isEmpty(),
-            "the settings form stayed on General — it must not render on Voices",
-        )
+        assertTrue(rendersText("Save"), "Voices must render the Save action for the defaults it edits")
+        assertTrue(!rendersText("Enable TTS"), "the enable switch stayed on Live")
+        assertTrue(!rendersText("Skip bot messages"), "the rules moved to the Rules tab")
+        assertTrue(!rendersText("Bring your own key"), "the provider keys moved to the Provider tab")
+    }
+
+    @Test
+    fun rules_renders_the_message_rules_and_nothing_from_the_other_tabs() = runComposeUiTest {
+        showSection(FakeTtsApi(configResult = ApiResult.Ok(baseline)), TtsSection.Rules)
+
+        assertTrue(rendersText("Skip bot messages"), "Rules must render the message rules")
+        assertTrue(rendersText("Save"), "Rules must render the Save action for the rules it edits")
+        assertTrue(!rendersText("Enable TTS"), "the enable switch stayed on Live")
+        assertTrue(!rendersText("Available voices"), "the voice browser moved to the Voices tab")
+        assertTrue(!rendersText("Bring your own key"), "the provider keys moved to the Provider tab")
+    }
+
+    @Test
+    fun provider_renders_the_voice_source_and_the_byok_keys_and_nothing_from_the_other_tabs() = runComposeUiTest {
+        showSection(FakeTtsApi(configResult = ApiResult.Ok(baseline)), TtsSection.Provider)
+
+        assertTrue(rendersText("Where voices come from"), "Provider must render the voice source picker")
+        assertTrue(rendersText("Bring your own key"), "Provider must render the BYOK key section")
+        assertTrue(rendersText("Save"), "Provider must render the Save action for the source it edits")
+        assertTrue(!rendersText("Enable TTS"), "the enable switch stayed on Live")
+        assertTrue(!rendersText("Skip bot messages"), "the rules moved to the Rules tab")
+        assertTrue(!rendersText("Available voices"), "the voice browser moved to the Voices tab")
     }
 
     @Test
@@ -478,111 +446,79 @@ class TtsScreenTest {
         )
     }
 
-    // ── Switching tabs swaps content and preserves in-progress edits ─────────
+    // ── Each tab saves its own fields through the one Save action ────────────
 
     @Test
-    fun switching_to_voices_hides_general_and_switching_back_shows_general_again() = runComposeUiTest {
-        val controller = TtsController(FakeChannelsApi(), FakeTtsApi(configResult = ApiResult.Ok(TtsConfig(isEnabled = true))))
-        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi(configResult = ApiResult.Ok(TtsConfig())))
-        runBlocking {
-            controller.load()
-            queueController.load()
-        }
+    fun live_save_sends_the_enable_switch_and_keeps_the_other_tabs_values() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline))
+        showSection(ttsApi, TtsSection.Live)
+        onNodeWithText("Save").assertIsNotEnabled()
 
-        setContent {
-            withLifecycle {
-                EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
-                }
-            }
-        }
+        switchLabelled("Enable TTS").performClick()
+        waitForIdle()
+        assertTrue(rendersText("TTS disabled"), "flipping the switch must be reflected immediately")
+        onNodeWithText("Save").assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
         waitForIdle()
 
-        // Starts on General.
-        assertTrue(rendersText("Enable TTS"), "the page must default to General")
-
-        clickTab("Voices")
-        waitForIdle()
-        assertTrue(
-            !rendersText("Enable TTS"),
-            "General's content must be gone once Voices is selected — tabs swap, not accumulate",
-        )
-        assertTrue(onAllNodesWithText("Bring your own key").fetchSemanticsNodes().isNotEmpty())
-
-        clickTab("General")
-        waitForIdle()
-        assertTrue(rendersText("Enable TTS"), "General's content must come back when reselected")
-        assertTrue(
-            onAllNodesWithText("Bring your own key").fetchSemanticsNodes().isEmpty(),
-            "Voices' content must be gone once General is reselected",
-        )
+        assertEquals(1, ttsApi.updateCalls.size, "Save must send exactly one update")
+        assertEquals(false, ttsApi.updateCalls.single().isEnabled)
+        assertEquals(baseline.maxCharacters, ttsApi.updateCalls.single().maxCharacters)
+        assertEquals(baseline.skipBotMessages, ttsApi.updateCalls.single().skipBotMessages)
     }
 
     @Test
-    fun toggling_enable_tts_survives_switching_away_to_voices_and_back() = runComposeUiTest {
-        val controller = TtsController(FakeChannelsApi(), FakeTtsApi(configResult = ApiResult.Ok(TtsConfig(isEnabled = true))))
-        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi(configResult = ApiResult.Ok(TtsConfig())))
-        runBlocking {
-            controller.load()
-            queueController.load()
-        }
+    fun voices_save_sends_the_viewer_voice_choice() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline))
+        showSection(ttsApi, TtsSection.Voices)
 
-        setContent {
-            withLifecycle {
-                EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
-                }
-            }
-        }
+        switchLabelled("Let viewers pick their own voice (!voice)").performClick()
+        waitForIdle()
+        onNodeWithText("Save").assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
         waitForIdle()
 
-        // The loaded config starts enabled.
-        assertTrue(rendersText("TTS enabled"))
+        assertEquals(1, ttsApi.updateCalls.size, "Save must send exactly one update")
+        assertEquals(!baseline.viewerVoiceSelfServiceEnabled, ttsApi.updateCalls.single().viewerVoiceSelfServiceEnabled)
+        assertEquals(baseline.isEnabled, ttsApi.updateCalls.single().isEnabled)
+    }
 
-        // Flip the Enable-TTS switch off — an in-progress, unsaved edit (Save is not clicked). Unmerged: the
-        // switch sits under SwitchRow's `clearAndSetSemantics` boundary (see TtsScreen.kt), so the merged
-        // tree would not surface it directly.
-        onAllNodes(isToggleable(), useUnmergedTree = true)[0].performClick()
-        waitForIdle()
-        assertTrue(rendersText("TTS disabled"), "flipping the switch must be reflected immediately")
+    @Test
+    fun rules_save_sends_the_changed_rule() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline))
+        showSection(ttsApi, TtsSection.Rules)
 
-        // Leave General for another tab and come back — the unsaved edit must not have been reset back
-        // to the loaded baseline, because the field's State lives above the tab dispatch, not inside it.
-        clickTab("Voices")
+        switchLabelled("Skip bot messages").performClick()
         waitForIdle()
-        clickTab("General")
+        onAllNodesWithText("Save")[0].assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
         waitForIdle()
 
-        assertTrue(rendersText("TTS disabled"), "the unsaved toggle must survive switching tabs away and back")
-        assertTrue(
-            !rendersText("TTS enabled"),
-            "the page must not have silently reverted to the loaded baseline",
-        )
+        assertEquals(1, ttsApi.updateCalls.size, "Save must send exactly one update")
+        assertEquals(!baseline.skipBotMessages, ttsApi.updateCalls.single().skipBotMessages)
+        assertEquals(baseline.maxCharacters, ttsApi.updateCalls.single().maxCharacters)
+    }
+
+    @Test
+    fun provider_save_sends_the_chosen_voice_source() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline))
+        showSection(ttsApi, TtsSection.Provider)
+
+        onNodeWithContentDescription("My own provider key", useUnmergedTree = true).performClick()
+        waitForIdle()
+        onNodeWithText("Save").assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+
+        assertEquals(1, ttsApi.updateCalls.size, "Save must send exactly one update")
+        assertEquals("byok", ttsApi.updateCalls.single().mode)
+        assertEquals(baseline.isEnabled, ttsApi.updateCalls.single().isEnabled)
     }
 
     // The browser voice (`client_edge`) is gone (Stoney, 2026-10-05: "edge tts is available everywhere and must be
     // the standard. that lame outdated browser native tts goes away"). A config still carrying it renders as the
-    // free voices option, and a Save sends the server plane value, never `client_edge`.
+    // free voices option on the Provider tab, and a Save from any tab sends the server plane value, never
+    // `client_edge`.
     @Test
-    fun a_client_edge_config_renders_as_free_voices_and_saves_the_server_plane() = runComposeUiTest {
-        // maxCharacters sits inside 1..500 so the form is valid and Save is gated only by "differs from loaded".
-        val ttsApi =
-            FakeTtsApi(configResult = ApiResult.Ok(TtsConfig(isEnabled = true, mode = "client_edge", maxCharacters = 200)))
-        val controller = TtsController(FakeChannelsApi(), ttsApi)
-        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
-        runBlocking {
-            controller.load()
-            queueController.load()
-        }
-
-        setContent {
-            withLifecycle {
-                EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
-                }
-            }
-        }
-        waitForIdle()
+    fun a_client_edge_config_renders_as_free_voices_on_the_provider_tab() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline.copy(mode = "client_edge")))
+        showSection(ttsApi, TtsSection.Provider)
 
         // The voice-source picker offers exactly the two remaining options, with no browser-voice chip.
         onNodeWithContentDescription("Free voices (recommended)", useUnmergedTree = true).assertExists()
@@ -594,9 +530,15 @@ class TtsScreenTest {
         )
         // Nothing was edited yet, so the loaded client_edge config (shown as free voices) is not a pending change.
         onNodeWithText("Save").assertIsNotEnabled()
+        assertEquals(emptyList(), ttsApi.updateCalls)
+    }
 
-        // One real edit, then Save: the request carries the server plane, not the retired browser value.
-        onAllNodes(isToggleable(), useUnmergedTree = true)[0].performClick()
+    @Test
+    fun saving_a_client_edge_config_from_live_sends_the_server_plane() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline.copy(mode = "client_edge")))
+        showSection(ttsApi, TtsSection.Live)
+
+        switchLabelled("Enable TTS").performClick()
         waitForIdle()
         onNodeWithText("Save").assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
         waitForIdle()
@@ -609,95 +551,29 @@ class TtsScreenTest {
     // ── Role gating survives the split ────────────────────────────────────────
 
     @Test
-    fun the_save_action_is_disabled_below_the_editor_floor_and_enabled_at_it() = runComposeUiTest {
-        setContent {
-            EnglishContent {
-                GeneralTab(
-                    isEnabled = true,
-                    onEnabledChange = {},
-                    mode = "self_host",
-                    onModeChange = {},
-                    defaultProvider = "edge",
-                    onProviderChange = {},
-                    defaultVoiceId = "",
-                    onVoiceChange = {},
-                    maxLengthText = "200",
-                    onMaxLengthChange = {},
-                    maxLengthValid = true,
-                    minPermission = "everyone",
-                    onPermissionChange = {},
-                    skipBotMessages = false,
-                    onSkipBotMessagesChange = {},
-                    readUsernames = false,
-                    onReadUsernamesChange = {},
-                    profanityCensorEnabled = true,
-                    onProfanityCensorChange = {},
-                    modApprovalRequired = false,
-                    onModApprovalChange = {},
-                    minBitsText = "",
-                    onMinBitsChange = {},
-                    minBitsValid = true,
-                    viewerVoiceSelfService = true,
-                    onViewerVoiceSelfServiceChange = {},
-                    manage = ManageDecision.Denied("Requires Editor"),
-                    formEnabled = true,
-                    saving = false,
-                    justSaved = false,
-                    saveError = null,
-                    canSave = true,
-                    onSave = {},
-                )
-            }
-        }
+    fun a_moderator_cannot_edit_or_save_on_the_live_tab() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline))
+        showSection(ttsApi, TtsSection.Live, role = ManagementRole.Moderator)
 
         // Never hidden — the Save button always renders; only its enabled state (and the announced reason)
         // changes with the manage floor, per the shared ManageGate convention.
+        assertTrue(rendersText("Enable TTS"), "a Moderator still sees the settings")
+        switchLabelled("Enable TTS").assertIsNotEnabled()
         onNodeWithText("Save").assertIsNotEnabled()
+        assertEquals(emptyList(), ttsApi.updateCalls)
     }
 
     @Test
-    fun the_save_action_is_enabled_at_the_editor_floor() = runComposeUiTest {
-        setContent {
-            EnglishContent {
-                GeneralTab(
-                    isEnabled = true,
-                    onEnabledChange = {},
-                    mode = "self_host",
-                    onModeChange = {},
-                    defaultProvider = "edge",
-                    onProviderChange = {},
-                    defaultVoiceId = "",
-                    onVoiceChange = {},
-                    maxLengthText = "200",
-                    onMaxLengthChange = {},
-                    maxLengthValid = true,
-                    minPermission = "everyone",
-                    onPermissionChange = {},
-                    skipBotMessages = false,
-                    onSkipBotMessagesChange = {},
-                    readUsernames = false,
-                    onReadUsernamesChange = {},
-                    profanityCensorEnabled = true,
-                    onProfanityCensorChange = {},
-                    modApprovalRequired = false,
-                    onModApprovalChange = {},
-                    minBitsText = "",
-                    onMinBitsChange = {},
-                    minBitsValid = true,
-                    viewerVoiceSelfService = true,
-                    onViewerVoiceSelfServiceChange = {},
-                    manage = ManageDecision.Allowed,
-                    formEnabled = true,
-                    saving = false,
-                    justSaved = false,
-                    saveError = null,
-                    canSave = true,
-                    onSave = {},
-                )
-            }
-        }
+    fun an_editor_can_edit_and_save_on_the_live_tab() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(baseline))
+        showSection(ttsApi, TtsSection.Live, role = ManagementRole.Editor)
 
-        onNodeWithText("Save").assertIsEnabled()
+        switchLabelled("Enable TTS").assertIsEnabled().performClick()
+        waitForIdle()
+        onNodeWithText("Save").assertIsEnabled().performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+
+        assertEquals(false, ttsApi.updateCalls.single().isEnabled)
     }
 
     // ── Reset to defaults ────────────────────────────────────────────────────
@@ -732,7 +608,7 @@ class TtsScreenTest {
         setContent {
             withLifecycle {
                 EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster, section = TtsSection.Live)
                 }
             }
         }
@@ -778,7 +654,7 @@ class TtsScreenTest {
         setContent {
             withLifecycle {
                 EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster, section = TtsSection.Live)
                 }
             }
         }
@@ -804,7 +680,7 @@ class TtsScreenTest {
         setContent {
             withLifecycle {
                 EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Moderator)
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Moderator, section = TtsSection.Live)
                 }
             }
         }
@@ -829,7 +705,7 @@ class TtsScreenTest {
         setContent {
             withLifecycle {
                 EnglishContent {
-                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster, section = TtsSection.Live)
                 }
             }
         }
@@ -839,14 +715,6 @@ class TtsScreenTest {
     }
 
     // ── Test helpers ────────────────────────────────────────────────────────
-
-    // Clicks the tab strip's [label] trigger. Each TabsTrigger renders its label text TWICE (an invisible
-    // width-sizing copy plus the visible one — see Tabs.kt's SegmentLabel), so a plain onNodeWithText would
-    // be ambiguous; this instead finds the single clickable ancestor that has the label among its
-    // descendants, the same disambiguation shape used elsewhere in this codebase for gated controls.
-    private fun ComposeUiTest.clickTab(label: String) {
-        onNode(hasClickAction() and hasAnyDescendant(hasText(label)), useUnmergedTree = true).performClick()
-    }
 
     // Several labels this file asserts on (the status banner's "TTS enabled"/"TTS disabled", SwitchRow's
     // "Enable TTS") sit under a `clearAndSetSemantics` boundary in TtsScreen.kt — one node for screen readers

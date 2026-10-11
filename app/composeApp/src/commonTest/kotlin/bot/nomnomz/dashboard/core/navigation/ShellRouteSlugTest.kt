@@ -59,6 +59,16 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_four_tts_tabs_resolve_and_the_bare_tts_address_opens_live() {
+        assertEquals(ShellRoute.TtsLive, ShellRouteSlug.parse("tts/live"))
+        assertEquals(ShellRoute.TtsVoices, ShellRouteSlug.parse("tts/voices"))
+        assertEquals(ShellRoute.TtsRules, ShellRouteSlug.parse("tts/rules"))
+        assertEquals(ShellRoute.TtsProvider, ShellRouteSlug.parse("tts/provider"))
+        assertEquals("tts/provider", ShellRouteSlug.of(ShellRoute.TtsProvider))
+        assertEquals(ShellRoute.TtsLive, ShellRouteSlug.parse("tts"))
+    }
+
+    @Test
     fun a_page_without_tabs_is_its_page_slug_alone() {
         assertEquals("home", ShellRouteSlug.of(ShellRoute.Home))
         assertEquals("commands", ShellRouteSlug.of(ShellRoute.Commands))

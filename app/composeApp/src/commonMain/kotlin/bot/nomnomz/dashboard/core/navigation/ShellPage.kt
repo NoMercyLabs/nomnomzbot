@@ -30,7 +30,7 @@ enum class ShellPage(val slug: String, val tabs: List<String>) {
     Games("games", emptyList()),
     Giveaways("giveaways", emptyList()),
     Music("music", listOf("now-playing", "song-requests")),
-    Tts("tts", emptyList()),
+    Tts("tts", listOf("live", "voices", "rules", "provider")),
     MediaShare("media-share", emptyList()),
     Stream("stream", listOf("schedule")),
     Analytics("analytics", emptyList()),

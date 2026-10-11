@@ -116,11 +116,10 @@ class TtsConfigWritesTest {
     fun a_failed_name_pronunciation_save_keeps_the_typed_text_with_the_reason_and_no_toast() = runComposeUiTest {
         val api: ConfigWritesApi = ConfigWritesApi(nameFailure = failure)
         val feedback: CountingFeedback = CountingFeedback()
-        open(api, feedback)
-        openPronunciationTab()
-        onAllNodes(hasSetTextAction()).onFirst().performTextInput("Jaydee")
+        open(api, feedback, TtsSection.Rules)
+        onAllNodes(hasSetTextAction())[nameFieldIndex].performTextInput("Jaydee")
         waitForIdle()
-        onAllNodesWithText("Save").onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        onAllNodesWithText("Save")[nameSaveIndex].performSemanticsAction(SemanticsActions.OnClick)
         waitForIdle()
 
         onNodeWithText("Jaydee").assertExists()
@@ -132,17 +131,21 @@ class TtsConfigWritesTest {
     @Test
     fun a_successful_name_pronunciation_save_sends_the_trimmed_value() = runComposeUiTest {
         val api: ConfigWritesApi = ConfigWritesApi()
-        open(api, CountingFeedback())
-        openPronunciationTab()
-        onAllNodes(hasSetTextAction()).onFirst().performTextInput("Jaydee")
+        open(api, CountingFeedback(), TtsSection.Rules)
+        onAllNodes(hasSetTextAction())[nameFieldIndex].performTextInput("Jaydee")
         waitForIdle()
-        onAllNodesWithText("Save").onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        onAllNodesWithText("Save")[nameSaveIndex].performSemanticsAction(SemanticsActions.OnClick)
         waitForIdle()
 
         assertEquals(listOf<String?>("Jaydee"), api.names)
     }
 
-    private fun ComposeUiTest.open(api: TtsApi, feedback: CountingFeedback) {
+    // On the Rules tab the settings form comes first: its max-length and minimum-bits fields are text fields 0 and 1,
+    // and its Save is the first Save. The channel-name pronunciation field and its Save come right after them.
+    private val nameFieldIndex: Int = 2
+    private val nameSaveIndex: Int = 1
+
+    private fun ComposeUiTest.open(api: TtsApi, feedback: CountingFeedback, section: TtsSection = TtsSection.Live) {
         val controller: TtsController = TtsController(StubChannelsApi(), api, feedback = feedback)
         val queueController: TtsQueueController = TtsQueueController(StubChannelsApi(), api)
         runBlocking {
@@ -157,16 +160,12 @@ class TtsConfigWritesTest {
                             controller = controller,
                             queueController = queueController,
                             role = ManagementRole.Broadcaster,
+                            section = section,
                         )
                     }
                 }
             }
         }
-        waitForIdle()
-    }
-
-    private fun ComposeUiTest.openPronunciationTab() {
-        onNode(hasClickAction() and hasAnyDescendant(hasText("Pronunciation")), useUnmergedTree = true).performClick()
         waitForIdle()
     }
 }

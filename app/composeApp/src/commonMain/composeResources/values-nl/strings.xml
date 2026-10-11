@@ -825,11 +825,10 @@
     <string name="songrequests_row_description">%1$s, %2$s, aangevraagd door %3$s</string>
     <string name="tts_status_enabled">TTS ingeschakeld</string>
     <string name="tts_status_disabled">TTS uitgeschakeld</string>
-    <string name="tts_tab_general">Algemeen</string>
-    <string name="tts_tab_voices">Stemmen</string>
-    <string name="tts_tab_per_viewer">Per kijker</string>
-    <string name="tts_tab_pronunciation">Uitspraak</string>
-    <string name="tts_tab_queue_and_test">Wachtrij en test</string>
+    <string name="shell_nav_tts_live">Live</string>
+    <string name="shell_nav_tts_voices">Stemmen</string>
+    <string name="shell_nav_tts_rules">Regels</string>
+    <string name="shell_nav_tts_provider">Aanbieder</string>
     <string name="tts_overlay_title">OBS-overlay</string>
     <string name="tts_overlay_url_label">Audio-widget voor OBS</string>
     <string name="tts_overlay_never_ran">Nog niet gedraaid</string>
