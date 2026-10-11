@@ -57546,7 +57546,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Send a Twitch shoutout for another channel from the broadcaster's channel.",
+        "summary": "Run the same announcement, TTS and queue path as a manual chat shoutout.",
         "parameters": [
           {
             "name": "channelId",
@@ -57646,10 +57646,24 @@
               }
             }
           },
-          "204": {
-            "description": "No Content",
+          "200": {
+            "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfShoutoutOutcomeDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfShoutoutOutcomeDto"
+                }
+              }
             }
           }
         }
@@ -75533,6 +75547,162 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfQuoteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/raid-assessments": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "List the channel's assessed raids, newest first, paginated.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfRaidAssessmentDto"
                 }
               }
             }
@@ -101588,6 +101758,9 @@
               "string"
             ],
             "description": "The fun-command preset this command was seeded from; null when the channel wrote it."
+          },
+          "speakWithTts": {
+            "type": "boolean"
           }
         },
         "description": "Full command detail for viewing/editing."
@@ -101723,6 +101896,9 @@
               "string"
             ],
             "description": "The fun-command preset this command was seeded from; null when the channel wrote it."
+          },
+          "speakWithTts": {
+            "type": "boolean"
           }
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\n            form can pre-fill without a separate detail fetch."
@@ -102485,6 +102661,9 @@
           "isEnabled": {
             "type": "boolean",
             "description": "Whether the command is live on creation (default true)."
+          },
+          "speakWithTts": {
+            "type": "boolean"
           }
         },
         "description": "Request to create a new command."
@@ -103298,6 +103477,9 @@
           "fireOnce": {
             "type": "boolean",
             "description": "When true the timer fires once and then disables itself, instead of looping on the interval."
+          },
+          "speakWithTts": {
+            "type": "boolean"
           }
         },
         "description": "Request to create a new timer."
@@ -114036,6 +114218,44 @@
           }
         }
       },
+      "PaginatedResponseOfRaidAssessmentDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaidAssessmentDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedResponseOfRedemptionListItem": {
         "type": "object",
         "properties": {
@@ -116980,6 +117200,75 @@
         },
         "description": "The transport/read shape of a quote (quotes.md §3)."
       },
+      "RaidAssessmentDto": {
+        "required": [
+          "id",
+          "raiderTwitchUserId",
+          "raiderLogin",
+          "raiderDisplayName",
+          "viewerCount",
+          "accountCreatedAt",
+          "earlierRaidCount",
+          "isBanned",
+          "isNetworkBlocked",
+          "verdict",
+          "occurredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "raiderTwitchUserId": {
+            "type": "string"
+          },
+          "raiderLogin": {
+            "type": "string"
+          },
+          "raiderDisplayName": {
+            "type": "string"
+          },
+          "viewerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "accountCreatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "earlierRaidCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isBanned": {
+            "type": "boolean"
+          },
+          "isNetworkBlocked": {
+            "type": "boolean"
+          },
+          "verdict": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One assessed incoming raid."
+      },
       "RaidBalanceWeights": {
         "required": [
           "owedBaseWeight",
@@ -119230,6 +119519,17 @@
           }
         },
         "description": "One trusted partner row (J.9a) with its display name for the trust-list UI."
+      },
+      "ShoutoutOutcomeDto": {
+        "required": [
+          "path"
+        ],
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
       },
       "ShoutoutOverrideDto": {
         "required": [
@@ -130016,6 +130316,43 @@
           }
         }
       },
+      "StatusResponseDtoOfShoutoutOutcomeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ShoutoutOutcomeDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfShoutoutTemplateDto": {
         "type": "object",
         "properties": {
@@ -133786,6 +134123,9 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "speakWithTts": {
+            "type": "boolean"
           }
         },
         "description": "Full timer detail for viewing/editing."
@@ -136114,6 +136454,12 @@
               "null",
               "boolean"
             ]
+          },
+          "speakWithTts": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         },
         "description": "Request to update an existing command."
@@ -137137,6 +137483,12 @@
               "boolean"
             ],
             "description": "When set, toggles one-shot mode (fire once then disable) vs looping."
+          },
+          "speakWithTts": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         },
         "description": "Request to update an existing timer."
