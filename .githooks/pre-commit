@@ -18,4 +18,8 @@ if git diff --cached --name-only --diff-filter=ACMR -- 'docs/sdk/*.md' 'docs/sdk
 fi
 # V0: no added line may plan or add backwards-compat code (owner 2026-10-11).
 python "$(git rev-parse --show-toplevel)/scripts/check-no-compat.py" || exit 1
+# Every Compose resource a staged Kotlin file uses needs its own import; jvmTest cannot see the Wasm break.
+if git diff --cached --name-only --diff-filter=ACMR -- '*.kt' | grep -q .; then
+  python "$(git rev-parse --show-toplevel)/scripts/check-res-imports.py" || exit 1
+fi
 exit 0
