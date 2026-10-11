@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.assets.state
 
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
+import bot.nomnomz.dashboard.core.designsystem.component.uploadAndSelect
 import bot.nomnomz.dashboard.core.io.AssetFile
 import bot.nomnomz.dashboard.core.io.AssetFilePickerIO
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -160,6 +161,49 @@ class AssetsControllerTest {
         assertEquals("image/webp", upload.file.mimeType)
         assertFalse(controller.isUploading.value)
         assertTrue(controller.state.value is AssetsState.Ready)
+    }
+
+    @Test
+    fun an_upload_through_the_shared_picker_control_lands_in_the_library_list_and_is_selected() = runTest {
+        val assetsApi = RecordingAssetsApi(ApiResult.Ok(emptyList()))
+        val controller =
+            controller(
+                assetsApi,
+                picker = FakeAssetPicker(AssetFile("sub-badge.webp", "image/webp", byteArrayOf(7, 7))),
+            )
+        controller.load()
+        var selectedId: String? = null
+
+        uploadAndSelect(upload = controller::uploadAsset, select = { id: String -> selectedId = id })
+
+        val ready: AssetsState.Ready = controller.state.value as AssetsState.Ready
+        assertEquals(listOf("asset-1"), ready.assets.map { it.id })
+        assertEquals("asset-1", selectedId)
+    }
+
+    @Test
+    fun a_cancelled_upload_through_the_shared_picker_control_selects_nothing() = runTest {
+        val controller = controller(RecordingAssetsApi(ApiResult.Ok(emptyList())), picker = FakeAssetPicker(null))
+        controller.load()
+        var selectedId: String? = null
+
+        uploadAndSelect(upload = controller::uploadAsset, select = { id: String -> selectedId = id })
+
+        assertEquals(null, selectedId)
+    }
+
+    @Test
+    fun a_failed_upload_through_the_shared_picker_control_selects_nothing_and_keeps_the_list() = runTest {
+        val assetsApi = RecordingAssetsApi(ApiResult.Ok(emptyList()), writeError = ApiError(500, null, "boom"))
+        val controller =
+            controller(assetsApi, picker = FakeAssetPicker(AssetFile("x.png", "image/png", byteArrayOf(1))))
+        controller.load()
+        var selectedId: String? = null
+
+        uploadAndSelect(upload = controller::uploadAsset, select = { id: String -> selectedId = id })
+
+        assertEquals(null, selectedId)
+        assertTrue(controller.state.value is AssetsState.Empty)
     }
 
     @Test

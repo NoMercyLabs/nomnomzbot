@@ -55,13 +55,16 @@ class AssetsController(
         }
     }
 
-    /** Opens the OS picker, then uploads the chosen file with its filename stem as slug + display name. */
-    suspend fun uploadAsset() {
+    /**
+     * Opens the OS picker, then uploads the chosen file with its filename stem as slug + display name. Returns
+     * the new asset's id, or null when the dialog was cancelled or the upload failed.
+     */
+    suspend fun uploadAsset(): String? {
         _isUploading.value = true
         try {
-            val file: AssetFile = assetPicker.pick() ?: return
+            val file: AssetFile = assetPicker.pick() ?: return null
             val name: String = file.name.substringBeforeLast('.')
-            upload(fileName = file.name, bytes = file.bytes, name = name, displayName = name)
+            return upload(fileName = file.name, bytes = file.bytes, name = name, displayName = name)
         } finally {
             _isUploading.value = false
         }
@@ -69,9 +72,10 @@ class AssetsController(
 
     /**
      * Upload [bytes] as [fileName] under the slug [name] (same name = the backend replaces that asset in
-     * place). The MIME type is inferred from the file extension — the backend validates it regardless.
+     * place). The MIME type is inferred from the file extension — the backend validates it regardless. Returns the
+     * stored asset's id, or null when the upload failed.
      */
-    suspend fun upload(fileName: String, bytes: ByteArray, name: String, displayName: String) {
+    suspend fun upload(fileName: String, bytes: ByteArray, name: String, displayName: String): String? {
         val file: AssetFile =
             AssetFile(
                 name = fileName,
@@ -82,8 +86,12 @@ class AssetsController(
             is ApiResult.Ok -> {
                 feedback.success(Res.string.feedback_asset_uploaded)
                 load()
+                return result.value.id
             }
-            is ApiResult.Failure -> failWrite(result.error.message)
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                return null
+            }
         }
     }
 

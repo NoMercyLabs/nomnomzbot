@@ -82,10 +82,11 @@ class SoundController(
         return result
     }
 
-    suspend fun uploadClip() {
+    /** Picks and uploads a clip. Returns the new clip's id, or null when cancelled or the upload failed. */
+    suspend fun uploadClip(): String? {
         _isUploading.value = true
         try {
-            val file: AudioFile = audioPicker.pick() ?: return
+            val file: AudioFile = audioPicker.pick() ?: return null
             // Use the filename-without-extension as both the slug name and the initial display name.
             val name: String = file.name.substringBeforeLast('.')
             when (val result: ApiResult<SoundClip> =
@@ -93,8 +94,12 @@ class SoundController(
                 is ApiResult.Ok -> {
                     feedback.success(Res.string.feedback_sound_clip_uploaded)
                     load()
+                    return result.value.id
                 }
-                is ApiResult.Failure -> failWrite(result.error.message)
+                is ApiResult.Failure -> {
+                    failWrite(result.error.message)
+                    return null
+                }
             }
         } finally {
             _isUploading.value = false

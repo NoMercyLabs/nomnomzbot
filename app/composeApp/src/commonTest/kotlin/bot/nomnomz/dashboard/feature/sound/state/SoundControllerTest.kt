@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.sound.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.uploadAndSelect
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
@@ -153,6 +154,31 @@ class SoundControllerTest {
     }
 
     @Test
+    fun a_clip_uploaded_through_the_shared_picker_control_lands_in_the_library_list_and_is_selected() = runTest {
+        val api = FakeSoundApi()
+        val picker = FixedAudioFilePicker(AudioFile("airhorn.mp3", "audio/mpeg", byteArrayOf(1, 2)))
+        val controller = SoundController(soundApi = api, audioPicker = picker)
+        controller.load()
+        var selectedId: String? = null
+
+        uploadAndSelect(upload = controller::uploadClip, select = { id: String -> selectedId = id })
+
+        val ready: SoundState.Ready = controller.state.value as SoundState.Ready
+        assertEquals(listOf("clip-1"), ready.clips.map { it.id })
+        assertEquals("clip-1", selectedId)
+    }
+
+    @Test
+    fun a_cancelled_clip_upload_selects_nothing() = runTest {
+        val controller = soundController(api = FakeSoundApi())
+        var selectedId: String? = null
+
+        uploadAndSelect(upload = controller::uploadClip, select = { id: String -> selectedId = id })
+
+        assertEquals(null, selectedId)
+    }
+
+    @Test
     fun a_failed_mix_save_keeps_the_previous_mix_and_hands_the_error_back_without_a_toast() = runTest {
         val feedback = RecordingFeedback()
         val api =
@@ -169,6 +195,10 @@ class SoundControllerTest {
         assertEquals("out of range", (result as ApiResult.Failure).error.message)
         assertEquals(0, feedback.messages.size)
     }
+}
+
+private class FixedAudioFilePicker(private val file: AudioFile) : AudioFilePickerIO {
+    override suspend fun pick(): AudioFile? = file
 }
 
 private fun soundController(
@@ -189,17 +219,18 @@ private object StubAudioFilePicker : AudioFilePickerIO {
 private class FakeSoundApi(
     private val previewFailure: ApiError? = null,
     private val stopFailure: ApiError? = null,
-    private val clips: List<SoundClip> = emptyList(),
+    clips: List<SoundClip> = emptyList(),
     private val storedMix: ChannelAudioMix = ChannelAudioMix(100, 100, 0.3),
     private val mixLoadFailure: ApiError? = null,
     private val mixSaveFailure: ApiError? = null,
 ) : SoundApi {
     val mixPuts: MutableList<UpdateChannelAudioMixBody> = mutableListOf()
+    private val clips: MutableList<SoundClip> = clips.toMutableList()
 
     val previewedClipIds: MutableList<String> = mutableListOf()
     var stopCallCount: Int = 0
 
-    override suspend fun list(): ApiResult<List<SoundClip>> = ApiResult.Ok(clips)
+    override suspend fun list(): ApiResult<List<SoundClip>> = ApiResult.Ok(clips.toList())
 
     override suspend fun update(id: String, body: UpdateSoundClipBody): ApiResult<Unit> = error("stub")
 
@@ -235,5 +266,9 @@ private class FakeSoundApi(
         displayName: String,
         defaultVolume: Int,
         file: AudioFile,
-    ): ApiResult<SoundClip> = error("stub")
+    ): ApiResult<SoundClip> {
+        val stored: SoundClip = SoundClip(id = "clip-${clips.size + 1}", name = name, displayName = displayName)
+        clips += stored
+        return ApiResult.Ok(stored)
+    }
 }
