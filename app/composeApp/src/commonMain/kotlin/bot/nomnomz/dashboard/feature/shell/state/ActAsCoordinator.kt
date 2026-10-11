@@ -21,12 +21,12 @@ import bot.nomnomz.dashboard.core.connection.toSessionUser
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.navigation.AppReloader
 import bot.nomnomz.dashboard.core.network.ActAsSessionInfo
-import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.CurrentUser
 import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
+import bot.nomnomz.dashboard.core.network.isTransient
 import bot.nomnomz.dashboard.feature.connect.state.ActAsConnectHooks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -210,7 +210,7 @@ class ActAsCoordinator(
                 }
                 is ApiResult.Failure -> {
                     // A blip proves nothing; a real rejection means neither session is left — the reload says so.
-                    if (!isTransient(answer.error)) handOver(ActAsEndNotice(ActAsEndReason.Expired))
+                    if (!answer.error.isTransient()) handOver(ActAsEndNotice(ActAsEndReason.Expired))
                     false
                 }
             }
@@ -238,6 +238,4 @@ class ActAsCoordinator(
         notice?.let(actAsStore::putNotice)
         reloader.reload(location = returnLocation)
     }
-
-    private fun isTransient(error: ApiError): Boolean = error.status == 0 || error.status >= 500
 }

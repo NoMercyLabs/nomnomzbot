@@ -256,6 +256,21 @@ class ShellAccessControllerTest {
     }
 
     @Test
+    fun a_rate_limited_effective_me_reports_retrying_not_the_failed_screen() = runTest {
+        // Stoney, 2026-10-11: the access probe got a 429 and the shell showed "Could not load your access".
+        // A 429 says "slow down", not "you have no access".
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeRolesApi(access = ApiResult.Failure(ApiError(429, null, "Too Many Requests"))),
+            )
+
+        controller.load()
+
+        assertEquals(ShellAccess.Retrying, controller.state.value)
+    }
+
+    @Test
     fun a_repeat_blip_keeps_re_probing_with_backoff_until_a_real_answer_lands() = runTest {
         // A blue/green deploy can keep the backend away for more than one probe. The second blip sets the same
         // Retrying value, so the retry must loop on its own — re-probing once left the shell on its splash forever.

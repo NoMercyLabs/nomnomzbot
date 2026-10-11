@@ -35,6 +35,12 @@ data class ApiError(
     val heldRole: String? = null,
 )
 
+/**
+ * A blip worth retrying (no response, the backend's own 5xx, or a 429 "slow down") versus a definitive answer.
+ * A 429 never means "no access"; showing it as a failure turned a busy server into a dead end.
+ */
+fun ApiError.isTransient(): Boolean = status == 0 || status == 429 || status >= 500
+
 /** One build or runtime problem the backend located in a project file (the `data.errors` items of a failed save). */
 @Serializable
 data class BuildError(

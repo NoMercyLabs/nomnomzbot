@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommunityStanding as WireStanding
 import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
+import bot.nomnomz.dashboard.core.network.isTransient
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlinx.coroutines.delay
@@ -164,13 +165,6 @@ private fun ApiError.isNoChannel(): Boolean = status == 404 && code == NO_CHANNE
 
 // A short technical reason for the error screen: the backend's error code, else the HTTP status.
 private fun ApiError.reason(): String = code ?: "HTTP $status"
-
-/**
- * A network/backend blip (no response at all, or the backend's own 5xx) versus a definitive answer
- * (401/403/404/…) the backend actually computed. Only the latter may be treated as "the caller really has no
- * access" — a blip must retry, never masquerade as a real answer (S050).
- */
-private fun ApiError.isTransient(): Boolean = status == 0 || status >= 500
 
 /** The shell's resolved-access state — Loading under the boot probe, then the caller's effective access. */
 sealed interface ShellAccess {

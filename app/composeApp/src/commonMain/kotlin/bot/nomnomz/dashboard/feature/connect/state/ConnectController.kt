@@ -23,7 +23,6 @@ import bot.nomnomz.dashboard.core.connection.SavedConnection
 import bot.nomnomz.dashboard.core.connection.SavedConnectionsRepository
 import bot.nomnomz.dashboard.core.connection.TokenVault
 import bot.nomnomz.dashboard.core.connection.savedConnectionsStore
-import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.AuthPayload
@@ -35,6 +34,7 @@ import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
+import bot.nomnomz.dashboard.core.network.isTransient
 import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -756,7 +756,7 @@ class ConnectController(
         // confirmed. Surface that distinctly so the gate never shows the same "you are not signed in" screen a
         // brand-new visitor sees for what might just be the bot still booting or a dropped LAN link.
         _restoreUnreachable.value =
-            hadRememberedSession && refreshed is ApiResult.Failure && isTransientFailure(refreshed.error)
+            hadRememberedSession && refreshed is ApiResult.Failure && refreshed.error.isTransient()
 
         // Couldn't restore (expired/absent token or an unreachable backend) — drop only the in-memory session
         // but KEEP the remembered backend + cookie, so a transient failure never forces a re-login. The gate
@@ -782,15 +782,13 @@ class ConnectController(
     ): ApiResult<AuthPayload> {
         var attempt = 0
         var result: ApiResult<AuthPayload> = authApi.refresh(refreshToken, actAsToken)
-        while (result is ApiResult.Failure && isTransientFailure(result.error) && attempt < RESTORE_REFRESH_MAX_RETRIES) {
+        while (result is ApiResult.Failure && result.error.isTransient() && attempt < RESTORE_REFRESH_MAX_RETRIES) {
             delay(RESTORE_REFRESH_RETRY_DELAY_MS)
             attempt++
             result = authApi.refresh(refreshToken, actAsToken)
         }
         return result
     }
-
-    private fun isTransientFailure(error: ApiError): Boolean = error.status == 0 || error.status >= 500
 
     /**
      * Arm [tokens] onto the session (so the shared client sends them), prove them via `/me`, and commit the
