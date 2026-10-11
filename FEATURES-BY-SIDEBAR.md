@@ -69,7 +69,7 @@ Things you make once. The bot then runs them.
 | **Scripts** | the editor itself | Moderator / Moderator | Sandboxed multi-file code editor with the file list and test helpers inside it, SDK types, versions, publish and rollback. |
 | **Overlays** | Gallery; My overlays | Moderator / Moderator | Was Widgets. Install, configure, clone to edit, code editor, test events, OBS URL and manifest. |
 | **Library** | Sounds; Files; Random responses; Quotes | Moderator / Moderator | Replaces Sound Clips, Assets, Pick Lists and Quotes. Every picker in Build can upload inline. |
-| **Gallery** | Templates; Bundles | Moderator / Moderator | New. Templates and bundles (export, import with conflict policy, marketplace). Every create flow also offers Start from a template. |
+| **Gallery** | Templates; Bundles; Import | Moderator / Moderator | New. Templates and bundles (export, import with conflict policy, marketplace). Every create flow also offers Start from a template. Import brings in legacy bot data and StreamElements (also a first-run step). |
 
 ---
 

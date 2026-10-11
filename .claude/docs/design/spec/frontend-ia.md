@@ -73,13 +73,15 @@ The main shell is one persistent frame around the content `NavHost` (`frontend.m
 
 - **Sidebar** — grouped sections (§3), each a label + its items; collapsible to an icon rail (state persisted
   in app prefs). Built from the design-system primitives; icons from the `IconKey` pack (`frontend-design-system.md`).
-- **Top bar** — current page title, the **active-channel chip** (which channel this shell manages; a menu on
-  native to switch via the connection switcher), the SignalR `HubState` indicator dot (`frontend.md` §3.2),
-  and the Ctrl+K search (section 3.6).
+- **Top bar** — current page title, the **active-channel chip**, the SignalR `HubState` indicator dot
+  (`frontend.md` §3.2), and the Ctrl+K search (section 3.6). The chip is the **channel switcher**: it lists every
+  channel the user can reach on this server (their own channels and the channels they moderate) and enters a
+  moderated channel. Ctrl+K offers the same list.
 - **Profile block** — pinned bottom-of-sidebar (`NavUser` pattern): avatar + name + role badge; opens the
   profile menu (§4).
-- **Web vs native:** identical layout; the connection switcher and Admin-switch obey the same `frontend.md` §6
-  rules (web is single-origin → the channel chip is static, no switcher).
+- **Web vs native:** identical layout. The channel switcher works on both. The **connection switcher** (which
+  server) and the Admin switch obey the `frontend.md` §6 rules: the connection switcher is native only, because
+  web is single-origin.
 
 ---
 
@@ -157,10 +159,10 @@ One place to make a command, an overlay or an action. This answers the owner ask
 | Event Responses | by event type | Moderator | Moderator | Absorbs Alerts (Alerts absorbed). One page answers every stream event: follow, sub, raid, cheer, reward, donation. The ledger lists the event groups. |
 | Triggers & Timers | Chat triggers; Voice triggers; Timers | Moderator | Moderator | Three small pages become three tabs. |
 | Pipelines | List; Editor | Moderator | Moderator | |
-| Scripts | the editor itself (no list page) | Moderator | Moderator | Opens straight into the code editor. The file list and the test helpers are inside it (owner 2026-09-08). The server already lets a Moderator write scripts (`ActionDefinitionSeeder.cs:174-179`). |
+| Scripts | the editor itself (no list page) | Moderator | Moderator | Opens straight into the code editor. The file list and the test helpers are inside it (owner 2026-09-08). The Outbound hosts panel in the editor lists the hosts a script may call (Editor). The server already lets a Moderator write scripts (`ActionDefinitionSeeder.cs:174-179`). |
 | Overlays | Gallery; My overlays | Moderator | Moderator | Was Widgets. The 23 overlay kinds. Each overlay shows its OBS URL and a test button. |
 | Library | Sounds; Files; Random responses; Quotes | Moderator | Moderator | Sounds was Sound Clips. Files was Assets. Random responses was Pick Lists. Every picker in Build can upload inline. |
-| Gallery | Templates; Bundles | Moderator | Moderator | Bundles moves here from Setup. Every create flow also offers "Start from a template". |
+| Gallery | Templates; Bundles; Import | Moderator | Moderator | Bundles moves here from Setup. Every create flow also offers "Start from a template". Import brings in legacy bot data and StreamElements; the StreamElements import is also a first-run step. |
 
 #### People
 
@@ -200,7 +202,7 @@ One page (slice S-USER-HUB, built by S-IA-PEOPLE). The tabs are the old Communit
 | Webhooks | - | Broadcaster | Broadcaster | Generic webhooks only. Ko-fi moves to Supporters. |
 | Custom Events | - | Moderator | Moderator | |
 | Supporters | - | Moderator | Broadcaster | Owns Ko-fi and the other supporter feeds. |
-| Federation | - | Broadcaster | Broadcaster | |
+| Federation | - | Broadcaster | Broadcaster | A peer opens its peer detail. |
 | API & devices | API tokens; Stream Deck pairing; device codes | Editor | Broadcaster | Was Automation. |
 
 #### Setup (pinned to the bottom, collapsed)
@@ -226,7 +228,7 @@ One page (slice S-USER-HUB, built by S-IA-PEOPLE). The tabs are the old Communit
 | Now playing | per channel | Everyone | - | |
 | Leaderboards | per channel | Everyone | - | |
 | Points and store | per channel | Everyone | - | |
-| Games | per channel | Everyone | - | |
+| Games | per channel | Everyone | - | The first game in a channel shows the consent prompt. |
 | Me | TTS voice, pronouns, linked accounts, my standing; My data also in the profile menu | Everyone | - | |
 
 ### 3.4 Counts
@@ -321,7 +323,10 @@ Opened from the profile block. Contents, top to bottom:
 - **Theme** — Light / Dark / System (the dynamic chat-color accent still derives per `frontend-design-system.md`
   §8; this toggles only the light/dark base).
 - **Language** — runtime switch (`frontend.md` §7). The same control also appears in onboarding.
+- **Exit impersonation** — *only while an admin impersonates a user*; the only control that shows the admin
+  identity during impersonation.
 - **Log out** — clears the active-connection token (`TokenVault.clear`) and returns to the Connect/Setup gate.
+- **Sign out on all devices** — ends every session of the user, on every device.
 
 The newer plan wins over the S080 profile menu contents (conflict table, section 14).
 
