@@ -36,9 +36,12 @@ internal readonly record struct RandomNumberSpec(int Min, int Max, int Step)
         return true;
     }
 
-    public int Draw()
+    public int Draw() => Draw(Random.Shared);
+
+    /// <summary>Draws from <paramref name="random"/>, so a test can script every reachable step.</summary>
+    public int Draw(Random random)
     {
         int steps = (int)(((long)Max - Min) / Step);
-        return Min + (Random.Shared.Next(0, steps + 1) * Step);
+        return Min + (random.Next(0, steps + 1) * Step);
     }
 }

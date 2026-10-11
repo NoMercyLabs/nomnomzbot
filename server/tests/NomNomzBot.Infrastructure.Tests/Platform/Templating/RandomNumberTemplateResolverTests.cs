@@ -66,39 +66,74 @@ public sealed class RandomNumberTemplateResolverTests
     [InlineData(7, 41)]
     [InlineData(60, 98)]
     [InlineData(3, 24)]
-    public async Task RangeForm_StaysInsideMinMax_AndReachesBothEnds(int min, int max)
+    public async Task RangeForm_StaysInsideMinMax(int min, int max)
     {
         List<int> values = await DrawAsync($"{{random.number.{min}.{max}}}");
 
         values.Should().OnlyContain(v => v >= min && v <= max);
-        values.Should().Contain(min);
-        values.Should().Contain(max);
     }
 
     [Theory]
     [InlineData(50, 990, 10)]
     [InlineData(200, 900, 100)]
-    public async Task StepForm_OnlyGivesMultiplesOfTheStepFromMin_AndReachesBothEnds(
-        int min,
-        int max,
-        int step
-    )
+    public async Task StepForm_OnlyGivesMultiplesOfTheStepFromMin(int min, int max, int step)
     {
         List<int> values = await DrawAsync($"{{random.number.{min}.{max}.{step}}}");
 
         values.Should().OnlyContain(v => v >= min && v <= max && (v - min) % step == 0);
-        values.Should().Contain(min);
-        values.Should().Contain(max);
+    }
+
+    [Theory]
+    [InlineData(3, 7, 1, new[] { 3, 4, 5, 6, 7 })]
+    [InlineData(200, 900, 100, new[] { 200, 300, 400, 500, 600, 700, 800, 900 })]
+    [InlineData(0, 25, 10, new[] { 0, 10, 20 })]
+    public void Draw_EveryReachableStep_IsTheExactGrid_AndReachesBothEnds(
+        int min,
+        int max,
+        int step,
+        int[] expectedGrid
+    )
+    {
+        RandomNumberSpec spec = new(min, max, step);
+
+        List<int> reached = Enumerable
+            .Range(0, expectedGrid.Length)
+            .Select(k => spec.Draw(new ScriptedRandom(k)))
+            .ToList();
+
+        reached.Should().Equal(expectedGrid);
     }
 
     [Fact]
-    public async Task OldSingleArgumentForm_StillGivesOneToN()
+    public void Draw_AsksForTheWholeStepCount_SoTheTopStepIsReachable()
+    {
+        ScriptedRandom random = new(0);
+
+        new RandomNumberSpec(50, 990, 10).Draw(random);
+
+        random.LastMin.Should().Be(0);
+        random.LastMaxExclusive.Should().Be(95, "50..990 on step 10 is 95 values");
+    }
+
+    [Fact]
+    public async Task OldSingleArgumentForm_StaysInsideOneToN()
     {
         List<int> values = await DrawAsync("{random.number.6}");
 
         values.Should().OnlyContain(v => v >= 1 && v <= 6);
-        values.Should().Contain(1);
-        values.Should().Contain(6);
+    }
+
+    private sealed class ScriptedRandom(int next) : Random
+    {
+        public int LastMin { get; private set; }
+        public int LastMaxExclusive { get; private set; }
+
+        public override int Next(int minValue, int maxValue)
+        {
+            LastMin = minValue;
+            LastMaxExclusive = maxValue;
+            return next;
+        }
     }
 
     [Fact]
