@@ -48,6 +48,22 @@ Cause (read in the code): the mention colour comes only from a 2-hour cache of t
 
 ---
 
+## OWNER REQUEST 2026-10-11 — commands that act on the message you reply to
+
+Owner, verbatim: "i like the ability of having special commands for reply messages, like adding a quote credited to the user when i reply with !quote, this is vip and up. and other things need to be able to easily get a reply command to make it easier"
+
+Done already: `QuoteBuiltin.AddFromBareReplyOrReadAsync` stores the parent line credited to its author. A command sent as a reply now reaches it (Twitch puts "@parent " in front of the text; the handler strips that one mention).
+
+Arc's reading (not settled):
+- Adding a quote is VIP and up by default. Today `quotes:write` defaults to Moderator with a VIP floor.
+- Every command and pipeline can read the reply parent (message, user, id), and a command target defaults to the reply parent.
+
+### S-REPLY-COMMANDS — commands act on the message you reply to
+- **Input:** `ChatMessageReceivedEvent` reply fields, the command context and pipeline variables, `QuoteBuiltin`, `ActionDefinitionSeeder` (`quotes:write`).
+- **Done-when:** live, a VIP replies `!quote` to a chat line and the quote list shows that line credited to its author; a viewer's reply `!quote` is refused; a custom command reads the reply parent's user and message as variables.
+
+---
+
 ## OWNER REQUEST 2026-10-11 — UI restructure from the ground up, one-shot plan, and the KMP verdict
 
 Owner, verbatim: "cool, now that this research is done. i like you to do the same full deep research on restucturing and reorganizing the user interface from the ground up. all the features in the bot need to have a proper place and it must be prepared for so it can be executed in one shot without errors or contstant shuffling. i want all features to have a documented place in proper hirarchy, importance and organization by who uses it and so its ensured that everything is right in front of you when you need it the most or when you want to create some shenanigans on stream with all of its features. every viewer, mod and streamer differences all layed out. and then finally i want a verdict if kotlin multi platform still the right language and framework is for the goal of serving hundred thousands of users at once. do not leave a stone unturned and store everything you find along the way and give me a full report and plan at the end"
