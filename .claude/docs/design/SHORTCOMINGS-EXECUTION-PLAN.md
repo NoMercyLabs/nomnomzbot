@@ -47,9 +47,6 @@ new place: `ui-placement-ledger-2026-10-11.md`.
 Order: S-IA-SPEC first (Stoney's yes 2026-10-11: "if you are sure that this matches human psychology for dashboards then you have my clearance to execute"), then S-IA-ROUTES with S-IA-GUARD, then S-IA-NAV, then the lanes
 in parallel (at most 2 building), then the finishing slices. The KMP and scale slices run at any time.
 
-- **S-IA-GUARD** A script that fails when a page or tab has no row in the placement ledger, or when a
-  ledger row names a page with no route. It runs in slice-check for app slices. Done-when: the script
-  fails on a planted unplaced page and passes on the real tree.
 - **S-GATE-DRY** No clone check exists today: slice-check.ps1 gates ReSharper CodeRedundancy and LanguageUsage
   only (lines 277-282), and the app has no lint. Add a clone check on the slice's touched C# and Kotlin files
   against the whole tree, wired into slice-check.ps1 and the app gate. The tool is picked by a benchmark first
