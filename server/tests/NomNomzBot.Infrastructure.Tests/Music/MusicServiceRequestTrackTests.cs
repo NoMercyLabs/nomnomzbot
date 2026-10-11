@@ -318,6 +318,145 @@ public sealed class MusicServiceRequestTrackTests
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
+    [Fact]
+    public async Task A_search_asks_Spotify_for_ten_candidates_not_one()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            EmptySearchJson
+        );
+
+        await sut.RequestTrackAsync(ChannelId.ToString(), "summer of 69", "viewer1");
+
+        handler
+            .RequestUrls.Should()
+            .ContainSingle(url =>
+                url.Contains("/search", StringComparison.Ordinal)
+                && url.Contains("limit=10", StringComparison.Ordinal)
+            );
+    }
+
+    [Fact]
+    public async Task A_karaoke_or_cover_on_top_is_passed_over_for_the_real_song_below_it()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        RespondWithHits(
+            handler,
+            ("k1", "Summer of 69 (Karaoke Version)", "Karaoke Stars", "Sing Along Hits"),
+            ("c1", "Summer of '69 - Cover", "Tribute Kids", "Covers"),
+            ("r1", "Summer of '69", "Bryan Adams", "Reckless")
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "summer of 69",
+            "viewer1"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:r1");
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Should()
+            .ContainSingle()
+            .Which.TrackName.Should()
+            .Be("Summer of '69");
+    }
+
+    [Fact]
+    public async Task An_artist_dash_title_request_picks_the_hit_by_that_artist()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        RespondWithHits(
+            handler,
+            ("w1", "Wonderwall", "Ryan Adams", "Gold"),
+            ("w2", "Wonderwall", "Oasis", "(What's the Story) Morning Glory?")
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "oasis - wonderwall",
+            "viewer1"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:w2");
+    }
+
+    [Fact]
+    public async Task A_glued_artist_word_picks_the_song_not_an_unrelated_world_cup_hit()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        RespondWithHits(
+            handler,
+            (
+                "1PCvKFPWnTXAe2oaReVUcr",
+                "We Are One (Ole Ola) [The Official 2014 FIFA World Cup Song]",
+                "Pitbull",
+                "One Love, One Rhythm"
+            ),
+            ("x2", "In The Sky", "Some Band", "Clouds"),
+            ("3WKYPmiPpJas9j5Aari5iK", "Love In The Sky", "The Weeknd", "Beauty Behind the Madness")
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "love in the sky theweeknd",
+            "viewer1"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:3WKYPmiPpJas9j5Aari5iK");
+    }
+
+    [Fact]
+    public async Task A_title_plus_glued_artist_beats_a_same_word_title_by_someone_else()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        RespondWithHits(
+            handler,
+            ("g1", "Professional Griefers", "Deadmau5", "Album Title Goes Here"),
+            ("5ZicFGBDAi9J2YCVesboUp", "Professional", "The Weeknd", "Hurry Up Tomorrow")
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "professional theweeknd",
+            "viewer1"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:5ZicFGBDAi9J2YCVesboUp");
+    }
+
+    private static void RespondWithHits(
+        RecordingHttpHandler handler,
+        params (string Id, string Name, string Artist, string Album)[] hits
+    )
+    {
+        string items = string.Join(
+            ",",
+            hits.Select(h =>
+                $$$"""{"id":"{{{h.Id}}}","name":"{{{h.Name}}}","uri":"spotify:track:{{{h.Id}}}","duration_ms":200000,"artists":[{"name":"{{{h.Artist}}}"}],"album":{"name":"{{{h.Album}}}","images":[]}}"""
+            )
+        );
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            $$$"""{"tracks":{"items":[{{{items}}}]}}"""
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NoContent
+        );
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     /// <summary>Records every warning/error the SUT logs — proves a provider failure is surfaced to the

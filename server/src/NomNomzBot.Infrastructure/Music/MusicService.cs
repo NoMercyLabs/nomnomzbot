@@ -686,6 +686,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// failure reason means the search/resolve never meaningfully ran and must NOT be read as "not found"
     /// by the caller — the bot must never report a provider outage as a song that doesn't exist.
     /// </summary>
+    /// <summary>Spotify's search ranks a bigger page the way its own app does; the first of ten is picked from.</summary>
+    private const int SearchCandidateCount = 10;
+
     private async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveOrSearchAsync(
         IMusicProvider provider,
         Guid tenantId,
@@ -711,10 +714,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         }
 
         (IReadOnlyList<TrackInfo> hits, MusicProviderFailureReason searchFailure) =
-            await provider.SearchAsync(tenantId, searchText, 1, cancellationToken);
+            await provider.SearchAsync(
+                tenantId,
+                searchText,
+                SearchCandidateCount,
+                cancellationToken
+            );
         return searchFailure != MusicProviderFailureReason.None
             ? (null, searchFailure)
-            : (hits.FirstOrDefault(), MusicProviderFailureReason.None);
+            : (SongSearchRanker.Pick(searchText, hits), MusicProviderFailureReason.None);
     }
 
     private static bool IsWebLink(string query) =>
