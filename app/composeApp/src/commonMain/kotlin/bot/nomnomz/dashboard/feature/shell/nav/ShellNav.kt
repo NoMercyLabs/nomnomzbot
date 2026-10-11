@@ -84,7 +84,7 @@ object ShellNav {
             // Command management is Moderator, mirroring the backend commands:write floor.
             NavPage(ShellRoute.Commands, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "commands:read"),
             NavPage(ShellRoute.EventResponsesResponses, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "eventresponses:read"),
-            NavPage(ShellRoute.EventResponsesAlerts, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            NavPage(ShellRoute.EventResponsesAlertQueue, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
             // Triggers & Timers: read at Moderator, write at Editor, governed by the `<kind>:read` action keys so a
             // broadcaster can delegate reading.
             NavPage(ShellRoute.TriggersChat, NavGroup.Build, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "chattriggers:read"),

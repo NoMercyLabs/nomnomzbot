@@ -117,7 +117,7 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
     // One decision for the page: Alerts gates every write control at its single Editor manage floor
     // (frontend-ia.md §3 Stream row). Below it the list stays readable but create/edit/toggle/delete disable
     // with "Requires Editor" (§7); the backend re-checks every write.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.EventResponsesAlerts)
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.EventResponsesAlertQueue)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the event type pending confirmation, or null when none.

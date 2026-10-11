@@ -19,7 +19,7 @@ enum class ShellPage(val slug: String, val tabs: List<String>) {
     Chat("chat", listOf("one-channel", "all-my-channels")),
     Commands("commands", emptyList()),
     TriggersTimers("triggers-timers", listOf("chat-triggers", "voice-triggers", "timers")),
-    EventResponses("event-responses", listOf("responses", "alerts")),
+    EventResponses("event-responses", listOf("responses", "alert-queue")),
     Library("library", listOf("sounds", "files", "random-responses", "quotes")),
     Pipelines("pipelines", emptyList()),
     Overlays("overlays", emptyList()),

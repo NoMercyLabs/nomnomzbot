@@ -25,7 +25,7 @@ enum class ShellRoute(val page: ShellPage, val tab: String?) {
     TriggersVoice(ShellPage.TriggersTimers, "voice-triggers"),
     TriggersTimers(ShellPage.TriggersTimers, "timers"),
     EventResponsesResponses(ShellPage.EventResponses, "responses"),
-    EventResponsesAlerts(ShellPage.EventResponses, "alerts"),
+    EventResponsesAlertQueue(ShellPage.EventResponses, "alert-queue"),
     LibrarySounds(ShellPage.Library, "sounds"),
     LibraryFiles(ShellPage.Library, "files"),
     LibraryRandomResponses(ShellPage.Library, "random-responses"),

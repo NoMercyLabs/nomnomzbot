@@ -796,7 +796,7 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.EventResponsesAlerts -> AlertsScreen(controller = graph.alertsController, role = role)
+            ShellRoute.EventResponsesAlertQueue -> AlertsScreen(controller = graph.alertsController, role = role)
             ShellRoute.Overlays ->
                 WidgetsScreen(
                     controller = graph.widgetsController,
@@ -1625,7 +1625,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.LibraryFiles -> AssetsGlyph
         ShellRoute.Tts -> TtsGlyph
         ShellRoute.Overlays -> WidgetsGlyph
-        ShellRoute.EventResponsesAlerts -> AlertsGlyph
+        ShellRoute.EventResponsesAlertQueue -> AlertsGlyph
         ShellRoute.StreamSchedule -> TimersGlyph
         ShellRoute.Analytics -> AnalyticsGlyph
         ShellRoute.PeopleViewers -> CommunityGlyph
@@ -1675,7 +1675,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.LibraryFiles -> Res.string.shell_nav_assets
             ShellRoute.Tts -> Res.string.shell_nav_tts
             ShellRoute.Overlays -> Res.string.shell_nav_overlays
-            ShellRoute.EventResponsesAlerts -> Res.string.shell_nav_alerts
+            ShellRoute.EventResponsesAlertQueue -> Res.string.shell_nav_alerts
             ShellRoute.Discord -> Res.string.shell_nav_discord
             ShellRoute.StreamSchedule -> Res.string.shell_nav_schedule
             ShellRoute.Analytics -> Res.string.shell_nav_analytics

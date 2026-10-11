@@ -43,7 +43,7 @@ class ShellRouteSlugTest {
         assertEquals("chat/all-my-channels", ShellRouteSlug.of(ShellRoute.ChatAll))
         assertEquals("people/queue", ShellRouteSlug.of(ShellRoute.PeopleQueue))
         assertEquals("library/random-responses", ShellRouteSlug.of(ShellRoute.LibraryRandomResponses))
-        assertEquals("event-responses/alerts", ShellRouteSlug.of(ShellRoute.EventResponsesAlerts))
+        assertEquals("event-responses/alert-queue", ShellRouteSlug.of(ShellRoute.EventResponsesAlertQueue))
         assertEquals("gallery/bundles", ShellRouteSlug.of(ShellRoute.GalleryBundles))
     }
 

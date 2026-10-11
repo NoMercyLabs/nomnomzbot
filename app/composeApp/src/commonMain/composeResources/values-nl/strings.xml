@@ -183,7 +183,7 @@
     <string name="shell_nav_song_requests">Songverzoeken</string>
     <string name="shell_nav_tts">TTS</string>
     <string name="shell_nav_overlays">Overlays</string>
-    <string name="shell_nav_alerts">Meldingen &amp; events</string>
+    <string name="shell_nav_alerts">Meldingenwachtrij</string>
     <string name="shell_nav_analytics">Statistieken</string>
     <string name="shell_nav_schedule">Schema</string>
     <string name="schedule_loading">Je streamschema laden…</string>
@@ -3580,6 +3580,20 @@
     <!-- Evenement reacties pagina -->
     <string name="event_responses_loading">Evenement reacties laden…</string>
     <string name="event_responses_empty">Geen evenement reacties geconfigureerd</string>
+    <string name="event_group_filter_label">Evenementgroep</string>
+    <string name="event_group_all">Alle evenementen</string>
+    <string name="event_group_other">Overige evenementen</string>
+    <string name="event_group_follows_and_subs">Volgers en abonnementen</string>
+    <string name="event_group_cheers_and_bits">Cheers en bits</string>
+    <string name="event_group_raids_and_shoutouts">Raids en shoutouts</string>
+    <string name="event_group_stream_status">Streamstatus</string>
+    <string name="event_group_polls_and_predictions">Polls en voorspellingen</string>
+    <string name="event_group_channel_points">Kanaalpunten</string>
+    <string name="event_group_ads">Advertenties</string>
+    <string name="event_group_moderation">Moderatie</string>
+    <string name="event_group_engagement">Betrokkenheid</string>
+    <string name="event_group_supporters">Supporters</string>
+    <string name="event_group_obs_and_vtube_studio">OBS en VTube Studio</string>
     <string name="event_responses_error">Evenement reacties konden niet worden geladen: %1$s</string>
     <string name="event_responses_retry">Opnieuw proberen</string>
     <string name="event_responses_action_error">Actie mislukt: %1$s</string>

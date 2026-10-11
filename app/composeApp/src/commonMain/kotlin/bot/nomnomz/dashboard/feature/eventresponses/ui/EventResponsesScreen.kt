@@ -93,6 +93,23 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
+import bot.nomnomz.dashboard.core.designsystem.component.Select
+import bot.nomnomz.dashboard.feature.eventresponses.state.EventGroup
+import bot.nomnomz.dashboard.feature.eventresponses.state.EventGroupSection
+import bot.nomnomz.dashboard.feature.eventresponses.state.sectionsOf
+import nomnomzbot.composeapp.generated.resources.event_group_filter_label
+import nomnomzbot.composeapp.generated.resources.event_group_all
+import nomnomzbot.composeapp.generated.resources.event_group_follows_and_subs
+import nomnomzbot.composeapp.generated.resources.event_group_cheers_and_bits
+import nomnomzbot.composeapp.generated.resources.event_group_raids_and_shoutouts
+import nomnomzbot.composeapp.generated.resources.event_group_stream_status
+import nomnomzbot.composeapp.generated.resources.event_group_polls_and_predictions
+import nomnomzbot.composeapp.generated.resources.event_group_channel_points
+import nomnomzbot.composeapp.generated.resources.event_group_ads
+import nomnomzbot.composeapp.generated.resources.event_group_moderation
+import nomnomzbot.composeapp.generated.resources.event_group_engagement
+import nomnomzbot.composeapp.generated.resources.event_group_supporters
+import nomnomzbot.composeapp.generated.resources.event_group_obs_and_vtube_studio
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.event_responses_action_error
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_cancel
@@ -243,9 +260,25 @@ private fun ReadyContent(
 
         // Write failures announce on the shell-level feedback toast (EventResponsesController.failWrite).
 
-        // Single card table — all events in one container, rows separated by hairlines.
+        val groupLabels: Map<EventGroup?, String> = eventGroupLabels()
+        var groupFilter: EventGroup? by remember { mutableStateOf(null) }
+        var groupFilterOpen: Boolean by remember { mutableStateOf(false) }
+        Select(
+            value = groupFilter,
+            options = listOf<EventGroup?>(null) + EventGroup.entries,
+            onValueChange = { groupFilter = it },
+            label = stringResource(Res.string.event_group_filter_label),
+            optionLabel = { group -> groupLabels.getValue(group) },
+            expanded = groupFilterOpen,
+            onExpandedChange = { groupFilterOpen = it },
+            placeholder = groupLabels.getValue(null),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // One card, one section per event group — rows separated by hairlines inside a section.
+        val sections: List<EventGroupSection> = sectionsOf(responses, groupFilter)
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            if (responses.isEmpty()) {
+            if (sections.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = stringResource(Res.string.event_responses_empty),
@@ -255,15 +288,28 @@ private fun ReadyContent(
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    itemsIndexed(items = responses, key = { _, r -> r.id }) { index, response ->
-                        EventResponseRow(
-                            response = response,
-                            manage = manage,
-                            onToggle = { enabled -> onToggle(response, enabled) },
-                            onEdit = { onEdit(response) },
-                        )
-                        if (index < responses.lastIndex) {
+                    sections.forEach { section ->
+                        item(key = "group-${section.group?.name ?: "other"}") {
+                            Text(
+                                text = groupLabels.getValue(section.group),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacing.s4, vertical = spacing.s2),
+                            )
                             Separator()
+                        }
+                        itemsIndexed(items = section.responses, key = { _, r -> r.id }) { index, response ->
+                            EventResponseRow(
+                                response = response,
+                                manage = manage,
+                                onToggle = { enabled -> onToggle(response, enabled) },
+                                onEdit = { onEdit(response) },
+                            )
+                            if (index < section.responses.lastIndex) {
+                                Separator()
+                            }
                         }
                     }
                 }
@@ -271,6 +317,24 @@ private fun ReadyContent(
         }
     }
 }
+
+// Section headings and the filter options: the group names, with null as the All entry.
+@Composable
+private fun eventGroupLabels(): Map<EventGroup?, String> =
+    mapOf(
+        null to stringResource(Res.string.event_group_all),
+        EventGroup.FollowsAndSubs to stringResource(Res.string.event_group_follows_and_subs),
+        EventGroup.CheersAndBits to stringResource(Res.string.event_group_cheers_and_bits),
+        EventGroup.RaidsAndShoutouts to stringResource(Res.string.event_group_raids_and_shoutouts),
+        EventGroup.StreamStatus to stringResource(Res.string.event_group_stream_status),
+        EventGroup.PollsAndPredictions to stringResource(Res.string.event_group_polls_and_predictions),
+        EventGroup.ChannelPoints to stringResource(Res.string.event_group_channel_points),
+        EventGroup.Ads to stringResource(Res.string.event_group_ads),
+        EventGroup.Moderation to stringResource(Res.string.event_group_moderation),
+        EventGroup.Engagement to stringResource(Res.string.event_group_engagement),
+        EventGroup.Supporters to stringResource(Res.string.event_group_supporters),
+        EventGroup.ObsAndVtubeStudio to stringResource(Res.string.event_group_obs_and_vtube_studio),
+    )
 
 // Single event row inside the shared card — no per-row background; dividers separate entries.
 @Composable

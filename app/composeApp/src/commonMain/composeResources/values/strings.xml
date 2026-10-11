@@ -186,7 +186,7 @@
     <string name="shell_nav_song_requests">Song Requests</string>
     <string name="shell_nav_tts">TTS</string>
     <string name="shell_nav_overlays">Overlays</string>
-    <string name="shell_nav_alerts">Alerts &amp; Events</string>
+    <string name="shell_nav_alerts">Alert queue</string>
     <string name="shell_nav_analytics">Analytics</string>
     <string name="shell_nav_schedule">Schedule</string>
     <string name="schedule_loading">Loading your stream schedule…</string>
@@ -3595,6 +3595,20 @@
     <!-- Event Responses page -->
     <string name="event_responses_loading">Loading event responses…</string>
     <string name="event_responses_empty">No event responses configured</string>
+    <string name="event_group_filter_label">Event group</string>
+    <string name="event_group_all">All events</string>
+    <string name="event_group_other">Other events</string>
+    <string name="event_group_follows_and_subs">Follows and subscriptions</string>
+    <string name="event_group_cheers_and_bits">Cheers and bits</string>
+    <string name="event_group_raids_and_shoutouts">Raids and shoutouts</string>
+    <string name="event_group_stream_status">Stream status</string>
+    <string name="event_group_polls_and_predictions">Polls and predictions</string>
+    <string name="event_group_channel_points">Channel points</string>
+    <string name="event_group_ads">Ads</string>
+    <string name="event_group_moderation">Moderation</string>
+    <string name="event_group_engagement">Engagement</string>
+    <string name="event_group_supporters">Supporters</string>
+    <string name="event_group_obs_and_vtube_studio">OBS and VTube Studio</string>
     <string name="event_responses_error">Could not load event responses: %1$s</string>
     <string name="event_responses_retry">Retry</string>
     <string name="event_responses_action_error">Action failed: %1$s</string>
