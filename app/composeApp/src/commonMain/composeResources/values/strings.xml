@@ -5720,7 +5720,7 @@
     <string name="eventresponse_preset_reward_disabled_template">{reward} has been retired.</string>
     <string name="eventresponse_preset_channel_ad_break_begin_template">An ad break has started for {ad.duration}. Please stay tuned!</string>
     <string name="eventresponse_preset_channel_ad_break_end_template">The ad break has ended. Thanks for your patience!</string>
-    <string name="eventresponse_preset_channel_ad_break_upcoming_template">Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). Subscribers skip ads.</string>
+    <string name="eventresponse_preset_channel_ad_break_upcoming_template">Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). A good moment to stretch or grab a drink.</string>
     <string name="eventresponse_preset_channel_ban_template">{user} was shown the door by {moderator} ({duration}).</string>
     <string name="eventresponse_preset_channel_unban_template">{user} has been unbanned — welcome back.</string>
     <string name="eventresponse_preset_channel_moderator_add_template">{user} has been added as a moderator in the channel.</string>

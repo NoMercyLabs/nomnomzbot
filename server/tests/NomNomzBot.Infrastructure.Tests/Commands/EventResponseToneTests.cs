@@ -246,7 +246,7 @@ public sealed class EventResponseToneTests
     [InlineData(AdBreakEnd, "The ad break has ended. Thanks for your patience!")]
     [InlineData(
         AdBreakUpcoming,
-        "Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). Subscribers skip ads."
+        "Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). A good moment to stretch or grab a drink."
     )]
     public async Task The_informative_ad_break_lines_are_the_old_bots_texts(
         string eventType,
@@ -278,6 +278,21 @@ public sealed class EventResponseToneTests
         );
 
         SentTo(h, SassyChannel).Should().Equal(expected);
+    }
+
+    // Stoney, 2026-10-11: never suggest a viewer needs to sub.
+    [Fact]
+    public void No_ad_warning_line_in_any_tone_tells_viewers_to_subscribe()
+    {
+        List<string> lines =
+        [
+            .. PersonalityTone.All.SelectMany(tone =>
+                EventResponseToneCatalog.Get(tone, AdBreakUpcoming)
+            ),
+        ];
+
+        lines.Should().NotBeEmpty();
+        lines.Should().NotContain(line => line.Contains("sub", StringComparison.OrdinalIgnoreCase));
     }
 
     // ── what the dashboard is told ──────────────────────────────────────────

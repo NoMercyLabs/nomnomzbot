@@ -36,6 +36,9 @@ public sealed class AdScheduleWarner : IAdScheduleWarner
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan ChatWarnThreshold = TimeSpan.FromMinutes(3);
+
+    // An ad this soon after going live is Twitch's opening break: chat is still arriving, so a warning is noise.
+    private static readonly TimeSpan StreamStartQuietPeriod = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan[] WarnThresholds =
     [
         TimeSpan.FromMinutes(5),
@@ -230,7 +233,11 @@ public sealed class AdScheduleWarner : IAdScheduleWarner
             );
         }
 
-        if (state.ChatWarned || left > ChatWarnThreshold)
+        if (
+            state.ChatWarned
+            || left > ChatWarnThreshold
+            || nextAd - state.StreamStart < StreamStartQuietPeriod
+        )
             return;
 
         // Armed before the send, like the old bot: a failed send is not retried, so chat is never told twice.

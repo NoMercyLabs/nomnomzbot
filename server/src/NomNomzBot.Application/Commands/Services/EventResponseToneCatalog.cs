@@ -614,27 +614,29 @@ public static class EventResponseToneCatalog
             "channel.ad_break.upcoming",
             informative:
             [
-                "Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). Subscribers skip ads.",
+                "Heads up: an ad break is coming {ad.when} ({ad.seconds} seconds long). A good moment to stretch or grab a drink.",
             ],
             friendly:
             [
-                "Friends, a short ad break is coming {ad.when} ({ad.seconds} seconds). Subscribers skip ads!",
-                "Quick heads up: ads {ad.when} for {ad.seconds} seconds. Subs do not see them!",
+                "Friends, a short ad break is coming {ad.when} ({ad.seconds} seconds). Perfect time to refill that drink!",
+                "Quick heads up: ads {ad.when} for {ad.seconds} seconds. Go stretch, we will wait for you!",
             ],
             sassy:
             [
-                "Ads are coming {ad.when} for {ad.seconds} seconds. Subscribers skip them. Just saying.",
-                "{ad.seconds} seconds of ads {ad.when}. Subs get to skip. Think about it.",
+                "Ads {ad.when} for {ad.seconds} seconds. A rare chance to touch grass. Use it wisely.",
+                "{ad.seconds} seconds of ads {ad.when}. Go outside, look at the sun, come back before it gets weird.",
+                "Ads {ad.when}. That is {ad.seconds} seconds to finally drink some water. I am watching.",
+                "Ads {ad.when} for {ad.seconds} seconds. Your posture called. It wants a break too.",
             ],
             hype:
             [
-                "AD BREAK COMING {ad.when}! {ad.seconds} SECONDS! SUBSCRIBERS SKIP THE ADS!",
-                "ADS {ad.when} FOR {ad.seconds} SECONDS! SUBS SKIP THEM!",
+                "ADS {ad.when}! {ad.seconds} SECONDS TO TOUCH GRASS! GO GO GO!",
+                "AD BREAK {ad.when}! {ad.seconds} SECONDS! HYDRATE, STRETCH, RETURN!",
             ],
             chill:
             [
-                "ads coming {ad.when}, {ad.seconds} seconds. subs skip them.",
-                "heads up, ad break {ad.when} for {ad.seconds} seconds.",
+                "ads {ad.when}, {ad.seconds} seconds. good time to touch some grass.",
+                "heads up, ad break {ad.when} for {ad.seconds} seconds. stretch a bit.",
             ]
         );
 

@@ -309,6 +309,30 @@ public sealed class AdScheduleWarnerTests
     }
 
     [Fact]
+    public async Task An_ad_in_the_first_ten_minutes_of_the_stream_gets_no_chat_warning_but_the_overlays_still_count_down()
+    {
+        Rig rig = Build();
+        rig.Context.WentLiveAt = NextAd.AddSeconds(-67);
+
+        await rig.TickAsync(60);
+        await rig.TickAsync(10);
+
+        rig.ChatWarnings.Should().Be(0, "a warning at the start of the stream is useless");
+        rig.Upcoming.Should().NotBeEmpty("the overlay countdown is not chat");
+    }
+
+    [Fact]
+    public async Task An_ad_ten_minutes_after_going_live_gets_its_chat_warning()
+    {
+        Rig rig = Build();
+        rig.Context.WentLiveAt = NextAd.AddMinutes(-10);
+
+        await rig.TickAsync(170);
+
+        rig.ChatWarnings.Should().Be(1);
+    }
+
+    [Fact]
     public async Task A_new_stream_starts_with_fresh_slots_and_a_fresh_poll()
     {
         Rig rig = Build();
