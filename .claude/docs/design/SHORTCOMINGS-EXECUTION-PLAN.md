@@ -843,6 +843,14 @@ Stoney, verbatim: "!wrongsong removes the song from the fairqueue system but it 
 - Read the live Spotify queue; get the wrong song out of it; put back any song Stoney queued by hand, in its order.
 - Done when: a test drives !wrongsong against a fake Spotify queue with a bot request and a hand-queued song, and the wrong song is gone while the hand-queued song stays in order; proven live on Stoney's Spotify.
 
+## OWNER BUG 2026-10-11 — a song request search picks a wrong song
+
+Stoney, verbatim: "we should also do a better effort on getting search terms to pick the right song, because sometimes the song is just super wrong to what was queried while searching that same term in the spotify ui gives the right match on top."
+
+### S-SR-SEARCH-MATCH — a song request picks the song the Spotify app shows on top
+- Find why the bot's pick differs from the top hit in the Spotify app for the same words, then pick the right song.
+- Done when: a test with real recorded Spotify search answers for the queries that went wrong picks the expected song; proven live with the same words on Stoney's channel.
+
 ## OWNER BUG 2026-10-08 — the auto shoutout repeats a shoutout that was already given by hand
 
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
