@@ -474,6 +474,13 @@ checked" in a slice stays open until the slice reads it.
   gate as part of it. Done-when: tests send leet and spaced forms of a listed word through the speech gate,
   an alert name, a command echo and a reward input and each is blocked or masked; a clean word that holds a
   listed one inside it (the "class" case) still passes; an explicit song is refused when the gate is on.
+  Owner, 2026-10-11, verbatim: "do we have a proper profanity filter switch that instantly gets rid of all
+  profanity everywhere across the system facing the user on stream and other places?"
+  Proposal, not settled: one channel switch drives every surface at once, with no per-surface opt-in. The
+  surfaces also include the on-stream chat overlay (viewer lines shown on stream), quotes read out or shown,
+  now-playing titles, display names on every overlay, and dashboard views the streamer may share on stream.
+  The switch takes effect on the next line with no restart. Done-when adds: one test flips the switch and
+  sees each surface above masked, then flips it off and sees the raw text again.
 - **S-MOD-ECHO-AFTER-FILTER** The command handler never reads the chat-filter result, so after the filter
   deletes a viewer line the command still runs and the bot echoes `{args}` in its own voice
   (`ChatMessageHandler.cs:573-585`). The two handlers run one after another in assembly-scan order, with no
