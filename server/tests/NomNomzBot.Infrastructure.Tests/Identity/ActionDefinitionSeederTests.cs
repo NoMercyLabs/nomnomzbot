@@ -122,8 +122,8 @@ public sealed class ActionDefinitionSeederTests
             a.ActionKey == "economy:config:write"
         );
         row.Plane.Should().Be(AuthPlane.Management);
-        row.DefaultLevel.Should().Be(30);
-        row.FloorLevel.Should().Be(30);
+        row.DefaultLevel.Should().Be(10);
+        row.FloorLevel.Should().Be(10);
         row.FloorTier.Should().Be(DangerTier.Low);
         row.IsGrantableViaPermit.Should().BeTrue();
     }

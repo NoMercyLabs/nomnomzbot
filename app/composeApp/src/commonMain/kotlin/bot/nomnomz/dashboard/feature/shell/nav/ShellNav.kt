@@ -140,7 +140,7 @@ object ShellNav {
             // group, not a separate Stream group (owner punch list §9, 2026-09-08). Stream keeps only the
             // broadcast-facing pages — Event Responses, Analytics (frontend-ia.md §3 Stream, reconciled).
             NavPage(ShellRoute.Widgets, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
-            NavPage(ShellRoute.CodeScripts, NavGroup.Chat, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.CodeScripts, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "code:script:author"),
             // The moderation surface is four pages, one per job (frontend-ia.md §Moderation). They share the
             // `moderation:read` key because they read the same data; only the MANAGE floor differs.
             NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
@@ -151,12 +151,12 @@ object ShellNav {
             NavPage(ShellRoute.ModerationRules, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "moderation:read"),
             NavPage(ShellRoute.ModerationHistory, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
             NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "reward:read"),
-            NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:config:read"),
-            NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:games:read"),
+            NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "economy:config:read"),
+            NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "economy:games:read"),
             // Giveaways read+write floor at Moderator (giveaways:read / giveaways:write); the code-pool tools and
             // code reveal are Broadcaster-only, gated per-control inside the page on `giveaways:codes:write`.
             NavPage(ShellRoute.Giveaways, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "giveaways:read"),
-            NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "music:config:read"),
+            NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "music:config:read"),
             NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
             NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
             // Assets (overlay/widget media library) sits beside Sound Clips and mirrors its gates exactly —
@@ -167,7 +167,7 @@ object ShellNav {
             NavPage(ShellRoute.MediaShare, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),
             NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
             NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
-            NavPage(ShellRoute.Schedule, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "live-ops:schedule:read"),
+            NavPage(ShellRoute.Schedule, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "live-ops:schedule:read"),
             NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null, readActionKey = "analytics:read"),
             NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "community:read"),
             NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod, readActionKey = "discord:connection:read"),
@@ -188,10 +188,10 @@ object ShellNav {
             // Automation API tokens: read floors at Editor (automation:tokens:read); every write is Broadcaster-only
             // and Critical (automation:tokens:write).
             NavPage(ShellRoute.Automation, NavGroup.Connect, ManagementRole.Editor, ManagementRole.Broadcaster, readActionKey = "automation:tokens:read"),
-            // Bundles: the installed-list read floors at Moderator (bundles:read); export/import write at Editor
+            // Bundles: the installed-list read floors at Moderator (bundles:read); export/import write at Moderator
             // (bundles:export / bundles:import); marketplace publish + the publisher token are Broadcaster, gated
             // per-control inside the page.
-            NavPage(ShellRoute.Bundles, NavGroup.Setup, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "bundles:read"),
+            NavPage(ShellRoute.Bundles, NavGroup.Setup, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "bundles:read"),
             NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
@@ -252,9 +252,9 @@ object ShellNav {
             // The sub-page floors the spec calls out by name (frontend-ia.md §3 Loyalty / Media rows). These do
             // not depend on the page's own floor — they are the action's own binding floor.
             ManageAction.RewardLifecycle -> ManagementRole.Broadcaster
-            ManageAction.EconomyPayoutRules -> ManagementRole.Broadcaster
+            ManageAction.EconomyPayoutRules -> ManagementRole.Moderator
             ManageAction.SongQueueModeration -> ManagementRole.Moderator
-            ManageAction.MusicConfig -> ManagementRole.Editor
+            ManageAction.MusicConfig -> ManagementRole.Moderator
             // The common path: gate at the page's own manage floor (null for a read-only page).
             ManageAction.Default -> pages.first { it.route == route }.manageFloor
         }

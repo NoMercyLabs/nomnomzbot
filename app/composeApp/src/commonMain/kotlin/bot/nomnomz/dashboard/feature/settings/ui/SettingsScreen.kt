@@ -302,11 +302,11 @@ fun SettingsScreen(
     }
 
     // Settings gates PER SECTION, each at its own floor (frontend-ia.md §5) — the page has no single manage
-    // floor. Stream info (the broadcast title/category/tags, "Bot basics" tier) is an Editor write; the Event
+    // floor. Stream info (the broadcast title/category/tags, "Bot basics" tier) is a Moderator write; the Event
     // Journal export/import (Danger zone) is a Broadcaster write. Each section gates at its floor; below it the
     // controls disable-with-reason (§7). The backend re-checks writes. (The Twitch app credentials moved to the
     // Integrations area — they are an integration like the bot account, not a Settings concern.)
-    val streamInfoManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
+    val streamInfoManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
     val ownerManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
     var pendingLeave: Boolean by remember { mutableStateOf(false) }

@@ -101,8 +101,8 @@ public sealed class GateEndToEndTests
     }
 
     [Theory]
-    [InlineData("economy:earning-rules:write")]
-    [InlineData("music:config:write")]
+    [InlineData("channel:ccl:write")]
+    [InlineData("webhooks:inbound:write")]
     public async Task Gate1_admits_a_moderator_but_gate2_still_denies_the_editor_floored_write(
         string writeActionKey
     )
@@ -125,8 +125,8 @@ public sealed class GateEndToEndTests
     }
 
     [Theory]
-    [InlineData("economy:earning-rules:write")]
-    [InlineData("music:config:write")]
+    [InlineData("channel:ccl:write")]
+    [InlineData("webhooks:inbound:write")]
     public async Task Gate2_allows_the_editor_floored_write_for_an_editor(string writeActionKey)
     {
         Fixture f = await BuildAsync();

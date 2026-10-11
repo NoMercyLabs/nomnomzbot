@@ -157,8 +157,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // destructive actions bound by the importer's own runtime roles, D4); publish is Broadcaster-only.
         // `bundles:publish` is seeded now; its route ships with the marketplace-client slice.
         M("bundles:read", Mod);
-        M("bundles:export", Editor);
-        M("bundles:import", Editor);
+        M("bundles:export", Mod);
+        M("bundles:import", Mod);
         M("bundles:publish", Broadcaster);
 
         // Developer SDK (dev-platform.md §8) — the reflection-generated TS types + event catalog. A
@@ -232,7 +232,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         MFloor("chat:read", Mod, Vip);
         M("chat:send", Mod);
         M("moderation:shoutout", Mod);
-        M("moderation:chatcolor:write", Editor);
+        M("moderation:chatcolor:write", Mod);
         M("moderation:vip", Broadcaster);
         M("moderation:moderator:write", Broadcaster, DangerTier.Critical, grant: false);
         // Whether moderators' mass bans across their channels also reach this channel: the owner's call alone.
@@ -272,7 +272,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("eventstore:import:legacy", Broadcaster, DangerTier.Critical, grant: false);
 
         // Music
-        M("music:config:write", Editor);
+        M("music:config:write", Mod);
         // music-sr.md §5.1 floors GET config at management/Moderator with no named key; the read key follows
         // the catalogue's *:config:read convention (cf. economy:config:read). Default Moderator, floor Vip —
         // reading config is non-destructive so the broadcaster may open it to a VIP.
@@ -292,28 +292,28 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // stream:read carries that DEFAULT now that Gate 1 is pure entry. Reading stream info is non-destructive,
         // so its floor drops to Vip and the broadcaster may open it to a VIP.
         MFloor("stream:read", Mod, Vip);
-        M("stream:preset:write", Editor);
-        M("stream:schedule:write", Editor);
-        M("channel:title:write", Editor);
-        M("channel:game:write", Editor);
-        M("channel:tags:write", Editor);
+        M("stream:preset:write", Mod);
+        M("stream:schedule:write", Mod);
+        M("channel:title:write", Mod);
+        M("channel:game:write", Mod);
+        M("channel:tags:write", Mod);
         M("channel:ccl:write", Editor);
-        M("channel:language:write", Editor);
+        M("channel:language:write", Mod);
         M("channel:brandedcontent:write", Editor);
-        M("channel:extensions:write", Editor);
+        M("channel:extensions:write", Mod);
         M("chat:whisper:send", Editor);
         M("live-ops:polls:read", Mod);
         // Owner policy: moderators may run polls (a broadcaster-delegated action on the broadcaster's token) by
         // default, matching the platform's expectation — a broadcaster can still raise it via a channel override.
         M("live-ops:polls:write", Mod);
         M("live-ops:predictions:read", Mod);
-        M("live-ops:predictions:write", Editor);
+        M("live-ops:predictions:write", Mod);
         M("live-ops:raids:read", Mod);
         M("live-ops:raids:write", Editor);
         M("live-ops:ads:read", Mod);
         M("live-ops:ads:write", Editor);
         M("live-ops:schedule:read", Mod);
-        M("live-ops:schedule:write", Editor);
+        M("live-ops:schedule:write", Mod);
         M("live-ops:marker:create", Mod);
         M("live-ops:clips:write", Mod);
 
@@ -393,34 +393,34 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // Economy (management)
         M("economy:config:read", Mod);
-        M("economy:config:write", Editor);
+        M("economy:config:write", Mod);
         M("economy:earning-rules:read", Mod);
-        M("economy:earning-rules:write", Editor);
-        M("economy:earning-rules:delete", Editor);
+        M("economy:earning-rules:write", Mod);
+        M("economy:earning-rules:delete", Mod);
         M("economy:accounts:read", Mod);
-        M("economy:games:write", Broadcaster);
+        M("economy:games:write", Mod);
 
         // Live games (live-games.md §5): starting/cancelling an overlay round is Moderator live-ops;
-        // the per-game config (odds/bets/enable) stays the Broadcaster's economy:games:write above.
+        // the per-game config (odds/bets/enable) is Moderator too (economy:games:write above).
         M("games:session:read", Mod);
         M("games:session:start", Mod);
         M("games:session:cancel", Mod);
-        M("economy:catalog:create", Editor);
-        M("economy:catalog:update", Editor);
-        M("economy:catalog:delete", Editor);
+        M("economy:catalog:create", Mod);
+        M("economy:catalog:update", Mod);
+        M("economy:catalog:delete", Mod);
         M("economy:catalog:refund", LeadModerator);
         M("economy:catalog:purchases:read", Mod);
         M("economy:account:freeze", Mod);
         M("economy:account:adjust", Mod);
         M("economy:ledger:read", Mod);
         M("economy:leaderboards:config:read", Mod);
-        M("economy:leaderboards:config:write", Editor);
-        M("economy:leaderboards:config:delete", Editor);
+        M("economy:leaderboards:config:write", Mod);
+        M("economy:leaderboards:config:delete", Mod);
         // Jar update/delete affects every member channel's shared pool, not just the caller's own — the
         // service also enforces owner-only regardless of floor, matching the catalog/leaderboard-config
         // CRUD floor above rather than the jar's own create/invite/contribute actions (community plane).
-        M("economy:jars:update", Editor);
-        M("economy:jars:delete", Editor);
+        M("economy:jars:update", Mod);
+        M("economy:jars:delete", Mod);
 
         // Billing (owner-level control — reads included; mods/editors never see or touch billing)
         M("billing:read", Broadcaster);

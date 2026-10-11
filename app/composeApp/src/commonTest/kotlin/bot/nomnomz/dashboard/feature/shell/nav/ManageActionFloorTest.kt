@@ -42,19 +42,16 @@ class ManageActionFloorTest {
     // ── Economy: payout/earn rules = Broadcaster, the rest of the editor = Editor ────────────────────────────
 
     @Test
-    fun economy_payout_rules_need_broadcaster_above_the_editor_page_floor() {
-        assertEquals(ManagementRole.Editor, ShellNav.manageFloorFor(ShellRoute.Economy, ManageAction.Default))
+    fun economy_payout_rules_are_a_moderator_action_like_the_rest_of_the_economy_editor() {
+        // S-IA-MOD-FLOORS: every economy write, earning rules included, floors at Moderator on the server.
+        assertEquals(ManagementRole.Moderator, ShellNav.manageFloorFor(ShellRoute.Economy, ManageAction.Default))
         assertEquals(
-            ManagementRole.Broadcaster,
+            ManagementRole.Moderator,
             ShellNav.manageFloorFor(ShellRoute.Economy, ManageAction.EconomyPayoutRules),
         )
 
-        // An Editor configures the currency but cannot touch payout/earn rules; a Broadcaster can.
-        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Economy, ManageAction.Default))
-        assertFalse(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Economy, ManageAction.EconomyPayoutRules))
-        assertTrue(
-            ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Economy, ManageAction.EconomyPayoutRules),
-        )
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Economy, ManageAction.EconomyPayoutRules))
+        assertFalse(ShellNav.canManage(null, ShellRoute.Economy, ManageAction.EconomyPayoutRules))
     }
 
     // ── Song Requests: queue moderation = Moderator, BELOW the Editor page floor ─────────────────────────────

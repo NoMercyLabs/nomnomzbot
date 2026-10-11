@@ -162,6 +162,14 @@ class ShellNavTest {
                 // Media Share: the mod clip queue moderate actions floor at Moderator (media:moderate); the config
                 // card inside the page gates separately at Editor.
                 ShellRoute.MediaShare,
+                // S-IA-MOD-FLOORS: moderators manage stream and channel behaviors (the server floors these
+                // actions at Moderator): Code Scripts, Economy, Games, Music, Schedule and Bundles.
+                ShellRoute.CodeScripts,
+                ShellRoute.Economy,
+                ShellRoute.Games,
+                ShellRoute.Music,
+                ShellRoute.Schedule,
+                ShellRoute.Bundles,
             ),
             manageable,
         )
@@ -302,26 +310,42 @@ class ShellNavTest {
 
         assertEquals(ManagementRole.Moderator, widgets.readFloor)
         assertEquals(ManagementRole.Editor, widgets.manageFloor)
-        assertEquals(ManagementRole.Broadcaster, codeScripts.readFloor)
-        assertEquals(ManagementRole.Broadcaster, codeScripts.manageFloor)
+        // S-IA-MOD-FLOORS: the server floors code:script:author at Moderator, so the app shows it to a Moderator.
+        assertEquals(ManagementRole.Moderator, codeScripts.readFloor)
+        assertEquals(ManagementRole.Moderator, codeScripts.manageFloor)
 
-        // Consequence, not just the raw floor: an Editor (below Code Scripts' Broadcaster floor) must not
-        // see it in their visible page set, even though it now lives in the Chat group they otherwise see.
+        val moderatorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Moderator).map { it.route }.toSet()
+        assertTrue(moderatorVisible.contains(ShellRoute.CodeScripts), "a Moderator clears code:script:author")
         val editorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Editor).map { it.route }.toSet()
         assertTrue(editorVisible.contains(ShellRoute.Widgets), "an Editor must still see Overlays in its new group")
-        assertFalse(editorVisible.contains(ShellRoute.CodeScripts), "Editor is still below Code Scripts' Broadcaster floor")
-        val broadcasterVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Broadcaster).map { it.route }.toSet()
-        assertTrue(broadcasterVisible.contains(ShellRoute.CodeScripts), "only a Broadcaster clears Code Scripts")
+        assertTrue(editorVisible.contains(ShellRoute.CodeScripts))
     }
 
     @Test
-    fun an_editor_can_manage_overlays_but_only_a_broadcaster_can_manage_code_scripts() {
+    fun moderator_manages_the_stream_and_channel_pages_the_server_floors_at_moderator() {
+        // Mirrors the 24 actions S-IA-MOD-FLOORS moved to the Moderator floor on the server.
+        listOf(
+            ShellRoute.CodeScripts,
+            ShellRoute.Economy,
+            ShellRoute.Games,
+            ShellRoute.Schedule,
+            ShellRoute.Bundles,
+            ShellRoute.Music,
+        ).forEach { route ->
+            assertTrue(ShellNav.canManage(ManagementRole.Moderator, route), "Moderator manages $route")
+        }
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Economy, ManageAction.EconomyPayoutRules))
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Music, ManageAction.MusicConfig))
+    }
+
+    @Test
+    fun an_editor_can_manage_overlays_and_a_moderator_can_manage_code_scripts() {
         // canManage is the actual consequence a screen renders (button enabled vs. disabled-with-reason) —
         // assert it, not just the raw manageFloor field, so a regression in canManage's own logic would fail
         // this test even if the floors above stayed correct.
         assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Widgets))
         assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Widgets), "Moderator is below Overlays' Editor manage floor")
-        assertFalse(ShellNav.canManage(ManagementRole.Editor, ShellRoute.CodeScripts), "Editor is below Code Scripts' Broadcaster floor")
-        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.CodeScripts))
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.CodeScripts))
+        assertFalse(ShellNav.canManage(null, ShellRoute.CodeScripts))
     }
 }
