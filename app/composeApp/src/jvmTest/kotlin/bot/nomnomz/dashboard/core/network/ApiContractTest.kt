@@ -79,8 +79,6 @@ class ApiContractTest {
             ChannelSearchResult.serializer() to "ChannelSearchDto",
             LeaderboardEntry.serializer() to "LeaderboardEntryDto",
             LeaderboardConsent.serializer() to "LeaderboardConsentDto",
-            AlertSummary.serializer() to "EventResponseListItem",
-            AlertDetail.serializer() to "EventResponseDto",
             EventResponse.serializer() to "EventResponseDto",
             EventResponseSummary.serializer() to "EventResponseListItem",
             EventResponsePreset.serializer() to "EventResponsePresetDto",

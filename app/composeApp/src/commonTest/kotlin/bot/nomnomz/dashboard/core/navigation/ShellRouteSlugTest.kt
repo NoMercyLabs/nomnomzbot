@@ -87,6 +87,13 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_old_alerts_tab_address_lands_on_home() {
+        // The Alerts tab became the alert-queue tab; the old address is an unknown one (no alias).
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("event-responses/alerts"))
+        assertNull(ShellRouteSlug.find("event-responses/alerts"))
+    }
+
+    @Test
     fun parsing_ignores_surrounding_whitespace_and_case() {
         val route: ShellRoute = ShellRoute.PeopleHistory
         val canonical: String = ShellRouteSlug.of(route)

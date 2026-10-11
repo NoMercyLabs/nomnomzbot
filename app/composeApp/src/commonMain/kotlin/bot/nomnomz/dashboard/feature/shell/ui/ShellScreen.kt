@@ -796,7 +796,7 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.EventResponsesAlertQueue -> AlertsScreen(controller = graph.alertsController, role = role)
+            ShellRoute.EventResponsesAlertQueue -> AlertsScreen(controller = graph.alertsController)
             ShellRoute.Overlays ->
                 WidgetsScreen(
                     controller = graph.widgetsController,

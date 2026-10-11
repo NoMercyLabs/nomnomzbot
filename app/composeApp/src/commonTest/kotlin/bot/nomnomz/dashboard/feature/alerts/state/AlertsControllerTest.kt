@@ -10,344 +10,100 @@
 
 package bot.nomnomz.dashboard.feature.alerts.state
 
-import bot.nomnomz.dashboard.core.feedback.FeedbackKind
-import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
-import bot.nomnomz.dashboard.core.network.AlertDetail
 import bot.nomnomz.dashboard.core.network.AlertQueueDto
-import bot.nomnomz.dashboard.core.network.AlertSummary
+import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
-import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
-import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
-import bot.nomnomz.dashboard.core.network.PipelineDetail
-import bot.nomnomz.dashboard.core.network.PipelineSummary
-import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
-import bot.nomnomz.dashboard.core.network.PipelinesApi
-import bot.nomnomz.dashboard.core.network.TestRunResult
-import bot.nomnomz.dashboard.core.network.UpdateAlertBody
-import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
-import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 import kotlinx.coroutines.test.runTest
 
-// Proves the Alerts page state machine the screen renders: resolve the active channel, then surface the
-// channel's real event responses — empty when there are none, error if either step fails. Writes mutate the
-// fake's backing store, so the controller's post-write reload observes the real consequence (a new row, a
-// flipped flag, a removed row), not merely that a call happened. The screen is a pure projection of this, so
-// testing it proves the page shows real data (no fabricated rows) and degrades cleanly.
+// Proves the alert-queue tab's state machine the screen renders: resolve the active channel, then surface that
+// channel's real queue with the overlay presence the backend reported — error if either step fails. The queue
+// is read for the resolved channel id, so the test asserts which channel the call went to, not only that it ran.
 class AlertsControllerTest {
 
     @Test
-    fun load_surfaces_the_channel_event_responses_on_success() = runTest {
+    fun load_reads_the_queue_of_the_resolved_channel_and_keeps_every_entry_and_the_presence_flag() = runTest {
+        val entries: List<AlertQueueEntryDto> =
+            listOf(
+                AlertQueueEntryDto(id = "1", provider = "twitch", kind = "follow", status = "delivered"),
+                AlertQueueEntryDto(id = "2", provider = "patreon", kind = "supporter.tip", status = "queued"),
+            )
+        val alertsApi = RecordingAlertsApi(ApiResult.Ok(AlertQueueDto(overlayConnected = true, entries = entries)))
+        val controller = AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+
+        controller.load()
+
+        val state: AlertQueueUiState.Ready = assertIs<AlertQueueUiState.Ready>(controller.queueState.value)
+        assertEquals(true, state.overlayConnected)
+        assertEquals(entries, state.entries)
+        assertEquals(listOf("ch1"), alertsApi.queueChannels)
+    }
+
+    @Test
+    fun load_keeps_a_disconnected_overlay_disconnected_even_when_the_queue_has_entries() = runTest {
+        val entries: List<AlertQueueEntryDto> =
+            listOf(AlertQueueEntryDto(id = "1", provider = "treatstream", kind = "supporter.tip", status = "queued"))
         val controller =
             AlertsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                RecordingAlertsApi(
-                    ApiResult.Ok(
-                        listOf(
-                            AlertSummary(
-                                id = "7",
-                                eventType = "channel.follow",
-                                isEnabled = true,
-                                responseType = "chat_message",
-                            )
-                        )
-                    )
-                ),
-                FakePipelinesApi(),
+                RecordingAlertsApi(ApiResult.Ok(AlertQueueDto(overlayConnected = false, entries = entries))),
             )
 
         controller.load()
 
-        val state: AlertsState = controller.state.value
-        assertTrue(state is AlertsState.Ready)
-        val alerts: List<AlertSummary> = (state as AlertsState.Ready).alerts
-        assertEquals(1, alerts.size)
-        val alert: AlertSummary = alerts.first()
-        assertEquals("channel.follow", alert.eventType)
-        assertEquals(true, alert.isEnabled)
-        assertEquals("chat_message", alert.responseType)
+        val state: AlertQueueUiState.Ready = assertIs<AlertQueueUiState.Ready>(controller.queueState.value)
+        assertEquals(false, state.overlayConnected)
+        assertEquals(1, state.entries.size)
     }
 
     @Test
-    fun load_is_empty_when_the_channel_has_no_event_responses() = runTest {
+    fun load_errors_with_the_reason_and_never_reads_the_queue_when_no_channel_resolves() = runTest {
+        val alertsApi = RecordingAlertsApi(ApiResult.Ok(AlertQueueDto()))
         val controller =
             AlertsController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                RecordingAlertsApi(ApiResult.Ok(emptyList())),
-                FakePipelinesApi(),
-            )
-
-        controller.load()
-
-        assertTrue(controller.state.value is AlertsState.Empty)
-    }
-
-    @Test
-    fun load_errors_when_no_channel_resolves() = runTest {
-        val controller =
-            AlertsController(
-                FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
-                RecordingAlertsApi(ApiResult.Ok(emptyList())),
-                FakePipelinesApi(),
-            )
-
-        controller.load()
-
-        assertTrue(controller.state.value is AlertsState.Error)
-    }
-
-    @Test
-    fun load_errors_when_the_list_call_fails() = runTest {
-        val controller =
-            AlertsController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                RecordingAlertsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
-                FakePipelinesApi(),
-            )
-
-        controller.load()
-
-        assertTrue(controller.state.value is AlertsState.Error)
-    }
-
-    @Test
-    fun create_upserts_the_body_then_reloads_with_the_new_event_response() = runTest {
-        // The fake starts empty; the create appends the new response to its backing store, so the controller's
-        // post-write reload must surface it — proving create actually calls the api AND re-lists.
-        val alertsApi = RecordingAlertsApi(ApiResult.Ok(emptyList()))
-        val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
-        controller.load()
-        assertTrue(controller.state.value is AlertsState.Empty)
-
-        controller.createAlert(eventType = "channel.subscribe", message = "Thanks!", isEnabled = true)
-
-        // The api recorded exactly the body the controller built — a create sets the chat_message type.
-        assertEquals(1, alertsApi.upserts.size)
-        val upsert: Triple<String, String, UpdateAlertBody> = alertsApi.upserts.first()
-        assertEquals("ch1", upsert.first)
-        assertEquals("channel.subscribe", upsert.second)
-        val body: UpdateAlertBody = upsert.third
-        assertEquals("Thanks!", body.message)
-        assertEquals("chat_message", body.responseType)
-        assertEquals(true, body.isEnabled)
-
-        // And the reload surfaced the freshly-created row.
-        val state: AlertsState = controller.state.value
-        assertTrue(state is AlertsState.Ready)
-        val alerts: List<AlertSummary> = (state as AlertsState.Ready).alerts
-        assertEquals(1, alerts.size)
-        assertEquals("channel.subscribe", alerts.first().eventType)
-    }
-
-    @Test
-    fun edit_upserts_only_the_message_and_enabled_then_reloads() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(
-                    listOf(
-                        AlertSummary(id = "1", eventType = "channel.raid", isEnabled = true)
-                    )
-                ),
-                detailMessage = "old",
-            )
-        val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
-        controller.load()
-
-        controller.updateAlert(eventType = "channel.raid", message = "Welcome raiders!", isEnabled = true)
-
-        // An edit is a partial PUT carrying the message + enabled, but NOT the response type (left untouched).
-        assertEquals(1, alertsApi.upserts.size)
-        val body: UpdateAlertBody = alertsApi.upserts.first().third
-        assertEquals("Welcome raiders!", body.message)
-        assertEquals(true, body.isEnabled)
-        assertNull(body.responseType)
-
-        // The reload reflects the persisted message.
-        val detail: AlertDetail? = controller.detail("channel.raid")
-        assertEquals("Welcome raiders!", detail?.message)
-    }
-
-    @Test
-    fun toggle_upserts_only_the_enabled_flag_then_reloads_with_the_flipped_state() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(
-                    listOf(AlertSummary(id = "1", eventType = "channel.cheer", isEnabled = true))
-                )
-            )
-        val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
-        controller.load()
-
-        controller.toggleAlert(eventType = "channel.cheer", enabled = false)
-
-        // A toggle is a partial PUT carrying only isEnabled.
-        assertEquals(1, alertsApi.upserts.size)
-        val body: UpdateAlertBody = alertsApi.upserts.first().third
-        assertEquals(false, body.isEnabled)
-        assertNull(body.message)
-        assertNull(body.responseType)
-
-        // The reload reflects the persisted flip.
-        val state: AlertsState = controller.state.value
-        assertTrue(state is AlertsState.Ready)
-        assertEquals(false, (state as AlertsState.Ready).alerts.first().isEnabled)
-    }
-
-    @Test
-    fun delete_removes_the_event_response_then_reloads_to_empty() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow", isEnabled = true)))
-            )
-        val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
-        controller.load()
-        assertTrue(controller.state.value is AlertsState.Ready)
-
-        controller.deleteAlert(eventType = "channel.follow")
-
-        assertEquals(listOf("channel.follow"), alertsApi.deleted)
-        // The store is now empty, so the post-delete reload lands on Empty — the row is really gone.
-        assertTrue(controller.state.value is AlertsState.Empty)
-    }
-
-    @Test
-    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow", isEnabled = true))),
-                writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
-            )
-        val feedback = RecordingFeedback()
-        val controller =
-            AlertsController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChannelsApi(ApiResult.Failure(ApiError(404, "NOT_FOUND", "no channel"))),
                 alertsApi,
-                FakePipelinesApi(),
-                feedback,
             )
+
         controller.load()
 
-        val result: ApiResult<Unit> = controller.deleteAlert(eventType = "channel.follow")
-
-        // The list is kept (not blown away); the failure goes back to the open confirm dialog, which shows it
-        // inline, so no toast fires on top of it.
-        val state: AlertsState = controller.state.value
-        assertTrue(state is AlertsState.Ready)
-        assertEquals(1, (state as AlertsState.Ready).alerts.size)
-        assertEquals("no permission", (result as ApiResult.Failure).error.message)
-        assertEquals(emptyList(), feedback.messages)
+        val state: AlertQueueUiState.Error = assertIs<AlertQueueUiState.Error>(controller.queueState.value)
+        assertEquals("no channel", state.detail)
+        assertEquals(emptyList(), alertsApi.queueChannels)
     }
 
     @Test
-    fun detail_reads_the_message_for_the_edit_dialog() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow"))),
-                detailMessage = "Thanks for the follow!",
-            )
-        val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
-        controller.load()
-
-        val detail: AlertDetail? = controller.detail("channel.follow")
-
-        assertEquals("channel.follow", detail?.eventType)
-        assertEquals("Thanks for the follow!", detail?.message)
-    }
-
-    // S-OWN13: opening the edit dialog for a row bound to a pipeline must resolve THAT pipeline's real name,
-    // not open blank. detail() now carries the bound pipelineId (previously dropped by the DTO entirely), and
-    // pipelineName() resolves it against the channel's pipelines loaded alongside [load] — proving the fix by
-    // the resolved NAME the dialog would show, not merely that detail() didn't crash.
-    @Test
-    fun detail_carries_the_bound_pipeline_id_and_the_controller_resolves_its_real_name() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(
-                    listOf(
-                        AlertSummary(
-                            id = "1",
-                            eventType = "channel.raid",
-                            isEnabled = true,
-                            responseType = "pipeline",
-                        )
-                    )
-                ),
-                detailPipelineId = "pipe-42",
-            )
-        val pipelinesApi =
-            FakePipelinesApi(listOf(PipelineSummary(id = "pipe-42", name = "Raid welcome chain")))
-        val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, pipelinesApi)
-        controller.load()
-
-        val detail: AlertDetail? = controller.detail("channel.raid")
-
-        assertEquals("pipe-42", detail?.pipelineId)
-        assertEquals("Raid welcome chain", controller.pipelineName(detail?.pipelineId))
-    }
-
-    // A stale/deleted binding (the id no longer resolves against the loaded pipelines) must not crash or
-    // silently invent a name — the dialog falls back to an explicit "could not be resolved" state instead.
-    @Test
-    fun pipeline_name_is_null_when_the_bound_pipeline_no_longer_exists() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(
-                    listOf(AlertSummary(id = "1", eventType = "channel.raid", responseType = "pipeline"))
-                ),
-                detailPipelineId = "pipe-gone",
-            )
+    fun load_errors_with_the_reason_when_the_queue_call_fails() = runTest {
         val controller =
             AlertsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                alertsApi,
-                FakePipelinesApi(listOf(PipelineSummary(id = "pipe-42", name = "Raid welcome chain"))),
+                RecordingAlertsApi(ApiResult.Failure(ApiError(500, "BOOM", "queue unavailable"))),
             )
+
         controller.load()
 
-        val detail: AlertDetail? = controller.detail("channel.raid")
-
-        assertEquals("pipe-gone", detail?.pipelineId)
-        assertNull(controller.pipelineName(detail?.pipelineId))
+        val state: AlertQueueUiState.Error = assertIs<AlertQueueUiState.Error>(controller.queueState.value)
+        assertEquals("queue unavailable", state.detail)
     }
 
     @Test
-    fun a_failed_detail_fetch_surfaces_the_error_over_the_kept_list() = runTest {
-        val alertsApi =
-            RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow"))),
-                detailResult = ApiResult.Failure(ApiError(500, "ERR", "detail boom")),
-            )
-        val feedback = RecordingFeedback()
-        val controller =
-            AlertsController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                alertsApi,
-                FakePipelinesApi(),
-                feedback,
-            )
+    fun a_reload_after_a_failure_replaces_the_error_with_the_fresh_queue() = runTest {
+        val alertsApi = RecordingAlertsApi(ApiResult.Failure(ApiError(500, "BOOM", "queue unavailable")))
+        val controller = AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
         controller.load()
 
-        val detail: AlertDetail? = controller.detail("channel.follow")
+        alertsApi.queueResult = ApiResult.Ok(AlertQueueDto(overlayConnected = true))
+        controller.load()
 
-        assertNull(detail)
-        val state: AlertsState = controller.state.value
-        assertTrue(state is AlertsState.Ready)
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("detail boom"), feedback.only.formatArgs)
+        assertIs<AlertQueueUiState.Ready>(controller.queueState.value)
+        assertEquals(listOf("ch1", "ch1"), alertsApi.queueChannels)
     }
 }
 
@@ -370,114 +126,12 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-// A recording fake that behaves like the backend store: list() returns the live store, and each successful
-// upsert/delete mutates the store so the controller's post-write reload observes the real consequence (a new
-// row, a flipped flag, an edited message, a removed row) — not merely that a call happened. [writeResult]
-// forces every write to fail (the store is left untouched) to exercise the error path. [detailResult] forces
-// the detail fetch to fail; otherwise detail() reflects the live store with [detailMessage] for the seed rows.
-private class RecordingAlertsApi(
-    initial: ApiResult<List<AlertSummary>>,
-    private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
-    private val detailResult: ApiResult<AlertDetail>? = null,
-    private val detailMessage: String? = null,
-    private val detailPipelineId: String? = null,
-) : AlertsApi {
-    private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
-    private val store: MutableList<AlertSummary> =
-        (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()
+// A recording fake: returns [queueResult] and records which channel id each queue call targeted.
+private class RecordingAlertsApi(var queueResult: ApiResult<AlertQueueDto>) : AlertsApi {
+    val queueChannels: MutableList<String> = mutableListOf()
 
-    // The persisted message per event type — seeded for the initial rows, updated on each successful upsert so
-    // a post-edit detail() reads the new text.
-    private val messages: MutableMap<String, String?> =
-        store.associate { it.eventType to detailMessage }.toMutableMap()
-
-    val upserts: MutableList<Triple<String, String, UpdateAlertBody>> = mutableListOf()
-    val deleted: MutableList<String> = mutableListOf()
-
-    override suspend fun list(channelId: String): ApiResult<List<AlertSummary>> =
-        listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
-
-    override suspend fun detail(channelId: String, eventType: String): ApiResult<AlertDetail> {
-        detailResult?.let { return it }
-        val row: AlertSummary? = store.firstOrNull { it.eventType == eventType }
-        return if (row == null) {
-            ApiResult.Failure(ApiError(404, "NOT_FOUND", "no such event response"))
-        } else {
-            ApiResult.Ok(
-                AlertDetail(
-                    id = row.id,
-                    eventType = row.eventType,
-                    isEnabled = row.isEnabled,
-                    pipelineId = detailPipelineId,
-                    responseType = row.responseType,
-                    message = messages[eventType],
-                )
-            )
-        }
+    override suspend fun queue(channelId: String): ApiResult<AlertQueueDto> {
+        queueChannels += channelId
+        return queueResult
     }
-
-    override suspend fun upsert(
-        channelId: String,
-        eventType: String,
-        body: UpdateAlertBody,
-    ): ApiResult<Unit> {
-        upserts += Triple(channelId, eventType, body)
-        if (writeResult is ApiResult.Ok) {
-            val index: Int = store.indexOfFirst { it.eventType == eventType }
-            if (index >= 0) {
-                val existing: AlertSummary = store[index]
-                store[index] =
-                    existing.copy(
-                        isEnabled = body.isEnabled ?: existing.isEnabled,
-                        responseType = body.responseType ?: existing.responseType,
-                    )
-            } else {
-                store +=
-                    AlertSummary(
-                        id = (store.size + 1).toString(),
-                        eventType = eventType,
-                        isEnabled = body.isEnabled ?: true,
-                        responseType = body.responseType ?: "chat_message",
-                    )
-            }
-            if (body.message != null) messages[eventType] = body.message
-        }
-        return writeResult
-    }
-
-    override suspend fun delete(channelId: String, eventType: String): ApiResult<Unit> {
-        deleted += eventType
-        if (writeResult is ApiResult.Ok) {
-            store.removeAll { it.eventType == eventType }
-            messages.remove(eventType)
-        }
-        return writeResult
-    }
-
-    // load() unconditionally reads the queue alongside the event-response list (S059) — a benign empty/
-    // disconnected default so these config-page tests, which don't exercise the queue, are unaffected.
-    // AlertQueueServiceTests/AlertsScreenQueueTest cover the queue's own behavior.
-    override suspend fun queue(channelId: String): ApiResult<AlertQueueDto> =
-        ApiResult.Ok(AlertQueueDto())
-}
-
-// A minimal fake — [load] returns [pipelines] verbatim; every other member is unreachable from the Alerts
-// controller/dialog (which only resolves a bound pipeline's NAME) and errors loudly if ever called.
-private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = emptyList()) : PipelinesApi {
-    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(pipelines)
-    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> = error("stub")
-    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> = error("stub")
-    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = error("stub")
-    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
-        error("stub")
-    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
-        error("stub")
-    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = error("stub")
-    override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
-        error("stub")
-    override suspend fun testRun(
-        channelId: String,
-        id: String,
-        body: PipelineTestRunBody,
-    ): ApiResult<TestRunResult> = error("stub")
 }

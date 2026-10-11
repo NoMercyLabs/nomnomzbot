@@ -21,26 +21,13 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
-import bot.nomnomz.dashboard.core.network.AlertDetail
 import bot.nomnomz.dashboard.core.network.AlertQueueDto
 import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
-import bot.nomnomz.dashboard.core.network.AlertSummary
 import bot.nomnomz.dashboard.core.network.AlertsApi
-import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
-import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
-import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
-import bot.nomnomz.dashboard.core.network.PipelineDetail
-import bot.nomnomz.dashboard.core.network.PipelineSummary
-import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
-import bot.nomnomz.dashboard.core.network.PipelinesApi
-import bot.nomnomz.dashboard.core.network.TestRunResult
-import bot.nomnomz.dashboard.core.network.UpdateAlertBody
-import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import kotlin.test.Test
 
@@ -54,7 +41,7 @@ import kotlin.test.Test
  */
 @OptIn(ExperimentalTestApi::class)
 class AlertsScreenQueueTest {
-    // AlertsScreen collects both controller flows with collectAsStateWithLifecycle(), which requires a
+    // AlertsScreen collects the controller flow with collectAsStateWithLifecycle(), which requires a
     // LocalLifecycleOwner — mirrors AdminTabGroupingTest's EnglishContent helper (the first full-screen
     // admin test to hit the same gap).
     @Composable
@@ -96,7 +83,7 @@ class AlertsScreenQueueTest {
             )
         val controller = newController(queue = ApiResult.Ok(queue))
 
-        setContent { EnglishContent { AlertsScreen(controller = controller, role = null) } }
+        setContent { EnglishContent { AlertsScreen(controller = controller) } }
         waitForIdle()
 
         onNodeWithText("patreon").assertExists()
@@ -124,7 +111,7 @@ class AlertsScreenQueueTest {
                 )
             val controller = newController(queue = ApiResult.Ok(queue))
 
-            setContent { EnglishContent { AlertsScreen(controller = controller, role = null) } }
+            setContent { EnglishContent { AlertsScreen(controller = controller) } }
             waitForIdle()
 
             // The honest state is on screen — not a generic "connected" claim, and the entry reads "queued",
@@ -133,11 +120,22 @@ class AlertsScreenQueueTest {
             onNodeWithText("Queued — not yet shown").assertExists()
         }
 
+    @Test
+    fun the_tab_offers_no_create_control_because_event_responses_are_managed_on_their_own_page() =
+        runComposeUiTest {
+            val controller = newController(queue = ApiResult.Ok(AlertQueueDto(overlayConnected = true)))
+
+            setContent { EnglishContent { AlertsScreen(controller = controller) } }
+            waitForIdle()
+
+            onNodeWithText("Live alert queue").assertExists()
+            onNodeWithText("New alert").assertDoesNotExist()
+        }
+
     private fun newController(queue: ApiResult<AlertQueueDto>): AlertsController =
         AlertsController(
             channelsApi = FakeChannelsApi(),
             alertsApi = FakeAlertsApi(queue),
-            pipelinesApi = FakePipelinesApi(),
         )
 }
 
@@ -157,42 +155,7 @@ private class FakeChannelsApi : ChannelsApi {
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-/** Only [list], [detail] and [queue] are reachable by this test's page render — everything else errors loudly. */
+/** Only [queue] is reachable from the page render. */
 private class FakeAlertsApi(private val queueResult: ApiResult<AlertQueueDto>) : AlertsApi {
-    override suspend fun list(channelId: String): ApiResult<List<AlertSummary>> = ApiResult.Ok(emptyList())
-
-    override suspend fun detail(channelId: String, eventType: String): ApiResult<AlertDetail> =
-        ApiResult.Failure(ApiError(404, "NOT_FOUND", "unused"))
-
-    override suspend fun upsert(
-        channelId: String,
-        eventType: String,
-        body: UpdateAlertBody,
-    ): ApiResult<Unit> = error("stub")
-
-    override suspend fun delete(channelId: String, eventType: String): ApiResult<Unit> = error("stub")
-
     override suspend fun queue(channelId: String): ApiResult<AlertQueueDto> = queueResult
-}
-
-/** A minimal fake — [list] returns empty; every other member is unreachable from this render. */
-private class FakePipelinesApi : PipelinesApi {
-    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
-    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> = error("stub")
-    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> = error("stub")
-    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = error("stub")
-    override suspend fun createReturning(
-        channelId: String,
-        body: CreatePipelineBody,
-    ): ApiResult<PipelineDetail> = error("stub")
-    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
-        error("stub")
-    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = error("stub")
-    override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
-        error("stub")
-    override suspend fun testRun(
-        channelId: String,
-        id: String,
-        body: PipelineTestRunBody,
-    ): ApiResult<TestRunResult> = error("stub")
 }

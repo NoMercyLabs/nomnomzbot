@@ -765,8 +765,6 @@ class AppGraph {
         AlertsController(
             channelsApi = channelsApi,
             alertsApi = alertsApi,
-            pipelinesApi = pipelinesApi,
-            feedback = feedbackController,
         )
 
     val widgetsController: WidgetsController =

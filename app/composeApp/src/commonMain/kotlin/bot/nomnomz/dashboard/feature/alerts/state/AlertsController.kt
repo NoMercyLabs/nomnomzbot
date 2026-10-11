@@ -10,93 +10,39 @@
 
 package bot.nomnomz.dashboard.feature.alerts.state
 
-import bot.nomnomz.dashboard.core.feedback.Feedback
-import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
-import bot.nomnomz.dashboard.core.network.AlertDetail
 import bot.nomnomz.dashboard.core.network.AlertQueueDto
 import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
-import bot.nomnomz.dashboard.core.network.AlertSummary
 import bot.nomnomz.dashboard.core.network.AlertsApi
-import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.PipelineSummary
-import bot.nomnomz.dashboard.core.network.PipelinesApi
-import bot.nomnomz.dashboard.core.network.UpdateAlertBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.alerts_action_error
-import nomnomzbot.composeapp.generated.resources.alerts_no_channel_error
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import org.jetbrains.compose.resources.getString
 
-// The Alerts page's state-holder (frontend-ia.md — the Community group): what the bot says/does when a channel
-// event fires (a follow, sub, raid, cheer, …). Resolves the active channel, then lists its real configured
-// event responses from the backend (no fabricated rows). It also drives the page's writes — create / edit /
-// toggle / delete — each of which re-lists on success so the screen always reflects the backend's truth. The
-// screen renders [state]; a retry / reconnect calls [load] again. Write failures announce on the shell-level
-// [feedback] toast, not a local state field.
+// The alert-queue tab's state-holder (frontend-ia.md, Event Responses): the channel's ONE cross-platform alert
+// queue (widgets-overlays.md section 1.2), read live from the backend. The event-response rows themselves live
+// on the Event Responses page, not here. A retry / reconnect calls [load] again.
 class AlertsController(
     private val channelsApi: ChannelsApi,
     private val alertsApi: AlertsApi,
-    private val pipelinesApi: PipelinesApi,
-    private val feedback: Feedback = NoOpFeedback,
 ) {
-    private val _state: MutableStateFlow<AlertsState> = MutableStateFlow(AlertsState.Loading)
-
-    /** The page render state: loading / ready (with the event responses) / empty / error. */
-    val state: StateFlow<AlertsState> = _state.asStateFlow()
-
     private val _queueState: MutableStateFlow<AlertQueueUiState> =
         MutableStateFlow(AlertQueueUiState.Loading)
 
-    /**
-     * The channel's ONE cross-platform alert queue (widgets-overlays.md §1.2) — a separate flow from [state]
-     * so a queue fetch failure never blocks or blanks the event-responses config list above it. Loaded
-     * alongside [load]; never inferred, never fabricated from [state].
-     */
+    /** The queue render state: loading / ready (with the overlay presence and entries) / error. */
     val queueState: StateFlow<AlertQueueUiState> = _queueState.asStateFlow()
 
-    // The channel the writes target — resolved by [load] and reused by every mutation so a write never has to
-    // re-resolve the channel. Null until the first successful resolve.
-    private var channelId: String? = null
-
-    // The channel's pipelines, indexed by id — best-effort, resolved alongside [load] so [detail] can name a
-    // row's bound pipeline (S-OWN13: a pipeline-typed alert must never open its edit dialog looking blank).
-    private var pipelinesById: Map<String, PipelineSummary> = emptyMap()
-
-    /** Resolve the active channel, then list its event responses. */
+    /** Resolve the active channel, then read its alert queue. */
     suspend fun load() {
-        // Only show the full-page loading state on first load; a refetch after a mutation keeps
-        // the current content on screen (no flash) and swaps it when the new data arrives.
-        if (_state.value !is AlertsState.Ready) _state.value = AlertsState.Loading
-
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
                 is ApiResult.Failure -> {
-                    _state.value = AlertsState.Error(result.error.message)
+                    _queueState.value = AlertQueueUiState.Error(result.error.message)
                     return
                 }
                 is ApiResult.Ok -> result.value
             }
-        channelId = channel.id
-
-        pipelinesById =
-            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
-                is ApiResult.Ok -> result.value.associateBy { it.id }
-                is ApiResult.Failure -> emptyMap()
-            }
-
-        when (val result: ApiResult<List<AlertSummary>> = alertsApi.list(channel.id)) {
-            is ApiResult.Failure -> _state.value = AlertsState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    if (result.value.isEmpty()) AlertsState.Empty
-                    else AlertsState.Ready(result.value)
-        }
 
         when (val result: ApiResult<AlertQueueDto> = alertsApi.queue(channel.id)) {
             is ApiResult.Failure -> _queueState.value = AlertQueueUiState.Error(result.error.message)
@@ -108,122 +54,6 @@ class AlertsController(
                     )
         }
     }
-
-    /**
-     * The bound pipeline's name for [pipelineId], resolved from the channel's pipelines loaded alongside
-     * [load] — null when unbound or the pipeline isn't found (a stale/deleted binding). The edit dialog shows
-     * this so a pipeline-typed alert reads "bound to <name>" instead of opening blank.
-     */
-    fun pipelineName(pipelineId: String?): String? =
-        pipelineId?.let { id -> pipelinesById[id]?.name }
-
-    /**
-     * The full configuration for one [eventType] — the edit dialog reads this to pre-fill the message (the
-     * list item carries no message body). Returns null on failure, surfacing the error over the kept list so
-     * the screen can stay put rather than open a blank editor.
-     */
-    suspend fun detail(eventType: String): AlertDetail? {
-        val channel: String = channelId ?: run {
-            failWrite(noChannelError())
-            return null
-        }
-        return when (val result: ApiResult<AlertDetail> = alertsApi.detail(channel, eventType)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                null
-            }
-        }
-    }
-
-    /**
-     * Create (or replace) the response for [eventType] with a chat [message], then reload so the new row
-     * appears. A failure is handed back so the open form shows the reason inline.
-     */
-    suspend fun createAlert(eventType: String, message: String, isEnabled: Boolean): ApiResult<Unit> {
-        val channel: String = channelId ?: return noChannel()
-        return afterDialogWrite(
-            alertsApi.upsert(
-                channel,
-                eventType,
-                UpdateAlertBody(
-                    isEnabled = isEnabled,
-                    responseType = ChatMessageResponseType,
-                    message = message,
-                ),
-            )
-        )
-    }
-
-    /**
-     * Edit an existing response's [message] (and enabled flag), addressed by its [eventType]. Reloads on
-     * success. A failure is handed back so the open form shows the reason inline.
-     */
-    suspend fun updateAlert(eventType: String, message: String, isEnabled: Boolean): ApiResult<Unit> {
-        val channel: String = channelId ?: return noChannel()
-        return afterDialogWrite(
-            alertsApi.upsert(
-                channel,
-                eventType,
-                UpdateAlertBody(isEnabled = isEnabled, message = message),
-            )
-        )
-    }
-
-    /** Flip a response's enabled flag via the upsert endpoint (partial PUT carrying only isEnabled). Reloads. */
-    suspend fun toggleAlert(eventType: String, enabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(noChannelError())
-        afterWrite(alertsApi.upsert(channel, eventType, UpdateAlertBody(isEnabled = enabled)))
-    }
-
-    /** Delete the response for [eventType]. Reloads on success. A failure is handed back to the open confirm. */
-    suspend fun deleteAlert(eventType: String): ApiResult<Unit> {
-        val channel: String = channelId ?: return noChannel()
-        return afterDialogWrite(alertsApi.delete(channel, eventType))
-    }
-
-    // A write either reloads the list (success) or surfaces its error over the current Ready list without
-    // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
-    private suspend fun afterWrite(result: ApiResult<Unit>) {
-        when (result) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
-    }
-
-    // A write fired from a dialog that stays open until the server answers: success reloads, a failure is
-    // handed back untouched so the dialog shows the reason inline (no toast on top of it).
-    private suspend fun afterDialogWrite(result: ApiResult<Unit>): ApiResult<Unit> {
-        if (result is ApiResult.Ok) load()
-        return result
-    }
-
-    // Nothing was sent (no channel): the dialog shows the reason.
-    private suspend fun noChannel(): ApiResult<Unit> = ApiResult.Failure(ApiError(0, null, noChannelError()))
-
-    private fun failWrite(detail: String) {
-        feedback.error(Res.string.alerts_action_error, detail)
-    }
-
-    private companion object {
-        @OptIn(ExperimentalResourceApi::class)
-        private suspend fun noChannelError(): String = getString(Res.string.alerts_no_channel_error)
-        // The dialog only configures chat-message responses (overlay/pipeline are off-page builders); a create
-        // always sets this so the backend stores a chat_message rather than its own default.
-        const val ChatMessageResponseType: String = "chat_message"
-    }
-}
-
-/** The Alerts page render state. */
-sealed interface AlertsState {
-    data object Loading : AlertsState
-
-    /** The channel's event responses are listed. */
-    data class Ready(val alerts: List<AlertSummary>) : AlertsState
-
-    data object Empty : AlertsState
-
-    data class Error(val detail: String) : AlertsState
 }
 
 /**

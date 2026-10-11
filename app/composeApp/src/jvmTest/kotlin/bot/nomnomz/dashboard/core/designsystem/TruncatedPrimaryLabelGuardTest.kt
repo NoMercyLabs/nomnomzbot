@@ -42,7 +42,6 @@ class TruncatedPrimaryLabelGuardTest {
     private val secondaryClipBaseline: Map<String, Int> =
         mapOf(
             "admin/ui/AdminScreen.kt" to 1,
-            "alerts/ui/AlertsScreen.kt" to 1,
             "assets/ui/AssetsScreen.kt" to 1,
             "chat/ui/ChatScreen.kt" to 3,
             "chat/ui/EmoteComposerField.kt" to 1,
