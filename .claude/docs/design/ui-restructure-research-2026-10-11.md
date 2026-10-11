@@ -94,6 +94,9 @@ These sentences are binding inputs. The new layout must satisfy each one.
 - 2026-10-10 (slice S-USER-HUB): community and moderation become one tabbed interface.
 - 2026-06-23: "Use the same terminology as twitch does please so lead moderator and not super moderator."
 - 2026-06-16, role order: "viewer -> sub -> vip -> mod -> super mod -> channel editor -> broadcaster, artist and staf are real roles too".
+- 2026-10-11, clearance for S-IA-SPEC: "if you are sure that this matches human psychology for dashboards then you have my clearance to execute".
+  Arc's reading: the layout passed the check in `ui-page-drawings-2026-10-11.md` section 10, after three
+  fixes to Home Live. The plan runs; nothing is pushed until the owner is happy with how it runs.
 - 2026-10-11 (answer to the Commands floor question in section 11): "moderators get granted the permission to manage stream and channel behaviors".
   Arc's reading: every page that shapes how the stream and the channel behave has a Moderator manage floor: Live (Stream, OBS, VTube Studio, editing the Deck), Build (all of it), Loyalty, and Music & Voice (the TTS Provider tab stays Editor). Setup, Connect, People: Rules and role assignment keep their floors. A broadcaster can still raise any action for their channel (ChannelActionOverride, ActionDefinitionSeeder.cs:131-132).
 - 2026-10-11 (answer to the risk raised on four actions): "we will leave the risky items to the channel manager and up".
@@ -136,7 +139,7 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 
 | Page | Tabs or modes | Read | Manage | Notes |
 |---|---|---|---|---|
-| Home | Streamer: Prep (offline) and Live (on air). Moderator: Mod home. Viewer: My channels | Everyone | per card | One page, shaped by role and by stream state. Live layout: stream health, attention inbox, top 8 Deck buttons, chat preview, activity. Prep layout: the Stream info editor (the same component as Live, Stream), the schedule, the checklist. |
+| Home | Streamer: Prep (offline) and Live (on air). Moderator: Mod home. Viewer: My channels | Everyone | per card | One page, shaped by role and by stream state. Live layout: stream health in the header (a red card only on a problem), attention inbox top left, top 8 Deck buttons, activity, chat as a full-height column. Prep layout: the Stream info editor (the same component as Live, Stream), the schedule, the checklist. |
 
 **Live**
 

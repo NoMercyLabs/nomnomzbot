@@ -2,7 +2,7 @@
 
 Wireframes of the most important pages in the new layout. They draw what
 `ui-restructure-research-2026-10-11.md` describes (sections 3 to 7). The paper wins when the two differ.
-Status: part of S-IA-SPEC, waiting for the owner's yes.
+Status: part of S-IA-SPEC. The owner gave his yes on 2026-10-11 (see the psychology check, section 10).
 
 ## Legend
 
@@ -27,24 +27,24 @@ the one primary action, because it is the thing that needs a human now.
 
 ```
 +--------------------+---------------------------------------------------------------+
-| NomNomz  [chan  v] | Home                        LIVE 1:42:10    Ctrl+K   (avatar)  |
+| NomNomz  [chan  v] | Home   LIVE 1:42:10   Twitch ok  Kick ok  YouTube !  Ctrl+K   |
 |--------------------|---------------------------------------------------------------|
-| PINNED             | +-- Stream health ------------+ +-- Needs you (3) ----------+ |
-|  Home              | | Twitch   ok      812 view   | | 2 held messages           | |
-|  Chat              | | Kick     ok       40 view   | | 1 unban request           | |
-|  Deck              | | YouTube  dropped frames     | |                           | |
-|  Commands          | +-----------------------------+ | [[ Open the queue ]]      | |
-|  Event Responses   |                                 +---------------------------+ |
-|  Overlays          | +-- Deck: first 8 -------------------------------- ( All ) -+ |
-|  People            | | [Scene: Game] [Shield (o)] [Hydrate] [Clip     ]           | |
-|  Music             | | [Raid *E    ] [Ad 60s *E ] [Poll   ] [Skip song]           | |
-|                    | +----------------------------------------------------------+ |
-| LIVE            v  | +-- Chat ------------------------------+ +-- Activity -----+ |
-|  Chat  Deck        | | viewer1: hi                          | | follow  name    | |
-|  Stream  OBS       | | viewer2: !sr never gonna             | | sub     name x3 | |
-|  VTube Studio      | | viewer3: gg                          | | raid    name 40 | |
-|  Analytics         | | [ Type a message ...        ] [ Send ]| |                 | |
-| BUILD           >  | +--------------------------------------+ +-----------------+ |
+| PINNED             | +-- ! YouTube dropping ---- ( Details ) + +-- Chat -------+   |
+|  Home              | +-- Needs you (3) ----------------------+ | viewer1: hi   |   |
+|  Chat              | | 2 held messages                       | | viewer2: !sr  |   |
+|  Deck              | | 1 unban request                       | |   never gonna |   |
+|  Commands          | |                                       | | viewer3: gg   |   |
+|  Event Responses   | |                  [[ Open the queue ]] | | viewer4: lol  |   |
+|  Overlays          | +---------------------------------------+ | viewer5: hype |   |
+|  People            | +-- Deck: first 8 ------------- ( All ) + | viewer6: o7   |   |
+|  Music             | | [Scene: Game] [Shield (o)] [Hydrate ] | | viewer7: :)   |   |
+|                    | | [Clip      ] [Raid *E  ] [Ad 60s *E]  | |               |   |
+| LIVE            v  | | [Poll      ] [Skip song ]             | |               |   |
+|  Chat  Deck        | +---------------------------------------+ |               |   |
+|  Stream  OBS       | +-- Activity ---------------------------+ |               |   |
+|  VTube Studio      | | follow  name       sub   name x3      | | [ Message   ] |   |
+|  Analytics         | | raid    name 40                       | | [ Send ]      |   |
+| BUILD           >  | +---------------------------------------+ +---------------+   |
 | PEOPLE          >  |                                                               |
 | LOYALTY         >  |                                                               |
 | MUSIC & VOICE   >  |                                                               |
@@ -54,6 +54,11 @@ the one primary action, because it is the thing that needs a human now.
 +--------------------+---------------------------------------------------------------+
 ```
 
+- Stream health sits in the header, one word per platform. A problem opens a red card at the top of the
+  left column. A normal state takes no space: the eye goes to what is wrong.
+- The attention inbox is the one primary. When nothing waits, it shrinks to one line, "Nothing waits
+  for you", with no button. The accent is never spent on an empty card.
+- Chat is a full-height column on the right. Chat is read as a stream of lines; a short box shows too few.
 - Deck tiles are neutral. A tile shows its live state (Shield on, the current scene).
 - A Moderator sees only the tiles at or below their role. Raid and Ad are hidden from a Moderator.
 
@@ -244,3 +249,25 @@ stoney_eagle:   Now playing | Leaderboards | Points & store | Games | Me
 ```
 
 - The live channel gets the primary Open. The others are outline.
+
+## 10. Dashboard psychology check (2026-10-11)
+
+Owner 2026-10-11, verbatim: "if you are sure that this matches human psychology for dashboards then you have my clearance to execute".
+Arc's reading: check the layout against known rules of how people read a dashboard, fix each gap,
+and then execute the plan.
+
+| Rule | Where the layout applies it | Result |
+|------|-----------------------------|--------|
+| Fewer choices give a faster choice (Hick's law) | 8 pins; one group open at a time; Setup closed at the bottom; Ctrl+K for the rest | applied |
+| Recognize, do not recall | Page names in the sidebar; the palette finds pages, tabs and actions by name; role names, never numbers | applied |
+| The first look goes to the top left (F-pattern) | Home Live puts a health problem, then Needs you, at the top left | fixed in this check: the health box sat there even when all was ok |
+| Show the exception, keep the normal state small | Health is one word per platform in the header; a red card only on a problem; an empty inbox shrinks to one line | fixed in this check |
+| One focal point (Sleak rule 3, isolation effect) | One accent per screen: the inbox on Home Live, Save on Prep, Edit on the Deck | applied |
+| A familiar layout is faster (Jakob's law) | The Deck works like Quick Actions, SAMMI and Lumia; one queue like Mod View; group names in streamer words | applied |
+| Chat is read as a stream of lines | Chat is a full-height column on Home Live | fixed in this check: chat was a short box at the bottom |
+| Big, near targets when in a hurry (Fitts's law) | Large Deck tiles; a pop-out for a second monitor; the phone bar in thumb reach | applied |
+| A screen fits the task of the moment | Home changes with the stream state (Prep, Live) and with the role | applied |
+| Prevent the costly error | A second tap on risky tiles; the consequence shown before Save; risky items at Editor | applied |
+
+Not proven yet: no person has used this layout. These are known rules, not a test with users.
+The slice S-IA-USABILITY closes that gap after S-IA-NAV and S-IA-ROLE-HOMES.

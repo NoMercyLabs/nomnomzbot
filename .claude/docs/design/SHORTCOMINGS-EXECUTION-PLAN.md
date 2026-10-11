@@ -29,7 +29,7 @@ Benchmark (rule research-is-a-benchmark): `benchmarks/dashboard-ia.md`. Research
 `ui-restructure-research-2026-10-11.md`. Every page, tab, server operation, event and viewer feature with its
 new place: `ui-placement-ledger-2026-10-11.md`.
 
-Order: S-IA-SPEC first (needs Stoney's yes), then S-IA-ROUTES with S-IA-GUARD, then S-IA-NAV, then the lanes
+Order: S-IA-SPEC first (Stoney's yes 2026-10-11: "if you are sure that this matches human psychology for dashboards then you have my clearance to execute"), then S-IA-ROUTES with S-IA-GUARD, then S-IA-NAV, then the lanes
 in parallel (at most 2 building), then the finishing slices. The KMP and scale slices run at any time.
 
 - **S-IA-SPEC** Write `spec/frontend-ia.md` from paper sections 3 to 8 and 11: groups, pages, tabs, floors,
@@ -104,6 +104,9 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
 - **S-IA-ROLE-HOMES** Home for each role: the streamer Prep and Live layouts, the moderator home and the
   viewer home. Public viewer pages stay plain HTML. Done-when: a UI test per role shows that role's home,
   and Home switches to Live when the stream goes live.
+- **S-IA-USABILITY** Proposal, not settled: after S-IA-NAV and S-IA-ROLE-HOMES, Stoney, one moderator and one
+  viewer each do 8 first-click tasks on the built app (find a command, start a raid, open the queue and more).
+  A task a person fails becomes a fix slice. Done-when: every task passes for every role, with notes on disk.
 - **S-IA-COMPACT** Phone bottom bar with a More sheet; icon rail on medium screens. Done-when: every page
   is reachable at phone and tablet width in a UI test.
 - **S-IA-PLATFORM** Platform chips on every page with platform data; an action a platform cannot do shows
