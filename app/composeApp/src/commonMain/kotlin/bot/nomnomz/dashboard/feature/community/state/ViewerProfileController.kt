@@ -24,6 +24,7 @@ import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
 import bot.nomnomz.dashboard.core.network.RolesApi
+import bot.nomnomz.dashboard.core.network.ShoutoutOutcome
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.TtsVoicePage
@@ -36,6 +37,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.community_action_error
+import nomnomzbot.composeapp.generated.resources.community_shoutout_sent
+import nomnomzbot.composeapp.generated.resources.community_shoutout_queued
+import nomnomzbot.composeapp.generated.resources.community_shoutout_already_queued
+import nomnomzbot.composeapp.generated.resources.community_shoutout_announce_only
+import nomnomzbot.composeapp.generated.resources.community_shoutout_already_announced
+import nomnomzbot.composeapp.generated.resources.community_shoutout_unknown
 import nomnomzbot.composeapp.generated.resources.viewer_profile_no_channel_error
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
@@ -388,12 +395,23 @@ class ViewerProfileController(
         afterWrite(communityApi.removeVip(channel, target))
     }
 
-    /** Send a `/shoutout` to this person right now (fire-and-forget; no reload needed). */
+    /** Run the shoutout and report the path the server actually took. */
     suspend fun shoutoutNow() {
         val channel: String = channelId ?: return failWrite(noChannelError())
         val target: String = requireTwitchId() ?: return failWrite(NoTwitchIdError)
-        when (val result: ApiResult<Unit> = communityApi.shoutout(channel, target)) {
-            is ApiResult.Ok -> Unit
+        when (val result: ApiResult<ShoutoutOutcome> = communityApi.shoutout(channel, target)) {
+            is ApiResult.Ok -> when (result.value.path) {
+                "sent", "queued", "already_queued", "announce_only", "already_announced" -> feedback.success(
+                    when (result.value.path) {
+                    "sent" -> Res.string.community_shoutout_sent
+                    "queued" -> Res.string.community_shoutout_queued
+                    "already_queued" -> Res.string.community_shoutout_already_queued
+                    "announce_only" -> Res.string.community_shoutout_announce_only
+                    else -> Res.string.community_shoutout_already_announced
+                    }
+                )
+                else -> feedback.error(Res.string.community_shoutout_unknown)
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }

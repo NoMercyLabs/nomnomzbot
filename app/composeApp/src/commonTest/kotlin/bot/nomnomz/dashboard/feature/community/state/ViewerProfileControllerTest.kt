@@ -51,6 +51,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.community_shoutout_queued
+import nomnomzbot.composeapp.generated.resources.community_shoutout_announce_only
 
 // Proves the Community PROFILE page's state machine (owner punch list 2026-09-08 §3B). Loading folds the real
 // profile + the first page of moderation history into one Ready state; every editable action (overrides, TTS
@@ -58,6 +61,33 @@ import kotlinx.coroutines.test.runTest
 // for Twitch-side actions, the internal Guid for platform-side ones) and reloads so the state reflects the
 // backend's truth — not "the call happened", but "the resulting state changed to match it".
 class ViewerProfileControllerTest {
+    @Test
+    fun shoutout_shows_the_queued_path_reported_by_the_server() = runTest {
+        val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
+        communityApi.shoutoutResult = ApiResult.Ok(bot.nomnomz.dashboard.core.network.ShoutoutOutcome("queued"))
+        val feedback = RecordingFeedback()
+        val controller = controller(communityApi = communityApi, feedback = feedback)
+        controller.load("u1")
+
+        controller.shoutoutNow()
+
+        assertEquals(Res.string.community_shoutout_queued, feedback.messages.single().label)
+        assertEquals(FeedbackKind.Success, feedback.messages.single().kind)
+    }
+
+    @Test
+    fun shoutout_shows_announce_only_without_claiming_a_native_send() = runTest {
+        val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
+        communityApi.shoutoutResult = ApiResult.Ok(bot.nomnomz.dashboard.core.network.ShoutoutOutcome("announce_only"))
+        val feedback = RecordingFeedback()
+        val controller = controller(communityApi = communityApi, feedback = feedback)
+        controller.load("u1")
+
+        controller.shoutoutNow()
+
+        assertEquals(Res.string.community_shoutout_announce_only, feedback.messages.single().label)
+        assertEquals(FeedbackKind.Success, feedback.messages.single().kind)
+    }
 
     @Test
     fun load_folds_the_profile_and_first_history_page_into_ready() = runTest {
@@ -418,7 +448,9 @@ internal class VPCFakeCommunityApi(private val profileResult: ApiResult<ViewerPr
     override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun addVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    var shoutoutResult: ApiResult<bot.nomnomz.dashboard.core.network.ShoutoutOutcome> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ShoutoutOutcome("sent"))
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<bot.nomnomz.dashboard.core.network.ShoutoutOutcome> = shoutoutResult
     override suspend fun stats(channelId: String): ApiResult<CommunityStats> = ApiResult.Ok(CommunityStats())
 
     override suspend fun profile(channelId: String, userId: String): ApiResult<ViewerProfileSummary> {

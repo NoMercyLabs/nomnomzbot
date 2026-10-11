@@ -208,7 +208,8 @@ private class FakeCommunityApi(
     override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun addVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<bot.nomnomz.dashboard.core.network.ShoutoutOutcome> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ShoutoutOutcome("sent"))
     override suspend fun stats(channelId: String): ApiResult<CommunityStats> = ApiResult.Ok(CommunityStats())
     override suspend fun profile(channelId: String, userId: String): ApiResult<ViewerProfileSummary> = profileResult
 }

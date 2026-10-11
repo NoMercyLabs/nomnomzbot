@@ -100,7 +100,7 @@ interface CommunityApi {
     suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit>
 
     /** Send a /shoutout to [targetTwitchUserId] in the channel. Requires `moderator:manage:shoutouts`. */
-    suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit>
+    suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<ShoutoutOutcome>
 
     /** Channel community counts (followers / subscribers / VIPs / moderators). */
     suspend fun stats(channelId: String): ApiResult<CommunityStats>
@@ -178,8 +178,8 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
     override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/community/$userId/vip")
 
-    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> =
-        client.postUnit(
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<ShoutoutOutcome> =
+        client.postEnvelope(
             "api/v1/channels/$channelId/moderation/shoutout",
             ShoutoutBody(targetTwitchUserId),
         )
@@ -222,6 +222,10 @@ data class BanBody(val reason: String)
 /** Request body for the shoutout action (backend `ModerationController.ShoutoutRequest`). */
 @Serializable
 data class ShoutoutBody(val targetTwitchUserId: String)
+
+/** The completed or queued path reported by the manual shoutout endpoint. */
+@Serializable
+data class ShoutoutOutcome(val path: String)
 
 /**
  * A community member (backend `CommunityUserDto`): the viewer's identity plus the standing badges the row

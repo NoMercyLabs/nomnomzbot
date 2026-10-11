@@ -3471,6 +3471,12 @@
 
     <string name="community_shoutout_action">Shoutout</string>
     <string name="community_shoutout_action_desc">Shoutout sturen naar %1$s</string>
+    <string name="community_shoutout_sent">Twitch-shoutout verstuurd. Aankondiging geplaatst; TTS aangevraagd.</string>
+    <string name="community_shoutout_queued">In de wachtrij voor het volgende Twitch-venster. Aankondiging en TTS worden dan geprobeerd.</string>
+    <string name="community_shoutout_already_queued">Deze shoutout staat al in de wachtrij voor het volgende Twitch-venster.</string>
+    <string name="community_shoutout_announce_only">Aankondiging geplaatst; TTS aangevraagd. De Twitch-afkoelperiode voor deze gebruiker loopt nog.</string>
+    <string name="community_shoutout_already_announced">Al aangekondigd tijdens deze afkoelperiode.</string>
+    <string name="community_shoutout_unknown">Het resultaat van de shoutout kon niet worden bevestigd.</string>
     <string name="community_vip_grant">VIP verlenen</string>
     <string name="community_vip_grant_desc">VIP verlenen aan %1$s</string>
     <string name="community_vip_revoke">VIP intrekken</string>

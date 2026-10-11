@@ -3486,6 +3486,12 @@
 
     <string name="community_shoutout_action">Shoutout</string>
     <string name="community_shoutout_action_desc">Send shoutout to %1$s</string>
+    <string name="community_shoutout_sent">Twitch shoutout sent. Announcement posted; TTS requested.</string>
+    <string name="community_shoutout_queued">Queued for Twitch's next window. Announcement and TTS will be attempted then.</string>
+    <string name="community_shoutout_already_queued">This shoutout is already queued for Twitch's next window.</string>
+    <string name="community_shoutout_announce_only">Announcement posted; TTS requested. Twitch's per-user cooldown is still active.</string>
+    <string name="community_shoutout_already_announced">Already announced during this cooldown.</string>
+    <string name="community_shoutout_unknown">The shoutout outcome could not be confirmed.</string>
     <string name="community_vip_grant">Grant VIP</string>
     <string name="community_vip_grant_desc">Grant VIP to %1$s</string>
     <string name="community_vip_revoke">Revoke VIP</string>
