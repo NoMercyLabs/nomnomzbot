@@ -59,6 +59,16 @@ public interface ITwitchChatApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get User Chat Color for many users in one call (up to 100 <c>user_id</c> values per request; larger lists are
+    /// split). App token; no scope. A user who never set a colour comes back with an empty <c>Color</c>; an unknown id
+    /// is simply absent from the result.
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchUserChatColor>>> GetUserChatColorsAsync(
+        IReadOnlyList<string> twitchUserIds,
+        CancellationToken ct = default
+    );
+
     /// <summary>Update User Chat Color — sets the tenant's name color (named color or hex). Requires <c>user:manage:chat_color</c>.</summary>
     Task<Result> UpdateUserChatColorAsync(
         Guid broadcasterId,

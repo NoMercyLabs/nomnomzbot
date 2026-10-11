@@ -27,4 +27,29 @@ public interface IChatColorMemory
 
     /// <summary>The chatter's last-seen colour, or null if they have not been seen in this channel recently.</summary>
     Task<string?> GetAsync(Guid broadcasterId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// What is remembered about a chatter: null if nothing is (a miss), otherwise a <see cref="RememberedChatColor"/>
+    /// whose <c>Hex</c> is null when Twitch told us the user has no colour set. Lets a caller tell "not asked yet"
+    /// from "asked, none set".
+    /// </summary>
+    Task<RememberedChatColor?> RecallAsync(
+        Guid broadcasterId,
+        string userId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Records a colour fetched from Twitch (Get User Chat Color) for a long TTL. A null/empty colour is stored too, as
+    /// "no colour set", so that user is not fetched again on every message.
+    /// </summary>
+    Task RememberFetchedAsync(
+        Guid broadcasterId,
+        string userId,
+        string? colorHex,
+        CancellationToken ct = default
+    );
 }
+
+/// <summary>A remembered chat colour; <paramref name="Hex"/> is null when the user is known to have none set.</summary>
+public sealed record RememberedChatColor(string? Hex);

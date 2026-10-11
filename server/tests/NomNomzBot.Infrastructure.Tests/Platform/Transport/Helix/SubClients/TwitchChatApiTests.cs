@@ -245,6 +245,23 @@ public class TwitchChatApiTests
             .ContainSingle(q => q.Key == "user_id" && q.Value == TwitchId);
     }
 
+    [Fact]
+    public async Task GetUserChatColors_AppAuth_SendsEveryIdAsUserId_InBatchesOf100()
+    {
+        CapturingHelixTransport transport = new() { ListResult = new List<TwitchUserChatColor>() };
+        TwitchChatApi api = Build(transport);
+        List<string> ids = Enumerable.Range(1, 150).Select(n => n.ToString()).ToList();
+
+        Result<IReadOnlyList<TwitchUserChatColor>> result = await api.GetUserChatColorsAsync(ids);
+
+        result.IsSuccess.Should().BeTrue();
+        transport.CallCount.Should().Be(2);
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("chat/color");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.App);
+        transport.LastRequest.Query.Should().HaveCount(50).And.OnlyContain(q => q.Key == "user_id");
+    }
+
     // ── Update User Chat Color ──
 
     [Fact]

@@ -32,6 +32,9 @@ public sealed class TwitchChatApi(
     ITwitchTokenResolver tokens
 ) : ITwitchChatApi
 {
+    /// <summary>Twitch accepts at most 100 <c>user_id</c> values on Get User Chat Color.</summary>
+    private const int MaxChatColorUserIds = 100;
+
     [RequiresTwitchScope(TwitchScopes.ModeratorManageAnnouncements)]
     public async Task<Result> SendAnnouncementAsync(
         Guid broadcasterId,
@@ -171,6 +174,33 @@ public sealed class TwitchChatApi(
         );
 
         return await transport.GetSingleAsync<TwitchUserChatColor>(request, ct);
+    }
+
+    public async Task<Result<IReadOnlyList<TwitchUserChatColor>>> GetUserChatColorsAsync(
+        IReadOnlyList<string> twitchUserIds,
+        CancellationToken ct = default
+    )
+    {
+        List<TwitchUserChatColor> colors = [];
+
+        foreach (string[] batch in twitchUserIds.Distinct().Chunk(MaxChatColorUserIds))
+        {
+            TwitchHelixRequest request = new(
+                HttpMethod.Get,
+                "chat/color",
+                TwitchHelixAuth.App,
+                Query: [.. batch.Select(id => new KeyValuePair<string, string>("user_id", id))]
+            );
+
+            Result<IReadOnlyList<TwitchUserChatColor>> page =
+                await transport.GetListAsync<TwitchUserChatColor>(request, ct);
+            if (page.IsFailure)
+                return page;
+
+            colors.AddRange(page.Value);
+        }
+
+        return Result.Success<IReadOnlyList<TwitchUserChatColor>>(colors);
     }
 
     [RequiresTwitchScope(TwitchScopes.UserManageChatColor)]

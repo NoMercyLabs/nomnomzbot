@@ -258,6 +258,13 @@ function fragColor(c: unknown): Record<string, string> {
   return hex ? { color: hex } : {}
 }
 
+// A mention takes the mentioned user's own chat colour for its text and its chip tint (--mention-color); a user with
+// no colour sets neither, so it inherits the line's text colour just like their own name does.
+function mentionStyle(c: unknown): Record<string, string> {
+  const hex: string = hexColor(c)
+  return hex ? { color: hex, '--mention-color': hex } : {}
+}
+
 // A line already on screen turned out to mean something richer — a song request resolving to a real track.
 // Matched on the RAW message id; an id we never rendered (the line already scrolled off, or this overlay
 // started after it) simply finds nothing and is ignored.
@@ -447,7 +454,7 @@ onUnmounted(() => {
             <img v-else-if="fr.type === 'gif' && gifUrl(fr)" class="chat-gif" :src="gifUrl(fr)" :alt="fr.text">
             <!-- @mention: a highlighted chip always, additionally tinted with the mentioned user's chat colour
                  when known — a mention must stand out even with no known colour. -->
-            <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="fragColor(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
+            <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="mentionStyle(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
             <!-- Shared link. With an OpenGraph preview resolved it renders as a card rather than a bare url —
                  that preview was already being fetched and attached by the backend and then thrown away here,
                  so a pasted link showed as raw text no matter what the server had learned about it. -->
@@ -716,7 +723,9 @@ onUnmounted(() => {
   /* A highlighted chip so a mention stands out even when the mentioned user has no known chat colour
      (previously plain bold text, easy to miss). */
   font-weight: 700;
-  background: color-mix(in srgb, var(--accent, #9146ff) 22%, transparent);
+  /* The chip tints with the mentioned user's own colour, never the channel accent; a user with no colour keeps the
+     inherited text colour, exactly like their own name in a chat line (nameStyle). */
+  background: color-mix(in srgb, var(--mention-color, currentColor) 22%, transparent);
   border-radius: 4px;
   padding: 0 4px;
 }
