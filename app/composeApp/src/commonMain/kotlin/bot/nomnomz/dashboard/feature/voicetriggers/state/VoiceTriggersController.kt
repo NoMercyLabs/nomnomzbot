@@ -41,6 +41,8 @@ class VoiceTriggersController(
     private val voiceTriggersApi: VoiceTriggersApi,
     private val assetsApi: AssetsApi,
     private val feedback: Feedback = NoOpFeedback,
+    // The Library's file upload (opens the dialog, uploads, returns the new asset id); null hides the button.
+    private val assetUploader: (suspend () -> String?)? = null,
 ) {
     private val _state: MutableStateFlow<VoiceTriggersState> = MutableStateFlow(VoiceTriggersState.Loading)
     val state: StateFlow<VoiceTriggersState> = _state.asStateFlow()
@@ -124,6 +126,21 @@ class VoiceTriggersController(
                 ),
             )
         )
+    }
+
+    /** Whether the sticker picker can upload a new image into the Library inline. */
+    val canUploadSticker: Boolean get() = assetUploader != null
+
+    /**
+     * Uploads a new image into the Library, then re-lists so the sticker picker offers it. Returns the new asset's
+     * id, or null when cancelled, failed, or when the file is not an image (the sticker list only holds images).
+     */
+    suspend fun uploadSticker(): String? {
+        val upload: suspend () -> String? = assetUploader ?: return null
+        val newId: String = upload() ?: return null
+        load()
+        val ready: VoiceTriggersState.Ready = _state.value as? VoiceTriggersState.Ready ?: return null
+        return newId.takeIf { id: String -> ready.assets.any { it.id == id } }
     }
 
     /** Flip a trigger's enabled flag via the update endpoint. Reloads. */

@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.PickerUploadButton
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
@@ -69,6 +70,7 @@ import bot.nomnomz.dashboard.feature.voicetriggers.state.VoiceTriggersController
 import bot.nomnomz.dashboard.feature.voicetriggers.state.VoiceTriggersState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.picker_upload_file
 import nomnomzbot.composeapp.generated.resources.voicetriggers_count
 import nomnomzbot.composeapp.generated.resources.voicetriggers_cooldown
 import nomnomzbot.composeapp.generated.resources.voicetriggers_delete_action
@@ -147,6 +149,7 @@ fun VoiceTriggersScreen(controller: VoiceTriggersController, role: ManagementRol
         TriggerFormDialog(
             editor = open,
             assets = assets,
+            uploadSticker = if (controller.canUploadSticker) controller::uploadSticker else null,
             onDismiss = { editor = null },
             onSubmit = { form ->
                 if (open.isEdit) {
@@ -371,6 +374,7 @@ private fun TriggerRow(
 private fun TriggerFormDialog(
     editor: TriggerEditor,
     assets: List<ChannelAsset>,
+    uploadSticker: (suspend () -> String?)?,
     onDismiss: () -> Unit,
     onSubmit: suspend (TriggerForm) -> DialogResult,
 ) {
@@ -482,6 +486,14 @@ private fun TriggerFormDialog(
                     }
                 },
             )
+
+            if (uploadSticker != null) {
+                PickerUploadButton(
+                    label = stringResource(Res.string.picker_upload_file),
+                    upload = uploadSticker,
+                    onUploaded = { newId: String -> stickerAssetId = newId },
+                )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

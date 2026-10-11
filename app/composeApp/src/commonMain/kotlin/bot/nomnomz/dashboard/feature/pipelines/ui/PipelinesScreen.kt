@@ -53,11 +53,13 @@ import nomnomzbot.composeapp.generated.resources.form_dialog_discard
 import nomnomzbot.composeapp.generated.resources.form_dialog_discard_message
 import nomnomzbot.composeapp.generated.resources.form_dialog_discard_title
 import nomnomzbot.composeapp.generated.resources.form_dialog_keep_editing
+import nomnomzbot.composeapp.generated.resources.picker_upload_clip
 import nomnomzbot.composeapp.generated.resources.pipelines_editor_changed_elsewhere
 import nomnomzbot.composeapp.generated.resources.pipelines_editor_reload
 import nomnomzbot.composeapp.generated.resources.pipelines_editor_unsaved
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
+import bot.nomnomz.dashboard.core.designsystem.component.PickerUploadButton
 import bot.nomnomz.dashboard.core.designsystem.component.ResourcePickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -2753,6 +2755,7 @@ private fun TypedParamFields(
                         selectedId = params[field.key].orEmpty().ifBlank { null },
                         onSelect = { params[field.key] = it.orEmpty() },
                         label = fieldLabelWithRequired(field),
+                        uploads = options.uploads,
                     )
                 // The comparison operator is a picker with plain labels; a stored value the picker does not know
                 // still shows as itself (OptionPicker falls back to the raw value), so nothing is lost.
@@ -2838,21 +2841,32 @@ private fun TypedParamFields(
                 // The remaining entity references (play_sound clip, play_tts voice, jar_contribute jar,
                 // giveaway_*, post_quote number) — each a search dropdown over its channel-loaded list.
                 field.key in setOf("clip", "voice", "jar_id", "giveaway_id", "quote_number") ->
-                    EntityPickerField(
-                        items =
-                            when (field.key) {
-                                "clip" -> options.soundClips
-                                "voice" -> options.ttsVoices
-                                "jar_id" -> options.jars
-                                "giveaway_id" -> options.giveaways
-                                else -> options.quotes
-                            },
-                        selectedId = params[field.key].orEmpty().ifBlank { null },
-                        onSelect = { params[field.key] = it.orEmpty() },
-                        idOf = { it.value },
-                        labelOf = { it.label },
-                        label = fieldLabelWithRequired(field),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        EntityPickerField(
+                            items =
+                                when (field.key) {
+                                    "clip" -> options.soundClips
+                                    "voice" -> options.ttsVoices
+                                    "jar_id" -> options.jars
+                                    "giveaway_id" -> options.giveaways
+                                    else -> options.quotes
+                                },
+                            selectedId = params[field.key].orEmpty().ifBlank { null },
+                            onSelect = { params[field.key] = it.orEmpty() },
+                            idOf = { it.value },
+                            labelOf = { it.label },
+                            label = fieldLabelWithRequired(field),
+                        )
+                        // A clip not in the Library yet is uploaded right here and selected for the step.
+                        val uploadClip: (suspend () -> String?)? = options.uploads?.uploadClip
+                        if (field.key == "clip" && uploadClip != null) {
+                            PickerUploadButton(
+                                label = stringResource(Res.string.picker_upload_clip),
+                                upload = uploadClip,
+                                onUploaded = { newId: String -> params[field.key] = newId },
+                            )
+                        }
+                    }
                 // run_pipeline's dynamic argument editor renders under the "named_args" slot for BOTH the
                 // named-args and positional-args cases (whichever applies to the currently-picked target); the
                 // catalogue's separate "args" field entry is a placeholder for the encoder only and renders

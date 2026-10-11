@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.pipelines.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerUploads
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
@@ -100,6 +101,8 @@ class PipelinesController(
     // The rich resource-picker option source (S-RICH-PICKERS) — best-effort like every editor picker source
     // above: absent, the picker-kind fields degrade to their legacy local-list/free-text entry.
     private val pipelineOptionsApi: PipelineOptionsApi? = null,
+    // The Library uploads (clip, file) the step editor's pickers offer inline; null hides the upload buttons.
+    libraryUploads: PickerUploads? = null,
     private val feedback: Feedback = NoOpFeedback,
     // "Restore default" for a pipeline the platform seeded (the raid flows). Null hides the action.
     private val restoreDefaultsApi: RestoreDefaultsApi? = null,
@@ -357,11 +360,7 @@ class PipelinesController(
         // The remaining cross-feature entity references the step editor can pick (play_sound, play_tts,
         // jar_contribute, run_code, giveaway_*, post_quote). Each is best-effort: a null API or a failed fetch
         // yields an empty list and that field simply shows an empty picker.
-        val soundClips: List<PickerOption> =
-            when (val result: ApiResult<List<SoundClip>>? = soundApi?.list()) {
-                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Sound clip") }
-                else -> emptyList()
-            }
+        val soundClips: List<PickerOption> = loadSoundClips()
         val ttsVoices: List<PickerOption> =
             when (val result: ApiResult<List<TtsVoice>>? = ttsApi?.voices(channel)) {
                 is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Voice") }
@@ -401,7 +400,34 @@ class PipelinesController(
             giveaways = giveaways,
             quotes = quotes,
             pipelineOptionsApi = pipelineOptionsApi,
+            uploads = editorUploads,
         )
+    }
+
+    private suspend fun loadSoundClips(): List<PickerOption> =
+        when (val result: ApiResult<List<SoundClip>>? = soundApi?.list()) {
+            is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Sound clip") }
+            else -> emptyList()
+        }
+
+    // The Library uploads the open editor's pickers offer. A clip upload also re-reads the clip list into the open
+    // editor, so the step's clip picker can resolve and show the clip it just selected.
+    private val editorUploads: PickerUploads? =
+        libraryUploads?.let { uploads: PickerUploads ->
+            PickerUploads(
+                uploadClip = uploads.uploadClip?.let { upload: suspend () -> String? -> { uploadClipIntoEditor(upload) } },
+                uploadAsset = uploads.uploadAsset,
+            )
+        }
+
+    private suspend fun uploadClipIntoEditor(upload: suspend () -> String?): String? {
+        val newId: String = upload() ?: return null
+        val clips: List<PickerOption> = loadSoundClips()
+        val current: PipelinesState = _state.value
+        if (current is PipelinesState.Editing) {
+            _state.value = current.copy(options = current.options.copy(soundClips = clips))
+        }
+        return newId
     }
 
     /**
@@ -1034,4 +1060,6 @@ data class EditorOptions(
      * every other optional editor source above.
      */
     val pipelineOptionsApi: PipelineOptionsApi? = null,
+    /** The inline Library uploads for the clip and file pickers; null when the deployment wires none. */
+    val uploads: PickerUploads? = null,
 )

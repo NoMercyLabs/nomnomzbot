@@ -43,6 +43,8 @@ import bot.nomnomz.dashboard.core.network.PipelineOptionsApi
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.picker_upload_clip
+import nomnomzbot.composeapp.generated.resources.picker_upload_file
 import nomnomzbot.composeapp.generated.resources.resource_picker_empty
 import nomnomzbot.composeapp.generated.resources.resource_picker_loading
 import nomnomzbot.composeapp.generated.resources.resource_picker_search_placeholder
@@ -73,17 +75,28 @@ fun ResourcePickerField(
     modifier: Modifier = Modifier,
     label: String? = null,
     enabled: Boolean = true,
+    uploads: PickerUploads? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // Sound clips and files live in the Library; the picker offers an inline upload into it for those two kinds.
+    val upload: (suspend () -> String?)? =
+        when (kind) {
+            PickerKind.SoundClip -> uploads?.uploadClip
+            PickerKind.Asset -> uploads?.uploadAsset
+            else -> null
+        }
+    // Bumped after an upload so the option list is fetched again and contains the new item.
+    var refreshes: Int by remember(kind) { mutableStateOf(0) }
 
     var query: String by remember(kind) { mutableStateOf("") }
     var loadState: ResourcePickerLoadState by remember(kind) { mutableStateOf(ResourcePickerLoadState.Loading) }
     var selectedOption: PipelineOptionDto? by remember(kind) { mutableStateOf(null) }
 
     val trimmed: String = query.trim()
-    LaunchedEffect(kind, trimmed) {
+    LaunchedEffect(kind, trimmed, refreshes) {
         if (trimmed.isNotEmpty()) delay(300)
         loadState = ResourcePickerLoadState.Loading
         loadState =
@@ -133,6 +146,21 @@ fun ResourcePickerField(
             placeholder = stringResource(Res.string.resource_picker_search_placeholder),
             enabled = enabled,
         )
+
+        if (upload != null && enabled) {
+            PickerUploadButton(
+                label =
+                    stringResource(
+                        if (kind == PickerKind.SoundClip) Res.string.picker_upload_clip
+                        else Res.string.picker_upload_file
+                    ),
+                upload = upload,
+                onUploaded = { newId: String ->
+                    refreshes += 1
+                    onSelect(newId)
+                },
+            )
+        }
 
         when (val state = loadState) {
             is ResourcePickerLoadState.Loading ->

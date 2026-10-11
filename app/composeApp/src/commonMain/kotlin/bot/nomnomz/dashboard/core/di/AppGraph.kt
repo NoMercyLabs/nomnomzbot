@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.core.di
 import bot.nomnomz.dashboard.core.connection.ActAsSessionStore
 import bot.nomnomz.dashboard.core.connection.ActAsSessionVault
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.designsystem.component.PickerUploads
 import bot.nomnomz.dashboard.core.navigation.AppReloader
 import bot.nomnomz.dashboard.core.navigation.PlatformAppReloader
 import bot.nomnomz.dashboard.core.connection.LanDiscovery
@@ -637,6 +638,7 @@ class AppGraph {
             voiceTriggersApi = voiceTriggersApi,
             assetsApi = assetsApi,
             feedback = feedbackController,
+            assetUploader = { assetsController.uploadAsset() },
         )
 
     val timersController: TimersController =
@@ -939,6 +941,11 @@ class AppGraph {
             giveawaysApi = giveawaysApi,
             quotesApi = quotesApi,
             pipelineOptionsApi = pipelineOptionsApi,
+            libraryUploads =
+                PickerUploads(
+                    uploadClip = { soundController.uploadClip() },
+                    uploadAsset = { assetsController.uploadAsset() },
+                ),
             feedback = feedbackController,
             restoreDefaultsApi = restoreDefaultsApi,
         )
