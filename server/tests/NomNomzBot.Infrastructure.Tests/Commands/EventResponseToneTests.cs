@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -280,19 +281,33 @@ public sealed class EventResponseToneTests
         SentTo(h, SassyChannel).Should().Equal(expected);
     }
 
-    // Stoney, 2026-10-11: never suggest a viewer needs to sub.
+    // Stoney, 2026-10-11: "NEVER tell the user they must sub or imply that they should with subtle messaging".
+    // Only a line that thanks a viewer for a sub that really happened may name subs.
     [Fact]
-    public void No_ad_warning_line_in_any_tone_tells_viewers_to_subscribe()
+    public void No_line_outside_a_real_sub_event_mentions_subs_in_any_tone()
     {
+        Regex subWord = new(
+            @"\b(sub|subs|subbed|subbing|subscri\w*|prime)\b",
+            RegexOptions.IgnoreCase
+        );
         List<string> lines =
         [
-            .. PersonalityTone.All.SelectMany(tone =>
-                EventResponseToneCatalog.Get(tone, AdBreakUpcoming)
-            ),
+            .. EventResponseToneCatalog
+                .EventTypes.Where(eventType =>
+                    eventType != "channel.subscribe"
+                    && !eventType.StartsWith("channel.subscription.")
+                )
+                .SelectMany(eventType =>
+                    PersonalityTone.All.SelectMany(tone =>
+                        EventResponseToneCatalog.Get(tone, eventType)
+                    )
+                ),
         ];
 
-        lines.Should().NotBeEmpty();
-        lines.Should().NotContain(line => line.Contains("sub", StringComparison.OrdinalIgnoreCase));
+        lines
+            .Should()
+            .Contain(line => line.Contains("{ad.seconds}"), "the ad warning lines are in the scan");
+        lines.Should().NotContain(line => subWord.IsMatch(line));
     }
 
     // ── what the dashboard is told ──────────────────────────────────────────
