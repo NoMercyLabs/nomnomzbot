@@ -172,8 +172,8 @@ One page (slice S-USER-HUB, built by S-IA-PEOPLE). The tabs are the old Communit
 | Queue | Moderator | Moderator | One queue for held messages, reports, appeals and unban requests. |
 | Viewers | Moderator | Moderator | Was Community. The viewer card: identity on every linked platform, history, notes, points, roles, per-user settings (owner 2026-09-08). |
 | History | Moderator | read-only | Every moderation action: by whom, on which platform. |
-| Rules | Moderator | Lead Moderator | AutoMod, blocked terms, spam defense, mass-ban settings and opt-in. |
-| Roles (with Individual permissions) | Moderator | Broadcaster (assign Moderator and VIP: Lead Moderator) | Moved from Setup. "Individual permissions" are the per-user overrides. |
+| Rules | Moderator | Lead Moderator | AutoMod, blocked terms, spam defense, mass-ban settings and opt-in. Spam policy and Twitch AutoMod levels stay Broadcaster. |
+| Roles (with Individual permissions) | Moderator | Broadcaster (assigning Moderator and VIP is Broadcaster) | Moved from Setup. "Individual permissions" are the per-user overrides. |
 
 #### Loyalty
 
@@ -198,7 +198,7 @@ One page (slice S-USER-HUB, built by S-IA-PEOPLE). The tabs are the old Communit
 |---|---|---|---|---|
 | Discord | - | Moderator | Lead Moderator | The label "Super Mod" is wrong. Use "Lead Moderator". |
 | Webhooks | - | Broadcaster | Broadcaster | Generic webhooks only. Ko-fi moves to Supporters. |
-| Custom Events | - | Moderator | Editor | |
+| Custom Events | - | Moderator | Moderator | |
 | Supporters | - | Moderator | Broadcaster | Owns Ko-fi and the other supporter feeds. |
 | Federation | - | Broadcaster | Broadcaster | |
 | API & devices | API tokens; Stream Deck pairing; device codes | Editor | Broadcaster | Was Automation. |
@@ -508,7 +508,7 @@ state (live or offline).
 - **Moderator:** 1 Chat (with "All my channels" for moderators of many channels), 2 People: Queue,
   3 People: Viewers, 4 People: History, 5 Song requests, 6 TTS Live, 7 Deck (moderator buttons),
   8 Commands (read, simple replies).
-- **Lead Moderator:** the Moderator list, plus People: Rules, assigning Moderators and VIPs, and Discord
+- **Lead Moderator:** the Moderator list, plus People: Rules and Discord
   settings.
 - **Editor:** 1 Commands, 2 Event Responses, 3 Overlays, 4 Pipelines, 5 Triggers & Timers, 6 Library,
   7 Stream: Info & presets, 8 Loyalty pages.
@@ -555,16 +555,15 @@ This is the paper matrix, cell by cell.
 | Build pages | public commands list | edit | edit | edit | edit |
 | Scripts | no | yes | yes | yes | yes |
 | People: Queue, Viewers, History | own standing only | yes | yes | yes | yes |
-| People: Rules | no | read | edit | read | edit |
-| People: Roles | no | read | assign Moderator, VIP | read | all |
+| People: Rules | no | read | edit | edit | edit |
+| People: Roles | no | read | read | read | all |
 | Loyalty | points, store, games | edit | edit | edit | edit |
 | Music & Voice | request songs, pick TTS voice | queue control and settings (not TTS Provider) | queue control and settings (not TTS Provider) | settings | settings |
-| Connect | no | Discord read | Discord edit | Custom events, API read | all |
+| Connect | no | Discord, Custom events (edit), Supporters read | Discord edit, Custom events edit, Supporters read | the Lead Moderator set plus API read | all |
 | Setup | no | Settings read | Settings read | Settings read | all |
 | My data | yes | yes | yes | yes | yes |
 
-The Editor cells for People: Rules, People: Roles and Connect conflict with section 3.3 and the ladder.
-See section 15, points 1 to 4.
+The cells follow the floor rule in section 16. Section 15 lists how the five contradictions resolve.
 
 ## 11. Layout per screen size
 
@@ -619,20 +618,8 @@ The left side loses.
 
 ## 15. Open points in the paper
 
-Each point is a place where the paper says two things. This spec follows section 3.3 of this file, which
-matches the placement ledger. The owner must confirm.
-
-1. Proposal, not settled: People, Rules manage floor. The paper section 3.2 and the ledger say Lead
-   Moderator. The paper section 5.4 says the Editor only reads Rules. The ladder puts Editor above Lead
-   Moderator, so the Editor can edit.
-2. Proposal, not settled: People, Roles. The paper section 3.2 says "Broadcaster (assign Moderator and VIP:
-   Lead Moderator)". The paper section 5.4 says the Editor only reads Roles.
-3. Proposal, not settled: Discord. The paper section 3.2 says manage floor Lead Moderator. The Editor
-   column in section 5.4 lists no Discord access.
-4. Proposal, not settled: Connect for a Moderator. The paper section 3.2 gives a Moderator read on
-   Discord, Custom Events and Supporters. The paper section 5.4 lists only "Discord read".
-5. Proposal, not settled: the Rules floor moves. The paper section 2 says Rules keep their floors. The
-   paper section 1.1 shows the Rules manage floor today is Editor. Section 3.2 sets it to Lead Moderator.
+The five contradictions between the paper and this spec are resolved by the floor rule in section 16. The
+resolutions are listed there. Arc's reading: the owner can still overrule any line.
 
 ## 16. Decisions (resolved)
 
@@ -644,3 +631,9 @@ matches the placement ledger. The owner must confirm.
 - Stream live operations are Deck buttons and Live, Stream. Home Live shows the first 8 Deck buttons.
 - The `Route` sealed interface is owned by `frontend.md` §5. This spec maps pages and tabs to groups,
   floors and purpose.
+- Arc's reading: a page's view floor is the lowest read floor of its actions. Its manage floor is the lowest write floor. Each control is disabled below its own action floor, with the reason. A higher rung holds everything a lower rung holds. No server floor changes.
+- Arc's reading: People, Rules. The page manage floor is Lead Moderator (`moderation:automod:write`, `moderation:shieldmode:write`, `spam:lockdown:manage`). Spam policy and Twitch AutoMod levels stay Broadcaster. The Editor edits, because the ladder puts Editor above Lead Moderator. The app gates Rules at Editor today: slice S-IA-MOD-FLOORS / S-IA-GUARD fixes it.
+- Arc's reading: People, Roles. The manage floor is Broadcaster. Assigning Moderator and VIP is Broadcaster (`moderation:vip`, `moderation:moderator:write`). Lead Moderator and Editor read.
+- Arc's reading: Discord. The manage floor is Lead Moderator (config, role and opt-in writes). Moderator reads. Editor holds the Lead Moderator set.
+- Arc's reading: Custom Events. The manage floor is Moderator (`customdata:write`). Supporters: Moderator reads (`supporters:read`), config writes stay Broadcaster.
+- Arc's reading: the Rules floor does not move on the server. Only the app gate changes, from Editor to Lead Moderator, so the owner's line that Rules keep their floors holds.

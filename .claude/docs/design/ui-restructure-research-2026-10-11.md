@@ -173,8 +173,8 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 | Queue | Moderator | Moderator | One queue for held messages, reports, appeals and unban requests. |
 | Viewers | Moderator | Moderator | Was Community. The viewer card: identity on every linked platform, history, notes, points, roles, per-user settings (owner 2026-09-08). |
 | History | Moderator | read-only | Every moderation action: by whom, on which platform. |
-| Rules | Moderator | Lead Moderator | AutoMod, blocked terms, spam defense, mass-ban settings and opt-in. |
-| Roles | Moderator | Broadcaster (assign Moderator and VIP: Lead Moderator) | Moved from Setup. Includes "Individual permissions" (per-user overrides). |
+| Rules | Moderator | Lead Moderator | AutoMod, blocked terms, spam defense, mass-ban settings and opt-in. Spam policy and Twitch AutoMod levels stay Broadcaster. |
+| Roles | Moderator | Broadcaster (assigning Moderator and VIP is Broadcaster) | Moved from Setup. Includes "Individual permissions" (per-user overrides). |
 
 **Loyalty**
 
@@ -199,7 +199,7 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 |---|---|---|---|
 | Discord | Moderator | Lead Moderator | |
 | Webhooks | Broadcaster | Broadcaster | Generic webhooks only. Ko-fi moves to Supporters. |
-| Custom Events | Moderator | Editor | |
+| Custom Events | Moderator | Moderator | |
 | Supporters | Moderator | Broadcaster | Owns Ko-fi and the other supporter feeds. |
 | Federation | Broadcaster | Broadcaster | |
 | API & devices | Editor | Broadcaster | Was "Automation": API tokens, Stream Deck pairing, device codes. |
@@ -296,6 +296,10 @@ A Deck button is a generic primitive: it binds to one action from the existing a
 
 Viewer, Subscriber, VIP, Artist, Moderator, Lead Moderator, Editor, Broadcaster. Platform admin is a separate plane (IAM), not a channel role. Users see the names, never numbers.
 
+### How a page gets its floors
+
+Arc's reading: a page's view floor is the lowest read floor of its actions. Its manage floor is the lowest write floor of its actions. Each control is disabled below its own action floor, with the reason. A higher rung holds everything a lower rung holds (the ladder in 5.1). This keeps the owner's line in section 2: Setup, Connect, People: Rules and role assignment keep their floors. The server floors stay as they are (`ActionDefinitionSeeder.cs`).
+
 ### 5.2 What each role uses most (importance ranking)
 
 The ranking comes from the owner's persona order, the benchmark (section 10) and the stream state (live or offline). Rank 1 is the most important.
@@ -306,7 +310,7 @@ The ranking comes from the owner's persona order, the benchmark (section 10) and
 
 **Moderator:** 1 Chat (with "All my channels" for moderators of many channels), 2 People: Queue, 3 People: Viewers, 4 People: History, 5 Song requests, 6 TTS Live, 7 Deck (moderator buttons), 8 Commands (read, simple replies).
 
-**Lead Moderator:** the Moderator list, plus People: Rules, assigning Moderators and VIPs, and Discord settings.
+**Lead Moderator:** the Moderator list, plus People: Rules and Discord settings.
 
 **Editor:** 1 Commands, 2 Event Responses, 3 Overlays, 4 Pipelines, 5 Triggers & Timers, 6 Library, 7 Stream: Info & presets, 8 Loyalty pages.
 
@@ -331,11 +335,11 @@ The ranking comes from the owner's persona order, the benchmark (section 10) and
 | Build pages | public commands list | edit | edit | edit | edit |
 | Scripts | no | yes | yes | yes | yes |
 | People: Queue, Viewers, History | own standing only | yes | yes | yes | yes |
-| People: Rules | no | read | edit | read | edit |
-| People: Roles | no | read | assign Moderator, VIP | read | all |
+| People: Rules | no | read | edit | edit | edit |
+| People: Roles | no | read | read | read | all |
 | Loyalty | points, store, games | edit | edit | edit | edit |
 | Music & Voice | request songs, pick TTS voice | queue control and settings (not TTS Provider) | queue control and settings (not TTS Provider) | settings | settings |
-| Connect | no | Discord read | Discord edit | Custom events, API read | all |
+| Connect | no | Discord, Custom events (edit), Supporters read | Discord edit, Custom events edit, Supporters read | the Lead Moderator set plus API read | all |
 | Setup | no | Settings read | Settings read | Settings read | all |
 | My data | yes | yes | yes | yes | yes |
 
@@ -474,6 +478,7 @@ Each was seen live or read in code on 2026-10-11. Each has a slice.
 - The a11y tree box is 0 by 0. Browser find matches text, but the highlight is invisible (S-KMP-CMP112 fixes the box).
 - The UI says "Super Mod" (S-IA-NAV).
 - The app hides Code Scripts from a Moderator (nav floor Broadcaster), but the server lets a Moderator write scripts (ActionDefinitionSeeder.cs:179). The app and the server must show the same floors (S-IA-MOD-FLOORS).
+- The app gates Rules at Editor, while the server floor is Lead Moderator (S-IA-MOD-FLOORS / S-IA-GUARD).
 - 48 of 70 app controllers do not refresh live (S-IA-LIVE-EVERYWHERE).
 - `https://nomnomz.bot/` returns 404. The public domain has no landing page yet. This is a deploy item, not a UI item; it is listed for Stoney.
 

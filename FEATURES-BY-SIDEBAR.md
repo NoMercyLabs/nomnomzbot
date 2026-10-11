@@ -83,10 +83,10 @@ One page with six tabs (slice S-USER-HUB, built by S-IA-PEOPLE). Replaces Commun
 | **Queue** | Moderator / Moderator | One queue: held messages, AutoMod queue, reports, appeals, unban requests, spam review and follow-bot blocks. |
 | **Viewers** | Moderator / Moderator | Searchable viewer list and the viewer card: identity on every linked platform, history, notes, points, roles, per-user settings, export and erase. Real provider data only. |
 | **History** | Moderator / read-only | Every moderation action: by whom, on which platform. Nuke batches. |
-| **Rules** | Moderator / Lead Moderator | AutoMod, blocked terms, chat filters, trust policy, spam defense, escalation, mass-ban settings and opt-in. |
-| **Roles (with Individual permissions)** | Moderator / Broadcaster (assign Moderator and VIP: Lead Moderator) | Role memberships, the action-permission matrix, permit grants and per-user overrides. Moved from Setup. |
+| **Rules** | Moderator / Lead Moderator | AutoMod, blocked terms, chat filters, trust policy, spam defense, escalation, mass-ban settings and opt-in. Spam policy and Twitch AutoMod levels stay Broadcaster. |
+| **Roles (with Individual permissions)** | Moderator / Broadcaster (assigning Moderator and VIP is Broadcaster) | Role memberships, the action-permission matrix, permit grants and per-user overrides. Moved from Setup. |
 
-Proposal, not settled: the Rules and Roles manage floors conflict with the Editor column of the paper. See spec section 15.
+Arc's reading: the Rules and Roles floors follow the floor rule in spec section 16 (the five contradictions are resolved there).
 
 ---
 
@@ -119,7 +119,7 @@ Other services that send things in or receive things out.
 |---|---|---|
 | **Discord** | Moderator / Lead Moderator | Guild link, notification rules, self-assign roles, role buttons and dispatch log. The label is Lead Moderator, never Super Mod. |
 | **Webhooks** | Broadcaster / Broadcaster | Generic inbound and outbound webhooks. Ko-fi moved to Supporters. |
-| **Custom Events** | Moderator / Editor | Custom event sources to pipeline or overlay, with sample tests and field mapping. |
+| **Custom Events** | Moderator / Moderator | Custom event sources to pipeline or overlay, with sample tests and field mapping. |
 | **Supporters** | Moderator / Broadcaster | Ko-fi, Patreon, Shopify and TreatStream feeds to alerts and economy. |
 | **Federation** | Broadcaster / Broadcaster | Peer registration, trust, keys and per-channel opt-in. |
 | **API & devices** | Editor / Broadcaster | Was Automation. API tokens, Stream Deck pairing and device codes. |
