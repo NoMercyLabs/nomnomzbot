@@ -202,6 +202,9 @@ internal sealed class SecurityNoticeTestDbContext : DbContext, IApplicationDbCon
     public DbSet<Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         throw new NotSupportedException();
 
+    public DbSet<Domain.Moderation.Entities.RaidAssessment> RaidAssessments =>
+        throw new NotSupportedException();
+
     public DbSet<Domain.Moderation.Entities.LockdownWindowRecord> LockdownWindows =>
         throw new NotSupportedException();
 

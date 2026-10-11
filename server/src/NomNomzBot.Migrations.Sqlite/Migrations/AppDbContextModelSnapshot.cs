@@ -8339,6 +8339,69 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("NetworkNukeBatches");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.RaidAssessment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("AccountCreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EarlierRaidCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsBanned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsNetworkBlocked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RaiderDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RaiderLogin")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RaiderTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Verdict")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ViewerCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "OccurredAt")
+                        .HasDatabaseName("IX_RaidAssessment_Broadcaster_OccurredAt");
+
+                    b.ToTable("RaidAssessments");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanSettings", b =>
                 {
                     b.Property<Guid>("Id")

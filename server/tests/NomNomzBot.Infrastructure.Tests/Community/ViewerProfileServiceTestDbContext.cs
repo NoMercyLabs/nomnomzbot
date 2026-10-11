@@ -116,6 +116,9 @@ internal sealed class ViewerProfileServiceTestDbContext : DbContext, IApplicatio
     public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         Set<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock>();
 
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.RaidAssessment> RaidAssessments =>
+        Set<NomNomzBot.Domain.Moderation.Entities.RaidAssessment>();
+
     public DbSet<NomNomzBot.Domain.Moderation.Entities.LockdownWindowRecord> LockdownWindows =>
         Set<NomNomzBot.Domain.Moderation.Entities.LockdownWindowRecord>();
 

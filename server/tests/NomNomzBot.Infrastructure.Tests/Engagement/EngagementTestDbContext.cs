@@ -225,6 +225,9 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         throw new NotSupportedException();
 
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.RaidAssessment> RaidAssessments =>
+        throw new NotSupportedException();
+
     public DbSet<NomNomzBot.Domain.Moderation.Entities.LockdownWindowRecord> LockdownWindows =>
         throw new NotSupportedException();
 

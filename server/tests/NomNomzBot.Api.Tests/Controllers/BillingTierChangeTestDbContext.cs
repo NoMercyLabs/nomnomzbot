@@ -196,6 +196,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
 
     public DbSet<FollowBotBlock> FollowBotBlocks => throw new NotSupportedException();
 
+    public DbSet<RaidAssessment> RaidAssessments => throw new NotSupportedException();
+
     public DbSet<LockdownWindowRecord> LockdownWindows => throw new NotSupportedException();
 
     public DbSet<SpamSignature> SpamSignatures => throw new NotSupportedException();
