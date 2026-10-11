@@ -48,21 +48,18 @@ public static class AssemblyScanExtensions
     /// <summary>
     /// Registers every concrete <see cref="Microsoft.Extensions.Hosting.IHostedService"/> /
     /// <c>BackgroundService</c> worker in <paramref name="assembly"/> as a hosted service —
-    /// EXCEPT types in <paramref name="excluded"/>, which require special construction
-    /// (e.g. a singleton instance shared between a service interface and the hosted lifecycle).
-    /// This is what wires the currently-unregistered <c>TokenRefreshService</c>.
+    /// EXCEPT a type marked <see cref="RegisteredByHandAttribute"/>, which is wired by hand.
     /// </summary>
     public static IServiceCollection AddHostedWorkers(
         this IServiceCollection services,
-        Assembly assembly,
-        params Type[] excluded
+        Assembly assembly
     )
     {
         Type hostedServiceType = typeof(Microsoft.Extensions.Hosting.IHostedService);
 
         foreach (Type worker in ConcreteTypesAssignableTo(assembly, hostedServiceType))
         {
-            if (excluded.Contains(worker))
+            if (worker.IsDefined(typeof(RegisteredByHandAttribute), inherit: false))
                 continue;
 
             // AddHostedService<T> resolves T as a singleton and registers it for the

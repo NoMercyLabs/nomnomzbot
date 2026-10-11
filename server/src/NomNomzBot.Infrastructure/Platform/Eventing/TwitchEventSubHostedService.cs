@@ -40,6 +40,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// (DbContext, resolver, dispatcher) through <see cref="IServiceScopeFactory"/>.
 /// </para>
 /// </summary>
+[RegisteredByHand]
 public sealed class TwitchEventSubHostedService
     : ITwitchEventSubService,
         IEventSubNotificationSink,

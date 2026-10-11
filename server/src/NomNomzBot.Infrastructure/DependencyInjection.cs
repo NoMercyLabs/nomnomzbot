@@ -405,15 +405,12 @@ public static class DependencyInjection
         services.AddScoped<ISongRequestHandover>(sp =>
             (MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
         );
-        services.AddHostedService<SongRequestQueueRestoreHostedService>();
         // A manual or raid shoutout inside Twitch's global cooldown waits here (in memory, per stream
         // session) and the worker releases it once the cooldown has passed.
         services.AddSingleton<IShoutoutQueue, Stream.ShoutoutQueue>();
         services.AddScoped<IShoutoutSender, Stream.ShoutoutSender>();
-        services.AddHostedService<Stream.ShoutoutQueueWorker>();
         // A known streamer's first chat of a stream waits here for the old bot's auto-shoutout gates.
         services.AddSingleton<IAutoShoutoutScheduler, Stream.AutoShoutout.AutoShoutoutScheduler>();
-        services.AddHostedService<Stream.AutoShoutout.AutoShoutoutWorker>();
         services.AddScoped<
             Application.Raids.IRaidHistoryReader,
             Stream.RaidSuggestions.RaidHistoryReader
@@ -425,16 +422,8 @@ public static class DependencyInjection
         services.AddScoped<Stream.RaidSuggestions.RaidSuggestionService>();
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
-        services.AddHostedService<Stream.AdBreak.AdBreakEndWorker>();
         // A live channel's ad schedule is read once a minute; chat and the overlays hear the warnings before an ad.
         services.AddSingleton<IAdScheduleWarner, Stream.AdBreak.AdScheduleWarner>();
-        services.AddHostedService<Stream.AdBreak.AdScheduleWorker>();
-        // Polls every connected music integration at a flat 1s cadence and publishes PlaybackStateChangedEvent
-        // on any state the bot didn't cause itself (streamer's own phone/desktop app, a track ending, a manual
-        // seek) — without this registration the class compiles and is fully tested but nothing ever runs it, so
-        // the dashboard/overlay/StreamDeck now-playing surfaces only ever update on a bot-caused mutation and
-        // otherwise go stale indefinitely (BackgroundServices/MusicStatePollingService.cs).
-        services.AddHostedService<MusicStatePollingService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
@@ -654,14 +643,12 @@ public static class DependencyInjection
             Application.CustomEvents.Services.ICustomDataPollService,
             CustomEvents.CustomDataPollService
         >();
-        services.AddHostedService<CustomEvents.CustomDataPollHostedService>();
         // Socket ingress: one long-lived wss client per enabled socket source (Pulsoid/HypeRate heart-rate),
         // IRunOnceGuard-guarded, reconnecting with backoff (custom-events.md D2).
         services.AddSingleton<
             CustomEvents.Sockets.ICustomDataSocketFrameSource,
             CustomEvents.Sockets.ClientWebSocketDataFrameSource
         >();
-        services.AddHostedService<CustomEvents.CustomDataSocketHostedService>();
         services.AddSingleton<
             Application.CustomEvents.Services.ICustomDataSourcePreset,
             CustomEvents.Presets.PulsoidPreset
@@ -710,7 +697,6 @@ public static class DependencyInjection
             Supporters.SupporterPollHostedService.HttpClientName,
             client => client.Timeout = TimeSpan.FromSeconds(10)
         );
-        services.AddHostedService<Supporters.SupporterPollHostedService>();
 
         // Live-socket supporter ingress (supporter-events.md D3): one stream per enabled socket/ws
         // connection whose provider has a dialect profile; the composite routes each profile to its
@@ -745,7 +731,6 @@ public static class DependencyInjection
             Supporters.Sockets.SocketIoFrameSource.HttpClientName,
             client => client.Timeout = TimeSpan.FromSeconds(10)
         );
-        services.AddHostedService<Supporters.SupporterSocketHostedService>();
 
         // ── Marketplace client (marketplace.md §6) ──────────────────────────
         // The hosted-catalog base URL (D7 — configurable, default = the NoMercy public marketplace) and the
@@ -789,9 +774,8 @@ public static class DependencyInjection
             Billing.StripeWebhookHandler
         >();
 
-        // Outbound webhook retry drain (scoped processor + the hosted worker that ticks it).
+        // Outbound webhook retry drain (scoped processor; the scanned WebhookDeliveryWorker ticks it).
         services.AddScoped<WebhookRetryProcessor>();
-        services.AddHostedService<WebhookDeliveryWorker>();
 
         // Analytics — the shared viewer-as-User resolver the per-viewer projections fold through.
         services.AddScoped<Analytics.ViewerResolver>();
@@ -897,20 +881,11 @@ public static class DependencyInjection
             ServiceLifetime.Scoped
         );
 
-        // Hosted workers (singleton — long-lived BackgroundService/IHostedService). The two
-        // singleton+hosted services below share one instance with their service interface, so
-        // they are wired explicitly and excluded here. This auto-wires TokenRefreshService.
-        services.AddHostedWorkers(
-            infrastructure,
-            typeof(TwitchEventSubHostedService),
-            // Must be registered AFTER the EventSub host (stop order) — wired explicitly beside it.
-            typeof(BotShutdownAnnouncementService),
-            typeof(ChannelRegistry),
-            // Profile-gated above (self-host only) — must not be picked up unconditionally by the worker scan.
-            typeof(MdnsAdvertiserHostedService),
-            // Profile-gated above (never SaaS) — the IPC local socket must not ride the unconditional scan.
-            typeof(Services.Ipc.IpcDevModeListenerService)
-        );
+        // Hosted workers (singleton — long-lived BackgroundService/IHostedService). Every worker rides this
+        // scan, so never add AddHostedService<T> for one: that registers it twice and the host runs it twice.
+        // A worker that needs a start order, a profile gate or a shared instance carries [RegisteredByHand]
+        // and is wired by hand beside its reason.
+        services.AddHostedWorkers(infrastructure);
 
         // Security — envelope encryption (gdpr-crypto spec). Field cipher = AES-256-GCM + AAD over a
         // per-subject DEK; the DEK is wrapped by the deployment KEK held in an OS-native secure store
@@ -1524,15 +1499,15 @@ public static class DependencyInjection
             Discord.Interactions.DiscordInteractionVerifier
         >();
         // The "currently live" role rule (live-role extension): IDiscordLiveRoleService is convention-bound;
-        // DiscordLiveRoleOnlineHandler/OfflineHandler are auto-discovered (IEventHandler<> scan). This hosted
-        // service self-heals a role stranded by a missed offline event (bot restart/crash) on startup.
-        services.AddHostedService<Discord.DiscordLiveRoleReconciliationHostedService>();
+        // DiscordLiveRoleOnlineHandler/OfflineHandler are auto-discovered (IEventHandler<> scan); the scanned
+        // DiscordLiveRoleReconciliationHostedService self-heals a role stranded by a missed offline event.
 
         // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
-        // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).
+        // AND the hosted lifecycle, so it is [RegisteredByHand] and skipped by the worker scan).
         services.AddSingleton<IChannelRegistry, ChannelRegistry>();
         services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<IChannelRegistry>());
         // Populates the registry from DB on startup so commands and timers fire from the first message.
+        // [RegisteredByHand]: it must start after the ChannelRegistry hosted service above.
         services.AddHostedService<ChannelRegistryBootstrapService>();
 
         // BotSelfEchoGuard (S009) — singleton so its per-tenant bot-identity cache survives across the
@@ -1910,9 +1885,6 @@ public static class DependencyInjection
             Application.Contracts.EventStore.IEventUpcasterRegistry,
             EventStore.EventUpcasterRegistry
         >();
-        // The projection driver (event-store.md §3.3) — periodically advances every projection to the journal
-        // head so live appends reach the read models (without it, projections only move during import/rebuild).
-        services.AddHostedService<EventStore.EventStoreProjectionDriver>();
 
         // EventType → CLR type lookup for replay (a closed reflection scan over NomNomzBot.Domain only, built
         // once — see DomainEventTypeRegistry's own doc comment for why this is safe against a crafted import).

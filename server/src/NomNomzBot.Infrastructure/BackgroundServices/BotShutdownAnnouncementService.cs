@@ -18,6 +18,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -32,6 +33,7 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// hold shutdown open.
 /// </para>
 /// </summary>
+[RegisteredByHand]
 public sealed class BotShutdownAnnouncementService(
     IServiceScopeFactory scopeFactory,
     IActiveInstanceGate instanceGate,

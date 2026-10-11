@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Enums.Deployment;
+using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Services.Ipc;
@@ -33,6 +34,7 @@ namespace NomNomzBot.Infrastructure.Services.Ipc;
 /// <see cref="MaxConcurrentConnections"/>, frames at <see cref="StreamIpcConnection.MaxFrameBytes"/>,
 /// and idle sessions at <see cref="IdleTimeout"/> — all clock work rides <see cref="TimeProvider"/>.
 /// </summary>
+[RegisteredByHand]
 public sealed class IpcDevModeListenerService : IHostedService, IDisposable
 {
     /// <summary>Dev tooling is one or two local processes; anything beyond this is refused politely.</summary>

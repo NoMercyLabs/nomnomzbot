@@ -16,8 +16,11 @@ using Microsoft.Extensions.Hosting;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Deployment;
+using NomNomzBot.Infrastructure.Services.Ipc;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform;
 
@@ -32,19 +35,21 @@ public class AssemblyScanDiscoveryTests
 {
     private static readonly Assembly InfrastructureAssembly = typeof(DependencyInjection).Assembly;
 
-    private static ServiceProvider BuildProvider(bool validate)
+    private static ServiceCollection BuildServices(string? deploymentMode = null)
     {
+        Dictionary<string, string?> settings = new()
+        {
+            // No Redis → in-memory cache branch; no Twitch creds needed to build the graph.
+            ["Encryption:Key"] = Convert.ToBase64String(new byte[32]),
+            ["Jwt:Secret"] = "test-secret-key-at-least-32-characters-long!!",
+            ["ConnectionStrings:DefaultConnection"] =
+                "Host=localhost;Database=scan_test;Username=test;Password=test",
+        };
+        if (deploymentMode is not null)
+            settings["Deployment:Mode"] = deploymentMode;
+
         IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    // No Redis → in-memory cache branch; no Twitch creds needed to build the graph.
-                    ["Encryption:Key"] = Convert.ToBase64String(new byte[32]),
-                    ["Jwt:Secret"] = "test-secret-key-at-least-32-characters-long!!",
-                    ["ConnectionStrings:DefaultConnection"] =
-                        "Host=localhost;Database=scan_test;Username=test;Password=test",
-                }
-            )
+            .AddInMemoryCollection(settings)
             .Build();
 
         ServiceCollection services = new();
@@ -55,10 +60,14 @@ public class AssemblyScanDiscoveryTests
         services.AddApplication();
         services.AddInfrastructure(configuration);
 
-        return services.BuildServiceProvider(
-            new ServiceProviderOptions { ValidateOnBuild = validate, ValidateScopes = validate }
-        );
+        return services;
     }
+
+    private static ServiceProvider BuildProvider(bool validate, string? deploymentMode = null) =>
+        BuildServices(deploymentMode)
+            .BuildServiceProvider(
+                new ServiceProviderOptions { ValidateOnBuild = validate, ValidateScopes = validate }
+            );
 
     private static int CountConcreteAssignableTo(Type marker) =>
         InfrastructureAssembly
@@ -194,6 +203,58 @@ public class AssemblyScanDiscoveryTests
                 "the previously-unregistered token refresh worker must now run"
             );
         hosted.Should().HaveCountGreaterThanOrEqualTo(expectedWorkers);
+    }
+
+    [Fact]
+    public void Every_hosted_worker_in_the_assembly_is_started_exactly_once()
+    {
+        // The host starts one instance per IHostedService entry. A worker both scanned and wired by hand
+        // gets two entries, so it runs twice: the 2026-10-11 live bug where AdScheduleWorker sent every
+        // ad warning to chat twice. Self-host lite turns every profile gate on, so every worker type in
+        // the assembly must appear here exactly once — not twice (doubled), not zero times (never runs).
+        List<Type> workerTypes =
+        [
+            .. InfrastructureAssembly
+                .GetTypes()
+                .Where(t =>
+                    t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+                    && typeof(IHostedService).IsAssignableFrom(t)
+                ),
+        ];
+        workerTypes.Should().NotBeEmpty();
+
+        using ServiceProvider provider = BuildProvider(
+            validate: false,
+            deploymentMode: nameof(DeploymentMode.SelfHostLite)
+        );
+        List<Type> started = [.. provider.GetServices<IHostedService>().Select(h => h.GetType())];
+
+        started
+            .Should()
+            .OnlyHaveUniqueItems("a worker registered twice starts twice and doubles its effects");
+        // Framework hosted services (data protection, health-check publisher) ride along; only ours are compared.
+        started
+            .Where(t => t.Assembly == InfrastructureAssembly)
+            .Should()
+            .BeEquivalentTo(workerTypes);
+    }
+
+    [Fact]
+    public void Profile_gated_workers_are_not_registered_on_saas()
+    {
+        // The mDNS advertiser and the IPC dev-mode listener are switched on by a profile gate in
+        // AddInfrastructure. The worker scan must never add them behind that gate's back.
+        Type[] gated = [typeof(MdnsAdvertiserHostedService), typeof(IpcDevModeListenerService)];
+
+        ServiceCollection services = BuildServices(nameof(DeploymentMode.Saas));
+
+        services
+            .Where(d =>
+                gated.Contains(d.ServiceType)
+                || (!d.IsKeyedService && gated.Contains(d.ImplementationType))
+            )
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]

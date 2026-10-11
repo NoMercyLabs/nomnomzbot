@@ -27,6 +27,7 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// instance must fill its own. During a blue/green overlap the incoming colour is the one that must
 /// serve once the outgoing colour stops — a lease here left it with an empty registry.
 /// </summary>
+[RegisteredByHand]
 public sealed class ChannelRegistryBootstrapService : IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;

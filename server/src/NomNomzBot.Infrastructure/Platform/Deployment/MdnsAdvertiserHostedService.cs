@@ -26,6 +26,7 @@ namespace NomNomzBot.Infrastructure.Platform.Deployment;
 /// network-interface change. Shutdown unadvertises cleanly so a stale record doesn't linger on the LAN.
 /// </para>
 /// </summary>
+[RegisteredByHand]
 public sealed class MdnsAdvertiserHostedService : IHostedService, IDisposable
 {
     // How often to re-check the bound port while the host is still finishing startup.

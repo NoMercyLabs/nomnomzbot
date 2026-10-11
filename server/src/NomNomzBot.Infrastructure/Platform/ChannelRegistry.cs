@@ -26,6 +26,7 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// Singleton in-memory registry of all active channel contexts.
 /// Implements <see cref="IHostedService"/> to manage the background eviction timer.
 /// </summary>
+[RegisteredByHand]
 public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 {
     private readonly ConcurrentDictionary<Guid, ChannelContext> _channels = new();
