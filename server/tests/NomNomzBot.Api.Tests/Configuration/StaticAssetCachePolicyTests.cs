@@ -16,10 +16,9 @@ namespace NomNomzBot.Api.Tests.Configuration;
 public sealed class StaticAssetCachePolicyTests
 {
     [Theory]
-    [InlineData("composeApp.js")]
     [InlineData("index.html")]
     [InlineData("INDEX.HTML")]
-    public void EntryPoints_AreNeverStored_SoAReloadRunsTheDeployedBuild(string fileName)
+    public void TheShellDocument_IsNeverStored_SoAReloadRunsTheDeployedBuild(string fileName)
     {
         StaticAssetCachePolicy.For(fileName).Should().Be(StaticAssetCachePolicy.EntryPoint);
     }
@@ -43,6 +42,7 @@ public sealed class StaticAssetCachePolicyTests
     [InlineData("activity.svg")]
     [InlineData("strings.cvr")]
     [InlineData("composeApp.js.map")]
+    [InlineData("composeApp.js")]
     public void BuildVaryingAssets_StayRevalidatedButBecomeEdgeCacheable(string fileName)
     {
         string policy = StaticAssetCachePolicy.For(fileName);
@@ -63,7 +63,7 @@ public sealed class StaticAssetCachePolicyTests
             .Should()
             .NotBe(
                 StaticAssetCachePolicy.Immutable,
-                "a cached entry point pins the browser to an old build"
+                "a script cached without revalidation pins the browser to an old build"
             );
     }
 }

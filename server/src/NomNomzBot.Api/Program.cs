@@ -11,7 +11,6 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -122,25 +121,7 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // Compresses the Wasm dashboard bundle (tens of MB uncompressed) and its JS/CSS/octet-stream siblings —
-    // nothing else. Scoped to exactly those MIME types (not the default set, which would also compress
-    // application/json) so an authenticated API response is never compressed alongside attacker-influenceable
-    // input — the classic BREACH-attack precondition this deliberately avoids reintroducing for a load-time
-    // win. EnableForHttps=true because the whole app is served over HTTPS in every real deployment.
-    builder.Services.AddResponseCompression(options =>
-    {
-        options.EnableForHttps = true;
-        options.MimeTypes =
-        [
-            "application/wasm",
-            "text/javascript",
-            "application/javascript",
-            "text/css",
-            "application/octet-stream",
-        ];
-        options.Providers.Add<BrotliCompressionProvider>();
-        options.Providers.Add<GzipCompressionProvider>();
-    });
+    builder.Services.AddDashboardResponseCompression();
 
     // Controllers.
     //

@@ -15,7 +15,7 @@ namespace NomNomzBot.Api.Configuration;
 /// </summary>
 public static class StaticAssetCachePolicy
 {
-    /// <summary>Always re-fetched: these names are stable across builds, so a cached copy is a stale build.</summary>
+    /// <summary>Always re-fetched: the shell document is stable across builds, so a cached copy is a stale build.</summary>
     public const string EntryPoint = "no-store, no-cache, must-revalidate";
 
     /// <summary>Content-addressed or content-stable, and the bulk of the bytes: never revalidated, edge-cacheable.</summary>
@@ -24,7 +24,9 @@ public static class StaticAssetCachePolicy
     /// <summary>Changes with a build under a stable name: edge-cacheable, but revalidated against the ETag.</summary>
     public const string Revalidated = "public, no-cache, must-revalidate";
 
-    private static readonly string[] EntryPointNames = ["composeApp.js", "index.html"];
+    // composeApp.js is not here: it is revalidated by ETag, so a deploy lands on the next load and a repeat
+    // visit costs a 304 instead of the whole script.
+    private static readonly string[] EntryPointNames = ["index.html"];
 
     private static readonly string[] ImmutableExtensions =
     [
