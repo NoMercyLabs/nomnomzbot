@@ -130,22 +130,14 @@
       (owner report 2026-09-10: "the fonts don't load fast enough"). These hints start every fetch the
       moment the HTML parses, in parallel with composeApp.js, instead of serially after it.
       inter.ttf is the only face the app's OWN UI ever needs (en/nl) — fetchpriority="high" so its
-      ~900KB races ahead of the much larger script-fallback faces below (Arabic/Thai/Han/Hangul/emoji,
-      ~34MB combined), which exist only for arbitrary user-generated text (chat, display names) and
-      stay at default priority so they never compete with Inter or composeApp.js for bandwidth.
+      ~900KB races ahead of composeApp.js. It is the only face preloaded. The script-fallback faces
+      (Arabic/Thai/Han/Hangul/emoji/..., ~34MB combined) exist only for arbitrary user-generated text (chat,
+      display names), so the app fetches each one on demand, the first time its script appears in text the
+      operator sees (FallbackFonts.kt). A first visit never pays for them.
       as="fetch", not as="font": Compose reads the files with fetch(), and a font-destination preload never
-      matches a fetch, so every face downloaded twice. noto_emoji (the monochrome opt-in) is fetched on demand.
+      matches a fetch, so the face would download twice.
     -->
     <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/inter.ttf" crossorigin fetchpriority="high">
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_arabic.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_thai.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_sc.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_kr.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/twemoji_color.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_math.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_canadian_aboriginal.ttf" crossorigin>
-    <link rel="preload" as="fetch" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_cherokee.ttf" crossorigin>
     <!--
       Display-language override hook. The Compose/Wasm app publishes the operator's forced UI language
       to window.__customLocale; this makes navigator.languages return it so Compose resources resolve

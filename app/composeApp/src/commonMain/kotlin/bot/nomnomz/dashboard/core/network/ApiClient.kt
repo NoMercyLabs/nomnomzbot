@@ -10,10 +10,12 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import bot.nomnomz.dashboard.core.designsystem.theme.FallbackFontDemand
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.observer.ResponseObserver
 import io.ktor.client.request.delete
 import io.ktor.client.request.patch
 import io.ktor.client.request.forms.MultiPartFormDataContent
@@ -121,6 +123,16 @@ class ApiClient(
     @PublishedApi
     internal val httpClient: HttpClient = buildHttpClient {
         install(ContentNegotiation) { json(this@ApiClient.json) }
+        // Asks for a fallback font face when a response carries a script Inter cannot draw. The observer reads
+        // its own copy of the body, so the caller still gets the response untouched.
+        install(ResponseObserver) {
+            onResponse { response: HttpResponse ->
+                val type: ContentType? = response.contentType()
+                if (type != null && (type.match(ContentType.Application.Json) || type.match(ContentType.Text.Any))) {
+                    FallbackFontDemand.App.observeJson(response.bodyAsText())
+                }
+            }
+        }
         defaultRequest {
             // Per-request bearer; the base URL is applied per-call by the facade (the active
             // profile can change between requests, so it is not pinned in defaultRequest).

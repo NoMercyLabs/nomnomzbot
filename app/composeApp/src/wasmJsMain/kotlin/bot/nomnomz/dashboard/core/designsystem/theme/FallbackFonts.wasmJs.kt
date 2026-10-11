@@ -12,6 +12,9 @@ package bot.nomnomz.dashboard.core.designsystem.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.font.FontFamily
@@ -26,12 +29,15 @@ import org.jetbrains.compose.resources.rememberResourceEnvironment
 // resolver's preload: a preloaded face joins the fallback provider, and any glyph the styled face lacks is
 // looked up in it. Not preloadFont(): its loader lets a failed download escape into the composition, which
 // kills the recomposer and freezes the whole dashboard over one missing script.
+// A face is read only after its script was demanded (FallbackFontDemand), so the first visit stays small.
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 internal actual fun PreloadFallbackFonts(colorEmoji: Boolean) {
     val resolver: FontFamily.Resolver = LocalFontFamilyResolver.current
     val environment: ResourceEnvironment = rememberResourceEnvironment()
-    for (face: FontResource in fallbackFontFaces(colorEmoji)) {
+    val demanded: Set<FallbackScript> by FallbackFontDemand.App.scripts.collectAsState()
+    for (script: FallbackScript in demanded) {
+        val face: FontResource = script.face(colorEmoji)
         key(face) {
             LaunchedEffect(face) {
                 val bytes: ByteArray = readFallbackFont { getFontResourceBytes(environment, face) } ?: return@LaunchedEffect

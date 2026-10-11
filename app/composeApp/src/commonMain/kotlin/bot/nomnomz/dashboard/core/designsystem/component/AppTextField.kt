@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import bot.nomnomz.dashboard.core.designsystem.theme.ControlPalette
+import bot.nomnomz.dashboard.core.designsystem.theme.FallbackFontDemand
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.info_square
@@ -112,7 +113,10 @@ fun AppTextField(
     ) { fieldModifier, textStyle, interactionSource, decorationBox ->
         BasicTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { typed: String ->
+                FallbackFontDemand.App.observe(typed)
+                onValueChange(typed)
+            },
             enabled = enabled,
             singleLine = true,
             textStyle = textStyle,
@@ -158,7 +162,10 @@ fun AppTextField(
     ) { fieldModifier, textStyle, interactionSource, decorationBox ->
         BasicTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { typed: TextFieldValue ->
+                FallbackFontDemand.App.observe(typed.text)
+                onValueChange(typed)
+            },
             enabled = enabled,
             singleLine = true,
             textStyle = textStyle,

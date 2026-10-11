@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.realtime
 
+import bot.nomnomz.dashboard.core.designsystem.theme.FallbackFontDemand
 import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSystem
 import kotlinx.coroutines.CoroutineScope
@@ -223,6 +224,7 @@ class AdminHubClient {
                             withTimeoutOrNull(ReceiveTimeoutMillis) { hubSocket.receive() } ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
+                            FallbackFontDemand.App.observeJson(segment)
                             dispatchSegment(hubSocket, segment)
                         }
                     }

@@ -37,21 +37,21 @@ import org.jetbrains.compose.resources.FontResource
 // - Noto Sans Cherokee: Cherokee (Ꮩ)
 // The emoji face follows the operator's EmojiStyle preference. All Noto faces are SIL OFL 1.1
 // (composeResources/files/licenses/OFL-fonts.txt).
-internal fun fallbackFontFaces(colorEmoji: Boolean): List<FontResource> =
-    listOf(
-        Res.font.noto_sans,
-        Res.font.noto_sans_arabic,
-        Res.font.noto_sans_thai,
-        Res.font.noto_sans_sc,
-        Res.font.noto_sans_kr,
-        Res.font.noto_sans_math,
-        Res.font.noto_sans_canadian_aboriginal,
-        Res.font.noto_sans_cherokee,
-        if (colorEmoji) Res.font.twemoji_color else Res.font.noto_emoji,
-    )
+internal fun FallbackScript.face(colorEmoji: Boolean): FontResource =
+    when (this) {
+        FallbackScript.ExtendedLatin -> Res.font.noto_sans
+        FallbackScript.Arabic -> Res.font.noto_sans_arabic
+        FallbackScript.Thai -> Res.font.noto_sans_thai
+        FallbackScript.Han -> Res.font.noto_sans_sc
+        FallbackScript.Hangul -> Res.font.noto_sans_kr
+        FallbackScript.Math -> Res.font.noto_sans_math
+        FallbackScript.CanadianAboriginal -> Res.font.noto_sans_canadian_aboriginal
+        FallbackScript.Cherokee -> Res.font.noto_sans_cherokee
+        FallbackScript.Emoji -> if (colorEmoji) Res.font.twemoji_color else Res.font.noto_emoji
+    }
 
-// Registers [fallbackFontFaces] as per-glyph fallbacks. A FontFamily picks ONE face per weight and style and
-// never walks its list per glyph, so the faces cannot simply be listed beside Inter.
+// Registers the face of each demanded script (FallbackFontDemand) as a per-glyph fallback. A FontFamily picks ONE
+// face per weight and style and never walks its list per glyph, so the faces cannot simply be listed beside Inter.
 @Composable
 internal expect fun PreloadFallbackFonts(colorEmoji: Boolean)
 

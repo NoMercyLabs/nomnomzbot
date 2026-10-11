@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.realtime
 
+import bot.nomnomz.dashboard.core.designsystem.theme.FallbackFontDemand
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -398,6 +399,7 @@ class DashboardHubClient {
                             withTimeoutOrNull(ReceiveTimeoutMillis) { hubSocket.receive() } ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
+                            FallbackFontDemand.App.observeJson(segment)
                             dispatchSegment(hubSocket, segment)
                         }
                     }
