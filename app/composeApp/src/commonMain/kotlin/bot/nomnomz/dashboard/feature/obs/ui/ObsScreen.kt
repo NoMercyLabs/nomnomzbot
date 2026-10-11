@@ -23,19 +23,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -49,28 +46,23 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
-import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
-import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
-import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.Textarea
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.media.decodeStaticImage
 import bot.nomnomz.dashboard.core.network.ApiResult
-import bot.nomnomz.dashboard.core.network.ObsConnection
-import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsMediaAction
 import bot.nomnomz.dashboard.core.network.ObsScene
-import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsStats
 import bot.nomnomz.dashboard.core.network.ObsTransition
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -89,27 +81,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.obs_bridge_copied
-import nomnomzbot.composeapp.generated.resources.obs_bridge_copy
-import nomnomzbot.composeapp.generated.resources.obs_bridge_desc
-import nomnomzbot.composeapp.generated.resources.obs_bridge_offline
-import nomnomzbot.composeapp.generated.resources.obs_bridge_online
-import nomnomzbot.composeapp.generated.resources.obs_bridge_rotate
-import nomnomzbot.composeapp.generated.resources.obs_bridge_title
 import nomnomzbot.composeapp.generated.resources.obs_batch_desc
 import nomnomzbot.composeapp.generated.resources.obs_batch_input_hint
 import nomnomzbot.composeapp.generated.resources.obs_batch_input_label
 import nomnomzbot.composeapp.generated.resources.obs_batch_title
-import nomnomzbot.composeapp.generated.resources.obs_bridge_url_label
 import nomnomzbot.composeapp.generated.resources.obs_browser_refresh
-import nomnomzbot.composeapp.generated.resources.obs_clear_password
-import nomnomzbot.composeapp.generated.resources.obs_connection_desc
-import nomnomzbot.composeapp.generated.resources.obs_connection_title
+import nomnomzbot.composeapp.generated.resources.obs_connect_action
+import nomnomzbot.composeapp.generated.resources.obs_connect_missing
 import nomnomzbot.composeapp.generated.resources.obs_control_desc
 import nomnomzbot.composeapp.generated.resources.obs_control_title
 import nomnomzbot.composeapp.generated.resources.obs_current_scene
-import nomnomzbot.composeapp.generated.resources.obs_direct_remote_warning
-import nomnomzbot.composeapp.generated.resources.obs_enabled_label
 import nomnomzbot.composeapp.generated.resources.obs_error
 import nomnomzbot.composeapp.generated.resources.obs_filter_enabled_action
 import nomnomzbot.composeapp.generated.resources.obs_filter_row_type
@@ -117,11 +98,11 @@ import nomnomzbot.composeapp.generated.resources.obs_filters_desc
 import nomnomzbot.composeapp.generated.resources.obs_filters_empty
 import nomnomzbot.composeapp.generated.resources.obs_filters_pick_source
 import nomnomzbot.composeapp.generated.resources.obs_filters_title
-import nomnomzbot.composeapp.generated.resources.obs_host_label
 import nomnomzbot.composeapp.generated.resources.obs_hotkey_row_type
 import nomnomzbot.composeapp.generated.resources.obs_hotkeys_desc
 import nomnomzbot.composeapp.generated.resources.obs_hotkeys_empty
 import nomnomzbot.composeapp.generated.resources.obs_hotkeys_title
+import nomnomzbot.composeapp.generated.resources.obs_input_row_type
 import nomnomzbot.composeapp.generated.resources.obs_loading
 import nomnomzbot.composeapp.generated.resources.obs_media_next
 import nomnomzbot.composeapp.generated.resources.obs_media_pause
@@ -134,19 +115,12 @@ import nomnomzbot.composeapp.generated.resources.obs_mixer_desc
 import nomnomzbot.composeapp.generated.resources.obs_mixer_empty
 import nomnomzbot.composeapp.generated.resources.obs_mixer_mute_action
 import nomnomzbot.composeapp.generated.resources.obs_mixer_title
-import nomnomzbot.composeapp.generated.resources.obs_mode_bridge
-import nomnomzbot.composeapp.generated.resources.obs_mode_direct
-import nomnomzbot.composeapp.generated.resources.obs_mode_label
 import nomnomzbot.composeapp.generated.resources.obs_no_scenes
 import nomnomzbot.composeapp.generated.resources.obs_not_reachable
 import nomnomzbot.composeapp.generated.resources.obs_not_reachable_detail
 import nomnomzbot.composeapp.generated.resources.obs_outputs_label
-import nomnomzbot.composeapp.generated.resources.obs_password_hint
-import nomnomzbot.composeapp.generated.resources.obs_password_label
-import nomnomzbot.composeapp.generated.resources.obs_password_stored
 import nomnomzbot.composeapp.generated.resources.obs_passthrough_response_label
 import nomnomzbot.composeapp.generated.resources.obs_passthrough_send
-import nomnomzbot.composeapp.generated.resources.obs_port_label
 import nomnomzbot.composeapp.generated.resources.obs_recording_pause
 import nomnomzbot.composeapp.generated.resources.obs_recording_resume
 import nomnomzbot.composeapp.generated.resources.obs_recording_split
@@ -156,14 +130,12 @@ import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_save
 import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_start
 import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_stop
 import nomnomzbot.composeapp.generated.resources.obs_retry
-import nomnomzbot.composeapp.generated.resources.obs_save
 import nomnomzbot.composeapp.generated.resources.obs_scene_item_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scene_item_visible_action
 import nomnomzbot.composeapp.generated.resources.obs_scene_items_desc
 import nomnomzbot.composeapp.generated.resources.obs_scene_items_empty
 import nomnomzbot.composeapp.generated.resources.obs_scene_items_pick_scene
 import nomnomzbot.composeapp.generated.resources.obs_scene_items_title
-import nomnomzbot.composeapp.generated.resources.obs_input_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scene_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scenes_label
 import nomnomzbot.composeapp.generated.resources.obs_screenshot_alt
@@ -185,9 +157,6 @@ import nomnomzbot.composeapp.generated.resources.obs_stats_memory
 import nomnomzbot.composeapp.generated.resources.obs_stats_output_frames
 import nomnomzbot.composeapp.generated.resources.obs_stats_render_frames
 import nomnomzbot.composeapp.generated.resources.obs_stats_title
-import nomnomzbot.composeapp.generated.resources.obs_status_disabled
-import nomnomzbot.composeapp.generated.resources.obs_status_enabled
-import nomnomzbot.composeapp.generated.resources.obs_status_error
 import nomnomzbot.composeapp.generated.resources.obs_streaming_start
 import nomnomzbot.composeapp.generated.resources.obs_streaming_stop
 import nomnomzbot.composeapp.generated.resources.obs_studio_mode_cut
@@ -211,32 +180,32 @@ import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_stop
 import nomnomzbot.composeapp.generated.resources.shell_nav_obs
 import org.jetbrains.compose.resources.stringResource
 
-// The OBS-control page (frontend-ia.md, Connect group): the channel's OBS WebSocket connection config, the
-// browser-source bridge, and live scene/output control (obs-control.md §4/§5). A pure projection of
-// [ObsController]. Config writes gate at the page's Broadcaster manage floor; scene switching at Moderator
-// (obs:control); streaming/recording at Broadcaster (obs:control:broadcast). The `/obs-bridge` browser-source
-// page itself is a server-served static asset (see the for-backend handoff entry) — not built here.
+// Which of the OBS page's two tabs a screen shows.
+enum class ObsSection(val route: ShellRoute) {
+    Live(ShellRoute.ObsLiveControl),
+    Advanced(ShellRoute.ObsAdvanced),
+}
+
+// The OBS-control page (frontend-ia.md): Live control (scenes, mixer, outputs, studio mode, transitions) and
+// Advanced (source filters and actions, hotkeys, screenshots, stats, raw requests) (obs-control.md §4/§5). The
+// connection form and the browser-source bridge live on Integrations; while OBS is not connected both tabs show
+// one connect step that opens it. A pure projection of [ObsController]. Scene switching gates at Moderator
+// (obs:control); streaming/recording at Broadcaster (obs:control:broadcast).
 @Composable
 fun ObsScreen(
     controller: ObsController,
     role: ManagementRole?,
+    section: ObsSection,
+    onOpenIntegrations: () -> Unit,
     hubEvents: SharedFlow<HubEvent>? = null,
-    backendOrigin: String? = null,
 ) {
     val state: ObsUiState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    // Config writes = the page's own manage floor (Broadcaster). Scene switching = Moderator (obs:control).
-    // Streaming/recording = Broadcaster (obs:control:broadcast) — the two named sub-floors gate at explicit floors.
-    val configManage: ManageDecision = rememberManageDecision(role, ShellRoute.Obs)
+    // Scene switching = Moderator (obs:control). Streaming/recording = Broadcaster (obs:control:broadcast).
     val controlManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
     val broadcastManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
-
-    // Direct mode dials the bot SERVER's own machine — so it only works when OBS runs beside the bot (self-host).
-    // If this dashboard is talking to a remote/public server (hosted / SaaS), direct can never reach the user's
-    // OBS, and they must use the browser-source bridge instead. Detect that from the backend origin.
-    val isRemoteDeployment: Boolean = remember(backendOrigin) { !isLocalOrigin(backendOrigin) }
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {
@@ -257,115 +226,12 @@ fun ObsScreen(
                         title = stringResource(Res.string.shell_nav_obs),
                         subtitle = stringResource(Res.string.obs_subtitle),
                     )
-                    ConnectionCard(
-                        connection = current.connection,
-                        manage = configManage,
-                        isRemoteDeployment = isRemoteDeployment,
-                        onSave = { mode, host, port, password, enabled ->
-                            controller.saveConnection(mode, host, port, password, enabled)
-                        },
-                        onClearPassword = { scope.launch { controller.clearPassword() } },
-                    )
-                    BridgeCard(
-                        bridgeUrl = current.bridgeSetup?.bridgeUrl,
-                        instanceCount = current.bridgeStatus?.instanceCount ?: 0,
-                        online = (current.bridgeStatus?.instanceCount ?: 0) > 0,
-                        manage = configManage,
-                        onRotate = { scope.launch { controller.rotateBridgeToken() } },
-                    )
-                    ControlCard(
-                        live = current.live,
-                        controlManage = controlManage,
-                        broadcastManage = broadcastManage,
-                        onSwitchScene = { scene -> scope.launch { controller.switchScene(scene) } },
-                        onToggleStreaming = { scope.launch { controller.toggleStreaming() } },
-                        onToggleRecording = { scope.launch { controller.toggleRecording() } },
-                        onPauseRecording = { scope.launch { controller.pauseRecording() } },
-                        onResumeRecording = { scope.launch { controller.resumeRecording() } },
-                        onSplitRecording = { scope.launch { controller.splitRecording() } },
-                        onToggleReplayBuffer = { controller.toggleReplayBuffer() },
-                        onSaveReplayBuffer = { controller.saveReplayBuffer() },
-                        onToggleVirtualCam = { scope.launch { controller.toggleVirtualCam() } },
-                        // The retry re-reads EVERYTHING (bridge status + setup + probe + live), not just live — a
-                        // bridge that just came online is reflected here, not only after a full page reload.
-                        onRefresh = { scope.launch { controller.refresh() } },
-                    )
-                    if (current.live.reachable) {
-                        MixerCard(
-                            live = current.live,
-                            controlManage = controlManage,
-                            onSetMute = { input, muted ->
-                                scope.launch { controller.setInputMute(input, muted) }
-                            },
-                            onSetVolume = { input, volumeDb ->
-                                scope.launch { controller.setInputVolume(input, volumeDb) }
-                            },
-                        )
-                        StatsCard(stats = current.live.stats)
-                        StudioModeCard(
-                            studioModeEnabled = current.live.studioModeEnabled,
-                            scenes = current.live.scenes,
-                            controlManage = controlManage,
-                            onSetStudioMode = { enabled -> scope.launch { controller.setStudioMode(enabled) } },
-                            onSetPreviewScene = { scene -> scope.launch { controller.setPreviewScene(scene) } },
-                            onCutToProgram = { scope.launch { controller.triggerStudioTransition() } },
-                        )
-                        TransitionsCard(
-                            transitions = current.live.transitions,
-                            controlManage = controlManage,
-                            onSelectTransition = { name -> scope.launch { controller.setCurrentTransition(name) } },
-                        )
-                        SceneItemsCard(
-                            scenes = current.live.scenes,
-                            view = current.sceneItemsView,
-                            controlManage = controlManage,
-                            onPickScene = { scene -> scope.launch { controller.loadSceneItems(scene) } },
-                            onSetVisible = { scene, source, visible ->
-                                scope.launch { controller.setSourceVisible(scene, source, visible) }
-                            },
-                        )
-                        SourceFiltersCard(
-                            inputs = current.live.inputs,
-                            sceneItemsView = current.sceneItemsView,
-                            view = current.filtersView,
-                            controlManage = controlManage,
-                            onPickSource = { source -> scope.launch { controller.loadSourceFilters(source) } },
-                            onSetFilterEnabled = { source, filter, enabled ->
-                                scope.launch { controller.setFilterEnabled(source, filter, enabled) }
-                            },
-                        )
-                        SourceActionsCard(
-                            inputs = current.live.inputs,
-                            controlManage = controlManage,
-                            onTriggerMedia = { input, action ->
-                                scope.launch { controller.triggerMedia(input, action) }
-                            },
-                            onRefreshBrowser = { input -> scope.launch { controller.refreshBrowserSource(input) } },
-                        )
-                        HotkeysCard(
-                            hotkeys = current.live.hotkeys,
-                            controlManage = controlManage,
-                            onTriggerHotkey = { name -> scope.launch { controller.triggerHotkey(name) } },
-                        )
-                        ScreenshotCard(
-                            inputs = current.live.inputs,
-                            view = current.screenshotView,
-                            controlManage = controlManage,
-                            onCapture = { source, format ->
-                                scope.launch { controller.captureScreenshot(source, format) }
-                            },
-                        )
-                        PassthroughCard(
-                            // Same broadcast-tier gate as the single-request raw pass-through — a power-user/dev
-                            // surface, not a moderator control.
-                            broadcastManage = broadcastManage,
-                            batchResult = current.batchResult,
-                            vendorResult = current.vendorResult,
-                            onRunBatch = { requestsJson -> scope.launch { controller.runRawBatch(requestsJson) } },
-                            onRunVendor = { vendorName, requestType, dataJson ->
-                                scope.launch { controller.runRawVendor(vendorName, requestType, dataJson) }
-                            },
-                        )
+                    if (!current.live.reachable) {
+                        ConnectStep(onOpenIntegrations = onOpenIntegrations)
+                    } else if (section == ObsSection.Live) {
+                        LiveControlTab(current, controller, controlManage, broadcastManage)
+                    } else {
+                        AdvancedTab(current, controller, controlManage, broadcastManage)
                     }
                 }
         }
@@ -373,153 +239,7 @@ fun ObsScreen(
 }
 
 @Composable
-private fun ConnectionCard(
-    connection: ObsConnection,
-    manage: ManageDecision,
-    isRemoteDeployment: Boolean,
-    onSave: suspend (mode: String, host: String?, port: Int?, password: String?, enabled: Boolean) -> ApiResult<Unit>,
-    onClearPassword: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val scope: CoroutineScope = rememberCoroutineScope()
-
-    // Save waits for the server: pending disables the button (no second write), a failure keeps every typed
-    // value and shows the reason next to Save.
-    var saving: Boolean by remember { mutableStateOf(false) }
-    var saveError: String? by remember { mutableStateOf(null) }
-
-    var mode: String by remember(connection.mode) { mutableStateOf(connection.mode) }
-    var host: String by remember(connection.host) { mutableStateOf(connection.host.orEmpty()) }
-    var port: String by remember(connection.port) { mutableStateOf(connection.port?.toString().orEmpty()) }
-    var password: String by remember(connection.hasPassword) { mutableStateOf("") }
-    var enabled: Boolean by remember(connection.isEnabled) { mutableStateOf(connection.isEnabled) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            SectionHeader(
-                title = stringResource(Res.string.obs_connection_title),
-                description = stringResource(Res.string.obs_connection_desc),
-                trailing = { StatusChip(connection = connection) },
-            )
-
-            // Mode: direct (bot opens the socket) vs bridge (a browser source relays through the bot).
-            Text(text = stringResource(Res.string.obs_mode_label), style = typography.sm, color = tokens.mutedForeground)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                ModeChip(label = stringResource(Res.string.obs_mode_direct), selected = mode == "direct", onClick = { mode = "direct" })
-                ModeChip(label = stringResource(Res.string.obs_mode_bridge), selected = mode == "bridge", onClick = { mode = "bridge" })
-            }
-
-            // Direct mode opens the socket from the BOT SERVER, so it only reaches OBS when OBS runs on that same
-            // machine. When this dashboard talks to a remote/hosted server, direct can never reach the user's PC —
-            // steer them to the browser-source bridge instead of leaving them to wonder why it never connects.
-            if (mode == "direct" && isRemoteDeployment) {
-                Text(
-                    text = stringResource(Res.string.obs_direct_remote_warning),
-                    style = typography.sm,
-                    color = tokens.destructiveForeground,
-                )
-            }
-
-            // Host + port are the SERVER's dial target — direct mode only (in bridge mode the browser source
-            // dials its own localhost, so these don't apply).
-            if (mode == "direct") {
-                AppTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    label = stringResource(Res.string.obs_host_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                AppTextField(
-                    value = port,
-                    onValueChange = { new -> port = new.filter { it.isDigit() } },
-                    label = stringResource(Res.string.obs_port_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // OBS-WebSocket password — needed in BOTH modes. Direct opens the socket server-side with it; bridge
-            // has it delivered to the browser source so its LOCAL OBS Identify authenticates. Modern OBS enables
-            // auth with a generated password by default, so a blank password fails control on most setups.
-            RevealableSecretField(
-                value = password,
-                onValueChange = { password = it },
-                label = stringResource(Res.string.obs_password_label),
-                supportingText =
-                    if (connection.hasPassword) stringResource(Res.string.obs_password_stored)
-                    else stringResource(Res.string.obs_password_hint),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (connection.hasPassword) {
-                ManageGate(decision = manage) { gateEnabled ->
-                    TextButton(onClick = onClearPassword, enabled = gateEnabled) {
-                        Text(
-                            text = stringResource(Res.string.obs_clear_password),
-                            color = if (gateEnabled) tokens.destructive else tokens.mutedForeground,
-                        )
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(text = stringResource(Res.string.obs_enabled_label), color = tokens.cardForeground)
-                ManageGate(decision = manage) { gateEnabled ->
-                    Switch(checked = enabled, onCheckedChange = { enabled = it }, enabled = gateEnabled)
-                }
-            }
-
-            ManageGate(decision = manage) { gateEnabled ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                ) {
-                    Button(
-                        onClick = {
-                            saving = true
-                            saveError = null
-                            scope.launch {
-                                val result: ApiResult<Unit> =
-                                    onSave(
-                                        mode,
-                                        host.ifBlank { null },
-                                        port.toIntOrNull(),
-                                        password.ifBlank { null },
-                                        enabled,
-                                    )
-                                saving = false
-                                if (result is ApiResult.Failure) saveError = result.error.message
-                            }
-                        },
-                        enabled = gateEnabled && !saving,
-                        loading = saving,
-                    ) {
-                        Text(text = stringResource(Res.string.obs_save))
-                    }
-                    saveError?.let { detail ->
-                        Text(text = detail, style = typography.sm, color = tokens.destructive)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BridgeCard(
-    bridgeUrl: String?,
-    instanceCount: Int,
-    online: Boolean,
-    manage: ManageDecision,
-    onRotate: () -> Unit,
-) {
+private fun ConnectStep(onOpenIntegrations: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -529,43 +249,116 @@ private fun BridgeCard(
             modifier = Modifier.padding(spacing.s4),
             verticalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
-            SectionHeader(
-                title = stringResource(Res.string.obs_bridge_title),
-                description = stringResource(Res.string.obs_bridge_desc),
-                trailing = { LiveDot(online = online) },
-            )
-
-            if (!bridgeUrl.isNullOrBlank()) {
-                Text(text = stringResource(Res.string.obs_bridge_url_label), style = typography.sm, color = tokens.mutedForeground)
-                Text(
-                    text = bridgeUrl,
-                    style = typography.sm,
-                    color = tokens.cardForeground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                CopyValue(
-                    value = bridgeUrl,
-                    copyLabel = stringResource(Res.string.obs_bridge_copy),
-                    copiedLabel = stringResource(Res.string.obs_bridge_copied),
-                )
-            }
-
             Text(
-                text =
-                    if (online) stringResource(Res.string.obs_bridge_online, instanceCount)
-                    else stringResource(Res.string.obs_bridge_offline),
-                style = typography.xs,
-                color = if (online) tokens.mutedForeground else tokens.destructiveForeground,
+                text = stringResource(Res.string.obs_connect_missing),
+                style = typography.base,
+                color = tokens.cardForeground,
             )
-
-            ManageGate(decision = manage) { gateEnabled ->
-                Button(onClick = onRotate, enabled = gateEnabled, variant = ButtonVariant.Outline) {
-                    Text(text = stringResource(Res.string.obs_bridge_rotate))
-                }
-            }
+            Button(onClick = onOpenIntegrations) { Text(text = stringResource(Res.string.obs_connect_action)) }
         }
     }
+}
+
+@Composable
+private fun LiveControlTab(
+    current: ObsUiState.Ready,
+    controller: ObsController,
+    controlManage: ManageDecision,
+    broadcastManage: ManageDecision,
+) {
+    val scope: CoroutineScope = rememberCoroutineScope()
+    ControlCard(
+        live = current.live,
+        controlManage = controlManage,
+        broadcastManage = broadcastManage,
+        onSwitchScene = { scene -> scope.launch { controller.switchScene(scene) } },
+        onToggleStreaming = { scope.launch { controller.toggleStreaming() } },
+        onToggleRecording = { scope.launch { controller.toggleRecording() } },
+        onPauseRecording = { scope.launch { controller.pauseRecording() } },
+        onResumeRecording = { scope.launch { controller.resumeRecording() } },
+        onSplitRecording = { scope.launch { controller.splitRecording() } },
+        onToggleReplayBuffer = { controller.toggleReplayBuffer() },
+        onSaveReplayBuffer = { controller.saveReplayBuffer() },
+        onToggleVirtualCam = { scope.launch { controller.toggleVirtualCam() } },
+        // The retry re-reads EVERYTHING (bridge status + setup + probe + live), not just live.
+        onRefresh = { scope.launch { controller.refresh() } },
+    )
+    MixerCard(
+        live = current.live,
+        controlManage = controlManage,
+        onSetMute = { input, muted -> scope.launch { controller.setInputMute(input, muted) } },
+        onSetVolume = { input, volumeDb -> scope.launch { controller.setInputVolume(input, volumeDb) } },
+    )
+    StudioModeCard(
+        studioModeEnabled = current.live.studioModeEnabled,
+        scenes = current.live.scenes,
+        controlManage = controlManage,
+        onSetStudioMode = { enabled -> scope.launch { controller.setStudioMode(enabled) } },
+        onSetPreviewScene = { scene -> scope.launch { controller.setPreviewScene(scene) } },
+        onCutToProgram = { scope.launch { controller.triggerStudioTransition() } },
+    )
+    TransitionsCard(
+        transitions = current.live.transitions,
+        controlManage = controlManage,
+        onSelectTransition = { name -> scope.launch { controller.setCurrentTransition(name) } },
+    )
+    SceneItemsCard(
+        scenes = current.live.scenes,
+        view = current.sceneItemsView,
+        controlManage = controlManage,
+        onPickScene = { scene -> scope.launch { controller.loadSceneItems(scene) } },
+        onSetVisible = { scene, source, visible ->
+            scope.launch { controller.setSourceVisible(scene, source, visible) }
+        },
+    )
+}
+
+@Composable
+private fun AdvancedTab(
+    current: ObsUiState.Ready,
+    controller: ObsController,
+    controlManage: ManageDecision,
+    broadcastManage: ManageDecision,
+) {
+    val scope: CoroutineScope = rememberCoroutineScope()
+    StatsCard(stats = current.live.stats)
+    SourceFiltersCard(
+        inputs = current.live.inputs,
+        sceneItemsView = current.sceneItemsView,
+        view = current.filtersView,
+        controlManage = controlManage,
+        onPickSource = { source -> scope.launch { controller.loadSourceFilters(source) } },
+        onSetFilterEnabled = { source, filter, enabled ->
+            scope.launch { controller.setFilterEnabled(source, filter, enabled) }
+        },
+    )
+    SourceActionsCard(
+        inputs = current.live.inputs,
+        controlManage = controlManage,
+        onTriggerMedia = { input, action -> scope.launch { controller.triggerMedia(input, action) } },
+        onRefreshBrowser = { input -> scope.launch { controller.refreshBrowserSource(input) } },
+    )
+    HotkeysCard(
+        hotkeys = current.live.hotkeys,
+        controlManage = controlManage,
+        onTriggerHotkey = { name -> scope.launch { controller.triggerHotkey(name) } },
+    )
+    ScreenshotCard(
+        inputs = current.live.inputs,
+        view = current.screenshotView,
+        controlManage = controlManage,
+        onCapture = { source, format -> scope.launch { controller.captureScreenshot(source, format) } },
+    )
+    PassthroughCard(
+        // Same broadcast-tier gate as the single-request raw pass-through, a power-user surface.
+        broadcastManage = broadcastManage,
+        batchResult = current.batchResult,
+        vendorResult = current.vendorResult,
+        onRunBatch = { requestsJson -> scope.launch { controller.runRawBatch(requestsJson) } },
+        onRunVendor = { vendorName, requestType, dataJson ->
+            scope.launch { controller.runRawVendor(vendorName, requestType, dataJson) }
+        },
+    )
 }
 
 @Composable
@@ -1673,7 +1466,7 @@ private fun VendorRequestCard(
 // ── shared bits ────────────────────────────────────────────────────────────
 
 @Composable
-private fun SectionHeader(title: String, description: String, trailing: @Composable () -> Unit) {
+internal fun SectionHeader(title: String, description: String, trailing: @Composable () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1691,46 +1484,6 @@ private fun SectionHeader(title: String, description: String, trailing: @Composa
     }
 }
 
-@Composable
-private fun StatusChip(connection: ObsConnection) {
-    val tokens = LocalTokens.current
-    when {
-        connection.lastError != null ->
-            Badge(variant = BadgeVariant.Destructive) {
-                Text(text = stringResource(Res.string.obs_status_error, connection.lastError), maxLines = 1)
-            }
-        connection.isEnabled ->
-            Badge(variant = BadgeVariant.Default) { Text(text = stringResource(Res.string.obs_status_enabled)) }
-        else ->
-            Badge(variant = BadgeVariant.Secondary) {
-                Text(text = stringResource(Res.string.obs_status_disabled), color = tokens.mutedForeground)
-            }
-    }
-}
-
-@Composable
-private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Badge(
-        variant = if (selected) BadgeVariant.Default else BadgeVariant.Outline,
-        selected = selected,
-        onClick = onClick,
-    ) {
-        Text(text = label, maxLines = 1)
-    }
-}
-
-@Composable
-private fun LiveDot(online: Boolean) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    Box(
-        modifier = Modifier
-            .size(spacing.s2)
-            .clip(CircleShape)
-            .background(if (online) tokens.success else tokens.mutedForeground)
-            .semantics { contentDescription = if (online) "online" else "offline" },
-    )
-}
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
@@ -1763,24 +1516,3 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-// A backend origin counts as "local" (a self-host deployment where direct mode can reach a co-located OBS) when
-// it targets loopback, a private LAN range (RFC 1918), or an .local host. A null/blank origin is treated as local
-// (desktop dev / not yet resolved) so the direct-mode remote warning only fires when we actually KNOW the server
-// is remote/public — anything else (a public domain) is remote.
-private fun isLocalOrigin(origin: String?): Boolean {
-    if (origin.isNullOrBlank()) return true
-    val authority: String =
-        origin.substringAfter("://", origin).substringBefore('/').trim().lowercase()
-    // IPv6 loopback appears bracketed in a URL, e.g. http://[::1]:5080.
-    if (authority.startsWith("[")) return authority.startsWith("[::1]") || authority.startsWith("[::]")
-    val host: String = authority.substringBefore(':')
-    if (host.isEmpty()) return true
-    if (host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0") return true
-    if (host.endsWith(".local") || host.endsWith(".localhost")) return true
-    if (host.startsWith("10.") || host.startsWith("192.168.")) return true
-    if (host.startsWith("172.")) {
-        val second: Int? = host.split('.').getOrNull(1)?.toIntOrNull()
-        return second != null && second in 16..31
-    }
-    return false
-}

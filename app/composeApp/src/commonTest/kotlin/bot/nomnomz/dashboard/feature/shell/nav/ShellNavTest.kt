@@ -41,7 +41,8 @@ class ShellNavTest {
         // The Broadcaster-floored pages (Integrations, Roles, OBS) must be hidden from a Mod.
         assertFalse(visible.any { it.route == ShellRoute.Integrations })
         assertFalse(visible.any { it.route == ShellRoute.PeopleRoles })
-        assertFalse(visible.any { it.route == ShellRoute.Obs })
+        assertFalse(visible.any { it.route == ShellRoute.ObsLiveControl })
+        assertFalse(visible.any { it.route == ShellRoute.ObsAdvanced })
         // The Editor-floored Automation (automation:tokens:read = Editor) is also above a Mod.
         assertFalse(visible.any { it.route == ShellRoute.ApiDevices })
         // Everything at the Moderator floor stays visible — incl. Discord (read floor lowered
@@ -351,7 +352,8 @@ class ShellNavTest {
                 ShellRoute.StreamInfo,
                 ShellRoute.StreamInteractions,
                 ShellRoute.StreamSchedule,
-                ShellRoute.Obs,
+                ShellRoute.ObsLiveControl,
+                ShellRoute.ObsAdvanced,
                 ShellRoute.VtubeStudio,
                 ShellRoute.Analytics,
             ),

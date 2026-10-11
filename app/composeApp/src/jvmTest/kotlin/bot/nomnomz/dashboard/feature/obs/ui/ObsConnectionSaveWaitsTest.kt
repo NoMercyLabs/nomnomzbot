@@ -127,7 +127,7 @@ class ObsConnectionSaveWaitsTest {
         CompositionLocalProvider(LocalLifecycleOwner provides owner) {
             NomNomzTheme {
                 AppEnvironment("en") {
-                    ObsScreen(controller = controller, role = ManagementRole.Broadcaster, backendOrigin = "http://localhost:5080")
+                    ObsConnectionCard(controller = controller, role = ManagementRole.Broadcaster, backendOrigin = "http://localhost:5080")
                 }
             }
         }

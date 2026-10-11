@@ -4611,6 +4611,10 @@
     <string name="moderation_shared_trusted_remove">Remove</string>
     <!-- Connect group: OBS control, VTube Studio, Automation API -->
     <string name="shell_nav_obs">OBS</string>
+    <string name="shell_nav_obs_live_control">Live control</string>
+    <string name="shell_nav_obs_advanced">Advanced</string>
+    <string name="obs_connect_missing">OBS is not connected. Connect it to control your scenes.</string>
+    <string name="obs_connect_action">Open OBS connection</string>
     <string name="shell_nav_vts">VTube Studio</string>
     <string name="shell_nav_automation">API &amp; devices</string>
 

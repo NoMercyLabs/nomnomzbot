@@ -77,7 +77,8 @@ object ShellNav {
             // OBS control: reading the connection config needs obs:config:read (Broadcaster); the page's write floor
             // is Broadcaster (obs:config:write, Critical). Scene switching (obs:control, Moderator) and streaming/
             // recording (obs:control:broadcast, Broadcaster) gate per-control inside the page at explicit floors.
-            NavPage(ShellRoute.Obs, NavGroup.Live, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = "obs:config:read"),
+            NavPage(ShellRoute.ObsLiveControl, NavGroup.Live, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = "obs:config:read"),
+            NavPage(ShellRoute.ObsAdvanced, NavGroup.Live, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = "obs:config:read"),
             // VTube Studio: read floors at Moderator (vts:config:read); connection config / authorize / rotate are
             // Broadcaster (vts:config:write); model/hotkey/expression control is Moderator (vts:control), gated inside.
             NavPage(ShellRoute.VtubeStudio, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),

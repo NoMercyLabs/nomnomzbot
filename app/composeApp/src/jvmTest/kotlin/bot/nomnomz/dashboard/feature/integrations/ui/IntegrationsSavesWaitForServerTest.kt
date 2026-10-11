@@ -40,6 +40,8 @@ import bot.nomnomz.dashboard.feature.integrations.state.FakeIntegrationsApi
 import bot.nomnomz.dashboard.feature.integrations.state.FakeSystemApi
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.state.makeIntegrationsController
+import bot.nomnomz.dashboard.feature.obs.state.FakeObsApi
+import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import kotlin.test.Test
@@ -115,7 +117,7 @@ class IntegrationsSavesWaitForServerTest {
         setContent { Screen(system = system, feedback = feedback) }
         waitForIdle()
         openDiscordCredentialStep()
-        onAllNodes(hasSetTextAction()).onFirst().performTextInput("discord-client-id")
+        typeIntoDialogClientId("discord-client-id")
         onNodeWithText("Save and continue").performClick()
         waitForIdle()
 
@@ -131,7 +133,7 @@ class IntegrationsSavesWaitForServerTest {
         setContent { Screen(system = system, feedback = RecordingFeedback()) }
         waitForIdle()
         openDiscordCredentialStep()
-        onAllNodes(hasSetTextAction()).onFirst().performTextInput("discord-client-id")
+        typeIntoDialogClientId("discord-client-id")
         onNodeWithText("Save and continue").performClick()
         waitForIdle()
 
@@ -163,6 +165,12 @@ class IntegrationsSavesWaitForServerTest {
         onNodeWithText("Couldn't save the credentials: Not allowed.").assertExists()
         onNodeWithText("kick-client-id").assertExists()
         assertTrue(feedback.messages.none { it.kind == FeedbackKind.Error }, "a failure must not also toast")
+    }
+
+    // The dialog's two fields (client id, then secret) come last on the page, after the OBS card's own fields.
+    private fun androidx.compose.ui.test.ComposeUiTest.typeIntoDialogClientId(value: String) {
+        val fieldCount: Int = onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size
+        onAllNodes(hasSetTextAction())[fieldCount - 2].performTextInput(value)
     }
 
     private fun androidx.compose.ui.test.ComposeUiTest.openDiscordCredentialStep() {
@@ -204,6 +212,8 @@ class IntegrationsSavesWaitForServerTest {
                     IntegrationsScreen(
                         controller = controller,
                         twitchAppController = twitchApp,
+                        obsController = ObsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), FakeObsApi()),
+                        backendOrigin = "http://localhost:5080",
                         role = ManagementRole.Broadcaster,
                     )
                 }

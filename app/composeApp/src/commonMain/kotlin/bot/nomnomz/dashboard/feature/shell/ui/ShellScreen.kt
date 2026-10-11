@@ -116,6 +116,7 @@ import bot.nomnomz.dashboard.feature.games.ui.GamesScreen
 import bot.nomnomz.dashboard.feature.giveaways.ui.GiveawaysScreen
 import bot.nomnomz.dashboard.feature.supporters.ui.SupportersScreen
 import bot.nomnomz.dashboard.feature.obs.ui.ObsScreen
+import bot.nomnomz.dashboard.feature.obs.ui.ObsSection
 import bot.nomnomz.dashboard.feature.vts.ui.VtsScreen
 import bot.nomnomz.dashboard.feature.automation.ui.AutomationScreen
 import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareQueueScreen
@@ -236,6 +237,8 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_mydata
 import nomnomzbot.composeapp.generated.resources.shell_nav_custom_events
 import nomnomzbot.composeapp.generated.resources.shell_nav_federation
 import nomnomzbot.composeapp.generated.resources.shell_nav_obs
+import nomnomzbot.composeapp.generated.resources.shell_nav_obs_advanced
+import nomnomzbot.composeapp.generated.resources.shell_nav_obs_live_control
 import nomnomzbot.composeapp.generated.resources.shell_nav_vts
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.shell_nav_supporters
@@ -805,6 +808,8 @@ private fun ShellContent(
                 IntegrationsScreen(
                     controller = graph.integrationsController,
                     twitchAppController = graph.twitchAppCredentialsController,
+                    obsController = graph.obsController,
+                    backendOrigin = graph.sessionStore.baseUrl(),
                     role = role,
                 )
             ShellRoute.Settings ->
@@ -851,12 +856,14 @@ private fun ShellContent(
             ShellRoute.CustomEvents -> CustomEventsScreen(controller = graph.customEventsController, role = role)
             ShellRoute.Supporters ->
                 SupportersScreen(controller = graph.supportersController, heldActionKeys = heldActionKeys)
-            ShellRoute.Obs ->
+            ShellRoute.ObsLiveControl,
+            ShellRoute.ObsAdvanced ->
                 ObsScreen(
                     controller = graph.obsController,
                     role = role,
+                    section = if (selected == ShellRoute.ObsAdvanced) ObsSection.Advanced else ObsSection.Live,
+                    onOpenIntegrations = { onNavigate(ShellRoute.Integrations) },
                     hubEvents = graph.dashboardHubClient.events,
-                    backendOrigin = graph.sessionStore.baseUrl(),
                 )
             ShellRoute.VtubeStudio -> VtsScreen(controller = graph.vtsController, role = role)
             ShellRoute.ApiDevices -> AutomationScreen(controller = graph.automationController, role = role)
@@ -1670,7 +1677,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.Federation -> FederationGlyph
         ShellRoute.CustomEvents -> CustomEventsGlyph
         ShellRoute.Supporters -> SupportersGlyph
-        ShellRoute.Obs -> ObsGlyph
+        ShellRoute.ObsLiveControl, ShellRoute.ObsAdvanced -> ObsGlyph
         ShellRoute.VtubeStudio -> VtsGlyph
         ShellRoute.ApiDevices -> AutomationGlyph
         ShellRoute.MediaShareQueue, ShellRoute.MediaShareSettings -> MediaShareGlyph
@@ -1729,7 +1736,8 @@ private fun ShellRoute.label(): String =
             ShellRoute.Scripts -> Res.string.shell_nav_code_scripts
             ShellRoute.CustomEvents -> Res.string.shell_nav_custom_events
             ShellRoute.Supporters -> Res.string.shell_nav_supporters
-            ShellRoute.Obs -> Res.string.shell_nav_obs
+            ShellRoute.ObsLiveControl -> Res.string.shell_nav_obs_live_control
+            ShellRoute.ObsAdvanced -> Res.string.shell_nav_obs_advanced
             ShellRoute.VtubeStudio -> Res.string.shell_nav_vts
             ShellRoute.ApiDevices -> Res.string.shell_nav_automation
             ShellRoute.MediaShareQueue -> Res.string.mediashare_queue_title

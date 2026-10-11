@@ -66,6 +66,8 @@ import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsState
 import bot.nomnomz.dashboard.feature.integrations.state.ProviderConnection
 import bot.nomnomz.dashboard.feature.integrations.state.RegrantState
+import bot.nomnomz.dashboard.feature.obs.state.ObsController
+import bot.nomnomz.dashboard.feature.obs.ui.ObsConnectionCard
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -211,6 +213,8 @@ private fun scopeSetFor(provider: String): String =
 fun IntegrationsScreen(
     controller: IntegrationsController,
     twitchAppController: TwitchAppCredentialsController,
+    obsController: ObsController,
+    backendOrigin: String?,
     role: ManagementRole?,
 ) {
     val tokens = LocalTokens.current
@@ -383,6 +387,7 @@ fun IntegrationsScreen(
                         onConnect = { scope.launch { controller.connectProvider(KICK_BOT, KICK_BOT_SCOPE_SET) } },
                         onDisconnect = { pendingDisconnect = KICK_BOT },
                     )
+                    ObsConnectionCard(controller = obsController, role = role, backendOrigin = backendOrigin)
                     EventSubSubscriptionsSection(
                         subscriptions = current.eventSubSubscriptions,
                         manage = manage,

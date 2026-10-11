@@ -82,6 +82,14 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_two_obs_tabs_resolve_and_the_bare_obs_address_opens_live_control() {
+        assertEquals(ShellRoute.ObsLiveControl, ShellRouteSlug.parse("obs/live-control"))
+        assertEquals(ShellRoute.ObsAdvanced, ShellRouteSlug.parse("obs/advanced"))
+        assertEquals("obs/advanced", ShellRouteSlug.of(ShellRoute.ObsAdvanced))
+        assertEquals(ShellRoute.ObsLiveControl, ShellRouteSlug.parse("obs"))
+    }
+
+    @Test
     fun a_page_without_tabs_is_its_page_slug_alone() {
         assertEquals("home", ShellRouteSlug.of(ShellRoute.Home))
         assertEquals("commands", ShellRouteSlug.of(ShellRoute.Commands))

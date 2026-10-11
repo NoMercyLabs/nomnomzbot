@@ -139,7 +139,12 @@ class ObsReplayBufferWaitsTest {
         CompositionLocalProvider(LocalLifecycleOwner provides owner) {
             NomNomzTheme {
                 AppEnvironment("en") {
-                    ObsScreen(controller = controller, role = ManagementRole.Broadcaster, backendOrigin = "http://localhost:5080")
+                    ObsScreen(
+                        controller = controller,
+                        role = ManagementRole.Broadcaster,
+                        section = ObsSection.Live,
+                        onOpenIntegrations = {},
+                    )
                 }
             }
         }

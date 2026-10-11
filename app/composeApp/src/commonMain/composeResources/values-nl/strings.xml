@@ -4595,6 +4595,10 @@
     <string name="moderation_shared_trusted_remove">Verwijderen</string>
     <!-- Connect-groep: OBS-besturing, VTube Studio, Automation-API -->
     <string name="shell_nav_obs">OBS</string>
+    <string name="shell_nav_obs_live_control">Live bediening</string>
+    <string name="shell_nav_obs_advanced">Geavanceerd</string>
+    <string name="obs_connect_missing">OBS is niet verbonden. Verbind OBS om je scènes te bedienen.</string>
+    <string name="obs_connect_action">Open OBS-verbinding</string>
     <string name="shell_nav_vts">VTube Studio</string>
     <string name="shell_nav_automation">API &amp; apparaten</string>
 
