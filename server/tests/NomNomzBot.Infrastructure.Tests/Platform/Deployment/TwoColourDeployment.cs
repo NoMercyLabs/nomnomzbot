@@ -49,7 +49,10 @@ internal sealed class TwoColourDeployment
         TwitchEventSubHostedService blue = BuildColour(sharedLeases);
         TwitchEventSubHostedService green = BuildColour(sharedLeases);
 
+        // StartAsync only launches the lease contest; under load Green could win it. Blue must hold the lease first.
         await blue.StartAsync(CancellationToken.None);
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
+        await blue.WaitUntilActiveAsync(timeout.Token);
         await green.StartAsync(CancellationToken.None);
         return new(blue, green);
     }
