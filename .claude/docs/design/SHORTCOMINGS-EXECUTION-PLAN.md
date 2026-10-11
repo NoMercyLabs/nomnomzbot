@@ -89,17 +89,6 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
 - **S-IA-MEDIA** Music with Song requests as a tab; TTS with 4 tabs; Media Share; OBS and VTube Studio with
   tabs and an inline connect step when not connected. Done-when: the old Song Requests address opens the
   Music tab, and OBS shows the connect step when the link is down.
-- **S-IA-MOD-FLOORS** Owner 2026-10-11: "moderators get granted the permission to manage stream and channel behaviors". Lower these actions in ActionDefinitionSeeder.cs from Editor
-  to Moderator: stream:preset, stream:schedule, channel:title, channel:game, channel:tags, channel:language,
-  channel:extensions, live-ops:predictions,
-  live-ops:schedule, music:config, moderation:chatcolor, every economy write (economy:games:write is Broadcaster
-  today), bundles:export and bundles:import.
-  Webhooks, egress, integrations, API tokens, EventSub and whispers stay at Editor. Owner 2026-10-11: "we will leave the risky items to the channel manager and up":
-  channel:ccl, channel:brandedcontent, live-ops:ads and live-ops:raids stay at Editor, and the Deck raid and ad
-  buttons need Editor. The app shows the same floors as the
-  server: today the app hides Code Scripts from a Moderator, while code:script:author is already Moderator.
-  Done-when: a test per action shows a Moderator passes the gate and a VIP is refused, the seeder updates an
-  existing install, and a broadcaster override can still raise each one.
 - **S-IA-SETUP** Integrations is the one home for credentials, including the Twitch app credentials.
   Ko-fi moves to Supporters. Automation is renamed API & devices. Settings gets 6 tabs. The web sign-in
   hides the Backend URL field (desktop only, UF F7). Done-when: no credential field shows outside
