@@ -32,10 +32,6 @@ new place: `ui-placement-ledger-2026-10-11.md`.
 Order: S-IA-SPEC first (Stoney's yes 2026-10-11: "if you are sure that this matches human psychology for dashboards then you have my clearance to execute"), then S-IA-ROUTES with S-IA-GUARD, then S-IA-NAV, then the lanes
 in parallel (at most 2 building), then the finishing slices. The KMP and scale slices run at any time.
 
-- **S-IA-SPEC** Write `spec/frontend-ia.md` from paper sections 3 to 8 and 11: groups, pages, tabs, floors,
-  pins, the Deck, role homes and the conflict table. `FEATURES-BY-SIDEBAR.md` follows it. It replaces the
-  S072 group list. Done-when: Stoney says yes to the spec, and every row of the placement ledger names a
-  page and tab that the spec lists.
 - **S-IA-ROUTES** The new page and tab list in the app router, the address `#/c/<login>/<page>[/<tab>]`,
   replacing the previous routes outright: V0, no alias map and no redirect code (owner 2026-10-11: "and we are V0 so no backwards compattible bullshit tangled in the code").
   Saved pins start from the role defaults. Done-when: a test opens every page and tab of the spec at its new
