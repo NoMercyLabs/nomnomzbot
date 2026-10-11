@@ -32,7 +32,7 @@ enum class ShellPage(val slug: String, val tabs: List<String>) {
     Music("music", listOf("now-playing", "song-requests")),
     Tts("tts", listOf("live", "voices", "rules", "provider")),
     MediaShare("media-share", emptyList()),
-    Stream("stream", listOf("schedule")),
+    Stream("stream", listOf("info-presets", "interactions", "schedule")),
     Analytics("analytics", emptyList()),
     Obs("obs", emptyList()),
     VtubeStudio("vtube-studio", emptyList()),

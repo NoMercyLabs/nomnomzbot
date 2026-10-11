@@ -115,7 +115,6 @@ import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.home.state.HomeState
 import bot.nomnomz.dashboard.feature.home.state.ReplayStatus
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
-import bot.nomnomz.dashboard.feature.chatpolls.ui.ChatPollsCard
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
 import kotlinx.coroutines.flow.SharedFlow
@@ -489,10 +488,6 @@ private fun ReadyContent(
                 if (topCommands.isNotEmpty()) {
                     TopCommandsCard(commands = topCommands)
                 }
-
-                // Bot-run chat poll (item: chat polls) — sits beside the Twitch-native live-ops poll above,
-                // labeled "Chat poll" so the two voting mechanisms read as distinct.
-                ChatPollsCard(controller = chatPollsController)
             }
 
             if (maxWidth < Breakpoints.Wide) {

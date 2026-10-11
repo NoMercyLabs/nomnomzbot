@@ -36,6 +36,8 @@ One row per today route (46 including Admin) and per participant page (6).
 | MediaShare | Music | Music & Voice | Media Share | Queue; Settings | Moderator | Moderator | S-IA-MEDIA |
 | Tts | Music | Music & Voice | TTS | Live; Voices; Rules; Provider | Moderator | Moderator (Provider tab: Editor) | S-IA-MEDIA |
 | Alerts | Stream | Build | Event Responses | Alert queue | Moderator | Moderator | S-IA-TRIGGERS |
+| Info & presets | Stream | Live | Stream | Info & presets | Moderator | Moderator | S-IA-STREAM |
+| Interactions | Stream | Live | Stream | Interactions | Moderator | Moderator | S-IA-STREAM |
 | Schedule | Stream | Live | Stream | Schedule | Moderator | Moderator | S-IA-STREAM |
 | Analytics | Stream | Live | Analytics | Stream; Chat; Growth | Moderator | read-only | S-IA-NAV |
 | Community | Community | People | People | Viewers | Moderator | Moderator | S-IA-PEOPLE |

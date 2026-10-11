@@ -185,6 +185,8 @@
     <string name="shell_nav_overlays">Overlays</string>
     <string name="shell_nav_alerts">Meldingenwachtrij</string>
     <string name="shell_nav_analytics">Statistieken</string>
+    <string name="shell_nav_stream_info">Info &amp; presets</string>
+    <string name="shell_nav_stream_interactions">Interacties</string>
     <string name="shell_nav_schedule">Schema</string>
     <string name="schedule_loading">Je streamschema laden…</string>
     <string name="schedule_error">Kon het schema niet laden: %1$s</string>

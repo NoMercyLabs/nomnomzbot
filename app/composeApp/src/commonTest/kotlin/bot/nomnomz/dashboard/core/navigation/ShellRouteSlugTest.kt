@@ -115,6 +115,30 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_stream_page_has_three_tabs_and_opens_on_info_and_presets() {
+        assertEquals(listOf("info-presets", "interactions", "schedule"), ShellPage.Stream.tabs)
+        assertEquals(ShellRoute.StreamInfo, ShellRouteSlug.parse("stream"))
+        assertEquals(ShellRoute.StreamInfo, ShellRouteSlug.parse("stream/info-presets"))
+        assertEquals(ShellRoute.StreamInteractions, ShellRouteSlug.parse("stream/interactions"))
+        assertEquals(ShellRoute.StreamSchedule, ShellRouteSlug.parse("stream/schedule"))
+        assertEquals("stream/info-presets", ShellRouteSlug.of(ShellRoute.StreamInfo))
+        assertEquals(
+            listOf(ShellRoute.StreamInfo, ShellRoute.StreamInteractions, ShellRoute.StreamSchedule),
+            ShellRoute.tabsOf(ShellPage.Stream),
+        )
+    }
+
+    @Test
+    fun the_old_stream_info_and_poll_addresses_land_on_home() {
+        // The stream info editor left Settings and the chat polls card left Home; neither had its own address,
+        // and no alias maps an old guess to the new tabs.
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("stream/info"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("stream/polls"))
+        assertEquals(ShellRoute.Home, ShellRouteSlug.parse("chat-polls"))
+        assertNull(ShellRouteSlug.find("stream/info"))
+    }
+
+    @Test
     fun parsing_ignores_surrounding_whitespace_and_case() {
         val route: ShellRoute = ShellRoute.PeopleHistory
         val canonical: String = ShellRouteSlug.of(route)

@@ -124,7 +124,9 @@ import bot.nomnomz.dashboard.feature.bundles.ui.BundlesScreen
 import bot.nomnomz.dashboard.feature.gallery.ui.TemplatesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
+import bot.nomnomz.dashboard.feature.chatpolls.ui.StreamInteractionsScreen
 import bot.nomnomz.dashboard.feature.liveops.ui.ScheduleScreen
+import bot.nomnomz.dashboard.feature.streaminfo.ui.StreamInfoScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationSection
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
 import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
@@ -207,6 +209,8 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
 import nomnomzbot.composeapp.generated.resources.shell_nav_music
 import nomnomzbot.composeapp.generated.resources.shell_nav_schedule
+import nomnomzbot.composeapp.generated.resources.shell_nav_stream_info
+import nomnomzbot.composeapp.generated.resources.shell_nav_stream_interactions
 import nomnomzbot.composeapp.generated.resources.shell_nav_assets
 import nomnomzbot.composeapp.generated.resources.shell_nav_sound
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
@@ -785,6 +789,12 @@ private fun ShellContent(
                         graph.codeScriptsController.requestOpen(scriptId)
                         onNavigate(ShellRoute.Scripts)
                     },
+                )
+            ShellRoute.StreamInfo -> StreamInfoScreen(controller = graph.streamInfoController, role = role)
+            ShellRoute.StreamInteractions ->
+                StreamInteractionsScreen(
+                    controller = graph.chatPollsController,
+                    hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.StreamSchedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
             ShellRoute.PeopleRoles -> RolesScreen(controller = graph.rolesController, role = role)
@@ -1644,7 +1654,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.TtsLive, ShellRoute.TtsVoices, ShellRoute.TtsRules, ShellRoute.TtsProvider -> TtsGlyph
         ShellRoute.Overlays -> WidgetsGlyph
         ShellRoute.EventResponsesAlertQueue -> AlertsGlyph
-        ShellRoute.StreamSchedule -> TimersGlyph
+        ShellRoute.StreamInfo, ShellRoute.StreamInteractions, ShellRoute.StreamSchedule -> TimersGlyph
         ShellRoute.Analytics -> AnalyticsGlyph
         ShellRoute.PeopleViewers -> CommunityGlyph
         ShellRoute.Discord -> DiscordGlyph
@@ -1699,6 +1709,8 @@ private fun ShellRoute.label(): String =
             ShellRoute.Overlays -> Res.string.shell_nav_overlays
             ShellRoute.EventResponsesAlertQueue -> Res.string.shell_nav_alerts
             ShellRoute.Discord -> Res.string.shell_nav_discord
+            ShellRoute.StreamInfo -> Res.string.shell_nav_stream_info
+            ShellRoute.StreamInteractions -> Res.string.shell_nav_stream_interactions
             ShellRoute.StreamSchedule -> Res.string.shell_nav_schedule
             ShellRoute.Analytics -> Res.string.shell_nav_analytics
             ShellRoute.Pipelines -> Res.string.shell_nav_pipelines

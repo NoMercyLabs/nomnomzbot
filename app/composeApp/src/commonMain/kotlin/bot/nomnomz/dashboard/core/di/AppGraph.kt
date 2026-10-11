@@ -266,6 +266,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
+import bot.nomnomz.dashboard.feature.streaminfo.state.StreamInfoController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.liveops.state.ScheduleController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
@@ -711,7 +712,10 @@ class AppGraph {
         )
 
     val settingsController: SettingsController =
-        SettingsController(channelsApi = channelsApi, streamApi = streamApi, feedback = feedbackController)
+        SettingsController(channelsApi = channelsApi, feedback = feedbackController)
+
+    val streamInfoController: StreamInfoController =
+        StreamInfoController(channelsApi = channelsApi, streamApi = streamApi)
 
     val personalityController: PersonalityController =
         PersonalityController(

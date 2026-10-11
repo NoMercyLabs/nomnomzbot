@@ -102,6 +102,26 @@ class ShellNavTest {
     }
 
     @Test
+    fun live_shows_one_stream_row_for_a_moderator_and_no_row_for_the_stream_tabs() {
+        val section: NavSection =
+            ShellNav.sidebarFor(ManagementRole.Moderator).single { it.group == NavGroup.Live }
+
+        val streamRows: List<NavRow> = section.rows.filter { it.page == ShellPage.Stream }
+        assertEquals(1, streamRows.size)
+        assertEquals(ShellRoute.StreamInfo, streamRows.single().route)
+        assertTrue(section.rows.none { it.route == ShellRoute.StreamInteractions })
+        assertTrue(section.rows.none { it.route == ShellRoute.StreamSchedule })
+        assertEquals(listOf("info-presets", "interactions", "schedule"), ShellPage.Stream.tabs)
+    }
+
+    @Test
+    fun a_moderator_manages_every_stream_tab() {
+        listOf(ShellRoute.StreamInfo, ShellRoute.StreamInteractions, ShellRoute.StreamSchedule).forEach { route ->
+            assertTrue(ShellNav.canManage(ManagementRole.Moderator, route), "Moderator manages $route")
+        }
+    }
+
+    @Test
     fun every_page_with_a_manage_floor_keeps_it_at_or_above_its_read_floor() {
         // A page can never be manageable by a role that can't even see it.
         ShellNav.pages.forEach { page ->
@@ -183,6 +203,8 @@ class ShellNavTest {
                 ShellRoute.Economy,
                 ShellRoute.Games,
                 ShellRoute.MusicNowPlaying,
+                ShellRoute.StreamInfo,
+                ShellRoute.StreamInteractions,
                 ShellRoute.StreamSchedule,
                 ShellRoute.GalleryTemplates,
                 ShellRoute.GalleryBundles,
@@ -326,6 +348,8 @@ class ShellNavTest {
             setOf(
                 ShellRoute.ChatChannel,
                 ShellRoute.ChatAll,
+                ShellRoute.StreamInfo,
+                ShellRoute.StreamInteractions,
                 ShellRoute.StreamSchedule,
                 ShellRoute.Obs,
                 ShellRoute.VtubeStudio,

@@ -188,6 +188,8 @@
     <string name="shell_nav_overlays">Overlays</string>
     <string name="shell_nav_alerts">Alert queue</string>
     <string name="shell_nav_analytics">Analytics</string>
+    <string name="shell_nav_stream_info">Info &amp; presets</string>
+    <string name="shell_nav_stream_interactions">Interactions</string>
     <string name="shell_nav_schedule">Schedule</string>
     <string name="schedule_loading">Loading your stream schedule…</string>
     <string name="schedule_error">Couldn't load the schedule: %1$s</string>

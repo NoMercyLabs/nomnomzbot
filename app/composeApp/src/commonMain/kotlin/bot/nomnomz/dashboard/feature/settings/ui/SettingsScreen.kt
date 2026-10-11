@@ -75,7 +75,6 @@ import bot.nomnomz.dashboard.core.network.ChannelScope
 import bot.nomnomz.dashboard.core.network.EngagementConfig
 import bot.nomnomz.dashboard.core.network.UpdateEngagementConfigBody
 import bot.nomnomz.dashboard.core.network.InviteCodeValidation
-import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.UpdateBasicsBody
 import bot.nomnomz.dashboard.feature.settings.state.BasicsController
 import bot.nomnomz.dashboard.feature.settings.state.BasicsState
@@ -127,19 +126,12 @@ import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_title
 import nomnomzbot.composeapp.generated.resources.journal_rebuilt
 import nomnomzbot.composeapp.generated.resources.journal_working
 import nomnomzbot.composeapp.generated.resources.settings_error
-import nomnomzbot.composeapp.generated.resources.settings_label_category
-import nomnomzbot.composeapp.generated.resources.settings_label_tags
-import nomnomzbot.composeapp.generated.resources.settings_label_title
 import nomnomzbot.composeapp.generated.resources.settings_loading
 import nomnomzbot.composeapp.generated.resources.settings_retry
-import nomnomzbot.composeapp.generated.resources.settings_save
-import nomnomzbot.composeapp.generated.resources.settings_save_error
-import nomnomzbot.composeapp.generated.resources.settings_saved
 import nomnomzbot.composeapp.generated.resources.settings_saving
-import nomnomzbot.composeapp.generated.resources.settings_status_live
-import nomnomzbot.composeapp.generated.resources.settings_status_offline
-import nomnomzbot.composeapp.generated.resources.settings_tags_hint
-import nomnomzbot.composeapp.generated.resources.settings_title_invalid
+import nomnomzbot.composeapp.generated.resources.settings_saved
+import nomnomzbot.composeapp.generated.resources.settings_save_error
+import nomnomzbot.composeapp.generated.resources.settings_save
 import nomnomzbot.composeapp.generated.resources.settings_channel_section
 import nomnomzbot.composeapp.generated.resources.settings_bot_join
 import nomnomzbot.composeapp.generated.resources.settings_bot_join_desc
@@ -306,7 +298,7 @@ fun SettingsScreen(
     // Journal export/import (Danger zone) is a Broadcaster write. Each section gates at its floor; below it the
     // controls disable-with-reason (§7). The backend re-checks writes. (The Twitch app credentials moved to the
     // Integrations area — they are an integration like the bot account, not a Settings concern.)
-    val streamInfoManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
+    val moderatorManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
     val ownerManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
     var pendingLeave: Boolean by remember { mutableStateOf(false) }
@@ -329,14 +321,7 @@ fun SettingsScreen(
                         detail = current.detail,
                         onRetry = { scope.launch { controller.load() } },
                     )
-                is SettingsState.Ready ->
-                    ReadyContent(
-                        state = current,
-                        manage = streamInfoManage,
-                        onSave = { title, gameName, tags ->
-                            scope.launch { controller.save(title, gameName, tags) }
-                        },
-                    )
+                is SettingsState.Ready -> Unit
                 is SettingsState.ChannelDeleted ->
                     CenteredMessage(stringResource(Res.string.settings_loading))
             }
@@ -360,7 +345,7 @@ fun SettingsScreen(
 
         // Engagement triggers — auto-greet / loyalty; Editor floor (engagement:write). The actual greeting
         // message is bound on the Event Responses page; this card is only the detector on/off + tuning.
-        EngagementSection(controller = engagementController, manage = streamInfoManage)
+        EngagementSection(controller = engagementController, manage = moderatorManage)
 
         // Channel management — join/leave/reset; Broadcaster floor (setup:write).
         if (state is SettingsState.Ready) {
@@ -472,169 +457,8 @@ private fun AppearanceSection(controller: EmojiStyleController) {
     }
 }
 
-// Tags are edited as a single comma-separated field — the natural shape for a short list — and normalized to the
-// list the API wants: split on commas, trim each, drop blanks. Round-trips with [joinTags] so an unchanged field
-// is byte-for-byte the loaded list and the "differs from loaded" check below stays exact.
-private fun parseTags(raw: String): List<String> =
-    raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-
-private fun joinTags(tags: List<String>): String = tags.joinToString(", ")
-
 @Composable
-private fun ReadyContent(
-    state: SettingsState.Ready,
-    manage: ManageDecision,
-    onSave: (title: String, gameName: String, tags: List<String>) -> Unit,
-) {
-    val spacing = LocalSpacing.current
-    val loaded: StreamInfo = state.info
-
-    // Local editable form, re-seeded whenever new info loads (initial load or a successful save). Holding it
-    // screen-side keeps the controller a thin persistence boundary; `remember(loaded)` resets every field to the
-    // saved baseline so the "differs from loaded" check below is exact.
-    var title: String by remember(loaded) { mutableStateOf(loaded.title.orEmpty()) }
-    var gameName: String by remember(loaded) { mutableStateOf(loaded.gameName.orEmpty()) }
-    var tagsText: String by remember(loaded) { mutableStateOf(joinTags(loaded.tags)) }
-
-    val editedTags: List<String> = parseTags(tagsText)
-
-    // Twitch rejects an empty broadcast title, so the form requires a non-blank title before it lets a save go.
-    val titleValid: Boolean = title.isNotBlank()
-
-    // Save is offered only when the form is valid AND actually differs from the saved baseline — saving an
-    // unchanged stream info is a no-op the user shouldn't be invited to make. Each input is a State-backed local
-    // recomputed every recomposition, so this re-evaluates as fields change.
-    val dirty: Boolean =
-        title != loaded.title.orEmpty() ||
-            gameName != loaded.gameName.orEmpty() ||
-            editedTags != loaded.tags
-    val canSave: Boolean = titleValid && dirty && !state.saving
-
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        StatusBanner(isLive = loaded.isLive)
-
-        EditCard(
-            title = title,
-            onTitleChange = { title = it },
-            titleValid = titleValid,
-            gameName = gameName,
-            onGameNameChange = { gameName = it },
-            tagsText = tagsText,
-            onTagsChange = { tagsText = it },
-            // Editing the broadcast metadata gates at the stream-info (Editor) floor; below it the fields go
-            // read-only with reason via the gated SaveBar below.
-            enabled = !state.saving && manage.isAllowed,
-        )
-
-        SaveBar(
-            saving = state.saving,
-            justSaved = state.justSaved,
-            saveError = state.saveError,
-            manage = manage,
-            canSave = canSave && manage.isAllowed,
-            onSave = { onSave(title.trim(), gameName.trim(), editedTags) },
-        )
-    }
-}
-
-@Composable
-private fun StatusBanner(isLive: Boolean) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val statusText: String =
-        stringResource(if (isLive) Res.string.settings_status_live else Res.string.settings_status_offline)
-
-    // One node for screen readers: "Live" rather than a disconnected dot + label.
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clearAndSetSemantics { contentDescription = statusText },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(spacing.s2)
-                    .clip(CircleShape)
-                    .background(if (isLive) tokens.primary else tokens.mutedForeground),
-            )
-            Text(text = statusText, style = typography.xl, color = tokens.cardForeground)
-        }
-    }
-}
-
-@Composable
-private fun EditCard(
-    title: String,
-    onTitleChange: (String) -> Unit,
-    titleValid: Boolean,
-    gameName: String,
-    onGameNameChange: (String) -> Unit,
-    tagsText: String,
-    onTagsChange: (String) -> Unit,
-    enabled: Boolean,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s4),
-        ) {
-            TitleField(value = title, onValueChange = onTitleChange, valid = titleValid, enabled = enabled)
-            CategoryField(value = gameName, onValueChange = onGameNameChange, enabled = enabled)
-            TagsField(value = tagsText, onValueChange = onTagsChange, enabled = enabled)
-        }
-    }
-}
-
-@Composable
-private fun TitleField(value: String, onValueChange: (String) -> Unit, valid: Boolean, enabled: Boolean) {
-    AppTextField(
-        value = value,
-        onValueChange = onValueChange,
-        enabled = enabled,
-        isError = !valid,
-        modifier = Modifier.fillMaxWidth(),
-        label = stringResource(Res.string.settings_label_title),
-        errorText = stringResource(Res.string.settings_title_invalid),
-    )
-}
-
-@Composable
-private fun CategoryField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    AppTextField(
-        value = value,
-        onValueChange = onValueChange,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        label = stringResource(Res.string.settings_label_category),
-    )
-}
-
-@Composable
-private fun TagsField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    AppTextField(
-        value = value,
-        onValueChange = onValueChange,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        label = stringResource(Res.string.settings_label_tags),
-        supportingText = stringResource(Res.string.settings_tags_hint),
-    )
-}
-
-@Composable
-private fun SaveBar(
+internal fun SaveBar(
     saving: Boolean,
     justSaved: Boolean,
     saveError: String?,
@@ -696,7 +520,7 @@ private fun SaveBar(
 }
 
 @Composable
-private fun ErrorContent(detail: String, onRetry: () -> Unit) {
+internal fun ErrorContent(detail: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -718,7 +542,7 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun CenteredMessage(text: String) {
+internal fun CenteredMessage(text: String) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 

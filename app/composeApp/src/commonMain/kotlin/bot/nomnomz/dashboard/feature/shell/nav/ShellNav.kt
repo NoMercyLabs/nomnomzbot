@@ -71,6 +71,8 @@ object ShellNav {
             NavPage(ShellRoute.ChatChannel, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "chat:read"),
             // All my channels (was Multi-Chat): read-only, reuses the Chat read floor.
             NavPage(ShellRoute.ChatAll, NavGroup.Live, ManagementRole.Moderator, null, readActionKey = "chat:read"),
+            NavPage(ShellRoute.StreamInfo, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "stream:read"),
+            NavPage(ShellRoute.StreamInteractions, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "chatpolls:read"),
             NavPage(ShellRoute.StreamSchedule, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "live-ops:schedule:read"),
             // OBS control: reading the connection config needs obs:config:read (Broadcaster); the page's write floor
             // is Broadcaster (obs:config:write, Critical). Scene switching (obs:control, Moderator) and streaming/

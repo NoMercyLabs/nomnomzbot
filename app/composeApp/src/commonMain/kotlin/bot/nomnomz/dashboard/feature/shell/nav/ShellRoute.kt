@@ -50,6 +50,8 @@ enum class ShellRoute(val page: ShellPage, val tab: String?) {
     TtsRules(ShellPage.Tts, "rules"),
     TtsProvider(ShellPage.Tts, "provider"),
     MediaShare(ShellPage.MediaShare, null),
+    StreamInfo(ShellPage.Stream, "info-presets"),
+    StreamInteractions(ShellPage.Stream, "interactions"),
     StreamSchedule(ShellPage.Stream, "schedule"),
     Analytics(ShellPage.Analytics, null),
     Obs(ShellPage.Obs, null),

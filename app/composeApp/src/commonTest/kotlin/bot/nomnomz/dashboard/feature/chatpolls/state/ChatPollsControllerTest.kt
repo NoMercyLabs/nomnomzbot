@@ -43,6 +43,25 @@ import kotlinx.coroutines.test.runTest
 class ChatPollsControllerTest {
 
     @Test
+    fun load_shows_the_open_poll_and_the_closed_history_the_interactions_tab_renders() = runTest {
+        // The Stream page Interactions tab mounts a fresh controller view and calls load(): the polls already in
+        // the store (one closed, one running) must come back as the running poll plus history, newest first.
+        val api = FakeChatPollsApi()
+        api.open("ch1", OpenChatPollRequest(question = "Old?", options = listOf("A", "B")))
+        api.close("ch1", "poll-1")
+        api.open("ch1", OpenChatPollRequest(question = "Now?", options = listOf("Yes", "No")))
+        val controller = ChatPollsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+
+        controller.load()
+
+        val ready: ChatPollsState = controller.state.value
+        assertTrue(ready is ChatPollsState.Ready)
+        assertEquals("Now?", (ready as ChatPollsState.Ready).openPoll?.question)
+        assertEquals(listOf("Old?"), ready.history.map { it.question })
+        assertEquals("closed", ready.history.single().status)
+    }
+
+    @Test
     fun open_makes_the_new_poll_the_running_poll() = runTest {
         val api = FakeChatPollsApi()
         val controller = ChatPollsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
