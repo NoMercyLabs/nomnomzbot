@@ -126,6 +126,24 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
 
 ---
 
+## OWNER REQUEST 2026-10-11 — fun spending breakdowns for every viewer, everywhere
+
+Owner, verbatim: "i want breakdowns like these for everyone everywhere, that is soo funny to know!"
+Context: it followed a breakdown of one viewer's channel-point spend (total kept, refunded, open, and per
+reward) from the `Redemptions` table. Order, owner verbatim: "full dashboard resturcture first".
+
+Arc's reading (not settled): every viewer gets the same breakdown on their profile, on every channel they
+use, and on every platform with a points system. The current viewer profile (`ViewerProfileSummary`) has
+no spend section.
+
+- **S-VIEWER-SPEND** Proposal, not settled: a spend section on the viewer profile at the place the placement
+  ledger gives the viewer profile. It shows points kept, refunded and open, and the top rewards by points,
+  per channel. The counts start at the first redemption the bot recorded, and the screen says so. Done-when:
+  a test seeds redemptions in each status for one viewer on two channels and the API returns those sums per
+  channel and per reward; the profile shows the same numbers live.
+
+---
+
 ## OWNER REQUEST 2026-10-10 — mass ban and the moderation tools, worked out properly in the dashboard
 
 Owner, verbatim: "where is the place where i can enter a username and kick them off all channels?" /
