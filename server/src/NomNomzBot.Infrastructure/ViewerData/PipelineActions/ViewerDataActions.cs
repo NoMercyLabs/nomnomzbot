@@ -14,7 +14,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -32,7 +32,8 @@ public sealed class SetViewerDataAction(
     IViewerDataService viewerData,
     IUserService users,
     IApplicationDbContext db,
-    ITemplateResolver templates
+    ITemplateResolver templates,
+    IMentionTargetResolver mentionTargets
 ) : ICommandAction
 {
     public string ActionType => "set_viewer_data";
@@ -82,6 +83,7 @@ public sealed class SetViewerDataAction(
         Result<Guid> subject = await ViewerDataActionSupport.ResolveSubjectAsync(
             users,
             db,
+            mentionTargets,
             ctx,
             action,
             "set_viewer_data"
@@ -113,7 +115,8 @@ public sealed class SetViewerDataAction(
 public sealed class AdjustViewerDataAction(
     IViewerDataService viewerData,
     IUserService users,
-    IApplicationDbContext db
+    IApplicationDbContext db,
+    IMentionTargetResolver mentionTargets
 ) : ICommandAction
 {
     public string ActionType => "adjust_viewer_data";
@@ -166,6 +169,7 @@ public sealed class AdjustViewerDataAction(
         Result<Guid> subject = await ViewerDataActionSupport.ResolveSubjectAsync(
             users,
             db,
+            mentionTargets,
             ctx,
             action,
             "adjust_viewer_data"
@@ -246,6 +250,7 @@ internal static class ViewerDataActionSupport
     public static async Task<Result<Guid>> ResolveSubjectAsync(
         IUserService users,
         IApplicationDbContext db,
+        IMentionTargetResolver mentionTargets,
         PipelineExecutionContext ctx,
         ActionDefinition action,
         string verb
@@ -258,7 +263,7 @@ internal static class ViewerDataActionSupport
         string resolved = target.Trim();
         if (resolved.StartsWith('{') && resolved.EndsWith('}'))
             resolved = ctx.Variables.GetValueOrDefault(resolved[1..^1].Trim()) ?? string.Empty;
-        resolved = MentionParser.ParseUserMention(resolved);
+        resolved = await mentionTargets.ResolveLoginAsync(resolved, ctx.CancellationToken);
         if (resolved.Length == 0)
             return Result.Failure<Guid>(
                 $"{verb}: the target could not be resolved — mention a user with @name.",

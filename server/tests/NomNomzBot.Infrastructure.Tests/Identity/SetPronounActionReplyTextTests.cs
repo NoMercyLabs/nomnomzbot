@@ -17,6 +17,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Identity.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 using ActionDefinition = NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition;
 
@@ -109,10 +110,13 @@ public sealed class SetPronounActionReplyTextTests
         );
         await db.SaveChangesAsync();
 
-        ActionResult result = await new SetPronounAction(twitch, users, pronouns, db).ExecuteAsync(
-            Context(),
-            Action(username, pronoun)
-        );
+        ActionResult result = await new SetPronounAction(
+            twitch,
+            users,
+            pronouns,
+            db,
+            TestMentionTargets.LoginsOnly()
+        ).ExecuteAsync(Context(), Action(username, pronoun));
         return (result, pronouns);
     }
 

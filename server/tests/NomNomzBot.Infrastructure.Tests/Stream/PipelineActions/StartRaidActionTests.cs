@@ -18,6 +18,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stream.PipelineActions;
@@ -130,7 +131,14 @@ public sealed class StartRaidActionTests
             );
         IEventBus eventBus = Substitute.For<IEventBus>();
         return (
-            new(raids, users, streams, eventBus, NullLogger<StartRaidAction>.Instance),
+            new(
+                raids,
+                users,
+                streams,
+                eventBus,
+                NullLogger<StartRaidAction>.Instance,
+                TestMentionTargets.LoginsOnly()
+            ),
             raids,
             users,
             streams,

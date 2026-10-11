@@ -27,6 +27,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.CustomCode;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -69,7 +70,8 @@ public sealed class ScriptHostBridgeLastErrorTests
             AuthTestBuilder.NewContext(),
             Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
 
     private static string? Call(ScriptHostBridge bridge, string key, params string[] args) =>

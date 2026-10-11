@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -36,18 +37,21 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     public UpdateUserInfoBuiltin(
         ITwitchUsersApi twitchUsers,
         IUserService users,
         IApplicationDbContext db,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
     {
         _twitchUsers = twitchUsers;
         _users = users;
         _db = db;
         _composer = composer;
+        _mentionTargets = mentionTargets;
     }
 
     public string BuiltinKey => "update";
@@ -59,7 +63,9 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        string requestedLogin = MentionParser.ParseUserMention(context.Args).ToLowerInvariant();
+        string requestedLogin = (
+            await _mentionTargets.ResolveLoginAsync(context.Args, ct)
+        ).ToLowerInvariant();
         bool targetsSomeoneElse =
             requestedLogin.Length > 0
             && !requestedLogin.Equals(

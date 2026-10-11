@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -85,12 +86,13 @@ internal static class PermitBuiltinSupport
     public static async Task<Result<(Guid UserId, string Label)>> ResolveTargetAsync(
         IUserService users,
         ITwitchUsersApi twitchUsers,
+        IMentionTargetResolver mentionTargets,
         string mention,
         string verb,
         CancellationToken ct
     )
     {
-        string login = MentionParser.ParseUserMention(mention).ToLowerInvariant();
+        string login = (await mentionTargets.ResolveLoginAsync(mention, ct)).ToLowerInvariant();
         if (login.Length == 0)
             return Result.Failure<(Guid, string)>(
                 $"{verb}: no target — mention a user with @name",
@@ -223,6 +225,7 @@ public sealed class PermitBuiltin : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IRoleResolver _roles;
     private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IMentionTargetResolver _mentionTargets;
     private readonly TimeProvider _clock;
     private readonly IBuiltinResponseComposer _composer;
 
@@ -232,9 +235,11 @@ public sealed class PermitBuiltin : IBuiltinCommand
         IRoleResolver roles,
         ITwitchUsersApi twitchUsers,
         TimeProvider clock,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
     {
+        _mentionTargets = mentionTargets;
         _permits = permits;
         _users = users;
         _roles = roles;
@@ -281,6 +286,7 @@ public sealed class PermitBuiltin : IBuiltinCommand
         Result<(Guid UserId, string Label)> target = await PermitBuiltinSupport.ResolveTargetAsync(
             _users,
             _twitchUsers,
+            _mentionTargets,
             args[0],
             BuiltinKey,
             ct
@@ -405,6 +411,7 @@ public sealed class UnpermitBuiltin : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IRoleResolver _roles;
     private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IMentionTargetResolver _mentionTargets;
     private readonly IBuiltinResponseComposer _composer;
 
     public UnpermitBuiltin(
@@ -412,9 +419,11 @@ public sealed class UnpermitBuiltin : IBuiltinCommand
         IUserService users,
         IRoleResolver roles,
         ITwitchUsersApi twitchUsers,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
     {
+        _mentionTargets = mentionTargets;
         _permits = permits;
         _users = users;
         _roles = roles;
@@ -460,6 +469,7 @@ public sealed class UnpermitBuiltin : IBuiltinCommand
         Result<(Guid UserId, string Label)> target = await PermitBuiltinSupport.ResolveTargetAsync(
             _users,
             _twitchUsers,
+            _mentionTargets,
             args[0],
             BuiltinKey,
             ct

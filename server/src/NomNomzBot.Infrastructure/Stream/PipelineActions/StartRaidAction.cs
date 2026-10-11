@@ -11,7 +11,7 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -75,6 +75,7 @@ public sealed class StartRaidAction : ICommandAction
     private readonly ITwitchStreamsApi _streams;
     private readonly IEventBus _eventBus;
     private readonly ILogger<StartRaidAction> _logger;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     public string ActionType => "start_raid";
 
@@ -107,9 +108,11 @@ public sealed class StartRaidAction : ICommandAction
         ITwitchUsersApi users,
         ITwitchStreamsApi streams,
         IEventBus eventBus,
-        ILogger<StartRaidAction> logger
+        ILogger<StartRaidAction> logger,
+        IMentionTargetResolver mentionTargets
     )
     {
+        _mentionTargets = mentionTargets;
         _raids = raids;
         _users = users;
         _streams = streams;
@@ -132,7 +135,7 @@ public sealed class StartRaidAction : ICommandAction
             ctx.Variables.TryGetValue(key, out rawTarget!);
         }
 
-        rawTarget = MentionParser.ParseUserMention(rawTarget);
+        rawTarget = await _mentionTargets.ResolveLoginAsync(rawTarget, ctx.CancellationToken);
         if (string.IsNullOrWhiteSpace(rawTarget))
             return ActionResult.Failure("start_raid action requires a non-empty 'target'");
 

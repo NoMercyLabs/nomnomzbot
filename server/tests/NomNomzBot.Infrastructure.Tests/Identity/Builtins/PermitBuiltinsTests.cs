@@ -19,6 +19,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity.Builtins;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
@@ -139,9 +140,17 @@ public sealed class PermitBuiltinsTests
                 roles,
                 twitchUsers,
                 clock,
-                TestBuiltinComposer.Create(channelReplies)
+                TestBuiltinComposer.Create(channelReplies),
+                TestMentionTargets.LoginsOnly()
             ),
-            new(permits, users, roles, twitchUsers, TestBuiltinComposer.Create(channelReplies)),
+            new(
+                permits,
+                users,
+                roles,
+                twitchUsers,
+                TestBuiltinComposer.Create(channelReplies),
+                TestMentionTargets.LoginsOnly()
+            ),
             permits,
             roles
         );

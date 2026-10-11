@@ -18,6 +18,7 @@ using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -92,7 +93,8 @@ public sealed class ScriptRunnerTests
             db,
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
         return (
             new(

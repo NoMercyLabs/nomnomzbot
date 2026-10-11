@@ -31,6 +31,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.CustomCode;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -80,7 +81,8 @@ public sealed partial class SdkHostJsonDriftTests
             db ?? AuthTestBuilder.NewContext(),
             paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
             ownerActions ?? Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
 
     private static string? Call(ScriptHostBridge bridge, string key, params string[] args) =>

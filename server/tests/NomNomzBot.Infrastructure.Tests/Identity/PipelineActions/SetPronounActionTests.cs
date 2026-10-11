@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity.PipelineActions;
@@ -104,7 +105,13 @@ public sealed class SetPronounActionTests
         );
         db.SaveChanges();
 
-        SetPronounAction sut = new(twitchUsers, users, pronouns, db);
+        SetPronounAction sut = new(
+            twitchUsers,
+            users,
+            pronouns,
+            db,
+            TestMentionTargets.LoginsOnly()
+        );
         return (sut, pronouns);
     }
 
@@ -193,6 +200,6 @@ public sealed class SetPronounActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("xe/xem");
-        await pronouns.DidNotReceiveWithAnyArgs().SetAsync(default, default!, default);
+        await pronouns.DidNotReceiveWithAnyArgs().SetAsync(default, default!);
     }
 }

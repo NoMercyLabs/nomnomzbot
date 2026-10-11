@@ -46,7 +46,8 @@ public sealed class ScriptHostBridgeFactory(
     IApplicationDbContext db,
     ISevenTvUserPaintResolver paintResolver,
     IOwnerActionService ownerActions,
-    ITwitchUsersApi twitchUsers
+    ITwitchUsersApi twitchUsers,
+    IMentionTargetResolver mentionTargets
 ) : IScriptHostBridgeFactory
 {
     public IScriptHostBridge Create(
@@ -73,6 +74,7 @@ public sealed class ScriptHostBridgeFactory(
             db,
             paintResolver,
             ownerActions,
-            twitchUsers
+            twitchUsers,
+            mentionTargets
         );
 }

@@ -22,6 +22,7 @@ using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Widgets.Bundling;
 using NSubstitute;
@@ -99,7 +100,8 @@ public sealed class ScriptTestRunServiceTests
             db,
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
 
         ITriggerSampleCatalog samples = new TriggerSampleCatalog(

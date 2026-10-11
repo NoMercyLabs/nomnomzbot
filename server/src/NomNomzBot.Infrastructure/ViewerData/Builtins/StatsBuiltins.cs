@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -36,13 +37,15 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     protected StatsBuiltinBase(
         IViewerAnalyticsService analytics,
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
     {
         _analytics = analytics;
@@ -50,6 +53,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
         _users = users;
         _db = db;
         _composer = composer;
+        _mentionTargets = mentionTargets;
     }
 
     private const string AccountUnresolvedCode = "ACCOUNT_UNRESOLVED";
@@ -172,7 +176,9 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     {
         string[] argParts = context.Args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         string mention =
-            argParts.Length > 0 ? MentionParser.ParseUserMention(argParts[0]) : string.Empty;
+            argParts.Length > 0
+                ? await _mentionTargets.ResolveLoginAsync(argParts[0], ct)
+                : string.Empty;
 
         if (mention.Length == 0)
         {
@@ -224,9 +230,10 @@ public sealed class StatsBuiltin : StatsBuiltinBase
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
-        : base(analytics, wallets, users, db, composer) { }
+        : base(analytics, wallets, users, db, composer, mentionTargets) { }
 
     public override string BuiltinKey => "stats";
 }
@@ -239,9 +246,10 @@ public sealed class ProfileBuiltin : StatsBuiltinBase
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
-        : base(analytics, wallets, users, db, composer) { }
+        : base(analytics, wallets, users, db, composer, mentionTargets) { }
 
     public override string BuiltinKey => "profile";
 }

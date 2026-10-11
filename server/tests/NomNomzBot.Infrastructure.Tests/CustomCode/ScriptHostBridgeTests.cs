@@ -31,6 +31,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Sandbox;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -108,8 +109,10 @@ public sealed class ScriptHostBridgeTests
         ScriptReplyTarget? replyTo = null,
         long? egressCap = null,
         ITwitchUsersApi? twitchUsers = null
-    ) =>
-        new(
+    )
+    {
+        IApplicationDbContext bridgeDb = db ?? AuthTestBuilder.NewContext();
+        return new(
             channel,
             Viewer.ToString(),
             replyTo,
@@ -125,12 +128,14 @@ public sealed class ScriptHostBridgeTests
             analytics ?? Substitute.For<IViewerAnalyticsService>(),
             ttsConfig ?? Substitute.For<ITtsConfigService>(),
             scheduler ?? Substitute.For<IScheduledPipelineService>(),
-            db ?? AuthTestBuilder.NewContext(),
+            bridgeDb,
             paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
             twitchUsers ?? Substitute.For<ITwitchUsersApi>(),
+            new MentionTargetResolver(bridgeDb),
             egressCap
         );
+    }
 
     private sealed class StubHandler(string body) : HttpMessageHandler
     {
@@ -449,6 +454,30 @@ public sealed class ScriptHostBridgeTests
         profile["username"]!.Value<string>().Should().Be("cooluser");
         profile["avatarUrl"]!.Value<string>().Should().Be("https://cdn.twitch.tv/cooluser.png");
         profile.Should().NotContainKey("email"); // PII is withheld from scripts
+    }
+
+    [Fact]
+    public async Task User_get_resolves_a_display_name_target_to_the_user_with_that_login()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.Parse("0192a000-0000-7000-8000-00000000e0ca"),
+                Username = "keiraravt",
+                UsernameNormalized = "KEIRARAVT",
+                DisplayName = "케이라라",
+                TwitchUserId = "555902",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        string? json = Build(db: db)
+            .Resolve("user.get")("user.get", ["@케이라라"], CancellationToken.None);
+
+        JObject profile = JObject.Parse(json!);
+        profile["username"]!.Value<string>().Should().Be("keiraravt");
+        profile["displayName"]!.Value<string>().Should().Be("케이라라");
     }
 
     [Fact]

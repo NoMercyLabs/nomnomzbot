@@ -33,6 +33,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.TestRun;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Widgets;
 using NSubstitute;
 
@@ -145,7 +146,8 @@ public sealed class ScriptHostBridgeActionInvokeTests : IDisposable
                 Substitute.For<IEventBus>(),
                 NullLogger<OwnerActionService>.Instance
             ),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
 
     private static string? Call(IScriptHostBridge bridge, string key, params string[] args) =>

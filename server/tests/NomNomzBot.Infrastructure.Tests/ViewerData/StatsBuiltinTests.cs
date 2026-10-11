@@ -18,6 +18,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.ViewerData.Builtins;
 using NSubstitute;
@@ -96,7 +97,14 @@ public sealed class StatsBuiltinTests
     }
 
     private StatsBuiltin Sut(FakeChannelBuiltinReplies? channelReplies = null) =>
-        new(_analytics, _wallets, _users, _db, TestBuiltinComposer.Create(channelReplies));
+        new(
+            _analytics,
+            _wallets,
+            _users,
+            _db,
+            TestBuiltinComposer.Create(channelReplies),
+            new MentionTargetResolver(_db)
+        );
 
     private static BuiltinCommandContext Context(string args = "") =>
         new()
@@ -216,6 +224,50 @@ public sealed class StatsBuiltinTests
         reply.Value.Should().Contain("0 points");
         reply.Value.Should().NotContain("rank #");
         reply.Value.Should().NotContain("streak");
+    }
+
+    [Fact]
+    public async Task Stats_WithADisplayNameTarget_FindsTheViewerByTheirLogin()
+    {
+        Guid keira = Guid.Parse("0192b300-0000-7000-8000-00000000a003");
+        _db.Users.Add(
+            new()
+            {
+                Id = keira,
+                TwitchUserId = "333",
+                Username = "keiraravt",
+                UsernameNormalized = "keiraravt",
+                DisplayName = "케이라라",
+            }
+        );
+        _db.SaveChanges();
+        _analytics
+            .GetProfileAsync(Channel, keira, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new ViewerProfileDto(
+                        keira,
+                        "333",
+                        "케이라라",
+                        new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                        null,
+                        TotalWatchSeconds: 60,
+                        TotalMessages: 9,
+                        TotalCommandsUsed: 0,
+                        TotalRedemptions: 0,
+                        TotalSongRequests: 0,
+                        IsFollower: false,
+                        IsSubscriber: false,
+                        SubTier: null,
+                        IsAnalyticsOptedOut: false
+                    )
+                )
+            );
+
+        Result<string> reply = await Sut().ExecuteAsync(Context("@케이라라"));
+
+        reply.Value.Should().Contain("케이라라");
+        reply.Value.Should().Contain("9 messages");
     }
 
     [Fact]
@@ -369,7 +421,14 @@ public sealed class StatsBuiltinTests
     public async Task Profile_IsTheLegacyParityAliasOfStats()
     {
         SeedAliceStats();
-        ProfileBuiltin alias = new(_analytics, _wallets, _users, _db, TestBuiltinComposer.Create());
+        ProfileBuiltin alias = new(
+            _analytics,
+            _wallets,
+            _users,
+            _db,
+            TestBuiltinComposer.Create(),
+            new MentionTargetResolver(_db)
+        );
 
         alias.BuiltinKey.Should().Be("profile");
         Result<string> reply = await alias.ExecuteAsync(Context());

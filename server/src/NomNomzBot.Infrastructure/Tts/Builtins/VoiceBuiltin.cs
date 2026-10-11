@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -54,15 +55,18 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     private readonly IBuiltinResponseComposer _composer;
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IUserService _users;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     public VoiceBuiltin(
         ITtsConfigService tts,
         IApplicationDbContext db,
         IBuiltinResponseComposer composer,
         ITwitchUsersApi twitchUsers,
-        IUserService users
+        IUserService users,
+        IMentionTargetResolver mentionTargets
     )
     {
+        _mentionTargets = mentionTargets;
         _tts = tts;
         _db = db;
         _composer = composer;
@@ -100,7 +104,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         if (head.StartsWith('@') && parts.Length > 2 && IsSetWord(parts[1]))
             return await SetForViewerAsync(
                 context,
-                MentionParser.ParseUserMention(parts[0]),
+                await _mentionTargets.ResolveLoginAsync(parts[0], ct),
                 string.Join(' ', parts[2..]),
                 ct
             );
@@ -386,7 +390,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         string voiceQuery = words.Length > 1 ? words[1].Trim() : string.Empty;
         return await SetForViewerAsync(
             context,
-            MentionParser.ParseUserMention(words[0]),
+            await _mentionTargets.ResolveLoginAsync(words[0], ct),
             voiceQuery,
             ct
         );

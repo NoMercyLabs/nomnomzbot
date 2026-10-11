@@ -25,6 +25,7 @@ using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.TestRun;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -92,6 +93,7 @@ public sealed class CaptureScriptHostBridgeValidationTests
                     ? Result.Failure<RewardDetail>("Reward not found.", "NOT_FOUND")
                     : Result.Success(reward)
             );
+        AuthDbContext db = AuthTestBuilder.NewContext();
         return new(
             Channel,
             Guid.NewGuid().ToString(),
@@ -108,10 +110,11 @@ public sealed class CaptureScriptHostBridgeValidationTests
             Substitute.For<IViewerAnalyticsService>(),
             Substitute.For<ITtsConfigService>(),
             Substitute.For<IScheduledPipelineService>(),
-            AuthTestBuilder.NewContext(),
+            db,
             Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            new MentionTargetResolver(db)
         );
     }
 

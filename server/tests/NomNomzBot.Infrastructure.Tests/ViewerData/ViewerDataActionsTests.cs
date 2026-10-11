@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.ViewerData.Entities;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.ViewerData;
 using NomNomzBot.Infrastructure.ViewerData.PipelineActions;
 using NSubstitute;
@@ -144,7 +145,13 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task SetViewerData_WritesForTheTriggeringViewer_AndTemplateResolvesTheValue()
     {
-        SetViewerDataAction sut = new(_service, _users, _db, _templates);
+        SetViewerDataAction sut = new(
+            _service,
+            _users,
+            _db,
+            _templates,
+            new MentionTargetResolver(_db)
+        );
         PipelineExecutionContext ctx = Context(vars: ("args.1", "DOOM"));
 
         ActionResult result = await sut.ExecuteAsync(
@@ -163,7 +170,7 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task AdjustViewerData_Increments_AndPublishesTheFreshValueIntoTheRun()
     {
-        AdjustViewerDataAction sut = new(_service, _users, _db);
+        AdjustViewerDataAction sut = new(_service, _users, _db, new MentionTargetResolver(_db));
         PipelineExecutionContext ctx = Context();
         ActionDefinition action = Action("adjust_viewer_data", ("key", "deaths"), ("delta", "1"));
 
@@ -179,7 +186,7 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task Target_VariableReference_ResolvesTheMentionedViewer()
     {
-        AdjustViewerDataAction sut = new(_service, _users, _db);
+        AdjustViewerDataAction sut = new(_service, _users, _db, new MentionTargetResolver(_db));
         PipelineExecutionContext ctx = Context(
             "111",
             ("target.id", "222"),
@@ -206,7 +213,13 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task Target_LoginOfAKnownLocalUser_Resolves()
     {
-        SetViewerDataAction sut = new(_service, _users, _db, _templates);
+        SetViewerDataAction sut = new(
+            _service,
+            _users,
+            _db,
+            _templates,
+            new MentionTargetResolver(_db)
+        );
 
         ActionResult result = await sut.ExecuteAsync(
             Context(),
@@ -220,7 +233,13 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task Target_UnknownLogin_FailsHonestly_WithNoWrite()
     {
-        SetViewerDataAction sut = new(_service, _users, _db, _templates);
+        SetViewerDataAction sut = new(
+            _service,
+            _users,
+            _db,
+            _templates,
+            new MentionTargetResolver(_db)
+        );
 
         ActionResult result = await sut.ExecuteAsync(
             Context(),
@@ -235,7 +254,13 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task Target_PlatformGuid_IsUsedDirectly_WithoutAnIdentityLookup()
     {
-        SetViewerDataAction sut = new(_service, _users, _db, _templates);
+        SetViewerDataAction sut = new(
+            _service,
+            _users,
+            _db,
+            _templates,
+            new MentionTargetResolver(_db)
+        );
 
         ActionResult result = await sut.ExecuteAsync(
             Context(),
@@ -263,7 +288,7 @@ public sealed class ViewerDataActionsTests
     [Fact]
     public async Task AdjustViewerData_NonNumericDelta_FailsWithoutWriting()
     {
-        AdjustViewerDataAction sut = new(_service, _users, _db);
+        AdjustViewerDataAction sut = new(_service, _users, _db, new MentionTargetResolver(_db));
 
         ActionResult result = await sut.ExecuteAsync(
             Context(),

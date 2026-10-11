@@ -25,6 +25,7 @@ using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NSubstitute;
 
@@ -453,7 +454,8 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             db,
             Substitute.For<Application.Chat.Services.ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
         return new(
             db,

@@ -19,6 +19,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -136,7 +137,13 @@ public sealed class UpdateUserInfoBuiltinTests
                 )
             );
 
-        UpdateUserInfoBuiltin builtin = new(twitch, users, db, FakeComposer());
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            users,
+            db,
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -166,7 +173,8 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer()
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
         );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
@@ -191,7 +199,8 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer()
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
         );
 
         Result<string> result = await builtin.ExecuteAsync(Context("@someone_else", roleLevel: 0));
@@ -213,7 +222,8 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer()
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
         );
 
         Result<string> sassy = await builtin.ExecuteAsync(
@@ -249,7 +259,8 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer()
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
         );
 
         Result<string> sassy = await builtin.ExecuteAsync(
@@ -296,7 +307,13 @@ public sealed class UpdateUserInfoBuiltinTests
             )
             .Returns(Result.Failure<UserDto>("db write failed", "DB_ERROR"));
 
-        UpdateUserInfoBuiltin builtin = new(twitch, users, db, FakeComposer());
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            users,
+            db,
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> sassy = await builtin.ExecuteAsync(
             Context(personality: PersonalityTone.Sassy)
@@ -328,7 +345,8 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer()
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
         );
 
         BuiltinCommandContext EmptyLoginContext(string personality) =>
@@ -372,7 +390,8 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer()
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
         );
 
         Result<string> sassy = await builtin.ExecuteAsync(

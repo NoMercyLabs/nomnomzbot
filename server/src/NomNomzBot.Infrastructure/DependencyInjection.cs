@@ -368,6 +368,11 @@ public static class DependencyInjection
         >();
         // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
+        // Typed @target to login (a display name such as a Korean one is not a login); reads the user table.
+        services.AddScoped<
+            Application.Chat.Services.IMentionTargetResolver,
+            MentionTargetResolver
+        >();
         // Per-channel pre-mute volume memory so unmute restores the real prior level (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Music.Services.IMuteVolumeMemory, MuteVolumeMemory>();
         // Per-channel memory of an in-flight play_track_once interruption, so PlayOnceResumeHandler can put

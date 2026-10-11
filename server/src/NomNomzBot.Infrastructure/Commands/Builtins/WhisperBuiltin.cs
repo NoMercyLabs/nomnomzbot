@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -30,16 +31,19 @@ public sealed class WhisperBuiltin : IBuiltinCommand
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IReadOnlyDictionary<string, IPlatformDirectMessageSender> _dmSendersByProvider;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     public WhisperBuiltin(
         ITwitchUsersApi twitchUsers,
         IEnumerable<IPlatformDirectMessageSender> dmSenders,
-        IBuiltinResponseComposer composer
+        IBuiltinResponseComposer composer,
+        IMentionTargetResolver mentionTargets
     )
     {
         _twitchUsers = twitchUsers;
         _dmSendersByProvider = dmSenders.ToDictionary(s => s.Provider);
         _composer = composer;
+        _mentionTargets = mentionTargets;
     }
 
     public string BuiltinKey => "whisper";
@@ -71,7 +75,9 @@ public sealed class WhisperBuiltin : IBuiltinCommand
             return Result.Success(usage);
         }
 
-        string targetLogin = MentionParser.ParseUserMention(parts[0]).ToLowerInvariant();
+        string targetLogin = (
+            await _mentionTargets.ResolveLoginAsync(parts[0], ct)
+        ).ToLowerInvariant();
         string message = parts[1];
 
         Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByLoginsAsync(

@@ -20,6 +20,7 @@ using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tts;
 using NomNomzBot.Infrastructure.Tts.Builtins;
@@ -99,7 +100,17 @@ public sealed class VoiceChatAssignTests
         );
         twitchUsers ??= TwitchKnowing();
         users ??= Substitute.For<IUserService>();
-        return (new VoiceBuiltin(config, db, TestBuiltinComposer.Create(), twitchUsers, users), db);
+        return (
+            new VoiceBuiltin(
+                config,
+                db,
+                TestBuiltinComposer.Create(),
+                twitchUsers,
+                users,
+                TestMentionTargets.LoginsOnly()
+            ),
+            db
+        );
     }
 
     private static TwitchUser TwitchAccount(string id, string login, string displayName) =>

@@ -24,6 +24,7 @@ using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
@@ -56,7 +57,8 @@ internal static class ShoutoutTestFactory
             resolver,
             Composer(resolver),
             time,
-            NullLogger<ShoutoutAction>.Instance
+            NullLogger<ShoutoutAction>.Instance,
+            TestMentionTargets.LoginsOnly()
         );
 
     /// <summary>A channels client whose category lookup fails — the shoutout then falls back to its default game text.</summary>

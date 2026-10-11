@@ -15,7 +15,6 @@ using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
-using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -77,6 +76,7 @@ public sealed partial class ScriptHostBridge(
     ISevenTvUserPaintResolver paintResolver,
     IOwnerActionService ownerActions,
     ITwitchUsersApi twitchUsers,
+    IMentionTargetResolver mentionTargets,
     long? maxEgressBytes = null
 ) : IScriptHostBridge, IScriptWriteValidator
 {
@@ -1141,7 +1141,7 @@ public sealed partial class ScriptHostBridge(
                 .GetAwaiter()
                 .GetResult();
 
-        string login = MentionParser.ParseUserMention(subject).ToLowerInvariant();
+        string login = mentionTargets.ResolveLoginAsync(subject, ct).GetAwaiter().GetResult();
         return db.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.TwitchUserId == subject, ct)
                 .GetAwaiter()

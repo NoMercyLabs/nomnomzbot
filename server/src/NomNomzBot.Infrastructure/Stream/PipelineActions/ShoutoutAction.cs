@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -82,6 +83,7 @@ public sealed class ShoutoutAction : ICommandAction
     private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     public string ActionType => "shoutout";
 
@@ -137,9 +139,11 @@ public sealed class ShoutoutAction : ICommandAction
         ITemplateResolver templateResolver,
         IBuiltinResponseComposer composer,
         TimeProvider timeProvider,
-        ILogger<ShoutoutAction> logger
+        ILogger<ShoutoutAction> logger,
+        IMentionTargetResolver mentionTargets
     )
     {
+        _mentionTargets = mentionTargets;
         _users = users;
         _channels = channels;
         _streams = streams;
@@ -175,7 +179,7 @@ public sealed class ShoutoutAction : ICommandAction
             action.GetString("user_id") ?? string.Empty,
             ctx.Variables
         );
-        rawUserId = MentionParser.ParseUserMention(rawUserId);
+        rawUserId = await _mentionTargets.ResolveLoginAsync(rawUserId, ctx.CancellationToken);
         if (string.IsNullOrWhiteSpace(rawUserId))
             return ActionResult.Failure(MissingUserText);
 

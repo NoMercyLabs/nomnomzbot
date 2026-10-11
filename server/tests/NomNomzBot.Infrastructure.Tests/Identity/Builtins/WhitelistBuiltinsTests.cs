@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Identity.Builtins;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
@@ -88,8 +89,8 @@ public sealed class WhitelistBuiltinsTests
 
         IBuiltinResponseComposer composer = TestBuiltinComposer.Create();
         return new(
-            new(standings, users, twitchUsers, composer),
-            new(standings, users, twitchUsers, composer),
+            new(standings, users, twitchUsers, composer, TestMentionTargets.LoginsOnly()),
+            new(standings, users, twitchUsers, composer, TestMentionTargets.LoginsOnly()),
             standings,
             roles,
             db

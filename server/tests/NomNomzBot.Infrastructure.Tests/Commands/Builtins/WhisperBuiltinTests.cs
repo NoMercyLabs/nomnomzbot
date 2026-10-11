@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -101,7 +102,12 @@ public sealed class WhisperBuiltinTests
             .SendAsync(Broadcaster, "999", "hey stop that", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        WhisperBuiltin sut = new(twitchUsers, [twitchSender], FakeComposer());
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [twitchSender],
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context("@viewer1 hey stop that"));
 
@@ -124,7 +130,12 @@ public sealed class WhisperBuiltinTests
         IPlatformDirectMessageSender twitchSender = Substitute.For<IPlatformDirectMessageSender>();
         twitchSender.Provider.Returns(AuthEnums.Platform.Twitch);
 
-        WhisperBuiltin sut = new(twitchUsers, [twitchSender], FakeComposer());
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [twitchSender],
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context("ghostuser hello"));
 
@@ -145,7 +156,7 @@ public sealed class WhisperBuiltinTests
     public async Task Missing_message_argument_never_looks_up_a_user()
     {
         ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
 
         Result<string> result = await sut.ExecuteAsync(Context("viewer1"));
 
@@ -160,12 +171,15 @@ public sealed class WhisperBuiltinTests
     [Fact]
     public async Task Sassy_tone_produces_a_different_usage_message_than_the_default_tone()
     {
-        WhisperBuiltin sut = new(Substitute.For<ITwitchUsersApi>(), [], FakeComposer());
+        WhisperBuiltin sut = new(
+            Substitute.For<ITwitchUsersApi>(),
+            [],
+            FakeComposer(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(Context("viewer1", PersonalityTone.Sassy));
-        Result<string> informative = await sut.ExecuteAsync(
-            Context("viewer1", PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Context("viewer1"));
 
         informative.Value.Should().Be("Usage: !whisper <user> <message>");
         sassy.Value.Should().NotBe(informative.Value);
@@ -186,14 +200,12 @@ public sealed class WhisperBuiltinTests
         twitchUsers
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
 
         Result<string> sassy = await sut.ExecuteAsync(
             Context("ghostuser hello", PersonalityTone.Sassy)
         );
-        Result<string> informative = await sut.ExecuteAsync(
-            Context("ghostuser hello", PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Context("ghostuser hello"));
 
         informative.Value.Should().Be("Could not find a Twitch user named \"ghostuser\".");
         sassy.Value.Should().NotBe(informative.Value);
@@ -206,14 +218,12 @@ public sealed class WhisperBuiltinTests
         twitchUsers
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("TIMEOUT", "TIMEOUT"));
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
 
         Result<string> sassy = await sut.ExecuteAsync(
             Context("ghostuser hello", PersonalityTone.Sassy)
         );
-        Result<string> informative = await sut.ExecuteAsync(
-            Context("ghostuser hello", PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Context("ghostuser hello"));
 
         informative.Value.Should().Be("Twitch did not answer just now — try again in a moment.");
         sassy.Value.Should().NotBe(informative.Value);
@@ -235,14 +245,12 @@ public sealed class WhisperBuiltinTests
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([Viewer1()]));
         // No DM senders bound for any provider -> the "not available" branch.
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
 
         Result<string> sassy = await sut.ExecuteAsync(
             Context("@viewer1 hey", PersonalityTone.Sassy)
         );
-        Result<string> informative = await sut.ExecuteAsync(
-            Context("@viewer1 hey", PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Context("@viewer1 hey"));
 
         informative.Value.Should().Be("Whispering isn't available right now.");
         sassy.Value.Should().NotBe(informative.Value);
@@ -278,12 +286,14 @@ public sealed class WhisperBuiltinTests
         Result<string> plain = await new WhisperBuiltin(
             twitchUsers,
             [twitchSender],
-            TestBuiltinComposer.Create()
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly()
         ).ExecuteAsync(Context("viewer1 psst"));
         Result<string> reworded = await new WhisperBuiltin(
             twitchUsers,
             [twitchSender],
-            TestBuiltinComposer.Create(replies)
+            TestBuiltinComposer.Create(replies),
+            TestMentionTargets.LoginsOnly()
         ).ExecuteAsync(Context("viewer1 psst"));
 
         plain.Value.Should().Be("Whispered Viewer1.");
@@ -306,7 +316,8 @@ public sealed class WhisperBuiltinTests
         Result<string> result = await new WhisperBuiltin(
             twitchUsers,
             [twitchSender],
-            TestBuiltinComposer.Create()
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly()
         ).ExecuteAsync(Context("viewer1 psst"));
 
         result.Value.Should().Be("Could not whisper Viewer1.");

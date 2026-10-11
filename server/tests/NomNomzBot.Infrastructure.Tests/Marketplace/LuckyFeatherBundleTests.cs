@@ -44,6 +44,7 @@ using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.Marketplace.FirstPartyBundles;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
@@ -272,7 +273,8 @@ public sealed class LuckyFeatherBundleTests
             h.Db,
             paint ?? Substitute.For<ISevenTvUserPaintResolver>(),
             Substitute.For<IOwnerActionService>(),
-            Substitute.For<ITwitchUsersApi>()
+            Substitute.For<ITwitchUsersApi>(),
+            TestMentionTargets.LoginsOnly()
         );
 
         return new(h.Db, new JintScriptExecutor(), broker, meter, bridgeFactory, h.Clock);

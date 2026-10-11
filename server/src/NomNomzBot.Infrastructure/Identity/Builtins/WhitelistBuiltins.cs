@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -29,7 +30,8 @@ public sealed class WhitelistBuiltin(
     ICommunityStandingService standings,
     IUserService users,
     ITwitchUsersApi twitchUsers,
-    IBuiltinResponseComposer composer
+    IBuiltinResponseComposer composer,
+    IMentionTargetResolver mentionTargets
 ) : IBuiltinCommand
 {
     private static readonly Dictionary<string, CommunityStanding> Levels = new(
@@ -89,6 +91,7 @@ public sealed class WhitelistBuiltin(
         Result<(Guid UserId, string Label)> target = await PermitBuiltinSupport.ResolveTargetAsync(
             users,
             twitchUsers,
+            mentionTargets,
             args[0],
             verb,
             ct
@@ -141,7 +144,8 @@ public sealed class UnwhitelistBuiltin(
     ICommunityStandingService standings,
     IUserService users,
     ITwitchUsersApi twitchUsers,
-    IBuiltinResponseComposer composer
+    IBuiltinResponseComposer composer,
+    IMentionTargetResolver mentionTargets
 ) : IBuiltinCommand
 {
     public string BuiltinKey => "unwhitelist";
@@ -180,6 +184,7 @@ public sealed class UnwhitelistBuiltin(
         Result<(Guid UserId, string Label)> target = await PermitBuiltinSupport.ResolveTargetAsync(
             users,
             twitchUsers,
+            mentionTargets,
             args[0],
             verb,
             ct

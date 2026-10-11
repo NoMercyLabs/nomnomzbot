@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
@@ -43,6 +43,7 @@ public sealed class SetPronounAction : ICommandAction
     private readonly IUserService _users;
     private readonly IPronounSelfService _pronouns;
     private readonly IApplicationDbContext _db;
+    private readonly IMentionTargetResolver _mentionTargets;
 
     public string ActionType => "set_pronoun";
 
@@ -69,9 +70,11 @@ public sealed class SetPronounAction : ICommandAction
         ITwitchUsersApi twitchUsers,
         IUserService users,
         IPronounSelfService pronouns,
-        IApplicationDbContext db
+        IApplicationDbContext db,
+        IMentionTargetResolver mentionTargets
     )
     {
+        _mentionTargets = mentionTargets;
         _twitchUsers = twitchUsers;
         _users = users;
         _pronouns = pronouns;
@@ -83,8 +86,9 @@ public sealed class SetPronounAction : ICommandAction
         ActionDefinition action
     )
     {
-        string username = MentionParser.ParseUserMention(
-            ResolveVariable(action.GetString("username") ?? string.Empty, ctx.Variables)
+        string username = await _mentionTargets.ResolveLoginAsync(
+            ResolveVariable(action.GetString("username") ?? string.Empty, ctx.Variables),
+            ctx.CancellationToken
         );
         string pronounArg = ResolveVariable(
                 action.GetString("pronoun") ?? string.Empty,
