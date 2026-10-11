@@ -40,14 +40,20 @@ actual class RouteStore actual constructor() {
         // Only push when the slug actually changed, so re-selecting the current page doesn't pile up duplicate
         // history entries (which would make one Back press appear to do nothing).
         if (window.location.hash != target) {
-            window.history.pushState(null, "", target)
+            pushFragment(target)
         }
     }
 
     // Push `#/` as the connect/unauthenticated entry BEFORE the shell writes its first page route, so the
     // browser's Back button from inside the shell lands here and the app can respond by signing out.
     actual fun pushConnectEntry() {
-        window.history.pushState(null, "", HASH_PREFIX)
+        pushFragment(HASH_PREFIX)
+    }
+
+    // index.html carries `<base href="/">`, and a bare `#/…` resolves against the base, not the page: from /app it
+    // would push /#/… and leave the dashboard path. Prefixing the current path keeps the address on the page.
+    private fun pushFragment(fragment: String) {
+        window.history.pushState(null, "", window.location.pathname + window.location.search + fragment)
     }
 
     // One shared callbackFlow that re-emits the raw slug on every popstate — both [externalChanges] and
