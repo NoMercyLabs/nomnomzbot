@@ -134,6 +134,23 @@ class CodeScriptsController(
     }
 
     /**
+     * What the Scripts page does when it is first shown (S-IA-SCRIPTS): open straight into the editor, no list
+     * page to click through. A pending [requestOpen] deep-link wins; otherwise the most recently updated script
+     * opens. With no scripts the page stays on the empty state and its add action. When the editor closes the
+     * list shows; this is called once per screen entry, so closing the editor never re-opens it.
+     */
+    suspend fun landOnEditor(compiledMessage: String, rowTypeLabel: String) {
+        if (pendingOpenId != null) return load()
+        load()
+        val ready: CodeScriptsState = _state.value
+        if (ready !is CodeScriptsState.Ready) return
+        val newest: CodeScriptSummary = ready.scripts.maxByOrNull { it.updatedAt } ?: return
+        val displayName: String =
+            resolveRowLabel(primary = newest.name, typeLabel = rowTypeLabel, discriminatorSource = newest.id)
+        openAndEdit(newest.id, compiledMessage, displayName)
+    }
+
+    /**
      * Open a script for editing: fetch its detail AND its multi-file project (its `src/` file set + manifest),
      * then transition to [CodeScriptsState.Editing] with the entry file pre-selected. A failure surfaces over the
      * kept list without opening the editor.

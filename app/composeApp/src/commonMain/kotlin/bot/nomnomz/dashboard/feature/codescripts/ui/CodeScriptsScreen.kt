@@ -115,7 +115,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
     var showCreate: Boolean by remember { mutableStateOf(false) }
     var pendingDelete: CodeScriptSummary? by remember { mutableStateOf(null) }
 
-    LaunchedEffect(Unit) { controller.load() }
+    LaunchedEffect(Unit) { controller.landOnEditor(compiledMessage, rowTypeLabel) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(spacing.s6),
