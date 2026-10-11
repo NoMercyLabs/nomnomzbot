@@ -844,6 +844,24 @@ Stoney, verbatim: "we should also do a better effort on getting search terms to 
 - Find why the bot's pick differs from the top hit in the Spotify app for the same words, then pick the right song.
 - Done when: a test with real recorded Spotify search answers for the queries that went wrong picks the expected song; proven live with the same words on Stoney's channel.
 
+## OWNER BUG 2026-10-11 — !wrongsong says a request from last stream "already played"
+
+Stoney, verbatim: "when someone requested a song last stream and now does !wrongsong it should not reply with that it has already played, it should reply with that the user has no songs in the queue to skip"
+
+### S-WRONGSONG-LAST-STREAM — !wrongsong with nothing queued says there is nothing to skip
+- A viewer with no queued or playing request gets "no songs in the queue to skip", even when a request of theirs played in an earlier stream.
+- Done when: a test with a request that played last stream and nothing queued now gets the nothing-to-skip reply; proven live on Stoney's channel.
+
+## OWNER BUG 2026-10-11 — the bot names a viewer with a non-Latin display name so chat does not link them
+
+Stoney, verbatim: "i had a feeling this would cause an issue, this user is not recognized in chat because of the korean characters, this must be solved, the tts does pronounced it correctly as keira"
+
+Seen live: the bot wrote "@케이라라"; the viewer's login is keiraravt.
+
+### S-CHAT-MENTION-LOGIN — a chat mention links the viewer whatever their display name
+- Arc's reading: Twitch links and pings an @mention only by login. When the display name differs from the login by more than letter case, chat text uses the login; TTS keeps the spoken name.
+- Done when: a test renders a chat line for a viewer with display name 케이라라 and login keiraravt and gets @keiraravt, while the TTS line keeps the pronunciation; every place a display name reaches chat is counted and covered; proven live on Stoney's channel.
+
 ## OWNER BUG 2026-10-08 — the auto shoutout repeats a shoutout that was already given by hand
 
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
