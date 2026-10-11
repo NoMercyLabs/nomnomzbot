@@ -97,8 +97,8 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
   absorbs Alerts. Done-when: the alert settings show in Event Responses, and each tab saves and reloads.
 - **S-IA-SCRIPTS** Scripts opens straight into the editor with the file list beside it. Done-when: one
   click from the sidebar shows an editable script.
-- **S-IA-GALLERY** Gallery with tabs Templates and Bundles, and "Start from a template" in every create
-  flow. Done-when: each create flow offers the templates of its kind, and installing one creates the item.
+- **S-IA-GALLERY** "Start from a template" in every create flow, and Overlays with tabs Gallery and My
+  overlays. Done-when: each create flow offers the templates of its kind, and installing one creates the item.
 - **S-IA-DECK** The Deck: a table in both migration sets, the API, the Deck page, the phone grid, the
   desktop pop-out window, the top 8 on Home Live, and the Stream Deck plugin reading the same Deck.
   Done-when: a button made on the Deck page fires from the phone grid, the pop-out and Home, and the
@@ -106,9 +106,9 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
 - **S-IA-STREAM** Live, Stream with tabs Info & presets, Interactions and Schedule, per platform. Home Prep embeds
   the same Stream Info editor component. Done-when: a title change on Home Prep and on the Stream page
   both reach every connected platform, from one component.
-- **S-IA-MEDIA** Music with Song requests as a tab; TTS with 4 tabs; Media Share; OBS and VTube Studio with
-  tabs and an inline connect step when not connected. Done-when: the Song requests tab loads live data in
-  Music, and OBS shows the connect step when the link is down.
+- **S-IA-MEDIA** TTS with 4 tabs; Media Share with tabs Queue and Settings; OBS and VTube Studio with
+  tabs and an inline connect step when not connected. Done-when: each TTS tab saves and reloads, and OBS
+  shows the connect step when the link is down.
 - **S-IA-SETUP** Integrations is the one home for credentials, including the Twitch app credentials.
   Ko-fi moves to Supporters. Automation is renamed API & devices. Settings gets 6 tabs. The web sign-in
   hides the Backend URL field (desktop only, UF F7). Done-when: no credential field shows outside
