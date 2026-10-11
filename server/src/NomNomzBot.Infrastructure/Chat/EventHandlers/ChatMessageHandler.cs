@@ -159,7 +159,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (featureIgnored)
             return;
 
-        string text = @event.Message.Trim();
+        string text = StripReplyMention(@event);
         if (string.IsNullOrEmpty(text))
             return;
 
@@ -693,6 +693,25 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         yield return candidate.Name;
         foreach (string alias in candidate.Aliases)
             yield return alias;
+    }
+
+    /// <summary>
+    /// The trimmed message text for command parsing. Twitch puts "@&lt;parent name&gt; " in front of a reply's
+    /// text, so on a reply that one leading mention of the parent (login or display name) is dropped.
+    /// </summary>
+    private static string StripReplyMention(ChatMessageReceivedEvent @event)
+    {
+        string text = @event.Message.Trim();
+        if (string.IsNullOrEmpty(@event.ReplyParentMessageId) || !text.StartsWith('@'))
+            return text;
+
+        int end = text.IndexOfAny([' ', '\t']);
+        string mention = end < 0 ? text[1..] : text[1..end];
+        bool isParent =
+            mention.Equals(@event.ReplyParentUserLogin, StringComparison.OrdinalIgnoreCase)
+            || mention.Equals(@event.ReplyParentUserName, StringComparison.OrdinalIgnoreCase);
+
+        return isParent && end > 0 ? text[end..].TrimStart() : text;
     }
 
     /// <summary>Whole-word, case-insensitive substring match — used by <c>MatchMode=Contains</c> so a trigger

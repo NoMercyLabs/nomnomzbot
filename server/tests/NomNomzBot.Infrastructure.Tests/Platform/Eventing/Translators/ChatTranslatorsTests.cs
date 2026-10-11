@@ -349,6 +349,7 @@ public sealed class ChatTranslatorsTests
         published.ReplyParentMessageId.Should().Be("parent-77");
         published.ReplyParentMessageBody.Should().Be("original message");
         published.ReplyParentUserName.Should().Be("Streamer");
+        published.ReplyParentUserLogin.Should().Be("streamer");
     }
 
     [Fact]
