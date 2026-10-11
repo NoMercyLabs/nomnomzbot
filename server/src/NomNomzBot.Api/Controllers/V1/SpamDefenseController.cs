@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs;
@@ -198,7 +199,7 @@ public class SpamDefenseController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
-        if (!Guid.TryParse(batchId, out Guid batch))
+        if (!GuidUlidCodec.TryDecode(batchId, out Guid batch))
             return BadRequestResponse("Invalid batch id.");
 
         return ResultResponse(await _spamDefense.RestoreFollowBotBatchAsync(tenantId, batch, ct));
@@ -220,7 +221,7 @@ public class SpamDefenseController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
-        if (!Guid.TryParse(detectionId, out Guid id))
+        if (!GuidUlidCodec.TryDecode(detectionId, out Guid id))
             return BadRequestResponse("Invalid detection id.");
         if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
             return UnauthenticatedResponse();
