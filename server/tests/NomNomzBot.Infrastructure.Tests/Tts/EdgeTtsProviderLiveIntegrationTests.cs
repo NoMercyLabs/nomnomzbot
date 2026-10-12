@@ -25,7 +25,7 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class EdgeTtsProviderLiveIntegrationTests
 {
-    [Fact]
+    [EdgeTtsLiveFact]
     public async Task SynthesizeAsync_AgainstTheRealMicrosoftEndpoint_ReturnsPlayableMp3Audio()
     {
         ServiceCollection services = new();

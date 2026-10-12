@@ -889,6 +889,14 @@ Only the Docker image and CI install esbuild. A Windows self-host run has no esb
 - Ship esbuild (the version pinned for Docker and CI) with the self-host build, and resolve its path without a config edit.
 - Done when: a clean Windows self-host install builds the Audio, Alerts and TTS Caption widgets with no manual step; proven on a machine with no esbuild on PATH.
 
+## FINDING 2026-10-12 — Microsoft refuses Edge TTS from datacenter networks
+
+Since 2026-10-12 every GitHub runner gets a 403 at the Edge read-aloud handshake; a home network gets audio from the same build. A self-host on a cloud server gets the same 403, and the provider turns it into empty audio, so TTS goes quiet with only a log line.
+
+### S-EDGE-TTS-BLOCKED — a refused Edge TTS handshake reaches the streamer
+- A 403 at the Edge handshake becomes an actionable error in the one attention inbox, naming the cause (network refused by Microsoft) and the fix (another TTS provider, or a home network).
+- Done when: a test drives the provider with a refused handshake and the inbox item appears once with that text; proven live by a run from a datacenter network.
+
 ## OWNER BUG 2026-10-11 — !wrongsong leaves the song in the Spotify queue
 
 Stoney, verbatim: "!wrongsong removes the song from the fairqueue system but it does not remove it from my current spotify queue, so make it look at the current queue and clear the queue and requeue any manually queued songs if they exist."
