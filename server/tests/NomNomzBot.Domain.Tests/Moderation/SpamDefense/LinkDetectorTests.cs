@@ -83,4 +83,25 @@ public sealed class LinkDetectorTests
     {
         LinkDetector.Find(null).Should().BeEmpty();
     }
+
+    [Theory]
+    [InlineData("i use asp.net for that")]
+    [InlineData("node.js is fine")]
+    [InlineData("vue.js or next.js?")]
+    [InlineData("nuxt.js and three.js")]
+    [InlineData("socket.io works")]
+    [InlineData("d3.js charts, I like asp.net.")]
+    public void ATechName_IsNotALink(string message)
+    {
+        LinkDetector.Find(message).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("https://asp.net/core", "asp.net")]
+    [InlineData("asp.net/core", "asp.net")]
+    [InlineData("see socket.io/docs", "socket.io")]
+    public void ATechNameWithASchemeOrAPath_IsStillALink(string message, string expectedHost)
+    {
+        LinkDetector.Find(message).Select(l => l.Host).Should().Equal(expectedHost);
+    }
 }

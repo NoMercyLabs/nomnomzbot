@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.RegularExpressions;
-
 namespace NomNomzBot.Domain.Moderation.SpamDefense;
 
 /// <summary>
@@ -27,12 +25,6 @@ namespace NomNomzBot.Domain.Moderation.SpamDefense;
 /// </summary>
 public static class CapabilityGate
 {
-    /// <summary>A scheme, a <c>www.</c> host, or a domain whose last label is a known top-level domain.</summary>
-    private static readonly Regex LinkLike = new(
-        @"(https?://\S+|\bwww\.\S+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|tv|gg|ly|me|xyz|ru|shop|store|site|club|biz|info|link|app|dev)\b)",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase
-    );
-
     /// <summary>The first code point past Latin Extended-B; everything letter-like beyond it is another script.</summary>
     private const char FirstNonLatinLetter = 'ɐ';
 
@@ -56,11 +48,14 @@ public static class CapabilityGate
     }
 
     /// <summary>The capabilities this message used. Only the ones the engine can read from text are reported.</summary>
-    public static IReadOnlyList<SpamCapability> Detect(string rawText)
+    public static IReadOnlyList<SpamCapability> Detect(
+        string rawText,
+        IReadOnlyCollection<string>? allowedDomains = null
+    )
     {
         List<SpamCapability> used = [];
 
-        if (LinkLike.IsMatch(rawText))
+        if (NeedsLinkCapability(rawText, allowedDomains ?? []))
             used.Add(SpamCapability.PostLink);
 
         if (IsWrittenInAnotherScript(rawText))
@@ -69,17 +64,27 @@ public static class CapabilityGate
         return used;
     }
 
+    /// <summary>A link needs the capability unless every host in the message is mainstream or allowed by the channel.</summary>
+    private static bool NeedsLinkCapability(
+        string rawText,
+        IReadOnlyCollection<string> allowedDomains
+    ) =>
+        LinkDetector
+            .Find(rawText)
+            .Any(link => !MainstreamHosts.IsMainstreamOrAllowed(link.Host, allowedDomains));
+
     /// <summary>The used capabilities that <paramref name="tier"/> has not earned under this channel's floors.</summary>
     public static IReadOnlyList<SpamCapability> Unearned(
         string rawText,
         SpamTrustTier tier,
-        bool nonLatinScriptGate
+        bool nonLatinScriptGate,
+        IReadOnlyCollection<string>? allowedDomains = null
     )
     {
         IReadOnlyDictionary<SpamCapability, SpamTrustTier> floors = FloorsFor(nonLatinScriptGate);
         return
         [
-            .. Detect(rawText)
+            .. Detect(rawText, allowedDomains)
                 .Where(capability => !TrustTierLadder.Allows(tier, capability, floors)),
         ];
     }

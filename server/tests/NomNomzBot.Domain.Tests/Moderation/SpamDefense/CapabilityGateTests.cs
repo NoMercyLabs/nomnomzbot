@@ -121,4 +121,54 @@ public class CapabilityGateTests
         reason.Should().Contain("PostLink").And.Contain("Known");
         reason.Should().Contain("NonLatinScript").And.Contain("Regular");
     }
+
+    [Theory]
+    [InlineData("i use asp.net for that")]
+    [InlineData("@QTkittE node.js is fine")]
+    public void ATechName_NeedsNoLinkCapability(string text) =>
+        CapabilityGate.Detect(text).Should().BeEmpty();
+
+    [Theory]
+    [InlineData("check https://gist.github.com/someone/abc")]
+    [InlineData("repo is github.com/someone/thing")]
+    [InlineData("go follow https://twitch.tv/somebody and https://www.youtube.com/@x")]
+    public void AMessageWhoseEveryLinkIsMainstream_NeedsNoLinkCapability(string text) =>
+        CapabilityGate.Detect(text).Should().BeEmpty();
+
+    [Fact]
+    public void AMainstreamLinkNextToAnUnknownOne_StillNeedsTheLinkCapability() =>
+        CapabilityGate
+            .Detect("https://github.com/x and https://unknown-site.xyz/buy")
+            .Should()
+            .Equal(SpamCapability.PostLink);
+
+    [Fact]
+    public void ALinkToAnUnknownHost_StillNeedsTheLinkCapability() =>
+        CapabilityGate
+            .Detect("watch this https://example.com/clip")
+            .Should()
+            .Equal(SpamCapability.PostLink);
+
+    [Fact]
+    public void AChannelAllowedHost_NeedsNoLinkCapability_AndOtherHostsStillDo()
+    {
+        string[] allowed = ["merch.example.com"];
+
+        CapabilityGate.Detect("https://merch.example.com/shirt", allowed).Should().BeEmpty();
+        CapabilityGate
+            .Detect("https://other.example.com/shirt", allowed)
+            .Should()
+            .Equal(SpamCapability.PostLink);
+    }
+
+    [Fact]
+    public void AMainstreamLink_IsNotUnearned_ForANewcomer() =>
+        CapabilityGate
+            .Unearned(
+                "https://gist.github.com/x/y",
+                SpamTrustTier.Newcomer,
+                nonLatinScriptGate: false
+            )
+            .Should()
+            .BeEmpty();
 }

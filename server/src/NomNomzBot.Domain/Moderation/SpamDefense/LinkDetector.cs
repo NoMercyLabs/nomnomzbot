@@ -353,6 +353,22 @@ public static class LinkDetector
         "us",
     ];
 
+    /// <summary>
+    /// Technology names written like a domain. Said bare ("i use asp.net") they are words; with a scheme
+    /// or a path they are links again.
+    /// </summary>
+    private static readonly HashSet<string> TechNames =
+    [
+        "asp.net",
+        "node.js",
+        "vue.js",
+        "next.js",
+        "nuxt.js",
+        "socket.io",
+        "three.js",
+        "d3.js",
+    ];
+
     private static readonly Regex LinkPattern = BuildPattern();
 
     /// <summary>Every link in <paramref name="text"/>, in order. Never null.</summary>
@@ -398,6 +414,9 @@ public static class LinkDetector
         bool ambiguous = AmbiguousTlds.Contains(labels[^1]);
 
         if (ambiguous && labels.Length == 2 && !hasTail)
+            return null;
+
+        if (!hasTail && TechNames.Contains(host))
             return null;
 
         return new DetectedLink(match.Value, host);
