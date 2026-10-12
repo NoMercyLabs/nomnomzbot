@@ -41,7 +41,13 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
     // field ciphertext (different AAD namespace), and a future KEK-version tag can extend it.
     private static readonly byte[] WrapContext = Encoding.UTF8.GetBytes("nomnomzbot:dek-wrap:v1");
 
-    private readonly Lazy<byte[]> _kek;
+    private const string OsKekReference = "os-secure-store:dpapi";
+    private const string ConfigKekReference = "config:hkdf";
+
+    // New DEKs wrap under the active KEK; an existing DEK unwraps under the KEK its persisted reference names,
+    // so setting Encryption:Key on an install that started on the OS store keeps the older secrets readable.
+    private readonly Lazy<byte[]>? _configKek;
+    private readonly Lazy<byte[]> _osKek;
     private readonly string _kekReference;
 
     public string Provider => "local_aes";
@@ -50,13 +56,21 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
         IOptions<EncryptionOptions> options,
         ILogger<OsSecureStoreKeyVault> logger
     )
+        : this(options.Value, () => LoadOsKek(logger), logger) { }
+
+    internal OsSecureStoreKeyVault(EncryptionOptions opts, Func<byte[]> loadOsKek, ILogger logger)
     {
-        EncryptionOptions opts = options.Value;
-        _kek = new(() => ResolveKek(opts, logger), LazyThreadSafetyMode.ExecutionAndPublication);
-        _kekReference = string.IsNullOrWhiteSpace(opts.Key)
-            ? "os-secure-store:dpapi"
-            : "config:hkdf";
+        _configKek = string.IsNullOrWhiteSpace(opts.Key)
+            ? null
+            : new(
+                () => DeriveConfigKek(opts.Key, logger),
+                LazyThreadSafetyMode.ExecutionAndPublication
+            );
+        _osKek = new(loadOsKek, LazyThreadSafetyMode.ExecutionAndPublication);
+        _kekReference = _configKek is null ? OsKekReference : ConfigKekReference;
     }
+
+    private byte[] ActiveKek => (_configKek ?? _osKek).Value;
 
     public Task<Result<WrappedKey>> WrapAsync(
         ReadOnlyMemory<byte> dataEncryptionKey,
@@ -74,7 +88,7 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
         byte[] cipher = new byte[dataEncryptionKey.Length];
         byte[] tag = new byte[TagSizeBytes];
 
-        using AesGcm aes = new(_kek.Value, TagSizeBytes);
+        using AesGcm aes = new(ActiveKek, TagSizeBytes);
         aes.Encrypt(nonce, dataEncryptionKey.Span, cipher, tag, WrapContext);
 
         // Persisted wrapped form: nonce‖cipher‖tag, base64.
@@ -116,9 +130,13 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
         ReadOnlySpan<byte> tag = wrapped.AsSpan(NonceSizeBytes + KekSizeBytes, TagSizeBytes);
         byte[] dek = new byte[KekSizeBytes];
 
+        Result<byte[]> kek = KekFor(kekReference);
+        if (kek.IsFailure)
+            return Task.FromResult(kek);
+
         try
         {
-            using AesGcm aes = new(_kek.Value, TagSizeBytes);
+            using AesGcm aes = new(kek.Value, TagSizeBytes);
             aes.Decrypt(nonce, cipher, tag, dek, WrapContext);
             return Task.FromResult(Result.Success(dek));
         }
@@ -134,42 +152,69 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
         }
     }
 
+    private Result<byte[]> KekFor(string? kekReference)
+    {
+        switch (kekReference)
+        {
+            case ConfigKekReference when _configKek is null:
+                return Result.Failure<byte[]>(
+                    "The DEK was wrapped under Encryption:Key, which is no longer configured.",
+                    "UNWRAP_FAILED"
+                );
+            case ConfigKekReference:
+                return Result.Success(_configKek.Value);
+            case OsKekReference:
+                try
+                {
+                    return Result.Success(_osKek.Value);
+                }
+                catch (Exception ex)
+                    when (ex is InvalidOperationException or CryptographicException)
+                {
+                    return Result.Failure<byte[]>(
+                        $"The DEK was wrapped under the OS secure store, which cannot be read here: {ex.Message}",
+                        "UNWRAP_FAILED"
+                    );
+                }
+            default:
+                return Result.Success(ActiveKek);
+        }
+    }
+
     // ─── KEK acquisition ────────────────────────────────────────────────────────
 
-    private static byte[] ResolveKek(EncryptionOptions opts, ILogger logger)
+    // Config / env KEK path (CI, dev, headless, non-Windows): deterministic across restarts via HKDF,
+    // so wrapped DEKs unwrap consistently. This is the deterministic fallback custody.
+    private static byte[] DeriveConfigKek(string key, ILogger logger)
     {
-        // Config / env KEK path (CI, dev, headless, non-Windows): deterministic across restarts via HKDF,
-        // so wrapped DEKs unwrap consistently. This is the deterministic fallback custody.
-        if (!string.IsNullOrWhiteSpace(opts.Key))
+        byte[] ikm = Convert.FromBase64String(key);
+        try
         {
-            byte[] ikm = Convert.FromBase64String(opts.Key);
-            try
-            {
-                byte[] derived = HKDF.DeriveKey(
-                    HashAlgorithmName.SHA256,
-                    ikm,
-                    KekSizeBytes,
-                    salt: null,
-                    info: WrapContext
-                );
-                logger.LogInformation("KEK derived from configured deployment key (HKDF-SHA256).");
-                return derived;
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(ikm);
-            }
+            byte[] derived = HKDF.DeriveKey(
+                HashAlgorithmName.SHA256,
+                ikm,
+                KekSizeBytes,
+                salt: null,
+                info: WrapContext
+            );
+            logger.LogInformation("KEK derived from configured deployment key (HKDF-SHA256).");
+            return derived;
         }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(ikm);
+        }
+    }
 
-        // OS-native custody path: DPAPI on Windows. A random KEK is generated once and persisted
-        // DPAPI-protected (machine scope); subsequent boots unprotect it. macOS Keychain / Linux libsecret
-        // are the equivalent backends and are the platform follow-ups.
+    // OS-native custody path: DPAPI on Windows. A random KEK is generated once and persisted
+    // DPAPI-protected; subsequent boots unprotect it. macOS Keychain / Linux libsecret
+    // are the equivalent backends and are the platform follow-ups.
+    private static byte[] LoadOsKek(ILogger logger)
+    {
         if (OperatingSystem.IsWindows())
         {
             byte[] kek = DpapiKekStore.LoadOrCreate(logger);
-            logger.LogInformation(
-                "KEK loaded from OS-native secure store (Windows DPAPI, machine scope)."
-            );
+            logger.LogInformation("KEK loaded from OS-native secure store (Windows DPAPI).");
             return kek;
         }
 
