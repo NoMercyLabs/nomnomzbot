@@ -21,6 +21,24 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER CORRECTION 2026-10-12 — the spam review queue was all wrong
+
+Owner words and settled rules: `spec/spam-defense.md`, the three "Owner correction 2026-10-12" sections. The live detection log (411 rows) holds these false marks: `asp.net` read as a link, a `gist.github.com` link needing Known, a copy of the streamer's own message, `@name` replies read as promo (7), `ß` read as script mixing (3), emoji with U+FE0F read as cosmetic abuse (387), the chat-client repeat marker read as cosmetic abuse (11).
+
+### S-SPAM-FALSE-CONTENT — content signals stop marking ordinary chat (Domain)
+- **Input:** `CapabilityGate`, `LinkDetector`, `ContentSignals`, `MessageNormalizer` and their tests in `NomNomzBot.Domain.Tests/Moderation/SpamDefense`.
+- **Done-when:** one link detector (the gate's own regex is gone); `asp.net`, `node.js` and the other tech names are no link; a link whose every host is mainstream or channel-allowed needs no PostLink; a leading `@name` reply is no promo handle; `ß` is no script mixing; every emoji part (U+FE0F after a symbol, skin tones, joiners, tag flags) and the trailing repeat marker are no cosmetic abuse; an emoji count adds weight only next to another signal; each case is a test with the real message text from the log, shown failing first.
+
+### S-SPAM-STAFF-TRUST — the streamer's people are trusted and never flagged (Infrastructure)
+- **Input:** `SpamDefenseService.EvaluateAsync` / `ResolveTierAsync`, `IOperatorModeratedChannelResolver`, `SpamDefenseServiceTests`.
+- **Done-when:** a broadcaster or moderator message is not evaluated and writes no row; a message with the skeleton of a streamer or moderator message from the last 10 minutes writes no flag; a sender whose own channel the streamer moderates resolves to Trusted (cached lookup; a failed lookup falls back to the history ladder); a viewer with 761 messages on 14 days, 59 watch hours and no badge resolves to SemiTrusted or higher; each is a test shown failing first.
+
+### 🔒 S-SPAM-ACTIVE-DAYS — the Established bar fits the channel
+- **Input:** `TrustTierLadder.IsEstablished`, `TrustThresholds`, the "most active chatter" section of `spec/spam-defense.md`.
+- **Done-when:** Stoney settles the rule (proposal: active days measured against the channel's own chat days); then the ladder uses it and MoehDev's history resolves to Established in a test.
+
+---
+
 ## OWNER REQUEST 2026-10-11 — log in by role, on every platform, with only the scopes that role needs
 
 Owner, verbatim: "We need a login as user, login as moderator and login as broadcaster for all platforms and require only the permissions needed at login time to execute on behalf of their role within the bot"

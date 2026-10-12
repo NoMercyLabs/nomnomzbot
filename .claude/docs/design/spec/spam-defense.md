@@ -471,6 +471,64 @@ Proposal, not settled:
 - The allowed-origins list is per channel. It is edited on the chat HTML settings. It also limits rendering: the HTML sanitizer drops any media element whose source origin is not on the list. A media URL from any origin loads inside the streamer's broadcast software and exposes the streamer's IP address to that host.
 - Default list: `static-cdn.jtvnw.net`, `cdn.7tv.app`, `cdn.betterttv.net`, `cdn.frankerfacez.com`, `upload.wikimedia.org`, `i.imgur.com`, `media.giphy.com`, `media.tenor.com`.
 
+#### Owner correction 2026-10-12 — the review queue was all wrong
+
+Owner words, verbatim (on the itmustbeaidan "asp.net" removal):
+
+> "i moderate for aidan at least 3 months, so that qualifies him instantly as trusted.
+> the marked for reviews are all wrong.
+> the alt account for keira was half-correct, i posted that message first so its just a user copying my code to see what happens for them, never flag what the streamer or mods have posted in chat"
+
+The live queue on 2026-10-12 held 3 removals, and the owner marked all 3 wrong. The causes:
+
+- `asp.net` was read as a link. The capability gate kept its own link regex, and that regex had no tech-name exception.
+- A `gist.github.com` link from a viewer who was mid-conversation needed Known.
+- A viewer pasted the streamer's own `<marquee>` message 23 seconds after the streamer posted it.
+
+Settled rules:
+
+- The streamer moderates in the sender's channel → the sender is **Trusted** in the streamer's channel.
+- The streamer's and the moderators' own messages are never flagged. They are not evaluated, and they leave no detection row.
+- A message that repeats what the streamer or a moderator posted in chat is never flagged.
+
+Arc's reading (not settled):
+
+- The moderator relationship itself grants Trusted. "At least 3 months" is context. Twitch's Get Moderated Channels gives no start date.
+- "Repeats" means the same skeleton as a streamer or moderator message from the last 10 minutes.
+- A link to a mainstream platform (the same list that never carries selling-audience, plus `github.com` and `gist.github.com`) does not need the PostLink capability.
+- The same pass fixes the related false flags in the detection log: a reply that starts with `@name` read as a promo contact handle (7 rows), `ß` read as script mixing (3 rows), a symbol emoji with U+FE0F read as cosmetic abuse (387 rows), and the invisible repeat marker that chat clients append read as cosmetic abuse (11 rows).
+
+#### Owner correction 2026-10-12 — emoji are counted, never the mark
+
+Owner words, verbatim:
+
+> "using emoji's is not a reason to ban someone, twitch loves to do emotes and emoji's in chat. and they are inherritly not bad, but they can be abused. they should be counted but not BE the mark itself"
+
+Settled rules:
+- An emoji or an emote is never a reason to flag, remove or time out a message.
+- Emoji and emotes are counted. The count may add weight to a message that another signal already marks.
+
+Arc's reading (not settled):
+- Every character that belongs to an emoji (the base, U+FE0F, a skin tone, a joiner between emoji, a flag tag sequence) is part of the emoji. None of them is cosmetic abuse.
+- The count becomes a weak signal (`EmojiFlood`) only when emoji and emotes make up most of a long message. It never fires on its own: a message with `EmojiFlood` and no other signal gets confidence Zero and leaves no detection row.
+- Cosmetic abuse stays for characters that hide text: a zero-width or bidi character between two letters, and stacked combining marks (zalgo).
+
+#### Owner correction 2026-10-12 — the most active chatter was marked "New here"
+
+Owner words, verbatim (on MoehDev's "oh adele" card):
+
+> "my most active chatter in the last 2 months is marked as new???? how does that work?"
+
+What the live data shows:
+- The card is from 2026-09-10. At that moment MoehDev had 761 messages in the channel, on 14 days, over 56 days, and about 59 hours of watch time.
+- The trust code of 2026-09-03 to 2026-10-08 set "not following" for every chatter and did not read watch time. So every chatter without a badge and below the Established bar fell to the lowest tier, Untrusted ("New here"). 7 detections hold this wrong tier.
+- The follow lookup and the watch time came in on 2026-10-08 (`b915a1cbc`, `20bb979e1`). From 2026-09-29 MoehDev is a VIP, so his later rows show Established.
+- The card shows the tier stored at detection time. It stays wrong for the old rows.
+
+Arc's reading (not settled):
+- The Established bar (90 days, 300 messages, 30 active days) is a fixed count. The channel had chat on 51 days since 2026-07-16; MoehDev was there on 22. On 2026-10-12 only one viewer (iFiLLz, 30 days) reaches 30 active days; the streamer has 41. The next viewers stop at 26 (DukaSoft, geennoob). By history alone the bar is out of reach for the channel's regulars.
+- Proposal, not settled: measure active days against the channel's own chat days (for example 40% of them, at least 10), so "regular here" means the same on every channel.
+
 ### L5 — Enforcement
 
 Per **SD1**:
