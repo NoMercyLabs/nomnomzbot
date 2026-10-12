@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -88,7 +89,8 @@ public class SpamDefenseServiceTests : IDisposable
         IModerationService? moderation = null,
         ICurrentTenantService? tenant = null,
         ITwitchUsersApi? twitchUsers = null,
-        IFollowStateService? follows = null
+        IFollowStateService? follows = null,
+        IOperatorModeratedChannelResolver? moderatedChannels = null
     ) =>
         new(
             db,
@@ -96,8 +98,27 @@ public class SpamDefenseServiceTests : IDisposable
             moderation ?? Substitute.For<IModerationService>(),
             tenant ?? new CurrentTenantService(),
             twitchUsers ?? Substitute.For<ITwitchUsersApi>(),
-            follows ?? Substitute.For<IFollowStateService>()
+            follows ?? Substitute.For<IFollowStateService>(),
+            new StaffMessageEchoes(db, _time),
+            new OperatorModeratedSenders(
+                db,
+                moderatedChannels ?? NoModeratedChannels(),
+                _moderatedCache
+            )
         );
+
+    /// <summary>A resolver that answers "moderates nobody", the shape Twitch returns for a plain streamer.</summary>
+    internal static IOperatorModeratedChannelResolver NoModeratedChannels()
+    {
+        IOperatorModeratedChannelResolver resolver =
+            Substitute.For<IOperatorModeratedChannelResolver>();
+        resolver
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchModeratedChannel>>([]));
+        return resolver;
+    }
+
+    private readonly IMemoryCache _moderatedCache = new MemoryCache(new MemoryCacheOptions());
 
     /// <summary>An automatic (non-dry-run) escalation, the shape a moderator can actually overturn.</summary>
     private static SpamDetection AutomaticDetection(
@@ -282,14 +303,236 @@ public class SpamDefenseServiceTests : IDisposable
         result!.Tier.Should().NotBe(SpamTrustTier.Established);
     }
 
+    private const string FlaggableText = "f​r​ee f​ollows";
+
+    private int DetectionCount()
+    {
+        using AppDbContext read = NewDbContext();
+        return read.SpamDetections.Count();
+    }
+
+    private void SeedChat(string userId, string userType, string text, TimeSpan age)
+    {
+        using AppDbContext db = NewDbContext();
+        db.ChatMessages.Add(
+            new ChatMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                BroadcasterId = Channel,
+                UserId = userId,
+                Username = userId,
+                DisplayName = userId,
+                UserType = userType,
+                Message = text,
+                CreatedAt = Now.UtcDateTime - age,
+            }
+        );
+        db.SaveChanges();
+    }
+
     [Fact]
-    public async Task AModerator_IsEstablishedFromTheirBadgeAlone_WithoutAQuery()
+    public async Task ControlViewer_WithTheFlaggableText_WritesARow()
+    {
+        await EvaluateAsync(Message(FlaggableText, userId: "control-1"));
+
+        DetectionCount().Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ABroadcasterOrModeratorMessage_IsNotEvaluated_AndWritesNoRow(
+        bool isBroadcaster,
+        bool isModerator
+    )
     {
         using AppDbContext db = NewDbContext();
         SpamEvaluationResult? result = await NewService(db)
-            .EvaluateAsync(Message("f​r​ee f​ollows", isModerator: true));
+            .EvaluateAsync(
+                Message(FlaggableText, isModerator: isModerator) with
+                {
+                    IsBroadcaster = isBroadcaster,
+                }
+            );
+
+        result.Should().BeNull();
+        DetectionCount().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AViewerPastingWhatTheBroadcasterPostedSecondsAgo_IsNotFlagged()
+    {
+        SeedChat("streamer-1", "broadcaster", FlaggableText, TimeSpan.FromSeconds(24));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db)
+            .EvaluateAsync(Message(FlaggableText, userId: "pasting-viewer"));
+
+        result.Should().BeNull();
+        DetectionCount().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AViewerPastingAModeratorsMessage_IsNotFlagged_EvenWhenTheTextDiffersOnlyInDisguise()
+    {
+        SeedChat("mod-1", "moderator", "free follows", TimeSpan.FromMinutes(9));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db)
+            .EvaluateAsync(Message(FlaggableText, userId: "pasting-viewer"));
+
+        result.Should().BeNull();
+        DetectionCount().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AStaffCopyOlderThanTenMinutes_IsJudgedNormally()
+    {
+        SeedChat("streamer-1", "broadcaster", FlaggableText, TimeSpan.FromMinutes(11));
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message(FlaggableText, userId: "pasting-viewer")
+        );
+
+        result.Confidence.Should().NotBe(SpamConfidence.Zero);
+        DetectionCount().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AViewersCopyOfAnotherViewersMessage_IsStillJudged()
+    {
+        SeedChat("other-viewer", "viewer", FlaggableText, TimeSpan.FromSeconds(24));
+
+        await EvaluateAsync(Message(FlaggableText, userId: "pasting-viewer"));
+
+        DetectionCount().Should().Be(1);
+    }
+
+    private static Result<IReadOnlyList<TwitchModeratedChannel>> ModeratedChannels(
+        params string[] twitchIds
+    ) =>
+        Result.Success<IReadOnlyList<TwitchModeratedChannel>>([
+            .. twitchIds.Select(id => new TwitchModeratedChannel(id, id, id)),
+        ]);
+
+    private Guid ChannelOwner()
+    {
+        using AppDbContext db = NewDbContext();
+        return db.Channels.Single(c => c.Id == Channel).OwnerUserId;
+    }
+
+    [Fact]
+    public async Task ASenderWhoseOwnChannelTheStreamerModerates_IsTrusted()
+    {
+        IOperatorModeratedChannelResolver resolver =
+            Substitute.For<IOperatorModeratedChannelResolver>();
+        resolver
+            .ResolveAsync(ChannelOwner(), Arg.Any<CancellationToken>())
+            .Returns(ModeratedChannels("aidan-ext", "someone-else"));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db, moderatedChannels: resolver)
+            .EvaluateAsync(Message("hello chat", userId: "aidan-ext"));
+
+        result!.Tier.Should().Be(SpamTrustTier.Trusted);
+    }
+
+    [Fact]
+    public async Task ASenderTheStreamerDoesNotModerate_KeepsTheHistoryLadder()
+    {
+        IOperatorModeratedChannelResolver resolver =
+            Substitute.For<IOperatorModeratedChannelResolver>();
+        resolver
+            .ResolveAsync(ChannelOwner(), Arg.Any<CancellationToken>())
+            .Returns(ModeratedChannels("someone-else"));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db, moderatedChannels: resolver)
+            .EvaluateAsync(Message("hello chat", userId: "stranger-1"));
+
+        result!.Tier.Should().Be(SpamTrustTier.Untrusted);
+    }
+
+    [Fact]
+    public async Task AFailedModeratedChannelLookup_FallsBackToTheHistoryLadder_NeverLower()
+    {
+        SeedHistory("regular-2", days: 40, perDay: 10);
+        IOperatorModeratedChannelResolver resolver =
+            Substitute.For<IOperatorModeratedChannelResolver>();
+        resolver
+            .ResolveAsync(ChannelOwner(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<TwitchModeratedChannel>>(
+                    "twitch_down",
+                    errorCode: "UPSTREAM_ERROR"
+                )
+            );
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db, moderatedChannels: resolver)
+            .EvaluateAsync(Message("hello chat", userId: "regular-2"));
 
         result!.Tier.Should().Be(SpamTrustTier.Established);
+    }
+
+    [Fact]
+    public async Task TheModeratedChannelAnswer_IsCachedPerOperator_SoChatDoesNotCallTwitchPerMessage()
+    {
+        IOperatorModeratedChannelResolver resolver =
+            Substitute.For<IOperatorModeratedChannelResolver>();
+        resolver
+            .ResolveAsync(ChannelOwner(), Arg.Any<CancellationToken>())
+            .Returns(ModeratedChannels("aidan-ext"));
+
+        using AppDbContext db = NewDbContext();
+        SpamDefenseService service = NewService(db, moderatedChannels: resolver);
+        SpamEvaluationResult? first = await service.EvaluateAsync(
+            Message("hello", userId: "aidan-ext")
+        );
+        SpamEvaluationResult? second = await service.EvaluateAsync(
+            Message("hello again", userId: "aidan-ext")
+        );
+        SpamEvaluationResult? third = await service.EvaluateAsync(
+            Message("hello", userId: "viewer-9")
+        );
+
+        first!.Tier.Should().Be(SpamTrustTier.Trusted);
+        second!.Tier.Should().Be(SpamTrustTier.Trusted);
+        third!.Tier.Should().NotBe(SpamTrustTier.Trusted);
+        await resolver.Received(1).ResolveAsync(ChannelOwner(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnUnbadgedViewerWith761MessagesOver56Days_And59WatchHours_IsNeverUntrusted()
+    {
+        using (AppDbContext seed = NewDbContext())
+        {
+            for (int d = 0; d < 14; d++)
+            for (int i = 0; i < (d == 13 ? 46 : 55); i++)
+                seed.ChatMessages.Add(
+                    new ChatMessage
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        BroadcasterId = Channel,
+                        UserId = "regular-761",
+                        Username = "regular",
+                        DisplayName = "Regular",
+                        UserType = "viewer",
+                        Message = "hello",
+                        CreatedAt = Now.UtcDateTime.AddDays(-56 + d * 4),
+                    }
+                );
+            seed.SaveChanges();
+        }
+        SeedWatchHours("regular-761", hours: 59);
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("hello chat", userId: "regular-761")
+        );
+
+        result
+            .Tier.Should()
+            .BeOneOf(SpamTrustTier.SemiTrusted, SpamTrustTier.Trusted, SpamTrustTier.Established);
     }
 
     [Fact]
@@ -1629,12 +1872,11 @@ public class SpamDefenseServiceTests : IDisposable
         await ConfigureAsync(new SpamDefenseSettings { DryRun = false, AccountAgeGateDays = 7 });
         SeedAccount("mod-1", ageDays: 1);
 
-        SpamEvaluationResult result = await EvaluateAsync(
-            Message("hello everyone", "mod-1", isModerator: true)
-        );
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db)
+            .EvaluateAsync(Message("hello everyone", "mod-1", isModerator: true));
 
-        result.Gate.Should().BeNull();
-        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.Should().BeNull();
         using AppDbContext read = NewDbContext();
         (await read.SpamDetections.CountAsync()).Should().Be(0);
     }

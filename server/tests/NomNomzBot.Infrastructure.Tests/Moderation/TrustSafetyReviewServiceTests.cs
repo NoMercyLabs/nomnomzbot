@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -337,7 +338,13 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
             Substitute.For<IModerationService>(),
             new CurrentTenantService(),
             Substitute.For<ITwitchUsersApi>(),
-            Substitute.For<IFollowStateService>()
+            Substitute.For<IFollowStateService>(),
+            new StaffMessageEchoes(read, _time),
+            new OperatorModeratedSenders(
+                read,
+                SpamDefenseServiceTests.NoModeratedChannels(),
+                new MemoryCache(new MemoryCacheOptions())
+            )
         ).EvaluateAsync(
             new SpamEvaluationRequest(
                 TenantA,
