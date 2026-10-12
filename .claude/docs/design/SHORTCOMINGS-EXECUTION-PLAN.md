@@ -21,6 +21,22 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-12 — suggest a shoutout for a chatter who streams seriously
+
+Owner, verbatim: "i like the idea of having every user who chats be looked up to see if they are a streamer who takes it seriously and streams at least once a week for the last month, the more the higher the priority, what do you think, can we add a prompt somwhere about "hey, maybe you should give this person a shoutout, they streamed x in the last month doing x y and z"?"
+
+Today the auto shoutout only knows chatters who are NomNomzBot channels themselves (`AutoShoutoutScheduler.cs:105-107`). Every other streamer in chat is invisible to it.
+
+Proposal, not settled:
+- **Data.** Twitch has no stream-history API. Past broadcasts (Get Videos, type archive) last 7 days for most accounts, 14 for Affiliates and 60 for Partners (third-party sources, not checked against Twitch's own help page), so a month is often not there. Proposal: look up past broadcasts once for a quick start, then poll Get Streams for every chatter we have seen (100 ids per call) and keep our own record of when they were live and in which category. After 30 days the record is complete for every chatter. The record holds public Twitch data and is shared by all channels on the install.
+- **Rule.** Suggest a chatter who went live in at least 4 of the last 4 weeks. More streams in the last 30 days = higher in the list. Never suggest the broadcaster, the bot, someone who got a shoutout this stream by any route, or someone the streamer said never for.
+- **Where.** A quiet card in the chat page beside that chatter's first message of the stream, plus a short list on Home for the broadcaster and mods. Text: who, how many streams in the last 30 days, the top categories and the usual stream length. Actions: Shoutout, Not now, Never for this person.
+- **Open for the owner.** The threshold (once a week for 4 weeks); whether a suggestion may become an automatic shoutout; whether mods see it or only the broadcaster.
+
+### S-SO-SUGGEST — shoutout suggestions for chatters who stream regularly (design first)
+- **Input:** `AutoShoutoutScheduler.cs`, `ShoutoutSender.cs`, the 2026-10-09 shoutout rate-limit rules, Twitch Get Videos / Get Streams docs (re-verify live), the chat and Home layout mockups.
+- **Done-when:** the chat and Home mockups show the suggestion with real chatter names; the owner settles the open points; then a tracked-streams table (both migration sets), the poller, the ranking service, the endpoint and the UI ship with tests that assert the ranking, the exclusions and the stored history.
+
 ## OWNER REQUEST 2026-10-12 — a few page layouts for the whole bot; the frame stays still and panels scroll
 
 Owner, verbatim: "you did a great job reorganizing! but i like the screen to be more 100vh and pannels scroll instead of the whole page, this happens on many many pages and it's kind of annoying. there are pages with multiple tab-switches, one is up top, the other folded in the middle, it feels disorganized and unstructured. i like all pages to have a structured layout where the whole bot has only 4 or 5 to pick from. something that makes the ui more stable and less shifty. can you design a few layouts that work for all the 50+ pages? please make some image mockups or html+css mockups with data from my channel so i can see how it would be before you go in and change everything."
