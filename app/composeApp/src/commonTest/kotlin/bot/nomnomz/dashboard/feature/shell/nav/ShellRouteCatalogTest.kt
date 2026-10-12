@@ -71,5 +71,6 @@ class ShellRouteCatalogTest {
             listOf(ShellRoute.LibrarySounds, ShellRoute.LibraryFiles, ShellRoute.LibraryRandomResponses, ShellRoute.LibraryQuotes),
             ShellRoute.tabsOf(ShellPage.Library),
         )
+        assertEquals(listOf(ShellRoute.VtsHotkeys, ShellRoute.VtsExpressions), ShellRoute.tabsOf(ShellPage.VtubeStudio))
     }
 }

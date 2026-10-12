@@ -50,7 +50,8 @@ class ShellNavTest {
         // Moderation, and the Moderator-floored Settings.
         assertTrue(visible.any { it.route == ShellRoute.Home })
         assertTrue(visible.any { it.route == ShellRoute.Discord })
-        assertTrue(visible.any { it.route == ShellRoute.VtubeStudio })
+        assertTrue(visible.any { it.route == ShellRoute.VtsHotkeys })
+        assertTrue(visible.any { it.route == ShellRoute.VtsExpressions })
         assertTrue(visible.any { it.route == ShellRoute.PeopleOverview })
         assertTrue(visible.any { it.route == ShellRoute.Settings })
         // Exactly the pages floored ABOVE Moderator are dropped — no more, no fewer.
@@ -355,7 +356,8 @@ class ShellNavTest {
                 ShellRoute.StreamSchedule,
                 ShellRoute.ObsLiveControl,
                 ShellRoute.ObsAdvanced,
-                ShellRoute.VtubeStudio,
+                ShellRoute.VtsHotkeys,
+                ShellRoute.VtsExpressions,
                 ShellRoute.Analytics,
             ),
             liveRoutes,

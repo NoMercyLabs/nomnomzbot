@@ -90,11 +90,18 @@ class ShellRouteSlugTest {
     }
 
     @Test
+    fun the_two_vts_tabs_resolve_and_the_bare_vtube_studio_address_opens_hotkeys() {
+        assertEquals(ShellRoute.VtsHotkeys, ShellRouteSlug.parse("vtube-studio/hotkeys"))
+        assertEquals(ShellRoute.VtsExpressions, ShellRouteSlug.parse("vtube-studio/expressions"))
+        assertEquals("vtube-studio/expressions", ShellRouteSlug.of(ShellRoute.VtsExpressions))
+        assertEquals(ShellRoute.VtsHotkeys, ShellRouteSlug.parse("vtube-studio"))
+    }
+
+    @Test
     fun a_page_without_tabs_is_its_page_slug_alone() {
         assertEquals("home", ShellRouteSlug.of(ShellRoute.Home))
         assertEquals("commands", ShellRouteSlug.of(ShellRoute.Commands))
         assertEquals("api-devices", ShellRouteSlug.of(ShellRoute.ApiDevices))
-        assertEquals("vtube-studio", ShellRouteSlug.of(ShellRoute.VtubeStudio))
     }
 
     @Test

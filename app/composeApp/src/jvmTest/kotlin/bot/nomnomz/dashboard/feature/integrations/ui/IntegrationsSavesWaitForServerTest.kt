@@ -44,6 +44,8 @@ import bot.nomnomz.dashboard.feature.obs.state.FakeObsApi
 import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.vts.state.FakeVtsApi
+import bot.nomnomz.dashboard.feature.vts.state.VtsController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -213,6 +215,7 @@ class IntegrationsSavesWaitForServerTest {
                         controller = controller,
                         twitchAppController = twitchApp,
                         obsController = ObsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), FakeObsApi()),
+                        vtsController = VtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), FakeVtsApi()),
                         backendOrigin = "http://localhost:5080",
                         role = ManagementRole.Broadcaster,
                     )

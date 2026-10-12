@@ -4609,6 +4609,8 @@
     <string name="obs_connect_missing">OBS is not connected. Connect it to control your scenes.</string>
     <string name="obs_connect_action">Open OBS connection</string>
     <string name="shell_nav_vts">VTube Studio</string>
+    <string name="shell_nav_vts_hotkeys">Hotkeys</string>
+    <string name="shell_nav_vts_expressions">Expressions</string>
     <string name="shell_nav_automation">API &amp; devices</string>
 
     <!-- OBS control page -->
@@ -4766,9 +4768,8 @@
     <string name="vts_rotate_message">The old token stops working at once. The running bridge disconnects until it gets the new token.</string>
     <string name="vts_rotate_confirm">Rotate token</string>
     <string name="vts_rotate_cancel">Cancel</string>
-    <string name="vts_control_title">Model control</string>
-    <string name="vts_control_desc">Load a model, trigger a hotkey, or activate an expression.</string>
-    <string name="vts_control_locked">Authorize the plugin to load the model, hotkey, and expression list.</string>
+    <string name="vts_connect_missing">VTube Studio is not connected. Connect it to control your model.</string>
+    <string name="vts_connect_action">Open VTube Studio connection</string>
     <string name="vts_control_ok">Sent.</string>
     <string name="vts_control_failed">Failed: %1$s</string>
     <string name="vts_models_label">Models</string>

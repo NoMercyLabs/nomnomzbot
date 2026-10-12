@@ -14,7 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
@@ -40,6 +40,8 @@ import bot.nomnomz.dashboard.feature.obs.state.FakeObsApi
 import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.vts.state.FakeVtsApi
+import bot.nomnomz.dashboard.feature.vts.state.VtsController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -52,12 +54,13 @@ class IntegrationsObsCardTest {
         val obs: FakeObsApi = FakeObsApi(upsert = { ApiResult.Ok(ObsConnection(host = "10.0.0.5", port = 4456)) })
         setContent { Screen(obs) }
         waitForIdle()
-        onNodeWithText("Direct").performScrollTo().performClick()
-        // Direct mode shows host, port and password last on the page, in that order.
+        // The OBS card sits above the VTube Studio card, which repeats the "Direct" chip and "Save connection".
+        onAllNodesWithText("Direct")[0].performScrollTo().performClick()
+        // Direct mode shows host, port and password in that order, then the one VTube Studio endpoint field.
         val fieldCount: Int = onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size
-        onAllNodes(hasSetTextAction())[fieldCount - 3].performScrollTo().performTextInput("10.0.0.5")
-        onAllNodes(hasSetTextAction())[fieldCount - 2].performScrollTo().performTextInput("4456")
-        onNodeWithText("Save connection").performScrollTo().performClick()
+        onAllNodes(hasSetTextAction())[fieldCount - 4].performScrollTo().performTextInput("10.0.0.5")
+        onAllNodes(hasSetTextAction())[fieldCount - 3].performScrollTo().performTextInput("4456")
+        onAllNodesWithText("Save connection")[0].performScrollTo().performClick()
         waitForIdle()
 
         assertEquals(listOf("10.0.0.5"), obs.sent.map { it.host })
@@ -95,6 +98,7 @@ class IntegrationsObsCardTest {
                         controller = controller,
                         twitchAppController = twitchApp,
                         obsController = obsController,
+                        vtsController = VtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), FakeVtsApi()),
                         backendOrigin = "http://localhost:5080",
                         role = ManagementRole.Broadcaster,
                     )

@@ -81,7 +81,8 @@ object ShellNav {
             NavPage(ShellRoute.ObsAdvanced, NavGroup.Live, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = "obs:config:read"),
             // VTube Studio: read floors at Moderator (vts:config:read); connection config / authorize / rotate are
             // Broadcaster (vts:config:write); model/hotkey/expression control is Moderator (vts:control), gated inside.
-            NavPage(ShellRoute.VtubeStudio, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),
+            NavPage(ShellRoute.VtsHotkeys, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),
+            NavPage(ShellRoute.VtsExpressions, NavGroup.Live, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),
             NavPage(ShellRoute.Analytics, NavGroup.Live, ManagementRole.Moderator, null, readActionKey = "analytics:read"),
             // Build: things you make once, and the bot then runs by itself.
             // Command management is Moderator, mirroring the backend commands:write floor.

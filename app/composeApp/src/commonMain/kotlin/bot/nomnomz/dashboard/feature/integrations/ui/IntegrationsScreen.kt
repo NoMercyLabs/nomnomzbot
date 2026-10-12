@@ -68,6 +68,8 @@ import bot.nomnomz.dashboard.feature.integrations.state.ProviderConnection
 import bot.nomnomz.dashboard.feature.integrations.state.RegrantState
 import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.obs.ui.ObsConnectionCard
+import bot.nomnomz.dashboard.feature.vts.state.VtsController
+import bot.nomnomz.dashboard.feature.vts.ui.VtsConnectionCard
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -214,6 +216,7 @@ fun IntegrationsScreen(
     controller: IntegrationsController,
     twitchAppController: TwitchAppCredentialsController,
     obsController: ObsController,
+    vtsController: VtsController,
     backendOrigin: String?,
     role: ManagementRole?,
 ) {
@@ -388,6 +391,7 @@ fun IntegrationsScreen(
                         onDisconnect = { pendingDisconnect = KICK_BOT },
                     )
                     ObsConnectionCard(controller = obsController, role = role, backendOrigin = backendOrigin)
+                    VtsConnectionCard(controller = vtsController, role = role)
                     EventSubSubscriptionsSection(
                         subscriptions = current.eventSubSubscriptions,
                         manage = manage,

@@ -106,7 +106,7 @@ class VtsRotateBridgeTokenConfirmTest {
         }
         CompositionLocalProvider(LocalLifecycleOwner provides owner) {
             NomNomzTheme {
-                AppEnvironment("en") { VtsScreen(controller = controller, role = ManagementRole.Broadcaster) }
+                AppEnvironment("en") { VtsConnectionCard(controller = controller, role = ManagementRole.Broadcaster) }
             }
         }
     }

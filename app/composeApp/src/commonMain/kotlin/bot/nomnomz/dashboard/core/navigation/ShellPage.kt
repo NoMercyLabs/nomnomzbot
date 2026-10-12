@@ -35,7 +35,7 @@ enum class ShellPage(val slug: String, val tabs: List<String>) {
     Stream("stream", listOf("info-presets", "interactions", "schedule")),
     Analytics("analytics", emptyList()),
     Obs("obs", listOf("live-control", "advanced")),
-    VtubeStudio("vtube-studio", emptyList()),
+    VtubeStudio("vtube-studio", listOf("hotkeys", "expressions")),
     Discord("discord", emptyList()),
     Webhooks("webhooks", emptyList()),
     Federation("federation", emptyList()),

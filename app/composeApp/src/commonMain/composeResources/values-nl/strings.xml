@@ -4593,6 +4593,8 @@
     <string name="obs_connect_missing">OBS is niet verbonden. Verbind OBS om je scènes te bedienen.</string>
     <string name="obs_connect_action">Open OBS-verbinding</string>
     <string name="shell_nav_vts">VTube Studio</string>
+    <string name="shell_nav_vts_hotkeys">Sneltoetsen</string>
+    <string name="shell_nav_vts_expressions">Expressies</string>
     <string name="shell_nav_automation">API &amp; apparaten</string>
 
     <!-- OBS-besturingspagina -->
@@ -4750,9 +4752,8 @@
     <string name="vts_rotate_message">Het oude token werkt direct niet meer. De draaiende bridge verliest de verbinding tot hij het nieuwe token heeft.</string>
     <string name="vts_rotate_confirm">Token roteren</string>
     <string name="vts_rotate_cancel">Annuleren</string>
-    <string name="vts_control_title">Modelbesturing</string>
-    <string name="vts_control_desc">Laad een model, activeer een sneltoets of een expressie.</string>
-    <string name="vts_control_locked">Autoriseer de plugin om de lijst met modellen, sneltoetsen en expressies te laden.</string>
+    <string name="vts_connect_missing">VTube Studio is niet verbonden. Verbind het om je model te besturen.</string>
+    <string name="vts_connect_action">Open de VTube Studio-verbinding</string>
     <string name="vts_control_ok">Verzonden.</string>
     <string name="vts_control_failed">Mislukt: %1$s</string>
     <string name="vts_models_label">Modellen</string>
