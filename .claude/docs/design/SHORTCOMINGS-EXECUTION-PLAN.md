@@ -881,6 +881,14 @@ Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec
 - **S-DROP-AUDIO** Effects and notification volume settings per pack sound slot. Done-when: E2E at volume 0 plays nothing and at 50 plays at half gain.
 - **S-DROP-ANNOUNCE** Optional chat announcement from a template with variables (user, score), off by default. Done-when: test a landing posts exactly the rendered template once.
 
+## FINDING 2026-10-12 — a self-host install on Windows cannot build Vue widgets
+
+Only the Docker image and CI install esbuild. A Windows self-host run has no esbuild, so every Vue widget build fails ("The esbuild binary 'esbuild' could not be started"). Found on Stoney's PC; fixed there by hand with esbuild 0.28.1 and `Widgets:EsbuildPath`.
+
+### S-SELFHOST-ESBUILD — every self-host install ships the esbuild it builds widgets with
+- Ship esbuild (the version pinned for Docker and CI) with the self-host build, and resolve its path without a config edit.
+- Done when: a clean Windows self-host install builds the Audio, Alerts and TTS Caption widgets with no manual step; proven on a machine with no esbuild on PATH.
+
 ## OWNER BUG 2026-10-11 — !wrongsong leaves the song in the Spotify queue
 
 Stoney, verbatim: "!wrongsong removes the song from the fairqueue system but it does not remove it from my current spotify queue, so make it look at the current queue and clear the queue and requeue any manually queued songs if they exist."
