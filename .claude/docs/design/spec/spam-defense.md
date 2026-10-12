@@ -525,7 +525,11 @@ What the live data shows:
 - The follow lookup and the watch time came in on 2026-10-08 (`b915a1cbc`, `20bb979e1`). From 2026-09-29 MoehDev is a VIP, so his later rows show Established.
 - The card shows the tier stored at detection time. It stays wrong for the old rows.
 
-Arc's reading (not settled):
+Owner answer, verbatim: "that is impossible, my chat has a history of 14 months!" · "then stop" · "i have asked you before to merge the old bot's twitch events with the new one and replay the actions. what do you mean the chats don't exist?!"
+
+The real cause: the old bot's 40,113 chat messages were imported into the event journal, but replay never writes them into `ChatMessages`, the table the trust ladder reads (slice S-CHAT-HISTORY-REPLAY). The proposal below is dropped; the bar stays.
+
+Dropped proposal (kept for the record):
 - The Established bar (90 days, 300 messages, 30 active days) is a fixed count. The channel had chat on 51 days since 2026-07-16; MoehDev was there on 22. On 2026-10-12 only one viewer (iFiLLz, 30 days) reaches 30 active days; the streamer has 41. The next viewers stop at 26 (DukaSoft, geennoob). By history alone the bar is out of reach for the channel's regulars.
 - Proposal, not settled: measure active days against the channel's own chat days (for example 40% of them, at least 10), so "regular here" means the same on every channel.
 

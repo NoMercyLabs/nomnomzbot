@@ -33,9 +33,12 @@ Owner words and settled rules: `spec/spam-defense.md`, the three "Owner correcti
 - **Input:** `SpamDefenseService.EvaluateAsync` / `ResolveTierAsync`, `IOperatorModeratedChannelResolver`, `SpamDefenseServiceTests`.
 - **Done-when:** a broadcaster or moderator message is not evaluated and writes no row; a message with the skeleton of a streamer or moderator message from the last 10 minutes writes no flag; a sender whose own channel the streamer moderates resolves to Trusted (cached lookup; a failed lookup falls back to the history ladder); a viewer with 761 messages on 14 days, 59 watch hours and no badge resolves to SemiTrusted or higher; each is a test shown failing first.
 
-### 🔒 S-SPAM-ACTIVE-DAYS — the Established bar fits the channel
-- **Input:** `TrustTierLadder.IsEstablished`, `TrustThresholds`, the "most active chatter" section of `spec/spam-defense.md`.
-- **Done-when:** Stoney settles the rule (proposal: active days measured against the channel's own chat days); then the ladder uses it and MoehDev's history resolves to Established in a test.
+### S-CHAT-HISTORY-REPLAY — the imported old-bot chat fills the chat table
+Owner words, verbatim: "that is impossible, my chat has a history of 14 months!" · "then stop" · "i have asked you before to merge the old bot's twitch events with the new one and replay the actions. what do you mean the chats don't exist?!"
+
+Cause (read on the live DB and in the code, 2026-10-12): the legacy import put 40,113 `ChatMessageReceivedEvent` rows (2025-08-14 to 2026-08-20, `Source=import`) in `EventJournals`. `ChatMessages` holds 0 rows before 2026-07-05. The table is written only by `ChatMessagePersistenceHandler`, a live event handler that replay never calls, and it stamps the write time, not the event time. The trust ladder, the viewer pages and every chat count read `ChatMessages`, so 13 months of history are invisible.
+- **Input:** `ChatMessagePersistenceHandler`, the projection set in `Infrastructure/Analytics`, the replay engine, `LegacyImport/`.
+- **Done-when:** `ChatMessages` is a journal projection that replay folds, keyed on the Twitch message id (no duplicates with the live rows), with `CreatedAt` = the event time; a test replays imported chat events and asserts the rows and their dates; on the live box the replay fills the table and MoehDev's history starts in 2025.
 
 ---
 
