@@ -40,6 +40,18 @@ Cause (read on the live DB and in the code, 2026-10-12): the legacy import put 4
 - **Input:** `ChatMessagePersistenceHandler`, the projection set in `Infrastructure/Analytics`, the replay engine, `LegacyImport/`.
 - **Done-when:** `ChatMessages` is a journal projection that replay folds, keyed on the Twitch message id (no duplicates with the live rows), with `CreatedAt` = the event time; a test replays imported chat events and asserts the rows and their dates; on the live box the replay fills the table and MoehDev's history starts in 2025.
 
+### S-STREAMS-PROJECTION — the stream history table is refolded from the journal
+Owner words, verbatim: "make sure you always remember this when we create a new storage table next time"
+
+Cause (read in the code, 2026-10-12): `Streams` is written only by `ChannelOnlineHandler`, a live event handler. `scripts/check-history-tables.py` lists it in `EXEMPT` as debt.
+- **Input:** `ChannelOnlineHandler`, the projection set in `Infrastructure/Analytics`, `ILiveWindowResolver`.
+- **Done-when:** a projection upserts `Streams` from the online and offline events by stream id with the event times; the handler keeps writing at once; a test folds imported online and offline events and asserts the rows; the `Streams` entry is gone from `EXEMPT`.
+
+### S-HISTORY-WRITES-VIA-SERVICES — the history-table check sees writes made through a service
+Cause (read in the code, 2026-10-12): `check-history-tables.py` reads only the handler file. Handlers such as `EngagementChatActivityHandler`, `ChatColorRecorder` and `PronounHydrationHandler` write through injected services, so a history table written that way is not seen.
+- **Input:** `scripts/check-history-tables.py`, every `IEventHandler` and the services it injects.
+- **Done-when:** the check follows a handler's injected services one level and counts their writes; every table it then finds has a projection or an `EXEMPT` reason; a test covers a write made through a service, shown failing first.
+
 ---
 
 ## OWNER REQUEST 2026-10-11 — log in by role, on every platform, with only the scopes that role needs
