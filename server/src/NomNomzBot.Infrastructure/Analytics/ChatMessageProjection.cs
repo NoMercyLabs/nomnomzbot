@@ -49,11 +49,21 @@ public sealed class ChatMessageProjection(IApplicationDbContext db) : IProjectio
 
         // IgnoreQueryFilters: the projection driver runs without a tenant, and the tenant filter would hide the
         // row a previous batch committed, so the same message id would insert twice.
-        bool exists = await db
+        IQueryable<ChatMessage> sameId = db
             .ChatMessages.IgnoreQueryFilters()
-            .AnyAsync(m => m.Id == chat.MessageId, cancellationToken);
-        if (exists)
+            .Where(m => m.Id == chat.MessageId);
+        if (await sameId.AnyAsync(cancellationToken))
+        {
+            // The live handler may have stamped the replay time. The journal event holds the real send time, so
+            // only CreatedAt is set; DeletedAt and every other field stay. ExecuteUpdateAsync because the audit
+            // interceptor never lets a tracked update change CreatedAt.
+            DateTime sentAt = @event.OccurredAt;
+            await sameId.ExecuteUpdateAsync(
+                s => s.SetProperty(m => m.CreatedAt, sentAt),
+                cancellationToken
+            );
             return Result.Success();
+        }
 
         db.ChatMessages.Add(
             new()
@@ -86,19 +96,11 @@ public sealed class ChatMessageProjection(IApplicationDbContext db) : IProjectio
         return Result.Success();
     }
 
-    public async Task<Result> ResetAsync(
+    // Deletes nothing: the table also has a live writer (ChatMessagePersistenceHandler), and the refold is an idempotent upsert.
+    public Task<Result> ResetAsync(
         Guid? broadcasterId,
         CancellationToken cancellationToken = default
-    )
-    {
-        // ExecuteDeleteAsync, not RemoveRange: tracked deletes survived into the replay, which then re-inserted
-        // the same ids and hit a duplicate key.
-        IQueryable<ChatMessage> rows = db.ChatMessages.IgnoreQueryFilters();
-        if (broadcasterId is { } id)
-            rows = rows.Where(m => m.BroadcasterId == id);
-        await rows.ExecuteDeleteAsync(cancellationToken);
-        return Result.Success();
-    }
+    ) => Task.FromResult(Result.Success());
 
     private static ChatMessageReceivedEvent? Parse(string payloadJson)
     {

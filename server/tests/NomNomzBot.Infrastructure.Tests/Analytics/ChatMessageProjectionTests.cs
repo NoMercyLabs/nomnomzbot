@@ -23,7 +23,7 @@ namespace NomNomzBot.Infrastructure.Tests.Analytics;
 /// <summary>
 /// Proves the chat-message projection: the journal (live and imported alike) fills the ChatMessages table keyed
 /// on the platform message id, stamped with the time the message was sent, one row per message, and a reset
-/// followed by a re-fold does not collide with the rows it just removed.
+/// followed by a re-fold leaves the row count unchanged.
 /// </summary>
 public sealed class ChatMessageProjectionTests
 {
@@ -133,9 +133,70 @@ public sealed class ChatMessageProjectionTests
             Record(Message("tw-dup", "second copy"), sent.AddSeconds(2), "domain")
         );
 
-        ChatMessage row = await db.ChatMessages.SingleAsync();
+        ChatMessage row = await db.ChatMessages.AsNoTracking().SingleAsync();
         row.Id.Should().Be("tw-dup");
         row.Message.Should().Be("first copy");
+        row.CreatedAt.Should().Be(sent.AddSeconds(2));
+    }
+
+    [Fact]
+    public async Task Keeps_the_deleted_mark_of_a_row_it_re_dates()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ChatMessageProjection sut = new(db);
+        DateTime deletedAt = new(2026, 8, 28, 1, 0, 0, DateTimeKind.Utc);
+        DateTime sent = new(2025, 11, 3, 18, 15, 0, DateTimeKind.Utc);
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = "tw-deleted",
+                BroadcasterId = Channel,
+                UserId = "u-1",
+                Username = "viewer",
+                DisplayName = "Viewer",
+                UserType = "viewer",
+                Message = "hello chat",
+                CreatedAt = new(2026, 8, 27, 10, 0, 0, DateTimeKind.Utc),
+                DeletedAt = deletedAt,
+            }
+        );
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        await sut.ApplyAsync(Record(Message("tw-deleted"), sent));
+
+        ChatMessage row = await db.ChatMessages.IgnoreQueryFilters().AsNoTracking().SingleAsync();
+        row.CreatedAt.Should().Be(sent);
+        row.DeletedAt.Should().Be(deletedAt);
+    }
+
+    [Fact]
+    public async Task Corrects_a_row_stamped_with_the_replay_time_to_the_event_time()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ChatMessageProjection sut = new(db);
+        DateTime replayTime = new(2026, 8, 27, 10, 0, 0, DateTimeKind.Utc);
+        DateTime sent = new(2025, 11, 3, 18, 15, 0, DateTimeKind.Utc);
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = "tw-wrong-date",
+                BroadcasterId = Channel,
+                UserId = "u-1",
+                Username = "viewer",
+                DisplayName = "Viewer",
+                UserType = "viewer",
+                Message = "hello chat",
+                CreatedAt = replayTime,
+            }
+        );
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        await sut.ApplyAsync(Record(Message("tw-wrong-date"), sent));
+
+        ChatMessage row = await db.ChatMessages.AsNoTracking().SingleAsync();
+        row.Id.Should().Be("tw-wrong-date");
         row.CreatedAt.Should().Be(sent);
     }
 
@@ -163,7 +224,7 @@ public sealed class ChatMessageProjectionTests
     }
 
     [Fact]
-    public async Task Reset_removes_only_the_scoped_channel_and_a_refold_does_not_collide()
+    public async Task Reset_then_refold_leaves_the_row_count_unchanged()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ChatMessageProjection sut = new(db);
@@ -171,13 +232,10 @@ public sealed class ChatMessageProjectionTests
         EventRecord mine = Record(Message("mine-1"), sent);
         await sut.ApplyAsync(mine);
         await sut.ApplyAsync(Record(Message("theirs-1", channel: OtherChannel), sent));
-        // The projection runner clears the change tracker after every committed batch; do the same here.
         db.ChangeTracker.Clear();
 
         (await sut.ResetAsync(Channel)).IsSuccess.Should().BeTrue();
-
-        List<string> left = await db.ChatMessages.Select(m => m.Id).ToListAsync();
-        left.Should().Equal("theirs-1");
+        (await db.ChatMessages.CountAsync()).Should().Be(2);
 
         (await sut.ApplyAsync(mine)).IsSuccess.Should().BeTrue();
         (await db.ChatMessages.OrderBy(m => m.Id).Select(m => m.Id).ToListAsync())
