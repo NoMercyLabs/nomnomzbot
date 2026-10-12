@@ -56,6 +56,11 @@ i like you to make the changes i like to see but keep the same html files and in
 - **Input:** every screen under `app/`, the shared component catalogue, `9-components.html`.
 - **Done-when:** a list, built by a script, of each screen and the hand-rolled parts in it, each mapped to the shared component that replaces it, or marked as a new shared component to build.
 
+### S-PRESSABLE-AT-REST — every button, link, field and pressable row looks pressable before hover
+Owner, verbatim, 2026-10-12: "first of all, not everything is reflecting that it is a button or a link, this must be obvious to me before we continue with all the pages."
+- **Input:** `spec/frontend-design-system.md` §4.3 (Pressable at rest), the `input` token in the theme, `ButtonStyles`, the mockups in `.scratch/layout-mockups/` (all 10 pages pass `affordanceCheck()` with 0 failures).
+- **Done-when:** the `input` token is raised to the spec values; `ButtonStyles.resolve` gives `Ghost` and `Link` an underline at full tone and `Outline` an `input` edge; every pressable primitive sets the hand cursor; list rows hover only when they select or open; a test fails on the old token and the old ghost style and passes after; the rendered Wasm app shows it on every routed page.
+
 ### S-MOD-CROSS-CHANNEL-HISTORY — what a person did in every channel I moderate, inside the viewer history (design first)
 Owner, verbatim: "i think this should be properly folded into the users ability to see what someone has typed and such in the moderation section. this can't just be added, it must be thought through."
 - **Input:** the viewer card and People pages, `channel.moderate` per moderator token for channels that do not run the bot, `benchmarks/moderation-tools.md`.

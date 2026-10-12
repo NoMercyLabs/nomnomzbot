@@ -290,6 +290,7 @@ resolver, so two call sites with the same `(variant, size)` are pixel-identical 
 - Stateless and token-driven: no data access, no Store/QueryClient reads, no business logic.
 - Data in via params, events out via lambdas (UDF). A `Modifier` parameter, last, defaulted.
 - Exposes only shadcn's surface; no bonus props "just in case" (YAGNI).
+- **Pressable at rest** (owner 2026-10-12: "not everything is reflecting that it is a button or a link, this must be obvious to me"). Anything you can press shows it before hover: a hand cursor (`pointerHoverIcon(PointerIcon.Hand)`) and one cue — a solid fill at 3:1 or more, an edge at 3:1 or more (WCAG 1.4.11), or an underline. `Ghost` and `Link` text is full foreground tone with an underline; an icon-only `Ghost` gets the outline edge. `Outline`, `Input`, `Select`, `Switch` (off) and field edges use the `input` token, set so it reaches 3:1 on `background`, `card` and `muted` (dark `oklch(0.55 0 0)`, light `oklch(0.6 0 0)`); `border` stays for dividers. A list row hovers and takes the hand cursor only when pressing it selects or opens something; a card you can press carries a visible "Open …" link or chevron. Reference check: `.scratch/layout-mockups/base/affordance-check.js`.
 
 ---
 
