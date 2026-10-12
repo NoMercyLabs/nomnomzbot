@@ -69,6 +69,16 @@ Cause (read in the code, 2026-10-12): `check-history-tables.py` reads only the h
 
 ---
 
+## FINDING 2026-10-12 — a data erasure leaves the person's chat and records in place
+
+Cause (read in the code, 2026-10-12): `ErasureService` finds chat messages and records with `UserId == user.Id.ToString()`. Both columns hold the platform id (`Users.TwitchUserId`), so the preview count, the erase and the data export find 0 rows. The erase steps also call `RemoveRange`, and `SoftDeleteInterceptor` turns that into a soft delete for a soft-deletable entity, so "hard delete" keeps the text in the database.
+
+### S-ERASURE-HARD-DELETE — an erasure removes the person's chat and records for real
+- **Input:** `Infrastructure/Identity/ErasureService.cs` (preview, erase, export), `SoftDeleteInterceptor`, the erasure tests.
+- **Done-when:** chat and records are matched on the platform id in preview, erase and export; every step the code calls a hard delete removes the rows from the table (a soft-deletable entity included); a test per step asserts the row count in the table after the erase, shown failing first.
+
+---
+
 ## OWNER REQUEST 2026-10-11 — log in by role, on every platform, with only the scopes that role needs
 
 Owner, verbatim: "We need a login as user, login as moderator and login as broadcaster for all platforms and require only the permissions needed at login time to execute on behalf of their role within the bot"
