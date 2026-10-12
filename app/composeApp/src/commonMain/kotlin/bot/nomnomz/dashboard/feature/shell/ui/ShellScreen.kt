@@ -662,6 +662,7 @@ private fun ShellContent(
                 controller = graph.homeController,
                 liveOpsController = graph.liveOpsController,
                 chatPollsController = graph.chatPollsController,
+                streamInfoController = graph.streamInfoController,
                 heldActionKeys = heldActionKeys,
                 hubEvents = graph.dashboardHubClient.events,
                 // HomeScreen's own onNavigate contract is a raw ShellRoute name (attentionRouteFor / a

@@ -505,9 +505,9 @@ class RowLabelWiredScreensTest {
                 secondaryB = null,
                 idB = "chip-pool-bbb",
             ),
-            // HomeController.kt searchCategories PickerOptions — no secondary identity field.
+            // StreamInfoController.kt searchCategories PickerOptions — no secondary identity field.
             WiredRowCase(
-                screen = "HomeController.category",
+                screen = "StreamInfoController.category",
                 typeLabel = "Category",
                 secondaryA = null,
                 idA = "category-aaa",

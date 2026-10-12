@@ -104,7 +104,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.DialogActionError
 import bot.nomnomz.dashboard.core.designsystem.component.DialogActionProgressTag
 import bot.nomnomz.dashboard.core.designsystem.component.DialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.DialogResult
-import bot.nomnomz.dashboard.core.designsystem.component.FormDialog
 import bot.nomnomz.dashboard.core.designsystem.component.rememberDialogActionState
 import bot.nomnomz.dashboard.core.designsystem.component.toDialogResult
 import androidx.compose.ui.platform.testTag
@@ -112,6 +111,7 @@ import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
 import bot.nomnomz.dashboard.feature.home.state.HomeController
+import bot.nomnomz.dashboard.feature.streaminfo.state.StreamInfoController
 import bot.nomnomz.dashboard.feature.home.state.HomeState
 import bot.nomnomz.dashboard.feature.home.state.ReplayStatus
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
@@ -120,9 +120,6 @@ import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.category_picker_empty
-import nomnomzbot.composeapp.generated.resources.category_picker_label
-import nomnomzbot.composeapp.generated.resources.category_picker_placeholder
 import nomnomzbot.composeapp.generated.resources.channel_picker_empty
 import nomnomzbot.composeapp.generated.resources.channel_picker_label
 import nomnomzbot.composeapp.generated.resources.channel_picker_placeholder
@@ -218,10 +215,6 @@ import nomnomzbot.composeapp.generated.resources.home_platforms_label
 import nomnomzbot.composeapp.generated.resources.home_platforms_offline
 import nomnomzbot.composeapp.generated.resources.home_status_live
 import nomnomzbot.composeapp.generated.resources.home_status_offline
-import nomnomzbot.composeapp.generated.resources.home_stream_save
-import nomnomzbot.composeapp.generated.resources.home_stream_section
-import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
-import nomnomzbot.composeapp.generated.resources.home_stream_title_label
 import nomnomzbot.composeapp.generated.resources.home_subtitle
 import nomnomzbot.composeapp.generated.resources.home_top_commands
 import nomnomzbot.composeapp.generated.resources.home_top_commands_empty
@@ -242,6 +235,7 @@ fun HomeScreen(
     controller: HomeController,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
+    streamInfoController: StreamInfoController,
     heldActionKeys: Set<String> = emptySet(),
     hubEvents: SharedFlow<HubEvent>? = null,
     /** Navigates to a [bot.nomnomz.dashboard.feature.shell.nav.ShellRoute] name — fired when the streamer taps
@@ -287,10 +281,8 @@ fun HomeScreen(
                     liveOpsController = liveOpsController,
                     chatPollsController = chatPollsController,
                     heldActionKeys = heldActionKeys,
-                    onUpdateStream = { title, game, tags ->
-                        controller.updateStreamInfo(title, game, tags).toDialogResult()
-                    },
-                    onSearchCategories = controller::searchCategories,
+                    streamInfoController = streamInfoController,
+                    onStreamInfoSaved = { scope.launch { controller.load() } },
                     onSearchRaidTargets = controller::searchRaidTargets,
                     onReplay = { eventId -> scope.launch { controller.replay(eventId) } },
                     // Review: a held-message group opens the real review dialog in place; anything else goes to
@@ -342,8 +334,8 @@ private fun ReadyContent(
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
     heldActionKeys: Set<String>,
-    onUpdateStream: suspend (title: String?, game: String?, tags: List<String>?) -> DialogResult,
-    onSearchCategories: suspend (String) -> List<PickerOption>,
+    streamInfoController: StreamInfoController,
+    onStreamInfoSaved: () -> Unit,
     onSearchRaidTargets: suspend (String) -> List<PickerOption>,
     onReplay: (eventId: String) -> Unit,
     onReviewAttention: (ActionRequiredItem) -> Unit,
@@ -518,10 +510,9 @@ private fun ReadyContent(
     // ─── Dialogs ──────────────────────────────────────────────────────────────
 
     if (showChangeTitleDialog) {
-        ChangeTitleDialog(
-            streamInfo = streamInfo,
-            onSearchCategories = onSearchCategories,
-            onSave = onUpdateStream,
+        HomeStreamInfoDialog(
+            controller = streamInfoController,
+            onSaved = onStreamInfoSaved,
             onDismiss = { showChangeTitleDialog = false },
         )
     }
@@ -1490,74 +1481,6 @@ private fun TopCommandsCard(commands: List<CommandSummary>) {
 }
 
 // ─── Dialogs ──────────────────────────────────────────────────────────────────
-
-@Composable
-internal fun ChangeTitleDialog(
-    streamInfo: StreamInfo?,
-    onSearchCategories: suspend (String) -> List<PickerOption>,
-    onSave: suspend (title: String?, game: String?, tags: List<String>?) -> DialogResult,
-    onDismiss: () -> Unit,
-) {
-    var editTitle: String by remember(streamInfo?.title) { mutableStateOf(streamInfo?.title ?: "") }
-    // The category picker owns a PickerRef selection; the stream update writes only the NAME, so the current
-    // game is seeded as PickerRef(name, name) — the id is unused on this write. onClear reopens the search.
-    var selectedGame: PickerRef? by remember(streamInfo?.gameName) {
-        mutableStateOf(streamInfo?.gameName?.takeIf { it.isNotBlank() }?.let { PickerRef(it, it) })
-    }
-    var editTags: String by remember(streamInfo?.tags) {
-        mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
-    }
-
-    val dirty: Boolean =
-        editTitle != (streamInfo?.title ?: "") ||
-            selectedGame?.name != streamInfo?.gameName?.takeIf { it.isNotBlank() } ||
-            editTags != (streamInfo?.tags?.joinToString(", ") ?: "")
-
-    // The dialog stays open until Twitch answers: a refused title or game keeps the typed values and shows
-    // the reason next to Save (FormDialog), and Save is locked while the call runs.
-    FormDialog(
-        title = stringResource(Res.string.home_stream_section),
-        saveLabel = stringResource(Res.string.home_stream_save),
-        cancelLabel = stringResource(Res.string.home_live_ops_cancel),
-        onDismiss = onDismiss,
-        dirty = dirty,
-        save = {
-            // Always send the tags list (empty = clear). editTags is pre-filled from the current tags, so
-            // an untouched field re-sends them unchanged; clearing the field now actually clears them —
-            // the backend treats an empty list as "clear" and null as "leave unchanged", and the old
-            // `.takeIf { isNotEmpty() }` collapsed a cleared field to null, so tags could never be removed.
-            val tags: List<String> = editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            onSave(
-                editTitle.trim().takeIf { it.isNotEmpty() },
-                selectedGame?.name?.trim()?.takeIf { it.isNotEmpty() },
-                tags,
-            )
-        },
-    ) {
-        AppTextField(
-            value = editTitle,
-            onValueChange = { editTitle = it },
-            label = stringResource(Res.string.home_stream_title_label),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        SearchPickerField(
-            search = onSearchCategories,
-            selected = selectedGame,
-            onSelect = { selectedGame = it },
-            onClear = { selectedGame = null },
-            label = stringResource(Res.string.category_picker_label),
-            placeholder = stringResource(Res.string.category_picker_placeholder),
-            emptyText = stringResource(Res.string.category_picker_empty),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        AppTextField(
-            value = editTags,
-            onValueChange = { editTags = it },
-            label = stringResource(Res.string.home_stream_tags_label),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
 
 // Where a poll runs: a bot chat poll (viewers type an option number, works on every platform) or Twitch's
 // native channel poll. One dialog, one entry point — the toggle keeps both mechanisms without a second form.

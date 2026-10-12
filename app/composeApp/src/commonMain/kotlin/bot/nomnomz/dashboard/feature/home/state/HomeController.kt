@@ -11,17 +11,14 @@
 package bot.nomnomz.dashboard.feature.home.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
-import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.feature.attention.state.ATTENTION_HUB_DOMAIN
 import bot.nomnomz.dashboard.feature.attention.state.AttentionController
 import bot.nomnomz.dashboard.core.network.ActivityEvent
-import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodConfig
-import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
@@ -41,7 +38,6 @@ import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
-import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -215,46 +211,6 @@ class HomeController(
                     firstRunSteps = firstRunSteps,
                 )
             }
-        }
-    }
-
-    /**
-     * Update stream title, game, and/or tags. Merges the backend response into the current state — into
-     * [HomeState.Ready.streamInfo] AND the [HomeState.Ready.stats] the live banner renders, so the saved title
-     * shows immediately instead of only after the next full reload.
-     */
-    suspend fun updateStreamInfo(title: String?, gameName: String?, tags: List<String>?): ApiResult<StreamInfo> {
-        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, "NO_CHANNEL", "No channel is selected."))
-        val update: StreamInfoUpdate = StreamInfoUpdate(title = title, gameName = gameName, tags = tags)
-        val result: ApiResult<StreamInfo> = streamApi.update(channel, update)
-        if (result is ApiResult.Ok) {
-            val current: HomeState = _state.value
-            if (current is HomeState.Ready) {
-                _state.value = current.copy(
-                    stats = current.stats.copy(
-                        streamTitle = result.value.title,
-                        gameName = result.value.gameName,
-                    ),
-                    streamInfo = result.value,
-                )
-            }
-        }
-        return result
-    }
-
-    /**
-     * Autocomplete Twitch categories for the stream-info "game" picker. Maps each match to a [PickerOption]
-     * whose [PickerOption.id] is the Twitch category id and [PickerOption.label] the canonical game name — the
-     * stream update writes only the NAME. Best-effort: empty on failure or before the channel resolves.
-     */
-    suspend fun searchCategories(query: String): List<PickerOption> {
-        val channel: String = channelId ?: return emptyList()
-        return when (val result: ApiResult<List<Category>> = streamApi.searchCategories(channel, query)) {
-            is ApiResult.Ok ->
-                result.value.map {
-                    PickerOption(id = it.id, label = resolveRowLabel(it.name, typeLabel = "Category", discriminatorSource = it.id))
-                }
-            is ApiResult.Failure -> emptyList()
         }
     }
 

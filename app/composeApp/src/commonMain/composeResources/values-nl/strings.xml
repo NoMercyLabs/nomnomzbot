@@ -295,14 +295,7 @@
     <string name="home_retry">Opnieuw proberen</string>
     <!-- Streaminfo bewerken (inline op Home) -->
     <string name="home_stream_section">Streaminfo</string>
-    <string name="home_stream_title_label">Titel</string>
-    <string name="home_stream_title_hint">Streamtitel…</string>
-    <string name="home_stream_game_label">Categorie</string>
-    <string name="home_stream_game_hint">Spel of categorie…</string>
-    <string name="home_stream_tags_label">Tags</string>
-    <string name="home_stream_tags_hint">Nederlands, Games…</string>
-    <string name="home_stream_save">Stream bijwerken</string>
-    <string name="home_stream_saved">Stream bijgewerkt</string>
+    <string name="home_stream_close">Sluiten</string>
 
     <!-- Actie-vereist tegel op Home (S071b) -->
     <string name="home_action_required_section">Vraagt je aandacht</string>
@@ -1452,7 +1445,6 @@
     <string name="settings_status_offline">Offline</string>
     <string name="settings_label_title">Streamtitel</string>
     <string name="settings_title_invalid">Voer een streamtitel in.</string>
-    <string name="settings_label_category">Categorie</string>
     <string name="settings_label_tags">Tags</string>
     <string name="settings_tags_hint">Scheid tags met komma's.</string>
     <string name="settings_save">Opslaan</string>

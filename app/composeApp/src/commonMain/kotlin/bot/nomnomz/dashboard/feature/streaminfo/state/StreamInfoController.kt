@@ -10,7 +10,10 @@
 
 package bot.nomnomz.dashboard.feature.streaminfo.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.StreamApi
@@ -82,6 +85,19 @@ class StreamInfoController(
                     current.copy(saving = false, justSaved = false, saveError = result.error.message)
                 is ApiResult.Ok -> StreamInfoState.Ready(info = result.value, justSaved = true)
             }
+    }
+
+    /**
+     * Autocomplete Twitch categories for the editor's category picker. Each match maps to a [PickerOption] whose
+     * id is the Twitch category id and label the canonical game name — the stream update writes only the NAME.
+     * Best-effort: empty on failure or before the channel resolves.
+     */
+    suspend fun searchCategories(query: String): List<PickerOption> {
+        val target: String = channelId ?: return emptyList()
+        return when (val result: ApiResult<List<Category>> = streamApi.searchCategories(target, query)) {
+            is ApiResult.Ok -> result.value.map { PickerOption(id = it.id, label = it.name) }
+            is ApiResult.Failure -> emptyList()
+        }
     }
 }
 

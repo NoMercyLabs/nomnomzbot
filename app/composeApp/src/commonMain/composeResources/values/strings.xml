@@ -298,14 +298,7 @@
     <string name="home_retry">Retry</string>
     <!-- Stream info editing (inline on Home) -->
     <string name="home_stream_section">Stream Info</string>
-    <string name="home_stream_title_label">Title</string>
-    <string name="home_stream_title_hint">Stream title…</string>
-    <string name="home_stream_game_label">Category</string>
-    <string name="home_stream_game_hint">Game or category…</string>
-    <string name="home_stream_tags_label">Tags</string>
-    <string name="home_stream_tags_hint">English, Gaming…</string>
-    <string name="home_stream_save">Update Stream</string>
-    <string name="home_stream_saved">Stream updated</string>
+    <string name="home_stream_close">Close</string>
 
     <!-- Action-required hero tile on Home (S071b) -->
     <string name="home_action_required_section">Needs your attention</string>
@@ -1455,7 +1448,6 @@
     <string name="settings_status_offline">Offline</string>
     <string name="settings_label_title">Stream title</string>
     <string name="settings_title_invalid">Enter a stream title.</string>
-    <string name="settings_label_category">Category</string>
     <string name="settings_label_tags">Tags</string>
     <string name="settings_tags_hint">Separate tags with commas.</string>
     <string name="settings_save">Save</string>

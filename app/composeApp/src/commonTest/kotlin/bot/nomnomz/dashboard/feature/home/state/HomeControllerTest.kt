@@ -233,64 +233,6 @@ class HomeControllerTest {
     }
 
     @Test
-    fun updateStreamInfo_merges_the_saved_title_into_the_banner_stats_and_stream_info() = runTest {
-        // The regression: the PUT echoed the saved title, but only streamInfo was merged — the live banner
-        // renders stats.streamTitle, so the old title stayed on screen until a full page reload.
-        val controller =
-            HomeController(
-                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                dashboardApi = FakeDashboardApi(
-                    ApiResult.Ok(DashboardStats(streamTitle = "Old title", gameName = "Old game"))
-                ),
-                streamApi = FakeStreamApi(
-                    updateResult = ApiResult.Ok(StreamInfo(title = "New title", gameName = "New game"))
-                ),
-                commandsApi = FakeCommandsApi(),
-                communityApi = FakeCommunityApi(),
-                notificationsApi = FakeNotificationsApi(),
-                pipelinesApi = FakePipelinesApi(),
-                moderationApi = FakeModerationApi(),
-                integrationsApi = FakeIntegrationsApi(),
-            )
-        controller.load()
-
-        val result: ApiResult<StreamInfo> = controller.updateStreamInfo(title = "New title", gameName = "New game", tags = null)
-
-        assertTrue(result is ApiResult.Ok)
-        val state: HomeState = controller.state.value
-        assertTrue(state is HomeState.Ready)
-        val ready: HomeState.Ready = state as HomeState.Ready
-        assertEquals("New title", ready.stats.streamTitle)
-        assertEquals("New game", ready.stats.gameName)
-        assertEquals("New title", ready.streamInfo?.title)
-    }
-
-    @Test
-    fun updateStreamInfo_hands_a_refusal_back_and_leaves_the_banner_untouched() = runTest {
-        val refusal: ApiError = ApiError(400, "TITLE_REFUSED", "Twitch refused the title.")
-        val controller =
-            HomeController(
-                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                dashboardApi = FakeDashboardApi(
-                    ApiResult.Ok(DashboardStats(streamTitle = "Old title", gameName = "Old game"))
-                ),
-                streamApi = FakeStreamApi(updateResult = ApiResult.Failure(refusal)),
-                commandsApi = FakeCommandsApi(),
-                communityApi = FakeCommunityApi(),
-                notificationsApi = FakeNotificationsApi(),
-                pipelinesApi = FakePipelinesApi(),
-                moderationApi = FakeModerationApi(),
-                integrationsApi = FakeIntegrationsApi(),
-            )
-        controller.load()
-
-        val result: ApiResult<StreamInfo> = controller.updateStreamInfo(title = "Bad", gameName = null, tags = null)
-
-        assertEquals(ApiResult.Failure(refusal), result)
-        assertEquals("Old title", (controller.state.value as HomeState.Ready).stats.streamTitle)
-    }
-
-    @Test
     fun hub_stream_info_changed_updates_the_banner_without_a_reload() = runTest {
         // The regression's second half: the hub pushed StreamInfoChanged on channel.update, but the client
         // dropped it (unmodelled target) — an edit by another operator or on Twitch itself never showed live.
