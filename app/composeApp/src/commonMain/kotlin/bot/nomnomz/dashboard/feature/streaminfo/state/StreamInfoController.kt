@@ -95,7 +95,10 @@ class StreamInfoController(
     suspend fun searchCategories(query: String): List<PickerOption> {
         val target: String = channelId ?: return emptyList()
         return when (val result: ApiResult<List<Category>> = streamApi.searchCategories(target, query)) {
-            is ApiResult.Ok -> result.value.map { PickerOption(id = it.id, label = it.name) }
+            is ApiResult.Ok ->
+                result.value.map {
+                    PickerOption(id = it.id, label = resolveRowLabel(it.name, typeLabel = "Category", discriminatorSource = it.id))
+                }
             is ApiResult.Failure -> emptyList()
         }
     }

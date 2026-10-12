@@ -91,7 +91,6 @@ class RowLabelGuardTest {
             "pipelines/ui/PipelinesScreen.kt" to 1,
             "rewards/state/RewardsController.kt" to 1,
             "rewards/ui/RewardsScreen.kt" to 1,
-            "shell/ui/ShellScreen.kt" to 2,
             "timers/state/TimersController.kt" to 1,
             "tts/state/TtsController.kt" to 1,
             "widgets/ui/WidgetSettingsForms.kt" to 5,
@@ -100,9 +99,10 @@ class RowLabelGuardTest {
     // A UI-facing parameter assigned straight from a DIFFERENTLY-named domain field — the shape of a
     // real Text/GlyphButton/ConfirmDialog/PickerOption call site (`text = command.name`,
     // `label = it.displayName`). Matched and classified together with the form-seed regex below so the
-    // two buckets stay disjoint by construction — see [classify].
+    // two buckets stay disjoint by construction — see [classify]. A call (`ShellRoute.Admin.label()`) is not a
+    // raw data field: it resolves a string resource, so the trailing `(` excludes it.
     private val rawLabelAssignment: Regex =
-        Regex("""\b(text|title|label|headline|name|contentDescription)\s*=\s*[A-Za-z0-9_.]+\.(name|title|label|displayName)\b""")
+        Regex("""\b(text|title|label|headline|name|contentDescription)\s*=\s*[A-Za-z0-9_.]+\.(name|title|label|displayName)\b(?!\s*\()""")
 
     @Test
     fun rendered_row_labels_route_through_resolveRowLabel_not_a_raw_data_field() {
