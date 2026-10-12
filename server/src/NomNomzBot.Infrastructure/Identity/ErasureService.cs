@@ -16,7 +16,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Gdpr;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
-using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Entities;
@@ -149,13 +148,18 @@ public sealed class ErasureService : IErasureService
         if (user is null)
             return Result.Failure<ErasurePreviewDto>("The subject was not found.", "NOT_FOUND");
 
-        string userIdText = user.Id.ToString();
-
-        int chatMessages = await _db.ChatMessages.CountAsync(
-            m => m.UserId == userIdText,
-            cancellationToken
-        );
-        int records = await _db.Records.CountAsync(r => r.UserId == userIdText, cancellationToken);
+        // ChatMessage.UserId and Record.UserId hold the platform id; a subject without one owns none.
+        string? platformId = user.TwitchUserId;
+        int chatMessages = platformId is null
+            ? 0
+            : await _db
+                .ChatMessages.IgnoreQueryFilters()
+                .CountAsync(m => m.UserId == platformId, cancellationToken);
+        int records = platformId is null
+            ? 0
+            : await _db
+                .Records.IgnoreQueryFilters()
+                .CountAsync(r => r.UserId == platformId, cancellationToken);
         int viewerData = await _db
             .ViewerData.IgnoreQueryFilters()
             .CountAsync(d => d.ViewerUserId == user.Id, cancellationToken);
@@ -470,27 +474,36 @@ public sealed class ErasureService : IErasureService
         }
 
         // 2. Hard delete: chat messages (erasure is a hard delete, not a soft delete).
-        List<ChatMessage> messages = await _db
-            .ChatMessages.Where(m => m.UserId == user.Id.ToString())
-            .ToListAsync(cancellationToken);
-        _db.ChatMessages.RemoveRange(messages);
-        CountStep(tablesAffected, ref rowsAffected, "ChatMessages", messages.Count);
+        //    ChatMessage.UserId holds the platform id. ExecuteDeleteAsync bypasses SoftDeleteInterceptor,
+        //    which would turn a RemoveRange into a soft delete and leave the text in the table.
+        int messageCount = 0;
+        if (user.TwitchUserId is not null)
+        {
+            messageCount = await _db
+                .ChatMessages.IgnoreQueryFilters()
+                .Where(m => m.UserId == user.TwitchUserId)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+        CountStep(tablesAffected, ref rowsAffected, "ChatMessages", messageCount);
 
-        // 3. Hard delete: records (redemption/moderation history rows keyed by the user).
-        List<Record> records = await _db
-            .Records.Where(r => r.UserId == user.Id.ToString())
-            .ToListAsync(cancellationToken);
-        _db.Records.RemoveRange(records);
-        CountStep(tablesAffected, ref rowsAffected, "Records", records.Count);
+        // 3. Hard delete: records (redemption/moderation history rows keyed by the platform id).
+        int recordCount = 0;
+        if (user.TwitchUserId is not null)
+        {
+            recordCount = await _db
+                .Records.IgnoreQueryFilters()
+                .Where(r => r.UserId == user.TwitchUserId)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+        CountStep(tablesAffected, ref rowsAffected, "Records", recordCount);
 
         // 4. Hard delete: per-viewer custom data (G.14) across EVERY channel — erasure ignores the
         //    soft-delete filter so already-soft-deleted rows are scrubbed too.
-        List<Domain.ViewerData.Entities.ViewerDatum> viewerData = await _db
+        int viewerDataCount = await _db
             .ViewerData.IgnoreQueryFilters()
             .Where(d => d.ViewerUserId == user.Id)
-            .ToListAsync(cancellationToken);
-        _db.ViewerData.RemoveRange(viewerData);
-        CountStep(tablesAffected, ref rowsAffected, "ViewerData", viewerData.Count);
+            .ExecuteDeleteAsync(cancellationToken);
+        CountStep(tablesAffected, ref rowsAffected, "ViewerData", viewerDataCount);
 
         // 4a. Scrub (never hard-delete): the economy.md [PII-hash]/[PII-scrub] rows §9 decision 2 says are
         //     "protected as row data" rather than crypto-shredded. CurrencyLedgerEntry/LeaderboardSnapshot
@@ -559,9 +572,11 @@ public sealed class ErasureService : IErasureService
         CountStep(tablesAffected, ref rowsAffected, "ViewerProfiles", viewerProfiles.Count);
 
         // 5. Hard delete: legacy service tokens (Service.UserId stores the external Twitch user id).
-        List<Service> services = await _db
-            .Services.Where(s => s.UserId == user.TwitchUserId)
-            .ToListAsync(cancellationToken);
+        List<Service> services = user.TwitchUserId is null
+            ? []
+            : await _db
+                .Services.Where(s => s.UserId == user.TwitchUserId)
+                .ToListAsync(cancellationToken);
         _db.Services.RemoveRange(services);
         CountStep(tablesAffected, ref rowsAffected, "Services", services.Count);
 
@@ -710,8 +725,10 @@ public sealed class ErasureService : IErasureService
 
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
+        string? platformId = user.TwitchUserId;
+
         var chatMessages = await _db
-            .ChatMessages.Where(m => m.UserId == user.Id.ToString())
+            .ChatMessages.Where(m => platformId != null && m.UserId == platformId)
             .OrderByDescending(m => m.CreatedAt)
             .Select(m => new
             {
@@ -725,7 +742,7 @@ public sealed class ErasureService : IErasureService
             .ToListAsync(cancellationToken);
 
         var records = await _db
-            .Records.Where(r => r.UserId == user.Id.ToString())
+            .Records.Where(r => platformId != null && r.UserId == platformId)
             .Select(r => new
             {
                 r.BroadcasterId,

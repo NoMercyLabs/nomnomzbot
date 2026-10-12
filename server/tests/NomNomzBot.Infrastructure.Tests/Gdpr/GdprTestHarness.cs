@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 // Disambiguate the domain Record entity from xunit's Record helper (the test project globally imports Xunit).
 using Record = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -550,7 +551,15 @@ internal sealed class GdprSqliteDatabase : IDisposable
     public GdprTestDbContext NewContext()
     {
         DbContextOptions<GdprTestDbContext> options =
-            new DbContextOptionsBuilder<GdprTestDbContext>().UseSqlite(_connection).Options;
+            new DbContextOptionsBuilder<GdprTestDbContext>()
+                .UseSqlite(_connection)
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
+                .Options;
         return new(options);
     }
 

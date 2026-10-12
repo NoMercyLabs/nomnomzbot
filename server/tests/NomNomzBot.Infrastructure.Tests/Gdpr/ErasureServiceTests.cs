@@ -47,6 +47,10 @@ public sealed class ErasureServiceTests
     );
     private static readonly Guid OtherChannel = Guid.Parse("0192a000-0000-7000-8000-00000000c002");
 
+    /// <summary>ChatMessage.UserId and Record.UserId hold the platform (Twitch) id, never Users.Id.</summary>
+    private static string PlatformIdOf(Guid userId) =>
+        userId == SubjectUser ? "tw-subject" : "tw-other";
+
     private sealed record Harness(
         ErasureService Sut,
         IntegrationTokenVault Vault,
@@ -795,7 +799,7 @@ public sealed class ErasureServiceTests
             {
                 Id = "msg-1",
                 BroadcasterId = SubjectChannel,
-                UserId = SubjectUser.ToString(),
+                UserId = PlatformIdOf(SubjectUser),
                 Username = "subject",
                 DisplayName = "Subject",
                 UserType = "viewer",
@@ -839,7 +843,7 @@ public sealed class ErasureServiceTests
             {
                 Id = "msg-subject",
                 BroadcasterId = SubjectChannel,
-                UserId = SubjectUser.ToString(),
+                UserId = PlatformIdOf(SubjectUser),
                 Username = "subject",
                 DisplayName = "Subject",
                 UserType = "viewer",
@@ -849,7 +853,7 @@ public sealed class ErasureServiceTests
             {
                 Id = "msg-other",
                 BroadcasterId = SubjectChannel,
-                UserId = OtherUser.ToString(),
+                UserId = PlatformIdOf(OtherUser),
                 Username = "other",
                 DisplayName = "Other",
                 UserType = "viewer",
@@ -1205,6 +1209,91 @@ public sealed class ErasureServiceTests
     }
 
     [Fact]
+    public async Task RequestErasureAsync_physically_removes_the_subjects_chat_and_records_and_keeps_others()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        SeedChatMessages(h.Db, SubjectUser, 3);
+        SeedChatMessages(h.Db, OtherUser, 2);
+        SeedRecords(h.Db, SubjectUser, 2);
+        SeedRecords(h.Db, OtherUser, 1);
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasureRequestDto> erased = await h.Sut.RequestErasureAsync(
+            SelfErasure(SubjectUser)
+        );
+
+        erased.IsSuccess.Should().BeTrue(erased.ErrorMessage);
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        // IgnoreQueryFilters: a soft delete would leave the rows (and their text) in the table.
+        List<string> chatOwners = await reader
+            .ChatMessages.IgnoreQueryFilters()
+            .Select(m => m.UserId)
+            .ToListAsync();
+        chatOwners.Should().HaveCount(2).And.OnlyContain(id => id == "tw-other");
+        List<string> recordOwners = await reader
+            .Records.IgnoreQueryFilters()
+            .Select(r => r.UserId)
+            .ToListAsync();
+        recordOwners.Should().ContainSingle().Which.Should().Be("tw-other");
+        erased.Value.RowsAffected.Should().BeGreaterThanOrEqualTo(1 + 3 + 2);
+    }
+
+    [Fact]
+    public async Task RequestErasureAsync_for_a_subject_without_a_platform_id_removes_no_chat()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        User subject = await h.Db.Users.SingleAsync(u => u.Id == SubjectUser);
+        subject.TwitchUserId = null;
+        SeedChatMessages(h.Db, OtherUser, 2);
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasureRequestDto> erased = await h.Sut.RequestErasureAsync(
+            SelfErasure(SubjectUser)
+        );
+
+        erased.IsSuccess.Should().BeTrue(erased.ErrorMessage);
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        (await reader.ChatMessages.IgnoreQueryFilters().CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Export_includes_the_subjects_records_and_not_others()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        h.Db.Records.AddRange(
+            new NomNomzBot.Domain.Platform.Entities.Record
+            {
+                BroadcasterId = SubjectChannel,
+                RecordType = "redemption",
+                Data = "payload-of-subject",
+                UserId = PlatformIdOf(SubjectUser),
+            },
+            new NomNomzBot.Domain.Platform.Entities.Record
+            {
+                BroadcasterId = SubjectChannel,
+                RecordType = "redemption",
+                Data = "payload-of-other",
+                UserId = PlatformIdOf(OtherUser),
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<DataExportDto> result = await h.Sut.RequestExportAsync(
+            new(SubjectUser, null, "self_service")
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Document.Should().Contain("payload-of-subject");
+        result.Value.Document.Should().NotContain("payload-of-other");
+    }
+
+    [Fact]
     public async Task PreviewErasureAsync_counts_exactly_what_the_erasure_then_destroys()
     {
         // The preview is only worth anything if the number it shows is the number the save acts on.
@@ -1474,7 +1563,7 @@ public sealed class ErasureServiceTests
                 {
                     Id = $"msg-{userId:N}-{index}",
                     BroadcasterId = SubjectChannel,
-                    UserId = userId.ToString(),
+                    UserId = PlatformIdOf(userId),
                     Username = "seed",
                     DisplayName = "Seed",
                     UserType = "viewer",
@@ -1494,7 +1583,7 @@ public sealed class ErasureServiceTests
                     BroadcasterId = SubjectChannel,
                     RecordType = "redemption",
                     Data = "{}",
-                    UserId = userId.ToString(),
+                    UserId = PlatformIdOf(userId),
                 }
             );
         }
