@@ -48,6 +48,10 @@ i like you to make the changes i like to see but keep the same html files and in
 - **Input:** the owner review above, the same files in `.scratch/layout-mockups/` (no new files), the template helpers in the templating code, the a11y options of the NoMercy docs page.
 - **Done-when:** Home shows only what matters now to a broadcaster or mod (no schedule, no recent streams); chat has a visible display-options panel (timestamps, badges, avatars, font, size, a11y); the command editor has a searchable helper reference with an explanation per helper; Settings holds API, devices and the supporter webhooks; the workbench shows a chain with 2 or more sub-actions as an obvious nested group; onboarding actions sit in a dialog-style card, not fixed top and bottom bars; the viewer pages show nothing that can be used to single out or bully another viewer; density stays compact; screenshots go to the owner.
 
+### S-CHAT-DISPLAY-OPTIONS — the chat page has a display-options panel the user sees at once, kept per user
+- **Input:** `benchmarks/chat-display.md` (every partial and missing row), `3-live-split.html` round 2, the NoMercy docs reading menu.
+- **Done-when:** timestamps, badges, avatars, platform icons, name colours, font family (with a dyslexia-friendly one), font size, spacing, alternating rows, emote size, animated emotes, deleted messages, mention highlight, high contrast, narrow width and reduced motion are each a control on the chat page; the feed changes at once; the choice is stored per user and applied before first paint; a test proves each control changes the rendered line.
+
 ### S-COMPONENT-INVENTORY — every hand-rolled part in every screen, listed against the shared components
 - **Input:** every screen under `app/`, the shared component catalogue, `9-components.html`.
 - **Done-when:** a list, built by a script, of each screen and the hand-rolled parts in it, each mapped to the shared component that replaces it, or marked as a new shared component to build.
