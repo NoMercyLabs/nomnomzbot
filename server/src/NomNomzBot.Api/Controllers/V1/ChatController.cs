@@ -271,7 +271,7 @@ public class ChatController : BaseController
         };
     }
 
-    // The reverse of ChatMessagePersistenceHandler.ResolveUserType's priority (broadcaster > moderator > vip >
+    // The reverse of ChatMessageProjection.ResolveUserType's priority (broadcaster > moderator > vip >
     // subscriber), recovering the sender's role flags the decorator's link-preview standing gate needs
     // (chat-decoration spec §9·9) from the single UserType string persisted on the row.
     private static (

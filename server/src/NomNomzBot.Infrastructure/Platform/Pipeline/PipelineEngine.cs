@@ -2335,7 +2335,7 @@ public sealed class PipelineEngine : IPipelineEngine
             // completed (or failed) and its result has already been returned to the caller. The
             // rejected row must also be DETACHED: it would otherwise stay tracked on this shared
             // scoped DbContext and poison every subsequent SaveChangesAsync on the same scope
-            // (e.g. ChatMessagePersistenceHandler saving on the same request).
+            // (e.g. another handler saving on the same request).
             // Best-effort, and it MUST stay that way: this runs inside the catch that guarantees
             // telemetry never takes down command execution, so anything thrown here would defeat the
             // very guarantee it is protecting.

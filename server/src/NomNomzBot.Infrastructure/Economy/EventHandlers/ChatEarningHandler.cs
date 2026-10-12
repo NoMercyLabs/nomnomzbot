@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Economy.EventHandlers;
 /// deterministic <see cref="Guid"/> — a duplicate EventSub delivery for the same message will be a no-op in the
 /// ledger. Uses <see cref="IServiceScopeFactory"/> to create its own scope so the earning service's
 /// <see cref="NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext"/> never contends with the
-/// parallel <c>ChatMessagePersistenceHandler</c> that runs in the EventBus dispatch scope.
+/// other handlers that run in the EventBus dispatch scope.
 /// </summary>
 public sealed class ChatEarningHandler(
     IServiceScopeFactory scopeFactory,
@@ -68,7 +68,7 @@ public sealed class ChatEarningHandler(
         int roleLevel = ResolveRoleLevel(@event);
 
         // Dedicated scope so CurrencyEarningService.IApplicationDbContext never races with
-        // ChatMessagePersistenceHandler which holds the EventBus dispatch scope's DbContext.
+        // the other handlers that hold the EventBus dispatch scope's DbContext.
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         ICurrencyEarningService earning =
             scope.ServiceProvider.GetRequiredService<ICurrencyEarningService>();
