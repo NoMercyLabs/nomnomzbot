@@ -23,7 +23,9 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -652,6 +654,69 @@ public class SpamDefenseServiceTests : IDisposable
         stored
             .Reason.Should()
             .Contain(nameof(SpamTrustTier.Known), "the reason names the tier that earns it");
+    }
+
+    private void SeedLinkPolicyFilter(bool isEnabled = true, params string[] allowedDomains)
+    {
+        using AppDbContext db = NewDbContext();
+        db.ChatFilters.Add(
+            new ChatFilter
+            {
+                BroadcasterId = Channel,
+                FilterType = ChatFilterType.LinkPolicy,
+                Name = "Links",
+                IsEnabled = isEnabled,
+                LinkPolicyJson = new LinkPolicy { AllowedDomains = allowedDomains }.ToStoredJson(),
+            }
+        );
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task ALinkToADomainTheChannelAllows_IsAnEarnedLink_AndWritesNoFlag()
+    {
+        SeedLinkPolicyFilter(allowedDomains: "example-shop.com");
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("see https://example-shop.com/item", "stranger-2")
+        );
+
+        result.Tier.Should().Be(SpamTrustTier.Untrusted);
+        result.Signals.Should().NotContain(ContentSignal.UnearnedCapability);
+        result.Decision.WouldHaveBeen.Should().Be(SpamOutcome.None);
+        DetectionCount().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ALinkToADomainNotOnTheChannelsAllowList_StillFlags()
+    {
+        SeedLinkPolicyFilter(allowedDomains: "example-shop.com");
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("see https://other-shop.net/item", "stranger-3")
+        );
+
+        result.Signals.Should().Contain(ContentSignal.UnearnedCapability);
+        DetectionCount().Should().Be(1);
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDetections.SingleAsync())
+            .Reason.Should()
+            .Contain(nameof(SpamCapability.PostLink));
+    }
+
+    [Fact]
+    public async Task ADomainOnADisabledLinkFiltersAllowList_IsNotAllowed()
+    {
+        SeedLinkPolicyFilter(isEnabled: false, allowedDomains: "example-shop.com");
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = false });
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("see https://example-shop.com/item", "stranger-4")
+        );
+
+        result.Signals.Should().Contain(ContentSignal.UnearnedCapability);
     }
 
     [Fact]

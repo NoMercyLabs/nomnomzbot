@@ -18,7 +18,9 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 
 namespace NomNomzBot.Infrastructure.Moderation;
@@ -436,10 +438,14 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (await _staffEchoes.IsEchoAsync(request.BroadcasterId, normalized.Skeleton, ct))
             return null;
 
+        IReadOnlyCollection<string> allowedDomains = await LoadAllowedDomainsAsync(
+            request.BroadcasterId,
+            ct
+        );
         ContentEvaluation content = ContentSignals.Evaluate(
             normalized,
             request.Message,
-            await BuildContentPolicyAsync(settings, ct)
+            await BuildContentPolicyAsync(settings, allowedDomains, ct)
         );
 
         (SpamTrustTier tier, AccountFacts facts) = await ResolveTierAsync(request, settings, ct);
@@ -453,7 +459,12 @@ public sealed class SpamDefenseService : ISpamDefenseService
         // verdict to Medium and no further.
         IReadOnlyList<SpamCapability> unearned = TrustTierLadder.IsImmune(tier)
             ? []
-            : CapabilityGate.Unearned(request.Message, tier, settings.NonLatinScriptGate);
+            : CapabilityGate.Unearned(
+                request.Message,
+                tier,
+                settings.NonLatinScriptGate,
+                allowedDomains
+            );
         SpamConfidence confidence = CapabilityGate.RaiseConfidence(content.Confidence, unearned);
         IReadOnlyList<ContentSignal> signals =
             unearned.Count == 0
@@ -593,6 +604,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
     /// </summary>
     private async Task<ContentPolicy> BuildContentPolicyAsync(
         SpamDefenseSettings settings,
+        IReadOnlyCollection<string> allowedDomains,
         CancellationToken ct
     )
     {
@@ -610,6 +622,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
         {
             NearDuplicateSimilarity = settings.NearDuplicateSimilarity,
             MinimumSkeletonLength = settings.MinimumSkeletonLength,
+            AllowedDomains = allowedDomains,
             CorpusSkeletons =
             [
                 .. usable.Where(sig => sig.Kind == SignatureKind.Skeleton).Select(sig => sig.Value),
@@ -619,6 +632,35 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 .. usable.Where(sig => sig.Kind == SignatureKind.Domain).Select(sig => sig.Value),
             ],
         };
+    }
+
+    /// <summary>
+    /// The hosts the streamer allowed in the channel's enabled link filters. A link to one of them is not an
+    /// unearned link, so the spam check reads the same list the link filter does.
+    /// </summary>
+    private async Task<IReadOnlyCollection<string>> LoadAllowedDomainsAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        List<string?> policies = await _db
+            .ChatFilters.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(f =>
+                f.BroadcasterId == broadcasterId
+                && f.DeletedAt == null
+                && f.IsEnabled
+                && f.FilterType == ChatFilterType.LinkPolicy
+            )
+            .Select(f => f.LinkPolicyJson)
+            .ToListAsync(ct);
+
+        return
+        [
+            .. policies
+                .SelectMany(json => LinkPolicy.FromStoredJson(json).AllowedDomains)
+                .Distinct(),
+        ];
     }
 
     /// <summary>
