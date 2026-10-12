@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
+import nomnomzbot.composeapp.generated.resources.feedback_regrant_nothing_missing
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -760,6 +761,36 @@ class IntegrationsControllerTest {
 
         // No device-code panel is shown when there is nothing to grant.
         assertNull((controller.state.value as IntegrationsState.Ready).regrant)
+    }
+
+    @Test
+    fun a_stale_banner_reloads_the_gaps_and_confirms_when_the_backend_has_nothing_left_to_grant() = runTest {
+        val diagnostics =
+            FakeTwitchDiagnosticsApi(
+                missing = MissingScopes(scopes = listOf(MissingScope("channel:read:ads", listOf("ads")))),
+                regrantFails = true,
+            )
+        val feedback = RecordingFeedback()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                diagnostics = diagnostics,
+                system = FakeSystemApi(twitchSecretConfigured = false),
+                feedback = feedback,
+            )
+        controller.load()
+        assertEquals(1, (controller.state.value as IntegrationsState.Ready).missingScopes.size)
+
+        // A token refresh granted the scopes after the banner loaded; the backend now has nothing to grant.
+        diagnostics.missingAfter = MissingScopes(scopes = emptyList())
+        controller.regrantScopes()
+
+        assertTrue((controller.state.value as IntegrationsState.Ready).missingScopes.isEmpty())
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_regrant_nothing_missing, feedback.only.label)
     }
 
     @Test

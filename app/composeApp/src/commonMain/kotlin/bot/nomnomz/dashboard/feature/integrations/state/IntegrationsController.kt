@@ -47,6 +47,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_action_retry
 import nomnomzbot.composeapp.generated.resources.feedback_connect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_regrant_failed
+import nomnomzbot.composeapp.generated.resources.feedback_regrant_nothing_missing
 import nomnomzbot.composeapp.generated.resources.feedback_credentials_saved
 import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
@@ -601,8 +602,13 @@ class IntegrationsController(
             // NEVER a silent return. A button that reports nothing is indistinguishable from a broken
             // one, so the streamer clicks again and again — which is exactly how this earned a rate-limit
             // instead of an explanation. Surface the real backend reason.
+            // NO_MISSING_SCOPES means the banner is stale (a token refresh granted the scopes after it loaded):
+            // re-read the gaps so it clears, and say so.
             is ApiResult.Failure ->
-                feedback.error(Res.string.feedback_regrant_failed, start.error.message)
+                if (start.error.code == "NO_MISSING_SCOPES") {
+                    refresh()
+                    feedback.success(Res.string.feedback_regrant_nothing_missing)
+                } else feedback.error(Res.string.feedback_regrant_failed, start.error.message)
             is ApiResult.Ok -> {
                 _state.value =
                     ready.copy(
