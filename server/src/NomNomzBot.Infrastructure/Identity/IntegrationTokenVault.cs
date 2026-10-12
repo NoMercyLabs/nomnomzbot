@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -38,6 +39,10 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
 {
     private const int NeedsReauthThreshold = 3;
     private const string PlatformSubject = "_platform";
+
+    // Connections this process already tried to decrypt while marked decrypt_failed. Process-wide because the
+    // vault is scoped but the keys only change across a restart.
+    private static readonly ConcurrentDictionary<Guid, byte> RetriedUndecryptable = new();
 
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
@@ -409,7 +414,11 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
         if (connection is null)
             return Result.Failure<DecryptedTokenDto>("No such connection.", "NOT_FOUND");
-        if (connection.Status == AuthEnums.IntegrationStatus.DecryptFailed)
+
+        // The keys are fixed for the life of the process, so a marked connection is retried once per process:
+        // a mark left by a key that was missing or wrong clears on the restart that restores the key.
+        bool marked = connection.Status == AuthEnums.IntegrationStatus.DecryptFailed;
+        if (marked && !RetriedUndecryptable.TryAdd(connectionId, 0))
             return UndecryptableFailure();
 
         IntegrationToken? token = await _db
@@ -435,9 +444,13 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             // Null means the DEK was crypto-shredded, the AAD/tag failed, or the value is malformed —
             // fail closed (the GDPR guarantee surfaced to callers). No retry can ever open this token, so
             // the connection is marked decrypt_failed: later reads stop here without decrypting again.
+            RetriedUndecryptable.TryAdd(connectionId, 0);
             await MarkUndecryptableAsync(connection, cancellationToken);
             return UndecryptableFailure();
         }
+
+        if (marked)
+            await ClearUndecryptableAsync(connection, cancellationToken);
 
         bool isExpired = token.ExpiresAt is { } exp && exp <= _timeProvider.GetUtcNow().UtcDateTime;
         return Result.Success(
@@ -475,7 +488,7 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         if (marked == 0)
             return;
 
-        SyncTrackedCopy(connection.Id, now);
+        SyncTrackedCopy(connection.Id, AuthEnums.IntegrationStatus.DecryptFailed, now);
 
         _logger.LogWarning(
             "Integration {ConnectionId} ({Provider}) holds a token that cannot be decrypted; marked decrypt_failed",
@@ -495,11 +508,53 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
     }
 
     /// <summary>
+    /// Returns a <c>decrypt_failed</c> connection whose token opened again to <c>connected</c>, set-based for the
+    /// same reason the mark is, and announces it so the attention inbox drops the reconnect item.
+    /// </summary>
+    private async Task ClearUndecryptableAsync(
+        IntegrationConnection connection,
+        CancellationToken cancellationToken
+    )
+    {
+        int cleared = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Id == connection.Id && c.Status == AuthEnums.IntegrationStatus.DecryptFailed
+            )
+            .ExecuteUpdateAsync(
+                set =>
+                    set.SetProperty(c => c.Status, AuthEnums.IntegrationStatus.Connected)
+                        .SetProperty(c => c.LastErrorAt, (DateTime?)null),
+                cancellationToken
+            );
+        if (cleared == 0)
+            return;
+
+        SyncTrackedCopy(connection.Id, AuthEnums.IntegrationStatus.Connected, null);
+
+        _logger.LogInformation(
+            "Integration {ConnectionId} ({Provider}) decrypts again; cleared decrypt_failed",
+            connection.Id,
+            connection.Provider
+        );
+        await _eventBus.PublishAsync(
+            new IntegrationConnectedEvent
+            {
+                BroadcasterId = connection.BroadcasterId ?? Guid.Empty,
+                ConnectionId = connection.Id,
+                Provider = connection.Provider,
+                ProviderAccountId = connection.ProviderAccountId ?? string.Empty,
+            },
+            cancellationToken
+        );
+    }
+
+    /// <summary>
     /// Brings a copy of the row the caller's context already tracks in line with the set-based update, so a
     /// later tracked write in the same unit of work (a fresh grant setting it back to connected) is seen as a
     /// change and saved, instead of being compared against the stale pre-update value and skipped.
     /// </summary>
-    private void SyncTrackedCopy(Guid connectionId, DateTime markedAt)
+    private void SyncTrackedCopy(Guid connectionId, string status, DateTime? lastErrorAt)
     {
         IntegrationConnection? tracked = _db.IntegrationConnections.Local.FirstOrDefault(c =>
             c.Id == connectionId
@@ -508,12 +563,10 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             return;
 
         EntityEntry entry = _db.Entry(tracked);
-        entry.Property(nameof(IntegrationConnection.Status)).OriginalValue = AuthEnums
-            .IntegrationStatus
-            .DecryptFailed;
-        entry.Property(nameof(IntegrationConnection.LastErrorAt)).OriginalValue = markedAt;
-        tracked.Status = AuthEnums.IntegrationStatus.DecryptFailed;
-        tracked.LastErrorAt = markedAt;
+        entry.Property(nameof(IntegrationConnection.Status)).OriginalValue = status;
+        entry.Property(nameof(IntegrationConnection.LastErrorAt)).OriginalValue = lastErrorAt;
+        tracked.Status = status;
+        tracked.LastErrorAt = lastErrorAt;
     }
 
     private async Task UpsertTokenAsync(

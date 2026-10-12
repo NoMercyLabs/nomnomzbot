@@ -139,6 +139,73 @@ public sealed class IntegrationTokenVaultTests
     }
 
     [Fact]
+    public async Task ADecryptFailedMark_ClearsOnTheRestartWhoseKeysOpenTheTokenAgain()
+    {
+        // A key that is missing or wrong when the process starts makes every read fail, and the vault marks the
+        // connection decrypt_failed. Restoring the key needs a restart; that restart must open the token and
+        // clear the mark, instead of keeping a readable connection dead until the streamer reconnects it.
+        string database = Guid.NewGuid().ToString();
+        Guid connectionId;
+        {
+            (IntegrationTokenVault vault, AuthDbContext db, _) = Build(database);
+            connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+            await vault.StoreTokensAsync(
+                connectionId,
+                new("access-under-a-restored-key", null, null, DateTime.UtcNow.AddHours(1))
+            );
+            await db
+                .IntegrationConnections.Where(c => c.Id == connectionId)
+                .ExecuteUpdateAsync(set =>
+                    set.SetProperty(c => c.Status, AuthEnums.IntegrationStatus.DecryptFailed)
+                        .SetProperty(c => c.LastErrorAt, DateTime.UtcNow)
+                );
+        }
+
+        (IntegrationTokenVault restarted, AuthDbContext restartedDb, RecordingEventBus bus) = Build(
+            database
+        );
+        Result<DecryptedTokenDto> access = await restarted.GetAccessTokenAsync(connectionId);
+
+        access.IsSuccess.Should().BeTrue("the key opens the token again, so the mark was stale");
+        access.Value.Value.Should().Be("access-under-a-restored-key");
+        IntegrationConnection healed = await restartedDb
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Id == connectionId);
+        healed.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        healed.LastErrorAt.Should().BeNull();
+        bus.Published.OfType<IntegrationConnectedEvent>()
+            .Should()
+            .ContainSingle(e => e.ConnectionId == connectionId);
+    }
+
+    [Fact]
+    public async Task ATokenNoKeyCanOpen_StaysDecryptFailed_AcrossReads()
+    {
+        (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();
+        Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+        await vault.StoreTokensAsync(
+            connectionId,
+            new("access-that-gets-corrupted", null, null, DateTime.UtcNow.AddHours(1))
+        );
+        await db
+            .IntegrationTokens.Where(t => t.ConnectionId == connectionId)
+            .ExecuteUpdateAsync(set => set.SetProperty(t => t.CipherText, "v1|corrupted"));
+
+        Result<DecryptedTokenDto> first = await vault.GetAccessTokenAsync(connectionId);
+        Result<DecryptedTokenDto> second = await vault.GetAccessTokenAsync(connectionId);
+
+        first.ErrorCode.Should().Be("DECRYPT_FAILED");
+        second.ErrorCode.Should().Be("DECRYPT_FAILED");
+        IntegrationConnection dead = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Id == connectionId);
+        dead.Status.Should().Be(AuthEnums.IntegrationStatus.DecryptFailed);
+        bus.Published.OfType<IntegrationNeedsReauthEvent>()
+            .Should()
+            .ContainSingle(e => e.ConnectionId == connectionId);
+    }
+
+    [Fact]
     public async Task StoredCipherText_IsNotThePlaintext_AndIsNotReadableWithoutTheVault()
     {
         (IntegrationTokenVault vault, AuthDbContext db, _) = Build();
