@@ -29,6 +29,29 @@ Owner, verbatim: "you did a great job reorganizing! but i like the screen to be 
 - **Input:** `benchmarks/page-layouts.md`, `ui-placement-ledger-2026-10-11.md`, `ui-page-drawings-2026-10-11.md`, `spec/frontend-design-system.md`, every routed screen in `app/`, read-only rows of the stoney_eagle channel.
 - **Done-when:** each layout is one HTML+CSS page in the design-system tokens, full height, where only its panels scroll and at most one tab row exists; every routed page is mapped to one layout; screenshots go to the owner; no app code changes until the owner picks.
 
+Owner review of round 1 (7 layouts, admin, viewer, components), verbatim, 2026-10-12: "i also find it important that things like chat view is highly configurable with options to show and hide timestamps, badges, avatars, fonts, and all the a11y features we can think of like we have for the docs page on nomercy. this must be thought about. 
+and my designer wants everything to be big but i hate it really. how this looks is a nice base dude, nice work. lets go over every page. 
+home should be a reflection of now and contain the most important items for a broadcaster or mod, it is the very first thing they get to see when they open the dashboard, showing a schedule and recent streams have no meaning nor business to be on the home screen. 
+the command editor is super nice, but there are way more string template helpers that need a place to be looked up from with an explaination, so i like to se more options for this.
+chat is super nice, but as i said i need way more easily visible and configurable by the user seeing this page.
+i love settings, api and devices probably belongs in here too, just like the supporters webhook setup and so on.
+the idea of the workbench is nice but we MUST heavily invest effort into making this UX super duper ultra easy to use and configure, chains and things that get 2 or more sub actions must be shown in such a way that it is super obvious, i feel this is a bit lacking in ease of use still, the ui is ok.
+tables are super nice! 
+the onboarding is ok but i don't think we should have the actions to be a fixed top and bottom navbar items, this should be more dialog style-ish. 
+I LOVE THE ADMIN SIDEBAR!! THIS IS PROMMISING AND MAKES ME THINK WE GET SOMEWHERE NOW, ME LOVE YOU! 
+the viewer section is a bit weird to me, i don't know what you are planning on it yet, but we must be careful with what we show a regular viewer, we can show command usage scoring and such but we easily get into the territoty of showing too much that can be used to bully others, so be super careful with this.
+the components are super nice! we must do a full inventory of all components that are still hand-rolled in every screen and make sure that the whole ui is made of building blocks like lego bricks.
+you did a great job with these mocks Arc, good job! 
+i like you to make the changes i like to see but keep the same html files and index so we don't create more bloat, lets itterate on what i like so we can apply it in one sweep on the real kotlin app, does that sound like a plan?"
+
+### S-LAYOUT-MOCKUPS-R2 — round 2 of the same mockup files (design, no app code)
+- **Input:** the owner review above, the same files in `.scratch/layout-mockups/` (no new files), the template helpers in the templating code, the a11y options of the NoMercy docs page.
+- **Done-when:** Home shows only what matters now to a broadcaster or mod (no schedule, no recent streams); chat has a visible display-options panel (timestamps, badges, avatars, font, size, a11y); the command editor has a searchable helper reference with an explanation per helper; Settings holds API, devices and the supporter webhooks; the workbench shows a chain with 2 or more sub-actions as an obvious nested group; onboarding actions sit in a dialog-style card, not fixed top and bottom bars; the viewer pages show nothing that can be used to single out or bully another viewer; density stays compact; screenshots go to the owner.
+
+### S-COMPONENT-INVENTORY — every hand-rolled part in every screen, listed against the shared components
+- **Input:** every screen under `app/`, the shared component catalogue, `9-components.html`.
+- **Done-when:** a list, built by a script, of each screen and the hand-rolled parts in it, each mapped to the shared component that replaces it, or marked as a new shared component to build.
+
 ### S-MOD-CROSS-CHANNEL-HISTORY — what a person did in every channel I moderate, inside the viewer history (design first)
 Owner, verbatim: "i think this should be properly folded into the users ability to see what someone has typed and such in the moderation section. this can't just be added, it must be thought through."
 - **Input:** the viewer card and People pages, `channel.moderate` per moderator token for channels that do not run the bot, `benchmarks/moderation-tools.md`.
