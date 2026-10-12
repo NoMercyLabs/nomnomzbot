@@ -107,6 +107,13 @@ produce identical colors): **Björn Ottosson's published OKLab↔linear-sRGB mat
 **out-of-gamut rule** (after `L`/`C`/`H` are set, if any linear-sRGB channel ∉ `[0,1]`, reduce `C`
 toward 0 by bisection to tolerance `ε = 1e-4` until in gamut), and **8-bit channel rounding**.
 
+**Contrast overrides (the only hand-set values).** `generateDesignTokens` applies one pinned override
+list after it reads shadcn, so `TokensNeutral.kt` stays generated. Each entry carries the failing
+contrast it fixes. Today it has one entry: light `muted-foreground` is `oklch(0.5 0 0)`, not shadcn's
+`oklch(0.556 0 0)`. On the zebra row and `muted` fills, 0.556 gives about 4.4:1, under the WCAG AA 4.5:1
+bar that axe-core enforces in the mockup gate (owner 2026-10-12: "make sure everything passes the a11y
+quality bar").
+
 ### 1.3 Radius, spacing, typography — also pinned (no Tailwind to lean on)
 
 shadcn ships only color + `--radius`; Tailwind supplied spacing/type. Since we have no Tailwind, those
@@ -116,6 +123,9 @@ scales are pinned here too, so nothing is improvised:
   `xl = radius+4` (shadcn v4 calc set; offsets in **dp** — sm -4, md -2, lg +0, xl +4). Exposed as `Tokens.radius.{sm,md,lg,xl}`.
 - **Spacing:** a fixed 4dp-based scale `Space.{s0,s0_5,s1,s1_5,s2,s3,s4,s6,s8,s12,s16,s24}` (legal Kotlin names; resolved dp: 0,2,4,6,8,12,16,24,32,48,64,96) (Tailwind's numbers
   ×4dp). No raw `.dp` in components — only `Space.*`.
+- **Shell line:** the sidebar's top block and the page header are both `Space.s16` (64dp) tall, so their
+  bottom borders form one unbroken divider line across the window. Anything added to either block
+  (the admin way back, the channel switcher) fits inside that height or moves into the list below it.
 - **Typography:** a fixed type scale (`xs 12/16`, `sm 14/20`, `base 16/24`, `lg 18/28`, `xl 20/28`,
   `2xl 24/32`, `3xl 30/36`, `4xl 36/40` — size & line-height both in `sp`, letter-spacing `0`, default weight `normal 400`) with weights `{normal 400, medium 500,
   semibold 600, bold 700}`. **Font = Inter** (bundled, open-source, wasm-safe) as the `FontFamily`
