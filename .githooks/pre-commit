@@ -23,7 +23,9 @@ if git diff --cached --name-only --diff-filter=ACMR -- '*.kt' | grep -q .; then
   python "$(git rev-parse --show-toplevel)/scripts/check-res-imports.py" || exit 1
 fi
 # Every table a live event handler writes gets a projection, so an import reaches it (owner 2026-10-12).
+# core.hooksPath is absolute, so a worktree runs this hook; load the script beside the hook, not from the
+# worktree, whose base may predate it. The script still reads the worktree's own files.
 if git diff --cached --name-only --diff-filter=ACMRD -- 'server/src/*.cs' 'scripts/check-history-tables.py' | grep -q .; then
-  python "$(git rev-parse --show-toplevel)/scripts/check-history-tables.py" || exit 1
+  python "$(dirname "$0")/../scripts/check-history-tables.py" || exit 1
 fi
 exit 0

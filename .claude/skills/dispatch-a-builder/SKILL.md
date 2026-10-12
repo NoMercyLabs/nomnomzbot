@@ -47,7 +47,9 @@ Two isolation choices:
 8. **The report shape** you want back: what changed, the evidence, the first real error on
    failure — not file dumps.
 9. **Do not push.** Pushing is the orchestrator's decision.
-10. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
+10. **Never bypass a hook** (`--no-verify`, `-c core.hooksPath=...`): it also skips the attribution
+    guard. A failing hook means stop and report its output.
+11. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
    `Executor: Arc because <reason>`, or executor-guard refuses the dispatch. Name the model
    (Haiku checks, Sonnet pattern work, Opus hard cases).
 
