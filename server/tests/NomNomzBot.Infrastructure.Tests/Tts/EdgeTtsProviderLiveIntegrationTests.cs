@@ -10,7 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Infrastructure.Tests.Seeding;
 using NomNomzBot.Infrastructure.Tts;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
@@ -32,10 +32,11 @@ public sealed class EdgeTtsProviderLiveIntegrationTests
         services.AddHttpClient("edge-tts", client => client.Timeout = TimeSpan.FromSeconds(15));
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
+        ListLogger<EdgeTtsProvider> log = new();
         EdgeTtsProvider provider = new(
             TimeProvider.System,
             serviceProvider.GetRequiredService<IHttpClientFactory>(),
-            NullLogger<EdgeTtsProvider>.Instance
+            log
         );
 
         Domain.Tts.Interfaces.TtsSynthesisResult result = await provider.SynthesizeAsync(
@@ -43,7 +44,13 @@ public sealed class EdgeTtsProviderLiveIntegrationTests
             "en-US-AriaNeural"
         );
 
-        result.AudioData.Should().NotBeEmpty();
+        // The provider turns every failure into empty audio, so the log is the only place the cause shows.
+        result
+            .AudioData.Should()
+            .NotBeEmpty(
+                "the provider logged: {0}",
+                string.Join(" || ", log.Entries.Select(e => $"{e.Level} {e.Message}"))
+            );
         // MPEG frame sync (0xFFE0-0xFFFF) — proves the payload is real decodable audio, not a header
         // fragment or an empty/garbage buffer smuggled past a length check.
         result.AudioData[0].Should().Be(0xFF);

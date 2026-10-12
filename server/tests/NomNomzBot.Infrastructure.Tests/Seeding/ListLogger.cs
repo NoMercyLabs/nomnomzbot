@@ -14,7 +14,8 @@ namespace NomNomzBot.Infrastructure.Tests.Seeding;
 
 /// <summary>
 /// A minimal in-memory <see cref="ILogger{T}"/> that records every emitted entry, so a test can assert a seed
-/// handler actually logged (e.g. an Error on a caught sync failure) rather than swallowing it silently.
+/// handler actually logged (e.g. an Error on a caught sync failure) rather than swallowing it silently. A logged
+/// exception's type and message are appended, so a failing assertion that prints the entries names the cause.
 /// </summary>
 internal sealed class ListLogger<T> : ILogger<T>
 {
@@ -31,7 +32,15 @@ internal sealed class ListLogger<T> : ILogger<T>
         TState state,
         Exception? exception,
         Func<TState, Exception?, string> formatter
-    ) => Entries.Add((logLevel, formatter(state, exception)));
+    ) =>
+        Entries.Add(
+            (
+                logLevel,
+                exception is null
+                    ? formatter(state, exception)
+                    : $"{formatter(state, exception)} | {exception.GetType().Name}: {exception.Message}"
+            )
+        );
 
     private sealed class NullScope : IDisposable
     {
