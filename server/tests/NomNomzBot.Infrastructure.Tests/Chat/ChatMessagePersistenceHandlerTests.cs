@@ -27,9 +27,14 @@ public sealed class ChatMessagePersistenceHandlerTests
 {
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
 
-    private static ChatMessageReceivedEvent Message(string provider, string messageId) =>
+    private static ChatMessageReceivedEvent Message(
+        string provider,
+        string messageId,
+        DateTimeOffset? occurredAt = null
+    ) =>
         new()
         {
+            OccurredAt = occurredAt ?? DateTimeOffset.UtcNow,
             BroadcasterId = Broadcaster,
             MessageId = messageId,
             Provider = provider,
@@ -59,6 +64,18 @@ public sealed class ChatMessagePersistenceHandlerTests
         // The rest of the canonical shape rides through unchanged — the provider is an addition, not a swap.
         row.UserId.Should().Be("u-1");
         row.Message.Should().Be("hello chat");
+    }
+
+    [Fact]
+    public async Task Stamps_the_row_with_the_event_time()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ChatMessagePersistenceHandler handler = new(db);
+        DateTimeOffset sent = new(2025, 8, 14, 19, 30, 5, TimeSpan.Zero);
+
+        await handler.HandleAsync(Message(AuthEnums.Platform.Twitch, "m-time", sent));
+
+        (await db.ChatMessages.SingleAsync()).CreatedAt.Should().Be(sent.UtcDateTime);
     }
 
     [Fact]

@@ -65,6 +65,7 @@ public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
                 StringComparison.OrdinalIgnoreCase
             ),
             ReplyToMessageId = @event.ReplyParentMessageId,
+            CreatedAt = @event.OccurredAt.UtcDateTime,
         };
 
         db.ChatMessages.Add(msg);

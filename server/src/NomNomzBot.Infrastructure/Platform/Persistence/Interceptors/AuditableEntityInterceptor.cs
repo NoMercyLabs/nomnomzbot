@@ -58,7 +58,9 @@ public sealed class AuditableEntityInterceptor(TimeProvider timeProvider) : Save
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreatedAt = utcNow;
+                    // A writer that records a past fact (a replayed chat message) sets CreatedAt itself.
+                    if (entry.Entity.CreatedAt == default)
+                        entry.Entity.CreatedAt = utcNow;
                     entry.Entity.UpdatedAt = utcNow;
                     break;
 
