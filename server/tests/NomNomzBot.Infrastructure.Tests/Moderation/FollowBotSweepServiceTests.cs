@@ -438,6 +438,10 @@ public class FollowBotSweepServiceTests : IDisposable
         services.AddScoped(_ => NewDbContext());
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<ISpamDefenseService, SpamDefenseService>();
+        services.AddScoped<StaffMessageEchoes>();
+        services.AddScoped<OperatorModeratedSenders>();
+        services.AddSingleton(SpamDefenseServiceTests.NoModeratedChannels());
+        services.AddMemoryCache();
         services.AddScoped<FollowBotSweepService>();
         services.AddSingleton<FollowSpikeTracker>();
         services.AddLogging();

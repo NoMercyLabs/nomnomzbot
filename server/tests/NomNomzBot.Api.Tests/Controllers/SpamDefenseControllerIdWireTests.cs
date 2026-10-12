@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Identifiers;
@@ -61,13 +62,21 @@ public sealed class SpamDefenseControllerIdWireTests : IDisposable
 
     private SpamDefenseController BuildController(AppDbContext db)
     {
+        FakeTimeProvider time = new(new(2026, 10, 11, 12, 0, 0, TimeSpan.Zero));
+        IOperatorModeratedChannelResolver moderated =
+            Substitute.For<IOperatorModeratedChannelResolver>();
+        moderated
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchModeratedChannel>>([]));
         SpamDefenseService service = new(
             db,
-            new FakeTimeProvider(new(2026, 10, 11, 12, 0, 0, TimeSpan.Zero)),
+            time,
             _moderation,
             new CurrentTenantService(),
             _twitchUsers,
-            Substitute.For<IFollowStateService>()
+            Substitute.For<IFollowStateService>(),
+            new StaffMessageEchoes(db, time),
+            new OperatorModeratedSenders(db, moderated, new MemoryCache(new MemoryCacheOptions()))
         );
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Operator.ToString());

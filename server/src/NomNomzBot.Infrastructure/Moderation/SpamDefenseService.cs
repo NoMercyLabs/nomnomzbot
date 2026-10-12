@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 
@@ -42,6 +43,8 @@ public sealed class SpamDefenseService : ISpamDefenseService
     private readonly ICurrentTenantService _tenant;
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IFollowStateService _follows;
+    private readonly StaffMessageEchoes _staffEchoes;
+    private readonly OperatorModeratedSenders _moderatedSenders;
 
     public SpamDefenseService(
         IApplicationDbContext db,
@@ -49,9 +52,13 @@ public sealed class SpamDefenseService : ISpamDefenseService
         IModerationService moderation,
         ICurrentTenantService tenant,
         ITwitchUsersApi twitchUsers,
-        IFollowStateService follows
+        IFollowStateService follows,
+        StaffMessageEchoes staffEchoes,
+        OperatorModeratedSenders moderatedSenders
     )
     {
+        _staffEchoes = staffEchoes;
+        _moderatedSenders = moderatedSenders;
         _db = db;
         _time = time;
         _moderation = moderation;
@@ -420,7 +427,15 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (!settings.IsEnabled || string.IsNullOrWhiteSpace(request.Message))
             return null;
 
+        // The streamer and the channel's moderators are never judged, and neither is a viewer repeating
+        // what they just said: nothing is evaluated and no detection row is written.
+        if (request.IsBroadcaster || request.IsModerator)
+            return null;
+
         NormalizedMessage normalized = MessageNormalizer.Normalize(request.Message);
+        if (await _staffEchoes.IsEchoAsync(request.BroadcasterId, normalized.Skeleton, ct))
+            return null;
+
         ContentEvaluation content = ContentSignals.Evaluate(
             normalized,
             request.Message,
@@ -620,9 +635,6 @@ public sealed class SpamDefenseService : ISpamDefenseService
         CancellationToken ct
     )
     {
-        if (request.IsBroadcaster || request.IsModerator)
-            return (SpamTrustTier.Established, new AccountFacts());
-
         // Twitch's own flag outranks a VIP badge: a restricted or monitored chatter is not waved through.
         string lowTrustStatus =
             await _db
@@ -638,6 +650,17 @@ public sealed class SpamDefenseService : ISpamDefenseService
 
         if (request.IsVip && lowTrustStatus == LowTrustStatuses.None)
             return (SpamTrustTier.Established, new AccountFacts());
+
+        if (
+            lowTrustStatus == LowTrustStatuses.None
+            && request.Provider == AuthEnums.Platform.Twitch
+            && await _moderatedSenders.IsModeratedByOwnerAsync(
+                request.BroadcasterId,
+                request.PlatformUserId,
+                ct
+            )
+        )
+            return (SpamTrustTier.Trusted, new AccountFacts());
 
         DateTime now = _time.GetUtcNow().UtcDateTime;
 
