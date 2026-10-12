@@ -106,6 +106,8 @@ in parallel (at most 2 building), then the finishing slices. The KMP and scale s
 - **S-IA-STREAM** Live, Stream with tabs Info & presets, Interactions and Schedule, per platform. Home Prep embeds
   the same Stream Info editor component. Done-when: a title change on Home Prep and on the Stream page
   both reach every connected platform, from one component.
+  Open: `PUT api/v1/channels/{id}/stream` reaches one platform only (`PlatformApiRouter.UpdateStreamInfoAsync`
+  resolves a single `IPlatformApi`). Fan it out to every connected platform, with a result per platform.
 - **S-IA-MEDIA** TTS with 4 tabs; Media Share with tabs Queue and Settings; OBS and VTube Studio with
   tabs and an inline connect step when not connected. Done-when: each TTS tab saves and reloads, and OBS
   shows the connect step when the link is down.
