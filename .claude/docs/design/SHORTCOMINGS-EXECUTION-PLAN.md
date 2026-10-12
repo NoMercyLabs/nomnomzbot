@@ -21,6 +21,21 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-12 — a few page layouts for the whole bot; the frame stays still and panels scroll
+
+Owner, verbatim: "you did a great job reorganizing! but i like the screen to be more 100vh and pannels scroll instead of the whole page, this happens on many many pages and it's kind of annoying. there are pages with multiple tab-switches, one is up top, the other folded in the middle, it feels disorganized and unstructured. i like all pages to have a structured layout where the whole bot has only 4 or 5 to pick from. something that makes the ui more stable and less shifty. can you design a few layouts that work for all the 50+ pages? please make some image mockups or html+css mockups with data from my channel so i can see how it would be before you go in and change everything."
+
+### S-LAYOUT-MOCKUPS — 4 or 5 page layouts as HTML mockups with real channel data (design, no app code)
+- **Input:** `benchmarks/page-layouts.md`, `ui-placement-ledger-2026-10-11.md`, `ui-page-drawings-2026-10-11.md`, `spec/frontend-design-system.md`, every routed screen in `app/`, read-only rows of the stoney_eagle channel.
+- **Done-when:** each layout is one HTML+CSS page in the design-system tokens, full height, where only its panels scroll and at most one tab row exists; every routed page is mapped to one layout; screenshots go to the owner; no app code changes until the owner picks.
+
+### S-MOD-CROSS-CHANNEL-HISTORY — what a person did in every channel I moderate, inside the viewer history (design first)
+Owner, verbatim: "i think this should be properly folded into the users ability to see what someone has typed and such in the moderation section. this can't just be added, it must be thought through."
+- **Input:** the viewer card and People pages, `channel.moderate` per moderator token for channels that do not run the bot, `benchmarks/moderation-tools.md`.
+- **Done-when:** a design, settled with the owner, of how a moderator sees one person's messages and mod actions across every channel they moderate, in the moderation section; then the build slices.
+
+---
+
 ## OWNER CORRECTION 2026-10-12 — the spam review queue was all wrong
 
 Owner words and settled rules: `spec/spam-defense.md`, the three "Owner correction 2026-10-12" sections. The live detection log (411 rows) holds these false marks: `asp.net` read as a link, a `gist.github.com` link needing Known, a copy of the streamer's own message, `@name` replies read as promo (7), `ß` read as script mixing (3), emoji with U+FE0F read as cosmetic abuse (387), the chat-client repeat marker read as cosmetic abuse (11).
