@@ -30,6 +30,9 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 public sealed class SystemWidgetSeedOnOnboardingHandlerTests
 {
     private static WidgetDetail SomeWidgetDetail() =>
+        WidgetDetailWithActiveVersion(Guid.CreateVersion7());
+
+    private static WidgetDetail WidgetDetailWithActiveVersion(Guid? activeVersionId) =>
         new(
             Guid.CreateVersion7(),
             "System Surface",
@@ -38,7 +41,7 @@ public sealed class SystemWidgetSeedOnOnboardingHandlerTests
             "first_party",
             true,
             "https://overlay/widget",
-            Guid.CreateVersion7(),
+            activeVersionId,
             Guid.CreateVersion7(),
             new(),
             [],
@@ -159,6 +162,102 @@ public sealed class SystemWidgetSeedOnOnboardingHandlerTests
             .EnsureSystemWidgetAsync(
                 broadcasterId.ToString(),
                 "alerts",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Handle_rebuilds_a_surface_whose_build_never_succeeded_from_the_catalogue()
+    {
+        IWidgetService widgets = Substitute.For<IWidgetService>();
+        Guid broadcasterId = Guid.CreateVersion7();
+        WidgetDetail unbuilt = WidgetDetailWithActiveVersion(null);
+        widgets
+            .EnsureSystemWidgetAsync(
+                broadcasterId.ToString(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(SomeWidgetDetail()));
+        widgets
+            .EnsureSystemWidgetAsync(
+                broadcasterId.ToString(),
+                "audio",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(unbuilt));
+        widgets
+            .UpdateFromGalleryAsync(
+                broadcasterId.ToString(),
+                unbuilt.Id.ToString(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(WidgetDetailWithActiveVersion(Guid.CreateVersion7())));
+
+        SystemWidgetSeedOnOnboardingHandler handler = new(
+            widgets,
+            NullLogger<SystemWidgetSeedOnOnboardingHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = broadcasterId,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "12345",
+                Name = "teststreamer",
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .UpdateFromGalleryAsync(
+                broadcasterId.ToString(),
+                unbuilt.Id.ToString(),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .Received(1)
+            .UpdateFromGalleryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Handle_leaves_a_surface_with_a_working_build_alone()
+    {
+        IWidgetService widgets = Substitute.For<IWidgetService>();
+        Guid broadcasterId = Guid.CreateVersion7();
+        widgets
+            .EnsureSystemWidgetAsync(
+                broadcasterId.ToString(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(SomeWidgetDetail()));
+
+        SystemWidgetSeedOnOnboardingHandler handler = new(
+            widgets,
+            NullLogger<SystemWidgetSeedOnOnboardingHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = broadcasterId,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "12345",
+                Name = "teststreamer",
+            }
+        );
+
+        await widgets
+            .DidNotReceive()
+            .UpdateFromGalleryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
     }

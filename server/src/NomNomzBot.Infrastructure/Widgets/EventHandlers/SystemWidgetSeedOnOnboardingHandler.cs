@@ -54,6 +54,15 @@ public sealed class SystemWidgetSeedOnOnboardingHandler(
                     ct
                 );
 
+                // A surface whose build never succeeded serves nothing, so it is rebuilt from the catalogue here
+                // (once per start) rather than in EnsureSystemWidgetAsync, which runs on every alert.
+                if (result is { IsSuccess: true, Value.ActiveVersionId: null })
+                    result = await widgets.UpdateFromGalleryAsync(
+                        @event.BroadcasterId.ToString(),
+                        result.Value.Id.ToString(),
+                        ct
+                    );
+
                 if (result.IsFailure)
                     logger.LogWarning(
                         "Onboarding seed (widgets): {NaturalKey} provisioning returned a failure for {BroadcasterId}: {Error} ({Code})",
