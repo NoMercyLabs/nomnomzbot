@@ -116,6 +116,12 @@ public static class ContentSignals
         RegexOptions.Compiled | RegexOptions.IgnoreCase
     );
 
+    /// <summary>The <c>@name</c> mentions a Twitch reply starts with.</summary>
+    private static readonly Regex ReplyPrefix = new(
+        @"^(?:\s*@[a-z0-9_]+)+\s*",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase
+    );
+
     /// <summary>Offer vocabulary — the words a promo needs and ordinary chat rarely stacks.</summary>
     private static readonly Regex OfferVocabulary = new(
         @"(cheap|promo|discount|free\s*follow|buy\s*(followers|viewers)|best\s*viewers|"
@@ -138,31 +144,6 @@ public static class ContentSignals
             + @"(com|net|org|io|ru|xyz|shop|store|live|tv|gg|me|pro|top|site|online|club|cc|co|biz|info|fun)\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase
     );
-
-    /// <summary>
-    /// Mainstream platforms a real viewer links while talking about viewers or followers ("go follow the
-    /// raid target at twitch.tv/x"). A storefront is never one of these, so they never carry the signal.
-    /// </summary>
-    private static readonly string[] MainstreamDomains =
-    [
-        "twitch.tv",
-        "youtube.com",
-        "youtu.be",
-        "twitter.com",
-        "x.com",
-        "instagram.com",
-        "tiktok.com",
-        "reddit.com",
-        "discord.gg",
-        "discord.com",
-        "kick.com",
-        "streamelements.com",
-        "streamlabs.com",
-        "throne.com",
-        "ko-fi.com",
-        "patreon.com",
-        "spotify.com",
-    ];
 
     /// <summary>Anything shaped like a domain, read from the SKELETON so `t.me∕x` is still seen.</summary>
     private static readonly Regex DomainLike = new(
@@ -352,13 +333,12 @@ public static class ContentSignals
     }
 
     private static bool IsAllowedStorefront(string domain, ContentPolicy policy) =>
-        MainstreamDomains
-            .Concat(policy.AllowedDomains)
-            .Any(allowed =>
-                domain.Equals(allowed, StringComparison.OrdinalIgnoreCase)
-                || domain.EndsWith($".{allowed}", StringComparison.OrdinalIgnoreCase)
-            );
+        MainstreamHosts.IsMainstreamOrAllowed(domain, policy.AllowedDomains);
 
-    private static bool HasPromoShape(string rawText) =>
-        ContactHandle.IsMatch(rawText) && OfferVocabulary.IsMatch(rawText);
+    /// <summary>A reply's leading <c>@name</c> addresses a person; it is not a contact handle.</summary>
+    private static bool HasPromoShape(string rawText)
+    {
+        string body = ReplyPrefix.Replace(rawText, string.Empty, 1);
+        return ContactHandle.IsMatch(body) && OfferVocabulary.IsMatch(body);
+    }
 }

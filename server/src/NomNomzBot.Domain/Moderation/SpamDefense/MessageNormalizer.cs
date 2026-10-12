@@ -292,7 +292,8 @@ public static class MessageNormalizer
     /// </summary>
     private static bool HasCosmeticAbuse(string text)
     {
-        for (int i = 0; i < text.Length; i++)
+        int markerStart = TrailingRepeatMarkerStart(text);
+        for (int i = 0; i < markerStart; i++)
         {
             if (!IsCosmeticAbuse(text[i]))
                 continue;
@@ -313,6 +314,31 @@ public static class MessageNormalizer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Where the invisible repeat marker starts. Chat clients append U+034F or a tag character (U+E0000,
+    /// U+E0002 ...) to a message sent twice in a row, after a space; the sender never typed it. Only a run
+    /// at the very end of the message counts, so the same characters inside a word stay a signal.
+    /// </summary>
+    private static int TrailingRepeatMarkerStart(string text)
+    {
+        int start = text.Length;
+        while (start > 0)
+        {
+            if (text[start - 1] == '͏' || char.IsWhiteSpace(text[start - 1]))
+                start--;
+            else if (
+                start >= 2
+                && text[start - 2] == '\uDB40'
+                && text[start - 1] is >= '\uDC00' and <= '\uDC7F'
+            )
+                start -= 2;
+            else
+                break;
+        }
+
+        return start;
     }
 
     /// <summary>
@@ -435,7 +461,7 @@ public static class MessageNormalizer
             {
                 if (!char.IsLetter(c))
                     continue;
-                if (c < 128)
+                if (c < 128 || c == 'ß')
                     latin = true;
                 else if (Confusables.ContainsKey(c))
                     nonLatin = true;
