@@ -45,6 +45,7 @@ public sealed class ChatDeletionStoreHandlerTests
             DisplayName = userId,
             UserType = "viewer",
             Message = "hi",
+            CreatedAt = Clock.GetUtcNow().UtcDateTime - TimeSpan.FromMinutes(5),
             DeletedAt = deletedAt,
         };
 
@@ -71,7 +72,12 @@ public sealed class ChatDeletionStoreHandlerTests
         ChatDeletionStoreHandler handler = new(db, Clock);
 
         await handler.HandleAsync(
-            new ChatClearedEvent { BroadcasterId = ChannelA, ClearedByUserId = "mod-1" }
+            new ChatClearedEvent
+            {
+                BroadcasterId = ChannelA,
+                ClearedByUserId = "mod-1",
+                OccurredAt = Clock.GetUtcNow(),
+            }
         );
 
         List<ChatMessage> rows = await AllAsync(db);
@@ -92,7 +98,12 @@ public sealed class ChatDeletionStoreHandlerTests
         ChatDeletionStoreHandler handler = new(db, Clock);
 
         await handler.HandleAsync(
-            new ChatClearedEvent { BroadcasterId = ChannelA, ClearedByUserId = "mod-1" }
+            new ChatClearedEvent
+            {
+                BroadcasterId = ChannelA,
+                ClearedByUserId = "mod-1",
+                OccurredAt = Clock.GetUtcNow(),
+            }
         );
 
         List<ChatMessage> rows = await AllAsync(db);
@@ -153,6 +164,7 @@ public sealed class ChatDeletionStoreHandlerTests
                 TargetUserId = "u-1",
                 TargetUserDisplayName = "u-1",
                 TargetUserLogin = "u-1",
+                OccurredAt = Clock.GetUtcNow(),
             }
         );
 
@@ -163,5 +175,72 @@ public sealed class ChatDeletionStoreHandlerTests
         rows.Single(r => r.Id == "a-old").DeletedAt.Should().Be(FirstDelete);
         rows.Single(r => r.Id == "a-2").DeletedAt.Should().BeNull();
         rows.Single(r => r.Id == "b-1").DeletedAt.Should().BeNull();
+    }
+
+    private static ChatMessage At(string id, string userId, TimeSpan before)
+    {
+        ChatMessage row = Row(ChannelA, id, userId);
+        row.CreatedAt = Clock.GetUtcNow().UtcDateTime - before;
+        return row;
+    }
+
+    private static async Task<AuthDbContext> SeedWindowAsync()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.ChatMessages.AddRange(
+            At("old-u1", "u-1", TimeSpan.FromDays(30)),
+            At("old-u2", "u-2", TimeSpan.FromHours(2)),
+            At("live-u1", "u-1", TimeSpan.FromMinutes(10)),
+            At("live-u2", "u-2", TimeSpan.FromMinutes(10))
+        );
+        await db.SaveChangesAsync();
+        return db;
+    }
+
+    [Fact]
+    public async Task Chat_clear_hides_only_messages_inside_the_live_chat_window()
+    {
+        AuthDbContext db = await SeedWindowAsync();
+        ChatDeletionStoreHandler handler = new(db, Clock);
+
+        await handler.HandleAsync(
+            new ChatClearedEvent
+            {
+                BroadcasterId = ChannelA,
+                ClearedByUserId = "mod-1",
+                OccurredAt = Clock.GetUtcNow(),
+            }
+        );
+
+        List<ChatMessage> rows = await AllAsync(db);
+        DateTime now = Clock.GetUtcNow().UtcDateTime;
+        rows.Single(r => r.Id == "old-u1").DeletedAt.Should().BeNull();
+        rows.Single(r => r.Id == "old-u2").DeletedAt.Should().BeNull();
+        rows.Single(r => r.Id == "live-u1").DeletedAt.Should().Be(now);
+        rows.Single(r => r.Id == "live-u2").DeletedAt.Should().Be(now);
+    }
+
+    [Fact]
+    public async Task User_purge_hides_only_that_users_messages_inside_the_live_chat_window()
+    {
+        AuthDbContext db = await SeedWindowAsync();
+        ChatDeletionStoreHandler handler = new(db, Clock);
+
+        await handler.HandleAsync(
+            new ChatUserMessagesClearedEvent
+            {
+                BroadcasterId = ChannelA,
+                TargetUserId = "u-1",
+                TargetUserDisplayName = "u-1",
+                TargetUserLogin = "u-1",
+                OccurredAt = Clock.GetUtcNow(),
+            }
+        );
+
+        List<ChatMessage> rows = await AllAsync(db);
+        rows.Single(r => r.Id == "old-u1").DeletedAt.Should().BeNull();
+        rows.Single(r => r.Id == "live-u1").DeletedAt.Should().Be(Clock.GetUtcNow().UtcDateTime);
+        rows.Single(r => r.Id == "old-u2").DeletedAt.Should().BeNull();
+        rows.Single(r => r.Id == "live-u2").DeletedAt.Should().BeNull();
     }
 }

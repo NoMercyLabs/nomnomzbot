@@ -19,17 +19,25 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 /// <summary>
 /// Mirrors Twitch chat deletions into the stored history: a chat clear, a single message delete and a per-user purge
 /// each soft-delete the matching <see cref="ChatMessage"/> rows (<c>DeletedAt</c> + <c>UpdatedAt</c> = now). A row that
-/// is already deleted keeps its first <c>DeletedAt</c>. Every query is scoped to the event's broadcaster.
+/// is already deleted keeps its first <c>DeletedAt</c>. A clear and a purge reach only messages created inside the
+/// <c>LiveChatWindow</c> before the event. Every query is scoped to the event's broadcaster.
 /// </summary>
 public sealed class ChatDeletionStoreHandler(IApplicationDbContext db, TimeProvider time)
     : IEventHandler<ChatClearedEvent>,
         IEventHandler<ChatMessageDeletedEvent>,
         IEventHandler<ChatUserMessagesClearedEvent>
 {
-    public Task HandleAsync(
-        ChatClearedEvent @event,
-        CancellationToken cancellationToken = default
-    ) => MarkDeletedAsync(m => m.BroadcasterId == @event.BroadcasterId, cancellationToken);
+    // A clear or purge only empties the live chat view; older stored history stays.
+    private static readonly TimeSpan LiveChatWindow = TimeSpan.FromMinutes(60);
+
+    public Task HandleAsync(ChatClearedEvent @event, CancellationToken cancellationToken = default)
+    {
+        DateTime windowStart = WindowStart(@event.OccurredAt);
+        return MarkDeletedAsync(
+            m => m.BroadcasterId == @event.BroadcasterId && m.CreatedAt >= windowStart,
+            cancellationToken
+        );
+    }
 
     public Task HandleAsync(
         ChatMessageDeletedEvent @event,
@@ -43,11 +51,20 @@ public sealed class ChatDeletionStoreHandler(IApplicationDbContext db, TimeProvi
     public Task HandleAsync(
         ChatUserMessagesClearedEvent @event,
         CancellationToken cancellationToken = default
-    ) =>
-        MarkDeletedAsync(
-            m => m.BroadcasterId == @event.BroadcasterId && m.UserId == @event.TargetUserId,
+    )
+    {
+        DateTime windowStart = WindowStart(@event.OccurredAt);
+        return MarkDeletedAsync(
+            m =>
+                m.BroadcasterId == @event.BroadcasterId
+                && m.UserId == @event.TargetUserId
+                && m.CreatedAt >= windowStart,
             cancellationToken
         );
+    }
+
+    private DateTime WindowStart(DateTimeOffset occurredAt) =>
+        (occurredAt == default ? time.GetUtcNow() : occurredAt).UtcDateTime - LiveChatWindow;
 
     private async Task MarkDeletedAsync(
         System.Linq.Expressions.Expression<Func<ChatMessage, bool>> scope,
