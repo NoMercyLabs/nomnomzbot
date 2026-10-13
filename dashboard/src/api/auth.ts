@@ -29,15 +29,32 @@ let restoring: Promise<boolean> | null = null
 // A copy of each request, kept until its response, so a 401 can be sent again with a new token.
 const pending = new Map<string, Request>()
 
+// A 429 is "not now", never "signed out": wait as long as the server asks, then ask again.
+// A wait longer than this hands the 429 back instead of freezing the page.
+const longestRateLimitWait: number = 10
+const rateLimitTries: number = 2
+
+async function afterRateLimit(first: Response, original: Request): Promise<Response> {
+  let response: Response = first
+  for (let tries: number = 0; response.status === 429 && tries < rateLimitTries; tries++) {
+    const seconds: number = Number(response.headers.get('Retry-After') ?? '1')
+    if (!Number.isFinite(seconds) || seconds > longestRateLimitWait) return response
+    await new Promise<void>((resolve) => setTimeout(resolve, Math.max(seconds, 0) * 1000))
+    response = await fetch(original.clone())
+  }
+  return response
+}
+
 client.use({
   onRequest({ request, id }) {
     if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`)
     pending.set(id, request.clone())
     return request
   },
-  async onResponse({ request, response, id }) {
+  async onResponse({ request, response: first, id }) {
     const original: Request | undefined = pending.get(id)
     pending.delete(id)
+    const response: Response = original ? await afterRateLimit(first, original) : first
     if (response.status !== 401 || !original || request.url.endsWith('/auth/refresh')) return response
     accessToken = null
     if (!(await restoreSession())) return response

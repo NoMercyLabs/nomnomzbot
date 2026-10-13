@@ -16,13 +16,20 @@ type QueryClientModule = typeof import('../queryClient')
 const user = { id: 'u1', displayName: 'Stoney_Eagle' }
 
 // The server accepts only the fresh token; the old one has expired.
-function stubServer(refreshStatus: number): string[] {
+// `limited` names paths whose first call is refused with 429 and the given Retry-After seconds.
+function stubServer(refreshStatus: number, limited: Record<string, string> = {}): string[] {
   const seen: string[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
       const bearer: string = request.headers.get('Authorization') ?? 'none'
-      seen.push(`${new URL(request.url).pathname} ${bearer}`)
+      const path: string = new URL(request.url).pathname
+      seen.push(`${path} ${bearer}`)
+      const wait: string | undefined = limited[path]
+      if (wait !== undefined) {
+        delete limited[path]
+        return new Response('{}', { status: 429, headers: { 'Retry-After': wait } })
+      }
       if (request.url.endsWith('/auth/refresh'))
         return refreshStatus === 200
           ? new Response(JSON.stringify({ data: { accessToken: 'fresh', expiresIn: 3600 } }), { status: 200 })
@@ -76,5 +83,52 @@ describe('expired access token', () => {
     expect(result).toBeNull()
     expect(seen).toHaveLength(2)
     expect(auth.isSignedIn()).toBe(false)
+  })
+})
+
+describe('rate limited by the server', () => {
+  it('keeps the visitor signed in when the refresh is refused with 429 once', async () => {
+    const seen: string[] = stubServer(200, { '/api/v1/auth/refresh': '0' })
+    const [auth, { queryClient }] = await signedInWithExpiredToken()
+
+    const result = await queryClient.fetchQuery(auth.currentUserQuery)
+
+    expect(result).toEqual(user)
+    expect(seen).toEqual([
+      '/api/v1/auth/me Bearer expired',
+      '/api/v1/auth/refresh none',
+      '/api/v1/auth/refresh none',
+      '/api/v1/auth/me Bearer fresh',
+    ])
+    expect(auth.isSignedIn()).toBe(true)
+  })
+
+  it('asks for the current user again with the same token after a 429', async () => {
+    const seen: string[] = stubServer(200, { '/api/v1/auth/me': '0' })
+    vi.resetModules()
+    history.replaceState(null, '', '/app#access_token=fresh')
+    const auth: Auth = await import('../auth')
+    const { queryClient }: QueryClientModule = await import('../queryClient')
+    await auth.restoreSession()
+
+    const result = await queryClient.fetchQuery(auth.currentUserQuery)
+
+    expect(result).toEqual(user)
+    expect(seen).toEqual(['/api/v1/auth/me Bearer fresh', '/api/v1/auth/me Bearer fresh'])
+  })
+
+  it('gives up instead of hanging when the server asks for a long wait', async () => {
+    const seen: string[] = stubServer(200, { '/api/v1/auth/me': '120' })
+    vi.resetModules()
+    history.replaceState(null, '', '/app#access_token=fresh')
+    const auth: Auth = await import('../auth')
+    const { queryClient }: QueryClientModule = await import('../queryClient')
+    await auth.restoreSession()
+
+    const result = await queryClient.fetchQuery(auth.currentUserQuery)
+
+    expect(result).toBeNull()
+    expect(seen).toHaveLength(1)
+    expect(auth.isSignedIn()).toBe(true)
   })
 })
