@@ -9,18 +9,22 @@
 -->
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
+import { provide } from 'vue'
+
+import { frameActionsKey } from '@/components/layout/frameActions'
 
 import BottomBar from './dashboard/BottomBar.vue'
 import ChannelSwitch from './dashboard/ChannelSwitch.vue'
 import DashboardSidebar from './dashboard/DashboardSidebar.vue'
-import ErrorInbox from './dashboard/ErrorInbox.vue'
+import FrameActions from './dashboard/FrameActions.vue'
 import NavRail from './dashboard/NavRail.vue'
 import ProfileMenu from './dashboard/ProfileMenu.vue'
-import ShieldToggle from './dashboard/ShieldToggle.vue'
 
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
 const wide = useMediaQuery('(min-width: 840px)')
 const medium = useMediaQuery('(min-width: 600px)')
+
+provide(frameActionsKey, FrameActions)
 </script>
 
 <template>
@@ -29,15 +33,16 @@ const medium = useMediaQuery('(min-width: 600px)')
     <DashboardSidebar v-if="wide" />
     <NavRail v-else-if="medium" />
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header data-slot="frame-header" class="flex h-12 flex-none items-center gap-2 border-b border-border px-3">
-        <div v-if="!wide" class="w-48 min-w-0">
+      <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
+      <header
+        v-if="!wide"
+        data-slot="frame-header"
+        class="flex h-12 flex-none items-center gap-2 border-b border-border px-3"
+      >
+        <div class="w-48 min-w-0">
           <ChannelSwitch compact />
         </div>
-        <div class="ml-auto flex items-center gap-2">
-          <ShieldToggle />
-          <ErrorInbox />
-          <ProfileMenu v-if="!wide" icon />
-        </div>
+        <ProfileMenu class="ml-auto" icon />
       </header>
       <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <RouterView />

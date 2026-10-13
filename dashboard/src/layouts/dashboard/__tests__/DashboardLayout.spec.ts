@@ -93,6 +93,12 @@ describe('the dashboard frame by window width', () => {
     expect(shown).not.toContain('bottom')
   })
 
+  it('puts no bar above the page on a wide screen, so the page header is the only header', () => {
+    const wrapper: VueWrapper = mountLayout(1000)
+    expect(wrapper.find('[data-slot="frame-header"]').exists()).toBe(false)
+    expect(frames(wrapper)).not.toContain('shield')
+  })
+
   it('shows the icon rail between 600 and 839 px', () => {
     const shown: string[] = frames(mountLayout(700))
     expect(shown).toContain('rail')

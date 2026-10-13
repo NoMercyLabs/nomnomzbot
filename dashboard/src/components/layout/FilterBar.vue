@@ -35,15 +35,23 @@ function choose(value: unknown): void {
 <template>
   <div data-slot="filter-bar" class="flex flex-wrap items-center gap-2">
     <slot />
+    <!-- The mockup segment (frame.css:158-160): a muted track of radius 8 with 2 px padding,
+         so each item is 8 - 2 = 6; the open item is raised on the background. -->
     <ToggleGroup
       v-if="segmented"
       type="single"
-      variant="outline"
+      :spacing="1"
+      class="gap-0.5 rounded-[8px] bg-muted p-0.5"
       :aria-label="label"
       :model-value="selected"
       @update:model-value="choose"
     >
-      <ToggleGroupItem v-for="option in options" :key="option.value" :value="option.value">
+      <ToggleGroupItem
+        v-for="option in options"
+        :key="option.value"
+        :value="option.value"
+        class="h-(--seg-h) min-w-0 rounded-[6px] px-2 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+      >
         {{ option.label }}
       </ToggleGroupItem>
     </ToggleGroup>

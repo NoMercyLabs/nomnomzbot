@@ -10,7 +10,10 @@
 
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { defineComponent, h } from 'vue'
 
+import { frameActionsKey } from '@/components/layout/frameActions'
+import { i18n } from '@/i18n'
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import KeyValueList from '@/components/layout/KeyValueList.vue'
@@ -77,6 +80,18 @@ describe('the page header', () => {
     expect(full.text()).toContain('Updated now')
     ;['i', 'b', 'u'].forEach((tag: string) => expect(full.find(tag).exists()).toBe(true))
   })
+
+  it('ends its title row with the controls the frame gives it, after the page action', () => {
+    const frameControls = defineComponent({ render: () => h('em', 'Shield mode') })
+    const wrapper: VueWrapper = mount(PageHeader, {
+      props: { title: 'Home' },
+      slots: { actions: '<b>Open chat</b>' },
+      global: { provide: { [frameActionsKey as symbol]: frameControls } },
+    })
+
+    const row: string[] = wrapper.find('h1').element.parentElement!.textContent!.split(/(?=Open chat|Shield mode)/)
+    expect(row.slice(-2)).toEqual(['Open chat', 'Shield mode'])
+  })
 })
 
 describe('the status badge', () => {
@@ -99,16 +114,24 @@ describe('the status badge', () => {
 })
 
 describe('the stat tile', () => {
+  const mountTile = (props: Record<string, unknown>): VueWrapper =>
+    mount(StatTile, { props: props as never, global: { plugins: [i18n] } })
+
   it('shows label, value and context, with no icon', () => {
-    const wrapper: VueWrapper = mount(StatTile, { props: { label: 'Channels', value: 26, context: '8 set up' } })
+    const wrapper: VueWrapper = mountTile({ label: 'Channels', value: 26, context: '8 set up' })
 
     expect(wrapper.text()).toBe('Channels268 set up')
     expect(wrapper.find('svg').exists()).toBe(false)
   })
 
+  it('groups the digits of a number the way the reader writes them', () => {
+    expect(mountTile({ label: 'Messages', value: 54431 }).find('b').text()).toBe('54,431')
+    expect(mountTile({ label: 'Uptime', value: '2:14:09' }).find('b').text()).toBe('2:14:09')
+  })
+
   it('colours the value only when it is a warning', () => {
-    const calm: VueWrapper = mount(StatTile, { props: { label: 'A', value: 1 } })
-    const warn: VueWrapper = mount(StatTile, { props: { label: 'A', value: 1, warn: true } })
+    const calm: VueWrapper = mountTile({ label: 'A', value: 1 })
+    const warn: VueWrapper = mountTile({ label: 'A', value: 1, warn: true })
 
     expect(calm.find('b').classes()).not.toContain('text-destructive')
     expect(warn.find('b').classes()).toContain('text-destructive')

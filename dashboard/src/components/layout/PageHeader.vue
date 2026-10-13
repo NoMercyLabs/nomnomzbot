@@ -10,7 +10,14 @@
 <script setup lang="ts">
 // The fixed page header (C2): a 64px title row, then an optional 48px row for the one tab row of the page.
 // actions holds the one primary action; meta is quiet text beside it (for example "Updated 2 min ago").
+// The frame's controls follow the page's actions, so the page has one header row.
+import { inject, type Component } from 'vue'
+
+import { frameActionsKey } from './frameActions'
+
 defineProps<{ title: string; crumb?: string }>()
+
+const frameActions: Component | null = inject(frameActionsKey, null)
 </script>
 
 <template>
@@ -28,6 +35,7 @@ defineProps<{ title: string; crumb?: string }>()
       <div class="ml-auto flex items-center gap-3">
         <span v-if="$slots.meta" class="text-muted-foreground"><slot name="meta" /></span>
         <slot name="actions" />
+        <component :is="frameActions" v-if="frameActions" />
       </div>
     </div>
     <div v-if="$slots.tabs" class="flex h-12 items-center border-b border-border px-6">
