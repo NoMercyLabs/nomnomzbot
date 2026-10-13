@@ -63,3 +63,7 @@ server/src/NomNomzBot.Api/wwwroot/
 server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db
 server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-shm
 server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-wal
+
+# dashboard (Vue)
+dashboard/node_modules
+dashboard/dist
