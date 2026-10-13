@@ -827,7 +827,7 @@ public class ModerationController : BaseController
     /// <summary>Check whether the channel's Shield Mode is currently active, live from the Twitch moderation API.</summary>
     [RequireAction("moderation:shieldmode:read")]
     [HttpGet("shield")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<ShieldModeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShieldMode(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
@@ -840,13 +840,13 @@ public class ModerationController : BaseController
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return Ok(new StatusResponseDto<object> { Data = new { enabled = result.Value } });
+        return Ok(new StatusResponseDto<ShieldModeDto> { Data = new(result.Value) });
     }
 
     /// <summary>Turn the channel's Shield Mode on or off via the Twitch moderation API and notify open dashboards.</summary>
     [RequireAction("moderation:shieldmode:write")]
     [HttpPatch("shield")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<ShieldModeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SetShieldMode(
         string channelId,
         [FromBody] SetShieldRequest request,
@@ -864,7 +864,7 @@ public class ModerationController : BaseController
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return Ok(new StatusResponseDto<object> { Data = new { enabled = result.Value } });
+        return Ok(new StatusResponseDto<ShieldModeDto> { Data = new(result.Value) });
     }
 
     public record SetShieldRequest(bool Enabled);
@@ -1711,7 +1711,7 @@ public class ModerationController : BaseController
     /// </summary>
     [RequireAction("moderation:read")]
     [HttpGet("stats")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<ModerationStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(string channelId, CancellationToken ct)
     {
         DateTime today = _timeProvider.GetUtcNow().UtcDateTime.Date;
@@ -1734,15 +1734,9 @@ public class ModerationController : BaseController
         );
 
         return Ok(
-            new StatusResponseDto<object>
+            new StatusResponseDto<ModerationStatsDto>
             {
-                Data = new
-                {
-                    bansToday,
-                    timeouts,
-                    deletedMessages,
-                    automodActions,
-                },
+                Data = new(bansToday, timeouts, deletedMessages, automodActions),
             }
         );
     }

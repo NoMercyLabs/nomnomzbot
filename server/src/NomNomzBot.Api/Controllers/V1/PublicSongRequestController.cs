@@ -35,6 +35,7 @@ public sealed class PublicSongRequestController(
 {
     /// <summary>Resolves a public SR-page token to its channel context; 404 on an unknown/disabled token.</summary>
     [HttpGet("{token}")]
+    [ProducesResponseType<StatusResponseDto<SongRequestPageDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPage(string token, CancellationToken cancellationToken) =>
         ResultResponse(await pageTokens.ResolveAsync(token, cancellationToken));
 
@@ -44,6 +45,7 @@ public sealed class PublicSongRequestController(
     /// set up their SR page.
     /// </summary>
     [HttpGet("by-channel/{channelName}")]
+    [ProducesResponseType<StatusResponseDto<SongRequestPageDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPageByChannel(
         string channelName,
         CancellationToken cancellationToken

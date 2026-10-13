@@ -78,6 +78,7 @@ public class MarketplaceController(
     /// <summary>Read one marketplace listing.</summary>
     [HttpGet("items/{itemId}")]
     [RequireAction("bundles:read")]
+    [ProducesResponseType<StatusResponseDto<MarketplaceItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetItem(string channelId, string itemId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out _))
@@ -150,6 +151,7 @@ public class MarketplaceController(
     /// <summary>Poll a publish submission's vetting status (pending | approved | rejected + reason).</summary>
     [HttpGet("submissions/{submissionId}")]
     [RequireAction("bundles:publish")]
+    [ProducesResponseType<StatusResponseDto<PublishSubmissionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSubmission(
         string channelId,
         string submissionId,
@@ -166,6 +168,9 @@ public class MarketplaceController(
     /// <summary>Whether a publisher token is stored. The token value itself is never readable.</summary>
     [HttpGet("publisher-token")]
     [RequireAction("bundles:publish")]
+    [ProducesResponseType<StatusResponseDto<MarketplacePublisherStatusDto>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetPublisherTokenStatus(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

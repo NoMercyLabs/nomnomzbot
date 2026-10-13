@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Identity;
 
@@ -32,6 +33,7 @@ public class PlatformAnalyticsController(IPlatformAnalyticsService platformAnaly
 {
     /// <summary>Read cross-tenant platform stats for a date range (FEATURE_DISABLED on self-host).</summary>
     [HttpGet("stats")]
+    [ProducesResponseType<StatusResponseDto<PlatformAnalyticsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(
         [FromQuery] DateOnly from,
         [FromQuery] DateOnly to,

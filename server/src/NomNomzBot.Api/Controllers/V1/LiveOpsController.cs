@@ -76,7 +76,7 @@ public class LiveOpsController : BaseController
     /// <summary>List active and ended polls for the channel.</summary>
     [RequireAction("live-ops:polls:read")]
     [HttpGet("polls")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TwitchPoll>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPolls(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -168,7 +168,9 @@ public class LiveOpsController : BaseController
     /// <summary>List active and ended predictions for the channel.</summary>
     [RequireAction("live-ops:predictions:read")]
     [HttpGet("predictions")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TwitchPrediction>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetPredictions(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

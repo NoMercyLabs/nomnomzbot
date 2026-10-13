@@ -63,6 +63,7 @@ public class CatalogController(
     /// <summary>Read a single catalog item by id.</summary>
     [HttpGet("{itemId:guid}")]
     [RequireAction("economy:catalog:read")]
+    [ProducesResponseType<StatusResponseDto<CatalogItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetItem(string channelId, Guid itemId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

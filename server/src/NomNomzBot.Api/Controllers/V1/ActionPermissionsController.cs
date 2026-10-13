@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.Authorization;
 
@@ -36,6 +37,9 @@ public class ActionPermissionsController(
     /// <summary>Read the channel's full action-permission matrix (defaults plus overrides).</summary>
     [HttpGet]
     [RequireAction("roles:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ActionPermissionDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> Matrix(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
@@ -263,7 +264,7 @@ public class SystemController : BaseController
 
     /// <summary>Get the OAuth URL to authorize the platform bot account.</summary>
     [HttpGet("setup/bot/oauth-url")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<BotOAuthUrlDto>>(StatusCodes.Status200OK)]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> GetBotOAuthUrl(CancellationToken ct)
     {
@@ -286,7 +287,7 @@ public class SystemController : BaseController
         );
         if (url.IsFailure)
             return ResultResponse(url);
-        return Ok(new StatusResponseDto<object> { Data = new { oauthUrl = url.Value } });
+        return Ok(new StatusResponseDto<BotOAuthUrlDto> { Data = new(url.Value) });
     }
 
     /// <summary>Check the platform bot connection status.</summary>

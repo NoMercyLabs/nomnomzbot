@@ -1460,6 +1460,7 @@ public class AuthController : BaseController
     [HttpGet("twitch/bot")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<OAuthStartDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartBotOAuth(
         [FromQuery] string? redirect_uri,
         CancellationToken ct
@@ -1483,6 +1484,7 @@ public class AuthController : BaseController
     /// <summary>Get the current platform-shared bot account connection status (platform-operator only).</summary>
     [HttpGet("twitch/bot/status")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<StatusResponseDto<BotStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBotStatus(CancellationToken ct)
     {
         Result<BotStatusDto> result = await _authService.GetBotStatusAsync(ct);
