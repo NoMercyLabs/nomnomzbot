@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n'
 import Inbox from '~icons/nnz/inbox'
 
 import { useActionRequired } from '@/api/actionRequired'
+import { attentionWords } from '@/api/actionRequiredText'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -25,18 +26,9 @@ const { data: items } = useActionRequired(channelId)
 const saveErrors = useSaveErrorsStore()
 const open = ref(false)
 const count = computed(() => (items.value?.length ?? 0) + saveErrors.items.length)
-
-// The server names each item by a words key; a key this client has no words for yet shows a plain fallback.
-function words(key: string, fallback: string): string {
-  return te(key)
-    ? t(key)
-    : t(fallback)
-}
-
-// A deep link is an in-app path. Anything else is not followed.
-function inApp(link: string): boolean {
-  return link.startsWith('/app')
-}
+const attention = computed(() =>
+  (items.value ?? []).map((item) => ({ id: item.id, ...attentionWords(item, { t, te }) })),
+)
 </script>
 
 <template>
@@ -71,21 +63,15 @@ function inApp(link: string): boolean {
             {{ t('frame.inbox.dismiss') }}
           </Button>
         </li>
-        <li v-for="item in items" :key="item.id" class="flex flex-col gap-1 rounded-md px-3 py-2">
-          <span class="text-sm font-medium">{{
-            words(item.titleKey, 'frame.inbox.unknownTitle')
-          }}</span>
-          <span class="text-sm text-muted-foreground">{{
-            words(item.messageKey, 'frame.inbox.unknownMessage')
-          }}</span>
-          <Button
-            v-if="inApp(item.deepLinkRoute)"
-            variant="outline"
-            size="sm"
-            class="mt-1 self-start"
-            as-child
-          >
-            <RouterLink :to="item.deepLinkRoute" @click="open = false">{{
+        <li
+          v-for="item in attention"
+          :key="item.id"
+          class="flex flex-col gap-1 rounded-md px-3 py-2"
+        >
+          <span class="text-sm font-medium">{{ item.title }}</span>
+          <span v-if="item.message" class="text-sm text-muted-foreground">{{ item.message }}</span>
+          <Button v-if="item.route" variant="outline" size="sm" class="mt-1 self-start" as-child>
+            <RouterLink :to="item.route" @click="open = false">{{
               t('frame.inbox.open')
             }}</RouterLink>
           </Button>

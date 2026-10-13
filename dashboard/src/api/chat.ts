@@ -45,8 +45,16 @@ export type SendChatInput = {
   senderIdentity?: string
   replyToMessageId?: string | null
 }
-export type TimeoutInput = { targetUserId: string; durationSeconds: number; reason?: string | null }
-export type BanInput = { targetUserId: string; scope: ChatScope; reason?: string | null }
+export type TimeoutInput = {
+  targetUserId: string
+  durationSeconds: number
+  reason?: string | null
+}
+export type BanInput = {
+  targetUserId: string
+  scope: ChatScope
+  reason?: string | null
+}
 export type UnbanInput = { targetUserId: string; scope: ChatScope }
 
 function ensureOk(response: Response, what: string): void {

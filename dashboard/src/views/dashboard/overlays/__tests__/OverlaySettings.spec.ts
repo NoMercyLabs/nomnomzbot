@@ -24,8 +24,16 @@ type Options = {
   params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }
   body?: unknown
 }
-type Call = { method: string; path: string; body: unknown }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Call = {
+  method: string
+  path: string
+  body: unknown
+}
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 type Field = Record<string, unknown>
 
 const calls: Call[] = []

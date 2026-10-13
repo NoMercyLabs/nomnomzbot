@@ -14,7 +14,12 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(
-  defineProps<{ label: string; value: string | number; context?: string; warn?: boolean }>(),
+  defineProps<{
+    label: string
+    value: string | number
+    context?: string
+    warn?: boolean
+  }>(),
   { context: undefined, warn: false },
 )
 

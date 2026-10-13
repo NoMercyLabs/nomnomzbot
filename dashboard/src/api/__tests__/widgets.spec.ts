@@ -26,7 +26,11 @@ import {
   type Widget,
 } from '../widgets'
 
-type Answer = { data?: unknown; error?: unknown; response: { ok: boolean; status: number } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { ok: boolean; status: number }
+}
 
 const http = vi.hoisted(() => ({
   GET: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),

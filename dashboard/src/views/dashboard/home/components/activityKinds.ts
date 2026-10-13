@@ -44,7 +44,11 @@ export type ActivityRowView = {
 }
 
 type Describe = (data: ActivityData) => { title?: ActivityRowText; detail: ActivityRowText } | null
-type ActivityKind = { icon: Component; label: string; describe?: Describe }
+type ActivityKind = {
+  icon: Component
+  label: string
+  describe?: Describe
+}
 
 const TYPE: string = 'dashboard.home.activity.type.'
 const DETAIL: string = 'dashboard.home.activity.detail.'

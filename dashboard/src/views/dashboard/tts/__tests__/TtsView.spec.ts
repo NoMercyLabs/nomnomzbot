@@ -20,7 +20,11 @@ import { i18n } from '@/i18n'
 import en from '../i18n/en.json'
 import TtsView from '../TtsView.vue'
 
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 
 const calls: string[] = []
 let answers: Record<string, () => Answer> = {}

@@ -12,8 +12,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const saas: string = 'https://nomnomz.bot'
 
-function stubServer(): { url: string; body: string; bearer: string | null }[] {
-  const seen: { url: string; body: string; bearer: string | null }[] = []
+function stubServer(): {
+  url: string
+  body: string
+  bearer: string | null
+}[] {
+  const seen: {
+    url: string
+    body: string
+    bearer: string | null
+  }[] = []
 
   vi.stubGlobal(
     'fetch',

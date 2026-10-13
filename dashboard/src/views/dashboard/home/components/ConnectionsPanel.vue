@@ -90,6 +90,10 @@ function platformLine(provider: string): string {
 
   const account = accountOf(provider)
 
+  // Until the stream stats arrive the line names the account and claims neither live nor offline.
+  if (!statsQuery.data.value)
+    return account
+
   return isLiveOn(provider)
     ? t('dashboard.home.connections.platformLive', { account })
     : t('dashboard.home.connections.platformOffline', { account })

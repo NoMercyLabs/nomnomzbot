@@ -27,7 +27,11 @@ const props = defineProps<{
   observedAt: number
 }>()
 
-defineEmits<{ pause: []; resume: []; skip: [] }>()
+defineEmits<{
+  pause: []
+  resume: []
+  skip: []
+}>()
 
 const now = ref(Date.now())
 

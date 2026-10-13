@@ -184,7 +184,11 @@ export function useDeleteCodeScript(): UseMutationReturnType<void, Error, string
 
 export type TestRunOutcome =
   | { kind: 'ok'; result: TestRunResult } |
-  { kind: 'rateLimited'; message: string; retryAfterSeconds: number | null }
+  {
+    kind: 'rateLimited'
+    message: string
+    retryAfterSeconds: number | null
+  }
 
 function retryWindow(response: Response): number | null {
   const seconds = Number(response.headers.get('Retry-After'))

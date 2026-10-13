@@ -31,7 +31,11 @@ const tabs: Tab[] = [
   { id: 'alerts', group: 'stream' },
 ]
 const stats: string[] = ['viewers', 'followers', 'chatters', 'uptime']
-const filters: { name: string; detail?: string; on: boolean }[] = [
+const filters: {
+  name: string
+  detail?: string
+  on: boolean
+}[] = [
   { name: 'linkFilter', on: true },
   { name: 'capsFilter', detail: 'capsDetail', on: true },
   { name: 'bannedPhrases', on: false },

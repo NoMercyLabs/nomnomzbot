@@ -22,7 +22,11 @@ import en from '../i18n/en.json'
 import QuickActionsPanel from '../components/QuickActionsPanel.vue'
 
 type Call = { method: string; path: string }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 
 const calls: Call[] = []
 let answers: Record<string, () => Answer> = {}

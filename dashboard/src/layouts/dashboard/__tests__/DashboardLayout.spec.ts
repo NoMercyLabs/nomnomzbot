@@ -17,7 +17,11 @@ import { i18n } from '@/i18n'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import ProfileMenu from '@/layouts/dashboard/ProfileMenu.vue'
 
-const user = ref<{ displayName: string; profileImageUrl: string | null; isAdmin: boolean }>({
+const user = ref<{
+  displayName: string
+  profileImageUrl: string | null
+  isAdmin: boolean
+}>({
   displayName: 'Streamer',
   profileImageUrl: null,
   isAdmin: false,

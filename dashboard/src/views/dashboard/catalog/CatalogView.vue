@@ -127,7 +127,12 @@ const people: ComputedRef<CommunityRow[]> = computed(() => community.data.value 
 const formOpen = ref(false)
 
 // The code editor opens on the channel's first real script. Reading only: nothing saves until someone presses Save in it.
-type EditorSession = { id: string; name: string; project: ScriptProject; sdkTypes: string | null }
+type EditorSession = {
+  id: string
+  name: string
+  project: ScriptProject
+  sdkTypes: string | null
+}
 const scripts = useCodeScripts()
 const editorSession: Ref<EditorSession | null> = ref(null)
 const editorMissing = ref(false)

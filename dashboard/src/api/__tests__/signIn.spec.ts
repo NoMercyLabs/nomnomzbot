@@ -23,7 +23,12 @@ const start = {
   expiresIn: 1800,
 }
 
-type Seen = { at: number; path: string; query: string; body: string }
+type Seen = {
+  at: number
+  path: string
+  query: string
+  body: string
+}
 
 // The bot answers each poll with the next status from the list.
 function stubPolls(statuses: string[]): Seen[] {

@@ -20,7 +20,11 @@ import { i18n } from '@/i18n'
 import { useProfileDialogStore } from '@/stores/profileDialog'
 import { useSaveErrorsStore } from '@/stores/saveErrors'
 
-type Call = { path: string; params: Record<string, unknown> | undefined; body: unknown }
+type Call = {
+  path: string
+  params: Record<string, unknown> | undefined
+  body: unknown
+}
 
 const calls: Call[] = []
 let vipWrite: Promise<unknown> | null = null

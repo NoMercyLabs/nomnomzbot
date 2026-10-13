@@ -19,7 +19,11 @@ import { i18n } from '@/i18n'
 import en from '../i18n/en.json'
 import VoicesTab from '../VoicesTab.vue'
 
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 type Call = {
   method: string
   path: string

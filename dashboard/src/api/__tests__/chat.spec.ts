@@ -23,7 +23,11 @@ import {
   type ChatLine,
 } from '../chat'
 
-type Answer = { data?: unknown; error?: unknown; response: { ok: boolean; status: number } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { ok: boolean; status: number }
+}
 type Sent = [string, { params: { path: Record<string, unknown>; query?: unknown }; body?: unknown }]
 
 const http = vi.hoisted(() => ({

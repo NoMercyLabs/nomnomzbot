@@ -38,7 +38,11 @@ import Megaphone from '~icons/nnz/megaphone'
 import NoteDouble from '~icons/nnz/note-double'
 import Timer24 from '~icons/nnz/timer'
 
-type Running = { title: string; kind: 'poll' | 'prediction'; target: number | null }
+type Running = {
+  title: string
+  kind: 'poll' | 'prediction'
+  target: number | null
+}
 
 const { t } = useI18n()
 const router = useRouter()

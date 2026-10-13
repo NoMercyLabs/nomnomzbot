@@ -25,7 +25,12 @@ import ChatView from '../ChatView.vue'
 import en from '../i18n/en.json'
 
 type Options = { params?: { path?: Record<string, unknown> }; body?: unknown }
-type Call = { method: string; path: string; body: unknown; messageId: string }
+type Call = {
+  method: string
+  path: string
+  body: unknown
+  messageId: string
+}
 type Answer = { data?: unknown; response: { status: number; ok: boolean } }
 
 const calls: Call[] = []

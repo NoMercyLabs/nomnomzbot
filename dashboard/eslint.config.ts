@@ -24,6 +24,7 @@ import { bodyShape } from './eslint-rules/body-shape'
 import { maxCallNesting } from './eslint-rules/max-call-nesting'
 import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation'
 import { trailingArrowArgument } from './eslint-rules/trailing-arrow-argument'
+import { typeMembersPerLine } from './eslint-rules/type-members-per-line'
 
 const pluginApp = {
   rules: {
@@ -32,6 +33,7 @@ const pluginApp = {
     'max-call-nesting': maxCallNesting,
     'no-redundant-type-annotation': noRedundantTypeAnnotation,
     'trailing-arrow-argument': trailingArrowArgument,
+    'type-members-per-line': typeMembersPerLine,
   },
 }
 
@@ -199,6 +201,7 @@ export default defineConfigWithVueTs(
       'app/body-shape': 'error',
       'app/trailing-arrow-argument': 'error',
       'app/max-call-nesting': 'error',
+      'app/type-members-per-line': 'error',
     },
   },
 

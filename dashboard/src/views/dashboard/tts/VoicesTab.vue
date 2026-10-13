@@ -66,7 +66,11 @@ const visible = computed<TtsVoice[]>(() =>
 
 const items = computed<VoiceListItem[]>(() => groupVoices(visible.value, locale.value))
 
-type Chip = { value: string; label: string; count: number }
+type Chip = {
+  value: string
+  label: string
+  count: number
+}
 
 const chips = computed<Chip[]>(() =>
   [ALL, ...voiceFamilyOrder].map((value: string): Chip => ({

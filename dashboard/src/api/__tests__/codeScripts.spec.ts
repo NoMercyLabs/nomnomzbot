@@ -36,7 +36,11 @@ import {
 type Answer = {
   data?: unknown
   error?: unknown
-  response: { ok: boolean; status: number; headers: Headers }
+  response: {
+    ok: boolean
+    status: number
+    headers: Headers
+  }
 }
 
 const http = vi.hoisted(() => ({

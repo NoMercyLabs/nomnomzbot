@@ -128,7 +128,11 @@ function refreshTenant(queries: QueryClient, broadcasterId: string): Promise<unk
   ])
 }
 
-export type SuspendInput = { broadcasterId: string; newStatus: string; reason: string }
+export type SuspendInput = {
+  broadcasterId: string
+  newStatus: string
+  reason: string
+}
 
 export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInput, unknown> {
   const queries = useQueryClient()
@@ -207,7 +211,11 @@ export function useAdminBeginAccess(): UseMutationReturnType<
   })
 }
 
-export type ImpersonateInput = { userId: string; accessGrantId: string; justification: string }
+export type ImpersonateInput = {
+  userId: string
+  accessGrantId: string
+  justification: string
+}
 
 export function useAdminImpersonate(): UseMutationReturnType<
   AdminImpersonationToken,

@@ -24,7 +24,11 @@ import {
   type AdminTenantsParams,
 } from '../admin'
 
-type Answer = { data?: unknown; error?: unknown; response: { ok: boolean; status: number } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { ok: boolean; status: number }
+}
 type Call = [
   path: string,
   init: {

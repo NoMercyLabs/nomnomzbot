@@ -23,11 +23,19 @@ import en from '../i18n/en.json'
 import HomeView from '../HomeView.vue'
 
 type Options = { params?: { path?: Record<string, unknown> }; body?: unknown }
-type Call = { method: string; path: string; body: unknown }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Call = {
+  method: string
+  path: string
+  body: unknown
+}
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 
 const calls: Call[] = []
-let answers: Record<string, () => Answer> = {}
+let answers: Record<string, () => Answer | Promise<Answer>> = {}
 let resolveFails = false
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } })
@@ -60,7 +68,7 @@ const heldMessage = (id: string, name: string, message: string): Record<string, 
   resolutionAction: null,
 })
 
-function freshAnswers(): Record<string, () => Answer> {
+function freshAnswers(): Record<string, () => Answer | Promise<Answer>> {
   return {
     '/stats': () => ok(liveStats),
     '/automod/queue': () => ok(queue.map((item) => ({ ...item }))),
@@ -126,7 +134,11 @@ function freshAnswers(): Record<string, () => Answer> {
   }
 }
 
-function answer(method: string, path: string, options: Options | undefined): Answer {
+function answer(
+  method: string,
+  path: string,
+  options: Options | undefined,
+): Answer | Promise<Answer> {
   calls.push({ method, path, body: options?.body })
   const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
@@ -308,6 +320,15 @@ describe('HomeView', () => {
 
     expect(line?.textContent).toMatch(/^Last stream ended .+ · 4h 12m$/)
     expect(line?.textContent).not.toContain('viewers')
+  })
+
+  it('claims neither live nor offline until the stream stats arrive', async () => {
+    answers['/stats'] = () => new Promise<Answer>(() => undefined)
+    await open()
+
+    expect(document.body.textContent).not.toContain('Offline')
+    expect(document.body.textContent).not.toContain('Live on')
+    expect(document.body.querySelector('[data-slot="stream-line"]')).toBeNull()
   })
 
   it('shows no stream line while offline when the bot has no finished stream to report', async () => {

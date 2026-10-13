@@ -203,7 +203,11 @@ export function useUserNotes(
   })
 }
 
-export type NoteInput = { userId: string; content: string; pinned: boolean }
+export type NoteInput = {
+  userId: string
+  content: string
+  pinned: boolean
+}
 
 // The note shows at once; a refused save takes it away again and reaches the error inbox.
 export function useAddNote(
@@ -277,7 +281,11 @@ export function useShoutout(
   })
 }
 
-export type TimeoutInput = { userId: string; durationSeconds: number; reason?: string }
+export type TimeoutInput = {
+  userId: string
+  durationSeconds: number
+  reason?: string
+}
 
 export function useTimeout(
   channelId: MaybeRefOrGetter<string | null>,

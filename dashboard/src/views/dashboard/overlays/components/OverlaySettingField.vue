@@ -30,7 +30,11 @@ import { Textarea } from '@/components/ui/textarea'
 
 import { clampNumber, humanize, useSettingText } from './settingField'
 
-const props = defineProps<{ field: WidgetSettingsField; value: unknown; changed: boolean }>()
+const props = defineProps<{
+  field: WidgetSettingsField
+  value: unknown
+  changed: boolean
+}>()
 const emit = defineEmits<{ update: [value: unknown]; reset: [] }>()
 
 const text = useSettingText()

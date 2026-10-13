@@ -8,9 +8,11 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useActionRequired, type ActionRequiredItem } from '@/api/actionRequired'
+import { attentionWords } from '@/api/actionRequiredText'
 import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
@@ -27,16 +29,12 @@ const attentionState = usePanelState(
   (items: ActionRequiredItem[]) => items.length === 0,
 )
 
-// The server names each attention item by a words key; a key this client has no words for shows a plain fallback.
-function words(key: string, fallback: string): string {
-  return te(key)
-    ? t(key)
-    : t(fallback)
-}
-
-function inApp(link: string): boolean {
-  return link.startsWith('/app')
-}
+const attention = computed(() =>
+  (attentionQuery.data.value ?? []).map((item) => ({
+    id: item.id,
+    ...attentionWords(item, { t, te }),
+  })),
+)
 </script>
 
 <template>
@@ -49,16 +47,14 @@ function inApp(link: string): boolean {
   >
     <RowGroup>
       <SummaryRow
-        v-for="item in attentionQuery.data.value ?? []"
+        v-for="item in attention"
         :key="item.id"
-        :title="words(item.titleKey, 'frame.inbox.unknownTitle')"
-        :detail="words(item.messageKey, 'frame.inbox.unknownMessage')"
+        :title="item.title"
+        :detail="item.message ?? undefined"
       >
-        <template v-if="inApp(item.deepLinkRoute)" #trailing>
+        <template v-if="item.route" #trailing>
           <Button variant="outline" size="sm" as-child>
-            <RouterLink :to="item.deepLinkRoute">{{
-              t('dashboard.home.attention.open')
-            }}</RouterLink>
+            <RouterLink :to="item.route">{{ t('dashboard.home.attention.open') }}</RouterLink>
           </Button>
         </template>
       </SummaryRow>

@@ -26,11 +26,20 @@ type Options = {
   params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }
   body?: unknown
 }
-type Call = { method: string; path: string; body: unknown; id: string }
+type Call = {
+  method: string
+  path: string
+  body: unknown
+  id: string
+}
 type Answer = {
   data?: unknown
   error?: unknown
-  response: { status: number; ok: boolean; headers?: Headers }
+  response: {
+    status: number
+    ok: boolean
+    headers?: Headers
+  }
 }
 
 const REFUSAL: string = 'Custom code is switched off for this channel.'

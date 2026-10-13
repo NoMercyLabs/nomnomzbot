@@ -43,7 +43,12 @@ import PersonRow from './components/PersonRow.vue'
 import SearchResultRow from './components/SearchResultRow.vue'
 
 // The light row a search hit or a Twitch lookup gives: name, avatar and login, nothing heavier.
-type Seed = { id: string; login: string; displayName: string; profileImageUrl: string | null }
+type Seed = {
+  id: string
+  login: string
+  displayName: string
+  profileImageUrl: string | null
+}
 
 const SEARCH_PAUSE_MS = 250
 const NEW_WINDOW_DAYS = 90

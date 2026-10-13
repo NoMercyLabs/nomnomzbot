@@ -46,7 +46,11 @@ import type { SessionRun } from './sessionRun'
 import { useScriptTester } from './useScriptTester'
 
 const props = defineProps<{ scriptId: string; summary?: CodeScriptSummary }>()
-const emit = defineEmits<{ deleted: []; back: []; ran: [run: Omit<SessionRun, 'id'>] }>()
+const emit = defineEmits<{
+  deleted: []
+  back: []
+  ran: [run: Omit<SessionRun, 'id'>]
+}>()
 
 const { t, te, locale } = useI18n()
 const detail = useScriptDetail(() => props.scriptId)

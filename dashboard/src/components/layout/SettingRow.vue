@@ -14,10 +14,17 @@ import { useId } from 'vue'
 
 import { Switch } from '@/components/ui/switch'
 
-withDefaults(defineProps<{ title: string; description?: string; disabled?: boolean }>(), {
-  description: undefined,
-  disabled: false,
-})
+withDefaults(
+  defineProps<{
+    title: string
+    description?: string
+    disabled?: boolean
+  }>(),
+  {
+    description: undefined,
+    disabled: false,
+  },
+)
 
 const checked = defineModel<boolean>({ default: false })
 const titleId = useId()

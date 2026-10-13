@@ -18,10 +18,16 @@ const status = { onboardingComplete: true, checks: {} }
 type Answer = 'json' | 'cors' | 'down' | 'silent'
 
 // "cors": the bot answers, but the browser hides the answer because the bot does not allow this page.
-function stubBot(
-  answer: Answer,
-): Array<{ url: string; mode: string; authorization: string | null }> {
-  const seen: Array<{ url: string; mode: string; authorization: string | null }> = []
+function stubBot(answer: Answer): Array<{
+  url: string
+  mode: string
+  authorization: string | null
+}> {
+  const seen: Array<{
+    url: string
+    mode: string
+    authorization: string | null
+  }> = []
 
   vi.stubGlobal(
     'fetch',

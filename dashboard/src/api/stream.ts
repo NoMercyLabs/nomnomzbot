@@ -27,7 +27,11 @@ export type StreamInfo = components['schemas']['StreamInfoDto']
 export type AdSchedule = components['schemas']['TwitchAdSchedule']
 
 // What the form edits and sends: the same three fields as UpdateStreamRequest, never empty-as-null.
-export type StreamInfoDraft = { title: string; gameName: string; tags: string[] }
+export type StreamInfoDraft = {
+  title: string
+  gameName: string
+  tags: string[]
+}
 export type Category = components['schemas']['CategoryDto']
 export type PastStream = components['schemas']['StreamListItemDto']
 

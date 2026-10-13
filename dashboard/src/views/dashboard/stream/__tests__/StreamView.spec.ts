@@ -25,8 +25,18 @@ type Options = {
   params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }
   body?: unknown
 }
-type Call = { method: string; path: string; body: unknown; query: unknown; pathParams: unknown }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Call = {
+  method: string
+  path: string
+  body: unknown
+  query: unknown
+  pathParams: unknown
+}
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 
 const calls: Call[] = []
 let answers: Record<string, () => Answer> = {}

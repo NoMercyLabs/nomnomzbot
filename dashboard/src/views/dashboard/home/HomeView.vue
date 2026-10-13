@@ -39,6 +39,8 @@ const statsQuery = useHomeStats(channelId)
 const historyQuery = useStreamHistory(channelId)
 
 const stats: ComputedRef<HomeStats | null> = computed(() => statsQuery.data.value ?? null)
+// Until the stats arrive the header claims nothing: no Offline badge, no stream line, no action.
+const loaded = computed(() => stats.value !== null)
 const live = computed(() => stats.value?.isLive === true)
 
 const statusLabel: ComputedRef<string> = computed(() =>
@@ -55,9 +57,7 @@ const liveLineKey: ComputedRef<string> = computed(() =>
     ? 'dashboard.home.liveLineCategory'
     : 'dashboard.home.liveLine',
 )
-const uptime = computed(() =>
-  formatCountdown(Number(stats.value?.uptime ?? 0)),
-)
+const uptime = computed(() => formatCountdown(Number(stats.value?.uptime ?? 0)))
 
 // A stream the bot never closed has no end or length, so offline shows nothing rather than a guess.
 const lastStream = computed(() =>
@@ -83,10 +83,13 @@ const lastStreamLine: ComputedRef<string> = computed(() => {
   })
 })
 
-const hasStreamLine = computed(() => live.value || lastStreamLine.value !== '')
+const hasStreamLine = computed(() => loaded.value && (live.value || lastStreamLine.value !== ''))
 
 // The one primary action follows the stream: chat while live, the stream setup while offline.
 const primaryRoute: ComputedRef<{ name: string; label: string } | null> = computed(() => {
+  if (!loaded.value)
+    return null
+
   const next: { name: string; label: string } = live.value
     ? { name: 'dashboard-chat', label: t('dashboard.home.openChat') }
     : { name: 'dashboard-stream', label: t('dashboard.home.editStream') }
@@ -99,7 +102,7 @@ const primaryRoute: ComputedRef<{ name: string; label: string } | null> = comput
 
 <template>
   <PageHeader :title="t('dashboard.home.title')">
-    <template #status>
+    <template v-if="loaded" #status>
       <StatusBadge :tone="live ? 'ok' : 'off'" :label="statusLabel" />
     </template>
     <!-- The header's second row holds the stream line, as the mockup's head-bar does. -->

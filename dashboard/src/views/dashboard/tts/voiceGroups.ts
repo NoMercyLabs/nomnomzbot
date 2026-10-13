@@ -11,7 +11,16 @@
 import { voiceFamily, voiceFamilyOrder, type TtsVoice } from '@/api/tts'
 
 export type VoiceListItem =
-  { kind: 'heading'; key: string; label: string } | { kind: 'voice'; key: string; voice: TtsVoice }
+  | {
+    kind: 'heading'
+    key: string
+    label: string
+  } |
+  {
+    kind: 'voice'
+    key: string
+    voice: TtsVoice
+  }
 
 const FIRST_LOCALE = 'en-US'
 

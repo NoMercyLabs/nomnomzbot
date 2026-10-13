@@ -41,7 +41,13 @@ const allEventsRoute: ComputedRef<string | null> = computed(() =>
     : null,
 )
 
-type Row = { id: string; icon: Component; title: string; detail: string | undefined; time: string }
+type Row = {
+  id: string
+  icon: Component
+  title: string
+  detail: string | undefined
+  time: string
+}
 
 function say(text: ActivityRowText): string {
   const count: unknown = text.params?.count

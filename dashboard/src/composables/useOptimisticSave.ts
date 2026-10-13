@@ -45,7 +45,7 @@ export function useOptimisticSave<TData, TVariables>(
 ): UseMutationReturnType<TData, Error, TVariables, number> {
   const queries = useQueryClient()
   const errors = useSaveErrorsStore()
-  const entries = new Map()
+  const entries = new Map<string, EntryState<TData> | undefined>()
 
   function keyOf(variables: TVariables): QueryKey {
     return typeof options.queryKey === 'function'
@@ -55,7 +55,7 @@ export function useOptimisticSave<TData, TVariables>(
 
   function entryOf(queryKey: QueryKey): EntryState<TData> {
     const id = JSON.stringify(queryKey)
-    let entry: EntryState<TData> | undefined = entries.get(id)
+    let entry = entries.get(id)
 
     if (!entry) {
       entry = { newest: 0, inFlight: 0, confirmed: undefined }

@@ -351,6 +351,18 @@
    "covers": []
   },
   {
+   "id": "dashboard-type-members-per-line",
+   "paths": [
+    "**/dashboard/src/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "A TypeScript object type with 3 or more members puts each member on its own line, even when it fits on one line. ESLint `app/type-members-per-line` flags it and `eslint --fix` wraps it.",
+   "source": "Stoney 2026-10-13: \"lets make this lenght wrap in formatted object: type PanelQuery<T> = { data: Ref<T | undefined>; isPending: Ref<boolean>; isError: Ref<boolean> }\"",
+   "covers": []
+  },
+  {
    "id": "license-header-required",
    "paths": [
     "**/server/**/*.cs",

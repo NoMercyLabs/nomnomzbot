@@ -22,7 +22,11 @@ import StatusBadge from '@/components/layout/StatusBadge.vue'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { usePanelState } from '@/composables/usePanelState'
 
-type Check = { key: string; tone: 'ok' | 'bad' | 'off'; label: string }
+type Check = {
+  key: string
+  tone: 'ok' | 'bad' | 'off'
+  label: string
+}
 
 const { t } = useI18n()
 const { channelId } = useCurrentChannel()
@@ -76,8 +80,7 @@ const checks: ComputedRef<Check[]> = computed(() => {
 
   if (botQuery.isError.value) {
     list.push(unchecked('bot', 'bot'))
-  }
-  else if (botQuery.data.value !== undefined) {
+  } else if (botQuery.data.value !== undefined) {
     const inChat = botQuery.data.value?.connected === true
 
     list.push({
@@ -93,8 +96,7 @@ const checks: ComputedRef<Check[]> = computed(() => {
 
   if (rewardsQuery.isError.value) {
     list.push(unchecked('rewards', 'rewards'))
-  }
-  else if (rewardsQuery.data.value !== undefined) {
+  } else if (rewardsQuery.data.value !== undefined) {
     const rewards = rewardsQuery.data.value
     const off = rewards.filter((reward: Reward) => !reward.isEnabled || reward.isPaused)
     const counts = { n: rewards.length - off.length, m: rewards.length } as const satisfies {
@@ -122,8 +124,7 @@ const checks: ComputedRef<Check[]> = computed(() => {
 
   if (shieldQuery.isError.value) {
     list.push(unchecked('shield', 'shield'))
-  }
-  else if (shieldQuery.data.value !== undefined) {
+  } else if (shieldQuery.data.value !== undefined) {
     const shielded = shieldQuery.data.value
 
     list.push({

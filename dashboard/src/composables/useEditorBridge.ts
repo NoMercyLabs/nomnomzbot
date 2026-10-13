@@ -25,7 +25,11 @@ export type BuildError = {
   line?: number
   column?: number
 }
-export type CompileFeedback = { ok: boolean; message: string; errors?: BuildError[] }
+export type CompileFeedback = {
+  ok: boolean
+  message: string
+  errors?: BuildError[]
+}
 export type VersionSummary = {
   id: string
   version: number
@@ -35,7 +39,11 @@ export type VersionSummary = {
 export type VersionsPage = { versions: VersionSummary[]; hasMore: boolean }
 export type EditorOutcome<T> = { ok: true; value: T } | { ok: false; message: string }
 
-export type TestTrigger = { id: string; label: string; variables: EditorVariables }
+export type TestTrigger = {
+  id: string
+  label: string
+  variables: EditorVariables
+}
 export type TestRunRequest = {
   files: EditorFiles
   variables: EditorVariables
@@ -50,7 +58,11 @@ export type TestRunResult = {
   error: string | null
   chatOutput: string[]
   variablesSet: EditorVariables | null
-  timeline: { seq: number; kind: string; text: string }[]
+  timeline: {
+    seq: number
+    kind: string
+    text: string
+  }[]
   console: string[] | null
   effects: { name: string; argsPreview: string }[]
   errors?: BuildError[]
@@ -81,7 +93,11 @@ export type EditorOpenPayload = {
   fireSamples?: JsonObject
   fireSamplesError?: string
   eventSubscriptions?: string[]
-  widget?: { id: string; name: string; settings: JsonObject }
+  widget?: {
+    id: string
+    name: string
+    settings: JsonObject
+  }
   history?: VersionsPage
   testRunEnabled?: boolean
   testTriggers?: TestTrigger[]
@@ -253,8 +269,7 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
 
       if (outcome.ok) {
         post('historyPage', { payload: outcome.value })
-      }
-      else {
+      } else {
         post('historyError', { message: outcome.message })
       }
     } catch (error) {
@@ -274,8 +289,7 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
 
       if (outcome.ok) {
         post('testRunResult', { ok: true, ...outcome.value })
-      }
-      else {
+      } else {
         post('testRunResult', { ok: false, message: outcome.message })
       }
     } catch (error) {

@@ -28,7 +28,11 @@ type Call = {
   name: unknown
   body: Record<string, unknown> | undefined
 }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 type Row = Record<string, unknown>
 
 const calls: Call[] = []

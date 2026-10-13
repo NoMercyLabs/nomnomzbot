@@ -14,7 +14,12 @@
 defineOptions({ inheritAttrs: false })
 
 withDefaults(
-  defineProps<{ title: string; detail?: string; pick?: boolean; selected?: boolean }>(),
+  defineProps<{
+    title: string
+    detail?: string
+    pick?: boolean
+    selected?: boolean
+  }>(),
   {
     detail: undefined,
     pick: false,

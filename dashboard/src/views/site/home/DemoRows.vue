@@ -17,7 +17,12 @@ import RowGroup from '@/components/layout/RowGroup.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 
 type Kind = 'requests' | 'commands' | 'queue' | 'alerts' | 'sub'
-type Row = { title: string; detail: string; action?: string; harm?: boolean }
+type Row = {
+  title: string
+  detail: string
+  action?: string
+  harm?: boolean
+}
 
 const props = defineProps<{ kind: Kind }>()
 const { t } = useI18n()

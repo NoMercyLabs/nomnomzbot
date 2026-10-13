@@ -42,7 +42,11 @@ const liveCount = computed<number>(
   () => moderated.value.filter((row) => row.isLive === true).length,
 )
 
-type ChannelGroup = { key: string; heading: string; rows: ChannelChoice[] }
+type ChannelGroup = {
+  key: string
+  heading: string
+  rows: ChannelChoice[]
+}
 const groups = computed<ChannelGroup[]>(() =>
   [
     { key: 'own', heading: t('frame.channel.yours'), rows: own.value },

@@ -22,8 +22,16 @@ import MusicView from '../MusicView.vue'
 import en from '../i18n/en.json'
 
 type Options = { params?: { path?: Record<string, unknown> }; body?: unknown }
-type Call = { method: string; path: string; position: unknown }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Call = {
+  method: string
+  path: string
+  position: unknown
+}
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 
 const calls: Call[] = []
 let answers: Record<string, () => Answer> = {}

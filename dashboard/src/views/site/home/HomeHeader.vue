@@ -26,7 +26,11 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 
-type Link = { key: string; href: string; external?: boolean }
+type Link = {
+  key: string
+  href: string
+  external?: boolean
+}
 
 const { t } = useI18n()
 const links: Link[] = [

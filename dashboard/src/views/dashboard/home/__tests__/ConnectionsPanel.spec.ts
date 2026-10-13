@@ -19,8 +19,16 @@ import { i18n } from '@/i18n'
 import ConnectionsPanel from '../components/ConnectionsPanel.vue'
 import en from '../i18n/en.json'
 
-type Call = { method: string; path: string; body?: unknown }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Call = {
+  method: string
+  path: string
+  body?: unknown
+}
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean }
+}
 
 const calls: Call[] = []
 let answers: Record<string, () => Answer> = {}

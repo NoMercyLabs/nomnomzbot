@@ -22,3 +22,27 @@ export function formatLength(seconds: number, locale: string): string {
 
   return format.format(Math.round(seconds / size))
 }
+
+function twoDigits(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function localDate(moment: Date): string {
+  const month = twoDigits(moment.getMonth() + 1)
+
+  return `${moment.getFullYear()}-${month}-${twoDigits(moment.getDate())}`
+}
+
+// A moment as "22:47" on the same local day as `now`, else "2026-10-14 01:05"; empty when unreadable.
+export function clockTime(iso: string | undefined, now: Date): string {
+  const moment = new Date(iso ?? '')
+
+  if (Number.isNaN(moment.getTime()))
+    return ''
+
+  const clock = `${twoDigits(moment.getHours())}:${twoDigits(moment.getMinutes())}`
+
+  return localDate(moment) === localDate(now)
+    ? clock
+    : `${localDate(moment)} ${clock}`
+}
