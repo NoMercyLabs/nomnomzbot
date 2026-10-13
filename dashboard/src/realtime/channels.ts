@@ -14,6 +14,7 @@ import { builtinsKey, commandsKey, type CommandListItem } from '@/api/commands'
 import { shieldKey } from '@/api/shield'
 import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream'
 import { ttsConfigKey } from '@/api/tts'
+import { widgetsKey } from '@/api/widgets'
 
 import type { HubEventHandler } from './hubEvent'
 import type {
@@ -31,6 +32,8 @@ const commandsDomain = 'commands'
 const builtinsDomain = 'builtins'
 // TtsConfigService.cs publishes ConfigChanged with this domain after a config change.
 const ttsDomain = 'tts-config'
+// WidgetService.cs publishes ConfigChanged with this domain when an overlay is created, updated or deleted.
+const widgetsDomain = 'widgets'
 
 const bare = (name: string): string => (name.startsWith('!') ? name.slice(1) : name).toLowerCase()
 
@@ -66,17 +69,25 @@ export const channelHandlers: [
   {
     event: 'ChannelEvent',
     handle: ({ queries, channelId }, event) => {
-      if (event.type === 'shield_mode_begin') queries.setQueryData<boolean>(shieldKey(channelId), true)
-      if (event.type === 'shield_mode_end') queries.setQueryData<boolean>(shieldKey(channelId), false)
+      if (event.type === 'shield_mode_begin')
+        queries.setQueryData<boolean>(shieldKey(channelId), true)
+      if (event.type === 'shield_mode_end')
+        queries.setQueryData<boolean>(shieldKey(channelId), false)
     },
   },
   {
     event: 'ConfigChanged',
     handle: ({ queries, channelId }, change) => {
-      if (change.domain === actionRequiredDomain) void queries.invalidateQueries({ queryKey: actionRequiredKey(channelId) })
-      if (change.domain === commandsDomain) void queries.invalidateQueries({ queryKey: commandsKey(channelId) })
-      if (change.domain === builtinsDomain) void queries.invalidateQueries({ queryKey: builtinsKey(channelId) })
-      if (change.domain === ttsDomain) void queries.invalidateQueries({ queryKey: ttsConfigKey(channelId) })
+      if (change.domain === actionRequiredDomain)
+        void queries.invalidateQueries({ queryKey: actionRequiredKey(channelId) })
+      if (change.domain === commandsDomain)
+        void queries.invalidateQueries({ queryKey: commandsKey(channelId) })
+      if (change.domain === builtinsDomain)
+        void queries.invalidateQueries({ queryKey: builtinsKey(channelId) })
+      if (change.domain === ttsDomain)
+        void queries.invalidateQueries({ queryKey: ttsConfigKey(channelId) })
+      if (change.domain === widgetsDomain)
+        void queries.invalidateQueries({ queryKey: widgetsKey(channelId) })
     },
   },
   {
@@ -85,7 +96,9 @@ export const channelHandlers: [
       if (!run.succeeded) return
       queries.setQueryData<CommandListItem[]>(commandsKey(channelId), (rows) =>
         rows?.map((row) =>
-          bare(row.name) === bare(run.commandName) ? { ...row, useCount: Number(row.useCount) + 1 } : row,
+          bare(row.name) === bare(run.commandName)
+            ? { ...row, useCount: Number(row.useCount) + 1 }
+            : row,
         ),
       )
     },
