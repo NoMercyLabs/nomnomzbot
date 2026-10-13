@@ -1,0 +1,74 @@
+{
+  "dashboard": {
+    "music": {
+      "title": "Muziek",
+      "spotify": {
+        "connected": "Spotify gekoppeld",
+        "reauth": "Spotify heeft een nieuwe aanmelding nodig",
+        "off": "Spotify niet gekoppeld"
+      },
+      "now": {
+        "title": "Nu aan het spelen",
+        "nothing": "Er speelt nu niets.",
+        "error": "De speler kon niet laden.",
+        "requestedBy": "Aangevraagd door {name}",
+        "volume": "Volume {percent}%",
+        "pause": "Pauze",
+        "play": "Afspelen",
+        "skip": "Overslaan",
+        "progress": "{position} van {length}"
+      },
+      "queue": {
+        "title": "Aanvraagwachtrij",
+        "waiting": "{count} wachtend",
+        "empty": "Er wachten geen nummers.",
+        "error": "De wachtrij kon niet laden.",
+        "by": "{artist} · aangevraagd door {name}",
+        "unknownRequester": "{artist}",
+        "next": "Als volgende",
+        "nextRow": "{title} als volgende spelen",
+        "remove": "{title} verwijderen",
+        "confirmTitle": "Dit nummer verwijderen?",
+        "confirmBody": "{title} verdwijnt uit de wachtrij. De aanvrager hoort het niet.",
+        "confirmAction": "Verwijderen"
+      },
+      "rules": {
+        "title": "Aanvraagregels",
+        "empty": "Nog niet beschikbaar. De regels verschijnen hier zodra ze te bewerken zijn.",
+        "error": "De regels konden niet laden.",
+        "who": "Wie mag aanvragen",
+        "levels": {
+          "everyone": "Iedereen",
+          "subscribers": "Abonnees",
+          "vip": "VIP's",
+          "moderators": "Moderators",
+          "broadcaster": "Alleen ik"
+        },
+        "perPerson": "Nummers per persoon",
+        "perPersonHelp": "Hoeveel nummers één kijker tegelijk in de wachtrij kan hebben.",
+        "blocked": "Geblokkeerde nummers",
+        "blockedEmpty": "Er zijn geen nummers geblokkeerd.",
+        "blockedError": "De geblokkeerde nummers konden niet laden.",
+        "allow": "Toestaan",
+        "allowRow": "{title} toestaan",
+        "allowed": "{title} mag weer aangevraagd worden.",
+        "notYet": "Nog niet beschikbaar.",
+        "missing": {
+          "cost": "Kosten",
+          "length": "Langste nummer",
+          "words": "Geblokkeerde woorden"
+        },
+        "save": "Opslaan",
+        "discard": "Weggooien"
+      },
+      "history": {
+        "title": "Geschiedenis",
+        "empty": "Nog niet vastgelegd. Gespeelde nummers verschijnen hier."
+      },
+      "thanks": {
+        "title": "Bedankt voor de muziek",
+        "empty": "Nog niet vastgelegd. De beste aanvragers verschijnen hier."
+      }
+    }
+  }
+}

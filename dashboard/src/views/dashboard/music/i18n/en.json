@@ -1,0 +1,74 @@
+{
+  "dashboard": {
+    "music": {
+      "title": "Music",
+      "spotify": {
+        "connected": "Spotify connected",
+        "reauth": "Spotify needs a new sign-in",
+        "off": "Spotify not connected"
+      },
+      "now": {
+        "title": "Now playing",
+        "nothing": "Nothing is playing right now.",
+        "error": "The player could not load.",
+        "requestedBy": "Requested by {name}",
+        "volume": "Volume {percent}%",
+        "pause": "Pause",
+        "play": "Play",
+        "skip": "Skip",
+        "progress": "{position} of {length}"
+      },
+      "queue": {
+        "title": "Request queue",
+        "waiting": "{count} waiting",
+        "empty": "No songs are waiting.",
+        "error": "The queue could not load.",
+        "by": "{artist} · requested by {name}",
+        "unknownRequester": "{artist}",
+        "next": "Play next",
+        "nextRow": "Play next {title}",
+        "remove": "Remove {title}",
+        "confirmTitle": "Remove this song?",
+        "confirmBody": "{title} leaves the queue. The person who asked will not hear it.",
+        "confirmAction": "Remove"
+      },
+      "rules": {
+        "title": "Request rules",
+        "empty": "Not available yet. Rules show here once they can be edited.",
+        "error": "The rules could not load.",
+        "who": "Who may request",
+        "levels": {
+          "everyone": "Everyone",
+          "subscribers": "Subscribers",
+          "vip": "VIPs",
+          "moderators": "Moderators",
+          "broadcaster": "Only me"
+        },
+        "perPerson": "Songs per person",
+        "perPersonHelp": "How many songs one viewer can have in the queue at a time.",
+        "blocked": "Blocked songs",
+        "blockedEmpty": "No songs are blocked.",
+        "blockedError": "The blocked songs could not load.",
+        "allow": "Allow",
+        "allowRow": "Allow {title}",
+        "allowed": "{title} can be requested again.",
+        "notYet": "Not available yet.",
+        "missing": {
+          "cost": "Cost",
+          "length": "Longest song",
+          "words": "Blocked words"
+        },
+        "save": "Save",
+        "discard": "Discard"
+      },
+      "history": {
+        "title": "History",
+        "empty": "Not recorded yet. Played songs will show here."
+      },
+      "thanks": {
+        "title": "Thanks for the music",
+        "empty": "Not recorded yet. Top requesters will show here."
+      }
+    }
+  }
+}
