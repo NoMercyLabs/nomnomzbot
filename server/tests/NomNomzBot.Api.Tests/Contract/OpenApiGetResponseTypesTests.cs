@@ -88,8 +88,10 @@ public sealed class OpenApiGetResponseTypesTests
         foreach (KeyValuePair<string, string> entry in NonJsonGets)
         {
             bool exists =
-                paths.TryGetProperty(ApiPrefix + entry.Key, out JsonElement item)
-                && item.TryGetProperty("get", out _);
+                (
+                    paths.TryGetProperty(ApiPrefix + entry.Key, out JsonElement item)
+                    || paths.TryGetProperty(entry.Key, out item)
+                ) && item.TryGetProperty("get", out _);
             if (!exists || string.IsNullOrWhiteSpace(entry.Value))
                 stale.Add(entry.Key);
         }

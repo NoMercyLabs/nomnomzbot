@@ -358,6 +358,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfActionPermissionDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -5911,6 +5920,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfChannelAnalyticsDailyDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -5998,6 +6016,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfChannelAnalyticsSummaryDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6085,6 +6112,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfChannelAnalyticsPlatformSummaryDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6174,6 +6210,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfTopViewerDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6271,6 +6316,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaginatedResponseOfStreamListItemDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6356,6 +6410,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfStreamAnalyticsDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6455,6 +6518,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaginatedResponseOfViewerProfileListItemDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6540,6 +6612,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfViewerProfileDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6628,6 +6709,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfViewerEngagementDailyDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -6713,6 +6803,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfWatchStreakDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -9476,6 +9575,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfOAuthStartDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -9626,6 +9734,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfBotStatusDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -15368,6 +15485,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfInstalledBundleDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -15818,6 +15944,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfCatalogItemDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -16542,6 +16677,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfOAuthStartDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -16626,6 +16770,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfBotStatusDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -16794,6 +16947,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfChannelFederationOptInDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -17055,7 +17217,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PaginatedResponseOfChannelDto"];
+                        "application/json": components["schemas"]["PaginatedResponseOfChannelSummaryDto"];
                     };
                 };
                 /** @description Bad Request */
@@ -20703,6 +20865,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaginatedResponseOfCodeScriptSummaryDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -20860,6 +21031,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfCodeScriptDetailDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -21028,6 +21208,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaginatedResponseOfCodeScriptVersionDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -21186,6 +21375,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfProjectDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -24374,6 +24572,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfCurrencyConfigDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -24990,6 +25197,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfCurrencyAccountDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -29218,6 +29434,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfLeaderboardConfigDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -29564,6 +29789,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfLeaderboardEntryDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -33289,6 +33523,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfFederationPeerDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -33722,6 +33965,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfGameConfigDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -34172,6 +34424,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfboolean"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -39044,7 +39305,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfTwitchPoll"];
                     };
                 };
                 /** @description Bad Request */
@@ -39320,7 +39581,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfTwitchPrediction"];
                     };
                 };
                 /** @description Bad Request */
@@ -41188,6 +41449,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfMarketplaceItemDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -41466,6 +41736,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfPublishSubmissionDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -41550,6 +41829,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfMarketplacePublisherStatusDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -45028,7 +45316,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfShieldModeDto"];
                     };
                 };
                 /** @description Bad Request */
@@ -45117,7 +45405,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfShieldModeDto"];
                     };
                 };
                 /** @description Bad Request */
@@ -48385,7 +48673,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfModerationStatsDto"];
                     };
                 };
                 /** @description Bad Request */
@@ -56426,6 +56714,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfPermitGrantDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -60395,6 +60692,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfPlatformAnalyticsDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -63072,6 +63378,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfSongRequestPageDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -63238,6 +63553,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfSongRequestPageDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -66294,6 +66618,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfIReadOnlyListOfSavingsJarDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -66453,6 +66786,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfSavingsJarDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -70658,7 +71000,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseDtoOfObject"];
+                        "application/json": components["schemas"]["StatusResponseDtoOfBotOAuthUrlDto"];
                     };
                 };
                 /** @description Bad Request */
@@ -78062,6 +78404,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfInboundWebhookEndpointDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -78752,6 +79103,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseDtoOfOutboundWebhookEndpointDto"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -81913,14 +82273,39 @@ export interface components {
             channelOverrideCount: number | string;
         };
         /**
+         * @description One row of a channel's per-action permission matrix (roles-permissions §4): the action's definition, its
+         *     global default/floor/tier, the channel's current override (if any), and the resulting effective required
+         *     level = `clamp(override ?? default, floor, Broadcaster)`. Drives the permissions screen.
+         */
+        ActionPermissionDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            actionDefinitionId: string;
+            actionKey: string;
+            plane: components["schemas"]["AuthPlane"];
+            description: null | string;
+            /** Format: int32 */
+            defaultLevel: number | string;
+            /** Format: int32 */
+            floorLevel: number | string;
+            floorTier: components["schemas"]["DangerTier"];
+            isGrantableViaPermit: boolean;
+            /** Format: int32 */
+            overrideLevel: null | number | string;
+            /** Format: int32 */
+            effectiveLevel: number | string;
+        };
+        /**
          * @description One row of the dashboard's action-required inbox (S071a) — a real, already-detected condition that needs
          *                 the streamer's attention, surfaced from an existing signal (never fabricated). string ActionRequiredItemDto.Kind is a
          *                 stable machine key the dashboard groups/icons by (e.g. `integration_token_dead`,
          *                 `held_chat_message`); string ActionRequiredItemDto.Severity is `critical` | `warning` | `info`.
          *                 The row carries no prose. string ActionRequiredItemDto.TitleKey and string ActionRequiredItemDto.MessageKey are dashboard string-resource
          *     names, and Dictionary&lt;string, string&gt; ActionRequiredItemDto.Parameters are the named values those strings format in (a provider key, a widget
-         *     name, a failure count). The client renders them in the viewer's language; int ActionRequiredItemDto.Count drives plurals.string ActionRequiredItemDto.DeepLinkRoute is the dashboard route slug of the page where the condition is fixed
-         *                 (integrations, moderationqueue, rewards, ...), the lower-cased shell route name.string ActionRequiredItemDto.Id is the item's stable identity (S-OWN22 T2), the key the dismiss endpoint accepts. Each
+         *     name, a failure count). The client renders them in the viewer's language; int ActionRequiredItemDto.Count drives plurals.string ActionRequiredItemDto.DeepLinkRoute is the dashboard page address where the condition is fixed, with its tab when the page has tabs
+         *                 (integrations, people/queue, channel-points, ...).string ActionRequiredItemDto.Id is the item's stable identity (S-OWN22 T2), the key the dismiss endpoint accepts. Each
          *                 source embeds whatever makes an old dismissal stale into the key, so a NEW occurrence surfaces again: a dead
          *                 token is token:{connectionId}:{invalidatedAtUtcTicks}, a single held message is
          *                 held:{queueItemGuid}, a per-user group of held messages is held-user:{sourceUserId}. Held
@@ -82850,6 +83235,10 @@ export interface components {
             reason?: null | string;
             blockedByUserId?: null | string;
         };
+        /** @description The Twitch authorize URL the setup wizard opens to connect the platform bot (wire name `oauthUrl`). */
+        BotOAuthUrlDto: {
+            oauthUrl: string;
+        };
         /** @description DTO describing the connected bot account. */
         BotStatusDto: {
             connected: boolean;
@@ -83042,6 +83431,99 @@ export interface components {
             tierKey: string;
             atPeriodEnd: boolean;
         };
+        /** @description One day of the per-channel aggregate (analytics.md §4, schema M.8) — the chart/time-series row. */
+        ChannelAnalyticsDailyDto: {
+            /** Format: date */
+            activityDate: string;
+            /** Format: int32 */
+            uniqueChatters: number | string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int64 */
+            totalWatchSeconds: number | string;
+            /** Format: int32 */
+            newFollowers: number | string;
+            /** Format: int32 */
+            newSubscribers: number | string;
+            /** Format: int64 */
+            bitsCheered: number | string;
+            /** Format: int64 */
+            commandsRun: number | string;
+            /** Format: int64 */
+            redemptionsCount: number | string;
+            /** Format: int32 */
+            songRequests: number | string;
+            /** Format: int64 */
+            currencyEarnedTotal: number | string;
+            /** Format: int64 */
+            currencySpentTotal: number | string;
+            /** Format: int32 */
+            gamesPlayed: number | string;
+            /** Format: int32 */
+            peakViewers: null | number | string;
+        };
+        /** @description % change of each headline metric vs the preceding equal-length window (0 when the prior window is 0). */
+        ChannelAnalyticsDeltasDto: {
+            /** Format: double */
+            messagesPct: number | string;
+            /** Format: double */
+            followersPct: number | string;
+            /** Format: double */
+            subscribersPct: number | string;
+            /** Format: double */
+            bitsPct: number | string;
+            /** Format: double */
+            commandsPct: number | string;
+            /** Format: double */
+            redemptionsPct: number | string;
+        };
+        /**
+         * @description One streaming platform's slice of the channel's activity over a range (analytics.md §4, D1 —
+         *     one channel, many platform connections). Only metrics whose source event actually carries a
+         *     platform tag are broken out here; a provider only appears when it has real, nonzero activity in
+         *     the range — never a zero placeholder for a platform that was never connected.
+         */
+        ChannelAnalyticsPlatformSummaryDto: {
+            provider: string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int32 */
+            uniqueChatters: number | string;
+            /** Format: int32 */
+            newFollowers: number | string;
+            /** Format: int32 */
+            newSubscribers: number | string;
+            /** Format: int64 */
+            bitsCheered: number | string;
+        };
+        /** @description Headline totals over a range + deltas vs the preceding window + peak viewers (analytics.md §4). */
+        ChannelAnalyticsSummaryDto: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int32 */
+            newFollowers: number | string;
+            /** Format: int32 */
+            newSubscribers: number | string;
+            /** Format: int64 */
+            bitsCheered: number | string;
+            /** Format: int64 */
+            commandsRun: number | string;
+            /** Format: int64 */
+            redemptionsCount: number | string;
+            /** Format: int32 */
+            songRequests: number | string;
+            /** Format: int64 */
+            currencyEarnedTotal: number | string;
+            /** Format: int64 */
+            currencySpentTotal: number | string;
+            /** Format: int32 */
+            peakViewers: null | number | string;
+            deltas: components["schemas"]["ChannelAnalyticsDeltasDto"];
+        };
         ChannelAssetDto: {
             /**
              * Format: ulid
@@ -83137,6 +83619,26 @@ export interface components {
             language: null | string;
             /** Format: date-time */
             createdAt: string;
+        };
+        ChannelFederationOptInDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            peerId: null | string;
+            optInType: string;
+            direction: string;
+            isEnabled: boolean;
         };
         /**
          * @description The channel-wide connection state of a single integration entry (Twitch, custom bot, Spotify,
@@ -83512,6 +84014,70 @@ export interface components {
             available: number | string;
             /** Format: int32 */
             assigned: number | string;
+        };
+        CodeScriptDetailDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
+            description: null | string;
+            isEnabled: boolean;
+            language: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            currentVersionId: null | string;
+            currentVersion: null | components["schemas"]["CodeScriptVersionDto"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CodeScriptSummaryDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
+            description: null | string;
+            isEnabled: boolean;
+            /** Format: int32 */
+            currentVersion: null | number | string;
+            currentValidationStatus: string;
+            lastRuntimeError: null | string;
+            /** Format: date-time */
+            lastRanAt: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CodeScriptVersionDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            codeScriptId: string;
+            /** Format: int32 */
+            version: number | string;
+            sourceCode: string;
+            compiledHash: string;
+            validationStatus: string;
+            validationErrors: components["schemas"]["ScriptValidationError"][];
+            declaredCapabilities: string[];
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            createdAt: string;
         };
         /** @description What a cohort of accounts posting the same skeleton has been judged to be. */
         CohortVerdict: number;
@@ -84159,6 +84725,33 @@ export interface components {
             isFrozen: boolean;
             /** Format: date-time */
             lastActivityAt: null | string;
+        };
+        /** @description A channel's currency definition (economy.md §4). */
+        CurrencyConfigDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: string;
+            currencyName: string;
+            currencyNamePlural: null | string;
+            iconUrl: null | string;
+            isEnabled: boolean;
+            /** Format: int64 */
+            startingBalance: number | string;
+            /** Format: int64 */
+            maxBalance: null | number | string;
+            /** Format: int32 */
+            decimalPlaces: number | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         /** @description One immutable ledger movement (economy.md §4). */
         CurrencyLedgerEntryDto: {
@@ -85292,6 +85885,34 @@ export interface components {
             nameKey?: null | string;
             descriptionKey?: null | string;
         };
+        /** @description A channel's configuration for one game (economy.md §4). */
+        GameConfigDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            gameType: string;
+            category: string;
+            isEnabled: boolean;
+            requires18Plus: boolean;
+            /** Format: int64 */
+            minBet: null | number | string;
+            /** Format: int64 */
+            maxBet: null | number | string;
+            /** Format: double */
+            houseEdgePercent: null | number | string;
+            /** Format: double */
+            winChancePercent: null | number | string;
+            /** Format: double */
+            payoutMultiplier: null | number | string;
+            /** Format: int32 */
+            cooldownSeconds: number | string;
+            /** Format: int32 */
+            maxPlaysPerStream: null | number | string;
+            permission: string;
+            config: null | Record<string, never>;
+        };
         /** @description An immutable game play record (economy.md §4). */
         GamePlayDto: {
             /** Format: int64 */
@@ -85734,6 +86355,20 @@ export interface components {
             updatedAt: string;
             genericConfig: null | components["schemas"]["GenericInboundConfig"];
         };
+        /** @description One row of the channel's installed-bundle ledger. */
+        InstalledBundleDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
+            source: string;
+            marketplaceItemId: null | string;
+            version: string;
+            /** Format: date-time */
+            installedAt: string;
+        };
         /** @description The channel row an install created or replaced. */
         InstalledPlatformTemplateDto: {
             kind: string;
@@ -85994,22 +86629,55 @@ export interface components {
         };
         JsonElement: unknown;
         JsonNode: unknown;
-        /** @description A viewer's leaderboard visibility on a channel: `OptedIn` is true unless the viewer has an active opt-out. */
-        LeaderboardConsentDto: {
-            optedIn: boolean;
-        };
-        LeaderboardEntryDto: {
-            /** Format: int32 */
-            rank: number | string;
-            userId: string;
+        /** @description A configured leaderboard (economy.md §4). */
+        LeaderboardConfigDto: {
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            internalUserId: null | string;
-            displayName: string;
+            id: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: null | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            jarId: null | string;
+            metric: string;
+            scope: string;
+            period: string;
+            isPublic: boolean;
             /** Format: int32 */
-            points: number | string;
+            topN: number | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description A viewer's leaderboard visibility on a channel: `OptedIn` is true unless the viewer has an active opt-out. */
+        LeaderboardConsentDto: {
+            optedIn: boolean;
+        };
+        /** @description One ranked row in a leaderboard (economy.md §4). */
+        LeaderboardEntryDto: {
+            /** Format: int32 */
+            rank: number | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            subjectUserId: null | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            subjectAccountId: null | string;
+            displayName: string;
+            /** Format: int64 */
+            value: number | string;
         };
         /**
          * @description The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.
@@ -86172,6 +86840,10 @@ export interface components {
             rating: number | string;
             /** Format: int64 */
             installs: number | string;
+        };
+        /** @description The publisher-token read model: presence only, never the value. */
+        MarketplacePublisherStatusDto: {
+            hasToken: boolean;
         };
         /** @description Write-only publisher-token body. The stored token is never echoed back by any endpoint. */
         MarketplacePublisherTokenRequest: {
@@ -86458,6 +87130,17 @@ export interface components {
             reason: null | string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @description Today's moderation counts for a channel, derived from its event log. */
+        ModerationStatsDto: {
+            /** Format: int32 */
+            bansToday: number | string;
+            /** Format: int32 */
+            timeouts: number | string;
+            /** Format: int32 */
+            deletedMessages: number | string;
+            /** Format: int32 */
+            automodActions: number | string;
         };
         /** @description One Twitch moderator currently granted on the channel. */
         ModeratorDto: {
@@ -87233,8 +87916,8 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
-        PaginatedResponseOfChannelDto: {
-            data?: components["schemas"]["ChannelDto"][];
+        PaginatedResponseOfChannelMembershipDto: {
+            data?: components["schemas"]["ChannelMembershipDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
@@ -87242,8 +87925,8 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
-        PaginatedResponseOfChannelMembershipDto: {
-            data?: components["schemas"]["ChannelMembershipDto"][];
+        PaginatedResponseOfChannelSummaryDto: {
+            data?: components["schemas"]["ChannelSummaryDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
@@ -87262,6 +87945,24 @@ export interface components {
         };
         PaginatedResponseOfCodePoolDto: {
             data?: components["schemas"]["CodePoolDto"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
+        PaginatedResponseOfCodeScriptSummaryDto: {
+            data?: components["schemas"]["CodeScriptSummaryDto"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
+        PaginatedResponseOfCodeScriptVersionDto: {
+            data?: components["schemas"]["CodeScriptVersionDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
@@ -87650,6 +88351,15 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
+        PaginatedResponseOfStreamListItemDto: {
+            data?: components["schemas"]["StreamListItemDto"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
         PaginatedResponseOfSupporterEventDto: {
             data?: components["schemas"]["SupporterEventDto"][];
             /** Format: int32 */
@@ -87724,6 +88434,15 @@ export interface components {
         };
         PaginatedResponseOfUserDto: {
             data?: components["schemas"]["UserDto"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
+        PaginatedResponseOfViewerProfileListItemDto: {
+            data?: components["schemas"]["ViewerProfileListItemDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
@@ -88097,6 +88816,21 @@ export interface components {
             isValid?: boolean;
             errorCode?: null | string;
             errorMessage?: null | string;
+        };
+        /** @description SaaS-only cross-tenant platform stats (analytics.md §4) — no per-tenant identity crosses the boundary. */
+        PlatformAnalyticsDto: {
+            /** Format: int32 */
+            activeChannels: number | string;
+            /** Format: int32 */
+            dailyActiveChannels: number | string;
+            /** Format: int64 */
+            totalEventsProcessed: number | string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int64 */
+            totalRedemptions: number | string;
+            /** Format: int64 */
+            totalCommandsRun: number | string;
         };
         /**
          * @description One platform audio file. string PlatformAudioAssetDto.PreviewUrl plays it in the browser; IReadOnlyList&lt;string&gt; PlatformAudioAssetDto.UsedByTemplates
@@ -88537,6 +89271,12 @@ export interface components {
         };
         PublishPreviewRequest: {
             mode: string;
+        };
+        /** @description A publish submission in the vetting queue: `pending` | `approved` | `rejected` (+ reason). */
+        PublishSubmissionDto: {
+            submissionId: string;
+            status: string;
+            reviewNote: null | string;
         };
         /** @description Redeem a catalog item (economy.md §4). */
         PurchaseRequest: {
@@ -89006,6 +89746,33 @@ export interface components {
             clientSecret: string;
             botUsername: null | string;
         };
+        /** @description A pooled cross-channel savings jar (economy.md §4). */
+        SavingsJarDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            ownerBroadcasterId: string;
+            name: string;
+            description: null | string;
+            /** Format: int64 */
+            goalAmount: null | number | string;
+            /** Format: int64 */
+            balance: number | string;
+            iconUrl: null | string;
+            isOpen: boolean;
+            /** Format: int64 */
+            maxWithdrawalPerChannel: null | number | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         ScopeDto: {
             scope: string;
             name: string;
@@ -89062,6 +89829,25 @@ export interface components {
             trigger?: null | string;
             role?: null | string;
             project?: null | components["schemas"]["ProjectDto"];
+        };
+        /** @description One save-time validation rejection (custom-code.md §4). */
+        ScriptValidationError: {
+            /** @description A stable code for the kind of rejection, for programs to match on. */
+            code: string;
+            /** @description The reason in plain words, for the author to read. */
+            message: string;
+            /**
+             * Format: int32
+             * @description The line in the script where the problem is. Null when it has no single line.
+             */
+            line: null | number | string;
+            /**
+             * Format: int32
+             * @description The column in that line where the problem starts. Null when it has no single column.
+             */
+            column: null | number | string;
+            /** @description The project file the line and column belong to. Null when unknown (older stored errors). */
+            file?: null | string;
         };
         /**
          * @description A StreamElements custom command. `AccessLevel` is SE's numeric permission ladder
@@ -89348,6 +90134,10 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        /** @description Whether the channel's Twitch Shield Mode is active. */
+        ShieldModeDto: {
+            enabled: boolean;
+        };
         ShoutoutOutcomeDto: {
             path: string;
         };
@@ -89369,6 +90159,20 @@ export interface components {
         SongRequestDto: {
             query: string;
             requestedBy?: null | string;
+        };
+        /**
+         * @description The channel context a public SR-page token resolves to (music-sr.md §3.7) — everything the anonymous
+         *     `/sr/{token}` page needs to render and gate the submit form, with no JWT and no PII.
+         */
+        SongRequestPageDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: string;
+            channelName: string;
+            isAcceptingRequests: boolean;
+            enabledProviders: string[];
         };
         SoundClipDto: {
             /**
@@ -89907,6 +90711,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfBotOAuthUrlDto: {
+            status?: string;
+            data?: null | components["schemas"]["BotOAuthUrlDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfBotStatusDto: {
             status?: string;
             data?: null | components["schemas"]["BotStatusDto"];
@@ -89949,6 +90766,32 @@ export interface components {
         StatusResponseDtoOfBuiltinReplyDto: {
             status?: string;
             data?: null | components["schemas"]["BuiltinReplyDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfCatalogItemDto: {
+            status?: string;
+            data?: null | components["schemas"]["CatalogItemDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfChannelAnalyticsSummaryDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelAnalyticsSummaryDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -90180,6 +91023,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfCodeScriptDetailDto: {
+            status?: string;
+            data?: null | components["schemas"]["CodeScriptDetailDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfCommandDto: {
             status?: string;
             data?: null | components["schemas"]["CommandDto"];
@@ -90222,6 +91078,19 @@ export interface components {
         StatusResponseDtoOfCurrencyAccountDto: {
             status?: string;
             data?: null | components["schemas"]["CurrencyAccountDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfCurrencyConfigDto: {
+            status?: string;
+            data?: null | components["schemas"]["CurrencyConfigDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -90648,6 +91517,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfFederationPeerDto: {
+            status?: string;
+            data?: null | components["schemas"]["FederationPeerDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfFoundersBadgeDto: {
             status?: string;
             data?: null | components["schemas"]["FoundersBadgeDto"];
@@ -90803,6 +91685,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfInboundWebhookEndpointDto: {
+            status?: string;
+            data?: null | components["schemas"]["InboundWebhookEndpointDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         /**
          * @description Standard response envelope for mutations and single-item responses.
          *     Matches the NoMercy media server pattern.
@@ -90895,6 +91790,19 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfActionDefaultDto: {
             status?: string;
             data?: null | components["schemas"]["ActionDefaultDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfActionPermissionDto: {
+            status?: string;
+            data?: null | components["schemas"]["ActionPermissionDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -91077,6 +91985,45 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto: {
             status?: string;
             data?: null | components["schemas"]["BuiltinReplyGroupDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfChannelAnalyticsDailyDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelAnalyticsDailyDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfChannelAnalyticsPlatformSummaryDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelAnalyticsPlatformSummaryDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfChannelFederationOptInDto: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelFederationOptInDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -91390,6 +92337,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfGameConfigDto: {
+            status?: string;
+            data?: null | components["schemas"]["GameConfigDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfGiveawayWinnerDto: {
             status?: string;
             data?: null | components["schemas"]["GiveawayWinnerDto"][];
@@ -91437,6 +92397,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfInstalledBundleDto: {
+            status?: string;
+            data?: null | components["schemas"]["InstalledBundleDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfIntegrationStatusDto: {
             status?: string;
             data?: null | components["schemas"]["IntegrationStatusDto"][];
@@ -91453,6 +92426,32 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfInvoiceDto: {
             status?: string;
             data?: null | components["schemas"]["InvoiceDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfLeaderboardConfigDto: {
+            status?: string;
+            data?: null | components["schemas"]["LeaderboardConfigDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfLeaderboardEntryDto: {
+            status?: string;
+            data?: null | components["schemas"]["LeaderboardEntryDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -91649,6 +92648,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfPermitGrantDto: {
+            status?: string;
+            data?: null | components["schemas"]["PermitGrantDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         /**
          * @description Standard response envelope for mutations and single-item responses.
          *     Matches the NoMercy media server pattern.
@@ -91721,6 +92733,19 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfResourceUsageDto: {
             status?: string;
             data?: null | components["schemas"]["ResourceUsageDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfSavingsJarDto: {
+            status?: string;
+            data?: null | components["schemas"]["SavingsJarDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -91843,6 +92868,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfTopViewerDto: {
+            status?: string;
+            data?: null | components["schemas"]["TopViewerDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfTtsLexiconEntryDto: {
             status?: string;
             data?: null | components["schemas"]["TtsLexiconEntryDto"][];
@@ -91869,6 +92907,32 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfIReadOnlyListOfTwitchPoll: {
+            status?: string;
+            data?: null | components["schemas"]["TwitchPoll"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfTwitchPrediction: {
+            status?: string;
+            data?: null | components["schemas"]["TwitchPrediction"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfIReadOnlyListOfUsageMetricDto: {
             status?: string;
             data?: null | components["schemas"]["UsageMetricDto"][];
@@ -91885,6 +92949,19 @@ export interface components {
         StatusResponseDtoOfIReadOnlyListOfUserIdentityDto: {
             status?: string;
             data?: null | components["schemas"]["UserIdentityDto"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfIReadOnlyListOfViewerEngagementDailyDto: {
+            status?: string;
+            data?: null | components["schemas"]["ViewerEngagementDailyDto"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -92333,6 +93410,32 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfMarketplaceItemDto: {
+            status?: string;
+            data?: null | components["schemas"]["MarketplaceItemDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfMarketplacePublisherStatusDto: {
+            status?: string;
+            data?: null | components["schemas"]["MarketplacePublisherStatusDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfMassBanOptInDto: {
             status?: string;
             data?: null | components["schemas"]["MassBanOptInDto"];
@@ -92453,6 +93556,19 @@ export interface components {
         StatusResponseDtoOfModerationStandingDto: {
             status?: string;
             data?: null | components["schemas"]["ModerationStandingDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfModerationStatsDto: {
+            status?: string;
+            data?: null | components["schemas"]["ModerationStatsDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -92710,6 +93826,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfOutboundWebhookEndpointDto: {
+            status?: string;
+            data?: null | components["schemas"]["OutboundWebhookEndpointDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfOverlayManifest: {
             status?: string;
             data?: null | components["schemas"]["OverlayManifest"];
@@ -92907,6 +94036,19 @@ export interface components {
         StatusResponseDtoOfPipelineValidationResult: {
             status?: string;
             data?: null | components["schemas"]["PipelineValidationResult"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfPlatformAnalyticsDto: {
+            status?: string;
+            data?: null | components["schemas"]["PlatformAnalyticsDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -93140,6 +94282,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfPublishSubmissionDto: {
+            status?: string;
+            data?: null | components["schemas"]["PublishSubmissionDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfQuoteDto: {
             status?: string;
             data?: null | components["schemas"]["QuoteDto"];
@@ -93231,6 +94386,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfSavingsJarDto: {
+            status?: string;
+            data?: null | components["schemas"]["SavingsJarDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfScopeRegrantStartDto: {
             status?: string;
             data?: null | components["schemas"]["ScopeRegrantStartDto"];
@@ -93309,6 +94477,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfShieldModeDto: {
+            status?: string;
+            data?: null | components["schemas"]["ShieldModeDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfShoutoutOutcomeDto: {
             status?: string;
             data?: null | components["schemas"]["ShoutoutOutcomeDto"];
@@ -93325,6 +94506,19 @@ export interface components {
         StatusResponseDtoOfShoutoutTemplateDto: {
             status?: string;
             data?: null | components["schemas"]["ShoutoutTemplateDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfSongRequestPageDto: {
+            status?: string;
+            data?: null | components["schemas"]["SongRequestPageDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -93372,6 +94566,19 @@ export interface components {
         StatusResponseDtoOfSpamDefenseSettings: {
             status?: string;
             data?: null | components["schemas"]["SpamDefenseSettings"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseDtoOfStreamAnalyticsDto: {
+            status?: string;
+            data?: null | components["schemas"]["StreamAnalyticsDto"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -93932,6 +95139,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfViewerProfileDto: {
+            status?: string;
+            data?: null | components["schemas"]["ViewerProfileDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfViewerProfileSummaryDto: {
             status?: string;
             data?: null | components["schemas"]["ViewerProfileSummaryDto"];
@@ -94010,6 +95230,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseDtoOfWatchStreakDto: {
+            status?: string;
+            data?: null | components["schemas"]["WatchStreakDto"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseDtoOfWidgetDetail: {
             status?: string;
             data?: null | components["schemas"]["WidgetDetail"];
@@ -94076,6 +95309,39 @@ export interface components {
             args?: null | unknown[];
         };
         /**
+         * @description One stream's per-stream aggregates — the "stream by stream, not all-time" analytics view. Counts are
+         *     window-folded from the raw activity between DateTimeOffset? StreamAnalyticsDto.StartedAt and DateTimeOffset? StreamAnalyticsDto.EndedAt (or now,
+         *     while the stream is still live); int? StreamAnalyticsDto.PeakViewers is the fold the status poller stamps.
+         */
+        StreamAnalyticsDto: {
+            streamId: string;
+            title: null | string;
+            gameName: null | string;
+            /** Format: date-time */
+            startedAt: null | string;
+            /** Format: date-time */
+            endedAt: null | string;
+            /** Format: int64 */
+            durationSeconds: null | number | string;
+            /** Format: int32 */
+            peakViewers: null | number | string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: int32 */
+            uniqueChatters: number | string;
+            /** Format: int32 */
+            newFollowers: number | string;
+            /** Format: int32 */
+            newSubscribers: number | string;
+            /** Format: int32 */
+            cheersCount: number | string;
+            /** Format: int64 */
+            commandsRun: number | string;
+            /** Format: int64 */
+            redemptionsCount: number | string;
+            transcript: components["schemas"]["VoiceTranscriptSegmentDto"][];
+        };
+        /**
          * @description A tolerant view of a StreamElements chatbot export (the JSON a streamer downloads from their SE bot
          *     dashboard). Every field is nullable and every collection optional so a partial or older export never fails
          *     to bind — missing sections simply import nothing. Only the commands / quotes / timers surfaces are read;
@@ -94101,6 +95367,20 @@ export interface components {
             language: null | string;
             /** Format: date-time */
             lastStreamedAt?: null | string;
+        };
+        /** @description One stream in the channel's history list, newest first — the per-stream entry point. */
+        StreamListItemDto: {
+            streamId: string;
+            title: null | string;
+            gameName: null | string;
+            /** Format: date-time */
+            startedAt: null | string;
+            /** Format: date-time */
+            endedAt: null | string;
+            /** Format: int64 */
+            durationSeconds: null | number | string;
+            /** Format: int32 */
+            peakViewers: null | number | string;
         };
         StreamStatusDto: {
             isLive: boolean;
@@ -94670,6 +95950,17 @@ export interface components {
             createdAt: string;
             /** @description True when the timer was installed from a platform template, so it can be restored to it. */
             hasPlatformDefault?: boolean;
+        };
+        /** @description A channel's top viewer over a range by the chosen metric (analytics.md §4) — not the economy board. */
+        TopViewerDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            viewerUserId: string;
+            displayName: null | string;
+            /** Format: int64 */
+            metricValue: number | string;
         };
         /** @description The metric a top-viewers query ranks by (analytics.md §4). */
         TopViewerMetric: number;
@@ -96164,6 +97455,27 @@ export interface components {
             giveawayWinCount: number | string;
             leaderboardOptedOut: boolean;
         };
+        /** @description One viewer's daily engagement roll-up (analytics.md §4, M.7). */
+        ViewerEngagementDailyDto: {
+            /** Format: date */
+            activityDate: string;
+            /** Format: int64 */
+            watchSeconds: number | string;
+            /** Format: int32 */
+            messageCount: number | string;
+            /** Format: int32 */
+            commandCount: number | string;
+            /** Format: int32 */
+            redemptionCount: number | string;
+            /** Format: int32 */
+            songRequestCount: number | string;
+            /** Format: int64 */
+            currencyEarned: number | string;
+            /** Format: int64 */
+            currencySpent: number | string;
+            /** Format: int32 */
+            gamesPlayed: number | string;
+        };
         ViewerIdentityDto: {
             /**
              * Format: ulid
@@ -96237,6 +97549,21 @@ export interface components {
             subTier: null | string;
             isAnalyticsOptedOut: boolean;
         };
+        /** @description A row in the ranked/filtered viewer list (analytics.md §4, M.1). */
+        ViewerProfileListItemDto: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            viewerUserId: string;
+            displayName: null | string;
+            /** Format: int64 */
+            totalWatchSeconds: number | string;
+            /** Format: int64 */
+            totalMessages: number | string;
+            /** Format: date-time */
+            lastSeenAt: null | string;
+        };
         /** @description How the viewer list is sorted (analytics.md §4). */
         ViewerProfileSort: number;
         /**
@@ -96276,6 +97603,12 @@ export interface components {
             /** Format: date-time */
             resolvedAt: null | string;
             resolvedByName: null | string;
+        };
+        /** @description One finalized chunk of a stream's spoken-word transcript (backend `VoiceTranscriptSegment`). */
+        VoiceTranscriptSegmentDto: {
+            text: string;
+            /** Format: date-time */
+            spokenAt: string;
         };
         /** @description One voice-triggered word counter + sticker. */
         VoiceTriggerDto: {
