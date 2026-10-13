@@ -296,6 +296,65 @@ describe('ChatView', () => {
     expect(rowOf('m2').textContent).toContain('second words');
   });
 
+  // Stoney 2026-10-14: a chatter allowed to use HTML sees it rendered, the same as on the overlay. The
+  // server sanitizes an html fragment; the dashboard purifies it again before it touches the DOM.
+  it('renders an html fragment as markup and strips anything that could run', async () => {
+    const markup: string =
+      '<marquee><img src="https://cdn.test/dino.gif" alt="DinoDance" class="emote" onerror="alert(1)"></marquee><script>alert(2)</script>';
+
+    history = [line('m1', 'u1', 'Geen', 'raw', { fragments: [{ type: 'html', text: markup }] })];
+    await open();
+
+    const html: Element = rowOf('m1').querySelector('[data-html]')!;
+
+    expect(html.querySelector('marquee img.emote')?.getAttribute('alt')).toBe('DinoDance');
+    expect(html.querySelector('img')?.hasAttribute('onerror')).toBe(false);
+    expect(html.querySelector('script')).toBeNull();
+    expect(rowOf('m1').textContent).not.toContain('<marquee>');
+  });
+
+  // Stoney 2026-10-14: "make them frankerfacez style": a mention is bold text in the mentioned chatter's color,
+  // never a pill with a background that blends into the row highlight.
+  it('shows a mention as bold text in the mentioned chatter color, with no background', async () => {
+    history = [
+      line('m1', 'u1', 'Bamo', '@iFiLLz Cool', {
+        fragments: [
+          {
+            type: 'mention',
+            text: '@iFiLLz',
+            mention: {
+              userId: 'u9',
+              username: 'ifillz',
+              displayName: 'iFiLLz',
+              color: '#ff7f50',
+            },
+          },
+          { type: 'text', text: ' Cool' },
+        ],
+      }),
+    ];
+
+    await open();
+
+    const tag: HTMLElement = rowOf('m1').querySelector('[data-mention-tag]')!;
+
+    expect(tag.textContent).toBe('@iFiLLz');
+    expect(tag.className).toContain('font-bold');
+    expect(tag.className).not.toMatch(/\bbg-|\bring-|\bpx-/);
+    expect(tag.style.color).not.toBe('');
+  });
+
+  // Imported history carries a mention as plain text; it still reads as a mention.
+  it('bolds an @name written in plain text, the same as a mention fragment', async () => {
+    history = [line('m1', 'u1', 'Geen', 'thanks @f0xb17 for that')];
+    await open();
+
+    const tags: string[] = [...rowOf('m1').querySelectorAll('[data-mention-tag]')].map((tag: Element) => tag.textContent ?? '');
+
+    expect(tags).toEqual(['@f0xb17']);
+    expect(rowOf('m1').querySelector('[data-mention-tag]')!.className).toContain('font-bold');
+  });
+
   it('shows a line that is pushed into the feed', async () => {
     await open();
 
@@ -473,23 +532,45 @@ describe('ChatView', () => {
     );
   });
 
-  it('removes command lines while Hide commands is on', async () => {
+  // Command lines are a view option: the Commands switch in the Display drawer.
+  async function switchOffCommands(): Promise<void> {
+    document.body.querySelector<HTMLElement>('[data-display-toggle]')!.click();
+    await settle();
+
+    document.body
+      .querySelector<HTMLElement>('[data-display-panel] [data-option="commands"] [role="switch"]')!
+      .click();
+
+    await settle();
+  }
+
+  it('puts the page controls in the control bar under the title, not in the feed card', async () => {
+    await open();
+    const bar = document.body.querySelector('[data-slot="page-bar"]')!;
+
+    expect(bar.querySelector('[data-display-toggle]')).not.toBeNull();
+
+    expect(document.body.querySelector('[role="switch"]')).toBeNull();
+  });
+
+  it('removes command lines while the Commands view option is off', async () => {
     await open();
     expect(rowIds()).toContain('m3');
-    document.body.querySelector<HTMLElement>('[role="switch"]')!.click();
-    await settle();
+    await switchOffCommands();
     expect(rowIds()).toEqual(['m1', 'm2']);
   });
 
-  it('remembers Hide commands after the page is closed and opened again', async () => {
+  it('remembers the Commands view option after the page is closed and opened again', async () => {
     await open();
-    document.body.querySelector<HTMLElement>('[role="switch"]')!.click();
-    await settle();
+    await switchOffCommands();
     mounted?.unmount();
     mounted = null;
     await open();
     expect(rowIds()).toEqual(['m1', 'm2']);
-    expect(localStorage.getItem('nnz.chat.hideCommands')).toBe('true');
+
+    expect(JSON.parse(localStorage.getItem('nnz.chat.display')!)).toMatchObject({
+      commands: false,
+    });
   });
 
   it('shows the error of a failed send and keeps the text', async () => {
@@ -812,7 +893,7 @@ describe('ChatView display drawer', () => {
     });
 
     it('lists in the Viewer only the lines the feed shows, so a hidden command stays out', async () => {
-      localStorage.setItem('nnz.chat.hideCommands', 'true');
+      localStorage.setItem('nnz.chat.display', JSON.stringify({ commands: false }));
 
       history = [
         line('m1', 'u1', 'Alice', 'first words'),
@@ -830,7 +911,7 @@ describe('ChatView display drawer', () => {
       expect(listed[0]).toContain('first words');
     });
 
-    it('ends the focus when the same chatter is picked again, and keeps the panel open', async () => {
+    it('ends the focus and closes the panel when the same chatter is picked again', async () => {
       await open();
       rowOf('m1').click();
       await settle();
@@ -838,7 +919,7 @@ describe('ChatView display drawer', () => {
       await settle();
 
       expect(rowOf('m2').dataset.focus).toBeUndefined();
-      expect(viewer()).not.toBeNull();
+      expect(viewer()).toBeNull();
     });
 
     it('ends the focus on Escape and closes everything with the close button', async () => {
@@ -859,6 +940,21 @@ describe('ChatView display drawer', () => {
       expect(rowOf('m2').dataset.focus).toBeUndefined();
     });
 
+    // Stoney 2026-10-13: the tray covered the end of a long message. It sits above the name, touching the
+    // line so the hover holds while the pointer moves up to it.
+    it('floats the line actions above the name, never over the message text', async () => {
+      await open();
+      const tray: HTMLElement = rowOf('m1').querySelector('[data-tray]')!;
+      const text: HTMLElement = rowOf('m1').querySelector('p')!;
+
+      expect(tray.parentElement).toBe(text.parentElement);
+      expect(tray.classList).toContain('bottom-full');
+      expect(tray.classList).toContain('left-0');
+      expect(tray.classList).not.toContain('top-1/2');
+      // Normal spacing pads the row 8px: the tray lifts 6px past it, keeping a 2px overlap with the row.
+      expect(tray.classList).toContain('-translate-y-1.5');
+    });
+
     it('a click on a line action does not pick the chatter', async () => {
       await open();
       action('m1', 'profile').click();
@@ -868,12 +964,20 @@ describe('ChatView display drawer', () => {
       expect(useProfileDialogStore().userId).toBe('u1');
     });
 
-    it('the header Viewer button opens an empty panel that says what to do', async () => {
+    // A picked chatter opens the panel and its close button shuts it, so a header button adds nothing.
+    it('has no Viewer button and shows the panel only while a chatter is picked', async () => {
       await open();
-      document.body.querySelector<HTMLElement>('[data-viewer-toggle]')?.click();
-      await settle();
 
-      expect(viewer()?.textContent).toContain(en.dashboard.chat.viewer.empty);
+      expect(document.body.querySelector('[data-viewer-toggle]')).toBeNull();
+      expect(viewer()).toBeNull();
+
+      rowOf('m2').click();
+      await settle();
+      expect(viewer()).not.toBeNull();
+
+      rowOf('m2').click();
+      await settle();
+      expect(viewer()).toBeNull();
     });
   });
 });

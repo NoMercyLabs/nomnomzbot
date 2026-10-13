@@ -36,7 +36,7 @@ const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
 
 <template>
   <PageHeader :title="$t('dashboard.settings.title')" :crumb="$t('dashboard.settings.crumb')">
-    <template #tabs><PageTabs :tabs="tabs" /></template>
+    <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
   <ListDetail v-if="view === 'channel'" show-detail>

@@ -25,6 +25,7 @@
           "badges": "Badges",
           "avatars": "Avatars",
           "platform": "Platformpictogrammen",
+          "commands": "Commando's",
           "timestamps": "Tijdstempels",
           "nameColors": "Naamkleuren",
           "alternating": "Afwisselende rijen",
@@ -50,7 +51,6 @@
         "show": "Toon",
         "deletedTag": "(verwijderd)"
       },
-      "hideCommands": "Verberg commando's",
       "lengths": {
         "60": "1 min",
         "600": "10 min",
@@ -58,7 +58,6 @@
         "86400": "1 dag"
       },
       "viewer": {
-        "toggle": "Kijker",
         "title": "Kijker",
         "close": "Kijker sluiten",
         "clearFocus": "Focus op {name} wissen",
@@ -89,7 +88,7 @@
         "label": "Chatberichten",
         "count": "{count} berichten",
         "empty": "Nog geen berichten.",
-        "emptyCommands": "Tot nu toe alleen commando's. Zet Verberg commando's uit om ze te zien.",
+        "emptyCommands": "Tot nu toe alleen commando's. Zet Commando's aan in Weergave om ze te zien.",
         "error": "De chat kon niet laden."
       },
       "line": {

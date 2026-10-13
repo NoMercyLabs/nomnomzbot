@@ -106,7 +106,7 @@ const primaryRoute = computed<{ name: string; label: string } | null>(() => {
       <StatusBadge :tone="live ? 'ok' : 'off'" :label="statusLabel" />
     </template>
     <!-- The header's second row holds the stream line, as the mockup's head-bar does. -->
-    <template v-if="hasStreamLine" #tabs>
+    <template v-if="hasStreamLine" #bar>
       <span data-slot="stream-line" class="text-muted-foreground">
         <i18n-t v-if="live" :keypath="liveLineKey" scope="global" tag="span">
           <template #uptime>

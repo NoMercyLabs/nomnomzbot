@@ -165,7 +165,7 @@ function opened(id: string | null): void {
         {{ $t('dashboard.scripts.new.button') }}
       </Button>
     </template>
-    <template #tabs>
+    <template #bar>
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>

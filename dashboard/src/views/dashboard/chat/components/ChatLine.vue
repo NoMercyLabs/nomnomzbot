@@ -32,10 +32,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { readableNameColor } from '@/lib/accent';
+import { purifyChatHtml } from '@/lib/html';
 import { formatLength } from '@/lib/time';
 import { useProfileDialogStore } from '@/stores/profileDialog';
 
-import { emoteHeights, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import { emoteHeights, spacingPadding, splitMentions, trayLift, type ChatDisplay } from '../chatDisplay';
 
 const LENGTHS: readonly number[] = [60, 600, 3600, 86400];
 
@@ -66,9 +67,8 @@ const time = computed<string>(() =>
   }),
 );
 
-const nameColor = computed<string | undefined>(() => {
-  const { color } = props.line;
-
+// A chatter color as the Display option asks: off, as sent, or lifted to a readable contrast.
+function shownColor(color: string | null | undefined): string | undefined {
   if (!color || props.display.nameColors === 'off')
     return undefined;
 
@@ -80,7 +80,9 @@ const nameColor = computed<string | undefined>(() => {
     : 'dark';
 
   return readableNameColor(color, theme, 4.5) ?? undefined;
-});
+}
+
+const nameColor = computed<string | undefined>(() => shownColor(props.line.color));
 
 // A deleted message set to "show" stays readable; a timeout or ban still strikes the line.
 const shownDeleted = computed<boolean>(() =>
@@ -122,9 +124,11 @@ const rowClass = computed<string[]>(() => {
 });
 
 function parts(text: string): ReturnType<typeof splitMentions> {
-  return props.display.mentions
-    ? splitMentions(text, props.me)
-    : [{ text, mention: false }];
+  const me = props.display.mentions
+    ? props.me
+    : null;
+
+  return splitMentions(text, me);
 }
 
 function badgeUrl(urls: Record<string, string>): string | undefined {
@@ -212,130 +216,148 @@ function pick(event: MouseEvent): void {
       alt=""
       class="size-6 flex-none rounded-full"
     />
-    <p
-      class="min-w-0 flex-1 wrap-break-word"
-      :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
-    >
-      <PlatformLogo
-        v-if="display.platform"
-        data-platform
-        :platform="line.provider"
-        class="mr-1 inline-block size-4 align-middle"
-      />
-      <template v-if="display.badges">
-        <img
-          v-for="badge in line.badges"
-          :key="badge.setId + badge.id"
-          data-badge
-          :src="badgeUrl(badge.urls)"
-          :alt="badge.setId"
+    <div class="relative min-w-0 flex-1">
+      <p
+        class="wrap-break-word"
+        :class="{ 'text-muted-foreground': line.removed, 'line-through': struck }"
+      >
+        <PlatformLogo
+          v-if="display.platform"
+          data-platform
+          :platform="line.provider"
           class="mr-1 inline-block size-4 align-middle"
         />
-      </template>
-      <UserName
-        :user-id="line.userId"
-        :name="line.displayName"
-        :style="{ color: nameColor }"
-      />
-      <template v-for="(fragment, at) in line.fragments" :key="at">
-        <img
-          v-if="fragment.emote && emoteUrl(fragment.emote.urls)"
-          data-emote
-          :src="emoteUrl(fragment.emote.urls)"
-          :alt="fragment.text"
-          :style="{ height: emoteHeights[display.emoteSize] }"
-          class="mx-0.5 inline-block align-middle"
+        <template v-if="display.badges">
+          <img
+            v-for="badge in line.badges"
+            :key="badge.setId + badge.id"
+            data-badge
+            :src="badgeUrl(badge.urls)"
+            :alt="badge.setId"
+            class="mr-1 inline-block size-4 align-middle"
+          />
+        </template>
+        <UserName
+          :user-id="line.userId"
+          :name="line.displayName"
+          :style="{ color: nameColor }"
         />
-        <template v-else>
-          {{ ' ' }}
-          <template v-for="(part, slot) in parts(fragment.text)" :key="slot">
-            <mark v-if="part.mention" data-mention class="rounded-sm bg-primary/25 px-0.5 text-foreground">{{ part.text }}</mark>
-            <template v-else>{{ part.text }}</template>
+        <template v-for="(fragment, at) in line.fragments" :key="at">
+          <img
+            v-if="fragment.emote && emoteUrl(fragment.emote.urls)"
+            data-emote
+            :src="emoteUrl(fragment.emote.urls)"
+            :alt="fragment.text"
+            :style="{ height: emoteHeights[display.emoteSize] }"
+            class="mx-0.5 inline-block align-middle"
+          />
+          <span
+            v-else-if="fragment.type === 'html'"
+            data-html
+            :style="{ '--emote-h': emoteHeights[display.emoteSize] }"
+            class="[&_.emote]:mx-0.5 [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-middle [&_img]:max-h-32"
+            v-html="purifyChatHtml(fragment.text)"
+          />
+          <span
+            v-else-if="fragment.type === 'mention' && fragment.mention"
+            data-mention-tag
+            class="font-bold"
+            :style="{ color: shownColor(fragment.mention.color) }"
+          >{{ fragment.text }}</span>
+          <template v-else>
+            {{ ' ' }}
+            <template v-for="(part, slot) in parts(fragment.text)" :key="slot">
+              <mark v-if="part.mention" data-mention class="bg-transparent font-bold text-foreground">{{ part.text }}</mark>
+              <span v-else-if="part.at" data-mention-tag class="font-bold">{{ part.text }}</span>
+              <template v-else>{{ part.text }}</template>
+            </template>
           </template>
         </template>
-      </template>
-      <span v-if="shownDeleted" data-deleted-tag class="ml-1 text-muted-foreground">{{
-        $t('dashboard.chat.display.deletedTag')
-      }}</span>
-    </p>
-    <span v-if="removal" data-removal class="flex-none text-muted-foreground">{{ removal }}</span>
-    <div
-      v-if="!line.removed"
-      class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-data-[state=open]:opacity-100"
-      data-tray
-      role="group"
-      :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"
-    >
-      <DropdownMenu>
+        <span v-if="shownDeleted" data-deleted-tag class="ml-1 text-muted-foreground">{{
+          $t('dashboard.chat.display.deletedTag')
+        }}</span>
+      </p>
+      <!-- Above the name, on the row's top edge so the hover holds on the way up; never over the text. -->
+      <div
+        v-if="!line.removed"
+        :class="trayLift[display.spacing]"
+        class="absolute bottom-full left-0 z-10 flex items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-data-[state=open]:opacity-100"
+        data-tray
+        role="group"
+        :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"
+      >
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  data-line-action="timeout"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="$t('dashboard.chat.timeout.label', { name: line.displayName })"
+                >
+                  <Clock class="size-5" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{{ $t('dashboard.chat.timeout.tip') }}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{{ $t('dashboard.chat.timeout.menu') }}</DropdownMenuLabel>
+            <DropdownMenuItem
+              v-for="seconds in LENGTHS"
+              :key="seconds"
+              :data-timeout-length="seconds"
+              @select="timeout(seconds)"
+            >
+              {{ $t(`dashboard.chat.lengths.${seconds}`) }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Tooltip>
           <TooltipTrigger as-child>
-            <DropdownMenuTrigger as-child>
-              <Button
-                data-line-action="timeout"
-                variant="ghost"
-                size="icon"
-                :aria-label="$t('dashboard.chat.timeout.label', { name: line.displayName })"
-              >
-                <Clock class="size-5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
+            <Button
+              data-line-action="delete"
+              variant="ghost"
+              size="icon"
+              :aria-label="$t('dashboard.chat.delete.label')"
+              @click="remove"
+            >
+              <Trash class="size-5" aria-hidden="true" />
+            </Button>
           </TooltipTrigger>
-          <TooltipContent>{{ $t('dashboard.chat.timeout.tip') }}</TooltipContent>
+          <TooltipContent>{{ $t('dashboard.chat.delete.label') }}</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{{ $t('dashboard.chat.timeout.menu') }}</DropdownMenuLabel>
-          <DropdownMenuItem
-            v-for="seconds in LENGTHS"
-            :key="seconds"
-            :data-timeout-length="seconds"
-            @select="timeout(seconds)"
-          >
-            {{ $t(`dashboard.chat.lengths.${seconds}`) }}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <Button
-            data-line-action="delete"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.chat.delete.label')"
-            @click="remove"
-          >
-            <Trash class="size-5" aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{{ $t('dashboard.chat.delete.label') }}</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <Button
-            data-line-action="ban"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.chat.ban.label', { name: line.displayName })"
-            @click="emit('ban', line)"
-          >
-            <StopSign class="size-5" aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{{ $t('dashboard.chat.ban.tip') }}</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <Button
-            data-line-action="profile"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.chat.line.profile', { name: line.displayName })"
-            @click="openProfile"
-          >
-            <UserCircle class="size-5" aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{{ $t('dashboard.chat.line.profileTip') }}</TooltipContent>
-      </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              data-line-action="ban"
+              variant="ghost"
+              size="icon"
+              :aria-label="$t('dashboard.chat.ban.label', { name: line.displayName })"
+              @click="emit('ban', line)"
+            >
+              <StopSign class="size-5" aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ $t('dashboard.chat.ban.tip') }}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              data-line-action="profile"
+              variant="ghost"
+              size="icon"
+              :aria-label="$t('dashboard.chat.line.profile', { name: line.displayName })"
+              @click="openProfile"
+            >
+              <UserCircle class="size-5" aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ $t('dashboard.chat.line.profileTip') }}</TooltipContent>
+        </Tooltip>
+      </div>
     </div>
+    <span v-if="removal" data-removal class="flex-none text-muted-foreground">{{ removal }}</span>
   </div>
 </template>

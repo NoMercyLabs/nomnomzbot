@@ -101,7 +101,7 @@ function pick(row: AdminTenant): void {
         {{ $t('dashboard.admin.count', { count: total }) }}
       </span>
     </template>
-    <template #tabs>
+    <template #bar>
       <div class="flex flex-wrap items-center gap-4">
         <FilterBar
           v-model="status"

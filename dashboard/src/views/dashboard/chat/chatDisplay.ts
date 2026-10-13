@@ -24,6 +24,7 @@ export type ChatDisplay = {
   badges: boolean;
   avatars: boolean;
   platform: boolean;
+  commands: boolean;
   alternating: boolean;
   nameColors: NameColors;
   narrow: boolean;
@@ -38,6 +39,7 @@ export const chatDisplayDefaults = {
   badges: true,
   avatars: false,
   platform: false,
+  commands: true,
   alternating: false,
   nameColors: 'readable',
   narrow: false,
@@ -59,24 +61,42 @@ export const spacingPadding = {
   roomy: 'py-4',
 } as const satisfies Record<Spacing, string>;
 
+// Lifts the line tray past the row padding above, so it sits on the row's top edge with a 2px overlap.
+export const trayLift = {
+  tight: '-translate-y-0',
+  normal: '-translate-y-1.5',
+  roomy: '-translate-y-3.5',
+} as const satisfies Record<Spacing, string>;
+
 export function useChatDisplay(): RemovableRef<ChatDisplay> {
   return useLocalStorage<ChatDisplay>('nnz.chat.display', { ...chatDisplayDefaults }, {
     mergeDefaults: true,
   });
 }
 
-export type MentionPart = { text: string; mention: boolean };
+// mention: the part names `username` (me); at: the part is an @name, which shows bold like FrankerFaceZ.
+export type MentionPart = {
+  text: string;
+  mention: boolean;
+  at: boolean;
+};
 
-// Cuts a text at every place it names `username` (with or without the @), so the name can be marked.
+// Cuts a text at every @name and at every place it names `username` (with or without the @).
 export function splitMentions(text: string, username: string | null): MentionPart[] {
-  if (!username)
-    return [{ text, mention: false }];
-
-  const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`(@?\\b${escaped}\\b)`, 'i');
+  const escaped = username?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = escaped
+    ? new RegExp(`(@\\w+|\\b${escaped}\\b)`, 'i')
+    : /(@\w+)/;
+  const me = escaped
+    ? new RegExp(`^@?${escaped}$`, 'i')
+    : null;
 
   return text
     .split(pattern)
     .filter((part: string) => part !== '')
-    .map((part: string) => ({ text: part, mention: pattern.test(part) }));
+    .map((part: string) => ({
+      text: part,
+      mention: me?.test(part) ?? false,
+      at: part.startsWith('@'),
+    }));
 }

@@ -227,14 +227,16 @@ async function undo(): Promise<void> {
           {{ $t('dashboard.chat.viewer.profile') }}
         </Button>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-2 gap-4">
         <StatTile
+          plain
           :label="$t('dashboard.chat.viewer.messages')"
           :value="Number(person?.messageCount ?? 0)"
           :context="$t('dashboard.chat.viewer.watched', { hours: n(Number(person?.watchHours ?? 0), { maximumFractionDigits: 1 }) })"
         />
         <StatTile
           v-if="showCurrency && account"
+          plain
           :label="currencyName"
           :value="Number(account.balance)"
           :context="$t('dashboard.chat.viewer.earned', { count: n(Number(account.lifetimeEarned)) })"

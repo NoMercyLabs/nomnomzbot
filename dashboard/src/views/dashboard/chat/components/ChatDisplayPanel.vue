@@ -23,7 +23,8 @@ import { Button } from '@/components/ui/button';
 
 import { chatDisplayDefaults, type ChatDisplay } from '../chatDisplay';
 
-type SwitchName = 'badges' | 'avatars' | 'platform' | 'alternating' | 'narrow' | 'mentions';
+type SwitchName =
+  'badges' | 'avatars' | 'platform' | 'commands' | 'alternating' | 'narrow' | 'mentions';
 type SegmentName = 'timestamps' | 'nameColors' | 'spacing' | 'emoteSize' | 'deleted';
 
 const display = defineModel<ChatDisplay>({ required: true });
@@ -62,7 +63,7 @@ const segmentKeys = {
 const sections = [
   {
     key: 'show',
-    switches: ['badges', 'avatars', 'platform'],
+    switches: ['badges', 'avatars', 'platform', 'commands'],
     segments: ['timestamps', 'nameColors'],
   },
   {

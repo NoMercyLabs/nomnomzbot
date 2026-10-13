@@ -124,7 +124,7 @@ function back(): void {
 
 <template>
   <PageHeader :title="$t('dashboard.overlays.title')" :crumb="$t('dashboard.overlays.crumb')">
-    <template #tabs>
+    <template #bar>
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>

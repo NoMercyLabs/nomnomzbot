@@ -291,7 +291,7 @@ function confirmDelete(): void {
         <Button variant="outline">{{ t('dashboard.catalog.outline') }}</Button>
         <Button>{{ t('dashboard.catalog.primary') }}</Button>
       </template>
-      <template #tabs><PageTabs :tabs="tabs" /></template>
+      <template #bar><PageTabs :tabs="tabs" /></template>
     </PageHeader>
 
     <div class="min-h-0 flex-1 overflow-y-auto">

@@ -72,7 +72,7 @@ const creating = ref(false);
         {{ $t('dashboard.commands.new') }}
       </Button>
     </template>
-    <template #tabs>
+    <template #bar>
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>

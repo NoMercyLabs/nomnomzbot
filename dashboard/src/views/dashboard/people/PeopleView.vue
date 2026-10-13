@@ -312,7 +312,7 @@ function back(): void {
 
 <template>
   <PageHeader :title="$t('dashboard.people.title')" :crumb="$t('dashboard.people.crumb')">
-    <template #tabs>
+    <template #bar>
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>

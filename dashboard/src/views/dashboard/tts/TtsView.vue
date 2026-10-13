@@ -119,7 +119,7 @@ const overlayDetail = computed<string>(() => {
         :label="$t(settings.isEnabled ? 'dashboard.tts.on' : 'dashboard.tts.off')"
       />
     </template>
-    <template #tabs><PageTabs :tabs="tabs" /></template>
+    <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
   <BoardGrid v-if="view === 'overview'" :rows="1">

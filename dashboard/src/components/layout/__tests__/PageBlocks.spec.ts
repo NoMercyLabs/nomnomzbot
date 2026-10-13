@@ -72,7 +72,7 @@ describe('the list and detail layout', () => {
 });
 
 describe('the page header', () => {
-  it('shows crumb, title and the slots, and a tab row only with tabs', () => {
+  it('shows crumb, title and the slots, and a control bar only with bar content', () => {
     const plain: VueWrapper = mount(PageHeader, { props: { title: 'Stream' } });
     const full: VueWrapper = mount(PageHeader, {
       props: { title: 'Stream', crumb: 'Channel' },
@@ -80,13 +80,14 @@ describe('the page header', () => {
         status: '<i>live</i>',
         actions: '<b>Go</b>',
         meta: 'Updated now',
-        tabs: '<u>tabs</u>',
+        bar: '<u>controls</u>',
       },
     });
 
     expect(plain.find('h1').text()).toBe('Stream');
     expect(plain.find('[data-slot="page-crumb"]').exists()).toBe(false);
-    expect(plain.find('u').exists()).toBe(false);
+    expect(plain.find('[data-slot="page-bar"]').exists()).toBe(false);
+    expect(full.find('[data-slot="page-bar"] u').text()).toBe('controls');
     expect(full.find('[data-slot="page-crumb"]').text()).toBe('Channel');
 
     expect(full.text()).toContain('Updated now');
@@ -142,6 +143,28 @@ describe('the stat tile', () => {
 
     expect(wrapper.text()).toBe('Channels268 set up');
     expect(wrapper.find('svg').exists()).toBe(false);
+  });
+
+  // A narrow drawer has no room for a box and its padding: the plain stat is the mockup's bare
+  // .stat, so "92.8 hours watched" stays on one line in a 320px drawer.
+  it('drops the box and its padding when plain, and sets the context in extra-small text', () => {
+    const tile: VueWrapper = mountTile({
+      label: 'Messages',
+      value: 2536,
+      context: '92.8 hours watched',
+    });
+    const plain: VueWrapper = mountTile({
+      label: 'Messages',
+      value: 2536,
+      context: '92.8 hours watched',
+      plain: true,
+    });
+    const classes = (wrapper: VueWrapper): string[] => wrapper.find('[data-slot="stat-tile"]').classes();
+
+    expect(classes(tile)).toEqual(expect.arrayContaining(['border', 'p-4']));
+    expect(classes(plain)).not.toEqual(expect.arrayContaining(['border']));
+    expect(classes(plain)).not.toContain('p-4');
+    expect(plain.find('[data-slot="stat-context"]').classes()).toContain('text-xs');
   });
 
   it('groups the digits of a number the way the reader writes them', () => {

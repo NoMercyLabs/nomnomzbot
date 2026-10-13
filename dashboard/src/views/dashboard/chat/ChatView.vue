@@ -11,12 +11,11 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { useEventListener, useLocalStorage } from '@vueuse/core';
+import { useEventListener } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Cross from '~icons/nnz/cross';
 import SettingsFader from '~icons/nnz/settings-fader';
-import User from '~icons/nnz/user';
 
 import { useCurrentUser } from '@/api/auth';
 import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat';
@@ -26,8 +25,6 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -43,10 +40,8 @@ const { channelId, current } = useCurrentChannel();
 const history = useChatHistory(channelId);
 const banner = useBanUser(channelId);
 
-const hideCommands = useLocalStorage<boolean>('nnz.chat.hideCommands', false);
 const display = useChatDisplay();
 const displayOpen = ref(false);
-const viewerOpen = ref(false);
 const focusedUserId = ref<string | null>(null);
 const currentUser = useCurrentUser();
 const me = computed<string | null>(() => currentUser.data.value?.username ?? null);
@@ -57,7 +52,7 @@ const lines = computed<ChatLineData[]>(() => history.data.value ?? []);
 const visible = computed<ChatLineData[]>(() =>
   lines.value.filter(
     (line: ChatLineData) =>
-      !(hideCommands.value && line.isCommand) &&
+      !(!display.value.commands && line.isCommand) &&
       !(display.value.deleted === 'hide' && line.removed === 'deleted'),
   ));
 
@@ -87,8 +82,6 @@ function pickChatter(line: ChatLineData): void {
   focusedUserId.value = focusedUserId.value === line.userId
     ? null
     : line.userId;
-
-  viewerOpen.value = focusedUserId.value !== null || viewerOpen.value;
 }
 
 const focusedName = computed<string>(() =>
@@ -96,16 +89,7 @@ const focusedName = computed<string>(() =>
     line.userId === focusedUserId.value).at(-1)?.displayName ?? '');
 
 function closeViewer(): void {
-  viewerOpen.value = false;
   focusedUserId.value = null;
-}
-
-function toggleViewer(): void {
-  if (viewerOpen.value) {
-    closeViewer();
-  } else {
-    viewerOpen.value = true;
-  }
 }
 
 function clearFocusOnEscape(event: KeyboardEvent): void {
@@ -150,6 +134,20 @@ async function confirmBan(): Promise<void> {
         :label="live ? $t('dashboard.chat.status.live') : $t('dashboard.chat.status.offline')"
       />
     </template>
+    <template #bar>
+      <div data-chat-controls class="ml-auto flex items-center gap-2">
+        <Button
+          data-display-toggle
+          variant="outline"
+          size="sm"
+          :aria-pressed="displayOpen"
+          @click="displayOpen = !displayOpen"
+        >
+          <SettingsFader class="size-4" aria-hidden="true" />
+          {{ $t('dashboard.chat.display.toggle') }}
+        </Button>
+      </div>
+    </template>
   </PageHeader>
   <div class="flex min-h-0 flex-1 flex-col gap-3 p-6">
     <p v-if="banFailed" role="alert" class="text-sm text-destructive">
@@ -166,43 +164,11 @@ async function confirmBan(): Promise<void> {
         :error-text="$t('dashboard.chat.feed.error')"
         @retry="history.refetch()"
       >
-        <template #actions>
-          <div class="flex items-center gap-2">
-            <Button
-              v-if="focusedUserId !== null"
-              data-focus-clear
-              variant="ghost"
-              size="sm"
-              @click="focusedUserId = null"
-            >
-              <Cross class="size-4" aria-hidden="true" />
-              {{ $t('dashboard.chat.viewer.clearFocus', { name: focusedName }) }}
-            </Button>
-            <Button
-              data-display-toggle
-              variant="outline"
-              size="sm"
-              :aria-pressed="displayOpen"
-              @click="displayOpen = !displayOpen"
-            >
-              <SettingsFader class="size-4" aria-hidden="true" />
-              {{ $t('dashboard.chat.display.toggle') }}
-            </Button>
-            <Button
-              data-viewer-toggle
-              variant="outline"
-              size="sm"
-              :aria-pressed="viewerOpen"
-              @click="toggleViewer"
-            >
-              <User class="size-4" aria-hidden="true" />
-              {{ $t('dashboard.chat.viewer.toggle') }}
-            </Button>
-            <Switch id="chat-hide-commands" v-model="hideCommands" />
-            <Label for="chat-hide-commands" class="text-sm font-normal">
-              {{ $t('dashboard.chat.hideCommands') }}
-            </Label>
-          </div>
+        <template v-if="focusedUserId !== null" #actions>
+          <Button data-focus-clear variant="ghost" size="sm" @click="focusedUserId = null">
+            <Cross class="size-4" aria-hidden="true" />
+            {{ $t('dashboard.chat.viewer.clearFocus', { name: focusedName }) }}
+          </Button>
         </template>
         <div class="flex h-full min-h-80 flex-col">
           <VirtualList
@@ -230,7 +196,7 @@ async function confirmBan(): Promise<void> {
           <ChatComposer :channel-id="channelId" />
         </template>
       </PanelCard>
-      <aside v-if="viewerOpen" data-viewer-panel class="w-80 flex-none">
+      <aside v-if="focusedUserId !== null" data-viewer-panel class="w-80 flex-none">
         <ViewerPanel
           :user-id="focusedUserId"
           :channel-id="channelId"

@@ -7,7 +7,6 @@
         "live": "Live",
         "offline": "Offline"
       },
-      "hideCommands": "Hide commands",
       "display": {
         "toggle": "Display",
         "title": "Display",
@@ -26,6 +25,7 @@
           "badges": "Badges",
           "avatars": "Avatars",
           "platform": "Platform icons",
+          "commands": "Commands",
           "timestamps": "Timestamps",
           "nameColors": "Name colors",
           "alternating": "Alternating rows",
@@ -58,7 +58,6 @@
         "86400": "1 day"
       },
       "viewer": {
-        "toggle": "Viewer",
         "title": "Viewer",
         "close": "Close viewer",
         "clearFocus": "Clear focus on {name}",
@@ -89,7 +88,7 @@
         "label": "Chat messages",
         "count": "{count} messages",
         "empty": "No messages yet.",
-        "emptyCommands": "Only commands so far. Switch off Hide commands to see them.",
+        "emptyCommands": "Only commands so far. Switch on Commands in Display to see them.",
         "error": "The chat could not load."
       },
       "line": {
