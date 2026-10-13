@@ -64,7 +64,7 @@
       "runs": {
         "title": "Deze sessie",
         "button": "Runs",
-        "count": "{count} testruns sinds je deze pagina opende",
+        "count": "{count} testruns tot nu toe",
         "empty": "Nog geen runs. Test uitvoeren probeert een script met een voorbeeld.",
         "noMatch": "Geen runs gevonden.",
         "line": "{time} · {trigger}",

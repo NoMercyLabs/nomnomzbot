@@ -34,6 +34,28 @@ function panel(state: PanelState, extra: Record<string, unknown> = {}): VueWrapp
   });
 }
 
+// Stoney 2026-10-14: the description wrapped word by word beside the header tabs ("stop making me nitpick").
+describe('the panel card header', () => {
+  it('keeps the actions on the title row and gives the description the full width below', () => {
+    const wrapper = mount(PanelCard, {
+      props: {
+        title: 'This session',
+        description: '0 test runs since you opened this page',
+      },
+      slots: { actions: '<div data-tabs>All Failed Tests</div>' },
+      global: { plugins: [i18n] },
+    });
+    const header = wrapper.find('header');
+    const actions = wrapper.find('[data-slot="panel-actions"]');
+    const description = header.find('p');
+
+    expect(header.classes()).toContain('grid');
+    expect(actions.find('[data-tabs]').exists()).toBe(true);
+    expect(actions.classes()).toEqual(expect.arrayContaining(['col-start-2', 'row-start-1']));
+    expect(description.classes()).toContain('col-span-2');
+  });
+});
+
 describe('the panel card states', () => {
   it('shows its rows only when ready', () => {
     expect(panel('ready').text()).toContain('the rows');

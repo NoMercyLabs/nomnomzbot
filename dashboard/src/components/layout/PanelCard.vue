@@ -72,17 +72,24 @@ watch(
     :data-state="state"
     class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
   >
-    <header class="flex min-h-13 flex-none items-center gap-2 border-b border-border px-4 py-2">
-      <div class="min-w-0 flex-1">
-        <h2
-          class="text-base"
-          :class="tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold'"
-        >
-          {{ title }}
-        </h2>
-        <p v-if="description" class="text-sm text-muted-foreground">{{ description }}</p>
+    <!-- Actions share the title row; the description runs the full width below, never squeezed beside them. -->
+    <header
+      class="grid min-h-13 flex-none grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-2 border-b border-border px-4 py-2"
+    >
+      <h2
+        class="min-w-0 text-base"
+        :class="tier === 'quiet' ? 'font-medium text-muted-foreground' : 'font-semibold'"
+      >
+        {{ title }}
+      </h2>
+      <div
+        v-if="$slots.actions"
+        data-slot="panel-actions"
+        class="col-start-2 row-start-1 flex items-center gap-2"
+      >
+        <slot name="actions" />
       </div>
-      <slot name="actions" />
+      <p v-if="description" class="col-span-2 text-sm text-muted-foreground">{{ description }}</p>
     </header>
     <div class="min-h-0 flex-1 overflow-y-auto" :class="pad ? 'p-4' : 'p-2'">
       <slot v-if="state === 'ready'" />
