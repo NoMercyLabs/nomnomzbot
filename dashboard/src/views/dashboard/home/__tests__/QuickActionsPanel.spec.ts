@@ -21,7 +21,11 @@ import { useSaveErrorsStore } from '@/stores/saveErrors';
 import en from '../i18n/en.json';
 import QuickActionsPanel from '../components/QuickActionsPanel.vue';
 
-type Call = { method: string; path: string };
+type Call = {
+  method: string;
+  path: string;
+  body?: unknown;
+};
 type Answer = {
   data?: unknown;
   error?: unknown;
@@ -42,6 +46,40 @@ let snoozeCount = 2;
 let snoozeFails = false;
 let toggleFails = false;
 let timers: Record<string, unknown>[] = [];
+let startFails = false;
+let endFails = false;
+let pollList: Record<string, unknown>[] = [];
+
+const runningPoll = (id: string, votes: number[]): Record<string, unknown> => ({
+  id,
+  title: 'Which game next?',
+  status: 'ACTIVE',
+  duration: 300,
+  startedAt: new Date().toISOString(),
+  endedAt: null,
+  channelPointsVotingEnabled: false,
+  channelPointsPerVote: 0,
+  choices: votes.map((count, index) => ({
+    id: `${id}-${index}`,
+    title: `Game ${index + 1}`,
+    votes: count,
+    channelPointsVotes: 0,
+    bitsVotes: 0,
+  })),
+});
+
+const startedPoll = (body: Record<string, unknown>): Record<string, unknown> => ({
+  ...runningPoll('server-1', []),
+  title: body.title,
+  duration: body.durationSeconds,
+  choices: (body.choices as string[]).map((title, index) => ({
+    id: `server-1-${index}`,
+    title,
+    votes: 0,
+    channelPointsVotes: 0,
+    bitsVotes: 0,
+  })),
+});
 
 const schedule = (): Record<string, number> => ({
   snoozeCount,
@@ -87,7 +125,7 @@ function freshAnswers(): Record<string, () => Answer> {
         queue: [queueItem(1, 'DukaSoft'), queueItem(2, 'DukaSoft'), queueItem(3, 'DukaSoft')],
       }),
     '/timers': () => ok(timers),
-    '/live-ops/polls': () => ok([]),
+    '/live-ops/polls': () => ok(pollList),
     '/live-ops/predictions': () => ok([]),
   };
 }
@@ -105,12 +143,49 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string) => answer('GET', path),
-    POST: async (path: string, options?: { params?: { path?: { id?: string } } }) => {
+    PATCH: async (
+      path: string,
+      options?: { params?: { path?: { pollId?: string } }; body?: unknown },
+    ) => {
+      calls.push({
+        method: 'PATCH',
+        path,
+        body: options?.body,
+      });
+
+      if (endFails)
+        return refused();
+
+      pollList = pollList.map((poll) =>
+        poll.id === options?.params?.path?.pollId
+          ? { ...poll, status: 'TERMINATED' }
+          : poll,
+      );
+
+      return { data: { data: null }, response: { status: 200, ok: true } };
+    },
+    POST: async (
+      path: string,
+      options?: { params?: { path?: { id?: string } }; body?: unknown },
+    ) => {
       const id = options?.params?.path?.id;
 
-      calls.push({ method: 'POST', path: id
-        ? path.replace('{id}', id)
-        : path });
+      calls.push({
+        method: 'POST',
+        path: id
+          ? path.replace('{id}', id)
+          : path,
+        body: options?.body,
+      });
+
+      if (path.endsWith('/live-ops/polls')) {
+        if (startFails)
+          return refused();
+
+        pollList = [startedPoll(options?.body as Record<string, unknown>), ...pollList];
+
+        return { data: { data: pollList[0] }, response: { status: 201, ok: true } };
+      }
 
       if (path.endsWith('/toggle')) {
         if (toggleFails)
@@ -150,6 +225,9 @@ beforeEach(() => {
   snoozeCount = 2;
   snoozeFails = false;
   toggleFails = false;
+  startFails = false;
+  endFails = false;
+  pollList = [];
 
   timers = [
     timer('discord', 10, true, 6),
@@ -289,11 +367,14 @@ describe('QuickActionsPanel', () => {
     expect(row('ad').textContent).toContain('2 snoozes left');
   });
 
-  it('says plainly that no poll or prediction runs, with no start buttons', async () => {
+  it('says plainly that no poll or prediction runs, and offers only Start a poll', async () => {
     await open();
 
     expect(row('poll').textContent).toContain('No poll or prediction running');
-    expect(row('poll').querySelectorAll('button, a')).toHaveLength(0);
+
+    const labels = [...row('poll').querySelectorAll('button, a')].map((b) => b.textContent?.trim());
+
+    expect(labels).toEqual(['Start a poll']);
   });
 
   it('shows the time left of a running poll', async () => {
@@ -426,6 +507,196 @@ describe('QuickActionsPanel', () => {
       expect(useSaveErrorsStore().items).toHaveLength(1);
       expect(timerRow('discord').textContent).toContain('On, every 10 min');
       expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined();
+    });
+  });
+
+  describe('poll dialog', () => {
+    const dialog = (): HTMLElement =>
+      document.body.querySelector<HTMLElement>('[role="dialog"]') as HTMLElement;
+    const field = (name: string): HTMLInputElement =>
+      dialog().querySelector<HTMLInputElement>(`[data-poll-field="${name}"]`) as HTMLInputElement;
+    const choice = (index: number): HTMLInputElement =>
+      dialog().querySelector<HTMLInputElement>(`[data-poll-choice="${index}"]`) as HTMLInputElement;
+    const result = (title: string): HTMLElement =>
+      dialog().querySelector<HTMLElement>(`[data-poll-result="${title}"]`) as HTMLElement;
+
+    async function type(input: HTMLInputElement, value: string): Promise<void> {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await settle();
+    }
+
+    async function click(target: HTMLElement): Promise<void> {
+      target.click();
+      await settle();
+    }
+
+    async function pressDialog(label: string): Promise<void> {
+      const target = buttonIn(dialog(), label);
+
+      await click(target);
+    }
+
+    async function pressRow(label: string): Promise<void> {
+      const target = buttonIn(row('poll'), label);
+
+      await click(target);
+    }
+
+    async function openForm(): Promise<void> {
+      await open();
+      await pressRow('Start a poll');
+    }
+
+    async function fillBasics(): Promise<void> {
+      await type(field('title'), '  Which game next?  ');
+      await type(choice(0), 'Zelda');
+      await type(choice(1), 'Metroid');
+    }
+
+    it('starts a poll: one POST with the title, the trimmed choices and the duration in seconds', async () => {
+      await openForm();
+      await fillBasics();
+      await type(field('minutes'), '3');
+      await pressDialog('Start poll');
+
+      expect(posts()).toEqual([
+        {
+          method: 'POST',
+          path: expect.stringContaining('/live-ops/polls'),
+          body: {
+            title: 'Which game next?',
+            choices: ['Zelda', 'Metroid'],
+            durationSeconds: 180,
+            channelPointsVotingEnabled: false,
+            channelPointsPerVote: 0,
+          },
+        },
+      ]);
+    });
+
+    it('adds a third choice and sends it; allows at most five', async () => {
+      await openForm();
+      await fillBasics();
+
+      for (let added = 0; added < 4; added += 1) {
+        const add = buttonIn(dialog(), 'Add choice');
+
+        if (add) {
+          await click(add);
+        }
+      }
+
+      expect(dialog().querySelectorAll('[data-poll-choice]')).toHaveLength(5);
+      expect(buttonIn(dialog(), 'Add choice')).toBeUndefined();
+
+      await type(choice(2), 'Hades');
+      await pressDialog('Start poll');
+
+      const body = posts()[0]!.body as { choices: string[] };
+
+      expect(body.choices).toEqual(['Zelda', 'Metroid', 'Hades']);
+    });
+
+    it('sends the channel points price when channel points voting is on', async () => {
+      await openForm();
+      await fillBasics();
+      await click(dialog().querySelector<HTMLElement>('[data-poll-field="points"]') as HTMLElement);
+      await type(field('pointsPerVote'), '50');
+      await pressDialog('Start poll');
+
+      expect(posts()[0]!.body).toMatchObject({
+        channelPointsVotingEnabled: true,
+        channelPointsPerVote: 50,
+      });
+    });
+
+    it('blocks Start with fewer than two choices and sends nothing', async () => {
+      await openForm();
+      await type(field('title'), 'Which game next?');
+      await type(choice(0), 'Zelda');
+
+      const start = buttonIn(dialog(), 'Start poll') as HTMLButtonElement;
+
+      expect(start.disabled).toBe(true);
+      expect(dialog().textContent).toContain('Give at least 2 choices.');
+
+      await click(start);
+
+      expect(posts()).toHaveLength(0);
+    });
+
+    it('blocks Start without a title', async () => {
+      await openForm();
+      await type(choice(0), 'Zelda');
+      await type(choice(1), 'Metroid');
+
+      expect((buttonIn(dialog(), 'Start poll') as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('shows the new poll at once: the row names it and the dialog turns into its results', async () => {
+      await openForm();
+      await fillBasics();
+      await pressDialog('Start poll');
+
+      expect(row('poll').textContent).toContain('Which game next?');
+      expect(row('poll').querySelector('[data-slot="countdown-time"]')).not.toBeNull();
+      expect(result('Zelda').textContent).toContain('0 votes');
+      expect(buttonIn(dialog(), 'End poll')).toBeDefined();
+      expect(buttonIn(dialog(), 'Start poll')).toBeUndefined();
+    });
+
+    it('reports a refused start and puts the row back to idle', async () => {
+      startFails = true;
+      await openForm();
+      await fillBasics();
+      await pressDialog('Start poll');
+
+      expect(useSaveErrorsStore().items).toHaveLength(1);
+      expect(row('poll').textContent).toContain('No poll or prediction running');
+      expect(choice(0).value).toBe('Zelda');
+    });
+
+    it('shows a running poll with each choice, its votes and its share', async () => {
+      pollList = [runningPoll('p1', [3, 1, 0])];
+      await open();
+      await pressRow('Open poll');
+
+      expect(result('Game 1').textContent).toContain('3 votes');
+      expect(result('Game 1').textContent).toContain('75%');
+      expect(result('Game 2').textContent).toContain('1 vote');
+      expect(result('Game 2').textContent).toContain('25%');
+      expect(result('Game 3').textContent).toContain('0%');
+    });
+
+    it('ends the running poll: one PATCH for its id, and the row goes back to idle', async () => {
+      pollList = [runningPoll('p1', [3, 1])];
+      await open();
+      await pressRow('Open poll');
+      await pressDialog('End poll');
+
+      expect(calls.filter((call) => call.method === 'PATCH')).toEqual([
+        {
+          method: 'PATCH',
+          path: expect.stringContaining('/live-ops/polls/{pollId}/end'),
+          body: { status: 'TERMINATED' },
+        },
+      ]);
+
+      expect(row('poll').textContent).not.toContain('Which game next?');
+      expect(row('poll').textContent).toContain('No poll or prediction running');
+    });
+
+    it('reports a refused end and keeps the poll running', async () => {
+      pollList = [runningPoll('p1', [3, 1])];
+      endFails = true;
+      await open();
+      await pressRow('Open poll');
+      await pressDialog('End poll');
+
+      expect(useSaveErrorsStore().items).toHaveLength(1);
+      expect(row('poll').textContent).toContain('Which game next?');
+      expect(buttonIn(dialog(), 'End poll')).toBeDefined();
     });
   });
 });

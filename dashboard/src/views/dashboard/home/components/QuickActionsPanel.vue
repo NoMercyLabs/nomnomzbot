@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import {
+  isPollRunning,
   usePolls,
   usePredictions,
   useTimers,
@@ -38,6 +39,7 @@ import Megaphone from '~icons/nnz/megaphone';
 import NoteDouble from '~icons/nnz/note-double';
 import Timer24 from '~icons/nnz/timer';
 
+import PollDialog from './PollDialog.vue';
 import TimersDialog from './TimersDialog.vue';
 
 type Running = {
@@ -113,12 +115,15 @@ const nextTimer = computed<Timer | null>(
   () => [...enabledTimers.value].sort((a: Timer, b: Timer) => dueAt(a) - dueAt(b))[0] ?? null,
 );
 
-const running = computed<Running | null>(() => {
-  const poll: Poll | undefined = (pollsQuery.data.value ?? []).find(
-    (p: Poll) => p.status.toUpperCase() === 'ACTIVE',
-  );
+const pollOpen = ref(false);
+const runningPoll = computed<Poll | null>(
+  () => (pollsQuery.data.value ?? []).find(isPollRunning) ?? null,
+);
 
-  if (poll !== undefined) {
+const running = computed<Running | null>(() => {
+  const poll = runningPoll.value;
+
+  if (poll !== null) {
     return {
       title: poll.title,
       kind: 'poll',
@@ -275,6 +280,11 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
               <template v-else>{{ t('dashboard.home.quick.locked') }}</template>
             </span>
           </template>
+          <template v-if="runningPoll !== null" #trailing>
+            <Button variant="ghost" size="sm" @click="pollOpen = true">
+              {{ t('dashboard.home.quick.pollOpen') }}
+            </Button>
+          </template>
         </SummaryRow>
         <SummaryRow
           v-else
@@ -284,9 +294,15 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
           "
         >
           <template #leading><BarChart class="size-5 text-muted-foreground" /></template>
+          <template v-if="!pollsFailed" #trailing>
+            <Button variant="outline" size="sm" @click="pollOpen = true">
+              {{ t('dashboard.home.quick.pollStart') }}
+            </Button>
+          </template>
         </SummaryRow>
       </div>
     </RowGroup>
     <TimersDialog v-model:open="timersOpen" :timers="allTimers" />
+    <PollDialog v-model:open="pollOpen" :poll="runningPoll" />
   </PanelCard>
 </template>

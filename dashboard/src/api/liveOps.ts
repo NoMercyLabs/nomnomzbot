@@ -37,23 +37,25 @@ export const predictionsKey = (channelId: string | null): unknown[] => [
   'live-ops-predictions',
 ];
 
+async function readPolls(channelId: string): Promise<Poll[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/live-ops/polls',
+    {
+      params: { path: { version, channelId } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('polls', response.status);
+
+  return [...(data?.data ?? [])];
+}
+
 // The channel's polls, active and ended. Use isRunning to pick the one that still takes votes.
 export function usePolls(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<Poll[], Error> {
-  return channelQuery(channelId, pollsKey, async (id: string): Promise<Poll[]> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/live-ops/polls',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('polls', response.status);
-
-    return [...(data?.data ?? [])];
-  });
+  return channelQuery(channelId, pollsKey, readPolls);
 }
 
 // The channel's predictions, open, locked and ended.
@@ -128,6 +130,98 @@ export function useToggleTimer(
         timer.id === timerId
           ? { ...timer, isEnabled: !timer.isEnabled }
           : timer,
+      ),
+  });
+}
+
+export type NewPoll = components['schemas']['CreatePollDto'];
+
+// A poll is running while Twitch reports it ACTIVE.
+export const isPollRunning = (poll: Poll): boolean => poll.status.toUpperCase() === 'ACTIVE';
+
+// Starts a poll on Twitch. The list shows the new poll at once, with no votes, and takes the server's list after.
+export function useStartPoll(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Poll[], Error, NewPoll, number> {
+  return useOptimisticSave<Poll[], NewPoll>({
+    queryKey: () => pollsKey(toValue(channelId)),
+    mutationFn: async (poll: NewPoll): Promise<Poll[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/live-ops/polls',
+        {
+          params: { path: { version, channelId: id } },
+          body: poll,
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('poll-start', response.status);
+
+      return readPolls(id);
+    },
+    apply: (current: Poll[] | undefined, poll: NewPoll): Poll[] => [
+      provisionalPoll(poll),
+      ...(current ?? []),
+    ],
+  });
+}
+
+function provisionalPoll(poll: NewPoll): Poll {
+  return {
+    id: 'pending',
+    broadcasterId: '',
+    broadcasterName: '',
+    broadcasterLogin: '',
+    title: poll.title,
+    choices: poll.choices.map((title: string, index: number) => ({
+      id: `pending-${index}`,
+      title,
+      votes: 0,
+      channelPointsVotes: 0,
+      bitsVotes: 0,
+    })),
+    bitsVotingEnabled: false,
+    bitsPerVote: 0,
+    channelPointsVotingEnabled: poll.channelPointsVotingEnabled,
+    channelPointsPerVote: poll.channelPointsPerVote,
+    status: 'ACTIVE',
+    duration: poll.durationSeconds,
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+  };
+}
+
+// Ends a running poll early and shows its result to viewers on Twitch. The variable is the poll id.
+export function useEndPoll(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Poll[], Error, string, number> {
+  return useOptimisticSave<Poll[], string>({
+    queryKey: () => pollsKey(toValue(channelId)),
+    mutationFn: async (pollId: string): Promise<Poll[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.PATCH(
+        '/api/v{version}/channels/{channelId}/live-ops/polls/{pollId}/end',
+        {
+          params: { path: {
+            version,
+            channelId: id,
+            pollId,
+          } },
+          body: { status: 'TERMINATED' },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('poll-end', response.status);
+
+      return readPolls(id);
+    },
+    apply: (current: Poll[] | undefined, pollId: string): Poll[] =>
+      (current ?? []).map((poll: Poll) =>
+        poll.id === pollId
+          ? { ...poll, status: 'TERMINATED' }
+          : poll,
       ),
   });
 }
