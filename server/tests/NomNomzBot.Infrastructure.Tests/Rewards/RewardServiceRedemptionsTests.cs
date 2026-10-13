@@ -10,9 +10,11 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -301,6 +303,109 @@ public sealed class RewardServiceRedemptionsTests
             Channel.ToString(),
             "nope",
             "FULFILLED",
+            rewardId: null
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        await points
+            .DidNotReceiveWithAnyArgs()
+            .UpdateRedemptionStatusAsync(default, default!, default!, default!);
+    }
+
+    private static long _journalPosition;
+
+    private static EventJournal RedeemedJournalRow(
+        Guid channel,
+        string redemptionId,
+        string rewardId
+    )
+    {
+        DateTime at = new(2026, 10, 13, 17, 0, 0, DateTimeKind.Utc);
+        return new()
+        {
+            EventId = Guid.NewGuid(),
+            BroadcasterId = channel,
+            StreamPosition = Interlocked.Increment(ref _journalPosition),
+            EventType = "RewardRedeemedEvent",
+            EventVersion = 1,
+            Source = "eventsub",
+            Payload = JsonConvert.SerializeObject(
+                new Dictionary<string, object>
+                {
+                    ["RewardId"] = rewardId,
+                    ["RewardTitle"] = "Hydrate",
+                    ["RedemptionId"] = redemptionId,
+                    ["UserId"] = "u1",
+                    ["UserDisplayName"] = "Viewer",
+                    ["Cost"] = 100,
+                }
+            ),
+            PayloadIsEncrypted = false,
+            Metadata = "{}",
+            OccurredAt = at,
+            RecordedAt = at,
+        };
+    }
+
+    [Theory]
+    [InlineData("FULFILLED")]
+    [InlineData("CANCELED")]
+    public async Task SetRedemptionStatus_with_no_row_and_no_reward_id_resolves_the_reward_from_the_journal(
+        string status
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.EventJournals.Add(RedeemedJournalRow(Channel, "redeem-j", "rw-journal"));
+        await db.SaveChangesAsync();
+        ITwitchChannelPointsApi points = HelixAccepting();
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
+        );
+
+        Result result = await sut.SetRedemptionStatusAsync(
+            Channel.ToString(),
+            "redeem-j",
+            status,
+            rewardId: null
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await points
+            .Received(1)
+            .UpdateRedemptionStatusAsync(
+                Channel,
+                "rw-journal",
+                Arg.Is<IReadOnlyList<string>>(ids => ids.Count == 1 && ids[0] == "redeem-j"),
+                Arg.Is<UpdateRedemptionStatusRequest>(r => r.Status == status),
+                Arg.Any<CancellationToken>()
+            );
+        db.Redemptions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SetRedemptionStatus_never_resolves_a_reward_from_another_channels_journal_entry()
+    {
+        Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-00000000d702");
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.EventJournals.Add(RedeemedJournalRow(otherChannel, "redeem-j", "rw-other-channel"));
+        await db.SaveChangesAsync();
+        ITwitchChannelPointsApi points = HelixAccepting();
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance,
+            RewardServiceTestProvider.Create()
+        );
+
+        Result result = await sut.SetRedemptionStatusAsync(
+            Channel.ToString(),
+            "redeem-j",
+            "CANCELED",
             rewardId: null
         );
 
