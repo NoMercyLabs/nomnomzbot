@@ -24,7 +24,9 @@ export function usePageView(
       const known = toValue(values)
       const asked: unknown = route.query.view
 
-      return typeof asked === 'string' && known.includes(asked) ? asked : (known[0] ?? '')
+      return typeof asked === 'string' && known.includes(asked)
+        ? asked
+        : (known[0] ?? '')
     },
     set: (view: string): void => {
       void router.push({ query: { ...route.query, view } })

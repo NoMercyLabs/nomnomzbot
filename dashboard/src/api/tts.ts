@@ -69,7 +69,9 @@ export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters)
 export function voiceFamily(locale: string): string {
   const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? ''
 
-  return languageFamilies.includes(language) ? language : 'other'
+  return languageFamilies.includes(language)
+    ? language
+    : 'other'
 }
 
 export function useTtsConfig(
@@ -83,7 +85,8 @@ export function useTtsConfig(
       },
     )
 
-    if (error !== undefined) throw failed('tts config', response.status)
+    if (error !== undefined)
+      throw failed('tts config', response.status)
 
     return data?.data ?? null
   })
@@ -100,7 +103,8 @@ export function useTtsOverlay(
       },
     )
 
-    if (error !== undefined) throw failed('tts overlay', response.status)
+    if (error !== undefined)
+      throw failed('tts overlay', response.status)
 
     return data?.data ?? null
   })
@@ -112,20 +116,28 @@ async function readVoicePage(channelId: string, q: string, page: number): Promis
     {
       params: {
         path: { version, channelId },
-        query: q === '' ? { page, pageSize: voicePageSize } : { q, page, pageSize: voicePageSize },
+        query: q === ''
+          ? { page, pageSize: voicePageSize }
+          : { q, page, pageSize: voicePageSize },
       },
     },
   )
 
-  if (error !== undefined) throw failed('tts voices', response.status)
+  if (error !== undefined)
+    throw failed('tts voices', response.status)
+
   const nextPage = Number(data?.nextPage)
   const total = Number(data?.total ?? Number.NaN)
 
   return {
     voices: data?.data ?? [],
     hasMore: data?.hasMore ?? false,
-    nextPage: Number.isFinite(nextPage) ? nextPage : null,
-    total: Number.isFinite(total) ? total : null,
+    nextPage: Number.isFinite(nextPage)
+      ? nextPage
+      : null,
+    total: Number.isFinite(total)
+      ? total
+      : null,
   }
 }
 
@@ -140,7 +152,9 @@ export function useTtsVoices(
       readVoicePage(toValue(channelId) as string, toValue(filters).q.trim(), pageParam),
     initialPageParam: firstVoicePage,
     getNextPageParam: (last: TtsVoicePage, all: TtsVoicePage[]): number | undefined =>
-      last.hasMore ? (last.nextPage ?? all.length + 1) : undefined,
+      last.hasMore
+        ? (last.nextPage ?? all.length + 1)
+        : undefined,
     enabled: computed(() => toValue(channelId) !== null),
   })
 }
@@ -164,7 +178,8 @@ export function useSetTtsVoice(
         },
       )
 
-      if (error !== undefined) throw refusal('tts config', error, response.status)
+      if (error !== undefined)
+        throw refusal('tts config', error, response.status)
 
       return data?.data ?? null
     },
@@ -196,7 +211,8 @@ export function useTtsSample(
         },
       )
 
-      if (error !== undefined || !data?.data) throw refusal('tts sample', error, response.status)
+      if (error !== undefined || !data?.data)
+        throw refusal('tts sample', error, response.status)
 
       return data.data
     },

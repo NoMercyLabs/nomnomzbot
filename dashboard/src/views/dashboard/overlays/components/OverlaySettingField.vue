@@ -38,7 +38,9 @@ const titleId = useId()
 
 const label = computed<string>(() => text(props.field.label, humanize(props.field.key)))
 const meta: ComputedRef<string> = computed<string>(() => {
-  const help: string | null = props.field.help ? text(props.field.help, '') : null
+  const help: string | null = props.field.help
+    ? text(props.field.help, '')
+    : null
 
   return [props.field.key, props.field.type, help].filter(Boolean).join(' · ')
 })
@@ -59,10 +61,14 @@ const chosenLabel = computed<string>(
     String(props.value ?? ''),
 )
 const picked: ComputedRef<string[]> = computed<string[]>(() =>
-  Array.isArray(props.value) ? props.value.map(String) : [],
+  Array.isArray(props.value)
+    ? props.value.map(String)
+    : [],
 )
 const shown = computed<string>(() =>
-  props.value === null || props.value === undefined ? '' : String(props.value),
+  props.value === null || props.value === undefined
+    ? ''
+    : String(props.value),
 )
 const known = computed<boolean>(() =>
   ['bool', 'number', 'text', 'color', 'select', 'multiselect'].includes(props.field.type),

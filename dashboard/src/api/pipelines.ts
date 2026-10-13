@@ -38,8 +38,11 @@ async function readPipelines(channelId: string): Promise<PipelineListItem[]> {
       },
     )
 
-    if (error !== undefined) throw failed('pipelines', response.status)
+    if (error !== undefined)
+      throw failed('pipelines', response.status)
+
     rows.push(...(data?.data ?? []))
+
     if (data?.hasMore !== true) break
   }
 

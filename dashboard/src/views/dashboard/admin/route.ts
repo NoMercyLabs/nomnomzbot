@@ -18,7 +18,9 @@ import { loadPage } from '@/i18n'
 async function adminOnly(): Promise<true | RouteLocationRaw> {
   const user = await queryClient.ensureQueryData(currentUserQuery)
 
-  return user?.isAdmin === true ? true : { name: 'dashboard-home' }
+  return user?.isAdmin === true
+    ? true
+    : { name: 'dashboard-home' }
 }
 
 export const dashboardAdminChannelsRoute = {

@@ -27,13 +27,20 @@ const emit = defineEmits<{ cancel: [] }>()
 const router = useRouter()
 const start = useMutation({ mutationFn: () => startDeviceSignIn(props.provider.key) })
 const code: ComputedRef<DeviceCode | null> = computed(() => start.data.value ?? null)
-const site = computed(() => (code.value ? new URL(code.value.verificationUri).host : ''))
+const site = computed(() =>
+  code.value
+    ? new URL(code.value.verificationUri).host
+    : '')
 
 const approval = useQuery(computed(() => deviceApprovalQuery(props.provider.key, code.value)))
 
 const outcome: ComputedRef<DeviceOutcome | 'failed' | null> = computed(() => {
-  if (start.isError.value || (start.isSuccess.value && !code.value)) return 'failed'
-  if (approval.isError.value) return 'error'
+  if (start.isError.value || (start.isSuccess.value && !code.value))
+    return 'failed'
+
+  if (approval.isError.value)
+    return 'error'
+
   const status: string | undefined = approval.data.value?.status
 
   return status === 'authorized' ||
@@ -45,7 +52,9 @@ const outcome: ComputedRef<DeviceOutcome | 'failed' | null> = computed(() => {
 })
 
 watch(outcome, async (now) => {
-  if (now === 'authorized') await router.replace(props.returnTo)
+  if (now === 'authorized') {
+    await router.replace(props.returnTo)
+  }
 })
 
 onMounted(() => start.mutate())

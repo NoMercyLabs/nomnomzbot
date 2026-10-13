@@ -27,7 +27,8 @@ const { t } = useI18n()
 
 const kind = computed<OverlayKind>(() => overlayKind(props.widget.name))
 const detail: ComputedRef<string> = computed<string>(() => {
-  if (!props.widget.isEnabled) return t('dashboard.overlays.list.off')
+  if (!props.widget.isEnabled)
+    return t('dashboard.overlays.list.off')
 
   return t(
     props.widget.isAttached

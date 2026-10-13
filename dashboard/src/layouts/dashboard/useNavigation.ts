@@ -69,14 +69,16 @@ export function useNavigation(): Navigation {
   watch(
     () => groups.value.find((group) => group.foldable && group.holdsOpenPage)?.key,
     (key: string | undefined) => {
-      if (key !== undefined && folds.value[key] !== true)
+      if (key !== undefined && folds.value[key] !== true) {
         folds.value = { ...folds.value, [key]: true }
+      }
     },
     { immediate: true },
   )
 
   function toggle(group: VisibleGroup): void {
     if (!group.foldable || group.holdsOpenPage) return
+
     folds.value = { ...folds.value, [group.key]: !group.open }
   }
 

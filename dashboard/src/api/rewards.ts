@@ -38,7 +38,8 @@ export function useRewards(
       },
     )
 
-    if (error !== undefined) throw failed('rewards', response.status)
+    if (error !== undefined)
+      throw failed('rewards', response.status)
 
     return [...(data?.data ?? [])]
   })

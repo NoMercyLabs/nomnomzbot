@@ -20,7 +20,9 @@ function readOrigins(raw: string): string[] {
   try {
     const parsed: unknown = JSON.parse(raw)
 
-    return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : []
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')
+      ? parsed
+      : []
   } catch {
     return []
   }
@@ -42,6 +44,7 @@ export const useConnectionsStore = defineStore('connections', () => {
 
   function remember(origin: string): void {
     if (isAlwaysListed(origin)) return
+
     saved.value = [origin, ...saved.value.filter((known) => known !== origin)]
   }
 

@@ -121,7 +121,9 @@ function answer(method: string, path: string, options: Options | undefined): Ans
     .sort((a, b) => b.length - a.length)
     .find((suffix) => path.endsWith(suffix))
 
-  return match ? answers[match]!() : ok(null)
+  return match
+    ? answers[match]!()
+    : ok(null)
 }
 
 vi.mock('@/api/client', () => ({

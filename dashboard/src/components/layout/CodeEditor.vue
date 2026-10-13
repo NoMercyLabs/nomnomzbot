@@ -86,14 +86,20 @@ useEditorBridge({
   onSave: (files) => props.save(files),
   onClose: () => emit('close'),
   history: props.history,
-  testRun: props.testRun ? (request) => props.testRun!(request) : undefined,
-  previewAction: props.previewAction ? (request) => props.previewAction!(request) : undefined,
+  testRun: props.testRun
+    ? (request) => props.testRun!(request)
+    : undefined,
+  previewAction: props.previewAction
+    ? (request) => props.previewAction!(request)
+    : undefined,
 })
 
 const opener: Ref<HTMLElement | null> = ref(null)
 
 onMounted(() => {
-  opener.value = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  opener.value = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null
   frame.value?.focus()
 })
 onBeforeUnmount(() => opener.value?.focus())

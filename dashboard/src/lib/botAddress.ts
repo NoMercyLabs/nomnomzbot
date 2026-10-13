@@ -39,7 +39,8 @@ function parse(address: string): URL | null {
 function isHomeNetwork(hostname: string): boolean {
   const ip = hostname.replace(/^\[|\]$/g, '')
 
-  if (ipaddr.isValid(ip)) return homeNetworkRanges.has(ipaddr.process(ip).range())
+  if (ipaddr.isValid(ip))
+    return homeNetworkRanges.has(ipaddr.process(ip).range())
 
   return hostname === 'localhost' || !hostname.includes('.') || homeNetworkSuffix.test(hostname)
 }
@@ -48,7 +49,8 @@ function isHomeNetwork(hostname: string): boolean {
 export function toBotOrigin(typed: string): string | null {
   const address = typed.trim()
 
-  if (!address) return null
+  if (!address)
+    return null
 
   if (hasScheme.test(address)) {
     const url = parse(address)
@@ -60,7 +62,8 @@ export function toBotOrigin(typed: string): string | null {
 
   const probe = parse(`http://${address}`)
 
-  if (!probe?.hostname) return null
+  if (!probe?.hostname)
+    return null
 
   return isHomeNetwork(probe.hostname)
     ? probe.origin

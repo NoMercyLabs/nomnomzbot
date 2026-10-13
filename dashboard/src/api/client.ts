@@ -22,10 +22,14 @@ client.use({
   async onRequest({ request }) {
     const url = new URL(request.url)
 
-    if (url.origin === activeBot.value) return request
+    if (url.origin === activeBot.value)
+      return request
+
     const target = new URL(url.pathname + url.search, activeBot.value)
     // The body is read out: a Request passed as the init of another drops its stream body.
-    const body = request.body ? await request.blob() : undefined
+    const body = request.body
+      ? await request.blob()
+      : undefined
 
     return new Request(target, {
       method: request.method,

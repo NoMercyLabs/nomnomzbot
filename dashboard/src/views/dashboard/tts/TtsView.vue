@@ -52,7 +52,9 @@ const settingsState = usePanelState<TtsConfig | null>(
 const voiceDetail: ComputedRef<string> = computed<string>(() => {
   const current = settings.value
 
-  if (current === null) return ''
+  if (current === null)
+    return ''
+
   const provider = providerName(current.defaultProvider)
 
   if (current.defaultVoiceId)
@@ -69,7 +71,9 @@ const voiceDetail: ComputedRef<string> = computed<string>(() => {
 const limitsDetail: ComputedRef<string> = computed<string>(() => {
   const current = settings.value
 
-  if (current === null) return ''
+  if (current === null)
+    return ''
+
   const count = String(current.maxCharacters)
   const bots: string = t(
     current.skipBotMessages
@@ -89,11 +93,16 @@ const wordsDetail: ComputedRef<string> = computed<string>(() =>
 )
 
 const overlayDetail: ComputedRef<string> = computed<string>(() => {
-  if (overlay.isError.value) return t('dashboard.tts.settings.overlay.error')
+  if (overlay.isError.value)
+    return t('dashboard.tts.settings.overlay.error')
+
   const ranAt = overlay.data.value?.lastRanAt
 
-  if (overlay.data.value === undefined || overlay.data.value === null) return ''
-  if (!ranAt) return t('dashboard.tts.settings.overlay.never')
+  if (overlay.data.value === undefined || overlay.data.value === null)
+    return ''
+
+  if (!ranAt)
+    return t('dashboard.tts.settings.overlay.never')
 
   return t('dashboard.tts.settings.overlay.lastUsed', {
     time: new Date(ranAt).toLocaleString(locale.value),

@@ -40,7 +40,9 @@ async function afterRateLimit(first: Response, original: Request): Promise<Respo
   for (let tries: number = 0; response.status === 429 && tries < rateLimitTries; tries++) {
     const seconds: number = Number(response.headers.get('Retry-After') ?? '1')
 
-    if (!Number.isFinite(seconds) || seconds > longestRateLimitWait) return response
+    if (!Number.isFinite(seconds) || seconds > longestRateLimitWait)
+      return response
+
     await new Promise<void>((resolve) => setTimeout(resolve, Math.max(seconds, 0) * 1000))
     response = await fetch(original.clone())
   }
@@ -50,7 +52,10 @@ async function afterRateLimit(first: Response, original: Request): Promise<Respo
 
 client.use({
   onRequest({ request, id }) {
-    if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`)
+    if (accessToken) {
+      request.headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+
     pending.set(id, request.clone())
 
     return request
@@ -59,12 +64,18 @@ client.use({
     const original = pending.get(id)
 
     pending.delete(id)
-    const response = original ? await afterRateLimit(first, original) : first
+    const response = original
+      ? await afterRateLimit(first, original)
+      : first
 
     if (response.status !== 401 || !original || request.url.endsWith('/auth/refresh'))
       return response
+
     accessToken = null
-    if (!(await restoreSession())) return response
+
+    if (!(await restoreSession()))
+      return response
+
     original.headers.set('Authorization', `Bearer ${accessToken}`)
 
     return fetch(original)
@@ -98,7 +109,9 @@ function consumeFragment(): boolean {
   const fragment = new URLSearchParams(window.location.hash.slice(1))
   const token = fragment.get('access_token')
 
-  if (!token) return false
+  if (!token)
+    return false
+
   accessToken = token
   signedIn.value = true
   history.replaceState(history.state, '', window.location.pathname + window.location.search)
@@ -115,10 +128,14 @@ async function refresh(): Promise<boolean> {
   // The OpenAPI document declares no 200 body for refresh yet, so the envelope is checked here.
   const payload: unknown = (result.data as { data?: unknown } | undefined)?.data
 
-  if (!response.ok || typeof payload !== 'object' || payload === null) return false
+  if (!response.ok || typeof payload !== 'object' || payload === null)
+    return false
+
   const token: unknown = (payload as { accessToken?: unknown }).accessToken
 
-  if (typeof token !== 'string') return false
+  if (typeof token !== 'string')
+    return false
+
   accessToken = token
   signedIn.value = true
 
@@ -126,8 +143,12 @@ async function refresh(): Promise<boolean> {
 }
 
 export function restoreSession(): Promise<boolean> {
-  if (accessToken) return Promise.resolve(true)
-  if (consumeFragment()) return Promise.resolve(true)
+  if (accessToken)
+    return Promise.resolve(true)
+
+  if (consumeFragment())
+    return Promise.resolve(true)
+
   restoring ??= refresh().finally(() => {
     restoring = null
   })
@@ -153,6 +174,7 @@ export function useCurrentUser(): UseQueryReturnType<CurrentUser | null, Error> 
 // A sign-in and its answers belong to one bot; another bot starts signed out with an empty cache.
 export function switchBot(origin: string): void {
   if (origin === activeBot.value) return
+
   accessToken = null
   signedIn.value = false
   queryClient.clear()

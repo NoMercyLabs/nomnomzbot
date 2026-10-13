@@ -43,8 +43,12 @@ const hasProfile = computed<boolean>(() => props.person.internalUserId !== null)
 const profileState = usePanelState(profile, (data: PersonProfile | null) => data === null)
 
 const moderationState = computed<PanelState>(() => {
-  if (props.detailState !== 'ready') return props.detailState
-  if (!hasProfile.value) return 'empty'
+  if (props.detailState !== 'ready')
+    return props.detailState
+
+  if (!hasProfile.value)
+    return 'empty'
+
   if (profileState.value === 'ready' && profile.data.value?.moderationHistory == null)
     return 'empty'
 
@@ -60,16 +64,22 @@ const moderationEmpty: ComputedRef<string> = computed<string>(() =>
 
 // Twitch sends the tier as a plan code: 1000, 2000, 3000, or Prime.
 function tierName(code: string | null): string | null {
-  if (code === null) return null
+  if (code === null)
+    return null
+
   const level: RegExpMatchArray | null = /^([123])000$/.exec(code)
 
-  if (level) return t('dashboard.people.detail.overview.tierLevel', { level: level[1] })
+  if (level)
+    return t('dashboard.people.detail.overview.tierLevel', { level: level[1] })
 
-  return code.toLowerCase() === 'prime' ? t('dashboard.people.detail.overview.tierPrime') : code
+  return code.toLowerCase() === 'prime'
+    ? t('dashboard.people.detail.overview.tierPrime')
+    : code
 }
 
 function shortDate(value: string | null | undefined): string | null {
-  if (!value) return null
+  if (!value)
+    return null
 
   return new Date(value).toLocaleDateString(locale.value, {
     year: 'numeric',
@@ -98,7 +108,8 @@ const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
   ]
   const data = profile.data.value
 
-  if (!data) return items
+  if (!data)
+    return items
 
   return [
     ...items.slice(0, 2),
@@ -130,7 +141,8 @@ const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
 const moderation: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
   const history = profile.data.value?.moderationHistory
 
-  if (!history) return []
+  if (!history)
+    return []
 
   return [
     {

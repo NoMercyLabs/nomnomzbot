@@ -61,6 +61,7 @@ const { start: resetCopied } = useTimeoutFn(
 
 async function copyAddress(): Promise<void> {
   if (!props.widget.overlayUrl) return
+
   await navigator.clipboard.writeText(props.widget.overlayUrl)
   copied.value = true
   resetCopied()
@@ -70,7 +71,10 @@ function toggle(isEnabled: boolean): void {
   setEnabled.mutate({ widgetId: props.widget.id, isEnabled })
 }
 
-const runTone = computed<StatusTone>(() => (props.widget.lastRuntimeError ? 'bad' : 'ok'))
+const runTone = computed<StatusTone>(() =>
+  props.widget.lastRuntimeError
+    ? 'bad'
+    : 'ok')
 const runTitle: ComputedRef<string> = computed<string>(() =>
   t(
     props.widget.lastRuntimeError
@@ -79,8 +83,11 @@ const runTitle: ComputedRef<string> = computed<string>(() =>
   ),
 )
 const runNote: ComputedRef<string> = computed<string>(() => {
-  if (props.widget.lastRuntimeError) return props.widget.lastRuntimeError
-  if (!props.widget.lastRanAt) return t('dashboard.overlays.detail.health.neverRan')
+  if (props.widget.lastRuntimeError)
+    return props.widget.lastRuntimeError
+
+  if (!props.widget.lastRanAt)
+    return t('dashboard.overlays.detail.health.neverRan')
 
   return t('dashboard.overlays.detail.health.worksRan', { ago: ago.value })
 })
@@ -95,6 +102,7 @@ const attachLine: ComputedRef<HealthLine> = computed<HealthLine>(() => {
 
   if (!props.widget.isEnabled)
     return { tone: 'off', title: t(`${base}.switchedOff`), note: t(`${base}.switchedOffNote`) }
+
   if (props.widget.isAttached)
     return { tone: 'ok', title: t(`${base}.attached`), note: t(`${base}.attachedNote`) }
 
@@ -124,7 +132,9 @@ const size: ComputedRef<string | null> = computed<string | null>(() => {
   const width = numberOrNull(props.widget.settings?.width as number | string | undefined)
   const height = numberOrNull(props.widget.settings?.height as number | string | undefined)
 
-  return width === null || height === null ? null : `${width} × ${height}`
+  return width === null || height === null
+    ? null
+    : `${width} × ${height}`
 })
 
 const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
@@ -140,7 +150,9 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
     {
       label: t(`${base}.address`),
       value:
-        address === null ? t(`${base}.noAddress`) : t(`${base}.addressNote`, { path: address }),
+        address === null
+          ? t(`${base}.noAddress`)
+          : t(`${base}.addressNote`, { path: address }),
     },
   ]
 })

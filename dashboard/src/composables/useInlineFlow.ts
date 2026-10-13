@@ -43,7 +43,9 @@ export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
 
   const undoWindow = useTimeoutFn(
     () => {
-      if (step.value === 'done') step.value = 'idle'
+      if (step.value === 'done') {
+        step.value = 'idle'
+      }
     },
     () => toValue(options.undoMs) ?? DEFAULT_UNDO_MS,
     { immediate: false },
@@ -61,26 +63,39 @@ export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
     }
 
     step.value = 'done'
-    if (toValue(options.revert) !== undefined) undoWindow.start()
+
+    if (toValue(options.revert) !== undefined) {
+      undoWindow.start()
+    }
   }
 
   function start(): void {
     if (step.value !== 'idle') return
+
     const kind = toValue(options.kind)
 
-    if (kind === 'note') step.value = 'done'
-    else if (kind === 'confirm') step.value = 'ask'
-    else void perform()
+    if (kind === 'note') {
+      step.value = 'done'
+    }
+    else if (kind === 'confirm') {
+      step.value = 'ask'
+    }
+    else {
+      void perform()
+    }
   }
 
   async function confirm(): Promise<void> {
-    if (step.value === 'ask') await perform()
+    if (step.value === 'ask') {
+      await perform()
+    }
   }
 
   async function undo(): Promise<void> {
     const revert = toValue(options.revert)
 
     if (!canUndo.value || revert === undefined) return
+
     undoWindow.stop()
     step.value = 'pending'
 
@@ -98,6 +113,7 @@ export function useInlineFlow(options: InlineFlowOptions): InlineFlow {
   // Backs out of a question, a result or a failure. It never runs the action and never undoes it.
   function back(): void {
     if (step.value === 'pending' || step.value === 'idle') return
+
     undoWindow.stop()
     step.value = 'idle'
   }

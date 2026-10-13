@@ -72,7 +72,8 @@ export function useStreamInfo(
       },
     )
 
-    if (error !== undefined) throw failed('stream', response.status)
+    if (error !== undefined)
+      throw failed('stream', response.status)
 
     return data?.data ?? null
   })
@@ -86,7 +87,8 @@ async function readAdSchedule(channelId: string): Promise<AdSchedule | null> {
     },
   )
 
-  if (error !== undefined) throw failed('ad schedule', response.status)
+  if (error !== undefined)
+    throw failed('ad schedule', response.status)
 
   return data?.data ?? null
 }
@@ -112,7 +114,8 @@ export function useSnoozeAd(
         },
       )
 
-      if (error !== undefined) throw failed('snooze', response.status)
+      if (error !== undefined)
+        throw failed('snooze', response.status)
 
       return readAdSchedule(id)
     },
@@ -139,7 +142,8 @@ export function useStreamHistory(
       },
     )
 
-    if (error !== undefined) throw failed('stream history', response.status)
+    if (error !== undefined)
+      throw failed('stream history', response.status)
 
     return [...(data?.data ?? [])]
   })
@@ -163,7 +167,8 @@ export function useCategorySearch(
         },
       )
 
-      if (error !== undefined) throw failed('categories', response.status)
+      if (error !== undefined)
+        throw failed('categories', response.status)
 
       return [...(data?.data ?? [])]
     },
@@ -189,12 +194,15 @@ export function useSaveStreamInfo(
         },
       )
 
-      if (error !== undefined) throw failed('stream info', response.status)
+      if (error !== undefined)
+        throw failed('stream info', response.status)
 
       return data?.data ?? queries.getQueryData<StreamInfo | null>(streamInfoKey(id)) ?? null
     },
     apply: (current: StreamInfo | null | undefined, draft: StreamInfoDraft): StreamInfo | null =>
-      current ? { ...current, ...draft } : null,
+      current
+        ? { ...current, ...draft }
+        : null,
   })
 }
 
@@ -218,10 +226,13 @@ export function useConnectIntegration(
         },
       )
 
-      if (error !== undefined) throw failed('connect', response.status)
+      if (error !== undefined)
+        throw failed('connect', response.status)
+
       const url = data?.data?.authorizeUrl
 
-      if (!url) throw failed('connect', response.status)
+      if (!url)
+        throw failed('connect', response.status)
 
       return url
     },

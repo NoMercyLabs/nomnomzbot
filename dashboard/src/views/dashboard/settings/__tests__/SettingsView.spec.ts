@@ -33,8 +33,9 @@ beforeEach(() => {
   document.documentElement.removeAttribute('style')
 
   for (const name of document.documentElement.getAttributeNames()) {
-    if (name.startsWith('data-rd-') || name === 'data-density')
+    if (name.startsWith('data-rd-') || name === 'data-density') {
       document.documentElement.removeAttribute(name)
+    }
   }
 
   i18n.global.mergeLocaleMessage('en', en)

@@ -14,10 +14,10 @@ import { isMixedContent } from '@/lib/botAddress'
 import type { paths } from './schema'
 
 export type BotProbe =
-  | { state: 'ready'; onboardingComplete: boolean }
-  | { state: 'reachable' }
-  | { state: 'unreachable' }
-  | { state: 'mixedContent' }
+  | { state: 'ready'; onboardingComplete: boolean } |
+  { state: 'reachable' } |
+  { state: 'unreachable' } |
+  { state: 'mixedContent' }
 
 const statusPath = '/api/v{version}/system/status'
 const probeTimeoutMs: number = 5000
@@ -41,7 +41,8 @@ export async function probeBot(
   origin: string,
   pageOrigin: string = window.location.origin,
 ): Promise<BotProbe> {
-  if (isMixedContent(pageOrigin, origin)) return { state: 'mixedContent' }
+  if (isMixedContent(pageOrigin, origin))
+    return { state: 'mixedContent' }
 
   try {
     const { data } = await createClient<paths>({ baseUrl: origin }).GET(statusPath, {
@@ -49,12 +50,15 @@ export async function probeBot(
       signal: AbortSignal.timeout(probeTimeoutMs),
     })
 
-    if (data?.data) return { state: 'ready', onboardingComplete: data.data.onboardingComplete }
+    if (data?.data)
+      return { state: 'ready', onboardingComplete: data.data.onboardingComplete }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'TimeoutError')
       return { state: 'unreachable' }
     // Unreachable, or reachable but not allowing this page; the no-cors call below tells the two apart.
   }
 
-  return (await answers(origin)) ? { state: 'reachable' } : { state: 'unreachable' }
+  return (await answers(origin))
+    ? { state: 'reachable' }
+    : { state: 'unreachable' }
 }

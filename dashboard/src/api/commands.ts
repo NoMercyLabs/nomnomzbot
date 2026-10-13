@@ -55,8 +55,11 @@ async function readCommands(channelId: string): Promise<CommandListItem[]> {
       },
     )
 
-    if (error !== undefined) throw failed('commands', response.status)
+    if (error !== undefined)
+      throw failed('commands', response.status)
+
     rows.push(...(data?.data ?? []))
+
     if (data?.hasMore !== true) break
   }
 
@@ -71,7 +74,8 @@ async function readBuiltins(channelId: string): Promise<BuiltinCommand[]> {
     },
   )
 
-  if (error !== undefined) throw failed('built-in commands', response.status)
+  if (error !== undefined)
+    throw failed('built-in commands', response.status)
 
   return [...(data?.data ?? [])]
 }
@@ -112,7 +116,8 @@ async function putCommand(
     },
   )
 
-  if (error !== undefined) throw refusal('save command', error, response.status)
+  if (error !== undefined)
+    throw refusal('save command', error, response.status)
 
   return readCommands(channelId)
 }
@@ -132,7 +137,9 @@ function saveRow<TVariables>(
       const { commandName, change } = send(variables)
 
       return (current ?? []).map((row: CommandListItem) =>
-        row.name === commandName ? applyChange(row, change) : row,
+        row.name === commandName
+          ? applyChange(row, change)
+          : row,
       )
     },
   })
@@ -175,7 +182,8 @@ export function useDeleteCommand(
         },
       )
 
-      if (error !== undefined) throw refusal('delete command', error, response.status)
+      if (error !== undefined)
+        throw refusal('delete command', error, response.status)
 
       return readCommands(id)
     },
@@ -203,7 +211,8 @@ export function useCreateCommand(
         },
       )
 
-      if (error !== undefined) throw refusal('create command', error, response.status)
+      if (error !== undefined)
+        throw refusal('create command', error, response.status)
     },
     onSuccess: async (): Promise<void> => {
       await queries.invalidateQueries({ queryKey: commandsKey(toValue(channelId)) })
@@ -237,7 +246,8 @@ export function useToggleBuiltin(
         },
       )
 
-      if (error !== undefined) throw refusal('built-in command', error, response.status)
+      if (error !== undefined)
+        throw refusal('built-in command', error, response.status)
 
       return readBuiltins(id)
     },
@@ -246,7 +256,9 @@ export function useToggleBuiltin(
       { builtinKey, enabled }: { builtinKey: string; enabled: boolean },
     ): BuiltinCommand[] =>
       (current ?? []).map((row: BuiltinCommand) =>
-        row.builtinKey === builtinKey ? { ...row, isEnabled: enabled } : row,
+        row.builtinKey === builtinKey
+          ? { ...row, isEnabled: enabled }
+          : row,
       ),
   })
 }

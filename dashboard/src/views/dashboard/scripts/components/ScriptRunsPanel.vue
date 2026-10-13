@@ -37,10 +37,14 @@ const shown = computed<SessionRun[]>(() =>
   props.runs.filter((run: SessionRun) => matchesRunFilter(run, filter.value)),
 )
 const state: ComputedRef<'ready' | 'empty'> = computed(() =>
-  shown.value.length > 0 ? 'ready' : 'empty',
+  shown.value.length > 0
+    ? 'ready'
+    : 'empty',
 )
 const emptyText: ComputedRef<string> = computed<string>(() =>
-  t(props.runs.length === 0 ? 'dashboard.scripts.runs.empty' : 'dashboard.scripts.runs.noMatch'),
+  t(props.runs.length === 0
+    ? 'dashboard.scripts.runs.empty'
+    : 'dashboard.scripts.runs.noMatch'),
 )
 
 function timeOf(run: SessionRun): string {

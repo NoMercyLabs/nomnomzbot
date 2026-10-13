@@ -19,7 +19,9 @@ defineProps<{ options: readonly { value: string; label: string }[] }>()
 const chosen = defineModel<string[]>({ required: true })
 
 function choose(next: unknown): void {
-  if (Array.isArray(next)) chosen.value = next.map(String)
+  if (Array.isArray(next)) {
+    chosen.value = next.map(String)
+  }
 }
 </script>
 

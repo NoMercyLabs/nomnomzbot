@@ -81,9 +81,12 @@ const visible: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => {
 
 const listState = usePanelState(scripts, () => false)
 const panelState = computed(() => {
-  if (listState.value !== 'ready') return listState.value
+  if (listState.value !== 'ready')
+    return listState.value
 
-  return visible.value?.length === 0 ? 'empty' : 'ready'
+  return visible.value?.length === 0
+    ? 'empty'
+    : 'ready'
 })
 
 const emptyText: ComputedRef<string> = computed<string>(() => {
@@ -91,7 +94,9 @@ const emptyText: ComputedRef<string> = computed<string>(() => {
     return t('dashboard.scripts.noMatch', { query: search.value.trim() })
 
   return t(
-    loaded.value?.length === 0 ? 'dashboard.scripts.list.empty' : 'dashboard.scripts.list.emptyTab',
+    loaded.value?.length === 0
+      ? 'dashboard.scripts.list.empty'
+      : 'dashboard.scripts.list.emptyTab',
   )
 })
 const errorText: ComputedRef<string> = computed<string>(
@@ -106,7 +111,9 @@ const count: ComputedRef<string | undefined> = computed(() =>
 )
 
 const asked = computed<string>(() =>
-  typeof route.query.script === 'string' ? route.query.script : '',
+  typeof route.query.script === 'string'
+    ? route.query.script
+    : '',
 )
 const selectedId = asked
 
@@ -133,11 +140,16 @@ function ran(run: Omit<SessionRun, 'id'>): void {
   const entry: SessionRun = { ...run, id: nextRunId++ }
 
   runs.value = [entry, ...runs.value]
-  if (!entry.result.success) failedRun.value = entry
+
+  if (!entry.result.success) {
+    failedRun.value = entry
+  }
 }
 
 function opened(id: string | null): void {
-  if (id !== null) void router.push({ query: { ...route.query, script: id } })
+  if (id !== null) {
+    void router.push({ query: { ...route.query, script: id } })
+  }
 }
 </script>
 

@@ -77,7 +77,8 @@ export function useCommunityFirstPage(
       )
 
       // A refusal is an error state, not an empty community.
-      if (error !== undefined) throw new Error(`community ${response.status}`)
+      if (error !== undefined)
+        throw new Error(`community ${response.status}`)
 
       return data?.data ?? []
     },
@@ -99,14 +100,18 @@ export function useVipChange(
         ? await client.POST('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
         : await client.DELETE('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
 
-      if (error) throw new Error('vip change failed')
+      if (error)
+        throw new Error('vip change failed')
 
       return fetchMember(channelId, userId)
     },
     apply: (
       current: CommunityMember | null | undefined,
       { vip }: VipChange,
-    ): CommunityMember | null => (current ? { ...current, isVip: vip } : null),
+    ): CommunityMember | null =>
+      current
+        ? { ...current, isVip: vip }
+        : null,
   })
 }
 
@@ -127,7 +132,8 @@ export function useBanMember(
         },
       )
 
-      if (error) throw new Error('ban failed')
+      if (error)
+        throw new Error('ban failed')
     },
     onSuccess: (_data: void, { userId }: BanInput) =>
       queries.invalidateQueries({ queryKey: memberKey(channelId, userId) }),
@@ -161,7 +167,8 @@ export function useViewerSearch(
         },
       )
 
-      if (error !== undefined) throw new Error(`viewer search ${response.status}`)
+      if (error !== undefined)
+        throw new Error(`viewer search ${response.status}`)
 
       return data?.data ?? []
     },
@@ -184,8 +191,11 @@ export function useTwitchLookup(
         },
       )
 
-      if (response.status === 404) throw new TwitchUserNotFoundError('twitch user not found')
-      if (error !== undefined || !data?.data) throw new Error(`twitch lookup ${response.status}`)
+      if (response.status === 404)
+        throw new TwitchUserNotFoundError('twitch user not found')
+
+      if (error !== undefined || !data?.data)
+        throw new Error(`twitch lookup ${response.status}`)
 
       return data.data
     },

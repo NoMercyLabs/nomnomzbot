@@ -83,7 +83,8 @@ describe('switching the language', () => {
     await loadPage(
       async () => page,
       async (locale: string) => {
-        if (locale !== 'en') throw new Error(`no ${locale} file`)
+        if (locale !== 'en')
+          throw new Error(`no ${locale} file`)
 
         return { default: pageWords.en! }
       },

@@ -96,10 +96,13 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'GET', path, query: options?.params?.query ?? {} })
+
       if (path.endsWith('/community/search'))
         return searchAnswer(String(options?.params?.query?.q ?? ''))
+
       if (path.endsWith('/community/lookup'))
         return lookupAnswer(String(options?.params?.query?.login ?? ''))
+
       if (path.endsWith('/community'))
         return listAnswer(options?.params?.query?.role as string | undefined)
 
@@ -109,7 +112,8 @@ vi.mock('@/api/client', () => ({
         return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
       }
 
-      if (path.endsWith('/profile')) return ok(summary)
+      if (path.endsWith('/profile'))
+        return ok(summary)
 
       return ok(null)
     },
@@ -131,8 +135,11 @@ beforeEach(() => {
   calls.length = 0
 
   listAnswer = (role) => {
-    if (role === 'moderator') return page([everyone[1]!], 1)
-    if (role === 'vip') return page([everyone[2]!], 1)
+    if (role === 'moderator')
+      return page([everyone[1]!], 1)
+
+    if (role === 'vip')
+      return page([everyone[2]!], 1)
 
     return page(everyone)
   }
@@ -153,7 +160,9 @@ beforeEach(() => {
     },
   )
   const sizeOf = (element: Element): number =>
-    element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+    element.hasAttribute('data-virtual-scroll')
+      ? VIEWPORT_HEIGHT
+      : ROW_HEIGHT
 
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,

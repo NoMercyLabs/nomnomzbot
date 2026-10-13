@@ -102,11 +102,13 @@ vi.mock('@/api/client', () => ({
       const id = String(options?.params?.path?.id ?? '')
 
       calls.push({ method: 'GET', path, body: undefined, id })
+
       if (refused)
         return {
           error: { message: REFUSAL },
           response: { status: 403, ok: false },
         }
+
       if (path.endsWith('/test-triggers'))
         return {
           data: {
@@ -121,6 +123,7 @@ vi.mock('@/api/client', () => ({
           },
           response: { status: 200, ok: true },
         }
+
       if (path.endsWith('/blast-radius'))
         return { data: { data: blast }, response: { status: 200, ok: true } }
 
@@ -166,7 +169,10 @@ vi.mock('@/api/client', () => ({
       calls.push({ method: 'PATCH', path, body: options?.body, id })
       const body = options?.body as Record<string, unknown>
 
-      scripts = scripts.map((row) => (row.id === id ? { ...row, ...body } : row))
+      scripts = scripts.map((row) =>
+        row.id === id
+          ? { ...row, ...body }
+          : row)
 
       return { data: { data: null }, response: { status: 200, ok: true } }
     },

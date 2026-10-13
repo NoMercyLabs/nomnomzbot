@@ -40,12 +40,15 @@ const date = (value: string): string =>
 const meta: ComputedRef<string> = computed(() => {
   const current = info.value
 
-  if (current === null) return ''
+  if (current === null)
+    return ''
+
   if (current.isLive && current.startedAt)
     return t('dashboard.stream.liveMeta', {
       time: formatDuration((now.value.getTime() - new Date(current.startedAt).getTime()) / 1000),
       category: current.gameName,
     })
+
   const last = historyQuery.data.value?.[0]
 
   // A stream the bot never closed has no end or length: the header gives only its date.
@@ -54,9 +57,11 @@ const meta: ComputedRef<string> = computed(() => {
       date: date(last.endedAt),
       length: formatDuration(Number(last.durationSeconds)),
     })
+
   const lastDate = last?.startedAt ?? current.lastStreamedAt
 
-  if (lastDate) return t('dashboard.stream.lastStreamDate', { date: date(lastDate) })
+  if (lastDate)
+    return t('dashboard.stream.lastStreamDate', { date: date(lastDate) })
 
   return t('dashboard.stream.noStreamYet')
 })

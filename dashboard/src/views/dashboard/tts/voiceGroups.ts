@@ -31,8 +31,13 @@ export function localeLabel(locale: string, language: string): string {
 }
 
 function localeOrder(a: string, b: string): number {
-  if (a === FIRST_LOCALE) return b === FIRST_LOCALE ? 0 : -1
-  if (b === FIRST_LOCALE) return 1
+  if (a === FIRST_LOCALE)
+    return b === FIRST_LOCALE
+      ? 0
+      : -1
+
+  if (b === FIRST_LOCALE)
+    return 1
 
   return a.localeCompare(b)
 }

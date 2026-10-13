@@ -15,5 +15,11 @@ import { useI18n } from 'vue-i18n'
 export function useProviderName(): (id: string) => string {
   const { t, te } = useI18n()
 
-  return (id: string): string => (te(`common.provider.${id}`) ? t(`common.provider.${id}`) : id)
+  return (id: string): string => {
+    const key = `common.provider.${id}`
+
+    return te(key)
+      ? t(key)
+      : id
+  }
 }

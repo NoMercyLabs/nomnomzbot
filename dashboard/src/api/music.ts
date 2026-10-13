@@ -73,7 +73,8 @@ async function readQueue(channelId: string): Promise<MusicQueue> {
     },
   )
 
-  if (error !== undefined) throw failed('music queue', response.status)
+  if (error !== undefined)
+    throw failed('music queue', response.status)
 
   return data?.data ?? { nowPlaying: null, queue: [] }
 }
@@ -86,7 +87,8 @@ async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
     },
   )
 
-  if (error !== undefined) throw failed('blocked tracks', response.status)
+  if (error !== undefined)
+    throw failed('blocked tracks', response.status)
 
   return data?.data ?? []
 }
@@ -111,7 +113,8 @@ export function useMusicConfig(
         },
       )
 
-      if (error !== undefined) throw failed('music config', response.status)
+      if (error !== undefined)
+        throw failed('music config', response.status)
 
       return data?.data ?? null
     },
@@ -140,16 +143,18 @@ function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): Music
 
   return {
     ...base,
-    nowPlaying: base.nowPlaying === null ? null : { ...base.nowPlaying, isPlaying },
+    nowPlaying: base.nowPlaying === null
+      ? null
+      : { ...base.nowPlaying, isPlaying },
   }
 }
 
 function transport(
   channelId: MaybeRefOrGetter<string | null>,
   path:
-    | '/api/v{version}/channels/{channelId}/music/pause'
-    | '/api/v{version}/channels/{channelId}/music/resume'
-    | '/api/v{version}/channels/{channelId}/music/skip',
+    | '/api/v{version}/channels/{channelId}/music/pause' |
+    '/api/v{version}/channels/{channelId}/music/resume' |
+    '/api/v{version}/channels/{channelId}/music/skip',
   isPlaying: boolean | null,
 ): QueueMutation {
   return useOptimisticSave<MusicQueue, void>({
@@ -160,7 +165,8 @@ function transport(
         params: { path: { version, channelId: id } },
       })
 
-      if (error !== undefined) throw failed('music control', response.status)
+      if (error !== undefined)
+        throw failed('music control', response.status)
 
       return readQueue(id)
     },
@@ -196,7 +202,8 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
         },
       )
 
-      if (error !== undefined) throw failed('promote', response.status)
+      if (error !== undefined)
+        throw failed('promote', response.status)
 
       return readQueue(id)
     },
@@ -204,7 +211,9 @@ export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>):
       const base: MusicQueue = current ?? { nowPlaying: null, queue: [] }
       const moved = base.queue.find((item: QueueItem) => item.position === position)
 
-      if (moved === undefined) return base
+      if (moved === undefined)
+        return base
+
       const rest = base.queue.filter((item: QueueItem) => item.position !== position)
 
       return { ...base, queue: renumbered(base.queue, [moved, ...rest]) }
@@ -232,7 +241,8 @@ export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): 
         },
       )
 
-      if (error !== undefined) throw failed('remove song', response.status)
+      if (error !== undefined)
+        throw failed('remove song', response.status)
 
       return readQueue(id)
     },
@@ -256,7 +266,9 @@ export function useBanQueueItem(channelId: MaybeRefOrGetter<string | null>): Row
         },
       )
 
-      if (error !== undefined) throw failed('ban song', response.status)
+      if (error !== undefined)
+        throw failed('ban song', response.status)
+
       await queries.invalidateQueries({ queryKey: blockedTracksKey(id) })
 
       return readQueue(id)
@@ -281,7 +293,8 @@ export function useBlockTrack(
         },
       )
 
-      if (error !== undefined) throw failed('block song', response.status)
+      if (error !== undefined)
+        throw failed('block song', response.status)
 
       return readBlocked(id)
     },
@@ -314,7 +327,8 @@ export function useUnblockTrack(
         },
       )
 
-      if (error !== undefined) throw failed('unblock song', response.status)
+      if (error !== undefined)
+        throw failed('unblock song', response.status)
 
       return readBlocked(id)
     },
@@ -348,13 +362,17 @@ export function useSaveMusicConfig(
         },
       )
 
-      if (error !== undefined) throw failed('save music config', response.status)
+      if (error !== undefined)
+        throw failed('save music config', response.status)
 
       return data?.data ?? null
     },
     apply: (
       current: MusicConfig | null | undefined,
       change: MusicConfigChange,
-    ): MusicConfig | null => (current ? { ...current, ...definedOnly(change) } : null),
+    ): MusicConfig | null =>
+      current
+        ? { ...current, ...definedOnly(change) }
+        : null,
   })
 }

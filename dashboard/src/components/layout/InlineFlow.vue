@@ -75,13 +75,18 @@ watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
   await nextTick()
 
   if (now === 'idle') {
-    if (before !== 'idle')
+    if (before !== 'idle') {
       opener.value?.querySelector<HTMLElement>('button, [href], [tabindex]')?.focus()
+    }
 
     return
   }
 
-  const target: string = now === 'ask' ? 'back' : canUndo.value ? 'undo' : 'back'
+  const target: string = now === 'ask'
+    ? 'back'
+    : canUndo.value
+      ? 'undo'
+      : 'back'
 
   box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus()
 })

@@ -19,7 +19,17 @@ import skipFormatting from 'eslint-config-prettier/flat'
 import pluginUnusedImports from 'eslint-plugin-unused-imports'
 import pluginStylistic from '@stylistic/eslint-plugin'
 
+import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body'
+import { ifBodyShape } from './eslint-rules/if-body-shape'
 import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation'
+
+const pluginApp = {
+  rules: {
+    'arrow-ternary-body': arrowTernaryBody,
+    'if-body-shape': ifBodyShape,
+    'no-redundant-type-annotation': noRedundantTypeAnnotation,
+  },
+}
 
 // To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
 // import { configureVueProject } from '@vue/eslint-config-typescript'
@@ -126,7 +136,7 @@ export default defineConfigWithVueTs(
     languageOptions: {
       parserOptions: { projectService: true, extraFileExtensions: ['.vue'] },
     },
-    plugins: { app: { rules: { 'no-redundant-type-annotation': noRedundantTypeAnnotation } } },
+    plugins: { app: pluginApp },
     rules: { 'app/no-redundant-type-annotation': 'error' },
   },
 
@@ -153,7 +163,33 @@ export default defineConfigWithVueTs(
         { blankLine: 'any', prev: 'import', next: 'import' },
         { blankLine: 'always', prev: '*', next: ['function', 'class', 'export'] },
         { blankLine: 'any', prev: 'export', next: 'export' },
+        { blankLine: 'always', prev: '*', next: ['if', 'for', 'while', 'do', 'switch', 'try'] },
+        { blankLine: 'always', prev: ['if', 'for', 'while', 'do', 'switch', 'try'], next: '*' },
       ],
+    },
+  },
+
+  {
+    // Owner 2026-10-13: a ternary puts `? a` and `: b` on their own lines, and an if body is a
+    // bare exit on the if line, a returned value on the next line, or a block. Prettier joins
+    // both back onto one line, so `npm run format` runs `eslint --fix` after Prettier.
+    name: 'app/layout',
+    files: ['src/**/*.{vue,ts}', 'e2e/**/*.ts', 'eslint-rules/**/*.ts'],
+    ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
+    plugins: {
+      '@stylistic': pluginStylistic,
+      app: pluginApp,
+    },
+    rules: {
+      '@stylistic/multiline-ternary': ['error', 'always'],
+      '@stylistic/operator-linebreak': [
+        'error',
+        null,
+        { overrides: { '?': 'before', ':': 'before' } },
+      ],
+      '@stylistic/indent': ['error', 2, { offsetTernaryExpressions: true }],
+      'app/arrow-ternary-body': 'error',
+      'app/if-body-shape': 'error',
     },
   },
 )

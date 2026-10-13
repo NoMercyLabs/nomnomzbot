@@ -57,7 +57,9 @@ const statusLabel: ComputedRef<string> = computed(() =>
 const statsLine: ComputedRef<string> = computed(() => {
   const current = stats.value
 
-  if (current === null) return ''
+  if (current === null)
+    return ''
+
   if (current.isLive)
     return t('dashboard.home.liveLine', {
       uptime: formatCountdown(Number(current.uptime ?? 0)),
@@ -77,7 +79,9 @@ const primaryRoute: ComputedRef<{ name: string; label: string } | null> = comput
     ? { name: 'dashboard-chat', label: t('dashboard.home.openChat') }
     : { name: 'dashboard-stream', label: t('dashboard.home.editStream') }
 
-  return router.hasRoute(next.name) ? next : null
+  return router.hasRoute(next.name)
+    ? next
+    : null
 })
 </script>
 

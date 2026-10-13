@@ -48,7 +48,9 @@ export function useOptimisticSave<TData, TVariables>(
   const entries = new Map()
 
   function keyOf(variables: TVariables): QueryKey {
-    return typeof options.queryKey === 'function' ? options.queryKey(variables) : options.queryKey
+    return typeof options.queryKey === 'function'
+      ? options.queryKey(variables)
+      : options.queryKey
   }
 
   function entryOf(queryKey: QueryKey): EntryState<TData> {
@@ -70,7 +72,11 @@ export function useOptimisticSave<TData, TVariables>(
       const entry = entryOf(queryKey)
 
       await queries.cancelQueries({ queryKey })
-      if (entry.inFlight === 0) entry.confirmed = queries.getQueryData<TData>(queryKey)
+
+      if (entry.inFlight === 0) {
+        entry.confirmed = queries.getQueryData<TData>(queryKey)
+      }
+
       entry.inFlight += 1
       entry.newest += 1
       queries.setQueryData<TData>(queryKey, (current) => options.apply(current, variables))
@@ -82,13 +88,19 @@ export function useOptimisticSave<TData, TVariables>(
       const entry = entryOf(queryKey)
 
       entry.confirmed = data
-      if (ticket === entry.newest) queries.setQueryData<TData>(queryKey, data)
+
+      if (ticket === entry.newest) {
+        queries.setQueryData<TData>(queryKey, data)
+      }
     },
     onError: (_error: Error, variables: TVariables, ticket: number | undefined): void => {
       const queryKey = keyOf(variables)
       const entry = entryOf(queryKey)
 
-      if (ticket === entry.newest) queries.setQueryData<TData>(queryKey, entry.confirmed)
+      if (ticket === entry.newest) {
+        queries.setQueryData<TData>(queryKey, entry.confirmed)
+      }
+
       errors.report(
         options.titleKey ?? SAVE_FAILED_TITLE,
         options.messageKey ?? SAVE_FAILED_MESSAGE,

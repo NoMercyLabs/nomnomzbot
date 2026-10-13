@@ -19,7 +19,9 @@ export function failed(what: string, status: number): Error {
 export function refusal(what: string, error: unknown, status: number): Error {
   const reason = (error as { message?: string | null } | undefined)?.message
 
-  return reason ? new Error(reason) : failed(what, status)
+  return reason
+    ? new Error(reason)
+    : failed(what, status)
 }
 
 // A query that waits for a channel id and keeps one cache entry per channel.

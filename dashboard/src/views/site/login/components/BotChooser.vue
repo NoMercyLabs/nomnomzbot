@@ -37,15 +37,22 @@ function host(origin: string): string {
 }
 
 function detail(origin: string): string {
-  if (origin === servedOrigin) return 'site.login.bots.thisPage'
+  if (origin === servedOrigin)
+    return 'site.login.bots.thisPage'
 
-  return origin === officialOrigin ? 'site.login.bots.official' : 'site.login.bots.used'
+  return origin === officialOrigin
+    ? 'site.login.bots.official'
+    : 'site.login.bots.used'
 }
 
 function forget(origin: string): void {
   connections.forget(origin)
-  if (chosen.value === origin)
-    chosen.value = activeBot.value === origin ? servedOrigin : activeBot.value
+
+  if (chosen.value === origin) {
+    chosen.value = activeBot.value === origin
+      ? servedOrigin
+      : activeBot.value
+  }
 }
 
 // This client stays open; only the bot it talks to changes.
@@ -68,7 +75,9 @@ async function check(): Promise<void> {
 
   checking.value = false
   checked.value = { origin, probe }
+
   if (probe.state === 'unreachable' || probe.state === 'mixedContent') return
+
   connections.remember(origin)
   chosen.value = origin
   typed.value = ''

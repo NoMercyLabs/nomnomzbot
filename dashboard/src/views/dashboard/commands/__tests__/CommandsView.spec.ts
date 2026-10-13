@@ -91,7 +91,9 @@ function freshAnswers(): Record<string, () => Answer> {
 function read(path: string): Answer {
   const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-  return match ? answers[match]!() : ok(null)
+  return match
+    ? answers[match]!()
+    : ok(null)
 }
 
 function write(method: string, path: string, options?: Options): Answer {
@@ -101,8 +103,12 @@ function write(method: string, path: string, options?: Options): Answer {
     name: options?.params?.path?.commandName ?? options?.params?.path?.builtinKey,
     body: options?.body,
   })
-  if (method === 'PUT' && refusePut) return refused(refusePut)
-  if (method === 'POST' && refusePost) return refused(refusePost, 409)
+
+  if (method === 'PUT' && refusePut)
+    return refused(refusePut)
+
+  if (method === 'POST' && refusePost)
+    return refused(refusePost, 409)
 
   if (method === 'PUT') {
     const index = rows.findIndex((row) => row.name === options?.params?.path?.commandName)
@@ -110,9 +116,13 @@ function write(method: string, path: string, options?: Options): Answer {
     rows[index] = { ...rows[index], ...options?.body }
   }
 
-  if (method === 'DELETE')
+  if (method === 'DELETE') {
     rows = rows.filter((row) => row.name !== options?.params?.path?.commandName)
-  if (method === 'POST') rows.push(command(String(options?.body?.name), options?.body))
+  }
+
+  if (method === 'POST') {
+    rows.push(command(String(options?.body?.name), options?.body))
+  }
 
   return { response: { status: 200, ok: true } }
 }

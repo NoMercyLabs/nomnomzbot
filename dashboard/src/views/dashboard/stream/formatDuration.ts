@@ -13,5 +13,7 @@ export function formatDuration(totalSeconds: number): string {
   const minutes = Math.max(0, Math.floor(totalSeconds / 60))
   const hours = Math.floor(minutes / 60)
 
-  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`
+  return hours > 0
+    ? `${hours}h ${minutes % 60}m`
+    : `${minutes}m`
 }

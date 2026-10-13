@@ -24,8 +24,13 @@ import type { AdminChannelRegistryPayload, AdminSystemStatusPayload } from './pa
 function patchOf(update: AdminChannelRegistryPayload): Partial<AdminTenant> {
   const patch: Partial<AdminTenant> = {}
 
-  if (update.isLive !== undefined) patch.isLive = update.isLive
-  if (update.status !== undefined) patch.status = update.status
+  if (update.isLive !== undefined) {
+    patch.isLive = update.isLive
+  }
+
+  if (update.status !== undefined) {
+    patch.status = update.status
+  }
 
   return patch
 }
@@ -41,11 +46,14 @@ function applyRegistryUpdate(
     queryKey: adminTenantsPrefix,
   })) {
     if (!page?.data?.some((row: AdminTenant) => row.id === update.broadcasterId)) continue
+
     found = true
     queries.setQueryData<AdminTenantsPage>(key, {
       ...page,
       data: page.data.map((row: AdminTenant) =>
-        row.id === update.broadcasterId ? { ...row, ...patch } : row,
+        row.id === update.broadcasterId
+          ? { ...row, ...patch }
+          : row,
       ),
     })
   }
@@ -53,12 +61,17 @@ function applyRegistryUpdate(
   if (update.status !== undefined) {
     queries.setQueryData<AdminTenantDetail | null>(
       adminTenantKey(update.broadcasterId),
-      (detail) => (detail ? { ...detail, status: update.status! } : detail),
+      (detail) =>
+        detail
+          ? { ...detail, status: update.status! }
+          : detail,
     )
   }
 
   // A channel that is on no cached page cannot be patched, and it may belong on one: refetch the lists.
-  if (!found) void queries.invalidateQueries({ queryKey: adminTenantsPrefix })
+  if (!found) {
+    void queries.invalidateQueries({ queryKey: adminTenantsPrefix })
+  }
 }
 
 // The operator hub pushes the full snapshot every 15 seconds, so the payload replaces the cache entry.

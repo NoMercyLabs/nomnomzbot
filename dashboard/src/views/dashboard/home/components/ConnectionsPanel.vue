@@ -28,13 +28,17 @@ const botQuery = useBotStatus(channelId)
 const connectionsState = usePanelState(connectionsQuery)
 
 function connectionTone(connection: IntegrationStatus): 'ok' | 'bad' | 'off' {
-  if (!connection.connected) return 'off'
+  if (!connection.connected)
+    return 'off'
 
-  return connection.needsReauth ? 'bad' : 'ok'
+  return connection.needsReauth
+    ? 'bad'
+    : 'ok'
 }
 
 function connectionLabel(connection: IntegrationStatus): string {
-  if (!connection.connected) return t('dashboard.home.connections.notConnected')
+  if (!connection.connected)
+    return t('dashboard.home.connections.notConnected')
 
   return connection.needsReauth
     ? t('dashboard.home.connections.reauth')

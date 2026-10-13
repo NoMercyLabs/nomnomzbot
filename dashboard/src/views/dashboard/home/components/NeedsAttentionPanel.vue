@@ -29,7 +29,9 @@ const attentionState = usePanelState(
 
 // The server names each attention item by a words key; a key this client has no words for shows a plain fallback.
 function words(key: string, fallback: string): string {
-  return te(key) ? t(key) : t(fallback)
+  return te(key)
+    ? t(key)
+    : t(fallback)
 }
 
 function inApp(link: string): boolean {

@@ -49,7 +49,9 @@ const fields: ComputedRef<WidgetSettingsField[]> = computed<WidgetSettingsField[
 const saved: ComputedRef<Values> = computed<Values>(() => props.widget.settings ?? {})
 
 function savedValue(field: WidgetSettingsField): unknown {
-  return field.key in saved.value ? saved.value[field.key] : field.default
+  return field.key in saved.value
+    ? saved.value[field.key]
+    : field.default
 }
 
 const draft: Ref<Values> = ref({})
@@ -105,19 +107,29 @@ const rawKeys = computed<KeyValueItem[]>(() =>
 )
 
 const state = computed<PanelState>(() => {
-  if (schema.isPending.value) return 'loading'
-  if (schema.isError.value) return 'error'
+  if (schema.isPending.value)
+    return 'loading'
 
-  return fields.value.length === 0 && rawKeys.value.length === 0 ? 'empty' : 'ready'
+  if (schema.isError.value)
+    return 'error'
+
+  return fields.value.length === 0 && rawKeys.value.length === 0
+    ? 'empty'
+    : 'ready'
 })
 
 const hint = computed<string>(() => {
   const base: string = 'dashboard.overlays.detail.settings'
 
-  if (result.value === 'failed') return t(`${base}.failed`)
-  if (dirty.value) return t(`${base}.unsaved`)
+  if (result.value === 'failed')
+    return t(`${base}.failed`)
 
-  return t(result.value === 'saved' ? `${base}.saved` : `${base}.allSaved`)
+  if (dirty.value)
+    return t(`${base}.unsaved`)
+
+  return t(result.value === 'saved'
+    ? `${base}.saved`
+    : `${base}.allSaved`)
 })
 
 // Only the edited values travel over the saved map, so keys the schema does not list are kept.

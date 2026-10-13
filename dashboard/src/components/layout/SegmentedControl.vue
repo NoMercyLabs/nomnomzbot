@@ -17,7 +17,9 @@ defineProps<{ label: string; options: readonly { value: T; label: string }[] }>(
 const chosen = defineModel<T>({ required: true })
 
 function choose(next: unknown): void {
-  if (typeof next === 'string' && next !== '') chosen.value = next as T
+  if (typeof next === 'string' && next !== '') {
+    chosen.value = next as T
+  }
 }
 </script>
 

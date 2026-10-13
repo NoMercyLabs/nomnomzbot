@@ -35,7 +35,13 @@ const ttsDomain = 'tts-config'
 // WidgetService.cs publishes ConfigChanged with this domain when an overlay is created, updated or deleted.
 const widgetsDomain = 'widgets'
 
-const bare = (name: string): string => (name.startsWith('!') ? name.slice(1) : name).toLowerCase()
+function bare(name: string): string {
+  const unprefixed = name.startsWith('!')
+    ? name.slice(1)
+    : name
+
+  return unprefixed.toLowerCase()
+}
 
 // The payloads carry no ULID channel id, so each handler writes for the channel this connection joined.
 export const channelHandlers: [
@@ -49,7 +55,10 @@ export const channelHandlers: [
     event: 'StreamStatusChanged',
     handle: ({ queries, channelId }, status) => {
       queries.setQueryData<ChannelSummary[]>(myChannelsQuery.queryKey, (rows) =>
-        rows?.map((row) => (row.id === channelId ? { ...row, isLive: status.isLive } : row)),
+        rows?.map((row) =>
+          row.id === channelId
+            ? { ...row, isLive: status.isLive }
+            : row),
       )
       // Going offline carries no title or category, so the page keeps the ones it shows.
       queries.setQueryData<StreamInfo>(streamInfoKey(channelId), (info) =>
@@ -69,31 +78,44 @@ export const channelHandlers: [
   {
     event: 'ChannelEvent',
     handle: ({ queries, channelId }, event) => {
-      if (event.type === 'shield_mode_begin')
+      if (event.type === 'shield_mode_begin') {
         queries.setQueryData<boolean>(shieldKey(channelId), true)
-      if (event.type === 'shield_mode_end')
+      }
+
+      if (event.type === 'shield_mode_end') {
         queries.setQueryData<boolean>(shieldKey(channelId), false)
+      }
     },
   },
   {
     event: 'ConfigChanged',
     handle: ({ queries, channelId }, change) => {
-      if (change.domain === actionRequiredDomain)
+      if (change.domain === actionRequiredDomain) {
         void queries.invalidateQueries({ queryKey: actionRequiredKey(channelId) })
-      if (change.domain === commandsDomain)
+      }
+
+      if (change.domain === commandsDomain) {
         void queries.invalidateQueries({ queryKey: commandsKey(channelId) })
-      if (change.domain === builtinsDomain)
+      }
+
+      if (change.domain === builtinsDomain) {
         void queries.invalidateQueries({ queryKey: builtinsKey(channelId) })
-      if (change.domain === ttsDomain)
+      }
+
+      if (change.domain === ttsDomain) {
         void queries.invalidateQueries({ queryKey: ttsConfigKey(channelId) })
-      if (change.domain === widgetsDomain)
+      }
+
+      if (change.domain === widgetsDomain) {
         void queries.invalidateQueries({ queryKey: widgetsKey(channelId) })
+      }
     },
   },
   {
     event: 'CommandExecuted',
     handle: ({ queries, channelId }, run) => {
       if (!run.succeeded) return
+
       queries.setQueryData<CommandListItem[]>(commandsKey(channelId), (rows) =>
         rows?.map((row) =>
           bare(row.name) === bare(run.commandName)
@@ -107,7 +129,9 @@ export const channelHandlers: [
     event: 'StreamInfoChanged',
     handle: ({ queries, channelId }, change) => {
       queries.setQueryData<StreamInfo>(streamInfoKey(channelId), (info) =>
-        info ? { ...info, title: change.title, gameName: change.gameName } : info,
+        info
+          ? { ...info, title: change.title, gameName: change.gameName }
+          : info,
       )
     },
   },

@@ -33,9 +33,12 @@ const providers = useQuery(providersQuery)
 const mode: Ref<'options' | 'device' | 'bots'> = ref('options')
 const botHost = computed(() => new URL(activeBot.value).host)
 const botDetail: ComputedRef<string> = computed(() => {
-  if (activeBot.value === officialOrigin) return 'site.login.official'
+  if (activeBot.value === officialOrigin)
+    return 'site.login.official'
 
-  return activeBot.value === servedOrigin ? 'site.login.thisBot' : 'site.login.used'
+  return activeBot.value === servedOrigin
+    ? 'site.login.thisBot'
+    : 'site.login.used'
 })
 // A browser sign-in comes back to the bot's own site, so for another bot this page uses a code.
 // Platforms return only to https or localhost (a secure context), so a plain http network address uses one too.
@@ -68,11 +71,16 @@ const codeProviders = computed(() => enabled.value.filter((p) => p.flows.include
 const deviceProvider: Ref<LoginProvider | null> = ref(null)
 
 function useCode(): void {
-  deviceProvider.value = codeProviders.value.length === 1 ? codeProviders.value[0]! : null
+  deviceProvider.value = codeProviders.value.length === 1
+    ? codeProviders.value[0]!
+    : null
   mode.value = 'device'
 }
 
-const shown = computed(() => (codeOnly.value ? codeProviders.value : enabled.value))
+const shown = computed(() =>
+  codeOnly.value
+    ? codeProviders.value
+    : enabled.value)
 
 function signIn(provider: LoginProvider): void {
   if (!codeOnly.value) {

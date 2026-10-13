@@ -93,7 +93,9 @@ function answer(method: string, path: string): Answer {
   calls.push({ method, path })
   const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-  return match ? answers[match]!() : ok(null)
+  return match
+    ? answers[match]!()
+    : ok(null)
 }
 
 vi.mock('@/api/client', () => ({
@@ -102,8 +104,13 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string) => answer('GET', path),
     POST: async (path: string) => {
       calls.push({ method: 'POST', path })
-      if (snoozeFails) return refused()
-      if (path.endsWith('/ads/snooze')) snoozeCount -= 1
+
+      if (snoozeFails)
+        return refused()
+
+      if (path.endsWith('/ads/snooze')) {
+        snoozeCount -= 1
+      }
 
       return { data: { data: null }, response: { status: 200, ok: true } }
     },

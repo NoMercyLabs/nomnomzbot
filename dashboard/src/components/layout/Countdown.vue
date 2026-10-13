@@ -56,6 +56,7 @@ watch(
   [targetMs, remaining],
   () => {
     if (remaining.value !== 0 || firedFor === targetMs.value) return
+
     firedFor = targetMs.value
     emit('zero')
   },

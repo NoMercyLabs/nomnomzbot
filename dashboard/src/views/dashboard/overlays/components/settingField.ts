@@ -22,8 +22,11 @@ export function useSettingText(): SettingText {
   const { t, te } = useI18n()
 
   return (text: LocalizedText | null | undefined, fallback: string): string => {
-    if (text?.text) return text.text
-    if (text?.key && te(text.key)) return t(text.key)
+    if (text?.text)
+      return text.text
+
+    if (text?.key && te(text.key))
+      return t(text.key)
 
     return fallback
   }
@@ -46,22 +49,31 @@ export function sameValue(a: unknown, b: unknown): boolean {
 }
 
 export function numberOrNull(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined || value === '') return null
+  if (value === null || value === undefined || value === '')
+    return null
+
   const parsed = Number(value)
 
-  return Number.isFinite(parsed) ? parsed : null
+  return Number.isFinite(parsed)
+    ? parsed
+    : null
 }
 
 // Holds a typed number inside the field's min and max; text that is not a number keeps the old value.
 export function clampNumber(typed: string, field: WidgetSettingsField, fallback: unknown): unknown {
   const parsed = numberOrNull(typed)
 
-  if (parsed === null) return fallback
+  if (parsed === null)
+    return fallback
+
   const min = numberOrNull(field.min)
   const max = numberOrNull(field.max)
 
-  if (min !== null && parsed < min) return min
-  if (max !== null && parsed > max) return max
+  if (min !== null && parsed < min)
+    return min
+
+  if (max !== null && parsed > max)
+    return max
 
   return parsed
 }

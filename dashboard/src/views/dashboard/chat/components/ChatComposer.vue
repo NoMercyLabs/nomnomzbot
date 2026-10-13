@@ -34,13 +34,17 @@ const canSend = computed(
   () => text.value.trim() !== '' && !tooLong.value && !sender.isPending.value,
 )
 const problem: ComputedRef<string> = computed(() => {
-  if (tooLong.value) return t('dashboard.chat.composer.tooLong', { max: chatMessageMaxLength })
+  if (tooLong.value)
+    return t('dashboard.chat.composer.tooLong', { max: chatMessageMaxLength })
 
-  return failed.value ? t('dashboard.chat.composer.failed') : ''
+  return failed.value
+    ? t('dashboard.chat.composer.failed')
+    : ''
 })
 
 async function submit(): Promise<void> {
   if (!canSend.value) return
+
   failed.value = false
 
   try {

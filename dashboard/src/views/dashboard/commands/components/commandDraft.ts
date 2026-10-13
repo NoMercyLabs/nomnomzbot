@@ -55,19 +55,33 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
   const saved = draftOf(row)
   const change: CommandChange = {}
 
-  if (row.tier === 'template' && draft.templateResponse !== saved.templateResponse)
+  if (row.tier === 'template' && draft.templateResponse !== saved.templateResponse) {
     change.templateResponse = draft.templateResponse
-  if (row.tier === 'template' && !sameReplies(draft.replies, saved.replies))
+  }
+
+  if (row.tier === 'template' && !sameReplies(draft.replies, saved.replies)) {
     change.templateResponses = draft.replies
-  if (row.tier === 'pipeline' && draft.pipelineId !== saved.pipelineId && draft.pipelineId !== '')
+  }
+
+  if (row.tier === 'pipeline' && draft.pipelineId !== saved.pipelineId && draft.pipelineId !== '') {
     change.pipelineId = draft.pipelineId
-  if (draft.speakWithTts !== saved.speakWithTts) change.speakWithTts = draft.speakWithTts
-  if (draft.minPermissionLevel !== saved.minPermissionLevel)
+  }
+
+  if (draft.speakWithTts !== saved.speakWithTts) {
+    change.speakWithTts = draft.speakWithTts
+  }
+
+  if (draft.minPermissionLevel !== saved.minPermissionLevel) {
     change.minPermissionLevel = draft.minPermissionLevel
-  if (draft.cooldownSeconds !== saved.cooldownSeconds)
+  }
+
+  if (draft.cooldownSeconds !== saved.cooldownSeconds) {
     change.cooldownSeconds = draft.cooldownSeconds
-  if (draft.userCooldownSeconds !== saved.userCooldownSeconds)
+  }
+
+  if (draft.userCooldownSeconds !== saved.userCooldownSeconds) {
     change.userCooldownSeconds = draft.userCooldownSeconds
+  }
 
   return change
 }

@@ -38,12 +38,16 @@ useIntervalFn(() => {
 const durationMs = computed<number>(() => Number(props.track.durationMs))
 const positionMs = computed<number>(() => {
   const reported = Number(props.track.progressMs)
-  const elapsed = props.track.isPlaying ? Math.max(0, now.value - props.observedAt) : 0
+  const elapsed = props.track.isPlaying
+    ? Math.max(0, now.value - props.observedAt)
+    : 0
 
   return Math.min(durationMs.value, reported + elapsed)
 })
 const percent = computed<number>(() =>
-  durationMs.value > 0 ? (positionMs.value / durationMs.value) * 100 : 0,
+  durationMs.value > 0
+    ? (positionMs.value / durationMs.value) * 100
+    : 0,
 )
 </script>
 

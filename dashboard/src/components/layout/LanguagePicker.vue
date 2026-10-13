@@ -30,8 +30,9 @@ function ownName(tag: Locale): string {
 }
 
 function choose(value: AcceptableValue): void {
-  if (typeof value === 'string' && (locales as readonly string[]).includes(value))
+  if (typeof value === 'string' && (locales as readonly string[]).includes(value)) {
     void setLocale(value as Locale)
+  }
 }
 </script>
 

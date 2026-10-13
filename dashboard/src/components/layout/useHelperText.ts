@@ -21,8 +21,12 @@ export function useHelperText(): {
 
   return {
     describe: (helper: TemplateHelper): string =>
-      te(helper.descriptionKey) ? t(helper.descriptionKey) : '',
+      te(helper.descriptionKey)
+        ? t(helper.descriptionKey)
+        : '',
     groupLabel: (group: string): string =>
-      te(`template.group.${group}`) ? t(`template.group.${group}`) : group,
+      te(`template.group.${group}`)
+        ? t(`template.group.${group}`)
+        : group,
   }
 }

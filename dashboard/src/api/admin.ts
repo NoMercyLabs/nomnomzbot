@@ -63,9 +63,17 @@ function listQuery({
 }: AdminTenantsParams): Record<string, string | boolean | number> {
   const query: Record<string, string | boolean | number> = { Page: page, Take: take }
 
-  if (search) query.search = search
-  if (status) query.status = status
-  if (isLive !== undefined) query.isLive = isLive
+  if (search) {
+    query.search = search
+  }
+
+  if (status) {
+    query.status = status
+  }
+
+  if (isLive !== undefined) {
+    query.isLive = isLive
+  }
 
   return query
 }
@@ -81,7 +89,8 @@ export function useAdminTenants(
       })
 
       // A refusal is an error state, not an empty registry.
-      if (error !== undefined) throw new Error(`admin tenants ${response.status}`)
+      if (error !== undefined)
+        throw new Error(`admin tenants ${response.status}`)
 
       return data ?? {}
     },
@@ -102,7 +111,8 @@ export function useAdminTenant(
         },
       )
 
-      if (error !== undefined) throw new Error(`admin tenant ${response.status}`)
+      if (error !== undefined)
+        throw new Error(`admin tenant ${response.status}`)
 
       return data?.data ?? null
     },
@@ -130,7 +140,8 @@ export function useAdminSuspend(): UseMutationReturnType<void, Error, SuspendInp
         body: { newStatus, reason },
       })
 
-      if (error !== undefined) throw new Error('suspend failed')
+      if (error !== undefined)
+        throw new Error('suspend failed')
     },
     onSuccess: (_data: void, { broadcasterId }: SuspendInput) =>
       refreshTenant(queries, broadcasterId),
@@ -152,7 +163,8 @@ export function useAdminReinstate(): UseMutationReturnType<void, Error, Reinstat
         },
       )
 
-      if (error !== undefined) throw new Error('reinstate failed')
+      if (error !== undefined)
+        throw new Error('reinstate failed')
     },
     onSuccess: (_data: void, { broadcasterId }: ReinstateInput) =>
       refreshTenant(queries, broadcasterId),
@@ -187,7 +199,8 @@ export function useAdminBeginAccess(): UseMutationReturnType<
         },
       )
 
-      if (error !== undefined || !data?.data) throw new Error('begin access failed')
+      if (error !== undefined || !data?.data)
+        throw new Error('begin access failed')
 
       return data.data
     },
@@ -216,7 +229,8 @@ export function useAdminImpersonate(): UseMutationReturnType<
         },
       )
 
-      if (error !== undefined || !data?.data) throw new Error('impersonate failed')
+      if (error !== undefined || !data?.data)
+        throw new Error('impersonate failed')
 
       return data.data
     },

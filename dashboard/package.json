@@ -17,7 +17,7 @@
     "lint:oxlint": "oxlint .",
     "lint:eslint": "eslint . --cache",
     "fix": "oxlint . --fix && eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/ && eslint --fix src eslint-rules"
   },
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",

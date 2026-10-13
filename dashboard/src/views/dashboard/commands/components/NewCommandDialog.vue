@@ -45,6 +45,7 @@ const error: Ref<string | undefined> = ref(undefined)
 
 watch(open, (isOpen: boolean): void => {
   if (!isOpen) return
+
   name.value = ''
   kind.value = 'template'
   reply.value = ''
@@ -76,7 +77,9 @@ async function submit(): Promise<void> {
   try {
     await create.mutateAsync(bodyOf(clean))
   } catch (failure) {
-    error.value = failure instanceof Error ? failure.message : String(failure)
+    error.value = failure instanceof Error
+      ? failure.message
+      : String(failure)
 
     return
   }

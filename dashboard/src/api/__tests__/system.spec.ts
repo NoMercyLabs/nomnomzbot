@@ -26,14 +26,24 @@ function stubBot(
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: Request | string, init?: RequestInit) => {
-      const request = typeof input === 'string' ? new Request(input, init) : input
+      const request = typeof input === 'string'
+        ? new Request(input, init)
+        : input
       const mode: string = init?.mode ?? 'cors'
 
       seen.push({ url: request.url, mode, authorization: request.headers.get('Authorization') })
-      if (answer === 'down') throw new TypeError('Failed to fetch')
-      if (answer === 'silent') throw new DOMException('The operation timed out.', 'TimeoutError')
-      if (answer === 'cors' && mode !== 'no-cors') throw new TypeError('Failed to fetch')
-      if (mode === 'no-cors') return new Response(null, { status: 200 })
+
+      if (answer === 'down')
+        throw new TypeError('Failed to fetch')
+
+      if (answer === 'silent')
+        throw new DOMException('The operation timed out.', 'TimeoutError')
+
+      if (answer === 'cors' && mode !== 'no-cors')
+        throw new TypeError('Failed to fetch')
+
+      if (mode === 'no-cors')
+        return new Response(null, { status: 200 })
 
       return new Response(JSON.stringify({ data: status }), { status: 200 })
     }),

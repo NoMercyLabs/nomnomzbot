@@ -25,7 +25,9 @@ export interface OpenPlaceholder {
 export function openPlaceholder(text: string, caret: number): OpenPlaceholder | null {
   const match: RegExpExecArray | null = /\{([\w.<>:|-]*)$/.exec(text.slice(0, caret))
 
-  return match ? { from: match.index, query: match[1] ?? '' } : null
+  return match
+    ? { from: match.index, query: match[1] ?? '' }
+    : null
 }
 
 // Helpers that start with the query come first, then those that only contain it.
@@ -47,7 +49,9 @@ function matches(helper: TemplateHelper, name: string): boolean {
   const key = helper.key.toLowerCase()
   const open = key.indexOf('<')
 
-  if (open === -1) return key === name
+  if (open === -1)
+    return key === name
+
   const prefix: string = key.slice(0, open)
 
   return name.length > prefix.length && name.startsWith(prefix)
@@ -61,7 +65,10 @@ export function unknownPlaceholders(text: string, helpers: TemplateHelper[]): st
     const name: string = (match[1] ?? '').trim().toLowerCase()
 
     if (helpers.some((helper: TemplateHelper) => matches(helper, name))) continue
-    if (!unknown.includes(match[0])) unknown.push(match[0])
+
+    if (!unknown.includes(match[0])) {
+      unknown.push(match[0])
+    }
   }
 
   return unknown

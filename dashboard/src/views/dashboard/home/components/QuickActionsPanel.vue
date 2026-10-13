@@ -57,7 +57,9 @@ const MS: number = 1000
 const ad: ComputedRef<AdSchedule | null> = computed(() => {
   const schedule: AdSchedule | null = adQuery.data.value ?? null
 
-  return schedule !== null && Number(schedule.nextAdAt) > 0 ? schedule : null
+  return schedule !== null && Number(schedule.nextAdAt) > 0
+    ? schedule
+    : null
 })
 const snoozesLeft = computed(() => Number(ad.value?.snoozeCount ?? 0))
 const adMinutes = computed(() => Math.round(Number(ad.value?.duration ?? 0) / 60))
@@ -119,7 +121,9 @@ const running: ComputedRef<Running | null> = computed(() => {
     (p: Prediction) => ['ACTIVE', 'LOCKED'].includes(p.status.toUpperCase()),
   )
 
-  if (prediction === undefined) return null
+  if (prediction === undefined)
+    return null
+
   const open = prediction.status.toUpperCase() === 'ACTIVE'
 
   return {

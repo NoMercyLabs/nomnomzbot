@@ -54,7 +54,9 @@ vi.mock('@/api/client', () => ({
       calls.push(path)
       const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-      return match ? answers[match]!() : ok(null)
+      return match
+        ? answers[match]!()
+        : ok(null)
     },
   },
 }))

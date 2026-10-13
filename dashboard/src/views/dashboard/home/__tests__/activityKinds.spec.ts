@@ -24,7 +24,9 @@ const event = (type: string, data: Record<string, unknown> | string | null): Act
   type,
   userId: 'u',
   username: 'someone',
-  data: typeof data === 'object' && data !== null ? JSON.stringify(data) : data,
+  data: typeof data === 'object' && data !== null
+    ? JSON.stringify(data)
+    : data,
   timestamp: '2026-10-13T10:00:00Z',
 })
 

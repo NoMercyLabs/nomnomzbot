@@ -84,8 +84,12 @@ const lineFactor = { normal: 1, wide: 1.15, wider: 1.3 } as const satisfies Reco
 const px = (value: number): string => `${Math.round(value * 100) / 100}px`
 
 function setFlag(root: HTMLElement, name: string, on: boolean, value: string): void {
-  if (on) root.setAttribute(name, value)
-  else root.removeAttribute(name)
+  if (on) {
+    root.setAttribute(name, value)
+  }
+  else {
+    root.removeAttribute(name)
+  }
 }
 
 export function applyReadability(

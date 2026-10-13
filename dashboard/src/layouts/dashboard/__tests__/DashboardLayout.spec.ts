@@ -47,7 +47,9 @@ function setWidth(width: number): void {
     const min = query.match(/min-width:\s*(\d+)px/)
 
     return {
-      matches: min ? width >= Number(min[1]) : false,
+      matches: min
+        ? width >= Number(min[1])
+        : false,
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},

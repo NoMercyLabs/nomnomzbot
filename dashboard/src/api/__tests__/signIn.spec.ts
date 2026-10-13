@@ -43,7 +43,9 @@ function stubPolls(statuses: string[]): Seen[] {
       })
       const status = statuses.shift() ?? 'pending'
       const auth =
-        status === 'authorized' ? { accessToken: 'device-token', refreshToken: '' } : null
+        status === 'authorized'
+          ? { accessToken: 'device-token', refreshToken: '' }
+          : null
 
       return new Response(JSON.stringify({ data: { status, auth } }), { status: 200 })
     }),

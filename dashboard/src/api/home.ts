@@ -63,7 +63,8 @@ export function useHomeStats(
       },
     )
 
-    if (error !== undefined) throw failed('stats', response.status)
+    if (error !== undefined)
+      throw failed('stats', response.status)
 
     return data?.data ?? null
   })
@@ -80,7 +81,8 @@ export function useReviewQueue(
       },
     )
 
-    if (error !== undefined) throw failed('review queue', response.status)
+    if (error !== undefined)
+      throw failed('review queue', response.status)
 
     return data?.data ?? []
   })
@@ -100,7 +102,8 @@ export function useConnections(
         },
       )
 
-      if (error !== undefined) throw failed('connections', response.status)
+      if (error !== undefined)
+        throw failed('connections', response.status)
 
       return [...(data?.data ?? [])]
     },
@@ -118,7 +121,8 @@ export function useBotStatus(
       },
     )
 
-    if (error !== undefined) throw failed('bot status', response.status)
+    if (error !== undefined)
+      throw failed('bot status', response.status)
 
     return data?.data ?? null
   })
@@ -135,7 +139,8 @@ export function useActivity(
       },
     )
 
-    if (error !== undefined) throw failed('activity', response.status)
+    if (error !== undefined)
+      throw failed('activity', response.status)
 
     return data?.data ?? []
   })
@@ -156,7 +161,9 @@ export function useResolveQueueItem(
         { params: { path: { version, channelId: id, queueItemId } }, body: { action } },
       )
 
-      if (error !== undefined) throw failed('resolve', response.status)
+      if (error !== undefined)
+        throw failed('resolve', response.status)
+
       const { data } = await client.GET(
         '/api/v{version}/channels/{channelId}/moderation/automod/queue',
         {

@@ -136,10 +136,13 @@ async function openEditor(): Promise<void> {
   const first = scripts.data.value?.[0]
 
   editorMissing.value = first === undefined
+
   if (!first) return
+
   const project = await fetchScriptProject(first.id)
 
   if (!project) return
+
   editorSession.value = {
     id: first.id,
     name: first.name,
@@ -151,7 +154,8 @@ async function openEditor(): Promise<void> {
 async function saveEditor(files: EditorFiles): Promise<CompileFeedback> {
   const session = editorSession.value
 
-  if (!session) return { ok: false, message: '' }
+  if (!session)
+    return { ok: false, message: '' }
 
   return saveScriptProject(session.id, { ...session.project, files })
 }
@@ -165,8 +169,12 @@ const formCreated: Ref<string[]> = ref([])
 function submitForm(): void {
   formServerError.value = undefined
   formNameError.value =
-    formName.value.trim() === '' ? t('dashboard.catalogue.form.nameMissing') : undefined
+    formName.value.trim() === ''
+      ? t('dashboard.catalogue.form.nameMissing')
+      : undefined
+
   if (formNameError.value) return
+
   formPending.value = true
   setTimeout(() => {
     formPending.value = false
@@ -203,7 +211,9 @@ const demoRows: Ref<DemoRow[]> = ref(
     id,
     text:
       t('dashboard.catalogue.virtual.row', { number: id + 1 }) +
-      (id % 7 === 0 ? ' ' + t('dashboard.catalogue.virtual.long') : ''),
+      (id % 7 === 0
+        ? ' ' + t('dashboard.catalogue.virtual.long')
+        : ''),
   })),
 )
 

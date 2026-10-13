@@ -22,7 +22,8 @@ const primitiveFlags =
   ts.TypeFlags.String | ts.TypeFlags.Number | ts.TypeFlags.Boolean | ts.TypeFlags.BigInt
 
 function isLoose(type: ts.Type): boolean {
-  if ((type.flags & looseFlags) !== 0) return true
+  if ((type.flags & looseFlags) !== 0)
+    return true
 
   return type.isUnion() && type.types.some(isLoose)
 }
@@ -43,7 +44,9 @@ function isLiteralNode(node: ts.Node): boolean {
 function unwrap(node: ts.Expression): ts.Expression {
   if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node))
     return unwrap(node.expression)
-  if (ts.isNonNullExpression(node)) return unwrap(node.expression)
+
+  if (ts.isNonNullExpression(node))
+    return unwrap(node.expression)
 
   return node
 }
@@ -52,14 +55,16 @@ function unwrap(node: ts.Expression): ts.Expression {
 function isContextTypedFunction(node: ts.Expression): boolean {
   const value = unwrap(node)
 
-  if (!ts.isArrowFunction(value) && !ts.isFunctionExpression(value)) return false
+  if (!ts.isArrowFunction(value) && !ts.isFunctionExpression(value))
+    return false
 
   return value.parameters.some((parameter) => parameter.type === undefined)
 }
 
 function mentions(typeNode: ts.Node, name: string): boolean {
   if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
-    if (typeNode.typeName.text === name) return true
+    if (typeNode.typeName.text === name)
+      return true
   }
 
   return ts.forEachChild(typeNode, (child) => mentions(child, name)) === true
@@ -72,14 +77,21 @@ function infersFromAnnotation(
   node: ts.CallExpression | ts.NewExpression,
   checker: ts.TypeChecker,
 ): boolean {
-  if (node.typeArguments !== undefined) return false
+  if (node.typeArguments !== undefined)
+    return false
+
   const declaration = checker.getResolvedSignature(node)?.declaration
 
-  if (declaration === undefined || ts.isJSDocSignature(declaration)) return false
+  if (declaration === undefined || ts.isJSDocSignature(declaration))
+    return false
+
   const typeParameters = declaration.typeParameters ?? []
 
-  if (typeParameters.length === 0) return false
-  if (ts.isNewExpression(node)) return true
+  if (typeParameters.length === 0)
+    return false
+
+  if (ts.isNewExpression(node))
+    return true
 
   return typeParameters.some(
     (parameter) =>
@@ -93,8 +105,11 @@ function infersFromAnnotation(
 // `ref('a')` is Ref<Mode> only because of `: Ref<Mode>`. Nested functions that name their own
 // return type, and `as` / `satisfies` expressions, stand on their own.
 function leansOnAnnotation(node: ts.Node, checker: ts.TypeChecker): boolean {
-  if (ts.isFunctionLike(node) && node.type !== undefined) return false
-  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) return false
+  if (ts.isFunctionLike(node) && node.type !== undefined)
+    return false
+
+  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node))
+    return false
 
   if (
     (ts.isCallExpression(node) || ts.isNewExpression(node)) &&
@@ -123,7 +138,8 @@ function readsLoopNarrowedLet(
 ): boolean {
   const loop = ts.findAncestor(node, (ancestor) => ts.isIterationStatement(ancestor, false))
 
-  if (loop === undefined) return false
+  if (loop === undefined)
+    return false
 
   const visit = (child: ts.Node): boolean => {
     if (ts.isIdentifier(child)) {
@@ -155,14 +171,22 @@ const shapeDepth = 4
 // `as const` drops what the literal leaves out and freezes every list. A shape with an optional
 // field the code may read, or a mutable list the code may push to, keeps its annotation.
 function hasLooseShape(type: ts.Type, checker: ts.TypeChecker, depth: number): boolean {
-  if (depth === 0) return false
-  if (type.isUnion()) return type.types.some((member) => hasLooseShape(member, checker, depth))
-  if (type.symbol?.name === 'Array') return true
-  if (type.getCallSignatures().length > 0) return false
+  if (depth === 0)
+    return false
+
+  if (type.isUnion())
+    return type.types.some((member) => hasLooseShape(member, checker, depth))
+
+  if (type.symbol?.name === 'Array')
+    return true
+
+  if (type.getCallSignatures().length > 0)
+    return false
 
   const fields = type.getProperties()
 
-  if (fields.some((field) => (field.flags & ts.SymbolFlags.Optional) !== 0)) return true
+  if (fields.some((field) => (field.flags & ts.SymbolFlags.Optional) !== 0))
+    return true
 
   const inner = [
     ...fields.map((field) => checker.getTypeOfSymbol(field)),
@@ -176,11 +200,14 @@ function isLiteralKey(
   node: TSESTree.Expression,
   toTsType: (node: TSESTree.Node) => ts.Type,
 ): boolean {
-  if (node.type === 'Literal') return true
+  if (node.type === 'Literal')
+    return true
 
   const key = toTsType(node)
 
-  return (key.isUnion() ? key.types : [key]).every((member) => member.isLiteral())
+  return (key.isUnion()
+    ? key.types
+    : [key]).every((member) => member.isLiteral())
 }
 
 // A read that looks a key up by name: `t.name`, `t['name']`, `t[preset]` with a literal-typed
@@ -191,7 +218,8 @@ function isNamedRead(
 ): boolean {
   const parent = identifier.parent
 
-  if (parent === undefined) return false
+  if (parent === undefined)
+    return false
 
   if (parent.type === 'MemberExpression' && parent.object === identifier) {
     return !parent.computed || isLiteralKey(parent.property as TSESTree.Expression, toTsType)
@@ -209,7 +237,8 @@ function isNamedRead(
     )
   }
 
-  if (parent.type === 'ForInStatement') return parent.right === identifier
+  if (parent.type === 'ForInStatement')
+    return parent.right === identifier
 
   return parent.type === 'SpreadElement'
 }
@@ -218,7 +247,8 @@ function isNamedRead(
 function isWrite(identifier: TSESTree.Node): boolean {
   const member = identifier.parent
 
-  if (member?.type !== 'MemberExpression' || member.object !== identifier) return false
+  if (member?.type !== 'MemberExpression' || member.object !== identifier)
+    return false
 
   const parent = member.parent
 
@@ -241,17 +271,24 @@ function isConstantObject(
   scope: Readonly<TSESLint.Scope.ScopeManager>,
   toTsType: (node: TSESTree.Node) => ts.Type,
 ): boolean {
-  if (init.type !== 'ObjectExpression' || init.properties.length === 0) return false
-  if (isLoose(declared) || hasLooseShape(declared, checker, shapeDepth)) return false
+  if (init.type !== 'ObjectExpression' || init.properties.length === 0)
+    return false
+
+  if (isLoose(declared) || hasLooseShape(declared, checker, shapeDepth))
+    return false
 
   const references = (scope.getDeclaredVariables(node)[0]?.references ?? []).filter(
     (reference) => reference.identifier !== node.id,
   )
 
-  if (references.some((reference) => isWrite(reference.identifier))) return false
+  if (references.some((reference) => isWrite(reference.identifier)))
+    return false
 
-  if (checker.getIndexInfosOfType(declared).length === 0) return true
-  if (node.parent.parent?.type === 'ExportNamedDeclaration') return false
+  if (checker.getIndexInfosOfType(declared).length === 0)
+    return true
+
+  if (node.parent.parent?.type === 'ExportNamedDeclaration')
+    return false
 
   return references.every((reference) => isNamedRead(reference.identifier, toTsType))
 }
@@ -282,6 +319,7 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
         const init = node.init
 
         if (annotation === undefined || init === null) return
+
         if (node.id.type !== 'Identifier' || node.parent.kind !== 'const') return
 
         const scope = context.sourceCode.scopeManager
@@ -307,11 +345,17 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
         const value = checker.getTypeAtLocation(valueNode)
 
         if (isLoose(declared) || isLoose(value)) return
+
         if (addsIndex(declared, value, checker)) return
+
         if (!checker.isTypeAssignableTo(declared, value)) return
+
         if (!checker.isTypeAssignableTo(value, declared)) return
+
         if (isContextTypedFunction(valueNode)) return
+
         if (leansOnAnnotation(valueNode, checker)) return
+
         if (readsLoopNarrowedLet(declarator, valueNode, checker)) return
 
         context.report({

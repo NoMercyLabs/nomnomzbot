@@ -37,8 +37,8 @@ useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
     event.metaKey ||
     event.altKey ||
     isTyping(event.target)
-  )
-    return
+  ) return
+
   event.preventDefault()
   input.value?.$el.focus()
 })

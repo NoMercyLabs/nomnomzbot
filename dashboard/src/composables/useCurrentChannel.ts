@@ -47,7 +47,9 @@ export function useCurrentChannel(): CurrentChannel {
       displayName: row.displayName,
       profileImageUrl: row.profileImageUrl,
       isLive: row.isLive,
-      kind: row.role === 'broadcaster' ? 'own' : 'moderated',
+      kind: row.role === 'broadcaster'
+        ? 'own'
+        : 'moderated',
       channelId: row.id,
       twitchId: null,
     }))
@@ -85,9 +87,12 @@ export function useCurrentChannel(): CurrentChannel {
     }
 
     if (!choice.twitchId) return
+
     const entered = await enter.mutateAsync(choice.twitchId)
 
-    if (entered) chosenChannelId.value = entered.id
+    if (entered) {
+      chosenChannelId.value = entered.id
+    }
   }
 
   return {

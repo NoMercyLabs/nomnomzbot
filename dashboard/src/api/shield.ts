@@ -60,7 +60,8 @@ export function useSetShieldMode(
         },
       )
 
-      if (!response.ok) throw new Error(`shield ${response.status}`)
+      if (!response.ok)
+        throw new Error(`shield ${response.status}`)
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: shieldKey(toValue(channelId)) }),
   })

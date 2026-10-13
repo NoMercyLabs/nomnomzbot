@@ -15,7 +15,8 @@ export class FakeHubConnection {
   static at(index: number): FakeHubConnection {
     const found = FakeHubConnection.instances[index]
 
-    if (!found) throw new Error(`no connection ${index} was opened`)
+    if (!found)
+      throw new Error(`no connection ${index} was opened`)
 
     return found
   }

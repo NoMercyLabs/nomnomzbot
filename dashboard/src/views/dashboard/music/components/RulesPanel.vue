@@ -67,7 +67,9 @@ const draft: Ref<Draft | null> = ref<Draft | null>(null)
 watch(
   () => configQuery.data.value,
   (config: MusicConfig | null | undefined) => {
-    draft.value = config ? draftOf(config) : null
+    draft.value = config
+      ? draftOf(config)
+      : null
   },
   { immediate: true },
 )
@@ -76,11 +78,18 @@ const change: ComputedRef<MusicConfigChange> = computed<MusicConfigChange>(() =>
   const config = configQuery.data.value
   const edits = draft.value
 
-  if (!config || !edits) return {}
+  if (!config || !edits)
+    return {}
+
   const result: MusicConfigChange = {}
 
-  if (edits.minTrustLevel !== config.minTrustLevel) result.minTrustLevel = edits.minTrustLevel
-  if (edits.perPerson !== draftOf(config).perPerson) result.maxRequestsPerUser = edits.perPerson
+  if (edits.minTrustLevel !== config.minTrustLevel) {
+    result.minTrustLevel = edits.minTrustLevel
+  }
+
+  if (edits.perPerson !== draftOf(config).perPerson) {
+    result.maxRequestsPerUser = edits.perPerson
+  }
 
   return result
 })
@@ -91,13 +100,17 @@ const valid = computed<boolean>(
 const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0)
 
 function saveRules(): void {
-  if (dirty.value) save.mutate(change.value)
+  if (dirty.value) {
+    save.mutate(change.value)
+  }
 }
 
 function discard(): void {
   const config = configQuery.data.value
 
-  draft.value = config ? draftOf(config) : null
+  draft.value = config
+    ? draftOf(config)
+    : null
 }
 
 const blocked: ComputedRef<BlockedTrack[]> = computed<BlockedTrack[]>(
@@ -124,6 +137,7 @@ function undoAllow(): void {
   const track = allowed.value
 
   if (track === null) return
+
   undoWindow.stop()
   allowed.value = null
   const body: BlockTrack = {
@@ -132,8 +146,14 @@ function undoAllow(): void {
     title: track.title,
   }
 
-  if (track.reason) body.reason = track.reason
-  if (track.blockedByUserId) body.blockedByUserId = track.blockedByUserId
+  if (track.reason) {
+    body.reason = track.reason
+  }
+
+  if (track.blockedByUserId) {
+    body.blockedByUserId = track.blockedByUserId
+  }
+
   block.mutate(body)
 }
 

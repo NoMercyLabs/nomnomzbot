@@ -68,9 +68,12 @@ const ban = useBanMember(channelId.value ?? '')
 // Twitch answers per person; null means Twitch could not be asked, so the dialog says unknown instead of guessing.
 const isVip: ComputedRef<boolean | null> = computed(() => person.value?.isVip ?? null)
 const vipLabel: ComputedRef<string> = computed(() => {
-  if (isVip.value === null) return t('profile.vip.unknown')
+  if (isVip.value === null)
+    return t('profile.vip.unknown')
 
-  return isVip.value ? t('profile.vip.remove') : t('profile.vip.make')
+  return isVip.value
+    ? t('profile.vip.remove')
+    : t('profile.vip.make')
 })
 const title: ComputedRef<string> = computed(() => person.value?.displayName ?? t('profile.title'))
 const lines: ComputedRef<ActivityLine[]> = computed(() => person.value?.recentActivity ?? [])
@@ -92,13 +95,16 @@ function shortDate(value: string): string {
 }
 
 function trustLabel(level: string): string {
-  return KNOWN_TRUST.includes(level) ? t(`profile.trust.${level}`) : level
+  return KNOWN_TRUST.includes(level)
+    ? t(`profile.trust.${level}`)
+    : level
 }
 
 const facts: ComputedRef<KeyValueItem[]> = computed(() => {
   const who = person.value
 
-  if (!who) return []
+  if (!who)
+    return []
 
   return [
     { label: t('profile.facts.username'), value: `@${who.username}` },
@@ -109,7 +115,9 @@ const facts: ComputedRef<KeyValueItem[]> = computed(() => {
 })
 
 function setOpen(open: boolean): void {
-  if (!open) profile.close()
+  if (!open) {
+    profile.close()
+  }
 }
 
 function giveFocusBack(event: Event): void {
@@ -119,6 +127,7 @@ function giveFocusBack(event: Event): void {
 
 function toggleVip(): void {
   if (!profile.userId || isVip.value === null) return
+
   vipChange.mutate({ userId: profile.userId, vip: !isVip.value })
 }
 

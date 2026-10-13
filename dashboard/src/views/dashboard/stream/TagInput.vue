@@ -31,6 +31,7 @@ function add(): void {
   const known = tags.value.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
 
   if (tag === '' || known || tags.value.length >= MAX_TAGS) return
+
   tags.value = [...tags.value, tag]
   removed.value = null
 }
@@ -42,6 +43,7 @@ function remove(index: number): void {
 
 function undo(): void {
   if (removed.value === null) return
+
   const next: string[] = [...tags.value]
 
   next.splice(Math.min(removed.value.index, next.length), 0, removed.value.tag)

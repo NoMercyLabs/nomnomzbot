@@ -67,7 +67,8 @@ async function readScript(id: string): Promise<CodeScriptDetail> {
     params: { path: { version, id } },
   })
 
-  if (error !== undefined || !data?.data) throw refusal('code script', error, response.status)
+  if (error !== undefined || !data?.data)
+    throw refusal('code script', error, response.status)
 
   return data.data
 }
@@ -97,7 +98,9 @@ export function useSetScriptEnabled(): UseMutationReturnType<
         body: { isEnabled },
       })
 
-      if (error !== undefined) throw refusal('code script switch', error, response.status)
+      if (error !== undefined)
+        throw refusal('code script switch', error, response.status)
+
       await queries.invalidateQueries({ queryKey: codeScriptKey(id) })
 
       return fetchCodeScripts()
@@ -107,7 +110,9 @@ export function useSetScriptEnabled(): UseMutationReturnType<
       { id, isEnabled }: EnabledChange,
     ): CodeScriptSummary[] =>
       (current ?? []).map((script: CodeScriptSummary): CodeScriptSummary =>
-        script.id === id ? { ...script, isEnabled } : script,
+        script.id === id
+          ? { ...script, isEnabled }
+          : script,
       ),
   })
 }
@@ -128,11 +133,15 @@ export function useCreateCodeScript(): UseMutationReturnType<
         body: script,
       })
 
-      if (error !== undefined) throw refusal('create code script', error, response.status)
+      if (error !== undefined)
+        throw refusal('create code script', error, response.status)
+
       const created: unknown = (data as { data?: unknown } | undefined)?.data
       const id: unknown = (created as { id?: unknown } | null | undefined)?.id
 
-      return typeof id === 'string' ? id : null
+      return typeof id === 'string'
+        ? id
+        : null
     },
     onSuccess: (): Promise<void> => queries.invalidateQueries({ queryKey: codeScriptsKey }),
   })
@@ -146,7 +155,8 @@ export async function fetchBlastRadius(id: string): Promise<BlastRadius> {
     },
   )
 
-  if (error !== undefined || !data?.data) throw refusal('blast radius', error, response.status)
+  if (error !== undefined || !data?.data)
+    throw refusal('blast radius', error, response.status)
 
   return data.data
 }
@@ -162,7 +172,8 @@ export function useDeleteCodeScript(): UseMutationReturnType<void, Error, string
         params: { path: { version, id } },
       })
 
-      if (error !== undefined) throw refusal('delete code script', error, response.status)
+      if (error !== undefined)
+        throw refusal('delete code script', error, response.status)
     },
     onSuccess: async (_none: void, id: string): Promise<void> => {
       queries.removeQueries({ queryKey: codeScriptKey(id) })
@@ -172,13 +183,15 @@ export function useDeleteCodeScript(): UseMutationReturnType<void, Error, string
 }
 
 export type TestRunOutcome =
-  | { kind: 'ok'; result: TestRunResult }
-  | { kind: 'rateLimited'; message: string; retryAfterSeconds: number | null }
+  | { kind: 'ok'; result: TestRunResult } |
+  { kind: 'rateLimited'; message: string; retryAfterSeconds: number | null }
 
 function retryWindow(response: Response): number | null {
   const seconds = Number(response.headers.get('Retry-After'))
 
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : null
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : null
 }
 
 // The dry-run result in the shape the editor and the runs panel read.
@@ -207,7 +220,9 @@ export function toTestRunResult(dto: components['schemas']['TestRunResultDto']):
           errors: [
             {
               message,
-              ...(position.file ? { file: position.file } : {}),
+              ...(position.file
+                ? { file: position.file }
+                : {}),
               line: Number(position.line),
               column: Number(position.column),
             },
@@ -240,7 +255,8 @@ export async function runScriptTest(
     }
   }
 
-  if (error !== undefined || !data?.data) throw refusal('test run', error, response.status)
+  if (error !== undefined || !data?.data)
+    throw refusal('test run', error, response.status)
 
   return { kind: 'ok', result: toTestRunResult(data.data) }
 }
@@ -256,7 +272,8 @@ export async function fetchTestTriggers(): Promise<TestTrigger[]> {
     params: { path: { version } },
   })
 
-  if (error !== undefined) throw refusal('test triggers', error, response.status)
+  if (error !== undefined)
+    throw refusal('test triggers', error, response.status)
 
   return (data?.data ?? []).map((sample: components['schemas']['TestTriggerDto']): TestTrigger => ({
     id: sample.id,
@@ -277,7 +294,8 @@ export async function fetchScriptVersions(
     params: { path: { version, id }, query: { Page: page, PageSize: versionsPageSize } },
   })
 
-  if (error !== undefined) throw refusal('script versions', error, response.status)
+  if (error !== undefined)
+    throw refusal('script versions', error, response.status)
 
   return {
     versions: (data?.data ?? []).map((entry: components['schemas']['CodeScriptVersionDto']) => ({
@@ -298,7 +316,8 @@ export async function publishScriptVersion(id: string, versionId: string): Promi
     },
   )
 
-  if (error !== undefined) throw refusal('publish version', error, response.status)
+  if (error !== undefined)
+    throw refusal('publish version', error, response.status)
 }
 
 // The published version cannot be deleted; the bot's reason says so.
@@ -310,7 +329,8 @@ export async function deleteScriptVersion(id: string, versionId: string): Promis
     },
   )
 
-  if (error !== undefined) throw refusal('delete version', error, response.status)
+  if (error !== undefined)
+    throw refusal('delete version', error, response.status)
 }
 
 export async function fetchScriptProject(id: string): Promise<ScriptProject | null> {
@@ -342,5 +362,7 @@ export async function fetchScriptSdkTypes(id: string): Promise<string | null> {
     parseAs: 'text',
   })
 
-  return response.ok && typeof data === 'string' ? data : null
+  return response.ok && typeof data === 'string'
+    ? data
+    : null
 }

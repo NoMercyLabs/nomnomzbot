@@ -24,9 +24,11 @@ export function useEditorLabels(
 
     for (const [id, raw] of Object.entries(tm(group) as Record<string, unknown>)) {
       if (typeof raw !== 'string') continue
+
       const own: Record<string, string> = {}
 
       for (const match of raw.matchAll(/\{(\w+)\}/g)) own[match[1]!] = match[0]
+
       out[id] = t(`${group}.${id}`, own)
     }
 
@@ -37,7 +39,8 @@ export function useEditorLabels(
     void locale.value
     const labels: Record<string, unknown> = words('codeEditor.labels')
 
-    if (!toValue(withTestRun)) return labels
+    if (!toValue(withTestRun))
+      return labels
 
     return { ...labels, ...words('codeEditor.testRun'), roles: words('codeEditor.testRun.roles') }
   })

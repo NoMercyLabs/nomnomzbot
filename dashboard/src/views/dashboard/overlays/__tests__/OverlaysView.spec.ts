@@ -78,7 +78,9 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path, body: undefined })
-      if (listFails) return { error: { status: 'error' }, response: { status: 500, ok: false } }
+
+      if (listFails)
+        return { error: { status: 'error' }, response: { status: 500, ok: false } }
 
       return {
         data: { data: widgets, hasMore: false, nextPage: null },
@@ -90,7 +92,10 @@ vi.mock('@/api/client', () => ({
       const id = String(options?.params?.path?.widgetId)
       const body = options?.body as Record<string, unknown>
 
-      widgets = widgets.map((row) => (row.id === id ? { ...row, ...body } : row))
+      widgets = widgets.map((row) =>
+        row.id === id
+          ? { ...row, ...body }
+          : row)
 
       return { data: { data: null }, response: { status: 200, ok: true } }
     },

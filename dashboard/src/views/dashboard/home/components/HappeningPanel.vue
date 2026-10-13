@@ -35,7 +35,9 @@ const activityState = usePanelState(activityQuery, (items: ActivityEvent[]) => i
 const router = useRouter()
 // "All events" shows only when an events page exists: a link that lands elsewhere breaks its promise.
 const allEventsRoute: ComputedRef<string | null> = computed(() =>
-  router.hasRoute('dashboard-events') ? 'dashboard-events' : null,
+  router.hasRoute('dashboard-events')
+    ? 'dashboard-events'
+    : null,
 )
 
 type Row = { id: string; icon: Component; title: string; detail: string | undefined; time: string }
@@ -43,7 +45,9 @@ type Row = { id: string; icon: Component; title: string; detail: string | undefi
 function say(text: ActivityRowText): string {
   const count: unknown = text.params?.count
 
-  return t(text.key, text.params ?? {}, typeof count === 'number' ? count : 1)
+  return t(text.key, text.params ?? {}, typeof count === 'number'
+    ? count
+    : 1)
 }
 
 function eventTime(event: ActivityEvent): string {
@@ -59,13 +63,17 @@ const rows: ComputedRef<Row[]> = computed(() =>
   (activityQuery.data.value ?? []).map((event: ActivityEvent): Row => {
     const view = describeActivity(event)
     const detail = say(view.detail)
-    const title = view.title ? say(view.title) : (event.username ?? undefined)
+    const title = view.title
+      ? say(view.title)
+      : (event.username ?? undefined)
 
     return {
       id: event.id,
       icon: view.icon,
       title: title ?? detail,
-      detail: title === undefined ? undefined : detail,
+      detail: title === undefined
+        ? undefined
+        : detail,
       time: eventTime(event),
     }
   }),

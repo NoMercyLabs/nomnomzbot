@@ -57,7 +57,9 @@ const dates: ComputedRef<Intl.DateTimeFormat> = computed(
 )
 
 function created(value: string | undefined): string {
-  return value ? dates.value.format(new Date(value)) : ''
+  return value
+    ? dates.value.format(new Date(value))
+    : ''
 }
 </script>
 

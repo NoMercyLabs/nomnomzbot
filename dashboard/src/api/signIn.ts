@@ -30,7 +30,9 @@ const approvalStatuses: ReadonlySet<string> = new Set([
 
 // The bot may answer with a status this client does not know yet; that ends the wait as an error.
 function toApprovalStatus(status: string): DeviceApproval['status'] {
-  return approvalStatuses.has(status) ? (status as DeviceApproval['status']) : 'error'
+  return approvalStatuses.has(status)
+    ? (status as DeviceApproval['status'])
+    : 'error'
 }
 
 const version = { version: '1' }
@@ -51,7 +53,9 @@ export const providersQuery = queryOptions({
 export function signInUrl(provider: string, returnTo: string): string {
   const query = new URLSearchParams({ client: 'web', return_to: returnTo })
   const path =
-    provider === 'twitch' ? 'auth/twitch' : `auth/${encodeURIComponent(provider)}/authorize`
+    provider === 'twitch'
+      ? 'auth/twitch'
+      : `auth/${encodeURIComponent(provider)}/authorize`
 
   return `${activeBot.value}/api/v1/${path}?${query}`
 }
@@ -72,7 +76,9 @@ async function pollOnce(provider: string, deviceCode: string): Promise<string> {
   })
   const poll = data?.data
 
-  if (poll?.status === 'authorized' && poll.auth) acceptAccessToken(poll.auth.accessToken)
+  if (poll?.status === 'authorized' && poll.auth) {
+    acceptAccessToken(poll.auth.accessToken)
+  }
 
   return poll?.status ?? 'error'
 }
@@ -90,13 +96,15 @@ export function deviceApprovalQuery(provider: string, code: DeviceCode | null) {
     queryKey,
     queryFn: code
       ? async ({ client: queries }): Promise<DeviceApproval> => {
-          const previous = queries.getQueryData<DeviceApproval>(queryKey)
-          const status = await pollOnce(provider, code.deviceCode)
-          const intervalMs: number =
-            (previous?.intervalMs ?? 0) + (status === 'slow_down' ? slowDownMs : 0)
+        const previous = queries.getQueryData<DeviceApproval>(queryKey)
+        const status = await pollOnce(provider, code.deviceCode)
+        const intervalMs: number =
+          (previous?.intervalMs ?? 0) + (status === 'slow_down'
+            ? slowDownMs
+            : 0)
 
-          return { status: toApprovalStatus(status), intervalMs }
-        }
+        return { status: toApprovalStatus(status), intervalMs }
+      }
       : skipToken,
     initialData: (): DeviceApproval => ({
       status: 'pending',

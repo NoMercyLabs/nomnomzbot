@@ -21,10 +21,15 @@ const files: Record<string, unknown> = import.meta.glob(
 )
 
 function messages(node: unknown, path: string, out: [string, string][]): [string, string][] {
-  if (typeof node === 'string') out.push([path, node])
-  else if (node && typeof node === 'object')
+  if (typeof node === 'string') {
+    out.push([path, node])
+  }
+  else if (node && typeof node === 'object') {
     for (const [key, value] of Object.entries(node))
-      messages(value, path ? `${path}.${key}` : key, out)
+      messages(value, path
+        ? `${path}.${key}`
+        : key, out)
+  }
 
   return out
 }
@@ -45,7 +50,10 @@ describe('words files', () => {
         const errors: string[] = []
 
         baseCompile(text, { onError: (error: Error) => errors.push(error.message) })
-        if (errors.length > 0) broken.push(`${file} ${key}: ${errors[0]}`)
+
+        if (errors.length > 0) {
+          broken.push(`${file} ${key}: ${errors[0]}`)
+        }
       }
 
     expect(broken).toEqual([])

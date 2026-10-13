@@ -41,7 +41,9 @@ function stubServer(refreshStatus: number, limited: Record<string, string> = {})
               status: 200,
             })
           : new Response('{}', { status: refreshStatus })
-      if (bearer !== 'Bearer fresh') return new Response('{}', { status: 401 })
+
+      if (bearer !== 'Bearer fresh')
+        return new Response('{}', { status: 401 })
 
       return new Response(JSON.stringify({ data: user }), { status: 200 })
     }),

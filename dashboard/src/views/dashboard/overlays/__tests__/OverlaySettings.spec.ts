@@ -144,17 +144,23 @@ vi.mock('@/api/client', () => ({
     },
     PUT: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'PUT', path, body: options?.body })
+
       if (putRefusal !== null)
         return { error: { message: putRefusal }, response: { status: 400, ok: false } }
+
       const id = String(options?.params?.path?.widgetId)
       const body = options?.body as Record<string, unknown>
 
-      widgets = widgets.map((row) => (row.id === id ? { ...row, ...body } : row))
+      widgets = widgets.map((row) =>
+        row.id === id
+          ? { ...row, ...body }
+          : row)
 
       return { data: { data: null }, response: { status: 200, ok: true } }
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'POST', path, body: options?.body })
+
       if (testRefusal !== null)
         return { error: { message: testRefusal }, response: { status: 400, ok: false } }
 

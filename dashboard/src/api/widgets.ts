@@ -44,10 +44,14 @@ export const widgetSchemaKey = (channelId: string | null, widgetId: string | nul
 ]
 
 function numberOrNull(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined) return null
+  if (value === null || value === undefined)
+    return null
+
   const parsed = Number(value)
 
-  return Number.isFinite(parsed) ? parsed : null
+  return Number.isFinite(parsed)
+    ? parsed
+    : null
 }
 
 // Pages are read one after the other until the bot says there are no more.
@@ -64,9 +68,13 @@ async function readWidgets(channelId: string): Promise<Widget[]> {
       },
     )
 
-    if (error !== undefined) throw failed('widgets', response.status)
+    if (error !== undefined)
+      throw failed('widgets', response.status)
+
     widgets.push(...(data?.data ?? []))
-    page = data?.hasMore ? (numberOrNull(data.nextPage) ?? current + 1) : null
+    page = data?.hasMore
+      ? (numberOrNull(data.nextPage) ?? current + 1)
+      : null
   }
 
   return widgets
@@ -99,7 +107,8 @@ export function useWidgetSchema(
         },
       )
 
-      if (error !== undefined) throw failed('widget settings', response.status)
+      if (error !== undefined)
+        throw failed('widget settings', response.status)
 
       return data?.data ?? null
     },
@@ -129,7 +138,8 @@ async function putWidget(
     },
   )
 
-  if (error !== undefined) throw failed(what, response.status)
+  if (error !== undefined)
+    throw failed(what, response.status)
 
   return readWidgets(channelId)
 }
@@ -140,7 +150,9 @@ function changed(
   change: Partial<Widget>,
 ): Widget[] {
   return (current ?? []).map((row: Widget): Widget =>
-    row.id === widgetId ? { ...row, ...change } : row,
+    row.id === widgetId
+      ? { ...row, ...change }
+      : row,
   )
 }
 
@@ -187,7 +199,8 @@ export function useTestWidgetEvent(
         },
       )
 
-      if (error !== undefined) throw refusal('widget test', error, response.status)
+      if (error !== undefined)
+        throw refusal('widget test', error, response.status)
 
       return data?.data ?? ''
     },

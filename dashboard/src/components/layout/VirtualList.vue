@@ -53,7 +53,9 @@ const options: ComputedRef<Options> = computed(() => ({
 const virtualizer = useVirtualizer(options)
 
 function measure(element: unknown): void {
-  if (element instanceof Element) virtualizer.value.measureElement(element)
+  if (element instanceof Element) {
+    virtualizer.value.measureElement(element)
+  }
 }
 
 function viewportHeight(element: HTMLElement): number {
@@ -68,12 +70,17 @@ function onScroll(): void {
   const element = scrollArea.value
 
   if (!element) return
+
   atBottom.value = maxOffset(element) - element.scrollTop <= AT_BOTTOM_SLACK
-  if (atBottom.value) newBelow.value = 0
+
+  if (atBottom.value) {
+    newBelow.value = 0
+  }
 }
 
 function scrollToBottom(): void {
   if (props.items.length === 0) return
+
   virtualizer.value.scrollToIndex(props.items.length - 1, { align: 'end' })
 }
 
@@ -86,6 +93,7 @@ function scrollBy(delta: number): void {
   const element = scrollArea.value
 
   if (!element) return
+
   virtualizer.value.scrollToOffset(
     Math.min(maxOffset(element), Math.max(0, element.scrollTop + delta)),
   )
@@ -95,6 +103,7 @@ function onKey(event: KeyboardEvent): void {
   const element = scrollArea.value
 
   if (!element || event.target !== element) return
+
   const page = viewportHeight(element)
   const moves: Record<string, () => void> = {
     ArrowDown: () => scrollBy(props.estimateSize),
@@ -107,6 +116,7 @@ function onKey(event: KeyboardEvent): void {
   const move = moves[event.key]
 
   if (!move) return
+
   event.preventDefault()
   move()
 }
@@ -133,6 +143,7 @@ watch(
 
 onMounted(async () => {
   if (!props.stick) return
+
   await nextTick()
   scrollToBottom()
 })

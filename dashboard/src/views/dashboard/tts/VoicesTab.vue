@@ -85,12 +85,18 @@ const settled = ref(false)
 watch(
   () => catalogue.data.value,
   (data: unknown) => {
-    if (data !== undefined) settled.value = true
+    if (data !== undefined) {
+      settled.value = true
+    }
   },
   { immediate: true },
 )
 const panelState = computed<PanelState>(() =>
-  catalogue.isError.value ? 'error' : settled.value ? 'ready' : 'loading',
+  catalogue.isError.value
+    ? 'error'
+    : settled.value
+      ? 'ready'
+      : 'loading',
 )
 
 const chosen: ComputedRef<string | null> = computed<string | null>(
@@ -112,7 +118,9 @@ const subtitle: ComputedRef<string | undefined> = computed<string | undefined>((
 // While the server has more pages, the loaded voices are not the whole catalogue, so the count says "the first".
 const count: ComputedRef<string> = computed<string>(() =>
   t(
-    catalogue.hasNextPage.value ? 'dashboard.tts.voices.countFirst' : 'dashboard.tts.voices.count',
+    catalogue.hasNextPage.value
+      ? 'dashboard.tts.voices.countFirst'
+      : 'dashboard.tts.voices.count',
     {
       shown: visible.value.length,
       loaded: loaded.value.length,
@@ -123,7 +131,9 @@ const count: ComputedRef<string> = computed<string>(() =>
 function genderLabel(gender: string): string {
   const key = `dashboard.tts.voices.gender.${gender.toLowerCase()}`
 
-  return te(key) ? t(key) : gender
+  return te(key)
+    ? t(key)
+    : gender
 }
 
 function detail(voice: TtsVoice): string {
@@ -143,14 +153,18 @@ const currentDetail = computed<string>(() =>
     current.value
       ? `${localeLabel(current.value.locale, locale.value)}${SEPARATOR}${genderLabel(current.value.gender)}`
       : '',
-    config.data.value ? providerName(config.data.value.defaultProvider) : '',
+    config.data.value
+      ? providerName(config.data.value.defaultProvider)
+      : '',
   ]
     .filter((part: string) => part !== '')
     .join(SEPARATOR),
 )
 
 function choose(voice: TtsVoice): void {
-  if (voice.id !== chosen.value) pick.mutate({ voiceId: voice.id, provider: voice.provider })
+  if (voice.id !== chosen.value) {
+    pick.mutate({ voiceId: voice.id, provider: voice.provider })
+  }
 }
 </script>
 

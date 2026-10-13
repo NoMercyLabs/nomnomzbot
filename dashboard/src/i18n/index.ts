@@ -31,7 +31,9 @@ function browserLocale(): Locale {
     .map((tag) => tag.split('-')[0]!)
     .find((tag) => isLocale(tag))
 
-  return match && isLocale(match) ? match : 'en'
+  return match && isLocale(match)
+    ? match
+    : 'en'
 }
 
 const chosenLocale: RemovableRef<string> = useLocalStorage('nnz.locale', browserLocale())
@@ -58,7 +60,9 @@ async function loadWords(loader: WordsLoader, locale: string): Promise<void> {
   try {
     i18n.global.mergeLocaleMessage(locale, (await loader(locale)).default)
   } catch (missing) {
-    if (locale === 'en') throw missing
+    if (locale === 'en')
+      throw missing
+
     await loadWords(loader, 'en')
   }
 }
@@ -73,7 +77,9 @@ export async function setLocale(locale: Locale): Promise<void> {
 
 // Runs before the first render, so the first page already opens in the chosen language.
 export function startLocale(): Promise<void> {
-  return setLocale(isLocale(chosenLocale.value) ? chosenLocale.value : 'en')
+  return setLocale(isLocale(chosenLocale.value)
+    ? chosenLocale.value
+    : 'en')
 }
 
 // A route's lazy component: the page code and the page's words for the current language, in parallel.

@@ -92,13 +92,17 @@ function freshAnswers(): Record<string, () => Answer> {
 function read(path: string): Answer {
   const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-  return match ? answers[match]!() : ok(null)
+  return match
+    ? answers[match]!()
+    : ok(null)
 }
 
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({ method, path, position: options?.params?.path?.position })
-  if (method === 'DELETE')
+
+  if (method === 'DELETE') {
     queue = queue.filter((item) => item.position !== options?.params?.path?.position)
+  }
 
   return { response: { status: 200, ok: true } }
 }

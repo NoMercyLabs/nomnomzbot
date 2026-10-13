@@ -113,39 +113,48 @@ export type EditorBridge = {
 const PREFIX: string = 'nnz:editor:'
 
 type PageMessage =
-  | { type: 'ready' }
-  | { type: 'save'; files: EditorFiles }
-  | { type: 'close' }
-  | { type: 'historyLoadMore' }
-  | { type: 'historyRollback'; versionId: string }
-  | { type: 'historyDelete'; versionId: string }
-  | ({ type: 'testRun' } & TestRunRequest)
-  | ({ type: 'previewAction' } & PreviewActionRequest)
+  | { type: 'ready' } |
+  { type: 'save'; files: EditorFiles } |
+  { type: 'close' } |
+  { type: 'historyLoadMore' } |
+  { type: 'historyRollback'; versionId: string } |
+  { type: 'historyDelete'; versionId: string } |
+  ({ type: 'testRun' } & TestRunRequest) |
+  ({ type: 'previewAction' } & PreviewActionRequest)
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function stringMap(value: unknown): Record<string, string> {
-  if (!isObject(value)) return {}
+  if (!isObject(value))
+    return {}
+
   const out: Record<string, string> = {}
 
-  for (const [key, entry] of Object.entries(value)) if (typeof entry === 'string') out[key] = entry
+  for (const [key, entry] of Object.entries(value)) if (typeof entry === 'string') {
+    out[key] = entry
+  }
 
   return out
 }
 
 function text(value: unknown): string {
-  return typeof value === 'string' ? value : ''
+  return typeof value === 'string'
+    ? value
+    : ''
 }
 
 function optionalText(value: unknown): string | null {
-  return typeof value === 'string' ? value : null
+  return typeof value === 'string'
+    ? value
+    : null
 }
 
 // One page message, or null for anything else: malformed data, a host-to-page type echoed back, other traffic.
 export function decodePageMessage(data: unknown): PageMessage | null {
-  if (!isObject(data) || typeof data.type !== 'string' || !data.type.startsWith(PREFIX)) return null
+  if (!isObject(data) || typeof data.type !== 'string' || !data.type.startsWith(PREFIX))
+    return null
 
   switch (data.type.slice(PREFIX.length)) {
     case 'ready':
@@ -176,7 +185,9 @@ export function decodePageMessage(data: unknown): PageMessage | null {
         type: 'previewAction',
         requestId: text(data.requestId),
         actionType: text(data.actionType),
-        params: isObject(data.params) ? data.params : null,
+        params: isObject(data.params)
+          ? data.params
+          : null,
         variables: stringMap(data.variables),
       }
     default:
@@ -185,7 +196,9 @@ export function decodePageMessage(data: unknown): PageMessage | null {
 }
 
 function reason(error: unknown): string {
-  return error instanceof Error && error.message ? error.message : 'The action failed.'
+  return error instanceof Error && error.message
+    ? error.message
+    : 'The action failed.'
 }
 
 export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
@@ -215,7 +228,9 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
       post('compiled', {
         ok: feedback.ok,
         message: feedback.message,
-        ...(errors.length > 0 ? { errors } : {}),
+        ...(errors.length > 0
+          ? { errors }
+          : {}),
       })
     } catch (error) {
       post('compiled', { ok: false, message: reason(error) })
@@ -234,8 +249,12 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
     try {
       const outcome = await run(options.history)
 
-      if (outcome.ok) post('historyPage', { payload: outcome.value })
-      else post('historyError', { message: outcome.message })
+      if (outcome.ok) {
+        post('historyPage', { payload: outcome.value })
+      }
+      else {
+        post('historyError', { message: outcome.message })
+      }
     } catch (error) {
       post('historyError', { message: reason(error) })
     }
@@ -251,8 +270,12 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
     try {
       const outcome = await options.testRun(request)
 
-      if (outcome.ok) post('testRunResult', { ok: true, ...outcome.value })
-      else post('testRunResult', { ok: false, message: outcome.message })
+      if (outcome.ok) {
+        post('testRunResult', { ok: true, ...outcome.value })
+      }
+      else {
+        post('testRunResult', { ok: false, message: outcome.message })
+      }
     } catch (error) {
       post('testRunResult', { ok: false, message: reason(error) })
     }
@@ -288,6 +311,7 @@ export function createEditorBridge(options: EditorBridgeOptions): EditorBridge {
   async function handle(event: MessageEvent): Promise<void> {
     // Same origin is not enough: any frame of this origin could post, so only the editor's own window counts.
     if (event.origin !== options.origin || event.source !== options.target()) return
+
     const message = decodePageMessage(event.data)
 
     if (!message) return

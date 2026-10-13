@@ -49,7 +49,10 @@ async function joinWithClasses(channelId: string, classes: string[]): Promise<vo
   dashboardJoinErrors.value = dashboardJoinErrors.value.filter(
     (error) => error.channelId !== channelId,
   )
-  if (result && !result.success) recordJoinError(channelId, result.error ?? 'The join was refused.')
+
+  if (result && !result.success) {
+    recordJoinError(channelId, result.error ?? 'The join was refused.')
+  }
 }
 
 async function joinWatched(): Promise<void> {
@@ -59,6 +62,7 @@ async function joinWatched(): Promise<void> {
 // Groups belong to a connection id, so a new connection after a drop joins the channel again.
 export async function startDashboardHub(queries: QueryClient): Promise<void> {
   if (connection) return
+
   const hub = buildHub(hubPath, dashboardHubStatus)
 
   attachHandlers(hub, [...channelHandlers, ...communityHandlers, ...chatHandlers], () => ({
@@ -66,13 +70,20 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
     channelId: joinedChannel,
   }))
   hub.onreconnected(() => {
-    if (joinedChannel) void join(joinedChannel)
+    if (joinedChannel) {
+      void join(joinedChannel)
+    }
+
     void joinWatched()
   })
   connection = hub
   await hub.start()
   dashboardHubStatus.value = 'connected'
-  if (joinedChannel) await join(joinedChannel)
+
+  if (joinedChannel) {
+    await join(joinedChannel)
+  }
+
   await joinWatched()
 }
 
@@ -88,12 +99,15 @@ export async function watchChannels(channels: ChannelWatch[]): Promise<void> {
   )
 
   watched.clear()
+
   for (const [id, classes] of next) watched.set(id, classes)
+
   if (!connection) return
 
   for (const id of removed) {
     // The frame's own join of this channel stays; the page only drops its class set.
     if (id === joinedChannel) continue
+
     await connection.invoke('LeaveChannel', id)
     dashboardJoinErrors.value = dashboardJoinErrors.value.filter((error) => error.channelId !== id)
   }
@@ -103,12 +117,20 @@ export async function watchChannels(channels: ChannelWatch[]): Promise<void> {
 
 export async function watchChannel(channelId: string | null): Promise<void> {
   if (channelId === joinedChannel) return
+
   const previous = joinedChannel
 
   joinedChannel = channelId
+
   if (!connection) return
-  if (previous) await connection.invoke('LeaveChannel', previous)
-  if (channelId) await join(channelId)
+
+  if (previous) {
+    await connection.invoke('LeaveChannel', previous)
+  }
+
+  if (channelId) {
+    await join(channelId)
+  }
 }
 
 export async function stopDashboardHub(): Promise<void> {

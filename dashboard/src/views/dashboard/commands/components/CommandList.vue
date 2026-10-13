@@ -39,7 +39,10 @@ const sortOptions: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() => 
 
 const panel = usePanelState(commands, (data: CommandListItem[]): boolean => data.length === 0)
 // The empty state holds a button, so the panel shows it as ready content.
-const state = computed<PanelState>(() => (panel.value === 'empty' ? 'ready' : panel.value))
+const state = computed<PanelState>(() =>
+  panel.value === 'empty'
+    ? 'ready'
+    : panel.value)
 const none = computed<boolean>(() => panel.value === 'empty')
 
 function matches(row: CommandListItem, needle: string): boolean {
@@ -63,9 +66,14 @@ const rows: ComputedRef<CommandListItem[]> = computed<CommandListItem[]>(() => {
 
 // The row names what kind of command it is; the reply text itself lives in the editor (owner 2026-10-13).
 function kindOf(row: CommandListItem): string {
-  if (row.tier === 'pipeline') return t('dashboard.commands.list.kindPipeline')
-  if (row.tier === 'code') return t('dashboard.commands.list.kindCode')
-  if ((row.templateResponses?.length ?? 0) > 0) return t('dashboard.commands.list.kindRandom')
+  if (row.tier === 'pipeline')
+    return t('dashboard.commands.list.kindPipeline')
+
+  if (row.tier === 'code')
+    return t('dashboard.commands.list.kindCode')
+
+  if ((row.templateResponses?.length ?? 0) > 0)
+    return t('dashboard.commands.list.kindRandom')
 
   return t('dashboard.commands.list.kindText')
 }

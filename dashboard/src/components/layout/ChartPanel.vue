@@ -70,7 +70,9 @@ defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
 
 const panelState = computed(() =>
-  props.state === 'ready' && props.data.length === 0 ? 'empty' : props.state,
+  props.state === 'ready' && props.data.length === 0
+    ? 'empty'
+    : props.state,
 )
 
 const config: ComputedRef<ChartConfig> = computed(() =>
@@ -100,13 +102,17 @@ const isTime = computed(
 const isBar = computed(() => props.kind === 'bar' || props.kind === 'groupedBar')
 
 function label(value: string | number | Date | undefined, formatter: Intl.DateTimeFormat): string {
-  return value instanceof Date ? formatter.format(value) : String(value ?? '')
+  return value instanceof Date
+    ? formatter.format(value)
+    : String(value ?? '')
 }
 
 const xAccessor = (row: ChartRow, index: number): number => {
   const value = row[props.x]
 
-  return isTime.value && value instanceof Date ? value.getTime() : index
+  return isTime.value && value instanceof Date
+    ? value.getTime()
+    : index
 }
 
 const yAccessors = computed(() =>
@@ -119,15 +125,22 @@ const yAccessors = computed(() =>
 const colors = computed(() => props.series.map((entry: ChartSeries) => `var(--color-${entry.key})`))
 
 function xTick(tick: number | Date): string {
-  const at = tick instanceof Date ? tick.getTime() : tick
+  const at = tick instanceof Date
+    ? tick.getTime()
+    : tick
 
-  if (isTime.value) return shortDates.value.format(new Date(at))
+  if (isTime.value)
+    return shortDates.value.format(new Date(at))
 
-  return Number.isInteger(at) ? label(props.data[at]?.[props.x], shortDates.value) : ''
+  return Number.isInteger(at)
+    ? label(props.data[at]?.[props.x], shortDates.value)
+    : ''
 }
 
 function yTick(tick: number | Date): string {
-  return compactNumbers.value.format(tick instanceof Date ? tick.getTime() : tick)
+  return compactNumbers.value.format(tick instanceof Date
+    ? tick.getTime()
+    : tick)
 }
 
 function escapeHtml(text: string): string {
@@ -155,10 +168,14 @@ function tooltip(row: ChartRow): string {
 }
 
 const barTriggers: ComputedRef<Record<string, (row: ChartRow) => string>> = computed(() => ({
-  [props.kind === 'bar' ? StackedBar.selectors.bar : GroupedBar.selectors.bar]: tooltip,
+  [props.kind === 'bar'
+    ? StackedBar.selectors.bar
+    : GroupedBar.selectors.bar]: tooltip,
 }))
 const yDomain: ComputedRef<[number | undefined, number | undefined]> = computed(() =>
-  props.kind === 'line' ? [undefined, undefined] : [0, undefined],
+  props.kind === 'line'
+    ? [undefined, undefined]
+    : [0, undefined],
 )
 </script>
 

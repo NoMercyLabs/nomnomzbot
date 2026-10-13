@@ -47,7 +47,8 @@ export function usePolls(
       },
     )
 
-    if (error !== undefined) throw failed('polls', response.status)
+    if (error !== undefined)
+      throw failed('polls', response.status)
 
     return [...(data?.data ?? [])]
   })
@@ -65,7 +66,8 @@ export function usePredictions(
       },
     )
 
-    if (error !== undefined) throw failed('predictions', response.status)
+    if (error !== undefined)
+      throw failed('predictions', response.status)
 
     return [...(data?.data ?? [])]
   })
@@ -83,7 +85,8 @@ export function useTimers(
       },
     )
 
-    if (error !== undefined) throw failed('timers', response.status)
+    if (error !== undefined)
+      throw failed('timers', response.status)
 
     return [...(data?.data ?? [])]
   })

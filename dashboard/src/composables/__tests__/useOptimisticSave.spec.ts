@@ -163,7 +163,10 @@ describe('useOptimisticSave', () => {
     const answers: Deferred[] = [first, second]
     const { queries, save } = setup(
       () => (answers.shift() as Deferred).promise,
-      (greeting: string) => (greeting.startsWith('other') ? other : key),
+      (greeting: string) =>
+        greeting.startsWith('other')
+          ? other
+          : key,
     )
 
     queries.setQueryData(other, { greeting: 'other before' })

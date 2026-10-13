@@ -20,7 +20,9 @@ const props = withDefaults(
 
 const { n } = useI18n()
 const shown = computed<string>(() =>
-  typeof props.value === 'number' ? n(props.value) : props.value,
+  typeof props.value === 'number'
+    ? n(props.value)
+    : props.value,
 )
 </script>
 

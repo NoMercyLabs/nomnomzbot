@@ -20,9 +20,14 @@ export function usePanelState<T>(
   isEmpty: (data: T) => boolean = () => false,
 ): ComputedRef<PanelState> {
   return computed<PanelState>(() => {
-    if (query.isError.value) return 'error'
-    if (query.isPending.value || query.data.value === undefined) return 'loading'
+    if (query.isError.value)
+      return 'error'
 
-    return isEmpty(query.data.value) ? 'empty' : 'ready'
+    if (query.isPending.value || query.data.value === undefined)
+      return 'loading'
+
+    return isEmpty(query.data.value)
+      ? 'empty'
+      : 'ready'
   })
 }

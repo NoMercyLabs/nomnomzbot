@@ -88,9 +88,14 @@ const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() => [
 ])
 
 const activeQuery: ComputedRef<typeof everyone | null> = computed(() => {
-  if (UNLISTED.includes(view.value)) return null
-  if (view.value === 'moderator') return moderators
-  if (view.value === 'vip') return vips
+  if (UNLISTED.includes(view.value))
+    return null
+
+  if (view.value === 'moderator')
+    return moderators
+
+  if (view.value === 'vip')
+    return vips
 
   return everyone
 })
@@ -100,17 +105,23 @@ function isNew(row: CommunityRow): boolean {
 }
 
 const tabRows: ComputedRef<CommunityRow[] | undefined> = computed(() => {
-  if (activeQuery.value === null) return []
+  if (activeQuery.value === null)
+    return []
+
   const rows = rowsOf(activeQuery.value)
 
-  return view.value === 'new' ? rows?.filter(isNew) : rows
+  return view.value === 'new'
+    ? rows?.filter(isNew)
+    : rows
 })
 
 const visible = computed(() => tabRows.value)
 
 // Hits of an older keystroke never show under newer text.
 const hits = computed(() =>
-  pausedSearch.value.trim() === typed.value ? found.data.value : undefined,
+  pausedSearch.value.trim() === typed.value
+    ? found.data.value
+    : undefined,
 )
 
 const tabState = usePanelState(
@@ -125,30 +136,47 @@ const searchState = usePanelState(
   { data: hits, isPending: found.isPending, isError: found.isError },
   (options: ViewerOption[]) => options.length === 0,
 )
-const listState = computed<PanelState>(() => (searching.value ? searchState.value : tabState.value))
+const listState = computed<PanelState>(() =>
+  searching.value
+    ? searchState.value
+    : tabState.value)
 
 const emptyText: ComputedRef<string> = computed<string>(() => {
-  if (view.value === 'subscriber') return t('dashboard.people.list.noSubscribers')
-  if (view.value === 'regular') return t('dashboard.people.list.noRegulars')
-  if (searching.value) return t('dashboard.people.noMatch', { query: typed.value })
+  if (view.value === 'subscriber')
+    return t('dashboard.people.list.noSubscribers')
+
+  if (view.value === 'regular')
+    return t('dashboard.people.list.noRegulars')
+
+  if (searching.value)
+    return t('dashboard.people.noMatch', { query: typed.value })
 
   return t('dashboard.people.list.empty')
 })
 
 const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`))
 const count: ComputedRef<string | undefined> = computed(() => {
-  if (listState.value !== 'ready') return undefined
-  const total = (searching.value ? hits.value : visible.value)?.length ?? 0
+  if (listState.value !== 'ready')
+    return undefined
+
+  const total = (searching.value
+    ? hits.value
+    : visible.value)?.length ?? 0
 
   return t('dashboard.people.count', { count: total }, total)
 })
 
 // The person in ?u= can sit in any loaded list (a moderator is also in All), so look in all three.
-const asked = computed<string>(() => (typeof route.query.u === 'string' ? route.query.u : ''))
+const asked = computed<string>(() =>
+  typeof route.query.u === 'string'
+    ? route.query.u
+    : '')
 const loadedRow: ComputedRef<CommunityRow | null> = computed(() => {
   const login = asked.value.toLowerCase()
 
-  if (login === '') return null
+  if (login === '')
+    return null
+
   const loaded: CommunityRow[] = [everyone, moderators, vips].flatMap(
     (query: typeof everyone) => rowsOf(query) ?? [],
   )
@@ -182,17 +210,25 @@ function lightRow(from: Seed): CommunityRow {
 }
 
 const selected: ComputedRef<CommunityRow | null> = computed(() => {
-  if (loadedRow.value) return loadedRow.value
-  if (seedInView.value === null) return null
+  if (loadedRow.value)
+    return loadedRow.value
+
+  if (seedInView.value === null)
+    return null
 
   return member.data.value ?? lightRow(seedInView.value)
 })
 
 const detailState = computed<PanelState>(() => {
-  if (seedInView.value === null) return 'ready'
-  if (member.isError.value) return 'error'
+  if (seedInView.value === null)
+    return 'ready'
 
-  return member.data.value ? 'ready' : 'loading'
+  if (member.isError.value)
+    return 'error'
+
+  return member.data.value
+    ? 'ready'
+    : 'loading'
 })
 
 function pick(row: CommunityRow): void {
@@ -216,7 +252,9 @@ function openOption(option: ViewerOption): void {
 function openFirstHit(): void {
   const first = hits.value?.[0]
 
-  if (first) openOption(first)
+  if (first) {
+    openOption(first)
+  }
 }
 
 async function lookUp(): Promise<void> {
@@ -234,7 +272,9 @@ async function lookUp(): Promise<void> {
       profileImageUrl: person.profileImageUrl,
     })
   } catch (error: unknown) {
-    if (error instanceof TwitchUserNotFoundError) lookupMissing.value = login
+    if (error instanceof TwitchUserNotFoundError) {
+      lookupMissing.value = login
+    }
   }
 }
 

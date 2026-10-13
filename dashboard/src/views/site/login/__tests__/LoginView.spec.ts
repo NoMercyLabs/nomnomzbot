@@ -45,8 +45,11 @@ function stubBot(): string[] {
       calls.push(`${request.method} ${request.url}`)
       const path = new URL(request.url).pathname
 
-      if (path.endsWith('/auth/providers')) return Response.json({ data: [twitch] })
-      if (path.endsWith('/auth/twitch/device')) return Response.json({ data: code })
+      if (path.endsWith('/auth/providers'))
+        return Response.json({ data: [twitch] })
+
+      if (path.endsWith('/auth/twitch/device'))
+        return Response.json({ data: code })
 
       return Response.json({ data: { status: 'pending' } })
     }),

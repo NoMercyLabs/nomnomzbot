@@ -33,7 +33,11 @@ const audio: Ref<HTMLAudioElement | null> = ref(null)
 const playing = ref(false)
 
 const state: ComputedRef<SampleState> = computed<SampleState>(() =>
-  playing.value ? 'playing' : sample.isPending.value ? 'loading' : 'idle',
+  playing.value
+    ? 'playing'
+    : sample.isPending.value
+      ? 'loading'
+      : 'idle',
 )
 
 function stop(): void {
@@ -43,7 +47,8 @@ function stop(): void {
 }
 
 async function toggle(): Promise<void> {
-  if (playing.value) return stop()
+  if (playing.value)
+    return stop()
 
   try {
     const result = await sample.mutateAsync({

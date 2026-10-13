@@ -69,21 +69,29 @@ const open: Ref<OpenPlaceholder | null> = ref(null)
 const active = ref(0)
 
 const matches = computed<TemplateHelper[]>(() =>
-  open.value ? filterHelpers(known.value, open.value.query) : [],
+  open.value
+    ? filterHelpers(known.value, open.value.query)
+    : [],
 )
 const showing = computed<boolean>(() => matches.value.length > 0)
 const unknown = computed<string[]>(() =>
-  known.value.length > 0 ? unknownPlaceholders(text.value, known.value) : [],
+  known.value.length > 0
+    ? unknownPlaceholders(text.value, known.value)
+    : [],
 )
 
 function element(): HTMLTextAreaElement | null {
-  return area.value?.$el instanceof HTMLTextAreaElement ? area.value.$el : null
+  return area.value?.$el instanceof HTMLTextAreaElement
+    ? area.value.$el
+    : null
 }
 
 function remember(): void {
   const el = element()
 
-  if (el) caret.value = { start: el.selectionStart, end: el.selectionEnd }
+  if (el) {
+    caret.value = { start: el.selectionStart, end: el.selectionEnd }
+  }
 }
 
 // Suggestions follow typing and clicks, not arrow keys: Esc must stay closed until the person types again.
@@ -91,9 +99,12 @@ function suggest(): void {
   const el = element()
 
   if (!el) return
+
   remember()
   open.value =
-    el.selectionStart === el.selectionEnd ? openPlaceholder(el.value, el.selectionStart) : null
+    el.selectionStart === el.selectionEnd
+      ? openPlaceholder(el.value, el.selectionStart)
+      : null
   active.value = 0
 }
 
@@ -118,18 +129,33 @@ function insert(insertion: string): Promise<void> {
 
 function choose(helper: TemplateHelper | undefined): void {
   if (!helper || !open.value) return
+
   void replace(open.value.from, caret.value.start, braced(helper.key))
 }
 
 function onKeydown(event: KeyboardEvent): void {
   if (!showing.value) return
+
   const last = matches.value.length - 1
 
-  if (event.key === 'ArrowDown') active.value = active.value >= last ? 0 : active.value + 1
-  else if (event.key === 'ArrowUp') active.value = active.value <= 0 ? last : active.value - 1
-  else if (event.key === 'Enter' || event.key === 'Tab') choose(matches.value[active.value])
-  else if (event.key === 'Escape') open.value = null
+  if (event.key === 'ArrowDown') {
+    active.value = active.value >= last
+      ? 0
+      : active.value + 1
+  }
+  else if (event.key === 'ArrowUp') {
+    active.value = active.value <= 0
+      ? last
+      : active.value - 1
+  }
+  else if (event.key === 'Enter' || event.key === 'Tab') {
+    choose(matches.value[active.value])
+  }
+  else if (event.key === 'Escape') {
+    open.value = null
+  }
   else return
+
   event.preventDefault()
 }
 

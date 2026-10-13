@@ -15,5 +15,7 @@ export function formatCountdown(totalSeconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60)
   const rest: string = String(seconds % 60).padStart(2, '0')
 
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}`
+    : `${minutes}:${rest}`
 }

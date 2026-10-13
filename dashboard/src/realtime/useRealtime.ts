@@ -39,14 +39,20 @@ export function useRealtime(): void {
   )
 
   watch(channelId, (id: string | null) => {
-    if (signedIn.value) void watchChannel(id)
+    if (signedIn.value) {
+      void watchChannel(id)
+    }
   })
 
   watch(
     () => signedIn.value && user.data.value?.isAdmin === true,
     (operator: boolean) => {
-      if (operator) void startAdminHub(queryClient)
-      else void stopAdminHub()
+      if (operator) {
+        void startAdminHub(queryClient)
+      }
+      else {
+        void stopAdminHub()
+      }
     },
     { immediate: true },
   )

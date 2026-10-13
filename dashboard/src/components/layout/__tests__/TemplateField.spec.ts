@@ -67,7 +67,9 @@ async function host(
           label: 'Reply',
           context: 'command',
         }),
-        withPanel ? h(HelperPanel, { target: fieldRef.value, context: 'command' }) : null,
+        withPanel
+          ? h(HelperPanel, { target: fieldRef.value, context: 'command' })
+          : null,
       ]),
   })
 

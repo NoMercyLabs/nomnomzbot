@@ -56,7 +56,9 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ path, query: { ...options?.params?.query } })
-      if (refused) return { error: { message: 'no' }, response: { status: 403, ok: false } }
+
+      if (refused)
+        return { error: { message: 'no' }, response: { status: 403, ok: false } }
 
       return {
         data: { data: rowsOnPage, total, hasMore: total > 25, nextPage: 2 },

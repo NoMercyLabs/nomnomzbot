@@ -64,13 +64,19 @@ const script = computed(() => detail.data.value)
 const ago = useTimeAgoIntl(() => props.summary?.lastRanAt ?? new Date(0), { locale: locale.value })
 
 const runTone = computed<StatusTone>(() => {
-  if (props.summary?.lastRuntimeError) return 'bad'
+  if (props.summary?.lastRuntimeError)
+    return 'bad'
 
-  return props.summary?.lastRanAt ? 'ok' : 'off'
+  return props.summary?.lastRanAt
+    ? 'ok'
+    : 'off'
 })
 const runTitle: ComputedRef<string> = computed<string>(() => {
-  if (props.summary?.lastRuntimeError) return t('dashboard.scripts.detail.runFailed')
-  if (!props.summary?.lastRanAt) return t('dashboard.scripts.list.neverRun')
+  if (props.summary?.lastRuntimeError)
+    return t('dashboard.scripts.detail.runFailed')
+
+  if (!props.summary?.lastRanAt)
+    return t('dashboard.scripts.list.neverRun')
 
   return t('dashboard.scripts.detail.runWorked', { when: ago.value })
 })
@@ -91,6 +97,7 @@ async function test(trigger: TestTrigger | null): Promise<void> {
   const done = await tester.run(trigger)
 
   if (!done) return
+
   emit('ran', {
     scriptId: props.scriptId,
     scriptName: script.value?.name ?? '',
@@ -106,7 +113,9 @@ const deleteError: Ref<string | undefined> = ref(undefined)
 
 // A category key is a resource key; a key this page has no words for shows its last part.
 function categoryLabel(key: string): string {
-  return te(key) ? t(key) : (key.split('.').pop() ?? key)
+  return te(key)
+    ? t(key)
+    : (key.split('.').pop() ?? key)
 }
 
 function blastLines(blast: BlastRadius): string[] {
@@ -114,7 +123,9 @@ function blastLines(blast: BlastRadius): string[] {
     .filter((category) => Number(category.count) > 0)
     .map((category) =>
       t(
-        blast.isMinimum ? 'dashboard.scripts.delete.lineAtLeast' : 'dashboard.scripts.delete.line',
+        blast.isMinimum
+          ? 'dashboard.scripts.delete.lineAtLeast'
+          : 'dashboard.scripts.delete.line',
         {
           count: Number(category.count),
           what: categoryLabel(category.categoryKey),
@@ -123,7 +134,9 @@ function blastLines(blast: BlastRadius): string[] {
       ),
     )
 
-  return lines.length > 0 ? lines : [t('dashboard.scripts.delete.nothing')]
+  return lines.length > 0
+    ? lines
+    : [t('dashboard.scripts.delete.nothing')]
 }
 
 async function askDelete(): Promise<void> {

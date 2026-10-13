@@ -45,7 +45,8 @@ export type BanInput = { targetUserId: string; scope: ChatScope; reason?: string
 export type UnbanInput = { targetUserId: string; scope: ChatScope }
 
 function ensureOk(response: Response, what: string): void {
-  if (!response.ok) throw new Error(`${what} ${response.status}`)
+  if (!response.ok)
+    throw new Error(`${what} ${response.status}`)
 }
 
 // Lines that arrived live while the history call ran stay; the history wins on a shared id.
@@ -81,7 +82,9 @@ export function useSendChat(
 ): UseMutationReturnType<void, Error, SendChatInput, unknown> {
   return useMutation({
     mutationFn: async (input: SendChatInput): Promise<void> => {
-      if (input.message.length > chatMessageMaxLength) throw new Error('chat message too long')
+      if (input.message.length > chatMessageMaxLength)
+        throw new Error('chat message too long')
+
       const { response } = await client.POST('/api/v{version}/channels/{channelId}/chat/messages', {
         params: { path: { version: '1', channelId: toValue(channelId) as string } },
         body: {

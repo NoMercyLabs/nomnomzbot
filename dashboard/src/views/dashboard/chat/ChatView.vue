@@ -41,12 +41,16 @@ const banFailed = ref(false)
 
 const lines: ComputedRef<ChatLineData[]> = computed(() => history.data.value ?? [])
 const visible = computed(() =>
-  hideCommands.value ? lines.value.filter((line: ChatLineData) => !line.isCommand) : lines.value,
+  hideCommands.value
+    ? lines.value.filter((line: ChatLineData) => !line.isCommand)
+    : lines.value,
 )
 
 const panelState = usePanelState(history, () => visible.value.length === 0)
 const emptyText: ComputedRef<string> = computed(() =>
-  lines.value.length > 0 ? t('dashboard.chat.feed.emptyCommands') : t('dashboard.chat.feed.empty'),
+  lines.value.length > 0
+    ? t('dashboard.chat.feed.emptyCommands')
+    : t('dashboard.chat.feed.empty'),
 )
 const live = computed(() => current.value?.isLive === true)
 
@@ -58,7 +62,9 @@ function askBan(line: ChatLineData): void {
 }
 
 function closeBan(open: boolean): void {
-  if (!open) banTarget.value = null
+  if (!open) {
+    banTarget.value = null
+  }
 }
 
 async function confirmBan(): Promise<void> {

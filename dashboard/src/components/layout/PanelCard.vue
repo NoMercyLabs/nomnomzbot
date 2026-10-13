@@ -55,8 +55,13 @@ watch(
   () => props.state,
   (state: PanelState) => {
     skeletonShown.value = false
-    if (state === 'loading') start()
-    else stop()
+
+    if (state === 'loading') {
+      start()
+    }
+    else {
+      stop()
+    }
   },
   { immediate: true },
 )

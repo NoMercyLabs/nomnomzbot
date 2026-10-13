@@ -21,7 +21,9 @@ function allPaths(folder: string): string[] {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
     const path = join(folder, entry.name)
 
-    return entry.isDirectory() ? [path, ...allPaths(path)] : [path]
+    return entry.isDirectory()
+      ? [path, ...allPaths(path)]
+      : [path]
   })
 }
 

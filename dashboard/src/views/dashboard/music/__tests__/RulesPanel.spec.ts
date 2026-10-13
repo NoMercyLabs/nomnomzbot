@@ -57,9 +57,14 @@ function write(method: string, path: string, options?: Options): Answer {
     blockedTrackId: options?.params?.path?.blockedTrackId,
     body: options?.body,
   })
-  if (method === 'PUT') config = { ...config, ...(options?.body as Record<string, unknown>) }
-  if (method === 'DELETE')
+
+  if (method === 'PUT') {
+    config = { ...config, ...(options?.body as Record<string, unknown>) }
+  }
+
+  if (method === 'DELETE') {
     blocked = blocked.filter((row) => row.id !== options?.params?.path?.blockedTrackId)
+  }
 
   if (method === 'POST') {
     const body = options?.body as Record<string, unknown>
@@ -67,14 +72,18 @@ function write(method: string, path: string, options?: Options): Answer {
     blocked = [...blocked, { ...blockedRow(String(body.trackUri), String(body.title)), ...body }]
   }
 
-  return method === 'PUT' ? ok(config) : { response: { status: 200, ok: true } }
+  return method === 'PUT'
+    ? ok(config)
+    : { response: { status: 200, ok: true } }
 }
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string) =>
-      path.endsWith('/music/config') ? ok(config) : ok(blocked.map((row) => ({ ...row }))),
+      path.endsWith('/music/config')
+        ? ok(config)
+        : ok(blocked.map((row) => ({ ...row }))),
     PUT: async (path: string, options?: Options) => write('PUT', path, options),
     POST: async (path: string, options?: Options) => write('POST', path, options),
     DELETE: async (path: string, options?: Options) => write('DELETE', path, options),

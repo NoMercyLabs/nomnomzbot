@@ -46,8 +46,12 @@ watch([typed, status, live], () => {
 
 const params: ComputedRef<AdminTenantsParams> = computed<AdminTenantsParams>(() => ({
   search: typed.value.trim(),
-  status: status.value === 'all' ? undefined : status.value,
-  isLive: live.value === 'all' ? undefined : live.value === 'live',
+  status: status.value === 'all'
+    ? undefined
+    : status.value,
+  isLive: live.value === 'all'
+    ? undefined
+    : live.value === 'live',
   page: page.value,
   take: PAGE_SIZE,
 }))
@@ -79,7 +83,9 @@ const errorText: ComputedRef<string> = computed<string>(() =>
 )
 
 const selectedId = computed<string>(() =>
-  typeof route.query.channel === 'string' ? route.query.channel : '',
+  typeof route.query.channel === 'string'
+    ? route.query.channel
+    : '',
 )
 
 function pick(row: AdminTenant): void {

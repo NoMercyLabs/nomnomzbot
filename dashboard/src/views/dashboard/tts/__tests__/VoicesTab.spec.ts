@@ -82,7 +82,9 @@ function record(method: string, path: string, init: Call['init']): Answer | unde
     (key) => key.startsWith(`${method} `) && path.endsWith(key.slice(method.length + 1)),
   )
 
-  return match ? answers[match]!() : undefined
+  return match
+    ? answers[match]!()
+    : undefined
 }
 
 vi.mock('@/api/client', () => ({
@@ -137,7 +139,9 @@ beforeEach(() => {
     },
   )
   const sizeOf = (element: Element): number =>
-    element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+    element.hasAttribute('data-virtual-scroll')
+      ? VIEWPORT_HEIGHT
+      : ROW_HEIGHT
 
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,

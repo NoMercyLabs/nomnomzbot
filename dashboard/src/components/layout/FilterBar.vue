@@ -34,7 +34,9 @@ const segmented = computed<boolean>(() => props.options.length <= 4)
 
 // The select can send an empty value; a filter always keeps one.
 function choose(value: unknown): void {
-  if (typeof value === 'string' && value !== '') selected.value = value
+  if (typeof value === 'string' && value !== '') {
+    selected.value = value
+  }
 }
 </script>
 

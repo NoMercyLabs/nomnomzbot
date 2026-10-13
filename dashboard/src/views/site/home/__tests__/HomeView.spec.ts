@@ -51,7 +51,9 @@ describe('the site root', () => {
       .filter((link) => link.text() === 'Connect your channel')
 
     expect(connects.length).toBeGreaterThanOrEqual(3)
+
     for (const link of connects) expect(link.attributes('href')).toBe(login)
+
     expect(wrapper.findAll('a').some((link) => link.attributes('href') === '/app')).toBe(false)
   })
 

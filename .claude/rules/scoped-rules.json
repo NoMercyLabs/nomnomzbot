@@ -288,6 +288,20 @@
    "covers": []
   },
   {
+   "id": "ts-layout-ternary-if-blank-lines",
+   "paths": [
+    "**/dashboard/**/*.ts",
+    "**/dashboard/**/*.vue"
+   ],
+   "brief": [
+    "dashboard",
+    "format"
+   ],
+   "text": "Dashboard layout: a ternary puts `? a` and `: b` on their own lines; an arrow whose body is a ternary starts it on the next line without brackets (app/arrow-ternary-body). An if body is a bare `return`/`break`/`continue` on the if line, a returned or thrown value on the next line one level in (no braces), or a braced block for anything else. A blank line sets apart each statement group, and every if, loop, switch and try. ESLint enforces it (@stylistic/multiline-ternary, operator-linebreak, indent, padding-line-between-statements, app/if-body-shape); Prettier undoes the ternary and if breaks, so format with `npm run format` (Prettier, then `eslint --fix`), never Prettier alone and never by hand.",
+   "source": "Stoney 2026-10-13: \"i prefer\" `return typeof options.queryKey === 'function'` / `? options.queryKey(variables)` / `: options.queryKey`; \"if statements may only directly return void, when a value is set then i want a proper codeblock, and when a value is returned i want the return on the next line indented\"; \"and also space inside functions with empty lines for proper organization for readability\"; memory feedback-ts-layout-ternary-if.md",
+   "covers": []
+  },
+  {
    "id": "license-header-required",
    "paths": [
     "**/server/**/*.cs",

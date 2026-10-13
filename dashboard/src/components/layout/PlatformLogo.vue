@@ -28,7 +28,9 @@ const logo = computed(() => logos[props.platform])
 const fill = computed(() => {
   const hex = logo.value?.hex ?? '000000'
 
-  return props.mono || hex === '000000' || hex === 'FFFFFF' ? 'currentColor' : `#${hex}`
+  return props.mono || hex === '000000' || hex === 'FFFFFF'
+    ? 'currentColor'
+    : `#${hex}`
 })
 </script>
 

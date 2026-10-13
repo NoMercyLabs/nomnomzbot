@@ -64,21 +64,27 @@ const queueState = usePanelState(
 const spotify: ComputedRef<{ tone: StatusTone; key: string }> = computed(() => {
   const status = connections.data.value?.find((item) => item.provider === 'spotify')
 
-  if (!status?.connected) return { tone: 'off', key: 'off' }
+  if (!status?.connected)
+    return { tone: 'off', key: 'off' }
 
-  return status.needsReauth ? { tone: 'bad', key: 'reauth' } : { tone: 'ok', key: 'connected' }
+  return status.needsReauth
+    ? { tone: 'bad', key: 'reauth' }
+    : { tone: 'ok', key: 'connected' }
 })
 
 const removing: Ref<QueueItem | null> = ref<QueueItem | null>(null)
 const confirmOpen: ComputedRef<boolean> = computed<boolean>({
   get: () => removing.value !== null,
   set: (open: boolean) => {
-    if (!open) removing.value = null
+    if (!open) {
+      removing.value = null
+    }
   },
 })
 
 function confirmRemove(): void {
   if (removing.value === null) return
+
   remove.mutate({ position: Number(removing.value.position) })
   removing.value = null
 }

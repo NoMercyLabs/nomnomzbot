@@ -44,11 +44,13 @@ const body: Ref<HTMLElement | null> = ref(null)
 
 function setOpen(open: boolean): void {
   if (!open && props.pending) return
+
   emit('update:open', open)
 }
 
 function submit(): void {
   if (props.pending) return
+
   emit('submit')
 }
 
@@ -56,12 +58,15 @@ function submitFromField(event: KeyboardEvent): void {
   const target = event.target
 
   if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
+
   event.preventDefault()
   submit()
 }
 
 function keepOpenWhilePending(event: Event): void {
-  if (props.pending) event.preventDefault()
+  if (props.pending) {
+    event.preventDefault()
+  }
 }
 
 function focusFirstField(event: Event): void {

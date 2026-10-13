@@ -27,7 +27,10 @@ function markLines(
   applies: (line: ChatLine) => boolean,
 ): void {
   queries.setQueryData<ChatLine[]>(chatKey(channelId), (feed) =>
-    feed?.map((line) => (applies(line) ? { ...line, removed: removal } : line)),
+    feed?.map((line) =>
+      applies(line)
+        ? { ...line, removed: removal }
+        : line),
   )
 }
 
@@ -57,8 +60,9 @@ export const chatHandlers: [
         markLines(queries, event.broadcasterId, 'deleted', (line) => line.id === messageId)
       }
 
-      if (event.type === 'chat_cleared')
+      if (event.type === 'chat_cleared') {
         markLines(queries, event.broadcasterId, 'cleared', () => true)
+      }
 
       if (event.type === 'user_messages_cleared') {
         const { targetUserId } = event.data as UserMessagesClearedPayload
@@ -70,13 +74,14 @@ export const chatHandlers: [
   {
     event: 'ModAction',
     handle: ({ queries }, action) => {
-      if (action.action === 'timeout' || action.action === 'ban')
+      if (action.action === 'timeout' || action.action === 'ban') {
         markLines(
           queries,
           action.broadcasterId,
           'purged',
           (line) => line.userId === action.targetUserId,
         )
+      }
     },
   },
 ]

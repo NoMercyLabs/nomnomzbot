@@ -42,7 +42,9 @@ const view = usePageView(['custom', 'builtin'])
 
 // The open command lives in the address (?command=), so a refresh or a link keeps it.
 const selected: ComputedRef<string | null> = computed<string | null>(() =>
-  typeof route.query.command === 'string' ? route.query.command : null,
+  typeof route.query.command === 'string'
+    ? route.query.command
+    : null,
 )
 const row: ComputedRef<CommandListItem | undefined> = computed<CommandListItem | undefined>(() =>
   (commands.data.value ?? []).find(

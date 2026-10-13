@@ -78,7 +78,9 @@ vi.mock('@/api/client', () => ({
       calls.push({ method: 'POST', path, body: options?.body, messageId: '' })
       const ok = !path.endsWith('/chat/messages') || sendOk
 
-      return { data: { data: null }, response: { status: ok ? 200 : 500, ok } }
+      return { data: { data: null }, response: { status: ok
+        ? 200
+        : 500, ok } }
     },
     DELETE: async (path: string, options?: Options): Promise<Answer> => {
       const messageId = String(options?.params?.path?.messageId)
@@ -119,7 +121,9 @@ function stubLayout(): void {
     },
   )
   const sizeOf = (element: Element): number =>
-    element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+    element.hasAttribute('data-virtual-scroll')
+      ? VIEWPORT_HEIGHT
+      : ROW_HEIGHT
 
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
@@ -253,7 +257,10 @@ describe('ChatView', () => {
   it('strikes a deleted line, and Delete calls DELETE with that line id', async () => {
     await open()
     queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) =>
-      feed?.map((one) => (one.id === 'm1' ? { ...one, removed: 'deleted' } : one)),
+      feed?.map((one) =>
+        one.id === 'm1'
+          ? { ...one, removed: 'deleted' }
+          : one),
     )
     await settle()
     expect(rowOf('m1').dataset.removed).toBe('deleted')

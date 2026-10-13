@@ -19,7 +19,10 @@ export const useProfileDialogStore = defineStore('profileDialog', () => {
 
   function open(id: string, from: HTMLElement | null = null): void {
     userId.value = id
-    if (from) opener.value = from
+
+    if (from) {
+      opener.value = from
+    }
   }
 
   function close(): void {

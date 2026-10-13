@@ -19,7 +19,9 @@ const replies = defineModel<string[]>({ required: true })
 
 function set(index: number, text: string | number): void {
   replies.value = replies.value.map((reply: string, at: number): string =>
-    at === index ? String(text) : reply,
+    at === index
+      ? String(text)
+      : reply,
   )
 }
 

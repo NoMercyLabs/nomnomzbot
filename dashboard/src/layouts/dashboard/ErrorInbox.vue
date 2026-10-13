@@ -28,7 +28,9 @@ const count = computed(() => (items.value?.length ?? 0) + saveErrors.items.lengt
 
 // The server names each item by a words key; a key this client has no words for yet shows a plain fallback.
 function words(key: string, fallback: string): string {
-  return te(key) ? t(key) : t(fallback)
+  return te(key)
+    ? t(key)
+    : t(fallback)
 }
 
 // A deep link is an in-app path. Anything else is not followed.

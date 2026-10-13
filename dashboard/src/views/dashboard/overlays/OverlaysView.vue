@@ -70,9 +70,12 @@ const visible = computed(() => {
 
 const listState = usePanelState(widgets, () => false)
 const panelState = computed(() => {
-  if (listState.value !== 'ready') return listState.value
+  if (listState.value !== 'ready')
+    return listState.value
 
-  return visible.value?.length === 0 ? 'empty' : 'ready'
+  return visible.value?.length === 0
+    ? 'empty'
+    : 'ready'
 })
 
 const emptyText: ComputedRef<string> = computed<string>(() => {
@@ -93,7 +96,10 @@ const count: ComputedRef<string | undefined> = computed(() =>
     : undefined,
 )
 
-const asked = computed<string>(() => (typeof route.query.id === 'string' ? route.query.id : ''))
+const asked = computed<string>(() =>
+  typeof route.query.id === 'string'
+    ? route.query.id
+    : '')
 // An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
 const selected: ComputedRef<Widget | null> = computed(() => {
   if (asked.value !== '')

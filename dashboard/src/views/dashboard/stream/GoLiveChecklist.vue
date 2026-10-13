@@ -52,32 +52,46 @@ const checks: ComputedRef<Check[]> = computed(() => {
 
     list.push({
       key: 'title',
-      tone: set ? 'ok' : 'bad',
+      tone: set
+        ? 'ok'
+        : 'bad',
       label: t(
-        set ? 'dashboard.stream.checklist.titleSet' : 'dashboard.stream.checklist.titleMissing',
+        set
+          ? 'dashboard.stream.checklist.titleSet'
+          : 'dashboard.stream.checklist.titleMissing',
       ),
     })
     const tagCount = info.tags?.length ?? 0
 
     list.push({
       key: 'tags',
-      tone: tagCount > 0 ? 'ok' : 'off',
+      tone: tagCount > 0
+        ? 'ok'
+        : 'off',
       label: t('dashboard.stream.checklist.tagsAdded', { count: tagCount }),
     })
   }
 
-  if (botQuery.isError.value) list.push(unchecked('bot', 'bot'))
+  if (botQuery.isError.value) {
+    list.push(unchecked('bot', 'bot'))
+  }
   else if (botQuery.data.value !== undefined) {
     const inChat = botQuery.data.value?.connected === true
 
     list.push({
       key: 'bot',
-      tone: inChat ? 'ok' : 'bad',
-      label: t(inChat ? 'dashboard.stream.checklist.botIn' : 'dashboard.stream.checklist.botOut'),
+      tone: inChat
+        ? 'ok'
+        : 'bad',
+      label: t(inChat
+        ? 'dashboard.stream.checklist.botIn'
+        : 'dashboard.stream.checklist.botOut'),
     })
   }
 
-  if (rewardsQuery.isError.value) list.push(unchecked('rewards', 'rewards'))
+  if (rewardsQuery.isError.value) {
+    list.push(unchecked('rewards', 'rewards'))
+  }
   else if (rewardsQuery.data.value !== undefined) {
     const rewards = rewardsQuery.data.value
     const off = rewards.filter((reward: Reward) => !reward.isEnabled || reward.isPaused)
@@ -87,12 +101,14 @@ const checks: ComputedRef<Check[]> = computed(() => {
     }
 
     // A reward switched off is the streamer's choice, so it gets the neutral dot with its name.
-    if (off.length === 0)
+    if (off.length === 0) {
       list.push({
         key: 'rewards',
         tone: 'ok',
         label: t('dashboard.stream.checklist.rewardsAllOn', counts),
       })
+    }
+
     off.forEach((reward: Reward) =>
       list.push({
         key: `reward-${reward.id}`,
@@ -102,15 +118,21 @@ const checks: ComputedRef<Check[]> = computed(() => {
     )
   }
 
-  if (shieldQuery.isError.value) list.push(unchecked('shield', 'shield'))
+  if (shieldQuery.isError.value) {
+    list.push(unchecked('shield', 'shield'))
+  }
   else if (shieldQuery.data.value !== undefined) {
     const shielded = shieldQuery.data.value
 
     list.push({
       key: 'shield',
-      tone: shielded ? 'bad' : 'ok',
+      tone: shielded
+        ? 'bad'
+        : 'ok',
       label: t(
-        shielded ? 'dashboard.stream.checklist.shieldOn' : 'dashboard.stream.checklist.shieldOff',
+        shielded
+          ? 'dashboard.stream.checklist.shieldOn'
+          : 'dashboard.stream.checklist.shieldOff',
       ),
     })
   }

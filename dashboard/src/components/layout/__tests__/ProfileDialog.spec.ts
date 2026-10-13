@@ -100,8 +100,13 @@ vi.mock('@/api/client', () => ({
       record(path, options)
 
       if (path.endsWith('/vip')) {
-        if (vipWrite) await vipWrite
-        if (vipWriteFails) return { error: { status: 'error' }, response: { ok: false } }
+        if (vipWrite) {
+          await vipWrite
+        }
+
+        if (vipWriteFails)
+          return { error: { status: 'error' }, response: { ok: false } }
+
         people[userIdOf(options)]!.isVip = true
       }
 
@@ -138,7 +143,9 @@ beforeEach(() => {
     },
   )
   const sizeOf = (element: Element): number =>
-    element.hasAttribute('data-virtual-scroll') ? 300 : 40
+    element.hasAttribute('data-virtual-scroll')
+      ? 300
+      : 40
 
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,

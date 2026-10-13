@@ -130,7 +130,9 @@ function answer(method: string, path: string, options: Options | undefined): Ans
   calls.push({ method, path, body: options?.body })
   const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-  return match ? answers[match]!() : ok(null)
+  return match
+    ? answers[match]!()
+    : ok(null)
 }
 
 vi.mock('@/api/client', () => ({
@@ -139,7 +141,10 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string, options?: Options) => answer('GET', path, options),
     POST: async (path: string, options?: Options) => {
       calls.push({ method: 'POST', path, body: options?.body })
-      if (resolveFails) return refused()
+
+      if (resolveFails)
+        return refused()
+
       const itemId: unknown = options?.params?.path?.queueItemId
 
       queue = queue.filter((item) => item.id !== itemId)
@@ -281,7 +286,9 @@ describe('HomeView', () => {
     expect(lines[3]).toContain('Gifted 5 subs · tier 1')
     expect(lines[4]).toContain('Channel event')
     expect(lines.join(' ')).not.toContain('channel.')
+
     for (const row of rows) expect(row.querySelector('svg')).not.toBeNull()
+
     // No events page exists yet, so no "All events" link points somewhere else.
     expect(panel('Happening now').textContent).not.toContain('All events')
   })

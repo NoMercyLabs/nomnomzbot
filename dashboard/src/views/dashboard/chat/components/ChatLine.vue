@@ -71,7 +71,9 @@ async function remove(): Promise<void> {
 function openProfile(event: MouseEvent): void {
   profile.open(
     props.line.userId,
-    event.currentTarget instanceof HTMLElement ? event.currentTarget : null,
+    event.currentTarget instanceof HTMLElement
+      ? event.currentTarget
+      : null,
   )
 }
 

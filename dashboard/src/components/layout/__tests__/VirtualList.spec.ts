@@ -34,7 +34,9 @@ beforeEach(() => {
     },
   )
   const sizeOf = (element: Element): number =>
-    element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+    element.hasAttribute('data-virtual-scroll')
+      ? VIEWPORT_HEIGHT
+      : ROW_HEIGHT
 
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
@@ -74,7 +76,9 @@ beforeEach(() => {
     this: HTMLElement,
     options?: ScrollToOptions | number,
   ): void {
-    this.scrollTop = typeof options === 'object' ? (options.top ?? 0) : 0
+    this.scrollTop = typeof options === 'object'
+      ? (options.top ?? 0)
+      : 0
     this.dispatchEvent(new Event('scroll'))
   } as typeof HTMLElement.prototype.scrollTo
 })

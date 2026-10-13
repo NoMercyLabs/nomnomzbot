@@ -30,6 +30,7 @@ watch(
   () => props.open,
   (open: boolean): void => {
     if (!open) return
+
     name.value = ''
     error.value = undefined
   },
@@ -39,6 +40,7 @@ async function submit(): Promise<void> {
   const trimmed = name.value.trim()
 
   if (trimmed === '') return
+
   error.value = undefined
 
   try {

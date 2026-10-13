@@ -64,6 +64,7 @@ watch(
   () => props.row,
   (row: CommandListItem): void => {
     if (!sameDraft(draft.value, baseline.value)) return
+
     draft.value = draftOf(row)
     baseline.value = draftOf(row)
   },
@@ -79,7 +80,9 @@ const unsaved: ComputedRef<string> = computed<string>(() =>
 const random = computed<boolean>(() => draft.value.replies.length > 0)
 
 function setRandom(on: boolean): void {
-  draft.value.replies = on ? [''] : []
+  draft.value.replies = on
+    ? ['']
+    : []
 }
 
 function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string | number): void {
@@ -88,13 +91,16 @@ function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string
 
 async function save(): Promise<void> {
   if (dirtyCount.value === 0) return
+
   failure.value = null
 
   try {
     await update.mutateAsync({ commandName: props.row.name, change: change.value })
     baseline.value = { ...draft.value, replies: [...draft.value.replies] }
   } catch (error) {
-    failure.value = error instanceof Error ? error.message : String(error)
+    failure.value = error instanceof Error
+      ? error.message
+      : String(error)
   }
 }
 

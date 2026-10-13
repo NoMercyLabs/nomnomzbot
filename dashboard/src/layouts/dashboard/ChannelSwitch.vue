@@ -65,9 +65,12 @@ function initials(name: string): string {
 }
 
 function stateWord(row: ChannelChoice): string | null {
-  if (row.isLive === null) return null
+  if (row.isLive === null)
+    return null
 
-  return row.isLive ? t('frame.channel.live') : t('frame.channel.offline')
+  return row.isLive
+    ? t('frame.channel.live')
+    : t('frame.channel.offline')
 }
 
 async function pick(row: ChannelChoice): Promise<void> {

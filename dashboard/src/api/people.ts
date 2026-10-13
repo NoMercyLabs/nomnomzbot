@@ -75,10 +75,14 @@ function failed(what: string, status: number): Error {
 }
 
 function numberOrNull(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined) return null
+  if (value === null || value === undefined)
+    return null
+
   const parsed = Number(value)
 
-  return Number.isFinite(parsed) ? parsed : null
+  return Number.isFinite(parsed)
+    ? parsed
+    : null
 }
 
 async function readPage(
@@ -96,15 +100,20 @@ async function readPage(
         query: {
           Page: page,
           PageSize: pageSize,
-          ...(role === 'all' ? {} : { role }),
-          ...(text === '' ? {} : { Search: text }),
+          ...(role === 'all'
+            ? {}
+            : { role }),
+          ...(text === ''
+            ? {}
+            : { Search: text }),
         },
       },
     },
   )
 
   // A refusal is an error state, not an empty community.
-  if (error !== undefined) throw failed('community list', response.status)
+  if (error !== undefined)
+    throw failed('community list', response.status)
 
   return {
     rows: data?.data ?? [],
@@ -126,7 +135,9 @@ export function useCommunityList(
       readPage(toValue(channelId) as string, toValue(role), toValue(search), pageParam),
     initialPageParam: firstPage,
     getNextPageParam: (last: CommunityPage, all: CommunityPage[]): number | undefined =>
-      last.hasMore ? (last.nextPage ?? all.length + 1) : undefined,
+      last.hasMore
+        ? (last.nextPage ?? all.length + 1)
+        : undefined,
     enabled: computed(() => toValue(channelId) !== null),
   })
 }
@@ -139,10 +150,14 @@ async function readProfile(channelId: string, userId: string): Promise<PersonPro
     },
   )
 
-  if (error !== undefined) throw failed('viewer profile', response.status)
+  if (error !== undefined)
+    throw failed('viewer profile', response.status)
+
   const summary = data?.data
 
-  if (!summary) return null
+  if (!summary)
+    return null
+
   const { trust, ...profile } = summary
 
   void trust
@@ -170,7 +185,8 @@ async function readNotes(channelId: string, userId: string): Promise<UserNote[]>
     },
   )
 
-  if (error !== undefined) throw failed('user notes', response.status)
+  if (error !== undefined)
+    throw failed('user notes', response.status)
 
   return data?.data ?? []
 }
@@ -205,7 +221,8 @@ export function useAddNote(
         },
       )
 
-      if (error !== undefined) throw failed('add note', response.status)
+      if (error !== undefined)
+        throw failed('add note', response.status)
 
       return readNotes(id, userId)
     },
@@ -252,7 +269,8 @@ export function useShoutout(
         },
       )
 
-      if (error !== undefined) throw failed('shoutout', response.status)
+      if (error !== undefined)
+        throw failed('shoutout', response.status)
 
       return data?.data?.path ?? ''
     },
@@ -276,14 +294,19 @@ export function useTimeout(
             action: 'timeout',
             targetUserId: userId,
             durationSeconds,
-            ...(reason === undefined ? {} : { reason }),
+            ...(reason === undefined
+              ? {}
+              : { reason }),
           },
         },
       )
 
-      if (error !== undefined) throw failed('timeout', response.status)
+      if (error !== undefined)
+        throw failed('timeout', response.status)
+
       // The bot can answer 200 and still refuse; its message says why.
-      if (data?.data?.success === false) throw new Error(data.data.message ?? 'timeout refused')
+      if (data?.data?.success === false)
+        throw new Error(data.data.message ?? 'timeout refused')
     },
     onSuccess: (_data: void, { userId }: TimeoutInput) =>
       personChanged(queries, toValue(channelId) as string, userId),
@@ -308,7 +331,8 @@ export function useUnban(
         },
       )
 
-      if (error !== undefined) throw failed('unban', response.status)
+      if (error !== undefined)
+        throw failed('unban', response.status)
     },
     onSuccess: (_data: void, { userId }: PersonInput) =>
       personChanged(queries, toValue(channelId) as string, userId),
@@ -330,7 +354,8 @@ export function useLiftBan(
         },
       )
 
-      if (error !== undefined) throw failed('lift ban', response.status)
+      if (error !== undefined)
+        throw failed('lift ban', response.status)
     },
     onSuccess: (_data: void, { userId }: PersonInput) =>
       personChanged(queries, toValue(channelId) as string, userId),
