@@ -66,15 +66,62 @@ function freshAnswers(): Record<string, () => Answer> {
     '/automod/queue': () => ok(queue.map((item) => ({ ...item }))),
     '/integrations/status': () =>
       ok([
-        { provider: 'twitch', connected: true, accountName: 'Stoney_Eagle', needsReauth: false, grantedScopeSets: [], capabilities: {}, loginOnly: false },
-        { provider: 'kick', connected: false, accountName: null, needsReauth: false, grantedScopeSets: [], capabilities: {}, loginOnly: false },
-        { provider: 'spotify', connected: true, accountName: 'stoney', needsReauth: true, grantedScopeSets: [], capabilities: {}, loginOnly: false },
+        {
+          provider: 'twitch',
+          connected: true,
+          accountName: 'Stoney_Eagle',
+          needsReauth: false,
+          grantedScopeSets: [],
+          capabilities: {},
+          loginOnly: false,
+        },
+        {
+          provider: 'kick',
+          connected: false,
+          accountName: null,
+          needsReauth: false,
+          grantedScopeSets: [],
+          capabilities: {},
+          loginOnly: false,
+        },
+        {
+          provider: 'spotify',
+          connected: true,
+          accountName: 'stoney',
+          needsReauth: true,
+          grantedScopeSets: [],
+          capabilities: {},
+          loginOnly: false,
+        },
       ]),
-    '/bot/status': () => ok({ connected: true, login: 'nomercybot_', displayName: 'NoMercyBot_', profileImageUrl: null }),
+    '/bot/status': () =>
+      ok({
+        connected: true,
+        login: 'nomercybot_',
+        displayName: 'NoMercyBot_',
+        profileImageUrl: null,
+      }),
     '/activity': () =>
-      ok([{ id: 'e1', type: 'channel.follow', userId: 'u9', username: 'StanLeFresh', data: null, timestamp: '2026-10-13T09:00:00Z' }]),
+      ok([
+        {
+          id: 'e1',
+          type: 'channel.follow',
+          userId: 'u9',
+          username: 'StanLeFresh',
+          data: null,
+          timestamp: '2026-10-13T09:00:00Z',
+        },
+      ]),
     '/action-required': () =>
-      ok([{ id: 'a1', titleKey: 'nothing.known', messageKey: 'nothing.known', deepLinkRoute: '/app/settings', severity: 'warning' }]),
+      ok([
+        {
+          id: 'a1',
+          titleKey: 'nothing.known',
+          messageKey: 'nothing.known',
+          deepLinkRoute: '/app/settings',
+          severity: 'warning',
+        },
+      ]),
     '/moderation/shield': () => ok({ enabled: false }),
   }
 }
@@ -108,7 +155,10 @@ let pinia: Pinia
 
 beforeEach(() => {
   calls.length = 0
-  queue = [heldMessage('q1', 'sample_viewer', 'what the heck'), heldMessage('q2', 'DukaSoft', 'buy followers here')]
+  queue = [
+    heldMessage('q1', 'sample_viewer', 'what the heck'),
+    heldMessage('q2', 'DukaSoft', 'buy followers here'),
+  ]
   answers = freshAnswers()
   resolveFails = false
   pinia = createPinia()
@@ -140,7 +190,15 @@ async function open(): Promise<void> {
   mounted = mount(HomeView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
@@ -162,8 +220,11 @@ const rowOf = (name: string): HTMLElement =>
     row.textContent?.includes(name),
   ) as HTMLElement
 const buttonIn = (root: HTMLElement, label: string): HTMLButtonElement =>
-  [...root.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label) as HTMLButtonElement
-const resolves = (): Call[] => calls.filter((call) => call.method === 'POST' && call.path.endsWith('/resolve'))
+  [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+    (b) => b.textContent?.trim() === label,
+  ) as HTMLButtonElement
+const resolves = (): Call[] =>
+  calls.filter((call) => call.method === 'POST' && call.path.endsWith('/resolve'))
 
 describe('HomeView', () => {
   it('shows a live stream: the live badge, the stream line and the held messages to review', async () => {
@@ -187,7 +248,9 @@ describe('HomeView', () => {
 
     expect(text()).toContain('Offline')
     expect(text()).not.toContain('Live on')
-    expect(panel('Review queue').textContent).toContain('Held messages and spam checks show up here during a stream.')
+    expect(panel('Review queue').textContent).toContain(
+      'Held messages and spam checks show up here during a stream.',
+    )
     expect(panel('Last stream').textContent).toContain('StanLeFresh')
   })
 
