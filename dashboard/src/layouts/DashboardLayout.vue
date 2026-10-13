@@ -14,6 +14,7 @@ import { provide } from 'vue'
 import { frameActionsKey } from '@/components/layout/frameActions'
 import ProfileDialog from '@/components/layout/ProfileDialog.vue'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useRealtime } from '@/realtime/useRealtime'
 
 import BottomBar from './dashboard/BottomBar.vue'
 import ChannelSwitch from './dashboard/ChannelSwitch.vue'
@@ -29,6 +30,7 @@ const medium = useMediaQuery('(min-width: 600px)')
 const { channelId } = useCurrentChannel()
 
 provide(frameActionsKey, FrameActions)
+useRealtime()
 </script>
 
 <template>

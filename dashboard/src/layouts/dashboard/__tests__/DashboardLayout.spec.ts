@@ -26,6 +26,9 @@ const user = ref<{ displayName: string; profileImageUrl: string | null; isAdmin:
 vi.mock('@/api/auth', () => ({
   useCurrentUser: () => ({ data: user }),
   signOut: vi.fn<() => Promise<void>>(),
+  // Signed out for the live hubs: these tests cover the frame, not live updates.
+  useSignedIn: () => ref(false),
+  getAccessToken: () => '',
 }))
 
 vi.mock('@/composables/useCurrentChannel', () => ({

@@ -30,6 +30,8 @@ const version = '1'
 
 export const memberKey = (channelId: string | null, userId: string | null): unknown[] => ['community', channelId, 'member', userId]
 
+export const communityFirstPageKey = (channelId: string | null): unknown[] => ['community', channelId, 'first-page']
+
 // The id in the route is the Twitch user id (CommunityUserDto.id, UserDetailDto.id).
 async function fetchMember(channelId: string, userId: string): Promise<CommunityMember | null> {
   const { data } = await client.GET('/api/v{version}/channels/{channelId}/community/{userId}', {
@@ -52,7 +54,7 @@ export function useCommunityMember(
 // The first page of the channel's community, as the catalogue and any picker need it.
 export function useCommunityFirstPage(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<CommunityRow[], Error> {
   return useQuery({
-    queryKey: computed(() => ['community', toValue(channelId), 'first-page']),
+    queryKey: computed(() => communityFirstPageKey(toValue(channelId))),
     queryFn: async (): Promise<CommunityRow[]> => {
       const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/community', {
         params: { path: { version, channelId: toValue(channelId)! }, query: { PageSize: 5 } },

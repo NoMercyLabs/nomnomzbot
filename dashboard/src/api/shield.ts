@@ -13,6 +13,8 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
 import { client } from './client'
 
+export const shieldKey = (channelId: string | null): unknown[] => ['channels', channelId, 'shield']
+
 // The status reads live from the Twitch moderation API; the document types the answer as an open object.
 async function fetchShield(channelId: string): Promise<boolean> {
   const { data } = await client.GET('/api/v{version}/channels/{channelId}/moderation/shield', {
@@ -24,7 +26,7 @@ async function fetchShield(channelId: string): Promise<boolean> {
 
 export function useShieldMode(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<boolean, Error> {
   return useQuery({
-    queryKey: computed(() => ['channels', toValue(channelId), 'shield']),
+    queryKey: computed(() => shieldKey(toValue(channelId))),
     queryFn: () => fetchShield(toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
   })
@@ -40,6 +42,6 @@ export function useSetShieldMode(channelId: MaybeRefOrGetter<string | null>): Us
       })
       if (!response.ok) throw new Error(`shield ${response.status}`)
     },
-    onSuccess: () => queries.invalidateQueries({ queryKey: ['channels', toValue(channelId), 'shield'] }),
+    onSuccess: () => queries.invalidateQueries({ queryKey: shieldKey(toValue(channelId)) }),
   })
 }

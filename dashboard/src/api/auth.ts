@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { queryOptions, useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
+import { ref, type Ref } from 'vue'
 
 import type { components } from './schema'
 import { activeBot } from './activeBot'
@@ -21,6 +22,8 @@ const version = { path: { version: '1' } }
 
 // The access token lives in this module only. The refresh token is the server's httpOnly cookie.
 let accessToken: string | null = null
+// Follows the sign-in for the live connection; a token swapped by the 401 retry does not move it.
+const signedIn: Ref<boolean> = ref(false)
 let restoring: Promise<boolean> | null = null
 
 // A copy of each request, kept until its response, so a 401 can be sent again with a new token.
@@ -50,9 +53,19 @@ export function isSignedIn(): boolean {
   return accessToken !== null
 }
 
+export function useSignedIn(): Readonly<Ref<boolean>> {
+  return signedIn
+}
+
+// The live connection asks for the token on every connect, so a refreshed one is used at once.
+export function getAccessToken(): string {
+  return accessToken ?? ''
+}
+
 // A sign-in that finished on this page (the device code) hands its access token over here.
 export function acceptAccessToken(token: string): void {
   accessToken = token
+  signedIn.value = true
 }
 
 // The OAuth callback returns the access token in the URL fragment; take it once and strip it.
@@ -61,6 +74,7 @@ function consumeFragment(): boolean {
   const token = fragment.get('access_token')
   if (!token) return false
   accessToken = token
+  signedIn.value = true
   history.replaceState(history.state, '', window.location.pathname + window.location.search)
   return true
 }
@@ -77,6 +91,7 @@ async function refresh(): Promise<boolean> {
   const token: unknown = (payload as { accessToken?: unknown }).accessToken
   if (typeof token !== 'string') return false
   accessToken = token
+  signedIn.value = true
   return true
 }
 
@@ -104,6 +119,7 @@ export function useCurrentUser(): UseQueryReturnType<CurrentUser | null, Error> 
 export function switchBot(origin: string): void {
   if (origin === activeBot.value) return
   accessToken = null
+  signedIn.value = false
   queryClient.clear()
   activeBot.value = origin
 }
@@ -111,5 +127,6 @@ export function switchBot(origin: string): void {
 export async function signOut(): Promise<void> {
   await client.POST('/api/v{version}/auth/logout', { params: version, credentials: 'include' })
   accessToken = null
+  signedIn.value = false
   queryClient.clear()
 }

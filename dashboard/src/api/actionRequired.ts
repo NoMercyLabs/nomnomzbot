@@ -16,10 +16,12 @@ import { client } from './client'
 
 export type ActionRequiredItem = components['schemas']['ActionRequiredItemDto']
 
+export const actionRequiredKey = (channelId: string | null): unknown[] => ['channels', channelId, 'action-required']
+
 // The items that need the person now (C9): the source of the error inbox in the frame.
 export function useActionRequired(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<ActionRequiredItem[], Error> {
   return useQuery({
-    queryKey: computed(() => ['channels', toValue(channelId), 'action-required']),
+    queryKey: computed(() => actionRequiredKey(toValue(channelId))),
     queryFn: async (): Promise<ActionRequiredItem[]> => {
       const { data } = await client.GET('/api/v{version}/channels/{channelId}/notifications/action-required', {
         params: { path: { version: '1', channelId: toValue(channelId) as string } },
