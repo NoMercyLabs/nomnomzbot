@@ -11,6 +11,9 @@
 // One item of a RowGroup (V13, V21): a 14 medium title over a 14 muted detail line.
 // pick: the whole row is the control (a button; pass role="radio" for a single choice).
 // Rows that carry their own button stay plain and do not hover.
+// Balance: the first ink sits 12px (px-3) from the row edge on both sides. A trailing button sits
+// outside the body, so its wrapper adds pr-3. A ghost button has no border, so its ink starts
+// one padding inside it: it gets a negative margin equal to that padding (10px, 8px for icons).
 defineOptions({ inheritAttrs: false });
 
 withDefaults(
@@ -33,7 +36,8 @@ withDefaults(
     <component
       :is="pick ? 'button' : 'div'"
       :type="pick ? 'button' : undefined"
-      class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[8px] px-3 py-2 text-left"
+      data-slot="summary-row-body"
+      class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[8px] px-3 py-2 text-left [&>[data-variant=ghost]:first-child]:-ml-2.5 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:first-child]:-ml-2 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
       :class="[
         selected
           ? 'bg-accent text-accent-foreground'
@@ -51,6 +55,12 @@ withDefaults(
       </span>
       <slot name="end" />
     </component>
-    <slot name="trailing" />
+    <div
+      v-if="$slots.trailing"
+      data-slot="summary-row-trailing"
+      class="flex shrink-0 items-center pr-3 [&_[data-variant=ghost]]:-mr-2.5 [&_[data-variant=ghost][data-size^=icon]]:-mr-2"
+    >
+      <slot name="trailing" />
+    </div>
   </div>
 </template>
