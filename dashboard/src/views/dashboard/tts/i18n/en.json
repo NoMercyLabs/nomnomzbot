@@ -1,0 +1,91 @@
+{
+  "dashboard": {
+    "tts": {
+      "title": "Text to speech",
+      "on": "Text to speech is on",
+      "off": "Text to speech is off",
+      "tabs": {
+        "overview": "Overview",
+        "voices": "Voices",
+        "rules": "Rules"
+      },
+      "history": {
+        "title": "Spoken history",
+        "description": "The messages the bot read aloud.",
+        "empty": "The bot does not keep a readable record of spoken messages yet."
+      },
+      "settings": {
+        "title": "Settings",
+        "error": "The text to speech settings could not be loaded.",
+        "voice": {
+          "title": "Voice",
+          "detail": "{voice} · {provider}",
+          "platform": "Follows the platform voice · {provider}",
+          "none": "No voice picked · {provider}"
+        },
+        "who": {
+          "title": "Who may use it",
+          "detail": "Allowed for: {permission}"
+        },
+        "limits": {
+          "title": "Message limits",
+          "detail": "Up to {count} characters",
+          "skipBots": "Bot messages are skipped",
+          "readBots": "Bot messages are read"
+        },
+        "words": {
+          "title": "Words and pronunciation",
+          "censored": "Profanity is censored",
+          "uncensored": "Profanity is not censored"
+        },
+        "overlay": {
+          "title": "Speaker overlay",
+          "never": "Never used",
+          "lastUsed": "Last used {time}",
+          "error": "The overlay status could not be loaded."
+        }
+      },
+      "voices": {
+        "title": "Voices",
+        "empty": "No voices match.",
+        "error": "The voices could not be loaded.",
+        "search": "Search voices",
+        "language": "Language",
+        "count": "{shown} of {loaded} voices",
+        "countFirst": "{shown} of the first {loaded} voices",
+        "more": "Load more voices",
+        "sampleText": "Hello chat, this is how I sound.",
+        "playSample": "Play a sample of {voice}",
+        "stopSample": "Stop the sample of {voice}",
+        "family": {
+          "all": "All",
+          "en": "English",
+          "nl": "Dutch",
+          "de": "German",
+          "fr": "French",
+          "es": "Spanish",
+          "other": "Other"
+        },
+        "current": {
+          "title": "Channel voice",
+          "none": "No voice is picked yet.",
+          "platform": "This channel follows the platform voice until you pick one."
+        },
+        "fact": {
+          "voice": "Voice",
+          "locale": "Language",
+          "gender": "Gender",
+          "provider": "Provider"
+        },
+        "detection": {
+          "title": "Language detection",
+          "body": "The bot does not detect the language of a message yet. Every message is read in the channel voice."
+        }
+      },
+      "rules": {
+        "title": "Rules",
+        "empty": "Who may use text to speech, message limits and pronunciation fixes will live here."
+      }
+    }
+  }
+}

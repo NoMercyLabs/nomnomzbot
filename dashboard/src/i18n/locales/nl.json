@@ -14,7 +14,10 @@
       "discord": "Discord",
       "patreon": "Patreon",
       "shopify": "Shopify",
-      "treatstream": "TreatStream"
+      "treatstream": "TreatStream",
+      "edge": "Microsoft Edge",
+      "azure": "Azure",
+      "elevenlabs": "ElevenLabs"
     },
     "confirm": {
       "whatHappens": "Wat er gebeurt"

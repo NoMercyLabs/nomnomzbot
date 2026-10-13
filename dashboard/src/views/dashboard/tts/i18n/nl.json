@@ -1,0 +1,91 @@
+{
+  "dashboard": {
+    "tts": {
+      "title": "Tekst-naar-spraak",
+      "on": "Tekst-naar-spraak staat aan",
+      "off": "Tekst-naar-spraak staat uit",
+      "tabs": {
+        "overview": "Overzicht",
+        "voices": "Stemmen",
+        "rules": "Regels"
+      },
+      "history": {
+        "title": "Uitgesproken berichten",
+        "description": "De berichten die de bot hardop heeft voorgelezen.",
+        "empty": "De bot bewaart nog geen leesbaar overzicht van uitgesproken berichten."
+      },
+      "settings": {
+        "title": "Instellingen",
+        "error": "De instellingen voor tekst-naar-spraak konden niet worden geladen.",
+        "voice": {
+          "title": "Stem",
+          "detail": "{voice} · {provider}",
+          "platform": "Volgt de platformstem · {provider}",
+          "none": "Geen stem gekozen · {provider}"
+        },
+        "who": {
+          "title": "Wie mag het gebruiken",
+          "detail": "Toegestaan voor: {permission}"
+        },
+        "limits": {
+          "title": "Berichtlimieten",
+          "detail": "Tot {count} tekens",
+          "skipBots": "Berichten van bots worden overgeslagen",
+          "readBots": "Berichten van bots worden voorgelezen"
+        },
+        "words": {
+          "title": "Woorden en uitspraak",
+          "censored": "Grof taalgebruik wordt gecensureerd",
+          "uncensored": "Grof taalgebruik wordt niet gecensureerd"
+        },
+        "overlay": {
+          "title": "Speaker-overlay",
+          "never": "Nog nooit gebruikt",
+          "lastUsed": "Laatst gebruikt {time}",
+          "error": "De status van de overlay kon niet worden geladen."
+        }
+      },
+      "voices": {
+        "title": "Stemmen",
+        "empty": "Geen stemmen gevonden.",
+        "error": "De stemmen konden niet worden geladen.",
+        "search": "Zoek stemmen",
+        "language": "Taal",
+        "count": "{shown} van {loaded} stemmen",
+        "countFirst": "{shown} van de eerste {loaded} stemmen",
+        "more": "Meer stemmen laden",
+        "sampleText": "Hallo chat, zo klink ik.",
+        "playSample": "Speel een voorbeeld van {voice}",
+        "stopSample": "Stop het voorbeeld van {voice}",
+        "family": {
+          "all": "Alle",
+          "en": "Engels",
+          "nl": "Nederlands",
+          "de": "Duits",
+          "fr": "Frans",
+          "es": "Spaans",
+          "other": "Overig"
+        },
+        "current": {
+          "title": "Kanaalstem",
+          "none": "Er is nog geen stem gekozen.",
+          "platform": "Dit kanaal volgt de platformstem tot je er een kiest."
+        },
+        "fact": {
+          "voice": "Stem",
+          "locale": "Taal",
+          "gender": "Geslacht",
+          "provider": "Aanbieder"
+        },
+        "detection": {
+          "title": "Taalherkenning",
+          "body": "De bot herkent de taal van een bericht nog niet. Elk bericht wordt voorgelezen met de kanaalstem."
+        }
+      },
+      "rules": {
+        "title": "Regels",
+        "empty": "Hier komen wie tekst-naar-spraak mag gebruiken, berichtlimieten en uitspraakcorrecties."
+      }
+    }
+  }
+}

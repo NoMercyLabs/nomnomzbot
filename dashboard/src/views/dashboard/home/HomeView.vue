@@ -40,11 +40,13 @@ import { Button } from '@/components/ui/button'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow'
 import { usePanelState } from '@/composables/usePanelState'
+import { useProviderName } from '@/composables/useProviderName'
 
 const { t, te, locale } = useI18n()
 const router: Router = useRouter()
 const { channelId } = useCurrentChannel()
 const { data: user } = useCurrentUser()
+const platformName = useProviderName()
 
 const statsQuery = useHomeStats(channelId)
 const queueQuery = useReviewQueue(channelId)
@@ -70,12 +72,6 @@ const activityState: ComputedRef<PanelState> = usePanelState(activityQuery, (ite
 const title: ComputedRef<string> = computed(() =>
   user.value ? t('dashboard.home.greeting', { name: user.value.displayName }) : t('dashboard.home.title'),
 )
-
-// A provider this client has no name for yet shows its id as the server sent it.
-function platformName(id: string): string {
-  const key: string = `common.provider.${id}`
-  return te(key) ? t(key) : id
-}
 
 const statusLabel: ComputedRef<string> = computed(() =>
   live.value
