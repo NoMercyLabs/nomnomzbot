@@ -15,6 +15,7 @@ import { loadPage } from '@/i18n'
 export const loginRoute = {
   path: 'login',
   name: 'login',
+  meta: { guestOnly: true },
   component: () =>
     loadPage(
       () => import('./LoginView.vue'),

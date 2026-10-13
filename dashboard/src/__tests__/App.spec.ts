@@ -86,4 +86,41 @@ describe('sign-in guard', () => {
 
     expect(stored).not.toContain('from-fragment')
   })
+
+  // Stoney 2026-10-13: "the login screen should redirect to the app if the user has a valid session".
+  it('sends a visitor with a valid session from the login page into the dashboard', async () => {
+    stubFetch(200)
+    const router = await freshRouter()
+
+    await router.push({ name: loginRoute.name })
+
+    expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name)
+  })
+
+  it('sends a signed-in visitor on to the page the login was asked for', async () => {
+    stubFetch(200)
+    const router = await freshRouter()
+
+    await router.push({ name: loginRoute.name, query: { return_to: '/app/commands' } })
+
+    expect(router.currentRoute.value.path).toBe('/app/commands')
+  })
+
+  it('never follows a return address to another site', async () => {
+    stubFetch(200)
+    const router = await freshRouter()
+
+    await router.push({ name: loginRoute.name, query: { return_to: '//evil.example' } })
+
+    expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name)
+  })
+
+  it('keeps a signed-out visitor on the login page', async () => {
+    stubFetch(401)
+    const router = await freshRouter()
+
+    await router.push({ name: loginRoute.name })
+
+    expect(router.currentRoute.value.name).toBe(loginRoute.name)
+  })
 })

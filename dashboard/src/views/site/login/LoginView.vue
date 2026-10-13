@@ -23,6 +23,7 @@ import RowGroup from '@/components/layout/RowGroup.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Button } from '@/components/ui/button'
 import { officialOrigin, servedOrigin } from '@/lib/botAddress'
+import { returnPath } from '@/router/guard'
 
 import BotChooser from './components/BotChooser.vue'
 import DeviceCodePanel from './components/DeviceCodePanel.vue'
@@ -45,13 +46,7 @@ const botDetail: ComputedRef<string> = computed(() => {
 const otherBot = computed(() => activeBot.value !== servedOrigin)
 const codeOnly = computed(() => otherBot.value || !window.isSecureContext)
 
-const returnTo = computed(() => {
-  const asked: unknown = route.query.return_to
-
-  return typeof asked === 'string' && asked.startsWith('/') && !asked.startsWith('//')
-    ? asked
-    : '/app'
-})
+const returnTo = computed(() => returnPath(route.query.return_to))
 const enabled: ComputedRef<LoginProvider[]> = computed(() =>
   (providers.data.value ?? []).filter((p) => p.enabled),
 )
