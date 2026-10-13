@@ -202,11 +202,11 @@ describe('useSaveWidgetSettings', () => {
     http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
     http.GET.mockResolvedValue({ data: { data: [], hasMore: false }, response: ok })
     const { queries, hook } = mount(() => useSaveWidgetSettings(channel))
-    queries.setQueryData(widgetsKey(channel), [widget('a', { settings: { size: 1 } as never })])
+    queries.setQueryData(widgetsKey(channel), [widget('a', { settings: { size: 1 } })])
 
     const sent: Promise<unknown> = hook.mutateAsync({
       widgetId: 'a',
-      settings: { size: 2, color: '#fff' } as never,
+      settings: { size: 2, color: '#fff' },
     })
     await settle()
 
@@ -226,11 +226,11 @@ describe('useSaveWidgetSettings', () => {
 
   it('restores the saved settings and reports to the inbox when the save fails', async () => {
     http.PUT.mockResolvedValue({ error: { status: 'error' }, response: { ok: false, status: 500 } })
-    const before: Widget[] = [widget('a', { settings: { size: 1 } as never })]
+    const before: Widget[] = [widget('a', { settings: { size: 1 } })]
     const { queries, hook, inbox } = mount(() => useSaveWidgetSettings(channel))
     queries.setQueryData(widgetsKey(channel), before)
 
-    await hook.mutateAsync({ widgetId: 'a', settings: { size: 9 } as never }).catch(() => undefined)
+    await hook.mutateAsync({ widgetId: 'a', settings: { size: 9 } }).catch(() => undefined)
     await settle()
 
     expect(queries.getQueryData<Widget[]>(widgetsKey(channel))).toEqual(before)

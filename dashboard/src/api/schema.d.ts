@@ -84488,7 +84488,9 @@ export interface components {
             /** Format: int32 */
             durationSeconds?: null | number | string;
             reason?: null | string;
-            settings?: null | Record<string, never>;
+            settings?: null | {
+                [key: string]: unknown;
+            };
             exemptRoles?: null | string[];
         };
         CreateOutboundWebhookRequest: {
@@ -84672,7 +84674,9 @@ export interface components {
             /** @description Source language of the widget: `vanilla` | `vue`. */
             framework: string;
             description?: null | string;
-            settings?: null | Record<string, never>;
+            settings?: null | {
+                [key: string]: unknown;
+            };
             eventSubscriptions?: null | string[];
         };
         /**
@@ -85319,7 +85323,9 @@ export interface components {
             minRoleLevel: null | number | string;
             /** Format: int32 */
             configSchemaVersion: number | string;
-            bonusConfig: null | Record<string, never>;
+            bonusConfig: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. */
         EditQuoteRequest: {
@@ -85861,7 +85867,9 @@ export interface components {
             installCount: number | string;
             availableInSaaS: boolean;
             sourceKind: string;
-            defaultSettings: Record<string, never>;
+            defaultSettings: {
+                [key: string]: unknown;
+            };
             defaultEventSubscriptions: string[];
             sourceCode: null | string;
             gitHubRepoUrl: null | string;
@@ -85923,7 +85931,9 @@ export interface components {
             /** Format: int32 */
             maxPlaysPerStream: null | number | string;
             permission: string;
-            config: null | Record<string, never>;
+            config: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description An immutable game play record (economy.md §4). */
         GamePlayDto: {
@@ -85966,8 +85976,12 @@ export interface components {
             joinClosesAt: null | string;
             /** Format: date-time */
             resolvedAt: null | string;
-            state: null | Record<string, never>;
-            outcome: null | Record<string, never>;
+            state: null | {
+                [key: string]: unknown;
+            };
+            outcome: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom). */
         GenericInboundConfig: {
@@ -87127,7 +87141,9 @@ export interface components {
             /** Format: int32 */
             durationSeconds: null | number | string;
             reason: null | string;
-            settings: Record<string, never>;
+            settings: {
+                [key: string]: unknown;
+            };
             exemptRoles: string[];
             /** Format: date-time */
             createdAt: string;
@@ -87545,7 +87561,9 @@ export interface components {
         /** @description One raw OBS-WS request (the generic pass-through surface). */
         ObsRequest: {
             requestType: string;
-            requestData: null | Record<string, never>;
+            requestData: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description A raw OBS-WS request batch (op 8). */
         ObsRequestBatch: {
@@ -87557,7 +87575,9 @@ export interface components {
         /** @description The outcome of one OBS-WS request as the caller sees it. */
         ObsResponse: {
             ok: boolean;
-            responseData: null | Record<string, never>;
+            responseData: null | {
+                [key: string]: unknown;
+            };
             error: null | string;
         };
         ObsSceneDto: {
@@ -87662,7 +87682,9 @@ export interface components {
         ObsVendorRequest: {
             vendorName: string;
             requestType: string;
-            requestData: null | Record<string, never>;
+            requestData: null | {
+                [key: string]: unknown;
+            };
         };
         /**
          * @description Virtual camera output status (obs-websocket v5 `GetVirtualCamStatus`) — the same
@@ -87800,7 +87822,9 @@ export interface components {
             bundleUrl: string;
             contentHash: string;
             eventSubscriptions: string[];
-            settings: Record<string, never>;
+            settings: {
+                [key: string]: unknown;
+            };
         };
         PaginatedResponseOfAdminChannelDto: {
             data?: components["schemas"]["AdminChannelDto"][];
@@ -88782,9 +88806,13 @@ export interface components {
         PipelineOptionState: number;
         PipelineStepInput: {
             actionType: string;
-            config: Record<string, never>;
+            config: {
+                [key: string]: unknown;
+            };
             conditionType?: null | string;
-            conditionParams?: null | Record<string, never>;
+            conditionParams?: null | {
+                [key: string]: unknown;
+            };
             /** @default true */
             isEnabled: boolean;
         };
@@ -91268,7 +91296,9 @@ export interface components {
         };
         StatusResponseDtoOfDictionaryOfstringAndObject: {
             status?: string;
-            data?: null | Record<string, never>;
+            data?: null | {
+                [key: string]: unknown;
+            };
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -96639,7 +96669,9 @@ export interface components {
             /** Format: int32 */
             durationSeconds?: null | number | string;
             reason?: null | string;
-            settings?: null | Record<string, never>;
+            settings?: null | {
+                [key: string]: unknown;
+            };
             exemptRoles?: null | string[];
             isEnabled?: null | boolean;
         };
@@ -96956,7 +96988,9 @@ export interface components {
         UpdateWidgetRequest: {
             name?: null | string;
             description?: null | string;
-            settings?: null | Record<string, never>;
+            settings?: null | {
+                [key: string]: unknown;
+            };
             eventSubscriptions?: null | string[];
             isEnabled?: null | boolean;
         };
@@ -97011,7 +97045,9 @@ export interface components {
             perStreamCap: null | number | string;
             /** Format: int32 */
             minRoleLevel: null | number | string;
-            bonusConfig: null | Record<string, never>;
+            bonusConfig: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description Full-policy upsert — the ladder is replaced whole, never patched. */
         UpsertEscalationPolicyRequest: {
@@ -97047,7 +97083,9 @@ export interface components {
             /** Format: int32 */
             maxPlaysPerStream: null | number | string;
             permission: string;
-            config: null | Record<string, never>;
+            config: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description Create/update payload — the full configurable surface (draft/closed only for updates). */
         UpsertGiveawayRequest: {
@@ -97658,7 +97696,9 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             galleryItemId: null | string;
-            settings: Record<string, never>;
+            settings: {
+                [key: string]: unknown;
+            };
             eventSubscriptions: string[];
             lastRuntimeError: null | string;
             /** Format: date-time */
@@ -97674,7 +97714,9 @@ export interface components {
         /** @description A preview action request: the action type, its parameters and the variables that seed its context. */
         WidgetPreviewActionRequest: {
             actionType: string;
-            parameters: null | Record<string, never>;
+            parameters: null | {
+                [key: string]: unknown;
+            };
             variables: null | {
                 [key: string]: string;
             };
@@ -97753,7 +97795,9 @@ export interface components {
         /** @description The test-fire request: an event type, and an optional explicit payload (a sample is used when omitted). */
         WidgetTestEventRequest: {
             eventType: string;
-            data: null | Record<string, never>;
+            data: null | {
+                [key: string]: unknown;
+            };
         };
         /**
          * @description Result of rotating one widget's overlay token (audit B5). string WidgetTokenRotationResult.PreviousUrl stays live until

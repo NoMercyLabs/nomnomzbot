@@ -21,6 +21,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.OpenApi;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Common.Interfaces;
@@ -413,8 +414,10 @@ try
 
     // OpenAPI. Owned-id schemas render as ULID strings (not uuid) so the committed contract matches the wire.
     builder.Services.AddOpenApi(options =>
-        options.AddSchemaTransformer(new UlidGuidSchemaTransformer())
-    );
+    {
+        options.AddSchemaTransformer(new UlidGuidSchemaTransformer());
+        options.AddSchemaTransformer(new OpenMapSchemaTransformer());
+    });
 
     // CORS
     builder.Services.AddCors(options =>
