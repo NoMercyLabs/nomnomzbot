@@ -1,0 +1,84 @@
+{
+  "dashboard": {
+    "stream": {
+      "title": "Stream",
+      "live": "Live",
+      "offline": "Offline",
+      "liveMeta": "Live for {time} · {category}",
+      "lastStream": "Last stream ended {date} · {length}",
+      "lastStreamDate": "Last streamed {date}",
+      "noStreamYet": "No stream yet",
+      "tabs": {
+        "info": "Stream info"
+      },
+      "info": {
+        "title": "What viewers see",
+        "description": "The title, category and tags people see on your channel.",
+        "error": "The stream info could not load.",
+        "titleLabel": "Title",
+        "titleCount": "{count} / 140",
+        "recentTitles": "Recent titles",
+        "currentTitle": "Set on your channel now",
+        "category": "Category",
+        "categorySearch": "Search for a category",
+        "categoryNone": "No category found.",
+        "categorySearching": "Searching...",
+        "recentCategories": "Recent categories",
+        "tags": "Tags",
+        "tagPlaceholder": "Add a tag and press Enter",
+        "tagRemove": "Remove {tag}",
+        "tagRemoved": "Removed {tag}.",
+        "tagUndo": "Undo",
+        "tagLimit": "{count} of 10 tags. The most Twitch allows.",
+        "language": "Language",
+        "languageHint": "Twitch sets the language. Change it in Twitch.",
+        "labels": "Content labels",
+        "labelsHint": "Not available yet. The bot cannot change these.",
+        "label": {
+          "mature": "Mature-rated game or content",
+          "language": "Strong language",
+          "violence": "Violent or graphic scenes",
+          "gambling": "Gambling",
+          "drugs": "Drugs or alcohol",
+          "sexual": "Sexual themes",
+          "promotion": "Paid promotion"
+        },
+        "save": "Save changes",
+        "discard": "Discard",
+        "saved": "Saved"
+      },
+      "platforms": {
+        "title": "Where it goes",
+        "description": "Your stream info goes to every platform you connect.",
+        "error": "The connections could not load.",
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "connect": "Connect",
+        "connectAsk": "Open {platform} to connect?",
+        "connectLabel": "Connect {platform}",
+        "connectFailed": "Could not start the connection.",
+        "xlive": "X Live",
+        "unavailable": "Not available yet",
+        "unavailableWhy": "{platform} support is not built yet."
+      },
+      "checklist": {
+        "title": "Before you go live",
+        "titleSet": "Title and category are set",
+        "titleMissing": "Set a title and a category",
+        "tagsAdded": "{count} tags added. The most Twitch allows is 10.",
+        "botIn": "The bot is in chat",
+        "botOut": "The bot is not in chat",
+        "rewardsAllOn": "All {m} rewards are on",
+        "rewardOff": "{title} is off. {n} of {m} rewards are on.",
+        "shieldOff": "Chat is open to everyone",
+        "shieldOn": "Shield mode is on",
+        "couldNotCheck": "Could not check {what}",
+        "what": {
+          "bot": "the bot",
+          "rewards": "the rewards",
+          "shield": "shield mode"
+        }
+      }
+    }
+  }
+}

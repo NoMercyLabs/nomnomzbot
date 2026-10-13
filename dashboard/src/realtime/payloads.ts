@@ -12,6 +12,14 @@
 // Wire names are camelCase. Source: server/src/NomNomzBot.Api/Hubs/Dtos/*.cs, Hubs/Clients/*.cs.
 
 // HubResponseDtos.cs: StreamStatusDto
+// The title or category changed on Twitch (EventSub channel.update).
+export type StreamInfoChangedPayload = {
+  broadcasterId: string
+  broadcasterDisplayName: string
+  title: string
+  gameName: string
+}
+
 export type StreamStatusPayload = {
   isLive: boolean
   streamId: string | null

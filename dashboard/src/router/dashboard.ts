@@ -11,11 +11,19 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 import { dashboardCatalogueRoute } from '@/views/dashboard/catalogue/route'
+import { dashboardCommandsRoute } from '@/views/dashboard/commands/route'
 import { dashboardHomeRoute } from '@/views/dashboard/home/route'
+import { dashboardMusicRoute } from '@/views/dashboard/music/route'
+import { dashboardPeopleRoute } from '@/views/dashboard/people/route'
+import { dashboardSettingsRoute } from '@/views/dashboard/settings/route'
+import { dashboardStreamRoute } from '@/views/dashboard/stream/route'
+import { dashboardTtsRoute } from '@/views/dashboard/tts/route'
 
 export const dashboardRoutes: RouteRecordRaw = {
   path: '/app',
   component: () => import('@/layouts/DashboardLayout.vue'),
   meta: { requiresAuth: true },
-  children: import.meta.env.DEV ? [dashboardHomeRoute, dashboardCatalogueRoute] : [dashboardHomeRoute],
+  children: import.meta.env.DEV
+    ? [dashboardHomeRoute, dashboardCommandsRoute, dashboardMusicRoute, dashboardTtsRoute, dashboardPeopleRoute, dashboardStreamRoute, dashboardSettingsRoute, dashboardCatalogueRoute]
+    : [dashboardHomeRoute, dashboardCommandsRoute, dashboardMusicRoute, dashboardTtsRoute, dashboardPeopleRoute, dashboardStreamRoute, dashboardSettingsRoute],
 }

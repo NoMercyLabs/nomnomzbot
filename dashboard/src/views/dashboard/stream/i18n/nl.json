@@ -1,0 +1,84 @@
+{
+  "dashboard": {
+    "stream": {
+      "title": "Stream",
+      "live": "Live",
+      "offline": "Offline",
+      "liveMeta": "Live sinds {time} · {category}",
+      "lastStream": "Laatste stream eindigde {date} · {length}",
+      "lastStreamDate": "Laatst gestreamd op {date}",
+      "noStreamYet": "Nog geen stream",
+      "tabs": {
+        "info": "Stream-info"
+      },
+      "info": {
+        "title": "Wat kijkers zien",
+        "description": "De titel, categorie en tags die mensen op je kanaal zien.",
+        "error": "De stream-info kon niet laden.",
+        "titleLabel": "Titel",
+        "titleCount": "{count} / 140",
+        "recentTitles": "Recente titels",
+        "currentTitle": "Nu op je kanaal ingesteld",
+        "category": "Categorie",
+        "categorySearch": "Zoek een categorie",
+        "categoryNone": "Geen categorie gevonden.",
+        "categorySearching": "Zoeken...",
+        "recentCategories": "Recente categorieën",
+        "tags": "Tags",
+        "tagPlaceholder": "Voeg een tag toe en druk op Enter",
+        "tagRemove": "Verwijder {tag}",
+        "tagRemoved": "{tag} verwijderd.",
+        "tagUndo": "Ongedaan maken",
+        "tagLimit": "{count} van 10 tags. Meer staat Twitch niet toe.",
+        "language": "Taal",
+        "languageHint": "Twitch bepaalt de taal. Wijzig die in Twitch.",
+        "labels": "Inhoudslabels",
+        "labelsHint": "Nog niet beschikbaar. De bot kan deze niet wijzigen.",
+        "label": {
+          "mature": "Game of inhoud voor volwassenen",
+          "language": "Grof taalgebruik",
+          "violence": "Gewelddadige of schokkende scènes",
+          "gambling": "Gokken",
+          "drugs": "Drugs of alcohol",
+          "sexual": "Seksuele thema's",
+          "promotion": "Betaalde promotie"
+        },
+        "save": "Wijzigingen opslaan",
+        "discard": "Weggooien",
+        "saved": "Opgeslagen"
+      },
+      "platforms": {
+        "title": "Waar het heen gaat",
+        "description": "Je stream-info gaat naar elk platform dat je koppelt.",
+        "error": "De koppelingen konden niet laden.",
+        "connected": "Gekoppeld",
+        "notConnected": "Niet gekoppeld",
+        "connect": "Koppel",
+        "connectAsk": "{platform} openen om te koppelen?",
+        "connectLabel": "Koppel {platform}",
+        "connectFailed": "De koppeling kon niet starten.",
+        "xlive": "X Live",
+        "unavailable": "Nog niet beschikbaar",
+        "unavailableWhy": "Ondersteuning voor {platform} is nog niet gebouwd."
+      },
+      "checklist": {
+        "title": "Voor je live gaat",
+        "titleSet": "Titel en categorie staan ingesteld",
+        "titleMissing": "Stel een titel en een categorie in",
+        "tagsAdded": "{count} tags toegevoegd. Twitch staat er maximaal 10 toe.",
+        "botIn": "De bot zit in de chat",
+        "botOut": "De bot zit niet in de chat",
+        "rewardsAllOn": "Alle {m} beloningen staan aan",
+        "rewardOff": "{title} staat uit. {n} van {m} beloningen staan aan.",
+        "shieldOff": "De chat is open voor iedereen",
+        "shieldOn": "Shield-modus staat aan",
+        "couldNotCheck": "Kon {what} niet controleren",
+        "what": {
+          "bot": "de bot",
+          "rewards": "de beloningen",
+          "shield": "de shield-modus"
+        }
+      }
+    }
+  }
+}
