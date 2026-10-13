@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
+import Plus from '~icons/nnz/add'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
@@ -45,7 +45,9 @@ const selected: ComputedRef<string | null> = computed<string | null>(() =>
   typeof route.query.command === 'string' ? route.query.command : null,
 )
 const row: ComputedRef<CommandListItem | undefined> = computed<CommandListItem | undefined>(() =>
-  (commands.data.value ?? []).find((item: CommandListItem): boolean => item.name === selected.value),
+  (commands.data.value ?? []).find(
+    (item: CommandListItem): boolean => item.name === selected.value,
+  ),
 )
 
 function select(name: string | undefined): void {
@@ -78,7 +80,12 @@ const creating: Ref<boolean> = ref(false)
     </template>
     <template #detail>
       <CommandEditor v-if="row" :key="row.name" :row="row" @remove="removeCommand" />
-      <PanelCard v-else state="empty" :title="$t('dashboard.commands.list.pickTitle')" :empty-text="$t('dashboard.commands.list.pick')" />
+      <PanelCard
+        v-else
+        state="empty"
+        :title="$t('dashboard.commands.list.pickTitle')"
+        :empty-text="$t('dashboard.commands.list.pick')"
+      />
     </template>
   </ListDetail>
   <BuiltinList v-else />

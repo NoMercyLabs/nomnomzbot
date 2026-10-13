@@ -8,8 +8,8 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { ChevronDown } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
+import ChevronDown from '~icons/nnz/chevron-down'
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -39,12 +39,21 @@ const { groups, toggle } = useNavigation()
       </SidebarHeader>
       <SidebarContent>
         <template v-for="group in groups" :key="group.key">
-          <Collapsible v-if="group.foldable" as-child :open="group.open" @update:open="toggle(group)">
+          <Collapsible
+            v-if="group.foldable"
+            as-child
+            :open="group.open"
+            @update:open="toggle(group)"
+          >
             <SidebarGroup>
               <SidebarGroupLabel as-child>
                 <CollapsibleTrigger :disabled="group.holdsOpenPage" class="w-full justify-between">
                   {{ t(`frame.group.${group.key}`) }}
-                  <ChevronDown class="size-4 transition-transform" :class="group.open ? '' : '-rotate-90'" aria-hidden="true" />
+                  <ChevronDown
+                    class="size-4 transition-transform"
+                    :class="group.open ? '' : '-rotate-90'"
+                    aria-hidden="true"
+                  />
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
               <CollapsibleContent>

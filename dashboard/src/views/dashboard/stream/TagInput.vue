@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // Tags of the stream: Enter adds one, the x removes one and a line right under offers Undo.
-import { X } from '@lucide/vue'
+import X from '~icons/nnz/cross'
 import { ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -27,7 +27,9 @@ const removed: Ref<{ tag: string; index: number } | null> = ref(null)
 function add(): void {
   const tag: string = entry.value.trim()
   entry.value = ''
-  const known: boolean = tags.value.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
+  const known: boolean = tags.value.some(
+    (existing: string) => existing.toLowerCase() === tag.toLowerCase(),
+  )
   if (tag === '' || known || tags.value.length >= MAX_TAGS) return
   tags.value = [...tags.value, tag]
   removed.value = null
@@ -73,10 +75,14 @@ function undo(): void {
       :disabled="tags.length >= MAX_TAGS"
       @keydown.enter.prevent="add"
     />
-    <p class="text-sm text-muted-foreground">{{ t('dashboard.stream.info.tagLimit', { count: tags.length }) }}</p>
+    <p class="text-sm text-muted-foreground">
+      {{ t('dashboard.stream.info.tagLimit', { count: tags.length }) }}
+    </p>
     <p v-if="removed" class="flex items-center gap-2 text-sm">
       {{ t('dashboard.stream.info.tagRemoved', { tag: removed.tag }) }}
-      <Button variant="ghost" size="sm" @click="undo">{{ t('dashboard.stream.info.tagUndo') }}</Button>
+      <Button variant="ghost" size="sm" @click="undo">{{
+        t('dashboard.stream.info.tagUndo')
+      }}</Button>
     </p>
   </div>
 </template>

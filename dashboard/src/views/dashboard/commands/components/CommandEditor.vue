@@ -10,11 +10,17 @@
 <script setup lang="ts">
 // The editor of one custom command. The Enabled switch saves at once; every other field is a draft
 // that Save sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
-import { ChevronDown, Trash2 } from '@lucide/vue'
+import ChevronDown from '~icons/nnz/chevron-down'
+import Trash2 from '~icons/nnz/trash'
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useToggleCommand, useUpdateCommand, type CommandChange, type CommandListItem } from '@/api/commands'
+import {
+  useToggleCommand,
+  useUpdateCommand,
+  type CommandChange,
+  type CommandListItem,
+} from '@/api/commands'
 import { usePipelines } from '@/api/pipelines'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
@@ -25,7 +31,13 @@ import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
 import CodeTierNote from './CodeTierNote.vue'
@@ -57,10 +69,14 @@ watch(
   },
 )
 
-const change: ComputedRef<CommandChange> = computed<CommandChange>(() => changeOf(draft.value, props.row))
+const change: ComputedRef<CommandChange> = computed<CommandChange>(() =>
+  changeOf(draft.value, props.row),
+)
 const dirtyCount: ComputedRef<number> = computed<number>(() => Object.keys(change.value).length)
 const unsaved: ComputedRef<string> = computed<string>(() =>
-  dirtyCount.value === 0 ? '' : t('dashboard.commands.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
+  dirtyCount.value === 0
+    ? ''
+    : t('dashboard.commands.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 )
 const random: ComputedRef<boolean> = computed<boolean>(() => draft.value.replies.length > 0)
 
@@ -138,12 +154,18 @@ function remove(): void {
             <SelectValue :placeholder="$t('dashboard.commands.editor.pipelinePlaceholder')" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem v-for="pipeline in pipelines.data.value ?? []" :key="pipeline.id" :value="pipeline.id">
+            <SelectItem
+              v-for="pipeline in pipelines.data.value ?? []"
+              :key="pipeline.id"
+              :value="pipeline.id"
+            >
               {{ pipeline.name }}
             </SelectItem>
           </SelectContent>
         </Select>
-        <FieldDescription v-if="draft.pipelineId === ''">{{ $t('dashboard.commands.editor.noPipeline') }}</FieldDescription>
+        <FieldDescription v-if="draft.pipelineId === ''">{{
+          $t('dashboard.commands.editor.noPipeline')
+        }}</FieldDescription>
       </Field>
       <CodeTierNote v-else />
 
@@ -170,8 +192,14 @@ function remove(): void {
       </Field>
 
       <Field>
-        <FieldLabel for="command-platforms">{{ $t('dashboard.commands.editor.platforms') }}</FieldLabel>
-        <Input id="command-platforms" disabled :model-value="$t('dashboard.commands.editor.platformsOnly')" />
+        <FieldLabel for="command-platforms">{{
+          $t('dashboard.commands.editor.platforms')
+        }}</FieldLabel>
+        <Input
+          id="command-platforms"
+          disabled
+          :model-value="$t('dashboard.commands.editor.platformsOnly')"
+        />
       </Field>
 
       <Collapsible>
@@ -183,7 +211,9 @@ function remove(): void {
         </CollapsibleTrigger>
         <CollapsibleContent force-mount class="grid gap-4 pt-3 data-[state=closed]:hidden">
           <Field>
-            <FieldLabel for="command-chat-cooldown">{{ $t('dashboard.commands.editor.chatCooldown') }}</FieldLabel>
+            <FieldLabel for="command-chat-cooldown">{{
+              $t('dashboard.commands.editor.chatCooldown')
+            }}</FieldLabel>
             <Input
               id="command-chat-cooldown"
               type="number"
@@ -193,10 +223,14 @@ function remove(): void {
               :model-value="draft.cooldownSeconds"
               @update:model-value="setNumber('cooldownSeconds', $event)"
             />
-            <FieldDescription>{{ $t('dashboard.commands.editor.chatCooldownHelp') }}</FieldDescription>
+            <FieldDescription>{{
+              $t('dashboard.commands.editor.chatCooldownHelp')
+            }}</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel for="command-person-cooldown">{{ $t('dashboard.commands.editor.personCooldown') }}</FieldLabel>
+            <FieldLabel for="command-person-cooldown">{{
+              $t('dashboard.commands.editor.personCooldown')
+            }}</FieldLabel>
             <Input
               id="command-person-cooldown"
               type="number"
@@ -206,7 +240,9 @@ function remove(): void {
               :model-value="draft.userCooldownSeconds"
               @update:model-value="setNumber('userCooldownSeconds', $event)"
             />
-            <FieldDescription>{{ $t('dashboard.commands.editor.personCooldownHelp') }}</FieldDescription>
+            <FieldDescription>{{
+              $t('dashboard.commands.editor.personCooldownHelp')
+            }}</FieldDescription>
           </Field>
         </CollapsibleContent>
       </Collapsible>
@@ -215,8 +251,15 @@ function remove(): void {
     </div>
     <template #footer>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button" variant="outline" size="sm" @click="discard">{{ $t('dashboard.commands.editor.discard') }}</Button>
-      <Button type="button" size="sm" :disabled="dirtyCount === 0 || update.isPending.value" @click="save">
+      <Button type="button" variant="outline" size="sm" @click="discard">{{
+        $t('dashboard.commands.editor.discard')
+      }}</Button>
+      <Button
+        type="button"
+        size="sm"
+        :disabled="dirtyCount === 0 || update.isPending.value"
+        @click="save"
+      >
         {{ $t('dashboard.commands.editor.save') }}
       </Button>
     </template>

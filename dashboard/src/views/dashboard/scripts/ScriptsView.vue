@@ -11,10 +11,10 @@
 // The Scripts page: every code script of the channel as a list, tabs that filter it, and a slot for one script beside it.
 // The script in view is the id in ?script=. Tab counts come from the loaded list: the bot has no count endpoint.
 // A refusal of the list (custom code switched off, no right) shows the bot's own reason, not the empty text.
-import { Plus } from '@lucide/vue'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
+import Add from '~icons/nnz/add'
 
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts'
 import ListDetail from '@/components/layout/ListDetail.vue'
@@ -26,9 +26,14 @@ import { Button } from '@/components/ui/button'
 import { usePageView } from '@/composables/usePageView'
 import { usePanelState } from '@/composables/usePanelState'
 
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+
+import FailedRunDialog from './components/FailedRunDialog.vue'
 import NewScriptDialog from './components/NewScriptDialog.vue'
 import ScriptDetail from './components/ScriptDetail.vue'
 import ScriptRow from './components/ScriptRow.vue'
+import ScriptRunsPanel from './components/ScriptRunsPanel.vue'
+import type { SessionRun } from './components/sessionRun'
 
 const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed']
 
@@ -114,6 +119,18 @@ function back(): void {
 
 const newOpen: Ref<boolean> = ref(false)
 
+// The test runs of this visit, newest first. A failed run opens its dialog at once.
+const runs: Ref<SessionRun[]> = ref([])
+const failedRun: Ref<SessionRun | null> = ref(null)
+const runsOpen: Ref<boolean> = ref(false)
+let nextRunId: number = 1
+
+function ran(run: Omit<SessionRun, 'id'>): void {
+  const entry: SessionRun = { ...run, id: nextRunId++ }
+  runs.value = [entry, ...runs.value]
+  if (!entry.result.success) failedRun.value = entry
+}
+
 function opened(id: string | null): void {
   if (id !== null) void router.push({ query: { ...route.query, script: id } })
 }
@@ -122,8 +139,11 @@ function opened(id: string | null): void {
 <template>
   <PageHeader :title="$t('dashboard.scripts.title')" :crumb="$t('dashboard.scripts.crumb')">
     <template #actions>
+      <Button variant="outline" class="xl:hidden" @click="runsOpen = true">
+        {{ $t('dashboard.scripts.runs.button') }}
+      </Button>
       <Button variant="outline" @click="newOpen = true">
-        <Plus aria-hidden="true" />
+        <Add aria-hidden="true" />
         {{ $t('dashboard.scripts.new.button') }}
       </Button>
     </template>
@@ -163,10 +183,12 @@ function opened(id: string | null): void {
     <template #detail>
       <ScriptDetail
         v-if="asked !== ''"
+        :key="asked"
         :script-id="asked"
         :summary="loaded?.find((one: CodeScriptSummary) => one.id === asked)"
         @back="back"
         @deleted="back"
+        @ran="ran"
       />
       <PanelCard
         v-else
@@ -176,5 +198,18 @@ function opened(id: string | null): void {
         :empty-text="$t('dashboard.scripts.detail.pick')"
       />
     </template>
+    <template #aside>
+      <ScriptRunsPanel :runs="runs" @open="failedRun = $event" />
+    </template>
   </ListDetail>
+  <FailedRunDialog :run="failedRun" @close="failedRun = null" />
+  <Dialog v-model:open="runsOpen">
+    <DialogContent :show-close-button="false" class="flex max-h-[90vh] flex-col p-0 sm:max-w-115">
+      <DialogTitle class="sr-only">{{ $t('dashboard.scripts.runs.title') }}</DialogTitle>
+      <ScriptRunsPanel :runs="runs" @open="failedRun = $event" />
+      <Button variant="outline" class="m-2" @click="runsOpen = false">
+        {{ $t('dashboard.scripts.runs.close') }}
+      </Button>
+    </DialogContent>
+  </Dialog>
 </template>

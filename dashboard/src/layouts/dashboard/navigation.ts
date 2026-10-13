@@ -8,33 +8,31 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import {
-  AudioLines,
-  ChartLine,
-  Clapperboard,
-  Code,
-  Dices,
-  Feather,
-  Gem,
-  Gift,
-  HeartHandshake,
-  House,
-  Layers,
-  LayoutGrid,
-  Library,
-  MessagesSquare,
-  Music,
-  Radio,
-  Settings,
-  Smile,
-  Terminal,
-  Timer,
-  Tv,
-  Users,
-  Workflow,
-  Zap,
-} from '@lucide/vue'
 import type { Component } from 'vue'
+import ChartLine from '~icons/nnz/chart-positive'
+import ChatMessages from '~icons/nnz/chat-messages'
+import Code from '~icons/nnz/code'
+import Coins from '~icons/nnz/coins'
+import Dices from '~icons/nnz/dices'
+import Gem from '~icons/nnz/gem'
+import Gift from '~icons/nnz/gift-card'
+import Grid from '~icons/nnz/grid'
+import Handshake from '~icons/nnz/handshake'
+import Home from '~icons/nnz/home'
+import LiveStream from '~icons/nnz/live-stream'
+import MovieClap from '~icons/nnz/movie-clap'
+import NoteEighthPair from '~icons/nnz/note-eighth-pair'
+import PictureInPicture from '~icons/nnz/picture-in-picture'
+import Books from '~icons/nnz/books'
+import Settings from '~icons/nnz/settings'
+import Smile from '~icons/nnz/smile'
+import SplitBranch from '~icons/nnz/split-branch'
+import Terminal from '~icons/nnz/terminal'
+import Timer from '~icons/nnz/timer'
+import Tv from '~icons/nnz/tv'
+import Users from '~icons/nnz/users'
+import WaveForm from '~icons/nnz/wave-form'
+import Lightning from '~icons/nnz/lightning'
 
 export type NavEntry = {
   // The route name of the page. An entry shows only when this route exists.
@@ -53,14 +51,14 @@ export type NavGroup = {
 
 // The streamer dashboard groups, from the page list (spec frontend-vue-components.md section 4; mockup base/shell.js NAV).
 export const dashboardNav: readonly NavGroup[] = [
-  { key: 'home', entries: [{ route: 'dashboard-home', label: 'home', icon: House, bottom: true }] },
+  { key: 'home', entries: [{ route: 'dashboard-home', label: 'home', icon: Home, bottom: true }] },
   {
     key: 'live',
     entries: [
-      { route: 'dashboard-chat', label: 'chat', icon: MessagesSquare, bottom: true },
-      { route: 'dashboard-stream', label: 'stream', icon: Radio, bottom: true },
+      { route: 'dashboard-chat', label: 'chat', icon: ChatMessages, bottom: true },
+      { route: 'dashboard-stream', label: 'stream', icon: LiveStream, bottom: true },
       { route: 'dashboard-analytics', label: 'analytics', icon: ChartLine },
-      { route: 'dashboard-obs', label: 'obs', icon: Clapperboard },
+      { route: 'dashboard-obs', label: 'obs', icon: MovieClap },
       { route: 'dashboard-vtube-studio', label: 'vtubeStudio', icon: Smile },
     ],
   },
@@ -69,12 +67,12 @@ export const dashboardNav: readonly NavGroup[] = [
     entries: [
       { route: 'dashboard-commands', label: 'commands', icon: Terminal, bottom: true },
       { route: 'dashboard-triggers-timers', label: 'triggersTimers', icon: Timer },
-      { route: 'dashboard-event-responses', label: 'eventResponses', icon: Zap },
-      { route: 'dashboard-pipelines', label: 'pipelines', icon: Workflow },
-      { route: 'dashboard-overlays', label: 'overlays', icon: Layers },
+      { route: 'dashboard-event-responses', label: 'eventResponses', icon: Lightning },
+      { route: 'dashboard-pipelines', label: 'pipelines', icon: SplitBranch },
+      { route: 'dashboard-overlays', label: 'overlays', icon: PictureInPicture },
       { route: 'dashboard-scripts', label: 'scripts', icon: Code },
-      { route: 'dashboard-library', label: 'library', icon: Library },
-      { route: 'dashboard-gallery', label: 'gallery', icon: LayoutGrid },
+      { route: 'dashboard-library', label: 'library', icon: Books },
+      { route: 'dashboard-gallery', label: 'gallery', icon: Grid },
     ],
   },
   { key: 'people', entries: [{ route: 'dashboard-people', label: 'people', icon: Users }] },
@@ -82,17 +80,17 @@ export const dashboardNav: readonly NavGroup[] = [
     key: 'loyalty',
     entries: [
       { route: 'dashboard-channel-points', label: 'channelPoints', icon: Gem },
-      { route: 'dashboard-economy', label: 'economy', icon: Feather },
+      { route: 'dashboard-economy', label: 'economy', icon: Coins },
       { route: 'dashboard-games', label: 'games', icon: Dices },
       { route: 'dashboard-giveaways', label: 'giveaways', icon: Gift },
-      { route: 'dashboard-supporters', label: 'supporters', icon: HeartHandshake },
+      { route: 'dashboard-supporters', label: 'supporters', icon: Handshake },
     ],
   },
   {
     key: 'musicVoice',
     entries: [
-      { route: 'dashboard-music', label: 'music', icon: Music },
-      { route: 'dashboard-tts', label: 'tts', icon: AudioLines },
+      { route: 'dashboard-music', label: 'music', icon: NoteEighthPair },
+      { route: 'dashboard-tts', label: 'tts', icon: WaveForm },
       { route: 'dashboard-media-share', label: 'mediaShare', icon: Tv },
     ],
   },

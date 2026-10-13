@@ -11,11 +11,16 @@
 // The one profile dialog of the frame (spec row ProfileDialog + UserName). A UserName opens it through
 // the profileDialog store; a second name swaps the person. It shows only what the bot stores:
 // a tab with nothing to show says so. The tabs are local state, not the route: the page behind keeps its own ?view=.
-import { XIcon } from '@lucide/vue'
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Cross from '~icons/nnz/cross'
 
-import { useBanMember, useCommunityMember, useVipChange, type CommunityMember } from '@/api/community'
+import {
+  useBanMember,
+  useCommunityMember,
+  useVipChange,
+  type CommunityMember,
+} from '@/api/community'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
@@ -24,7 +29,14 @@ import StatusBadge from '@/components/layout/StatusBadge.vue'
 import VirtualList from '@/components/layout/VirtualList.vue'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
@@ -71,7 +83,11 @@ watch(
 )
 
 function shortDate(value: string): string {
-  return new Date(value).toLocaleDateString(locale.value, { year: 'numeric', month: 'short', day: 'numeric' })
+  return new Date(value).toLocaleDateString(locale.value, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function trustLabel(level: string): string {
@@ -133,10 +149,20 @@ async function banNow(): Promise<void> {
             {{ person ? `@${person.username}` : $t('profile.description') }}
           </DialogDescription>
         </div>
-        <StatusBadge v-if="person?.isBanned" class="ml-auto" tone="bad" :label="$t('profile.banned')" />
+        <StatusBadge
+          v-if="person?.isBanned"
+          class="ml-auto"
+          tone="bad"
+          :label="$t('profile.banned')"
+        />
         <DialogClose as-child>
-          <Button variant="ghost" size="icon-sm" class="absolute top-4 right-4" :aria-label="$t('common.close')">
-            <XIcon />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="absolute top-4 right-4"
+            :aria-label="$t('common.close')"
+          >
+            <Cross />
           </Button>
         </DialogClose>
       </div>
@@ -145,24 +171,42 @@ async function banNow(): Promise<void> {
         <Skeleton class="h-16 rounded-lg" />
         <Skeleton class="h-32 rounded-lg" />
       </div>
-      <div v-else-if="!person" data-profile-error role="alert" class="grid justify-items-start gap-3 px-6 pb-4 text-sm">
+      <div
+        v-else-if="!person"
+        data-profile-error
+        role="alert"
+        class="grid justify-items-start gap-3 px-6 pb-4 text-sm"
+      >
         <span class="text-destructive">{{ $t('profile.error') }}</span>
-        <Button variant="outline" size="sm" @click="member.refetch()">{{ $t('common.panel.retry') }}</Button>
+        <Button variant="outline" size="sm" @click="member.refetch()">{{
+          $t('common.panel.retry')
+        }}</Button>
       </div>
 
       <template v-else>
         <Tabs v-model="tab" class="flex min-h-0 flex-1 flex-col gap-0">
           <div class="flex-none px-6">
             <TabsList>
-              <TabsTrigger v-for="name in TABS" :key="name" :value="name">{{ $t(`profile.tabs.${name}`) }}</TabsTrigger>
+              <TabsTrigger v-for="name in TABS" :key="name" :value="name">{{
+                $t(`profile.tabs.${name}`)
+              }}</TabsTrigger>
             </TabsList>
           </div>
           <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
             <TabsContent value="overview" class="grid gap-4">
               <div class="grid grid-cols-3 gap-3">
-                <StatTile :label="$t('profile.stats.messages')" :value="Number(person.messageCount)" />
-                <StatTile :label="$t('profile.stats.watchHours')" :value="n(Number(person.watchHours), { maximumFractionDigits: 1 })" />
-                <StatTile :label="$t('profile.stats.commands')" :value="Number(person.commandsUsed)" />
+                <StatTile
+                  :label="$t('profile.stats.messages')"
+                  :value="Number(person.messageCount)"
+                />
+                <StatTile
+                  :label="$t('profile.stats.watchHours')"
+                  :value="n(Number(person.watchHours), { maximumFractionDigits: 1 })"
+                />
+                <StatTile
+                  :label="$t('profile.stats.commands')"
+                  :value="Number(person.commandsUsed)"
+                />
               </div>
               <KeyValueList :items="facts" />
             </TabsContent>
@@ -182,7 +226,9 @@ async function banNow(): Promise<void> {
                 >
                   <template #default="{ item }">
                     <div class="grid gap-0.5 px-2 py-1.5 text-sm">
-                      <span class="text-xs text-muted-foreground">{{ shortDate(item.timestamp) }}</span>
+                      <span class="text-xs text-muted-foreground">{{
+                        shortDate(item.timestamp)
+                      }}</span>
                       <span class="wrap-break-word">{{ item.content }}</span>
                     </div>
                   </template>
@@ -191,9 +237,18 @@ async function banNow(): Promise<void> {
             </TabsContent>
 
             <TabsContent value="activity" class="grid grid-cols-3 gap-3">
-              <StatTile :label="$t('profile.stats.messages')" :value="Number(person.messageCount)" />
-              <StatTile :label="$t('profile.stats.watchHours')" :value="n(Number(person.watchHours), { maximumFractionDigits: 1 })" />
-              <StatTile :label="$t('profile.stats.commands')" :value="Number(person.commandsUsed)" />
+              <StatTile
+                :label="$t('profile.stats.messages')"
+                :value="Number(person.messageCount)"
+              />
+              <StatTile
+                :label="$t('profile.stats.watchHours')"
+                :value="n(Number(person.watchHours), { maximumFractionDigits: 1 })"
+              />
+              <StatTile
+                :label="$t('profile.stats.commands')"
+                :value="Number(person.commandsUsed)"
+              />
             </TabsContent>
 
             <TabsContent value="moderation">
@@ -206,7 +261,12 @@ async function banNow(): Promise<void> {
                   <li v-for="record in person.banHistory" :key="record.id" class="grid gap-0.5">
                     <span>{{ record.reason || $t('profile.moderation.noReason') }}</span>
                     <span class="text-xs text-muted-foreground">
-                      {{ $t('profile.moderation.by', { name: record.bannedBy, date: shortDate(record.bannedAt) }) }}
+                      {{
+                        $t('profile.moderation.by', {
+                          name: record.bannedBy,
+                          date: shortDate(record.bannedAt),
+                        })
+                      }}
                     </span>
                   </li>
                 </ul>

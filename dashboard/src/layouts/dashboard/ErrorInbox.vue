@@ -8,9 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { Inbox } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Inbox from '~icons/nnz/inbox'
 
 import { useActionRequired } from '@/api/actionRequired'
 import { Badge } from '@/components/ui/badge'

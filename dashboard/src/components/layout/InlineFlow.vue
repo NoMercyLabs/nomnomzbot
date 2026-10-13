@@ -17,8 +17,8 @@
 // The step is wider than one button, so wrap every control it replaces in the slot; right anchors
 // it to the right edge for a group at the end of a row.
 import { onKeyStroke } from '@vueuse/core'
-import { Check } from '@lucide/vue'
 import { nextTick, ref, watch, type Ref } from 'vue'
+import Check from '~icons/nnz/check'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'

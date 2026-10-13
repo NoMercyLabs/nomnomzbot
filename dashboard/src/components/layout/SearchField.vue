@@ -10,9 +10,9 @@
 <script setup lang="ts">
 // The search box of a list. The key "/" focuses it from anywhere on the page, unless
 // the person is already typing in a field.
-import { Search } from '@lucide/vue'
 import { useEventListener } from '@vueuse/core'
 import { useTemplateRef } from 'vue'
+import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass'
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Kbd } from '@/components/ui/kbd'
@@ -24,11 +24,21 @@ const input = useTemplateRef<{ $el: HTMLInputElement }>('input')
 const shortcut: string = '/'
 
 function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+  )
 }
 
 useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
-  if (event.key !== shortcut || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) return
+  if (
+    event.key !== shortcut ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    isTyping(event.target)
+  )
+    return
   event.preventDefault()
   input.value?.$el.focus()
 })
@@ -37,9 +47,15 @@ useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
 <template>
   <InputGroup data-slot="search-field" class="w-56">
     <InputGroupAddon>
-      <Search />
+      <SearchMagnifyingGlass />
     </InputGroupAddon>
-    <InputGroupInput ref="input" v-model="query" type="search" :placeholder="placeholder" :aria-label="placeholder" />
+    <InputGroupInput
+      ref="input"
+      v-model="query"
+      type="search"
+      :placeholder="placeholder"
+      :aria-label="placeholder"
+    />
     <InputGroupAddon align="inline-end">
       <Kbd>{{ shortcut }}</Kbd>
     </InputGroupAddon>

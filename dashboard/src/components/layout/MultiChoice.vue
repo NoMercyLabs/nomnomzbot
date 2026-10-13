@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // Any number of named options chosen at once: each option is its own on/off press (the mockup's
 // .btn.outline.sm.toggle) and none chosen is allowed. The row wraps when the options do not fit one line.
-import { Check } from '@lucide/vue'
+import Check from '~icons/nnz/check'
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 

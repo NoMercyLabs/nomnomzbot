@@ -10,7 +10,8 @@
 <script setup lang="ts">
 // One person in the People list: avatar, name, last seen, and a role icon for moderators and VIPs.
 // The list DTO carries only a trust level, so no other role badge can be shown yet.
-import { Gem, Shield } from '@lucide/vue'
+import Gem from '~icons/nnz/gem'
+import Shield from '~icons/nnz/shield'
 import { useTimeAgoIntl } from '@vueuse/core'
 import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -26,8 +27,12 @@ defineEmits<{ pick: [] }>()
 const { t, locale } = useI18n()
 const ago = useTimeAgoIntl(() => props.person.lastSeen, { locale: locale.value })
 
-const lastSeen: ComputedRef<string> = computed<string>(() => t('dashboard.people.list.lastSeen', { ago: ago.value }))
-const initials: ComputedRef<string> = computed<string>(() => props.person.displayName.slice(0, 2).toUpperCase())
+const lastSeen: ComputedRef<string> = computed<string>(() =>
+  t('dashboard.people.list.lastSeen', { ago: ago.value }),
+)
+const initials: ComputedRef<string> = computed<string>(() =>
+  props.person.displayName.slice(0, 2).toUpperCase(),
+)
 </script>
 
 <template>
@@ -42,12 +47,20 @@ const initials: ComputedRef<string> = computed<string>(() => props.person.displa
     >
       <template #leading>
         <Avatar class="size-9">
-          <AvatarImage v-if="person.profileImageUrl" :src="person.profileImageUrl" :alt="person.displayName" />
+          <AvatarImage
+            v-if="person.profileImageUrl"
+            :src="person.profileImageUrl"
+            :alt="person.displayName"
+          />
           <AvatarFallback>{{ initials }}</AvatarFallback>
         </Avatar>
       </template>
       <template #end>
-        <StatusBadge v-if="person.isBanned" tone="bad" :label="$t('dashboard.people.list.banned')" />
+        <StatusBadge
+          v-if="person.isBanned"
+          tone="bad"
+          :label="$t('dashboard.people.list.banned')"
+        />
         <Shield
           v-if="person.trustLevel === 'moderator'"
           role="img"

@@ -52,6 +52,40 @@
         "delete": "Verwijderen",
         "back": "Terug naar de lijst"
       },
+      "test": {
+        "run": "Test uitvoeren",
+        "limited": "Te veel tests, wacht even",
+        "worked": "Gelukt, {ms} ms",
+        "failed": "Mislukt, {ms} ms",
+        "samples": "Probeer met een voorbeeld",
+        "samplesNote": "Een testrun is een proefrun. Niets ervan komt in de chat.",
+        "sample": "Test"
+      },
+      "runs": {
+        "title": "Deze sessie",
+        "button": "Runs",
+        "count": "{count} testruns sinds je deze pagina opende",
+        "empty": "Nog geen runs. Test uitvoeren probeert een script met een voorbeeld.",
+        "noMatch": "Geen runs gevonden.",
+        "line": "{time} · {trigger}",
+        "ms": "{ms} ms",
+        "close": "Sluiten",
+        "filter": {
+          "label": "Runs tonen",
+          "all": "Alle",
+          "failed": "Mislukt",
+          "tests": "Tests"
+        }
+      },
+      "failed": {
+        "title": "De run is mislukt",
+        "when": "{name} · {ms} ms",
+        "place": "{file} regel {line}, kolom {column}",
+        "steps": "Stappen",
+        "effects": "Wat het deed voor het stopte",
+        "log": "Log",
+        "close": "Sluiten"
+      },
       "delete": {
         "title": "{name} verwijderen?",
         "description": "Dit kan niet ongedaan worden gemaakt.",

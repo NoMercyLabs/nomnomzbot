@@ -8,8 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { Shield, ShieldCheck } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
+import Shield from '~icons/nnz/shield'
+import ShieldCheck from '~icons/nnz/shield-check'
 
 import { useSetShieldMode, useShieldMode } from '@/api/shield'
 import { Toggle } from '@/components/ui/toggle'
@@ -36,6 +37,8 @@ const setShield = useSetShieldMode(channelId)
     <ShieldCheck v-if="shield.data.value" aria-hidden="true" />
     <Shield v-else aria-hidden="true" />
     <!-- On a phone-wide pane only the icon shows; the words stay as its accessible name. -->
-    <span class="@max-md:sr-only">{{ shield.data.value ? t('frame.shield.on') : t('frame.shield.off') }}</span>
+    <span class="@max-md:sr-only">{{
+      shield.data.value ? t('frame.shield.on') : t('frame.shield.off')
+    }}</span>
   </Toggle>
 </template>

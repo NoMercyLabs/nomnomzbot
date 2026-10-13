@@ -25,11 +25,42 @@ type Options = {
   body?: unknown
 }
 type Call = { method: string; path: string; body: unknown; id: string }
-type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
+type Answer = {
+  data?: unknown
+  error?: unknown
+  response: { status: number; ok: boolean; headers?: Headers }
+}
 
 const REFUSAL: string = 'Custom code is switched off for this channel.'
 
+const WORKED: Record<string, unknown> = {
+  success: true,
+  error: null,
+  durationMs: 42,
+  hostCallCount: 1,
+  capturedEffects: [],
+  chatOutput: ['hello'],
+  log: [],
+  variablesSet: null,
+  console: null,
+  timeline: [{ seq: 1, kind: 'start', text: 'Started: chat message' }],
+}
+const BROKE: Record<string, unknown> = {
+  ...WORKED,
+  success: false,
+  error: 'ReferenceError: raider is not defined',
+  durationMs: 7,
+  timeline: [
+    { seq: 1, kind: 'start', text: 'Started: chat message' },
+    { seq: 2, kind: 'error', text: 'Stopped with an error' },
+  ],
+  capturedEffects: [{ name: 'chat.send', argsPreview: '"hi"' }],
+  errorPosition: { file: 'index.ts', line: 4, column: 42 },
+}
+
 const calls: Call[] = []
+let testResult: Record<string, unknown> = WORKED
+let testLimited: boolean = false
 let scripts: Record<string, unknown>[] = []
 let refused: boolean = false
 let blast: Record<string, unknown> = { categories: [], isMinimum: false, totalReferences: 0 }
@@ -73,6 +104,20 @@ vi.mock('@/api/client', () => ({
           error: { message: REFUSAL },
           response: { status: 403, ok: false },
         }
+      if (path.endsWith('/test-triggers'))
+        return {
+          data: {
+            data: [
+              {
+                id: 'tr1',
+                responseKey: 'channel.follow',
+                userDisplayName: 'sample_viewer',
+                variables: { user: 'sample_viewer' },
+              },
+            ],
+          },
+          response: { status: 200, ok: true },
+        }
       if (path.endsWith('/blast-radius'))
         return { data: { data: blast }, response: { status: 200, ok: true } }
       if (path.endsWith('/code-scripts/{id}')) {
@@ -82,7 +127,19 @@ vi.mock('@/api/client', () => ({
       return { data: { data: scripts }, response: { status: 200, ok: true } }
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'POST', path, body: options?.body, id: '' })
+      const id: string = String(options?.params?.path?.id ?? '')
+      calls.push({ method: 'POST', path, body: options?.body, id })
+      if (path.endsWith('/test-run')) {
+        if (testLimited)
+          return {
+            error: { message: 'Too many tests' },
+            response: { status: 429, ok: false, headers: new Headers({ 'Retry-After': '30' }) },
+          }
+        return {
+          data: { data: testResult },
+          response: { status: 200, ok: true, headers: new Headers() },
+        }
+      }
       return { data: { data: { id: 'new1' } }, response: { status: 200, ok: true } }
     },
     DELETE: async (path: string, options?: Options): Promise<Answer> => {
@@ -112,6 +169,8 @@ let router: Router
 beforeEach(() => {
   calls.length = 0
   refused = false
+  testResult = WORKED
+  testLimited = false
   blast = {
     categories: [
       { categoryKey: 'dashboard.scripts.blast.pipelines', count: 2, sample: ['Raid flow', 'Hype'] },
@@ -336,6 +395,90 @@ describe('ScriptsView', () => {
     expect(powers.querySelectorAll('button, input, [role="switch"]')).toHaveLength(0)
     expect(document.body.textContent).toContain('Version')
     expect(document.body.textContent).toContain('typescript')
+  })
+
+  it('Run test posts to the test-run path of the script and shows the result with its duration', async () => {
+    await open('/app/scripts?script=s1')
+
+    byText('button', 'Run test')!.click()
+    await settle()
+
+    const posts: Call[] = calls.filter((call) => call.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(posts[0]!.path).toBe('/api/v{version}/code-scripts/{id}/test-run')
+    expect(posts[0]!.id).toBe('s1')
+    expect(posts[0]!.body).toEqual({ variables: {}, args: [], trigger: null })
+    const result: string =
+      document.body.querySelector('[data-slot="script-test-result"]')?.textContent ?? ''
+    expect(result).toContain('Worked')
+    expect(result).toContain('42 ms')
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('a per-trigger test sends that trigger and its sample variables', async () => {
+    await open('/app/scripts?script=s1')
+
+    byText('button', 'Test')!.click()
+    await settle()
+
+    const posts: Call[] = calls.filter((call) => call.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(posts[0]!.body).toEqual({
+      variables: { user: 'sample_viewer' },
+      args: [],
+      trigger: 'tr1',
+    })
+  })
+
+  it('a failed result opens the dialog with the error, the line and column and the steps', async () => {
+    testResult = BROKE
+    await open('/app/scripts?script=s2')
+
+    byText('button', 'Run test')!.click()
+    await settle()
+
+    const dialog: string = document.body.querySelector('[role="dialog"]')?.textContent ?? ''
+    expect(dialog).toContain('The run failed')
+    expect(dialog).toContain('ReferenceError: raider is not defined')
+    expect(dialog).toContain('index.ts line 4, column 42')
+    expect(dialog).toContain('Stopped with an error')
+    expect(dialog).toContain('chat.send')
+  })
+
+  it('lists session runs newest first and the Failed filter hides the one that worked', async () => {
+    await open('/app/scripts?script=s1')
+    byText('button', 'Run test')!.click()
+    await settle()
+
+    testResult = BROKE
+    await router.push('/app/scripts?script=s2')
+    await settle()
+    byText('button', 'Run test')!.click()
+    await settle()
+    ;(document.body.querySelector('[data-close]') as HTMLElement).click()
+    await settle()
+
+    const runNames = (): string[] =>
+      [...document.body.querySelectorAll<HTMLElement>('[data-run-row] [data-run-name]')].map(
+        (node) => node.textContent?.trim() ?? '',
+      )
+    expect(runNames()).toEqual(['Raid Welcome', 'Hype Train Banner'])
+
+    byText('[data-slot="toggle-group-item"]', 'Failed')!.click()
+    await settle()
+    expect(runNames()).toEqual(['Raid Welcome'])
+  })
+
+  it('a 429 disables Run test and says to wait', async () => {
+    testLimited = true
+    await open('/app/scripts?script=s1')
+
+    byText('button', 'Run test')!.click()
+    await settle()
+
+    expect((byText('button', 'Run test') as HTMLButtonElement).disabled).toBe(true)
+    expect(text()).toContain('Too many tests, wait a moment')
+    expect(document.body.querySelector('[data-run-row]')).toBeNull()
   })
 
   it('says so when the channel has no scripts', async () => {

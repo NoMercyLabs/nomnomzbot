@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The settings that stay in this browser. Today that is Readability only, so one link opens it.
-import { ArrowRight } from '@lucide/vue'
+import ArrowRight from '~icons/nnz/arrow-right'
 
 import PanelCard from '@/components/layout/PanelCard.vue'
 import { Button } from '@/components/ui/button'

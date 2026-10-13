@@ -10,8 +10,8 @@
 <script setup lang="ts">
 // Self-host or hosted. The license note under the cards must stay visible: hosting NomNomzBot as a
 // service for third parties is reserved to NoMercy Labs, while self-hosting your own bot is always free.
-import { Check } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
+import Check from '~icons/nnz/check'
 
 import PanelCard from '@/components/layout/PanelCard.vue'
 import { Button } from '@/components/ui/button'
@@ -41,7 +41,9 @@ const { t } = useI18n()
         pad
       >
         <template #actions>
-          <span class="rounded-[8px] border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+          <span
+            class="rounded-[8px] border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+          >
             {{ t(`site.home.deploy.${option.id}.tag`) }}
           </span>
         </template>

@@ -8,8 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { Check, X } from '@lucide/vue'
 import { ref, type Ref } from 'vue'
+import Check from '~icons/nnz/check'
+import Cross from '~icons/nnz/cross'
 
 import { activeBot } from '@/api/activeBot'
 import { switchBot } from '@/api/auth'
@@ -42,7 +43,8 @@ function detail(origin: string): string {
 
 function forget(origin: string): void {
   connections.forget(origin)
-  if (chosen.value === origin) chosen.value = activeBot.value === origin ? servedOrigin : activeBot.value
+  if (chosen.value === origin)
+    chosen.value = activeBot.value === origin ? servedOrigin : activeBot.value
 }
 
 // This client stays open; only the bot it talks to changes.
@@ -69,7 +71,12 @@ async function check(): Promise<void> {
 </script>
 
 <template>
-  <PanelCard :title="$t('site.login.bots.title')" :description="$t('site.login.bots.description')" tier="lead" pad>
+  <PanelCard
+    :title="$t('site.login.bots.title')"
+    :description="$t('site.login.bots.description')"
+    tier="lead"
+    pad
+  >
     <div class="flex flex-col gap-6">
       <RowGroup role="radiogroup" :aria-label="$t('site.login.bots.saved')">
         <SummaryRow
@@ -94,7 +101,7 @@ async function check(): Promise<void> {
               :aria-label="$t('site.login.bots.forget', { host: host(origin) })"
               @click="forget(origin)"
             >
-              <X />
+              <Cross />
             </Button>
           </template>
         </SummaryRow>
@@ -115,13 +122,23 @@ async function check(): Promise<void> {
             {{ $t('site.login.bots.check') }}
           </Button>
         </div>
-        <p v-if="checking" class="text-sm text-muted-foreground" role="status">{{ $t('site.login.bots.checking') }}</p>
+        <p v-if="checking" class="text-sm text-muted-foreground" role="status">
+          {{ $t('site.login.bots.checking') }}
+        </p>
         <p v-else-if="checked === 'invalid'" class="text-sm text-destructive" role="alert">
           {{ $t('site.login.bots.invalid') }}
         </p>
         <p v-else-if="checked" class="flex items-baseline gap-2 text-sm" role="status">
-          <span class="dot" :class="{ ok: checked.probe.state === 'ready', bad: checked.probe.state === 'unreachable' || checked.probe.state === 'mixedContent' }" />
-          <span>{{ $t(`site.login.bots.${checked.probe.state}`, { host: host(checked.origin) }) }}</span>
+          <span
+            class="dot"
+            :class="{
+              ok: checked.probe.state === 'ready',
+              bad: checked.probe.state === 'unreachable' || checked.probe.state === 'mixedContent',
+            }"
+          />
+          <span>{{
+            $t(`site.login.bots.${checked.probe.state}`, { host: host(checked.origin) })
+          }}</span>
         </p>
       </form>
     </div>

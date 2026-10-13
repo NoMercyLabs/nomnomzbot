@@ -9,7 +9,10 @@
 -->
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
-import { Music, Pause, Play, SkipForward } from '@lucide/vue'
+import Music from '~icons/nnz/note-eighth-pair'
+import Pause from '~icons/nnz/pause'
+import Play from '~icons/nnz/play'
+import SkipForward from '~icons/nnz/next'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 
 import type { NowPlaying } from '@/api/music'
@@ -45,8 +48,16 @@ const percent: ComputedRef<number> = computed<number>(() =>
 <template>
   <div class="flex h-full flex-col gap-4 p-4">
     <div class="flex min-h-0 items-center gap-4">
-      <img v-if="track.imageUrl" :src="track.imageUrl" alt="" class="size-24 flex-none rounded-lg object-cover" />
-      <div v-else class="flex size-24 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground">
+      <img
+        v-if="track.imageUrl"
+        :src="track.imageUrl"
+        alt=""
+        class="size-24 flex-none rounded-lg object-cover"
+      />
+      <div
+        v-else
+        class="flex size-24 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
+      >
         <Music class="size-8" aria-hidden="true" />
       </div>
       <div class="min-w-0 flex-1">
@@ -64,7 +75,10 @@ const percent: ComputedRef<number> = computed<number>(() =>
       <Progress
         :model-value="percent"
         :aria-label="
-          $t('dashboard.music.now.progress', { position: formatClock(positionMs), length: formatClock(durationMs) })
+          $t('dashboard.music.now.progress', {
+            position: formatClock(positionMs),
+            length: formatClock(durationMs),
+          })
         "
       />
       <div class="flex justify-between text-sm text-muted-foreground">

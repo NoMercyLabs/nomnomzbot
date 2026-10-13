@@ -9,7 +9,8 @@
 -->
 <script setup lang="ts">
 // The replies a command picks from at random. There is always at least one row.
-import { Plus, X } from '@lucide/vue'
+import Plus from '~icons/nnz/add'
+import X from '~icons/nnz/cross'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -17,7 +18,9 @@ import { Textarea } from '@/components/ui/textarea'
 const replies = defineModel<string[]>({ required: true })
 
 function set(index: number, text: string | number): void {
-  replies.value = replies.value.map((reply: string, at: number): string => (at === index ? String(text) : reply))
+  replies.value = replies.value.map((reply: string, at: number): string =>
+    at === index ? String(text) : reply,
+  )
 }
 
 function add(): void {
@@ -31,7 +34,12 @@ function remove(index: number): void {
 
 <template>
   <div class="grid gap-2">
-    <div v-for="(reply, index) in replies" :key="index" data-random-reply class="flex items-start gap-2">
+    <div
+      v-for="(reply, index) in replies"
+      :key="index"
+      data-random-reply
+      class="flex items-start gap-2"
+    >
       <Textarea
         :model-value="reply"
         :aria-label="$t('dashboard.commands.editor.replyNumber', { number: index + 1 })"

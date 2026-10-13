@@ -52,6 +52,40 @@
         "delete": "Delete",
         "back": "Back to the list"
       },
+      "test": {
+        "run": "Run test",
+        "limited": "Too many tests, wait a moment",
+        "worked": "Worked, {ms} ms",
+        "failed": "Failed, {ms} ms",
+        "samples": "Try it with a sample",
+        "samplesNote": "A test run is a dry run. Nothing it does reaches chat.",
+        "sample": "Test"
+      },
+      "runs": {
+        "title": "This session",
+        "button": "Runs",
+        "count": "{count} test runs since you opened this page",
+        "empty": "No runs yet. Run test tries a script with a sample.",
+        "noMatch": "No runs match.",
+        "line": "{time} · {trigger}",
+        "ms": "{ms} ms",
+        "close": "Close",
+        "filter": {
+          "label": "Show runs",
+          "all": "All",
+          "failed": "Failed",
+          "tests": "Tests"
+        }
+      },
+      "failed": {
+        "title": "The run failed",
+        "when": "{name} · {ms} ms",
+        "place": "{file} line {line}, column {column}",
+        "steps": "Steps",
+        "effects": "What it did before it stopped",
+        "log": "Log",
+        "close": "Close"
+      },
       "delete": {
         "title": "Delete {name}?",
         "description": "This cannot be undone.",

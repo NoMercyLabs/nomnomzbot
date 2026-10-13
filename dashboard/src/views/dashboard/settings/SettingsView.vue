@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The settings page. Channel: a list of settings beside the open one (only Readability is built so far).
 // This device: what stays in this browser, with a link back into the Channel list.
-import { BookOpenText } from '@lucide/vue'
+import BookOpenText from '~icons/nnz/book-open'
 import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 

@@ -8,10 +8,13 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { BookOpenText, ChevronsUpDown, LogOut, Shield } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter, type RouteLocationRaw, type Router } from 'vue-router'
+import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down'
+import BookOpen from '~icons/nnz/book-open'
+import DoorOut from '~icons/nnz/door-out'
+import Shield from '~icons/nnz/shield'
 
 import { signOut, useCurrentUser } from '@/api/auth'
 import LanguagePicker from '@/components/layout/LanguagePicker.vue'
@@ -36,10 +39,21 @@ const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' }
 
 // The two links appear when their page exists, like every other entry of the frame.
 const hasReadability = computed<boolean>(() => router.hasRoute('dashboard-settings'))
-const hasAdmin = computed<boolean>(() => user.value?.isAdmin === true && router.hasRoute('dashboard-admin-channels'))
+const hasAdmin = computed<boolean>(
+  () => user.value?.isAdmin === true && router.hasRoute('dashboard-admin-channels'),
+)
 
-const initials = computed<string>(() => (user.value?.displayName ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase())
-const role = computed<string>(() => (current.value?.kind === 'moderated' ? t('frame.profile.moderator') : t('frame.profile.broadcaster')))
+const initials = computed<string>(() =>
+  (user.value?.displayName ?? '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, 2)
+    .toUpperCase(),
+)
+const role = computed<string>(() =>
+  current.value?.kind === 'moderated'
+    ? t('frame.profile.moderator')
+    : t('frame.profile.broadcaster'),
+)
 
 async function leave(): Promise<void> {
   open.value = false
@@ -67,7 +81,7 @@ async function leave(): Promise<void> {
             <span class="block truncate text-sm font-medium">{{ user?.displayName }}</span>
             <span class="block truncate text-xs text-muted-foreground">{{ role }}</span>
           </span>
-          <ChevronsUpDown class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <ArrowsUpDown class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </template>
       </button>
     </PopoverTrigger>
@@ -77,7 +91,7 @@ async function leave(): Promise<void> {
       <div class="flex flex-col gap-1 py-1">
         <Button v-if="hasReadability" variant="ghost" class="justify-start" as-child>
           <RouterLink :to="settingsLink" @click="open = false">
-            <BookOpenText aria-hidden="true" />
+            <BookOpen aria-hidden="true" />
             {{ t('frame.profile.readability') }}
           </RouterLink>
         </Button>
@@ -94,7 +108,7 @@ async function leave(): Promise<void> {
       </div>
       <Separator />
       <Button variant="ghost" class="mt-1 w-full justify-start" @click="leave">
-        <LogOut aria-hidden="true" />
+        <DoorOut aria-hidden="true" />
         {{ t('common.signOut') }}
       </Button>
     </PopoverContent>

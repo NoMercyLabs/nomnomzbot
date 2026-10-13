@@ -14,6 +14,17 @@ import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
+import Icons from 'unplugin-icons/vite'
+import { FileSystemIconLoader } from 'unplugin-icons/loaders'
+
+// The designer's icon pack (Line style), imported as `~icons/nnz/<name>`. The files carry a baked stroke
+// color; it becomes currentColor so an icon takes the text color like any other glyph.
+const designerIcons = FileSystemIconLoader('./src/assets/icons/line', (svg: string): string =>
+  svg
+    .replace(/\sstyle="[^"]*"/g, '')
+    .replace(/stroke="#11181C"/gi, 'stroke="currentColor"')
+    .replace(/fill="#11181C"/gi, 'fill="currentColor"'),
+)
 
 // The bot the dev server talks to. NNZ_API points it at another bot, such as the live box, for real data:
 // every save then changes that bot.
@@ -37,6 +48,7 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     tailwindcss(),
+    Icons({ compiler: 'vue3', customCollections: { nnz: designerIcons } }),
   ],
   // 5090 is the registered OAuth origin; the proxy keeps the refresh cookie same-origin.
   // xfwd tells the bot the address the browser used (a phone on the network is not localhost), so its

@@ -12,9 +12,17 @@
 // Arrow keys move, Enter or Tab inserts "{name}", Esc closes; focus never leaves the textarea.
 // The last caret is remembered so a HelperPanel can insert there after focus moved away (insert()).
 // A "{name}" no helper accepts gets a quiet note under the field; the text is never blocked.
-import { TriangleAlertIcon } from '@lucide/vue'
-import { computed, nextTick, ref, useId, useTemplateRef, type ComponentPublicInstance, type Ref } from 'vue'
+import {
+  computed,
+  nextTick,
+  ref,
+  useId,
+  useTemplateRef,
+  type ComponentPublicInstance,
+  type Ref,
+} from 'vue'
 import { useI18n } from 'vue-i18n'
+import AlertTriangle from '~icons/nnz/alert-triangle'
 
 import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
@@ -23,10 +31,21 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 
 import { useHelperText } from './useHelperText'
-import { braced, filterHelpers, openPlaceholder, unknownPlaceholders, type OpenPlaceholder } from './templatePlaceholders'
+import {
+  braced,
+  filterHelpers,
+  openPlaceholder,
+  unknownPlaceholders,
+  type OpenPlaceholder,
+} from './templatePlaceholders'
 
 const props = withDefaults(
-  defineProps<{ label: string; context: TemplateContext; eventType?: string; placeholder?: string }>(),
+  defineProps<{
+    label: string
+    context: TemplateContext
+    eventType?: string
+    placeholder?: string
+  }>(),
   { eventType: undefined, placeholder: undefined },
 )
 
@@ -42,13 +61,20 @@ const helpers = useTemplateHelpers(
 )
 const known = computed<TemplateHelper[]>(() => helpers.data.value ?? [])
 
-const caret: Ref<{ start: number; end: number }> = ref({ start: text.value.length, end: text.value.length })
+const caret: Ref<{ start: number; end: number }> = ref({
+  start: text.value.length,
+  end: text.value.length,
+})
 const open: Ref<OpenPlaceholder | null> = ref(null)
 const active: Ref<number> = ref(0)
 
-const matches = computed<TemplateHelper[]>(() => (open.value ? filterHelpers(known.value, open.value.query) : []))
+const matches = computed<TemplateHelper[]>(() =>
+  open.value ? filterHelpers(known.value, open.value.query) : [],
+)
 const showing = computed<boolean>(() => matches.value.length > 0)
-const unknown = computed<string[]>(() => (known.value.length > 0 ? unknownPlaceholders(text.value, known.value) : []))
+const unknown = computed<string[]>(() =>
+  known.value.length > 0 ? unknownPlaceholders(text.value, known.value) : [],
+)
 
 function element(): HTMLTextAreaElement | null {
   return area.value?.$el instanceof HTMLTextAreaElement ? area.value.$el : null
@@ -64,7 +90,8 @@ function suggest(): void {
   const el: HTMLTextAreaElement | null = element()
   if (!el) return
   remember()
-  open.value = el.selectionStart === el.selectionEnd ? openPlaceholder(el.value, el.selectionStart) : null
+  open.value =
+    el.selectionStart === el.selectionEnd ? openPlaceholder(el.value, el.selectionStart) : null
   active.value = 0
 }
 
@@ -135,25 +162,34 @@ defineExpose({ insert })
         <Command :highlight-on-hover="false">
           <CommandList>
             <CommandGroup>
-            <CommandItem
-              v-for="(helper, index) in matches"
-              :key="helper.key"
-              :value="helper.key"
-              :data-helper="helper.key"
-              :class="index === active ? 'bg-muted text-foreground' : ''"
-              @mousedown.prevent
-              @select="choose(helper)"
-            >
-              <span class="font-mono font-medium">{{ braced(helper.key) }}</span>
-              <span class="min-w-0 flex-1 truncate text-muted-foreground">{{ describe(helper) }}</span>
-            </CommandItem>
+              <CommandItem
+                v-for="(helper, index) in matches"
+                :key="helper.key"
+                :value="helper.key"
+                :data-helper="helper.key"
+                :class="index === active ? 'bg-muted text-foreground' : ''"
+                @mousedown.prevent
+                @select="choose(helper)"
+              >
+                <span class="font-mono font-medium">{{ braced(helper.key) }}</span>
+                <span class="min-w-0 flex-1 truncate text-muted-foreground">{{
+                  describe(helper)
+                }}</span>
+              </CommandItem>
             </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
-    <p v-if="unknown.length > 0" data-template-warning role="status" class="flex items-start gap-1.5 text-xs text-muted-foreground">
-      <TriangleAlertIcon class="mt-px size-3.5 shrink-0" />{{ t('template.field.unknown', { names: unknown.join(' ') }) }}
+    <p
+      v-if="unknown.length > 0"
+      data-template-warning
+      role="status"
+      class="flex items-start gap-1.5 text-xs text-muted-foreground"
+    >
+      <AlertTriangle class="mt-px size-3.5 shrink-0" />{{
+        t('template.field.unknown', { names: unknown.join(' ') })
+      }}
     </p>
   </Field>
 </template>

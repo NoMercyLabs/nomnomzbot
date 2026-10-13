@@ -11,7 +11,7 @@
 // One settings field: label and "key . type . help" on the left, the control its type asks for,
 // and Reset when the value differs from the default (12-overlays.html:304-313).
 // A type the dashboard does not know shows its value read-only.
-import { RotateCcw } from '@lucide/vue'
+import RotateCcw from '~icons/nnz/arrow-counter-clockwise'
 import { computed, useId, type ComputedRef } from 'vue'
 
 import type { WidgetSettingsField } from '@/api/widgets'

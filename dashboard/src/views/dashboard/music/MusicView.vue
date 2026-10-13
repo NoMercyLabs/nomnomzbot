@@ -8,7 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { ListEnd, Music, Trash2 } from '@lucide/vue'
+import ListEnd from '~icons/nnz/playlist-add'
+import Music from '~icons/nnz/note-eighth-pair'
+import Trash2 from '~icons/nnz/trash'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 
 import { useConnections } from '@/api/home'
@@ -49,10 +51,18 @@ const remove = useRemoveQueueItem(channelId)
 const nowPlaying: ComputedRef<NonNullable<typeof queueQuery.data.value>['nowPlaying']> = computed(
   () => queueQuery.data.value?.nowPlaying ?? null,
 )
-const rows: ComputedRef<QueueItem[]> = computed<QueueItem[]>(() => queueQuery.data.value?.queue ?? [])
+const rows: ComputedRef<QueueItem[]> = computed<QueueItem[]>(
+  () => queueQuery.data.value?.queue ?? [],
+)
 
-const nowState: ComputedRef<PanelState> = usePanelState(queueQuery, (queue: MusicQueue): boolean => !queue.nowPlaying)
-const queueState: ComputedRef<PanelState> = usePanelState(queueQuery, (queue: MusicQueue): boolean => queue.queue.length === 0)
+const nowState: ComputedRef<PanelState> = usePanelState(
+  queueQuery,
+  (queue: MusicQueue): boolean => !queue.nowPlaying,
+)
+const queueState: ComputedRef<PanelState> = usePanelState(
+  queueQuery,
+  (queue: MusicQueue): boolean => queue.queue.length === 0,
+)
 
 const spotify: ComputedRef<{ tone: StatusTone; key: string }> = computed(() => {
   const status = connections.data.value?.find((item) => item.provider === 'spotify')
@@ -104,7 +114,9 @@ function confirmRemove(): void {
     <BoardCell :span="4">
       <PanelCard
         :title="$t('dashboard.music.queue.title')"
-        :description="rows.length > 0 ? $t('dashboard.music.queue.waiting', { count: rows.length }) : undefined"
+        :description="
+          rows.length > 0 ? $t('dashboard.music.queue.waiting', { count: rows.length }) : undefined
+        "
         :state="queueState"
         :empty-text="$t('dashboard.music.queue.empty')"
         :error-text="$t('dashboard.music.queue.error')"
@@ -122,8 +134,16 @@ function confirmRemove(): void {
           data-queue-item
         >
           <template #leading>
-            <img v-if="item.imageUrl" :src="item.imageUrl" alt="" class="size-8 flex-none rounded-md object-cover" />
-            <span v-else class="flex size-8 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <img
+              v-if="item.imageUrl"
+              :src="item.imageUrl"
+              alt=""
+              class="size-8 flex-none rounded-md object-cover"
+            />
+            <span
+              v-else
+              class="flex size-8 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+            >
               <Music class="size-4" aria-hidden="true" />
             </span>
           </template>
@@ -153,10 +173,18 @@ function confirmRemove(): void {
       <RulesPanel />
     </BoardCell>
     <BoardCell :span="5">
-      <PanelCard :title="$t('dashboard.music.history.title')" state="empty" :empty-text="$t('dashboard.music.history.empty')" />
+      <PanelCard
+        :title="$t('dashboard.music.history.title')"
+        state="empty"
+        :empty-text="$t('dashboard.music.history.empty')"
+      />
     </BoardCell>
     <BoardCell :span="4">
-      <PanelCard :title="$t('dashboard.music.thanks.title')" state="empty" :empty-text="$t('dashboard.music.thanks.empty')" />
+      <PanelCard
+        :title="$t('dashboard.music.thanks.title')"
+        state="empty"
+        :empty-text="$t('dashboard.music.thanks.empty')"
+      />
     </BoardCell>
   </BoardGrid>
   <ConfirmDialog

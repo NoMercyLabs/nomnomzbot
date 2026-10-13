@@ -11,7 +11,10 @@
 // The head of one overlay: name and badges, the On/Off switch, the one primary action (copy the
 // browser source address), Health, what it reacts to, and the module facts.
 // The address holds a secret token. Copy sends the full address to the clipboard; the page only ever shows it cut.
-import { ArrowLeft, Check, Copy, Play } from '@lucide/vue'
+import ArrowLeft from '~icons/nnz/arrow-left'
+import Check from '~icons/nnz/check'
+import Copy from '~icons/nnz/file-copy'
+import Play from '~icons/nnz/play'
 import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'

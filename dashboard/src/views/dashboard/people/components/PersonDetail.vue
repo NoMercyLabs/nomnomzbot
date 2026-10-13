@@ -11,7 +11,7 @@
 // The detail beside the People list: what the bot knows about one person, read only.
 // The row supplies the facts every person has. The profile endpoint adds the rest, but only
 // for a person with an internal id; the full profile stays the ProfileDialog (UserName opens it).
-import { ArrowLeft } from '@lucide/vue'
+import ArrowLeft from '~icons/nnz/arrow-left'
 import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 

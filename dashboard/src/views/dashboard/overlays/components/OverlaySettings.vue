@@ -13,7 +13,7 @@
 // successful save, so a refused save leaves the change in place and Save stays on.
 // "Changed" means the value differs from the default; Save is on when the form differs from what is saved.
 // Without schema fields the saved keys show read-only.
-import { Save } from '@lucide/vue'
+import Save from '~icons/nnz/floppy-disk'
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -173,7 +173,13 @@ function submit(): void {
         aria-live="polite"
         >{{ hint }}</span
       >
-      <Button data-save variant="outline" size="sm" :disabled="!dirty || save.isPending.value" @click="submit">
+      <Button
+        data-save
+        variant="outline"
+        size="sm"
+        :disabled="!dirty || save.isPending.value"
+        @click="submit"
+      >
         <Save aria-hidden="true" />
         {{ $t('dashboard.overlays.detail.settings.save') }}
       </Button>

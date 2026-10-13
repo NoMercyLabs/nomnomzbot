@@ -8,20 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import {
-  AudioLines,
-  BadgeCheck,
-  BellRing,
-  Captions,
-  Feather,
-  Layers,
-  MessagesSquare,
-  MonitorX,
-  Music,
-  Trophy,
-  Volume2,
-} from '@lucide/vue'
 import type { Component } from 'vue'
+import BellNotification from '~icons/nnz/bell-notification'
+import BellRing from '~icons/nnz/bell-ring'
+import ChatMessages from '~icons/nnz/chat-messages'
+import ClosedCaption from '~icons/nnz/closed-caption'
+import Medal from '~icons/nnz/medal'
+import Monitor from '~icons/nnz/monitor'
+import NoteEighthPair from '~icons/nnz/note-eighth-pair'
+import PictureInPicture from '~icons/nnz/picture-in-picture'
+import Speaker from '~icons/nnz/speaker'
+import Trophy from '~icons/nnz/trophy'
+import WaveForm from '~icons/nnz/wave-form'
 
 export interface OverlayKind {
   /** Key under dashboard.overlays.kinds. */
@@ -31,19 +29,19 @@ export interface OverlayKind {
 
 // The bot stores no kind for an overlay, so the kind is read from its name; an unknown name is a plain overlay.
 const KINDS: Readonly<Record<string, OverlayKind>> = {
-  'Twitch Chat Overlay': { key: 'chat', icon: MessagesSquare },
-  'Spotify NowPlaying': { key: 'nowPlaying', icon: Music },
-  'Logo badge': { key: 'badge', icon: BadgeCheck },
-  'TTS Audio Widget': { key: 'tts', icon: AudioLines },
-  BSOD: { key: 'fullScreen', icon: MonitorX },
+  'Twitch Chat Overlay': { key: 'chat', icon: ChatMessages },
+  'Spotify NowPlaying': { key: 'nowPlaying', icon: NoteEighthPair },
+  'Logo badge': { key: 'badge', icon: Medal },
+  'TTS Audio Widget': { key: 'tts', icon: WaveForm },
+  BSOD: { key: 'fullScreen', icon: Monitor },
   Leaderboard: { key: 'leaderboard', icon: Trophy },
-  'Feather Alert': { key: 'alert', icon: Feather },
-  'TTS Caption': { key: 'caption', icon: Captions },
+  'Feather Alert': { key: 'alert', icon: BellNotification },
+  'TTS Caption': { key: 'caption', icon: ClosedCaption },
   Alerts: { key: 'alerts', icon: BellRing },
-  Audio: { key: 'audio', icon: Volume2 },
+  Audio: { key: 'audio', icon: Speaker },
 }
 
-const FALLBACK: OverlayKind = { key: 'overlay', icon: Layers }
+const FALLBACK: OverlayKind = { key: 'overlay', icon: PictureInPicture }
 
 export function overlayKind(name: string): OverlayKind {
   return KINDS[name] ?? FALLBACK

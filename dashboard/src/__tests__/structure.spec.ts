@@ -133,6 +133,26 @@ describe('folder layout', () => {
     expect(own).toEqual([])
   })
 
+  // Stoney 2026-10-13: "If I have to correct you on icons then you're fired" and "use the moooom icons
+  // from my designer". Icons come from the designer pack (`~icons/nnz/<name>`, assets/icons/line); brand
+  // logos from simple-icons, drawn by PlatformLogo from the library's own path. Lucide stays only inside
+  // the shadcn-vue CLI output. A hand-drawn svg is a guess.
+  it('takes every icon from the designer pack: no Lucide import and no hand-drawn svg', () => {
+    const own: string[] = allPaths(src)
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+      .filter((path) => /\.(vue|ts)$/.test(path) && !path.startsWith('components/ui/'))
+    const offenders: string[] = own.filter((path) => {
+      const text: string = readFileSync(join(src, path), 'utf8')
+      const drawn: boolean =
+        path !== 'components/layout/PlatformLogo.vue' &&
+        path.endsWith('.vue') &&
+        /<svg\b/.test(text)
+      return drawn || /from ['"](@lucide\/vue|lucide-vue-next)['"]/.test(text)
+    })
+
+    expect(offenders).toEqual([])
+  })
+
   // Stoney 2026-10-13 (translated from Dutch): "you are really going to town with all those em dashes". Copy uses plain sentences.
   it('writes no em dash in any words file', () => {
     const dashed: string[] = allPaths(src)

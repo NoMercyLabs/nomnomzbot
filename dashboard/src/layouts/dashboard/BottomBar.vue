@@ -8,12 +8,21 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { Ellipsis, X } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Cross from '~icons/nnz/cross'
+import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal'
 
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import type { NavEntry } from './navigation'
 import { useNavigation } from './useNavigation'
 
@@ -22,8 +31,12 @@ const { entries, isCurrent } = useNavigation()
 const more = ref(false)
 
 // The pages a thumb needs most stay in the bar; the rest open in the sheet.
-const barEntries = computed<NavEntry[]>(() => entries.value.filter((entry) => entry.bottom).slice(0, 4))
-const sheetEntries = computed<NavEntry[]>(() => entries.value.filter((entry) => !barEntries.value.includes(entry)))
+const barEntries = computed<NavEntry[]>(() =>
+  entries.value.filter((entry) => entry.bottom).slice(0, 4),
+)
+const sheetEntries = computed<NavEntry[]>(() =>
+  entries.value.filter((entry) => !barEntries.value.includes(entry)),
+)
 </script>
 
 <template>
@@ -47,7 +60,7 @@ const sheetEntries = computed<NavEntry[]>(() => entries.value.filter((entry) => 
     <Sheet v-if="sheetEntries.length" v-model:open="more">
       <SheetTrigger as-child>
         <Button variant="ghost" class="h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1.5 text-xs">
-          <Ellipsis aria-hidden="true" />
+          <MenuDotsHorizontal aria-hidden="true" />
           <span class="truncate">{{ t('frame.nav.more') }}</span>
         </Button>
       </SheetTrigger>
@@ -56,14 +69,18 @@ const sheetEntries = computed<NavEntry[]>(() => entries.value.filter((entry) => 
           <SheetTitle>{{ t('frame.nav.more') }}</SheetTitle>
           <SheetClose as-child>
             <Button variant="ghost" size="icon" :aria-label="t('common.close')">
-              <X aria-hidden="true" />
+              <Cross aria-hidden="true" />
             </Button>
           </SheetClose>
         </SheetHeader>
         <SheetDescription class="sr-only">{{ t('frame.nav.moreHelp') }}</SheetDescription>
         <ul class="flex flex-col gap-1 overflow-y-auto p-2">
           <li v-for="entry in sheetEntries" :key="entry.route">
-            <Button :variant="isCurrent(entry) ? 'secondary' : 'ghost'" class="w-full justify-start" as-child>
+            <Button
+              :variant="isCurrent(entry) ? 'secondary' : 'ghost'"
+              class="w-full justify-start"
+              as-child
+            >
               <RouterLink :to="{ name: entry.route }" @click="more = false">
                 <component :is="entry.icon" aria-hidden="true" />
                 {{ t(`frame.nav.${entry.label}`) }}

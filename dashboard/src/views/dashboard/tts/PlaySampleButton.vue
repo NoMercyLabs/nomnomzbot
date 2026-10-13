@@ -8,7 +8,8 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { Play, Square } from '@lucide/vue'
+import Play from '~icons/nnz/play'
+import Square from '~icons/nnz/stop'
 import { onBeforeUnmount, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -34,7 +35,10 @@ function stop(): void {
 async function toggle(): Promise<void> {
   if (playing.value) return stop()
   try {
-    const result = await sample.mutateAsync({ voiceId: props.voiceId, text: t('dashboard.tts.voices.sampleText') })
+    const result = await sample.mutateAsync({
+      voiceId: props.voiceId,
+      text: t('dashboard.tts.voices.sampleText'),
+    })
     const player: HTMLAudioElement = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`)
     player.addEventListener('ended', stop)
     audio.value = player
@@ -55,7 +59,11 @@ onBeforeUnmount(stop)
     variant="ghost"
     size="icon"
     :disabled="sample.isPending.value"
-    :aria-label="$t(playing ? 'dashboard.tts.voices.stopSample' : 'dashboard.tts.voices.playSample', { voice: voiceId })"
+    :aria-label="
+      $t(playing ? 'dashboard.tts.voices.stopSample' : 'dashboard.tts.voices.playSample', {
+        voice: voiceId,
+      })
+    "
     @click="toggle"
   >
     <Square v-if="playing" />
