@@ -1,0 +1,91 @@
+{
+  "dashboard": {
+    "people": {
+      "title": "Mensen",
+      "crumb": "Community",
+      "search": "Mensen zoeken",
+      "count": "{count} mensen",
+      "noMatch": "Niemand past bij \"{query}\".",
+      "back": "Terug naar de lijst",
+      "tabs": {
+        "all": "Iedereen",
+        "moderator": "Moderators",
+        "vip": "VIP's",
+        "subscriber": "Abonnees",
+        "regular": "Vaste kijkers",
+        "new": "Nieuw"
+      },
+      "hints": {
+        "all": "Iedereen die de bot in je chat heeft gezien.",
+        "moderator": "Mensen die je kanaal modereren.",
+        "vip": "Mensen met de VIP-badge op Twitch.",
+        "subscriber": "Mensen die op je kanaal geabonneerd zijn.",
+        "regular": "Mensen die stream na stream terugkomen.",
+        "new": "Mensen die in de laatste 90 dagen voor het eerst zijn gezien, uit de pagina's die al geladen zijn."
+      },
+      "list": {
+        "label": "Mensen",
+        "title": "Mensen",
+        "empty": "De bot heeft nog niemand in deze lijst gezien.",
+        "error": "De lijst met mensen kon niet laden.",
+        "more": "Meer mensen laden",
+        "lastSeen": "Laatst gezien {ago}",
+        "banned": "Verbannen",
+        "roles": {
+          "moderator": "Moderator",
+          "vip": "VIP"
+        },
+        "noSubscribers": "De bot heeft nog geen lijst met abonnees. Twitch geeft een aantal, geen namen.",
+        "noRegulars": "De bot telt nog geen streams per persoon, dus hij weet niet wie een vaste kijker is."
+      },
+      "detail": {
+        "title": "Profiel",
+        "pick": "Kies een persoon om het profiel te zien.",
+        "notFound": "Niemand in de geladen lijsten heeft de login \"{login}\".",
+        "openProfile": "Het hele profiel openen",
+        "noProfile": "De bot heeft nog geen profiel van deze persoon. Hij heeft niet gechat sinds de bot profielen bewaart.",
+        "profileError": "Het profiel kon niet laden.",
+        "stats": {
+          "messages": "Chatregels",
+          "watchHours": "Uren gekeken",
+          "commands": "Commando's gebruikt",
+          "streak": "Kijkreeks",
+          "streakContext": "Beste {max}"
+        },
+        "overview": {
+          "title": "Overzicht",
+          "login": "Login",
+          "pronoun": "Voornaamwoord",
+          "pronounUnset": "Niet ingesteld",
+          "twitchId": "Twitch-id",
+          "standing": "Status",
+          "tier": "Abonnementsniveau",
+          "tierLevel": "Niveau {level}",
+          "tierPrime": "Prime",
+          "follower": "Volgt jou",
+          "yes": "Ja",
+          "no": "Nee",
+          "firstSeen": "Eerst gezien",
+          "lastSeen": "Laatst gezien"
+        },
+        "moderation": {
+          "title": "Moderatie",
+          "empty": "Niets vastgelegd.",
+          "timeouts": "Time-outs",
+          "bans": "Bans",
+          "warnings": "Waarschuwingen",
+          "deleted": "Berichten verwijderd",
+          "lastAction": "Laatste actie"
+        },
+        "chat": {
+          "title": "Laatst in de chat",
+          "empty": "De bot kan de chatregels van een persoon nog niet tonen. De chatpagina toont de live stream."
+        },
+        "loyalty": {
+          "title": "Activiteit",
+          "empty": "Aantallen per commando, namen van beloningen en cheers worden nog niet per persoon bewaard."
+        }
+      }
+    }
+  }
+}

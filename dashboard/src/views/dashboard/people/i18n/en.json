@@ -1,0 +1,91 @@
+{
+  "dashboard": {
+    "people": {
+      "title": "People",
+      "crumb": "Community",
+      "search": "Search people",
+      "count": "{count} people",
+      "noMatch": "Nobody matches \"{query}\".",
+      "back": "Back to the list",
+      "tabs": {
+        "all": "All",
+        "moderator": "Moderators",
+        "vip": "VIPs",
+        "subscriber": "Subscribers",
+        "regular": "Regulars",
+        "new": "New"
+      },
+      "hints": {
+        "all": "Everyone the bot has seen in your chat.",
+        "moderator": "People who moderate your channel.",
+        "vip": "People who hold the VIP badge on Twitch.",
+        "subscriber": "People who subscribe to your channel.",
+        "regular": "People who come back stream after stream.",
+        "new": "People first seen in the last 90 days, from the pages loaded so far."
+      },
+      "list": {
+        "label": "People",
+        "title": "People",
+        "empty": "The bot has not seen anyone in this list yet.",
+        "error": "The people list could not load.",
+        "more": "Load more people",
+        "lastSeen": "Last seen {ago}",
+        "banned": "Banned",
+        "roles": {
+          "moderator": "Moderator",
+          "vip": "VIP"
+        },
+        "noSubscribers": "The bot has no list of subscribers yet. Twitch gives it a count, not the people.",
+        "noRegulars": "The bot does not count streams per person yet, so it cannot tell who is a regular."
+      },
+      "detail": {
+        "title": "Profile",
+        "pick": "Pick a person to see their profile.",
+        "notFound": "Nobody in the loaded lists has the login \"{login}\".",
+        "openProfile": "Open the full profile",
+        "noProfile": "The bot has no profile for this person yet. They have not chatted since the bot started storing profiles.",
+        "profileError": "The profile could not load.",
+        "stats": {
+          "messages": "Chat lines",
+          "watchHours": "Hours watched",
+          "commands": "Commands used",
+          "streak": "Watch streak",
+          "streakContext": "Best {max}"
+        },
+        "overview": {
+          "title": "Overview",
+          "login": "Login",
+          "pronoun": "Pronoun",
+          "pronounUnset": "Not set",
+          "twitchId": "Twitch id",
+          "standing": "Standing",
+          "tier": "Subscription tier",
+          "tierLevel": "Tier {level}",
+          "tierPrime": "Prime",
+          "follower": "Follows you",
+          "yes": "Yes",
+          "no": "No",
+          "firstSeen": "First seen",
+          "lastSeen": "Last seen"
+        },
+        "moderation": {
+          "title": "Moderation",
+          "empty": "None recorded.",
+          "timeouts": "Timeouts",
+          "bans": "Bans",
+          "warnings": "Warnings",
+          "deleted": "Messages deleted",
+          "lastAction": "Last action"
+        },
+        "chat": {
+          "title": "Latest in chat",
+          "empty": "The bot cannot list one person's chat lines yet. The chat page shows the live stream."
+        },
+        "loyalty": {
+          "title": "Activity",
+          "empty": "Per-command counts, reward names and cheers are not stored per person yet."
+        }
+      }
+    }
+  }
+}
