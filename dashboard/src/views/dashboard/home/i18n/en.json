@@ -1,0 +1,7 @@
+{
+  "dashboard": {
+    "home": {
+      "greeting": "Hi, {name}"
+    }
+  }
+}

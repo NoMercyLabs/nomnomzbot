@@ -14,6 +14,7 @@ import pluginVue from 'eslint-plugin-vue'
 import pluginPlaywright from 'eslint-plugin-playwright'
 import pluginVitest from '@vitest/eslint-plugin'
 import pluginOxlint from 'eslint-plugin-oxlint'
+import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n'
 import skipFormatting from 'eslint-config-prettier/flat'
 
 // To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
@@ -40,6 +41,34 @@ export default defineConfigWithVueTs(
   {
     ...pluginVitest.configs.recommended,
     files: ['src/**/__tests__/*'],
+  },
+
+  // V17: every key must exist in the locale files, and no text is written in a template.
+  {
+    name: 'app/vue-i18n',
+    files: ['src/**/*.{vue,ts}'],
+    plugins: { '@intlify/vue-i18n': pluginVueI18n },
+    settings: {
+      'vue-i18n': {
+        localeDir: [
+          { pattern: './src/i18n/locales/*.json', localeKey: 'file' },
+          { pattern: './src/views/*/*/i18n/*.json', localeKey: 'file' },
+        ],
+        messageSyntaxVersion: '^11.0.0',
+      },
+    },
+    rules: {
+      '@intlify/vue-i18n/no-missing-keys': 'error',
+      '@intlify/vue-i18n/no-raw-text': 'error',
+      '@intlify/vue-i18n/no-v-html': 'error',
+    },
+  },
+
+  {
+    // shadcn-vue generates single-word names (Button, Card); its folder is changed only through its CLI.
+    name: 'app/shadcn-generated',
+    files: ['src/components/ui/**/*.vue'],
+    rules: { 'vue/multi-word-component-names': 'off' },
   },
 
   {

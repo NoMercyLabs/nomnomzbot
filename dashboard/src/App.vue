@@ -10,5 +10,5 @@
 <script setup lang="ts"></script>
 
 <template>
-  <p class="p-4 text-sm text-foreground">NomNomzBot dashboard</p>
+  <RouterView />
 </template>

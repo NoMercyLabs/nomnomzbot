@@ -53,6 +53,18 @@
  ],
  "rules": [
   {
+   "id": "dashboard-live-edit-main-tree",
+   "brief": [
+    "dashboard/",
+    "\\bVue\\b"
+   ],
+   "text": "Vue dashboard work is edited in the main tree dashboard/, under the running Vite dev server, so the owner sees each change live by hot reload. Never dispatch a dashboard builder with isolation worktree. One writer on dashboard/ at a time; commit in place when the gates pass (typecheck, lint, vitest, check:size).",
+   "source": "Stoney 2026-10-13: \"als je nou gewoon de view app gewoon aanpast, dan zie ik live updates verschijnen terwijl jij de code aanpast. En nou moet je constant maar blijven mergen\"",
+   "covers": [
+    "feedback-dashboard-live-edit-main-tree.md"
+   ]
+  },
+  {
    "id": "bot-speaks-in-one-voice",
    "paths": [
     "**/server/**/Tts/**/*.cs",

@@ -10,9 +10,15 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { dashboardRoutes } from './dashboard'
+import { signInGuard } from './guard'
+import { siteRoutes } from './site'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [],
+  routes: [siteRoutes, dashboardRoutes],
 })
+
+router.beforeEach(signInGuard)
 
 export default router

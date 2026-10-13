@@ -59,7 +59,7 @@ Each row is one decision. My recommendation is in the row. Stoney signs the whol
 | V17 | Translations | vue-i18n. A script converts the 6911 keys per language from the Compose XML to JSON, once, and counts them in and out. One language file loads at a time. | No text in code. Nothing lost in the move. |
 | V18 | State outside server data | Pinia, only for UI state (open panels, chosen channel, readability). | Server data has one home (V6). |
 | V19 | Desktop | A native webview window around the same web app (no CEF). The choice of shell (Tauri or Photino.NET) is made when the web app is complete. | The app does not depend on the shell. |
-| V20 | Viewer pages | Stay plain server HTML, as today. | Out of this plan. |
+| V20 | Three areas, one app | One Vue app, three areas, each with its own layout and its own code chunks. **Site** (`/`): the public website, signed out, prerendered to plain HTML at build time so it loads at once and search engines read it; it replaces `server/.../Assets/landing`. **Viewer** (`/me/...`): the viewer's own view (D4), phone first: balance, TTS voice, pronouns, linked platforms, and per channel now playing, leaderboards, store, games. **Dashboard** (`/app/...`): streamers and moderators, desktop first, dense. Sign-in is shared; after it a streamer or moderator lands in `/app`, a viewer in `/me`. Areas share the API layer, auth, `components/ui`, tokens and translations, never each other's views. The server-HTML pages (voice listener, overlays, widgets) stay server pages. | Stoney 2026-10-13: "we een main website moeten hebben en een user optimized view". A visitor never downloads dashboard code. |
 | V21 | Type roles | The shadcn new-york-v4 source sets every size. Card title 16 semibold. Section label, form label and item title 14 medium. Description 14 normal, muted. Page title 20. 12 only for badges, counts, captions and table headers. A title and its description differ by weight and colour, not by size. | Stoney 2026-10-13: "UI-regels ... die standaard zijn voor het hele internet". Sources: `card.tsx`, `item.tsx`, `field.tsx`. |
 | V22 | Grouped lists | Items in one group sit on the muted surface, with a 1 px divider (foreground at 10 %) between them. The group is part of its card, never a floating block. Two inputs that set one thing (for example Limits) are one field with one label. | Stoney 2026-10-13: "overal netjes een divider en de hiërarchie". One component (V13) carries it. |
 | V23 | Page map first | Before any page is built, a script-built map puts every feature of `FEATURES-BY-SIDEBAR.md` on one page, one view and one level (overview, detail, advanced). The map is the checklist for the page slices. | "Terwijl jij dus van tevoren weet waar alles terecht komt." |
@@ -67,8 +67,10 @@ Each row is one decision. My recommendation is in the row. Stoney signs the whol
 
 ## 2a. Folder layout (V24)
 
-One name runs through every layer: the page slug. The TTS page is route `/tts`, folder `views/tts/`,
-query file `api/tts.ts`, translation keys `tts.*`. Find one, and you find all.
+One name runs through every layer: the area and the page slug. The dashboard TTS page is route
+`/app/tts`, folder `views/dashboard/tts/`, query file `api/tts.ts`, translation keys `dashboard.tts.*`.
+Find one, and you find all. The three areas (V20) are `site`, `viewer` and `dashboard`; sign-in lives
+in `views/site/login/`.
 
 ```
 dashboard/
@@ -79,12 +81,19 @@ dashboard/
     speed/       the budgets of section 3
   src/
     main.ts  App.vue                     (create-vue)
-    router/      index.ts: the routes, one lazy import per view (V10, V15)
-    views/       one folder per page slug (create-vue's own name for pages)
-      tts/
-        TtsView.vue        the page
-        components/        parts used by this page only
-        __tests__/         (create-vue)
+    router/      index.ts joins the areas; site.ts, viewer.ts, dashboard.ts hold each area's routes,
+                 one lazy import per view (V10, V15); guard.ts holds the sign-in guard
+    layouts/     SiteLayout.vue, ViewerLayout.vue, DashboardLayout.vue: one per area (V20)
+    views/       one folder per area, then one folder per page slug
+      dashboard/
+        tts/
+          TtsView.vue      the page
+          route.ts         the page's route constant
+          i18n/            en.json, nl.json: only the keys `dashboard.tts.*`, loaded with the page
+          components/      parts used by this page only
+          __tests__/       (create-vue)
+      viewer/    the same shape
+      site/      the same shape; login/ lives here
     components/
       ui/        shadcn-vue output; changed only through its CLI
       layout/    our own building blocks (V13, V21, V22): PageShell, BoardGrid, Panel,
@@ -92,21 +101,31 @@ dashboard/
       shared/    a part used by two or more views (moved here on the second user, not before)
     api/
       client.ts            the one openapi-fetch client
+      queryClient.ts       the one TanStack QueryClient and its cache defaults (V6)
+      auth.ts              sign-in, refresh, sign-out; the access token lives here, in memory only
       schema.d.ts          generated from server/openapi/v1.json, never edited
       <slug>.ts            the queries and mutations of one area (V4, V6, V7)
     realtime/    dashboardHub.ts, adminHub.ts: hub events write into the query cache (V8)
     stores/      Pinia, UI state only (V18)                    (create-vue)
     composables/ shared use* functions (current channel, optimistic save)
-    i18n/        index.ts; locales/en.json, nl.json (V17)
+    i18n/        index.ts (loadPage); locales/en.json, nl.json hold only the shared words (`common.*`) (V17)
     styles/      tokens.css (from the mockup tokens), main.css
-    lib/         utils.ts holds cn() only, as shadcn-vue requires; nothing else goes here
+    lib/         utils.ts holds cn() only, as shadcn-vue requires; a plain function shared by two or
+                 more areas gets one file named after its topic (duration.ts, currency.ts)
 ```
 
 Placement rules:
 
 - A file lives with the one page that uses it. On a second user it moves to `components/shared/`. That
   is the only planned move.
-- No `utils`, `helpers` or `misc` folder. `lib/utils.ts` is shadcn's fixed name for `cn()`.
+- No `utils`, `helpers` or `misc` file or folder. `lib/utils.ts` is shadcn's fixed name for `cn()`.
+  `__tests__/structure.spec.ts` fails on a new one, and on a second export in `lib/utils.ts`.
+- Each page owns its route constant in `views/<area>/<slug>/route.ts`. The area file in `router/`
+  only lists them. Code names a route through its constant (`loginRoute.name`), never a string.
+- Each page owns its words in `views/<area>/<slug>/i18n/`. They load with the page code (`loadPage`),
+  so no locale file grows with the app. A word used by two or more areas moves to `common.*`.
+  The structure test fails on a key of another page; ESLint (`@intlify/vue-i18n`) fails on a missing
+  key and on text written in a template.
 - Generated folders (`components/ui/`, `api/schema.d.ts`) are never edited by hand.
 - A new top-level folder in `src/` needs a row in this table first.
 
@@ -141,8 +160,19 @@ Each step is one validated slice.
 
 1. Backend: auth scheme in the OpenAPI document (V5). Refresh `v1.json`.
 2. `dashboard/` scaffold: Vite, TypeScript, lint rules, tokens, the generated client, the gates and the speed test. No pages yet.
-3. Shell: sign-in, the refresh cookie, the sidebar from the page list, the channel switch, both hubs connected.
-4. Translations converted (V17), with a count check.
+3. Shell. Every building block a page needs exists before the first page, so no page invents its own:
+   - sign-in, the refresh cookie, and a client middleware that refreshes once on a 401 and retries (V16);
+   - TanStack Query wired in `main.ts`; sign-out clears the cache (V6);
+   - `composables/useOptimisticSave`: change the cache at once, roll back and report on an error (V7);
+   - `realtime/`: both hubs connected after sign-in, events written into the query cache (V8);
+   - prefetch on hover: the route chunk and the page's first query (V9);
+   - typed translation keys: a key missing from `en.json` fails the type check (V17);
+   - Pinia stores for the chosen channel and the open panels (V18);
+   - the role landing: a streamer or moderator lands in `/app`, a viewer in `/me` (V20);
+   - `DashboardLayout` with the sidebar from the page list and the channel switch; `ViewerLayout`; the site home;
+   - the error inbox in the frame: every actionable error shows outside the page and links to its fix;
+   - loading: a skeleton only after 150 ms; empty and error states as shared components.
+4. Translations converted (V17), with a count check. The script writes each key into its page's `i18n/` file by the page map, and into `common.*` when two or more areas use it.
 5. Shared components (V13, V21, V22), shown on one catalogue page that runs the same gates.
 6. The page map (V23).
 7. Pages, one slice each, stream-facing first: Home, Chat, Stream, TTS, Music, People, Commands, then the rest of the 33. Stoney walks each page in the running app; what does not feel right is fixed in the component, so every page gets it.

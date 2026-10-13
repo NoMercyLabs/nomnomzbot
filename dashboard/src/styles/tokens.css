@@ -11,7 +11,8 @@
 /* Tokens copied from app/.../core/designsystem/theme/Tokens.kt (DarkTokens, LightTokens, Radii) and
    Spacing/Typography from spec/frontend-design-system.md section 1.3. The accent family is replaced at
    load by accent.js, a 1:1 port of Tokens.withAccent(). */
-@import url('https://rsms.me/inter/inter.css');
+/* Inter is bundled from npm: no request leaves our own origin. */
+@import '@fontsource-variable/inter';
 
 :root {
   --background: oklch(0.177638 0 0);
@@ -57,7 +58,7 @@
   --text-base: 16px; --lh-base: 24px;
   --text-lg: 18px; --lh-lg: 28px;
   --text-xl: 20px; --lh-xl: 28px;
-  --text-2xl: 24px; --lh-2xl: 32px;  --font: 'Inter', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+  --text-2xl: 24px; --lh-2xl: 32px;  --font: 'Inter Variable', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
 
   /* Density (compact is the default and the desktop look). shell.js sets html[data-density] from localStorage mock.density.
      --hit and --hit-icon are the invisible minimum hit areas: frame.css grows a ::before, never the visible control. */

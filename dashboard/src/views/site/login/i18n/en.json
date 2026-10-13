@@ -1,0 +1,9 @@
+{
+  "site": {
+    "login": {
+      "title": "Sign in to NomNomzBot",
+      "description": "Use your Twitch account. You come back here when you are done.",
+      "twitch": "Sign in with Twitch"
+    }
+  }
+}

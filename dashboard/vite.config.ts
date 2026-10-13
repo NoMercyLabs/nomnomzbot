@@ -22,6 +22,15 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
   ],
+  // 5090 is the registered OAuth origin; the proxy keeps the refresh cookie same-origin.
+  server: {
+    port: 5090,
+    strictPort: true,
+    proxy: {
+      '/api': 'http://localhost:5080',
+      '/hubs': { target: 'http://localhost:5080', ws: true },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
