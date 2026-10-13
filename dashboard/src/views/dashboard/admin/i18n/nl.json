@@ -1,0 +1,54 @@
+{
+  "dashboard": {
+    "admin": {
+      "title": "Kanalen",
+      "crumb": "Beheer",
+      "search": "Zoek kanalen",
+      "count": "{count} kanalen",
+      "columns": {
+        "channel": "Kanaal",
+        "status": "Status",
+        "live": "Live",
+        "created": "Aangemaakt"
+      },
+      "status": {
+        "active": "Actief",
+        "suspended": "Geschorst",
+        "churned": "Vertrokken",
+        "platform_banned": "Verbannen",
+        "unknown": "Onbekend"
+      },
+      "live": {
+        "live": "Live",
+        "offline": "Offline"
+      },
+      "filters": {
+        "statusLabel": "Status",
+        "liveLabel": "Live",
+        "status": {
+          "all": "Alles",
+          "active": "Actief",
+          "suspended": "Geschorst",
+          "platform_banned": "Verbannen"
+        },
+        "live": {
+          "all": "Alles",
+          "live": "Live",
+          "offline": "Offline"
+        }
+      },
+      "list": {
+        "title": "Kanalen",
+        "newestFirst": "Nieuwste eerst",
+        "empty": "Geen kanaal past bij deze filters.",
+        "error": "De kanaallijst kon niet laden.",
+        "forbidden": "Je mag de kanaallijst niet zien."
+      },
+      "pager": {
+        "page": "Pagina {page} van {pages}",
+        "previous": "Vorige",
+        "next": "Volgende"
+      }
+    }
+  }
+}

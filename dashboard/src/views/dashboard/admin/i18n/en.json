@@ -1,0 +1,54 @@
+{
+  "dashboard": {
+    "admin": {
+      "title": "Channels",
+      "crumb": "Admin",
+      "search": "Search channels",
+      "count": "{count} channels",
+      "columns": {
+        "channel": "Channel",
+        "status": "Status",
+        "live": "Live",
+        "created": "Created"
+      },
+      "status": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "churned": "Churned",
+        "platform_banned": "Banned",
+        "unknown": "Unknown"
+      },
+      "live": {
+        "live": "Live",
+        "offline": "Offline"
+      },
+      "filters": {
+        "statusLabel": "Status",
+        "liveLabel": "Live",
+        "status": {
+          "all": "All",
+          "active": "Active",
+          "suspended": "Suspended",
+          "platform_banned": "Banned"
+        },
+        "live": {
+          "all": "All",
+          "live": "Live",
+          "offline": "Offline"
+        }
+      },
+      "list": {
+        "title": "Channels",
+        "newestFirst": "Newest first",
+        "empty": "No channel matches these filters.",
+        "error": "The channel list could not load.",
+        "forbidden": "You may not see the channel list."
+      },
+      "pager": {
+        "page": "Page {page} of {pages}",
+        "previous": "Previous",
+        "next": "Next"
+      }
+    }
+  }
+}
