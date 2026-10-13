@@ -58,7 +58,8 @@ public sealed class ChatControllerTests
         IOperatorMessageDeleter? operatorDeleter = null,
         ICurrentUserService? currentUser = null,
         IChatEmoteCatalogue? emoteCatalogue = null,
-        IHubUserEnricher? enricher = null
+        IHubUserEnricher? enricher = null,
+        IChatSearchService? search = null
     ) =>
         new(
             db,
@@ -69,7 +70,8 @@ public sealed class ChatControllerTests
             operatorSender ?? Substitute.For<IOperatorChatSender>(),
             operatorDeleter ?? Substitute.For<IOperatorMessageDeleter>(),
             emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>(),
-            enricher ?? Substitute.For<IHubUserEnricher>()
+            enricher ?? Substitute.For<IHubUserEnricher>(),
+            search ?? Substitute.For<IChatSearchService>()
         );
 
     [Fact]
@@ -939,7 +941,8 @@ public sealed class ChatControllerTests
             Substitute.For<IOperatorChatSender>(),
             Substitute.For<IOperatorMessageDeleter>(),
             Substitute.For<IChatEmoteCatalogue>(),
-            Substitute.For<IHubUserEnricher>()
+            Substitute.For<IHubUserEnricher>(),
+            Substitute.For<IChatSearchService>()
         );
 
     [Fact]
