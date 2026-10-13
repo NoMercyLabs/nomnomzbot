@@ -220,8 +220,7 @@ async function banNow(): Promise<void> {
             v-if="!person.isBanned"
             data-profile-ban
             type="button"
-            variant="outline"
-            class="text-destructive hover:text-destructive"
+            variant="destructive"
             @click="confirmBan = true"
           >
             {{ $t('profile.ban.button') }}

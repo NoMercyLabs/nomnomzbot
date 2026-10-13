@@ -93,6 +93,17 @@ describe('folder layout', () => {
     expect(untranslated).toEqual([])
   })
 
+  // styles/frame.css gives harm one look: variant="destructive". A red class on another variant
+  // makes a second harm style (a red underlined link) that the frame rules never approved.
+  it('marks a harmful button only with the destructive variant, never a red class', () => {
+    const tinted: string[] = allPaths(src)
+      .filter((path) => path.endsWith('.vue') && !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'))
+      .filter((path) => /<Button\b[^>]*\bclass="[^"]*\btext-destructive\b/.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+
+    expect(tinted).toEqual([])
+  })
+
   // Stoney 2026-10-13 (translated from Dutch): "you are really going to town with all those em dashes". Copy uses plain sentences.
   it('writes no em dash in any words file', () => {
     const dashed: string[] = allPaths(src)

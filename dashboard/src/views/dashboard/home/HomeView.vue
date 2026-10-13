@@ -214,7 +214,7 @@ function eventTime(event: ActivityEvent): string {
                   :action="() => holdDeny(item.id)"
                   :revert="() => cancelDeny(item.id)"
                 >
-                  <Button variant="ghost" size="sm" class="text-destructive">
+                  <Button variant="destructive" size="sm">
                     {{ t('dashboard.home.queue.deny') }}
                   </Button>
                 </InlineFlow>

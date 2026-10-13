@@ -14,8 +14,9 @@
     "gen:api": "openapi-typescript ../server/openapi/v1.json -o src/api/schema.d.ts && node scripts/stamp-schema.mjs",
     "check:size": "vite build && node scripts/check-size.mjs",
     "lint": "run-s \"lint:*\"",
-    "lint:oxlint": "oxlint . --fix",
-    "lint:eslint": "eslint . --fix --cache",
+    "lint:oxlint": "oxlint .",
+    "lint:eslint": "eslint . --cache",
+    "fix": "oxlint . --fix && eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {

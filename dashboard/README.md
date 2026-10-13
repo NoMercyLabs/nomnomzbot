@@ -69,5 +69,6 @@ npm run test:e2e -- --debug
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh
-npm run lint
+npm run lint   # checks only, changes nothing
+npm run fix    # applies the lint fixes to every file
 ```
