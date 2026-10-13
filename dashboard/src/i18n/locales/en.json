@@ -86,7 +86,10 @@
       "empty": "Nothing needs your attention.",
       "open": "Open",
       "unknownTitle": "Something needs your attention",
-      "unknownMessage": "Open the page to see what to do."
+      "unknownMessage": "Open the page to see what to do.",
+      "saveFailedTitle": "A change was not saved",
+      "saveFailedMessage": "The screen went back to the earlier value. Try the change again.",
+      "dismiss": "Dismiss"
     }
   }
 }

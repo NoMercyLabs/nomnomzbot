@@ -86,7 +86,10 @@
       "empty": "Er is niets dat je aandacht nodig heeft.",
       "open": "Openen",
       "unknownTitle": "Er is iets dat je aandacht nodig heeft",
-      "unknownMessage": "Open de pagina om te zien wat je moet doen."
+      "unknownMessage": "Open de pagina om te zien wat je moet doen.",
+      "saveFailedTitle": "Een wijziging is niet opgeslagen",
+      "saveFailedMessage": "Het scherm is teruggegaan naar de vorige waarde. Probeer de wijziging opnieuw.",
+      "dismiss": "Sluiten"
     }
   }
 }
