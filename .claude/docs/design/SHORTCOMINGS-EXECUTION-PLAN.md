@@ -31,7 +31,6 @@ Stoney, verbatim:
 > i would like my chat settings and user active sidepannel to be made now.
 
 - **S-VUE-LIVE-UPDATES** — server pushes update the open page without a navigation. Done when a test pushes an event and the panel changes without a route change.
-- **S-VUE-ACTIVE-USERS-PANEL** — the active users side panel from the mockup.
 - **S-USER-CHAT-PREFERENCES** — a per-user GET/PUT for chat display preferences, so the Display
   drawer saves to the account on every device (the mockup's promise). Until it lands the drawer keeps
   its choices on the device and says so. Then the five options with no data yet: animated emotes
