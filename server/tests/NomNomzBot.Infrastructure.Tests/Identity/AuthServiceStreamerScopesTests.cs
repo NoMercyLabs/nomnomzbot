@@ -150,17 +150,15 @@ public sealed class AuthServiceStreamerScopesTests
     }
 
     /// <summary>
-    /// The regression this guards: SelfHostLite's "Log in" device-code button (no broadcaster hint yet — the
-    /// operator hasn't authenticated) used to always request the bare <see cref="ExpectedMinimalScopes"/>, so a
-    /// returning streamer re-logging in silently narrowed their connection back to the login minimum, dropping
-    /// every scope a progressive re-grant had added and re-firing their missing-scope chat notices as if freshly
-    /// detected. SelfHostLite has at most one channel, so the existing connection's scopes are already knowable
-    /// before the device code is requested — the fix unions them in, so a repeat login is a superset, never a
-    /// downgrade.
+    /// Stoney 2026-10-13: a returning streamer saw Twitch list 70 permissions on every device login, because
+    /// the start unioned the stored grant into the request. A login only proves who signs in: it asks the
+    /// login minimum, and the session path keeps the stored grant (AuthServiceReLoginKeepsFullGrantTests).
     /// </summary>
     [Fact]
-    public async Task StartTwitchDeviceLoginAsync_ForSelfHostLiteWithAnExistingConnection_UnionsItsScopes()
+    public async Task StartTwitchDeviceLoginAsync_ForSelfHostLiteWithAnExistingConnection_RequestsOnlyTheMinimalScopes()
     {
+        List<string> storedGrant = [.. new TwitchScopeRegistry().FullCatalogue.Take(70)];
+        storedGrant.Should().HaveCount(70);
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.IntegrationConnections.Add(
             new()
@@ -168,8 +166,7 @@ public sealed class AuthServiceStreamerScopesTests
                 BroadcasterId = Guid.Parse("0192a000-0000-7000-8000-0000000000e2"),
                 Provider = "twitch",
                 Status = "connected",
-                // Neither is in the minimal base set — a prior additive re-grant added them.
-                Scopes = ["user:read:email", "channel:manage:raids", "moderator:read:followers"],
+                Scopes = storedGrant,
             }
         );
         await db.SaveChangesAsync();
@@ -199,9 +196,8 @@ public sealed class AuthServiceStreamerScopesTests
             .Received(1)
             .RequestDeviceCodeAsync(
                 Arg.Is<IReadOnlyList<string>>(scopes =>
-                    scopes.Contains("channel:manage:raids")
-                    && scopes.Contains("moderator:read:followers")
-                    && scopes.Contains("user:read:chat") // minimal base still rides
+                    scopes.Count == ExpectedMinimalScopes.Length
+                    && ExpectedMinimalScopes.All(scopes.Contains)
                 ),
                 Arg.Any<CancellationToken>()
             );

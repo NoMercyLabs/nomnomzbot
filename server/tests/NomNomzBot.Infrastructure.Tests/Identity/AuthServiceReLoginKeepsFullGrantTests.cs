@@ -21,6 +21,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 
@@ -128,12 +129,128 @@ public sealed class AuthServiceReLoginKeepsFullGrantTests
             );
     }
 
+    [Fact]
+    public async Task A_selfhostlite_device_login_with_the_minimal_token_keeps_the_stored_grant_and_signs_the_owner_in()
+    {
+        List<string> storedGrant = [.. new TwitchScopeRegistry().FullCatalogue.Take(70)];
+        AuthDbContext db = await SeedAsync(AuthEnums.IntegrationStatus.Connected, storedGrant);
+        IIntegrationTokenVault vault = NewVault();
+        AuthService service = Build(
+            db,
+            vault,
+            tokenScopes: [],
+            DeploymentMode.SelfHostLite,
+            AuthorizedDevicePoll(MinimalLoginScopes)
+        );
+
+        Result<DeviceLoginPollDto> result = await service.PollTwitchDeviceLoginAsync(
+            "device-code",
+            new("desktop", "127.0.0.1", "test-agent")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(DeviceLoginStatus.Authorized);
+        result.Value.Auth.Should().NotBeNull();
+        result.Value.Auth!.User.Id.Should().Be(OwnerId.ToString());
+        result.Value.Auth.AccessToken.Should().Be("session-jwt");
+        await vault
+            .DidNotReceive()
+            .StoreTokensAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<StoreTokensDto>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await vault
+            .DidNotReceive()
+            .UpsertConnectionAsync(Arg.Any<UpsertConnectionDto>(), Arg.Any<CancellationToken>());
+        db.ChangeTracker.Clear();
+        IntegrationConnection connection = db.IntegrationConnections.Single(c =>
+            c.BroadcasterId == ChannelId
+        );
+        connection.Scopes.Should().BeEquivalentTo(storedGrant);
+    }
+
+    [Fact]
+    public async Task A_selfhostlite_device_regrant_with_granted_and_missing_scopes_replaces_the_stored_token()
+    {
+        List<string> storedGrant = ["user:read:email", "user:read:chat", "channel:manage:raids"];
+        AuthDbContext db = await SeedAsync(AuthEnums.IntegrationStatus.Connected, storedGrant);
+        IIntegrationTokenVault vault = NewVault();
+        string[] regrantScopes = [.. storedGrant, "channel:read:vips"];
+        AuthService service = Build(
+            db,
+            vault,
+            tokenScopes: [],
+            DeploymentMode.SelfHostLite,
+            AuthorizedDevicePoll(regrantScopes)
+        );
+
+        Result<DeviceLoginPollDto> result = await service.PollTwitchDeviceLoginAsync(
+            "device-code",
+            new("desktop", "127.0.0.1", "test-agent")
+        );
+
+        result.Value.Status.Should().Be(DeviceLoginStatus.Authorized);
+        await vault
+            .Received(1)
+            .UpsertConnectionAsync(
+                Arg.Is<UpsertConnectionDto>(c =>
+                    c.Scopes.Count == 4 && c.Scopes.Contains("channel:read:vips")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await vault
+            .Received(1)
+            .StoreTokensAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<StoreTokensDto>(t => t.AccessToken == "device-access-token"),
+                Arg.Is<IReadOnlyList<string>>(scopes =>
+                    scopes.Count == 4 && scopes.Contains("channel:read:vips")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ─── scaffolding ──────────────────────────────────────────────────────────────────────────────────────
+
+    private static readonly Guid OwnerId = Guid.Parse("0192a000-0000-7000-8000-00000000f001");
+
+    private static readonly string[] MinimalLoginScopes =
+    [
+        "user:read:email",
+        "user:read:chat",
+        "user:write:chat",
+        "user:read:moderated_channels",
+    ];
+
+    private static ITwitchDeviceCodeService AuthorizedDevicePoll(string[] tokenScopes)
+    {
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+        deviceCode
+            .PollOnceAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new DevicePollOutcome(
+                    DevicePollStatus.Authorized,
+                    new TokenResult(
+                        "device-access-token",
+                        "device-refresh-token",
+                        DateTime.UtcNow.AddHours(4),
+                        tokenScopes
+                    )
+                )
+            );
+        return deviceCode;
+    }
 
     private static async Task<AuthDbContext> SeedAsync(string status, List<string> storedScopes)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        Guid ownerId = Guid.Parse("0192a000-0000-7000-8000-00000000f001");
+        Guid ownerId = OwnerId;
 
         db.Users.Add(
             new()
@@ -206,7 +323,9 @@ public sealed class AuthServiceReLoginKeepsFullGrantTests
     private static AuthService Build(
         AuthDbContext db,
         IIntegrationTokenVault vault,
-        string[] tokenScopes
+        string[] tokenScopes,
+        DeploymentMode mode = DeploymentMode.SelfHostFull,
+        ITwitchDeviceCodeService? deviceCode = null
     )
     {
         ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
@@ -256,7 +375,7 @@ public sealed class AuthServiceReLoginKeepsFullGrantTests
         return new(
             db,
             twitchAuth,
-            Substitute.For<ITwitchDeviceCodeService>(),
+            deviceCode ?? Substitute.For<ITwitchDeviceCodeService>(),
             vault,
             sessions,
             Substitute.For<ISessionRevocationService>(),
@@ -264,7 +383,7 @@ public sealed class AuthServiceReLoginKeepsFullGrantTests
             credentials,
             httpClientFactory,
             config,
-            new(DeploymentMode.SelfHostFull),
+            new(mode),
             TimeProvider.System,
             new(),
             Substitute.For<IPlatformOwnerPrincipalMinter>(),
