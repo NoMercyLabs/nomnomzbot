@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -110,11 +109,16 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         // the whole gap into watch time (the root cause of the 2026-08-27 watch-time inflation bug). Folded
         // into the SaveChangesAsync below rather than a separate ExecuteUpdateAsync — there is normally at
         // most one stale row, so a tracked read-modify-write costs nothing extra here.
-        List<Domain.Stream.Entities.Stream> staleOpenStreams = await db
-            .Streams.Where(s => s.ChannelId == broadcasterId && s.EndedAt == null)
-            .ToListAsync(cancellationToken);
-        foreach (Domain.Stream.Entities.Stream stale in staleOpenStreams)
-            stale.EndedAt = @event.StartedAt;
+        // A stale row closes only at a provable end (the last chat of its window, which stops at this
+        // stream's start); with no chat it stays open rather than getting an invented length. The channel's
+        // stored title now belongs to the new stream, so no text is backfilled onto the old row.
+        await StreamRowReconciler.CloseOpenStreamsAsync(
+            db,
+            channel,
+            @event.StartedAt,
+            cancellationToken,
+            backfillText: false
+        );
 
         string? streamId = Ulid.NewUlid().ToString();
         Domain.Stream.Entities.Stream stream = new()

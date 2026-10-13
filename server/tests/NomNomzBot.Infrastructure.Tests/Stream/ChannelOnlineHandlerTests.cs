@@ -105,6 +105,9 @@ public sealed class ChannelOnlineHandlerTests
                 EndedAt = null, // never closed — the missed stream.offline
             }
         );
+        db.ChatMessages.Add(ChatAt("c1", staleStart.AddHours(1)));
+        db.ChatMessages.Add(ChatAt("c2", staleStart.AddHours(3)));
+        db.ChatMessages.Add(ChatAt("c3", new DateTimeOffset(2026, 8, 27, 19, 0, 0, TimeSpan.Zero)));
         await db.SaveChangesAsync();
 
         DateTimeOffset newStart = new(2026, 8, 27, 18, 0, 0, TimeSpan.Zero);
@@ -123,7 +126,9 @@ public sealed class ChannelOnlineHandlerTests
         NomNomzBot.Domain.Stream.Entities.Stream stale = await db.Streams.SingleAsync(s =>
             s.Id == "stale-stream"
         );
-        stale.EndedAt.Should().NotBeNull("the stale row must not stay open forever");
+        stale
+            .EndedAt.Should()
+            .Be(staleStart.AddHours(3), "the last chat before the new stream is the provable end");
 
         List<NomNomzBot.Domain.Stream.Entities.Stream> all = await db
             .Streams.Where(s => s.ChannelId == Broadcaster)
@@ -135,6 +140,58 @@ public sealed class ChannelOnlineHandlerTests
                 "the new stream stays open"
             );
     }
+
+    [Fact]
+    public async Task A_stale_open_stream_with_no_chat_in_its_window_closes_at_its_start_instead_of_an_invented_end()
+    {
+        (ChannelOnlineHandler sut, AuthDbContext db, _) = Build();
+        DateTimeOffset staleStart = new(2026, 8, 20, 10, 0, 0, TimeSpan.Zero);
+        db.Streams.Add(
+            new()
+            {
+                Id = "stale-stream",
+                ChannelId = Broadcaster,
+                StartedAt = staleStart,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        await sut.HandleAsync(
+            new ChannelOnlineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer9",
+                StreamTitle = "New session",
+                GameName = "Just Chatting",
+                StartedAt = new(2026, 8, 27, 18, 0, 0, TimeSpan.Zero),
+            }
+        );
+
+        NomNomzBot.Domain.Stream.Entities.Stream stale = await db.Streams.SingleAsync(s =>
+            s.Id == "stale-stream"
+        );
+        stale
+            .EndedAt.Should()
+            .Be(staleStart, "no chat proves a later end, and an open row would count as live");
+        stale.Title.Should().BeNull("the new stream's title is never copied onto the old row");
+    }
+
+    private static NomNomzBot.Domain.Chat.Entities.ChatMessage ChatAt(
+        string id,
+        DateTimeOffset at
+    ) =>
+        new()
+        {
+            Id = id,
+            BroadcasterId = Broadcaster,
+            UserId = "u1",
+            Username = "u1",
+            DisplayName = "U1",
+            UserType = "viewer",
+            Message = "hi",
+            CreatedAt = at.UtcDateTime,
+        };
 
     [Fact]
     public async Task A_new_go_live_clears_the_previous_streams_anchor()

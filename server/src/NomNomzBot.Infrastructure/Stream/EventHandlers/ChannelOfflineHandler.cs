@@ -96,6 +96,9 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
                 streamRecord.EndedAt = endedAt;
         }
 
+        // Any other row left open (an earlier missed offline, a restart) closes with it.
+        await StreamRowReconciler.CloseOpenStreamsAsync(db, channel, endedAt, cancellationToken);
+
         if (channelCtx is not null)
         {
             channelCtx.IsLive = false;
