@@ -22,41 +22,98 @@ namespace NomNomzBot.Infrastructure.Stream;
 internal static class StreamRowReconciler
 {
     /// <summary>
-    /// Closes every open Stream row of an offline channel. The end is the latest chat message stored
-    /// against that stream (the last proof the stream was running) when there is one, else
-    /// <paramref name="observedAt"/> — the moment the bot saw the channel offline. The newest closed row also
-    /// gets its empty title and category filled from the channel's stored values. Returns true when a row changed.
+    /// Closes every open Stream row of a channel the bot knows is not streaming, but only where the end is
+    /// provable: the latest chat message stored against that stream, else the latest chat message of the
+    /// channel inside the row's window (its <c>StartedAt</c> up to the next stream row's <c>StartedAt</c>, or
+    /// <paramref name="upperBound"/> when no later row exists). With no such chat the row stays open — the
+    /// bot never invents a stream length. The newest open row also gets its empty title and category
+    /// filled from the channel's stored values (<paramref name="backfillText"/>; the online handler passes
+    /// false because the channel's stored text then belongs to the NEW stream). Returns true when a row changed.
     /// </summary>
     internal static async Task<bool> CloseOpenStreamsAsync(
         IApplicationDbContext db,
         Channel channel,
-        DateTimeOffset observedAt,
-        CancellationToken ct
+        DateTimeOffset upperBound,
+        CancellationToken ct,
+        bool backfillText = true
     )
     {
         List<Domain.Stream.Entities.Stream> open = await db
             .Streams.Where(s => s.ChannelId == channel.Id && s.EndedAt == null)
-            .OrderByDescending(s => s.StartedAt)
             .ToListAsync(ct);
         if (open.Count == 0)
             return false;
+        open = open.OrderByDescending(s => s.StartedAt).ToList();
 
+        List<DateTimeOffset?> starts = await db
+            .Streams.Where(s => s.ChannelId == channel.Id)
+            .Select(s => s.StartedAt)
+            .ToListAsync(ct);
+
+        bool changed = false;
         foreach (Domain.Stream.Entities.Stream row in open)
         {
             // Tracked and already closed by the caller in this unit of work (exact end): keep it.
             if (row.EndedAt is not null)
                 continue;
 
-            DateTime? lastChat = await db
-                .ChatMessages.Where(m => m.StreamId == row.Id)
+            DateTimeOffset? end = await ProvableEndAsync(
+                db,
+                channel.Id,
+                row,
+                starts,
+                upperBound,
+                ct
+            );
+            if (end is null)
+                continue;
+            row.EndedAt = end;
+            changed = true;
+        }
+
+        if (backfillText && BackfillMetadata(open[0], channel))
+            changed = true;
+        return changed;
+    }
+
+    private static async Task<DateTimeOffset?> ProvableEndAsync(
+        IApplicationDbContext db,
+        Guid channelId,
+        Domain.Stream.Entities.Stream row,
+        List<DateTimeOffset?> starts,
+        DateTimeOffset upperBound,
+        CancellationToken ct
+    )
+    {
+        DateTime? lastChat = await db
+            .ChatMessages.Where(m => m.StreamId == row.Id)
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => (DateTime?)m.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (lastChat is null && row.StartedAt is { } start)
+        {
+            DateTimeOffset next = starts
+                .Where(s => s > start)
+                .Select(s => s!.Value)
+                .DefaultIfEmpty(upperBound)
+                .Min();
+            if (next > upperBound)
+                next = upperBound;
+            DateTime from = start.UtcDateTime;
+            DateTime to = next.UtcDateTime;
+            lastChat = await db
+                .ChatMessages.Where(m =>
+                    m.BroadcasterId == channelId && m.CreatedAt >= from && m.CreatedAt < to
+                )
                 .OrderByDescending(m => m.CreatedAt)
                 .Select(m => (DateTime?)m.CreatedAt)
                 .FirstOrDefaultAsync(ct);
-            row.EndedAt = EndOf(row, lastChat, observedAt);
         }
 
-        BackfillMetadata(open[0], channel);
-        return true;
+        return lastChat is { } chat
+            ? new DateTimeOffset(DateTime.SpecifyKind(chat, DateTimeKind.Utc))
+            : null;
     }
 
     /// <summary>
@@ -77,21 +134,5 @@ internal static class StreamRowReconciler
             changed = true;
         }
         return changed;
-    }
-
-    private static DateTimeOffset EndOf(
-        Domain.Stream.Entities.Stream row,
-        DateTime? lastChat,
-        DateTimeOffset observedAt
-    )
-    {
-        DateTimeOffset end = observedAt;
-        if (lastChat is { } chat)
-        {
-            DateTimeOffset chatAt = new(DateTime.SpecifyKind(chat, DateTimeKind.Utc));
-            if (chatAt < end)
-                end = chatAt;
-        }
-        return row.StartedAt is { } start && end < start ? start : end;
     }
 }

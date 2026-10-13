@@ -71,7 +71,7 @@ public sealed class StreamRowReconcilerTests
             GameName = game,
         };
 
-    private static ChatMessage Chat(string id, string streamId, DateTimeOffset at) =>
+    private static ChatMessage Chat(string id, string? streamId, DateTimeOffset at) =>
         new()
         {
             Id = id,
@@ -117,12 +117,13 @@ public sealed class StreamRowReconcilerTests
     }
 
     [Fact]
-    public async Task Without_any_chat_the_end_is_the_moment_the_bot_saw_the_channel_offline()
+    public async Task Without_any_chat_in_its_window_the_row_stays_open_because_no_end_is_provable()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         Channel channel = NewChannel();
         db.Channels.Add(channel);
         db.Streams.Add(OpenRow("s-1", Started));
+        db.ChatMessages.Add(Chat("before", null, Started.AddMinutes(-5)));
         await db.SaveChangesAsync();
 
         await StreamRowReconciler.CloseOpenStreamsAsync(
@@ -133,7 +134,56 @@ public sealed class StreamRowReconcilerTests
         );
         await db.SaveChangesAsync();
 
-        (await Reload(db, "s-1")).EndedAt.Should().Be(Observed);
+        Domain.Stream.Entities.Stream row = await Reload(db, "s-1");
+        row.EndedAt.Should().BeNull("a chat from before the stream started proves nothing");
+        row.Title.Should().Be("Chill night", "the text backfill still applies to an open row");
+    }
+
+    [Fact]
+    public async Task A_row_with_only_channel_chat_in_its_window_closes_at_the_last_such_message()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Channel channel = NewChannel();
+        db.Channels.Add(channel);
+        db.Streams.Add(OpenRow("s-1", Started));
+        db.ChatMessages.Add(Chat("a", null, Started.AddMinutes(10)));
+        db.ChatMessages.Add(Chat("b", null, Started.AddMinutes(90)));
+        await db.SaveChangesAsync();
+
+        await StreamRowReconciler.CloseOpenStreamsAsync(
+            db,
+            channel,
+            Observed,
+            CancellationToken.None
+        );
+        await db.SaveChangesAsync();
+
+        (await Reload(db, "s-1")).EndedAt.Should().Be(Started.AddMinutes(90));
+    }
+
+    [Fact]
+    public async Task Chat_after_the_next_streams_start_is_not_used_for_the_older_row()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Channel channel = NewChannel();
+        db.Channels.Add(channel);
+        db.Streams.Add(OpenRow("old", Started));
+        Domain.Stream.Entities.Stream next = OpenRow("next", Started.AddHours(5));
+        next.EndedAt = Started.AddHours(7);
+        db.Streams.Add(next);
+        db.ChatMessages.Add(Chat("in", null, Started.AddHours(1)));
+        db.ChatMessages.Add(Chat("later", null, Started.AddHours(6)));
+        await db.SaveChangesAsync();
+
+        await StreamRowReconciler.CloseOpenStreamsAsync(
+            db,
+            channel,
+            Observed,
+            CancellationToken.None
+        );
+        await db.SaveChangesAsync();
+
+        (await Reload(db, "old")).EndedAt.Should().Be(Started.AddHours(1));
     }
 
     [Fact]
@@ -143,6 +193,7 @@ public sealed class StreamRowReconcilerTests
         Channel channel = NewChannel(title: "Other title", game: null);
         db.Channels.Add(channel);
         db.Streams.Add(OpenRow("s-1", Started, title: "Real title"));
+        db.ChatMessages.Add(Chat("m", "s-1", Started.AddHours(1)));
         await db.SaveChangesAsync();
 
         await StreamRowReconciler.CloseOpenStreamsAsync(
@@ -156,7 +207,7 @@ public sealed class StreamRowReconcilerTests
         Domain.Stream.Entities.Stream row = await Reload(db, "s-1");
         row.Title.Should().Be("Real title");
         row.GameName.Should().BeEmpty("the channel has no stored game, so nothing is invented");
-        row.EndedAt.Should().Be(Observed);
+        row.EndedAt.Should().Be(Started.AddHours(1));
     }
 
     [Fact]
@@ -170,6 +221,8 @@ public sealed class StreamRowReconcilerTests
         Domain.Stream.Entities.Stream done = OpenRow("done", Started.AddDays(-5));
         done.EndedAt = Started.AddDays(-5).AddHours(1);
         db.Streams.Add(done);
+        db.ChatMessages.Add(Chat("o", "old", Started.AddDays(-3).AddHours(2)));
+        db.ChatMessages.Add(Chat("n", "new", Started.AddHours(2)));
         await db.SaveChangesAsync();
 
         await StreamRowReconciler.CloseOpenStreamsAsync(
@@ -180,7 +233,7 @@ public sealed class StreamRowReconcilerTests
         );
         await db.SaveChangesAsync();
 
-        (await Reload(db, "old")).EndedAt.Should().Be(Observed);
+        (await Reload(db, "old")).EndedAt.Should().Be(Started.AddDays(-3).AddHours(2));
         (await Reload(db, "old"))
             .Title.Should()
             .BeEmpty("an older stream is not given today's title");
@@ -230,6 +283,7 @@ public sealed class StreamRowReconcilerTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(NewChannel());
         db.Streams.Add(OpenRow("s-1", Started));
+        db.ChatMessages.Add(Chat("m", null, Started.AddHours(3)));
         await db.SaveChangesAsync();
 
         IChannelRegistry channels = Substitute.For<IChannelRegistry>();
@@ -271,7 +325,7 @@ public sealed class StreamRowReconcilerTests
         await sut.PollAllAsync(CancellationToken.None);
 
         Domain.Stream.Entities.Stream row = await Reload(db, "s-1");
-        row.EndedAt.Should().Be(Observed);
+        row.EndedAt.Should().Be(Started.AddHours(3));
         row.Title.Should().Be("Chill night");
     }
 
