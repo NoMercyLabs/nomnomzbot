@@ -14,6 +14,13 @@
       "working": "Bezig",
       "failed": "Dat is niet gelukt."
     },
+    "countdown": {
+      "minutes": "{label}: ongeveer {count} minuut | {label}: ongeveer {count} minuten",
+      "now": "{label}: nu"
+    },
+    "list": {
+      "newBelow": "{count} nieuw bericht hieronder | {count} nieuwe berichten hieronder"
+    },
     "panel": {
       "empty": "Hier is nog niets.",
       "error": "Dit paneel kon niet laden.",

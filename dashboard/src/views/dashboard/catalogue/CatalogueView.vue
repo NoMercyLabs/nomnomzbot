@@ -29,7 +29,9 @@ import SettingRow from '@/components/layout/SettingRow.vue'
 import StatStrip from '@/components/layout/StatStrip.vue'
 import StatTile from '@/components/layout/StatTile.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
+import Countdown from '@/components/layout/Countdown.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
+import VirtualList from '@/components/layout/VirtualList.vue'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -94,6 +96,30 @@ function submitForm(): void {
     formName.value = ''
     formOpen.value = false
   }, 800)
+}
+
+const countdownTarget: Ref<number> = ref(Date.now() + 15_000)
+const countdownZeros: Ref<number> = ref(0)
+
+function restartCountdown(): void {
+  countdownTarget.value = Date.now() + 15_000
+}
+
+// Demo data for the VirtualList example only: 5,000 generated rows, some long enough to wrap.
+interface DemoRow {
+  id: number
+  text: string
+}
+const demoRows: Ref<DemoRow[]> = ref(
+  Array.from({ length: 5000 }, (_: unknown, id: number) => ({
+    id,
+    text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) + (id % 7 === 0 ? ' ' + t('dashboard.catalogue.virtual.long') : ''),
+  })),
+)
+
+function addDemoRow(): void {
+  const id: number = demoRows.value.length
+  demoRows.value = [...demoRows.value, { id, text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) }]
 }
 
 function pause(): Promise<void> {
@@ -246,6 +272,48 @@ function confirmDelete(): void {
               >
                 <Button variant="outline">{{ t('dashboard.catalogue.flow.note.open') }}</Button>
               </InlineFlow>
+            </div>
+          </PanelCard>
+
+          <PanelCard :title="t('dashboard.catalogue.countdown.title')" pad>
+            <div class="flex items-center gap-4">
+              <b class="text-2xl font-semibold">
+                <Countdown
+                  :target="countdownTarget"
+                  :label="t('dashboard.catalogue.countdown.label')"
+                  @zero="countdownZeros += 1"
+                />
+              </b>
+              <Button variant="outline" @click="restartCountdown">
+                {{ t('dashboard.catalogue.countdown.restart') }}
+              </Button>
+              <span class="text-sm text-muted-foreground">
+                {{ t('dashboard.catalogue.countdown.count', { count: countdownZeros }) }}
+              </span>
+            </div>
+          </PanelCard>
+
+          <PanelCard :title="t('dashboard.catalogue.virtual.title')" pad>
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-4">
+                <Button variant="outline" @click="addDemoRow">{{ t('dashboard.catalogue.virtual.add') }}</Button>
+                <span class="text-sm text-muted-foreground">
+                  {{ t('dashboard.catalogue.virtual.count', { count: demoRows.length }) }}
+                </span>
+              </div>
+              <div class="flex h-72 flex-col">
+                <VirtualList
+                  stick
+                  :items="demoRows"
+                  :item-key="(row: DemoRow) => row.id"
+                  :estimate-size="36"
+                  :label="t('dashboard.catalogue.virtual.title')"
+                >
+                  <template #default="{ item }">
+                    <p class="px-3 py-2 text-sm">{{ item.text }}</p>
+                  </template>
+                </VirtualList>
+              </div>
             </div>
           </PanelCard>
 

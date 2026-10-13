@@ -14,6 +14,13 @@
       "working": "Working",
       "failed": "That did not work."
     },
+    "countdown": {
+      "minutes": "{label}: about {count} minute | {label}: about {count} minutes",
+      "now": "{label}: now"
+    },
+    "list": {
+      "newBelow": "{count} new message below | {count} new messages below"
+    },
     "panel": {
       "empty": "Nothing here yet.",
       "error": "This panel could not load.",

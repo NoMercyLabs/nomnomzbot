@@ -71,6 +71,12 @@
         "nameMissing": "Give the command a name.",
         "nameTaken": "A command named so already exists."
       },
+      "countdown": {
+        "title": "Countdown",
+        "label": "Next ad",
+        "restart": "Restart 15 s",
+        "count": "Reached zero {count} time | Reached zero {count} times"
+      },
       "flow": {
         "title": "Inline flow",
         "confirm": {
@@ -108,6 +114,13 @@
         "retried": "Retry pressed {count} times",
         "lead": "Lead panel",
         "quiet": "Quiet panel"
+      },
+      "virtual": {
+        "title": "Virtual list (demo data)",
+        "add": "Add a row",
+        "count": "{count} generated rows, only the ones in view are drawn",
+        "row": "Demo row {number}",
+        "long": "This demo row is longer on purpose, so that it wraps on a narrow screen and shows that rows are measured."
       },
       "layout": {
         "board": "Board",
