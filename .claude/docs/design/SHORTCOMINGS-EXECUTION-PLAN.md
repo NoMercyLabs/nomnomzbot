@@ -67,6 +67,15 @@ Owner answers, verbatim: "1. i don't know for scripts, they usually get what the
 
 Settled: our event names stay as they are (one uniform scheme). Test values reset to the sample after each run; the done state shows green with "Test again". Owner: "and retry on error?" — a failed run shows its reason with "Retry". Open: how a script declares or derives its events.
 
+## OWNER REQUEST 2026-10-13 — one safety status header on the chat page
+
+Owner, verbatim: "mod tools, follow and hate monitoring header should be made and contain a generic status with the number of messages or something so we can get rid of the current card header"
+
+### S-CHAT-SAFETY-STATUS — the chat page shows how safe chat is right now
+- **Decided by Arc:** one status per channel: a level and four meters, from the mockup (`3-live-split.html` lines 268-281). The meters are sliding 60-second windows held in memory per channel: messages a second (all chat lines / 60), follows a minute, new accounts a minute (first line of the stream from an account younger than 7 days, the `AccountRisk` young threshold), flagged lines a minute (non-dry-run `SpamDetection` rows plus AutoMod-held lines). Level: **Raid** while a `Campaign` cohort is open, a lockdown is engaged, shield mode is on, or follows spike (`ChannelBaseline`); **Watch** while a `Watching` cohort is open or any meter is over twice its baseline; **Over** for 5 minutes after Raid ends; else **Calm**. The status only reports, it never acts.
+- **Contract:** `GET channels/{channelId}/chat/safety-status` returns the snapshot; the hub pushes `chat_safety_status` on a level change and at most once every 2 seconds while a meter moves.
+- **Done-when:** a test drives chat, follows and a campaign through Calm → Watch → Raid → Over and asserts the snapshot and the pushed events; the chat feed card header gives way to the status strip on the dashboard.
+
 ## OWNER REQUEST 2026-10-14 — a chatter without a chat color gets the least-used one
 
 Owner, verbatim: "someone without a fixed chat collor should get one asigned that is least used by the chatters in the last 2 weeks of streaming, once they set one they take president"
