@@ -39,14 +39,15 @@ public sealed class CommunityControllerTests
         ITwitchChannelsApi channels,
         ITwitchModerationApi? moderation = null,
         ITwitchUsersApi? users = null,
-        ITwitchModeratorsApi? moderators = null
+        ITwitchModeratorsApi? moderators = null,
+        ITwitchSubscriptionsApi? subscriptions = null
     )
     {
         CommunityController controller = new(
             db,
             channels,
             moderators ?? Substitute.For<ITwitchModeratorsApi>(),
-            Substitute.For<ITwitchSubscriptionsApi>(),
+            subscriptions ?? Substitute.For<ITwitchSubscriptionsApi>(),
             moderation ?? Substitute.For<ITwitchModerationApi>(),
             TimeProvider.System,
             Substitute.For<ICommunityStandingService>(),
@@ -239,6 +240,121 @@ public sealed class CommunityControllerTests
         // No local User row → null, truthfully (no internal identity folded yet), not a fabricated guid.
         CommunityController.CommunityUserDto noRow = members.Single(m => m.Id == "twitch-999");
         noRow.InternalUserId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ListMembers_vip_passes_the_request_cursor_and_page_size_and_returns_the_twitch_cursor()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        TwitchPageRequest? seen = null;
+        moderators
+            .GetVipsAsync(
+                Arg.Any<Guid>(),
+                Arg.Do<TwitchPageRequest>(p => seen = p),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [
+                            new("vip-3", "Vip_Three", "vip_three"),
+                            new("vip-4", "Vip_Four", "vip_four"),
+                        ],
+                        NextCursor: "cursor-after-4",
+                        Total: 0
+                    )
+                )
+            );
+
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 2 },
+            role: "vip",
+            cursor: "cursor-after-2",
+            CancellationToken.None
+        );
+
+        TwitchPageRequest sent =
+            seen ?? throw new InvalidOperationException("GetVipsAsync was never called.");
+        sent.After.Should().Be("cursor-after-2");
+        sent.PageSize.Should().Be(2);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PaginatedResponse<CommunityController.CommunityUserDto> body =
+            (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
+        body.Data.Select(m => m.Id).Should().Equal("vip-3", "vip-4");
+        body.HasMore.Should().BeTrue();
+        body.NextCursor.Should().Be("cursor-after-4");
+    }
+
+    [Fact]
+    public async Task GetStats_counts_vips_across_every_twitch_page()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<TwitchPageRequest>(p => p.After == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [new("v1", "V1", "v1"), new("v2", "V2", "v2"), new("v3", "V3", "v3")],
+                        NextCursor: "page-2",
+                        Total: 0
+                    )
+                )
+            );
+        moderators
+            .GetVipsAsync(
+                Arg.Any<Guid>(),
+                Arg.Is<TwitchPageRequest>(p => p.After == "page-2"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [new("v4", "V4", "v4"), new("v5", "V5", "v5")],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelFollowerCountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(11));
+        ITwitchSubscriptionsApi subscriptions = Substitute.For<ITwitchSubscriptionsApi>();
+        subscriptions
+            .GetSubscriberCountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(7));
+
+        CommunityController controller = Build(
+            db,
+            channels,
+            moderators: moderators,
+            subscriptions: subscriptions
+        );
+
+        IActionResult result = await controller.GetStats(
+            Broadcaster.ToString(),
+            CancellationToken.None
+        );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<CommunityController.CommunityStatsDto> body =
+            (StatusResponseDto<CommunityController.CommunityStatsDto>)ok.Value!;
+        body.Data!.Vips.Should().Be(5);
     }
 
     private static List<CommunityController.CommunityUserDto> Data(IActionResult result)

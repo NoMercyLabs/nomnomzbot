@@ -439,18 +439,17 @@ public partial class CommunityController : BaseController
 
         int skip = (request.Page - 1) * request.Take;
 
-        // VIP tab: fetch from Twitch API, paginate in-memory
+        // VIP tab: cursor-based pagination directly from Twitch, like the follower tab.
         if (string.Equals(role, "vip", StringComparison.OrdinalIgnoreCase))
         {
             Result<TwitchPage<TwitchVip>> vipPage = await _moderators.GetVipsAsync(
                 broadcasterId,
-                new(),
+                new(After: cursor, PageSize: request.Take),
                 ct
             );
-            IReadOnlyList<TwitchVip> vips = vipPage.IsSuccess ? vipPage.Value.Items : [];
-            int vipTotal = vips.Count;
-
-            List<TwitchVip> pagedVips = [.. vips.Skip(skip).Take(request.Take + 1)];
+            IReadOnlyList<TwitchVip> pagedVips = vipPage.IsSuccess ? vipPage.Value.Items : [];
+            string? vipNextCursor = vipPage.IsSuccess ? vipPage.Value.NextCursor : null;
+            int vipTotal = vipPage.IsSuccess ? vipPage.Value.Total : 0;
 
             // VIP ids are Twitch user string ids — join on User.TwitchUserId.
             List<string> vipIds = [.. pagedVips.Select(v => v.UserId)];
@@ -479,44 +478,38 @@ public partial class CommunityController : BaseController
                 ct
             );
 
-            bool vipHasMore = pagedVips.Count > request.Take;
-
             List<CommunityUserDto> vipItems =
             [
-                .. pagedVips
-                    .Take(request.Take)
-                    .Select(v =>
-                    {
-                        vipUsers.TryGetValue(v.UserId, out User? user);
-                        vipChatStats.TryGetValue(v.UserId, out var stats);
-                        vipProfiles.TryGetValue(v.UserId, out ViewerProfile? profile);
-                        return new CommunityUserDto(
-                            v.UserId,
-                            user?.Id,
-                            user?.Username ?? v.UserLogin,
-                            user?.DisplayName ?? v.UserName,
-                            user?.ProfileImageUrl,
-                            stats?.MessageCount ?? 0,
-                            profile is null ? 0 : profile.TotalWatchSeconds / 3600.0,
-                            profile is null ? 0 : (int)profile.TotalCommandsUsed,
-                            "vip",
-                            false,
-                            stats?.FirstSeen
-                                ?? user?.CreatedAt
-                                ?? _timeProvider.GetUtcNow().UtcDateTime,
-                            stats?.LastSeen
-                                ?? user?.CreatedAt
-                                ?? _timeProvider.GetUtcNow().UtcDateTime
-                        );
-                    }),
+                .. pagedVips.Select(v =>
+                {
+                    vipUsers.TryGetValue(v.UserId, out User? user);
+                    vipChatStats.TryGetValue(v.UserId, out var stats);
+                    vipProfiles.TryGetValue(v.UserId, out ViewerProfile? profile);
+                    return new CommunityUserDto(
+                        v.UserId,
+                        user?.Id,
+                        user?.Username ?? v.UserLogin,
+                        user?.DisplayName ?? v.UserName,
+                        user?.ProfileImageUrl,
+                        stats?.MessageCount ?? 0,
+                        profile is null ? 0 : profile.TotalWatchSeconds / 3600.0,
+                        profile is null ? 0 : (int)profile.TotalCommandsUsed,
+                        "vip",
+                        false,
+                        stats?.FirstSeen
+                            ?? user?.CreatedAt
+                            ?? _timeProvider.GetUtcNow().UtcDateTime,
+                        stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
+                    );
+                }),
             ];
 
             return Ok(
                 new PaginatedResponse<CommunityUserDto>
                 {
                     Data = vipItems,
-                    NextPage = vipHasMore ? request.Page + 1 : null,
-                    HasMore = vipHasMore,
+                    HasMore = vipNextCursor is not null,
+                    NextCursor = vipNextCursor,
                     Total = vipTotal,
                 }
             );
@@ -676,12 +669,7 @@ public partial class CommunityController : BaseController
         );
         int subscribers = subscriberResult.IsSuccess ? subscriberResult.Value : 0;
 
-        Result<TwitchPage<TwitchVip>> vipResult = await _moderators.GetVipsAsync(
-            broadcasterId,
-            new(),
-            ct
-        );
-        int vipCount = vipResult.IsSuccess ? vipResult.Value.Items.Count : 0;
+        int vipCount = await CountVipsAsync(broadcasterId, ct);
 
         // Moderators: use the DB as the primary source because the community list
         // already reads from this table and it reflects onboarding sync.
@@ -696,6 +684,31 @@ public partial class CommunityController : BaseController
                 Data = new(followers, subscribers, vipCount, moderatorCount),
             }
         );
+    }
+
+    /// <summary>
+    /// Twitch Get VIPs reports no total, so the count walks every page (max 100 per page) until the cursor
+    /// runs out. A failed page yields 0 — never a partial count.
+    /// </summary>
+    private async Task<int> CountVipsAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        int count = 0;
+        string? cursor = null;
+        do
+        {
+            Result<TwitchPage<TwitchVip>> page = await _moderators.GetVipsAsync(
+                broadcasterId,
+                new(After: cursor, PageSize: 100),
+                ct
+            );
+            if (page.IsFailure)
+                return 0;
+
+            count += page.Value.Items.Count;
+            cursor = page.Value.NextCursor;
+        } while (cursor is not null);
+
+        return count;
     }
 
     // ── Banned users list ────────────────────────────────────────────────────
