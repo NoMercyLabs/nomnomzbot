@@ -17,16 +17,20 @@ export type CodeScriptSummary = components['schemas']['CodeScriptSummaryDto']
 export type ScriptProject = components['schemas']['ProjectDto']
 
 // The channel's scripts, first page. The bot reads the channel from the signed-in session, not from the path.
-export function useCodeScripts(): UseQueryReturnType<CodeScriptSummary[], Error> {
-  return useQuery({
-    queryKey: ['code-scripts'],
-    queryFn: async () => {
-      const { data } = await client.GET('/api/v{version}/code-scripts', {
-        params: { path: { version: '1' }, query: { PageSize: 100 } },
-      })
-      return [...(data?.data ?? [])]
-    },
+// A refusal (custom code switched off, no right) fails with the bot's reason; it is not an empty list.
+export async function fetchCodeScripts(): Promise<CodeScriptSummary[]> {
+  const { data, error, response } = await client.GET('/api/v{version}/code-scripts', {
+    params: { path: { version: '1' }, query: { PageSize: 100 } },
   })
+  if (error !== undefined) {
+    const reason: string | null | undefined = (error as { message?: string | null }).message
+    throw new Error(reason ?? `code scripts ${response.status}`)
+  }
+  return [...(data?.data ?? [])]
+}
+
+export function useCodeScripts(): UseQueryReturnType<CodeScriptSummary[], Error> {
+  return useQuery({ queryKey: ['code-scripts'], queryFn: fetchCodeScripts })
 }
 
 export async function fetchScriptProject(id: string): Promise<ScriptProject | null> {

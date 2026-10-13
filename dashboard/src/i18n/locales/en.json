@@ -251,7 +251,8 @@
     },
     "vip": {
       "make": "Make VIP",
-      "remove": "Remove VIP"
+      "remove": "Remove VIP",
+      "unknown": "VIP status unknown"
     },
     "ban": {
       "button": "Ban",

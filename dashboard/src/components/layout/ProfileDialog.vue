@@ -15,7 +15,7 @@ import { XIcon } from '@lucide/vue'
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useBanMember, useCommunityMember, useVipChange, useVipIds, type CommunityMember } from '@/api/community'
+import { useBanMember, useCommunityMember, useVipChange, type CommunityMember } from '@/api/community'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
@@ -47,14 +47,18 @@ const tab: Ref<string> = ref('overview')
 const confirmBan: Ref<boolean> = ref(false)
 
 const member = useCommunityMember(channelId, () => profile.userId)
-const vipIds = useVipIds(channelId)
 const person: ComputedRef<CommunityMember | null> = computed(() => member.data.value ?? null)
 
 // The mutations need the channel id when they are made; the dialog is mounted inside a signed-in channel.
 const vipChange = useVipChange(channelId.value ?? '')
 const ban = useBanMember(channelId.value ?? '')
 
-const isVip: ComputedRef<boolean> = computed(() => (vipIds.data.value ?? []).includes(profile.userId ?? ''))
+// Twitch answers per person; null means Twitch could not be asked, so the dialog says unknown instead of guessing.
+const isVip: ComputedRef<boolean | null> = computed(() => person.value?.isVip ?? null)
+const vipLabel: ComputedRef<string> = computed(() => {
+  if (isVip.value === null) return t('profile.vip.unknown')
+  return isVip.value ? t('profile.vip.remove') : t('profile.vip.make')
+})
 const title: ComputedRef<string> = computed(() => person.value?.displayName ?? t('profile.title'))
 const lines: ComputedRef<ActivityLine[]> = computed(() => person.value?.recentActivity ?? [])
 
@@ -95,7 +99,7 @@ function giveFocusBack(event: Event): void {
 }
 
 function toggleVip(): void {
-  if (!profile.userId) return
+  if (!profile.userId || isVip.value === null) return
   vipChange.mutate({ userId: profile.userId, vip: !isVip.value })
 }
 
@@ -222,8 +226,8 @@ async function banNow(): Promise<void> {
           >
             {{ $t('profile.ban.button') }}
           </Button>
-          <Button data-profile-vip type="button" :disabled="vipIds.isPending.value" @click="toggleVip">
-            {{ isVip ? $t('profile.vip.remove') : $t('profile.vip.make') }}
+          <Button data-profile-vip type="button" :disabled="isVip === null" @click="toggleVip">
+            {{ vipLabel }}
           </Button>
         </DialogFooter>
       </template>

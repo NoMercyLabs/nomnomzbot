@@ -23,11 +23,13 @@ import { useSaveErrorsStore } from '@/stores/saveErrors'
 type Call = { path: string; params: Record<string, unknown> | undefined; body: unknown }
 
 const calls: Call[] = []
-let vipIds: string[] = []
 let vipWrite: Promise<unknown> | null = null
 let vipWriteFails = false
 
-const people: Record<string, Record<string, unknown>> = {
+// Fresh per test: a VIP save changes the stored person, as the server's record would.
+let people: Record<string, Record<string, unknown>> = {}
+
+const freshPeople = (): Record<string, Record<string, unknown>> => ({
   u1: {
     id: 'u1',
     internalUserId: 'g1',
@@ -39,6 +41,8 @@ const people: Record<string, Record<string, unknown>> = {
     commandsUsed: 7,
     trustLevel: 'viewer',
     isBanned: false,
+    isVip: false,
+    isModerator: false,
     firstSeen: '2026-01-02T10:00:00Z',
     lastSeen: '2026-10-01T10:00:00Z',
     recentActivity: [
@@ -58,12 +62,14 @@ const people: Record<string, Record<string, unknown>> = {
     commandsUsed: 0,
     trustLevel: 'moderator',
     isBanned: true,
+    isVip: null,
+    isModerator: null,
     firstSeen: '2026-02-02T10:00:00Z',
     lastSeen: '2026-09-01T10:00:00Z',
     recentActivity: [],
     banHistory: [{ id: 'b1', bannedBy: 'Stoney_Eagle', reason: 'spam links', bannedAt: '2026-09-01T10:00:00Z', unbannedAt: null }],
   },
-}
+})
 
 type Options = { params?: Record<string, unknown>; body?: unknown }
 
@@ -71,26 +77,28 @@ function record(path: string, options: Options | undefined): void {
   calls.push({ path, params: options?.params, body: options?.body })
 }
 
+function userIdOf(options: Options | undefined): string {
+  return String((options?.params?.path as Record<string, unknown> | undefined)?.userId)
+}
+
 vi.mock('@/api/client', () => ({
   client: {
     GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options)
-      const userId: unknown = (options?.params?.path as Record<string, unknown> | undefined)?.userId
-      if (typeof userId === 'string') return { data: { data: people[userId] } }
-      return { data: { data: vipIds.map((id: string) => ({ id })) } }
+      return { data: { data: { ...people[userIdOf(options)] } } }
     }),
     POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options)
       if (path.endsWith('/vip')) {
         if (vipWrite) await vipWrite
         if (vipWriteFails) return { error: { status: 'error' }, response: { ok: false } }
-        vipIds = ['u1']
+        people[userIdOf(options)]!.isVip = true
       }
       return { response: { ok: true } }
     }),
     DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options)
-      vipIds = []
+      people[userIdOf(options)]!.isVip = false
       return { response: { ok: true } }
     }),
   },
@@ -106,7 +114,7 @@ let pinia: Pinia
 // jsdom has no layout: the chat list needs a viewport and row heights to render any rows.
 beforeEach(() => {
   calls.length = 0
-  vipIds = []
+  people = freshPeople()
   vipWrite = null
   vipWriteFails = false
   vi.stubGlobal(
@@ -291,6 +299,23 @@ describe('the profile dialog', () => {
 
     expect(button('[data-profile-vip]').textContent).toContain('Make VIP')
     expect(useSaveErrorsStore().items.length).toBe(1)
+  })
+
+  it('takes the VIP state from the person Twitch was asked about, not from a VIP list', async () => {
+    people.u1!.isVip = true
+    await openPage()
+    await openUser('u1')
+
+    expect(button('[data-profile-vip]').textContent).toContain('Remove VIP')
+    expect(calls.filter((c: Call) => !c.path.endsWith('/community/{userId}'))).toEqual([])
+  })
+
+  it('says the VIP state is unknown and offers no VIP change when Twitch could not be asked', async () => {
+    await openPage()
+    await openUser('u2')
+
+    expect(button('[data-profile-vip]').disabled).toBe(true)
+    expect(button('[data-profile-vip]').textContent).toContain('VIP status unknown')
   })
 
   it('closes on Esc and returns the focus to the name that opened it', async () => {

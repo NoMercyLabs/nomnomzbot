@@ -298,7 +298,10 @@ function confirmDelete(): void {
 
           <div class="flex items-center gap-4">
             <Button variant="outline" @click="openEditor">{{ t('dashboard.catalogue.codeEditor.open') }}</Button>
-            <span v-if="editorMissing" class="text-sm text-muted-foreground">
+            <span v-if="scripts.error.value" role="alert" class="text-sm text-destructive">
+              {{ scripts.error.value.message }}
+            </span>
+            <span v-else-if="editorMissing" class="text-sm text-muted-foreground">
               {{ t('dashboard.catalogue.codeEditor.none') }}
             </span>
           </div>
@@ -423,9 +426,10 @@ function confirmDelete(): void {
 
           <PanelCard
             :title="t('dashboard.catalogue.profile.title')"
-            :state="people.length > 0 ? 'ready' : 'empty'"
+            :state="community.isError.value ? 'error' : community.isPending.value ? 'loading' : people.length > 0 ? 'ready' : 'empty'"
             :empty-text="t('dashboard.catalogue.profile.empty')"
             pad
+            @retry="community.refetch()"
           >
             <p class="mb-3 text-sm text-muted-foreground">{{ t('dashboard.catalogue.profile.hint') }}</p>
             <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">

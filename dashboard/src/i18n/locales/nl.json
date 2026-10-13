@@ -251,7 +251,8 @@
     },
     "vip": {
       "make": "VIP maken",
-      "remove": "VIP weghalen"
+      "remove": "VIP weghalen",
+      "unknown": "VIP-status onbekend"
     },
     "ban": {
       "button": "Verbannen",

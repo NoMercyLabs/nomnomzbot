@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { QueryClient, VueQueryPlugin, type QueryKey } from '@tanstack/vue-query'
 import { createPinia, setActivePinia } from 'pinia'
 import { createApp, type App } from 'vue'
 import { describe, expect, it } from 'vitest'
@@ -33,7 +33,7 @@ function deferred(): Deferred {
   return { promise, resolve, reject }
 }
 
-function setup(send: (greeting: string) => Promise<Settings>) {
+function setup(send: (greeting: string) => Promise<Settings>, queryKey: QueryKey | ((greeting: string) => QueryKey) = key) {
   const queries: QueryClient = new QueryClient()
   queries.setQueryData(key, before)
   const pinia = createPinia()
@@ -42,7 +42,7 @@ function setup(send: (greeting: string) => Promise<Settings>) {
   const app: App = createApp({
     setup() {
       save = useOptimisticSave<Settings, string>({
-        queryKey: key,
+        queryKey,
         mutationFn: send,
         apply: (_current, greeting) => ({ greeting }),
       })
@@ -134,5 +134,32 @@ describe('useOptimisticSave', () => {
     second.resolve({ greeting: 'two (server)' })
     await two
     expect(cached(queries)).toEqual({ greeting: 'two (server)' })
+  })
+
+  it('saves each change into the cache entry its own key names, and rolls back only that entry', async () => {
+    const other: string[] = ['channels', 'c1', 'other']
+    const first: Deferred = deferred()
+    const second: Deferred = deferred()
+    const answers: Deferred[] = [first, second]
+    const { queries, save } = setup(
+      () => (answers.shift() as Deferred).promise,
+      (greeting: string) => (greeting.startsWith('other') ? other : key),
+    )
+    queries.setQueryData(other, { greeting: 'other before' })
+
+    const one: Promise<unknown> = save.mutateAsync('mine').catch((error: Error) => error)
+    await settle()
+    const two: Promise<Settings> = save.mutateAsync('other after')
+    await settle()
+    expect(cached(queries)).toEqual({ greeting: 'mine' })
+    expect(queries.getQueryData(other)).toEqual({ greeting: 'other after' })
+
+    first.reject(new Error('500'))
+    await one
+    second.resolve({ greeting: 'other after (server)' })
+    await two
+
+    expect(cached(queries)).toStrictEqual({ greeting: 'before' })
+    expect(queries.getQueryData(other)).toEqual({ greeting: 'other after (server)' })
   })
 })

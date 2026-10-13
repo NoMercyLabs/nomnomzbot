@@ -27,10 +27,8 @@ export type CommunityMember = components['schemas']['UserDetailDto']
 export type CommunityRow = components['schemas']['CommunityUserDto']
 
 const version = '1'
-const VIP_PAGE_SIZE = 100
 
 export const memberKey = (channelId: string | null, userId: string | null): unknown[] => ['community', channelId, 'member', userId]
-export const vipKey = (channelId: string | null): unknown[] => ['community', channelId, 'vips']
 
 // The id in the route is the Twitch user id (CommunityUserDto.id, UserDetailDto.id).
 async function fetchMember(channelId: string, userId: string): Promise<CommunityMember | null> {
@@ -56,49 +54,33 @@ export function useCommunityFirstPage(channelId: MaybeRefOrGetter<string | null>
   return useQuery({
     queryKey: computed(() => ['community', toValue(channelId), 'first-page']),
     queryFn: async (): Promise<CommunityRow[]> => {
-      const { data } = await client.GET('/api/v{version}/channels/{channelId}/community', {
+      const { data, error, response } = await client.GET('/api/v{version}/channels/{channelId}/community', {
         params: { path: { version, channelId: toValue(channelId)! }, query: { PageSize: 5 } },
       })
+      // A refusal is an error state, not an empty community.
+      if (error !== undefined) throw new Error(`community ${response.status}`)
       return data?.data ?? []
     },
     enabled: computed(() => toValue(channelId) !== null),
   })
 }
 
-// Twitch decides who is a VIP, and the member record does not carry it, so the VIP list answers (first 100).
-async function fetchVipIds(channelId: string): Promise<string[]> {
-  const { data } = await client.GET('/api/v{version}/channels/{channelId}/community', {
-    params: { path: { version, channelId }, query: { role: 'vip', PageSize: VIP_PAGE_SIZE } },
-  })
-  return (data?.data ?? []).map((row: CommunityRow) => row.id)
-}
-
-export function useVipIds(channelId: MaybeRefOrGetter<string | null>): UseQueryReturnType<string[], Error> {
-  return useQuery({
-    queryKey: computed(() => vipKey(toValue(channelId))),
-    queryFn: () => fetchVipIds(toValue(channelId)!),
-    enabled: computed(() => toValue(channelId) !== null),
-  })
-}
-
 export type VipChange = { userId: string; vip: boolean }
 
-// Grant or revoke VIP. The VIP list changes at once; a failed save rolls it back and reaches the error inbox.
-export function useVipChange(channelId: string): UseMutationReturnType<string[], Error, VipChange, number> {
-  return useOptimisticSave<string[], VipChange>({
-    queryKey: vipKey(channelId),
-    mutationFn: async ({ userId, vip }: VipChange): Promise<string[]> => {
+// Grant or revoke VIP. That member's record changes at once; a failed save rolls it back and reaches the error inbox.
+export function useVipChange(channelId: string): UseMutationReturnType<CommunityMember | null, Error, VipChange, number> {
+  return useOptimisticSave<CommunityMember | null, VipChange>({
+    queryKey: ({ userId }: VipChange) => memberKey(channelId, userId),
+    mutationFn: async ({ userId, vip }: VipChange): Promise<CommunityMember | null> => {
       const params = { params: { path: { version, channelId, userId } } }
       const { error } = vip
         ? await client.POST('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
         : await client.DELETE('/api/v{version}/channels/{channelId}/community/{userId}/vip', params)
       if (error) throw new Error('vip change failed')
-      return fetchVipIds(channelId)
+      return fetchMember(channelId, userId)
     },
-    apply: (current: string[] | undefined, { userId, vip }: VipChange): string[] => {
-      const rest: string[] = (current ?? []).filter((id: string) => id !== userId)
-      return vip ? [...rest, userId] : rest
-    },
+    apply: (current: CommunityMember | null | undefined, { vip }: VipChange): CommunityMember | null =>
+      current ? { ...current, isVip: vip } : null,
   })
 }
 
