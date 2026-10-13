@@ -413,8 +413,10 @@ try
 
     // OpenAPI. Owned-id schemas render as ULID strings (not uuid) so the committed contract matches the wire.
     builder.Services.AddOpenApi(options =>
-        options.AddSchemaTransformer(new UlidGuidSchemaTransformer())
-    );
+    {
+        options.AddSchemaTransformer(new UlidGuidSchemaTransformer());
+        options.AddSchemaTransformer(new OpenMapSchemaTransformer());
+    });
 
     // CORS
     builder.Services.AddCors(options =>

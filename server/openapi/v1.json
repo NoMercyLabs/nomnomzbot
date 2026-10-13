@@ -104095,7 +104095,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "exemptRoles": {
             "type": [
@@ -104696,7 +104697,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "eventSubscriptions": {
             "type": [
@@ -106611,7 +106613,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "One channel earning rule (economy.md §4). `Source` is an `EarningSource` token."
@@ -108078,7 +108081,8 @@
             "type": "string"
           },
           "defaultSettings": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": { }
           },
           "defaultEventSubscriptions": {
             "type": "array",
@@ -108308,7 +108312,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "A channel's configuration for one game (economy.md §4)."
@@ -108433,13 +108438,15 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "outcome": {
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "One live game session as the dashboard sees it (live-games.md §5)."
@@ -111604,7 +111611,8 @@
             ]
           },
           "settings": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": { }
           },
           "exemptRoles": {
             "type": "array",
@@ -112876,7 +112884,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "One raw OBS-WS request (the generic pass-through surface)."
@@ -112918,7 +112927,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "error": {
             "type": [
@@ -113218,7 +113228,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "REST body for the vendor pass-through route (obs-websocket v5 `CallVendorRequest`) —\r\n            the escape hatch for third-party OBS plugins that add their own vendor requests."
@@ -113612,7 +113623,8 @@
             }
           },
           "settings": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": { }
           }
         },
         "description": "One widget in the overlay manifest. string OverlayWidgetEntry.TrustTier (first_party | verified_community | unverified) is\r\nderived from the widget's `Source` and drives the render-time CSP tier — a self-authored (custom) widget is\r\nalways `unverified` (fail-closed)."
@@ -117388,7 +117400,8 @@
             "type": "string"
           },
           "config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": { }
           },
           "conditionType": {
             "type": [
@@ -117400,7 +117413,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "isEnabled": {
             "type": "boolean",
@@ -124518,7 +124532,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "message": {
             "type": [
@@ -140172,7 +140187,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "exemptRoles": {
             "type": [
@@ -141387,7 +141403,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "eventSubscriptions": {
             "type": [
@@ -141620,7 +141637,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "Upsert one earning rule (economy.md §4). string UpsertEarningRuleRequest.Source is an `EarningSource` token."
@@ -141765,7 +141783,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "Upsert a game configuration (economy.md §4). string UpsertGameConfigRequest.Category is a GameCategory token."
@@ -143881,7 +143900,8 @@
             "format": "ulid"
           },
           "settings": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": { }
           },
           "eventSubscriptions": {
             "type": "array",
@@ -143937,7 +143957,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           },
           "variables": {
             "type": [
@@ -144151,7 +144172,8 @@
             "type": [
               "null",
               "object"
-            ]
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "The test-fire request: an event type, and an optional explicit payload (a sample is used when omitted)."
