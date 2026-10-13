@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <!--
   Copyright (c) NoMercy Labs.
 
@@ -10,9 +10,17 @@
 -->
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="dark" />
+    <!-- The theme background (tokens.css :root), painted before any script or stylesheet loads, so a
+         light or dark system never flashes white first. -->
+    <style>
+      html {
+        background: oklch(0.177638 0 0);
+      }
+    </style>
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NomNomzBot</title>
   </head>
   <body>

@@ -133,6 +133,20 @@ describe('folder layout', () => {
     expect(own).toEqual([])
   })
 
+  // Stoney 2026-10-13: "please hardcode the background color for light and darkmode systems so i don't get
+  // flashbang'd". The page shell paints the theme background before any script or stylesheet loads.
+  it('paints the theme background in the page shell before any stylesheet loads', () => {
+    const shell: string = readFileSync(join(src, '..', 'index.html'), 'utf8')
+    const tokens: string = readFileSync(join(src, 'styles', 'tokens.css'), 'utf8')
+    const dark: string = /:root\s*\{[^}]*--background:\s*([^;]+);/.exec(tokens)?.[1] ?? 'missing'
+    const head: string = shell.slice(0, shell.indexOf('</head>'))
+
+    expect(head).toMatch(/<meta name="color-scheme" content="dark"\s*\/?>/)
+    expect(head).toMatch(
+      new RegExp(`<style>[^<]*html\\s*\\{[^}]*background:\\s*${dark.replace(/[()]/g, '\\$&')}`),
+    )
+  })
+
   // Stoney 2026-10-13: "If I have to correct you on icons then you're fired" and "use the moooom icons
   // from my designer". Icons come from the designer pack (`~icons/nnz/<name>`, assets/icons/line); brand
   // logos from simple-icons, drawn by PlatformLogo from the library's own path. Lucide stays only inside
