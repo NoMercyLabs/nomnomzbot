@@ -33,7 +33,40 @@
         "title": "Script",
         "pick": "Pick a script to see it here.",
         "notFound": "No script has the id \"{id}\".",
-        "soon": "The details of a script show here soon."
+        "on": "On",
+        "off": "Off",
+        "switchLabel": "Switch this script on or off",
+        "runFailed": "Last run failed",
+        "runWorked": "Last run worked, {when}",
+        "noDescription": "This script has no description.",
+        "version": "Version",
+        "language": "Language",
+        "powers": {
+          "title": "Powers",
+          "note": "The powers this script asks for in its manifest.",
+          "none": "This script asks for no powers."
+        },
+        "settings": "Settings",
+        "noSettings": "No settings available yet.",
+        "limits": "Each run stops after 8 s, 64 calls or 64 MB.",
+        "delete": "Delete",
+        "back": "Back to the list"
+      },
+      "delete": {
+        "title": "Delete {name}?",
+        "description": "This cannot be undone.",
+        "action": "Delete script",
+        "line": "{count} {what}: {names}",
+        "lineAtLeast": "At least {count} {what}: {names}",
+        "nothing": "Nothing else uses this script."
+      },
+      "new": {
+        "button": "New script",
+        "title": "New script",
+        "description": "It starts with a small example. It stays off until you switch it on.",
+        "action": "Create script",
+        "name": "Name",
+        "namePlaceholder": "My script"
       }
     }
   }

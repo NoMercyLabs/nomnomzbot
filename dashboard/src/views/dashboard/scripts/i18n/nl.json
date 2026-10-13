@@ -33,7 +33,40 @@
         "title": "Script",
         "pick": "Kies een script om het hier te zien.",
         "notFound": "Geen script heeft de id \"{id}\".",
-        "soon": "De details van een script verschijnen hier binnenkort."
+        "on": "Aan",
+        "off": "Uit",
+        "switchLabel": "Zet dit script aan of uit",
+        "runFailed": "Laatste run mislukte",
+        "runWorked": "Laatste run werkte, {when}",
+        "noDescription": "Dit script heeft geen beschrijving.",
+        "version": "Versie",
+        "language": "Taal",
+        "powers": {
+          "title": "Rechten",
+          "note": "De rechten die dit script vraagt in zijn manifest.",
+          "none": "Dit script vraagt geen rechten."
+        },
+        "settings": "Instellingen",
+        "noSettings": "Nog geen instellingen beschikbaar.",
+        "limits": "Elke run stopt na 8 s, 64 aanroepen of 64 MB.",
+        "delete": "Verwijderen",
+        "back": "Terug naar de lijst"
+      },
+      "delete": {
+        "title": "{name} verwijderen?",
+        "description": "Dit kan niet ongedaan worden gemaakt.",
+        "action": "Script verwijderen",
+        "line": "{count} {what}: {names}",
+        "lineAtLeast": "Minstens {count} {what}: {names}",
+        "nothing": "Niets anders gebruikt dit script."
+      },
+      "new": {
+        "button": "Nieuw script",
+        "title": "Nieuw script",
+        "description": "Het begint met een klein voorbeeld. Het blijft uit tot je het aanzet.",
+        "action": "Script maken",
+        "name": "Naam",
+        "namePlaceholder": "Mijn script"
       }
     }
   }

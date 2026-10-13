@@ -11,6 +11,7 @@
 // The Scripts page: every code script of the channel as a list, tabs that filter it, and a slot for one script beside it.
 // The script in view is the id in ?script=. Tab counts come from the loaded list: the bot has no count endpoint.
 // A refusal of the list (custom code switched off, no right) shows the bot's own reason, not the empty text.
+import { Plus } from '@lucide/vue'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
@@ -21,9 +22,12 @@ import PageHeader from '@/components/layout/PageHeader.vue'
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
 import SearchField from '@/components/layout/SearchField.vue'
+import { Button } from '@/components/ui/button'
 import { usePageView } from '@/composables/usePageView'
 import { usePanelState } from '@/composables/usePanelState'
 
+import NewScriptDialog from './components/NewScriptDialog.vue'
+import ScriptDetail from './components/ScriptDetail.vue'
 import ScriptRow from './components/ScriptRow.vue'
 
 const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed']
@@ -96,20 +100,38 @@ const count: ComputedRef<string | undefined> = computed(() =>
 const asked: ComputedRef<string> = computed<string>(() =>
   typeof route.query.script === 'string' ? route.query.script : '',
 )
-// No row shows as selected until one is picked: the detail slot has nothing to show for it yet.
 const selectedId: ComputedRef<string> = asked
 
 function pick(script: CodeScriptSummary): void {
   void router.push({ query: { ...route.query, script: script.id } })
 }
+
+function back(): void {
+  const { script, ...rest } = route.query
+  void script
+  void router.push({ query: rest })
+}
+
+const newOpen: Ref<boolean> = ref(false)
+
+function opened(id: string | null): void {
+  if (id !== null) void router.push({ query: { ...route.query, script: id } })
+}
 </script>
 
 <template>
   <PageHeader :title="$t('dashboard.scripts.title')" :crumb="$t('dashboard.scripts.crumb')">
+    <template #actions>
+      <Button variant="outline" @click="newOpen = true">
+        <Plus aria-hidden="true" />
+        {{ $t('dashboard.scripts.new.button') }}
+      </Button>
+    </template>
     <template #tabs>
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
+  <NewScriptDialog v-model:open="newOpen" @created="opened" />
   <ListDetail :show-detail="asked !== ''">
     <template #list>
       <div class="mb-3 grid gap-2">
@@ -139,13 +161,19 @@ function pick(script: CodeScriptSummary): void {
       </PanelCard>
     </template>
     <template #detail>
+      <ScriptDetail
+        v-if="asked !== ''"
+        :script-id="asked"
+        :summary="loaded?.find((one: CodeScriptSummary) => one.id === asked)"
+        @back="back"
+        @deleted="back"
+      />
       <PanelCard
+        v-else
         class="flex-1"
         :title="$t('dashboard.scripts.detail.title')"
         state="empty"
-        :empty-text="
-          asked === '' ? $t('dashboard.scripts.detail.pick') : $t('dashboard.scripts.detail.soon')
-        "
+        :empty-text="$t('dashboard.scripts.detail.pick')"
       />
     </template>
   </ListDetail>

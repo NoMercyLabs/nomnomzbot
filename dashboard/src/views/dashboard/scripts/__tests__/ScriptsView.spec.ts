@@ -32,6 +32,8 @@ const REFUSAL: string = 'Custom code is switched off for this channel.'
 const calls: Call[] = []
 let scripts: Record<string, unknown>[] = []
 let refused: boolean = false
+let blast: Record<string, unknown> = { categories: [], isMinimum: false, totalReferences: 0 }
+let detailExtra: Record<string, unknown> = {}
 
 const script = (
   id: string,
@@ -63,14 +65,31 @@ const fixtures = (): Record<string, unknown>[] => [
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string): Promise<Answer> => {
-      calls.push({ method: 'GET', path, body: undefined, id: '' })
+    GET: async (path: string, options?: Options): Promise<Answer> => {
+      const id: string = String(options?.params?.path?.id ?? '')
+      calls.push({ method: 'GET', path, body: undefined, id })
       if (refused)
         return {
           error: { message: REFUSAL },
           response: { status: 403, ok: false },
         }
+      if (path.endsWith('/blast-radius'))
+        return { data: { data: blast }, response: { status: 200, ok: true } }
+      if (path.endsWith('/code-scripts/{id}')) {
+        const row: Record<string, unknown> | undefined = scripts.find((one) => one.id === id)
+        return { data: { data: { ...row, ...detailExtra } }, response: { status: 200, ok: true } }
+      }
       return { data: { data: scripts }, response: { status: 200, ok: true } }
+    },
+    POST: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'POST', path, body: options?.body, id: '' })
+      return { data: { data: { id: 'new1' } }, response: { status: 200, ok: true } }
+    },
+    DELETE: async (path: string, options?: Options): Promise<Answer> => {
+      const id: string = String(options?.params?.path?.id)
+      calls.push({ method: 'DELETE', path, body: undefined, id })
+      scripts = scripts.filter((row) => row.id !== id)
+      return { data: { data: null }, response: { status: 200, ok: true } }
     },
     PATCH: async (path: string, options?: Options): Promise<Answer> => {
       const id: string = String(options?.params?.path?.id)
@@ -93,6 +112,22 @@ let router: Router
 beforeEach(() => {
   calls.length = 0
   refused = false
+  blast = {
+    categories: [
+      { categoryKey: 'dashboard.scripts.blast.pipelines', count: 2, sample: ['Raid flow', 'Hype'] },
+      { categoryKey: 'dashboard.scripts.blast.timers', count: 1, sample: ['Hourly'] },
+    ],
+    isMinimum: false,
+    totalReferences: 3,
+  }
+  detailExtra = {
+    language: 'typescript',
+    currentVersionId: 'v1',
+    currentVersion: {
+      version: 3,
+      declaredCapabilities: ['chat.send', 'variables.write'],
+    },
+  }
   scripts = fixtures()
   pinia = createPinia()
   setActivePinia(pinia)
@@ -150,6 +185,10 @@ const tabCount = (label: string): string =>
   )
     .replace(label, '')
     .trim()
+const byText = (selector: string, label: string): HTMLElement | undefined =>
+  [...document.body.querySelectorAll<HTMLElement>(selector)].find(
+    (node) => node.textContent?.trim() === label,
+  )
 const typeSearch = async (value: string): Promise<void> => {
   const input: HTMLInputElement = document.body.querySelector(
     'input[type="search"]',
@@ -228,6 +267,75 @@ describe('ScriptsView', () => {
     expect(text()).toContain(REFUSAL)
     expect(text()).not.toContain('This channel has no scripts yet.')
     expect(rowNames()).toEqual([])
+  })
+
+  it('opens Delete with the blast counts, sends no DELETE before confirm and one after', async () => {
+    await open('/app/scripts?script=s1')
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0)
+
+    byText('button', 'Delete')!.click()
+    await settle()
+
+    const dialog: string = document.body.querySelector('[role="alertdialog"]')?.textContent ?? ''
+    expect(dialog).toContain('2 pipelines')
+    expect(dialog).toContain('1 timers')
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0)
+
+    ;(document.body.querySelector('[data-confirm-action]') as HTMLElement).click()
+    await settle()
+
+    const deletes: Call[] = calls.filter((call) => call.method === 'DELETE')
+    expect(deletes).toHaveLength(1)
+    expect(deletes[0]!.id).toBe('s1')
+    expect(rowNames()).not.toContain('Hype Train Banner')
+  })
+
+  it('says at least when the blast count is only a minimum', async () => {
+    blast = { ...blast, isMinimum: true }
+    await open('/app/scripts?script=s1')
+
+    byText('button', 'Delete')!.click()
+    await settle()
+
+    const dialog: string = document.body.querySelector('[role="alertdialog"]')?.textContent ?? ''
+    expect(dialog).toContain('At least 2 pipelines')
+    expect(dialog).toContain('At least 1 timers')
+  })
+
+  it('creates a script with name, description and starter code, then opens it', async () => {
+    await open()
+
+    byText('button', 'New script')!.click()
+    await settle()
+    const input: HTMLInputElement = document.body.querySelector(
+      '[role="dialog"] input',
+    ) as HTMLInputElement
+    input.value = 'Dice'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await settle()
+    byText('button', 'Create script')!.click()
+    await settle()
+
+    const posts: Call[] = calls.filter((call) => call.method === 'POST')
+    expect(posts).toHaveLength(1)
+    const body: Record<string, unknown> = posts[0]!.body as Record<string, unknown>
+    expect(body.name).toBe('Dice')
+    expect(body.description).toBe('')
+    expect(String(body.sourceCode)).toContain('nnz.random.int')
+    expect(router.currentRoute.value.query.script).toBe('new1')
+  })
+
+  it('lists the declared powers as plain text with no control', async () => {
+    await open('/app/scripts?script=s1')
+
+    const powers: HTMLElement = document.body.querySelector(
+      '[data-slot="script-powers"]',
+    ) as HTMLElement
+    expect(powers.textContent).toContain('chat.send')
+    expect(powers.textContent).toContain('variables.write')
+    expect(powers.querySelectorAll('button, input, [role="switch"]')).toHaveLength(0)
+    expect(document.body.textContent).toContain('Version')
+    expect(document.body.textContent).toContain('typescript')
   })
 
   it('says so when the channel has no scripts', async () => {
