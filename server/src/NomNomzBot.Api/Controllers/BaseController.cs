@@ -429,6 +429,7 @@ public abstract class BaseController : ControllerBase
                 Data = pagedList.Items,
                 NextPage = pagedList.HasNextPage ? pagedList.Page + 1 : null,
                 HasMore = pagedList.HasNextPage,
+                Total = pagedList.TotalCount,
             }
         );
     }
