@@ -18,10 +18,13 @@ import { shieldKey } from '@/api/shield'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({ HubConnectionBuilder: FakeHubConnectionBuilder, HubConnection: FakeHubConnection }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 type Hub = typeof import('../dashboardHub')
-type Status = typeof import('../hubStatus')['dashboardHubStatus']
+type Status = (typeof import('../hubStatus'))['dashboardHubStatus']
 
 // Modules are loaded again for each test, so the status ref comes from the same load as the hub.
 let dashboardHubStatus: Status
@@ -56,19 +59,42 @@ describe('dashboard hub events', () => {
     queries.setQueryData(myChannelsQuery.queryKey, [row('c1', false), row('c2', false)])
     await hub.watchChannel('c1')
 
-    connection.receive('StreamStatusChanged', { isLive: true, streamId: 's', title: 't', gameName: 'g', startedAt: null })
+    connection.receive('StreamStatusChanged', {
+      isLive: true,
+      streamId: 's',
+      title: 't',
+      gameName: 'g',
+      startedAt: null,
+    })
 
     const rows: ChannelSummary[] | undefined = queries.getQueryData(myChannelsQuery.queryKey)
-    expect(rows?.map((r) => [r.id, r.isLive])).toEqual([['c1', true], ['c2', false]])
+    expect(rows?.map((r) => [r.id, r.isLive])).toEqual([
+      ['c1', true],
+      ['c2', false],
+    ])
   })
 
   it('shield mode begin and end write the boolean the shield query reads', async () => {
     const [hub, queries, connection] = await started()
     await hub.watchChannel('c1')
 
-    connection.receive('ChannelEvent', { type: 'shield_mode_begin', broadcasterId: 'x', userId: null, userDisplayName: null, data: {}, timestamp: '' })
+    connection.receive('ChannelEvent', {
+      type: 'shield_mode_begin',
+      broadcasterId: 'x',
+      userId: null,
+      userDisplayName: null,
+      data: {},
+      timestamp: '',
+    })
     expect(queries.getQueryData(shieldKey('c1'))).toBe(true)
-    connection.receive('ChannelEvent', { type: 'shield_mode_end', broadcasterId: 'x', userId: null, userDisplayName: null, data: {}, timestamp: '' })
+    connection.receive('ChannelEvent', {
+      type: 'shield_mode_end',
+      broadcasterId: 'x',
+      userId: null,
+      userDisplayName: null,
+      data: {},
+      timestamp: '',
+    })
     expect(queries.getQueryData(shieldKey('c1'))).toBe(false)
   })
 
@@ -77,7 +103,12 @@ describe('dashboard hub events', () => {
     await hub.watchChannel('c1')
     queries.setQueryData(actionRequiredKey('c1'), [])
 
-    connection.receive('ConfigChanged', { broadcasterId: 'x', domain: 'notifications', entityId: null, action: 'updated' })
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'x',
+      domain: 'notifications',
+      entityId: null,
+      action: 'updated',
+    })
 
     expect(queries.getQueryState(actionRequiredKey('c1'))?.isInvalidated).toBe(true)
   })
@@ -105,6 +136,51 @@ describe('dashboard hub channel groups', () => {
 
     expect(dashboardHubStatus.value).toBe('connected')
     expect(connection.invocations.filter(([method]) => method === 'JoinChannel')).toHaveLength(2)
+  })
+
+  it('joins every watched channel with its classes again after a reconnect', async () => {
+    const [hub, , connection] = await started()
+    await hub.watchChannels([
+      { id: 'c1', classes: ['chat', 'moderation'] },
+      { id: 'c2', classes: ['chat'] },
+    ])
+    connection.invocations.length = 0
+    connection.lifecycle.reconnected()
+
+    expect(connection.invocations).toEqual([
+      ['JoinChannelClasses', 'c1', ['chat', 'moderation']],
+      ['JoinChannelClasses', 'c2', ['chat']],
+    ])
+  })
+
+  it('dropping one channel from the watched set leaves only that channel', async () => {
+    const [hub, , connection] = await started()
+    await hub.watchChannels([
+      { id: 'c1', classes: ['chat'] },
+      { id: 'c2', classes: ['chat'] },
+    ])
+    connection.invocations.length = 0
+    await hub.watchChannels([{ id: 'c2', classes: ['chat'] }])
+
+    expect(connection.invocations).toEqual([['LeaveChannel', 'c1']])
+  })
+
+  it('reports a refused join with the server message and clears it when the channel is left', async () => {
+    const [hub, , connection] = await started()
+    const { dashboardJoinErrors } = await import('../hubStatus')
+    connection.answer = (method, args) =>
+      method === 'JoinChannelClasses' && args[0] === 'c2'
+        ? { success: false, error: 'Access denied' }
+        : { success: true }
+
+    await hub.watchChannels([
+      { id: 'c1', classes: ['chat'] },
+      { id: 'c2', classes: ['chat'] },
+    ])
+    expect(dashboardJoinErrors.value).toEqual([{ channelId: 'c2', message: 'Access denied' }])
+
+    await hub.watchChannels([{ id: 'c1', classes: ['chat'] }])
+    expect(dashboardJoinErrors.value).toEqual([])
   })
 
   it('stopping closes the connection and reports offline', async () => {

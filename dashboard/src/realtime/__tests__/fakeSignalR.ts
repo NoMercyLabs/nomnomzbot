@@ -58,9 +58,13 @@ export class FakeHubConnection {
     this.lifecycle.close()
     return Promise.resolve()
   }
-  invoke(method: string, ...args: unknown[]): Promise<{ success: boolean }> {
+  // What the server answers to a call; a test replaces it to make a join fail.
+  answer: (method: string, args: unknown[]) => { success: boolean; error?: string } = () => ({
+    success: true,
+  })
+  invoke(method: string, ...args: unknown[]): Promise<{ success: boolean; error?: string }> {
     this.invocations.push([method, ...args])
-    return Promise.resolve({ success: true })
+    return Promise.resolve(this.answer(method, args))
   }
   receive(event: string, payload: unknown): void {
     for (const handler of this.handlers.get(event) ?? []) handler(payload)
