@@ -18,8 +18,8 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// Guards <see cref="ChatHtmlSanitizer"/> — the boundary that makes a viewer's inline chat HTML safe to render — against
 /// the two failure modes that matter, using markup taken verbatim from the real chat-history corpus:
 /// (1) it must neutralise every attack a sender actually tried (script/style subtrees, event handlers, off-scheme urls,
-/// framing) and every on-overlay abuse vector (force-playing media); and (2) it must NOT over-strip the harmless fun the
-/// feature exists for (marquee with its motion/colour attributes, display-only audio/video, formatting, tables).
+/// framing) and every on-overlay abuse vector (video and audio); and (2) it must NOT over-strip the harmless fun the
+/// feature exists for (marquee with its motion/colour attributes, images, formatting, tables). Video and audio are not allowed.
 /// </summary>
 public sealed class ChatHtmlSanitizerTests
 {
@@ -55,36 +55,44 @@ public sealed class ChatHtmlSanitizerTests
         ChatHtmlSanitizer.Sanitize(input).ToLowerInvariant().Should().NotContain(forbidden);
     }
 
-    [Fact]
-    public void Media_is_display_only_never_force_playing()
+    [Theory]
+    [InlineData(
+        @"a<video controls autoplay poster=""https://cdn.example/p.jpg""><source src=""https://cdn.example/v.mp4"" type=""video/mp4""><track src=""https://cdn.example/t.vtt""></video>b",
+        "ab"
+    )]
+    [InlineData(
+        @"a<audio controls><source src=""https://cdn.example/a.mp3"" type=""audio/mp3""></audio>b",
+        "ab"
+    )]
+    [InlineData(@"a<source src=""https://cdn.example/a.mp3"">b", "ab")]
+    [InlineData(@"a<track src=""https://cdn.example/t.vtt"" kind=""subtitles"">b", "ab")]
+    [InlineData(@"a<video src=""http://cdn.example/v.mp4""></video>b", "ab")]
+    public void Video_and_audio_are_removed_whole_with_no_leftover(string input, string expected)
     {
-        // The tags are allowed (the streamer asked for audio/video), but the sanitiser must drop the attributes that let
-        // a sender blast media onto an OBS source with nobody there to click stop.
-        string clean = ChatHtmlSanitizer.Sanitize(
-            @"<audio controls autoplay loop preload=""auto""><source src=""https://cdn.example/awesome.mp3"" type=""audio/mp3""></audio>"
-        );
-
-        clean.ToLowerInvariant().Should().Contain("<audio").And.Contain("<source");
-        clean.Should().Contain(@"src=""https://cdn.example/awesome.mp3""");
-        clean
-            .ToLowerInvariant()
-            .Should()
-            .NotContain("autoplay")
-            .And.NotContain("loop")
-            .And.NotContain("preload");
+        ChatHtmlSanitizer.Sanitize(input).Should().Be(expected);
     }
 
     [Fact]
-    public void An_http_media_source_removes_the_whole_element_instead_of_a_broken_player()
+    public void An_img_keeps_its_https_source_but_loses_the_event_handler()
     {
-        // The old behaviour kept a src-less <video>/<source> once the http:// url was stripped, which the widget
-        // rendered as a broken/empty player. A truthful renderer must never keep an element it emptied out.
         string clean = ChatHtmlSanitizer.Sanitize(
-            @"<video controls poster=""http://cdn.example/p.jpg""><source src=""http://cdn.example/v.mp4"" type=""video/mp4""></video>"
+            @"<img src=""https://cdn.example/a.gif"" onerror=""alert(1)"">"
         );
 
-        clean.Should().NotContain("http://");
-        clean.ToLowerInvariant().Should().NotContain("<video").And.NotContain("<source");
+        clean.Should().Be(@"<img src=""https://cdn.example/a.gif"">");
+    }
+
+    [Theory]
+    [InlineData("<script>alert(1)</script>hi", "hi")]
+    [InlineData(@"<iframe src=""https://evil.example""></iframe>hi", "hi")]
+    [InlineData(@"<svg><script>alert(1)</script></svg>hi", "hi")]
+    [InlineData(@"<a href=""javascript:alert(1)"">x</a>", "<a>x</a>")]
+    [InlineData(@"<a href=""vbscript:msgbox(1)"">x</a>", "<a>x</a>")]
+    [InlineData(@"<a href=""data:text/html,<script>alert(1)</script>"">x</a>", "<a>x</a>")]
+    [InlineData(@"<img src=""javascript:alert(1)"">hi", "hi")]
+    public void Nothing_that_executes_survives(string input, string expected)
+    {
+        ChatHtmlSanitizer.Sanitize(input).Should().Be(expected);
     }
 
     [Fact]
