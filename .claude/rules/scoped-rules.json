@@ -53,6 +53,17 @@
  ],
  "rules": [
   {
+   "id": "worktree-starts-from-local-master",
+   "brief": [
+    "\\bworktree\\b"
+   ],
+   "text": "Step 0 in a worktree, before any read or edit: run `git merge --ff-only master` and confirm `git log -1 --format=%h` equals the main tree's master HEAD. A new worktree starts from origin/master, and nothing is pushed until Stoney says so, so origin/master can be dozens of commits behind. Never reset to origin/master.",
+   "source": "incident 2026-10-13: two builders started 54 commits behind local master; one edited a controller master had changed, and both commits were refused by a hook that master already passed",
+   "covers": [
+    "worktree-agents-stale-base-and-csharpier-pin.md"
+   ]
+  },
+  {
    "id": "dashboard-live-edit-main-tree",
    "brief": [
     "dashboard/",
