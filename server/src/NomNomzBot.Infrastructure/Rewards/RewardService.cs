@@ -637,7 +637,7 @@ public class RewardService : IRewardService
             }
             catch (JsonException)
             {
-                continue;
+                // An unreadable payload is skipped; the next one may still name the reward.
             }
         }
 
