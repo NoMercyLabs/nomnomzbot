@@ -12,7 +12,8 @@ import { AST_NODE_TYPES, ESLintUtils, type TSESLint, type TSESTree } from '@type
 
 // Owner 2026-10-13: an arrow after another call argument breaks its line, and "lets move the arrow
 // to the first line". So `setQueryData(queryKey, (current) =>` ends the line and the body starts
-// on the next line, one level in. A lone or first callback and a block body stay as they are.
+// on the next line, one level in. Only the last argument: a lone or first callback, an arrow with
+// more arguments after it, and a block body stay as they are.
 
 const indentUnit = '  '
 
@@ -32,8 +33,9 @@ function isTrailingArrowArgument(arrow: TSESTree.ArrowFunctionExpression): boole
 
   const index = call.arguments.indexOf(arrow)
   const previous = call.arguments[index - 1]
+  const isLast = index === call.arguments.length - 1
 
-  return index > 0 && previous !== undefined && previous.loc.end.line === arrow.loc.start.line
+  return isLast && index > 0 && previous !== undefined && previous.loc.end.line === arrow.loc.start.line
 }
 
 export const trailingArrowArgument = ESLintUtils.RuleCreator.withoutDocs({

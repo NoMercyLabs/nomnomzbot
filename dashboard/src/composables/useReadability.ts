@@ -11,6 +11,8 @@
 import { useStorage } from '@vueuse/core'
 import { computed, watch, type ComputedRef, type Ref } from 'vue'
 
+import { keysOf } from '@/lib/keysOf'
+
 // How text looks for one person on one device. No server endpoint exists for it, so the options live in
 // this browser (localStorage) and reach the page as attributes and custom properties on <html>.
 export type ReadabilityFont = 'system' | 'hyperlegible' | 'lexend'
@@ -127,8 +129,7 @@ export function useReadability(): UseReadability {
     },
   )
 
-  watch(settings, (next: Readability): void =>
-    applyReadability(next), {
+  watch(settings, (next: Readability): void => applyReadability(next), {
     deep: true,
     immediate: true,
     flush: 'sync',
@@ -136,9 +137,9 @@ export function useReadability(): UseReadability {
 
   const activePreset: ComputedRef<ReadabilityPreset | null> = computed<ReadabilityPreset | null>(
     () => {
-      const names = Object.keys(readabilityPresets) as ReadabilityPreset[]
+      const names = keysOf(readabilityPresets)
       const match = names.find((name: ReadabilityPreset) =>
-        (Object.keys(readabilityDefaults) as (keyof Readability)[]).every(
+        keysOf(readabilityDefaults).every(
           (key: keyof Readability) => settings.value[key] === readabilityPresets[name][key],
         ),
       )

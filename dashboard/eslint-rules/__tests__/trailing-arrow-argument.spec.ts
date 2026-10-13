@@ -29,6 +29,8 @@ tester.run('trailing-arrow-argument', trailingArrowArgument, {
     'watch(() => open, run)',
     // An arrow on its own line, as Prettier breaks long argument lists, stays.
     'set(\n  key,\n  (current) => apply(current),\n)',
+    // An arrow with more arguments after it is not the trailing one, so it stays on one line.
+    'watch(settings, (next) => apply(next), { deep: true })',
     // A block body stays.
     'set(key, (current) => {\n  apply(current)\n})',
   ],
