@@ -8,33 +8,33 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { clockTime } from '@/lib/time'
+import { clockTime } from '@/lib/time';
 
-import type { ActionRequiredItem } from './actionRequired'
+import type { ActionRequiredItem } from './actionRequired';
 
 // The server sends an attention item as words KEYS plus named parameters, never prose. This file
 // turns one into the title, the message and the page to open. It is the Vue twin of the app's
 // AttentionText.kt. It sits beside the API type because it reads that type and nothing else.
 
 export interface AttentionWords {
-  title: string
-  message: string | null
-  route: string | null
+  title: string;
+  message: string | null;
+  route: string | null;
 }
 
 export interface AttentionTranslator {
-  t: (key: string, named?: Record<string, unknown>) => string
-  te: (key: string) => boolean
+  t: (key: string, named?: Record<string, unknown>) => string;
+  te: (key: string) => boolean;
 }
 
-const WORDS = 'frame.inbox.attention.'
+const WORDS = 'frame.inbox.attention.';
 
 // These titles come in a one and a many form, picked by the item count.
 const COUNTED_TITLES: readonly string[] = [
   'attention_held_title',
   'attention_unmanaged_rewards_title',
   'attention_song_lost_title',
-]
+];
 
 // The dashboard pages (router children of /app) an attention item can send the reader to.
 export const attentionPages = [
@@ -47,7 +47,7 @@ export const attentionPages = [
   'settings',
   'stream',
   'tts',
-] as const
+] as const;
 
 const PROVIDER_NAMES: Record<string, string> = {
   spotify: 'Spotify',
@@ -55,34 +55,34 @@ const PROVIDER_NAMES: Record<string, string> = {
   discord: 'Discord',
   kick: 'Kick',
   kick_bot: 'Kick',
-}
+};
 
 const SOURCE_NAMES = {
   unban_requests: 'attention_source_name_unban_requests',
-} as const satisfies Record<string, string>
+} as const satisfies Record<string, string>;
 
 function providerName(provider: string): string {
-  return PROVIDER_NAMES[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1)
+  return PROVIDER_NAMES[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
 function titleKeyOf(item: ActionRequiredItem): string {
   if (!COUNTED_TITLES.includes(item.titleKey)) {
-    return item.titleKey
+    return item.titleKey;
   }
 
   return Number(item.count) > 1
     ? `${item.titleKey}_many`
-    : `${item.titleKey}_one`
+    : `${item.titleKey}_one`;
 }
 
 function messageKeyOf(item: ActionRequiredItem): string {
   const noDetail =
     item.messageKey === 'attention_shared_ban_twitch_ban_failed_message' &&
-    !item.parameters.detail?.trim()
+    !item.parameters.detail?.trim();
 
   return noDetail
     ? 'attention_shared_ban_twitch_ban_failed_no_detail_message'
-    : item.messageKey
+    : item.messageKey;
 }
 
 function titleNamed(
@@ -90,9 +90,9 @@ function titleNamed(
   i18n: AttentionTranslator,
   now: Date,
 ): Record<string, unknown> {
-  const { provider = '', source = '', until } = item.parameters
+  const { provider = '', source = '', until } = item.parameters;
   const sourceKey =
-    SOURCE_NAMES[source as keyof typeof SOURCE_NAMES] ?? 'attention_source_name_unknown'
+    SOURCE_NAMES[source as keyof typeof SOURCE_NAMES] ?? 'attention_source_name_unknown';
 
   return {
     ...item.parameters,
@@ -100,34 +100,34 @@ function titleNamed(
     provider: providerName(provider),
     until: clockTime(until, now),
     source: i18n.t(WORDS + sourceKey),
-  }
+  };
 }
 
 function messageNamed(
   item: ActionRequiredItem,
   i18n: AttentionTranslator,
 ): Record<string, unknown> {
-  const category = item.parameters.category?.trim()
+  const category = item.parameters.category?.trim();
   // The words close the sentence themselves, so a period the server error ends with would double.
-  const error = item.parameters.error?.trim().replace(/\.+$/, '')
+  const error = item.parameters.error?.trim().replace(/\.+$/, '');
 
   return {
     ...item.parameters,
     category: category || i18n.t(`${WORDS}attention_held_category_unknown`),
     error,
-  }
+  };
 }
 
 // The in-app path for a server route such as "people/overview", or null when the Vue
 // dashboard has no such page (the Open button then stays hidden).
 function routeOf(deepLinkRoute: string): string | null {
-  const path = deepLinkRoute.trim().replace(/^\/+/, '').toLowerCase()
-  const [page] = path.split('/')
-  const known = attentionPages.some((name) => name === page)
+  const path = deepLinkRoute.trim().replace(/^\/+/, '').toLowerCase();
+  const [page] = path.split('/');
+  const known = attentionPages.some((name) => name === page);
 
   return known
     ? `/app/${page}`
-    : null
+    : null;
 }
 
 export function attentionWords(
@@ -135,14 +135,18 @@ export function attentionWords(
   i18n: AttentionTranslator,
   now: Date = new Date(),
 ): AttentionWords {
-  const titlePath = WORDS + titleKeyOf(item)
-  const messagePath = WORDS + messageKeyOf(item)
+  const titlePath = WORDS + titleKeyOf(item);
+  const messagePath = WORDS + messageKeyOf(item);
   const title = i18n.te(titlePath)
     ? i18n.t(titlePath, titleNamed(item, i18n, now))
-    : i18n.t(`${WORDS}attention_unknown_title`)
+    : i18n.t(`${WORDS}attention_unknown_title`);
   const message = i18n.te(messagePath)
     ? i18n.t(messagePath, messageNamed(item, i18n))
-    : null
+    : null;
 
-  return { title, message, route: routeOf(item.deepLinkRoute) }
+  return {
+    title,
+    message,
+    route: routeOf(item.deepLinkRoute),
+  };
 }

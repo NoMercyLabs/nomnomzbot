@@ -19,149 +19,144 @@ import {
   useId,
   useTemplateRef,
   type ComponentPublicInstance,
-  type Ref,
-} from 'vue'
-import { useI18n } from 'vue-i18n'
-import AlertTriangle from '~icons/nnz/alert-triangle'
+} from 'vue';
+import { useI18n } from 'vue-i18n';
+import AlertTriangle from '~icons/nnz/alert-triangle';
 
-import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates'
-import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
-import { Textarea } from '@/components/ui/textarea'
+import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates';
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
 
-import { useHelperText } from './useHelperText'
+import { useHelperText } from './useHelperText';
 import {
   braced,
   filterHelpers,
   openPlaceholder,
   unknownPlaceholders,
   type OpenPlaceholder,
-} from './templatePlaceholders'
+} from './templatePlaceholders';
 
 const props = withDefaults(
   defineProps<{
-    label: string
-    context: TemplateContext
-    eventType?: string
-    placeholder?: string
+    label: string;
+    context: TemplateContext;
+    eventType?: string;
+    placeholder?: string;
   }>(),
   { eventType: undefined, placeholder: undefined },
-)
+);
 
-const text = defineModel<string>({ default: '' })
-const { t } = useI18n()
-const { describe } = useHelperText()
-const id = useId()
+const text = defineModel<string>({ default: '' });
+const { t } = useI18n();
+const { describe } = useHelperText();
+const id = useId();
 
-const area = useTemplateRef<ComponentPublicInstance>('area')
+const area = useTemplateRef<ComponentPublicInstance>('area');
 const helpers = useTemplateHelpers(
   () => props.context,
   () => props.eventType,
-)
-const known = computed<TemplateHelper[]>(() => helpers.data.value ?? [])
+);
+const known = computed<TemplateHelper[]>(() => helpers.data.value ?? []);
 
-const caret: Ref<{ start: number; end: number }> = ref({
+const caret = ref<{ start: number; end: number }>({
   start: text.value.length,
   end: text.value.length,
-})
-const open: Ref<OpenPlaceholder | null> = ref(null)
-const active = ref(0)
+});
+const open = ref<OpenPlaceholder | null>(null);
+const active = ref(0);
 
 const matches = computed<readonly TemplateHelper[]>(() =>
   open.value
     ? filterHelpers(known.value, open.value.query)
     : [],
-)
-const showing = computed<boolean>(() => matches.value.length > 0)
+);
+const showing = computed<boolean>(() => matches.value.length > 0);
 const unknown = computed<string[]>(() =>
   known.value.length > 0
     ? unknownPlaceholders(text.value, known.value)
     : [],
-)
+);
 
 function element(): HTMLTextAreaElement | null {
   return area.value?.$el instanceof HTMLTextAreaElement
     ? area.value.$el
-    : null
+    : null;
 }
 
 function remember(): void {
-  const el = element()
+  const el = element();
 
   if (el) {
-    caret.value = { start: el.selectionStart, end: el.selectionEnd }
+    caret.value = { start: el.selectionStart, end: el.selectionEnd };
   }
 }
 
 // Suggestions follow typing and clicks, not arrow keys: Esc must stay closed until the person types again.
 function suggest(): void {
-  const el = element()
+  const el = element();
 
-  if (!el) return
+  if (!el) return;
 
-  remember()
+  remember();
 
   open.value =
     el.selectionStart === el.selectionEnd
       ? openPlaceholder(el.value, el.selectionStart)
-      : null
+      : null;
 
-  active.value = 0
+  active.value = 0;
 }
 
 async function replace(from: number, to: number, insertion: string): Promise<void> {
-  const el = element()
-  const current = text.value
+  const el = element();
+  const current = text.value;
 
-  text.value = current.slice(0, from) + insertion + current.slice(to)
-  const end = from + insertion.length
+  text.value = current.slice(0, from) + insertion + current.slice(to);
+  const end = from + insertion.length;
 
-  caret.value = { start: end, end }
-  open.value = null
-  await nextTick()
-  el?.focus()
-  el?.setSelectionRange(end, end)
+  caret.value = { start: end, end };
+  open.value = null;
+  await nextTick();
+  el?.focus();
+  el?.setSelectionRange(end, end);
 }
 
 // Used by a HelperPanel: puts the text where the caret last was, over any selection.
 function insert(insertion: string): Promise<void> {
-  return replace(caret.value.start, caret.value.end, insertion)
+  return replace(caret.value.start, caret.value.end, insertion);
 }
 
 function choose(helper: TemplateHelper | undefined): void {
-  if (!helper || !open.value) return
+  if (!helper || !open.value) return;
 
-  void replace(open.value.from, caret.value.start, braced(helper.key))
+  void replace(open.value.from, caret.value.start, braced(helper.key));
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  if (!showing.value) return
+  if (!showing.value) return;
 
-  const last = matches.value.length - 1
+  const last = matches.value.length - 1;
 
   if (event.key === 'ArrowDown') {
     active.value = active.value >= last
       ? 0
-      : active.value + 1
-  }
-  else if (event.key === 'ArrowUp') {
+      : active.value + 1;
+  } else if (event.key === 'ArrowUp') {
     active.value = active.value <= 0
       ? last
-      : active.value - 1
-  }
-  else if (event.key === 'Enter' || event.key === 'Tab') {
-    choose(matches.value[active.value])
-  }
-  else if (event.key === 'Escape') {
-    open.value = null
-  }
-  else return
+      : active.value - 1;
+  } else if (event.key === 'Enter' || event.key === 'Tab') {
+    choose(matches.value[active.value]);
+  } else if (event.key === 'Escape') {
+    open.value = null;
+  } else return;
 
-  event.preventDefault()
+  event.preventDefault();
 }
 
-defineExpose({ insert })
+defineExpose({ insert });
 </script>
 
 <template>

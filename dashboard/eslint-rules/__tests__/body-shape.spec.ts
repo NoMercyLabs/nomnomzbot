@@ -8,17 +8,17 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { RuleTester } from '@typescript-eslint/rule-tester'
-import { afterAll, describe, it } from 'vitest'
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import { afterAll, describe, it } from 'vitest';
 
-import { bodyShape } from '../body-shape'
+import { bodyShape } from '../body-shape';
 
-RuleTester.afterAll = afterAll
-RuleTester.describe = describe
-RuleTester.it = it
-RuleTester.itOnly = it.only
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
-const tester = new RuleTester()
+const tester = new RuleTester();
 
 tester.run('body-shape', bodyShape, {
   valid: [
@@ -87,4 +87,4 @@ tester.run('body-shape', bodyShape, {
       errors: [{ messageId: 'loopBlock' }],
     },
   ],
-})
+});

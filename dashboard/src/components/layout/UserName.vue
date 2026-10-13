@@ -10,11 +10,11 @@
 <script setup lang="ts">
 // A person's name anywhere in the dashboard (owner rule: the profile is a dialog everywhere).
 // It opens the one ProfileDialog of the frame by the Twitch user id; data-user carries that id.
-import { useProfileDialogStore } from '@/stores/profileDialog'
+import { useProfileDialogStore } from '@/stores/profileDialog';
 
-const props = defineProps<{ userId: string; name: string }>()
+const props = defineProps<{ userId: string; name: string }>();
 
-const profile = useProfileDialogStore()
+const profile = useProfileDialogStore();
 
 function open(event: MouseEvent): void {
   profile.open(
@@ -22,7 +22,7 @@ function open(event: MouseEvent): void {
     event.currentTarget instanceof HTMLElement
       ? event.currentTarget
       : null,
-  )
+  );
 }
 </script>
 

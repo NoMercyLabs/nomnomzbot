@@ -10,9 +10,9 @@
 <script setup lang="ts">
 // The request rules (mockup 15-music, panel 113-141): who may ask, one song per person, the blocked list.
 // Edits stay in a draft until Save; Discard drops the draft without a request. Only changed fields are sent.
-import { useTimeoutFn } from '@vueuse/core'
-import { computed, ref, useId, watch, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useTimeoutFn } from '@vueuse/core';
+import { computed, ref, useId, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   useBlockedTracks,
@@ -24,19 +24,19 @@ import {
   type BlockTrack,
   type MusicConfig,
   type MusicConfigChange,
-} from '@/api/music'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow'
-import { usePanelState } from '@/composables/usePanelState'
+} from '@/api/music';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
+import { usePanelState } from '@/composables/usePanelState';
 
-type Draft = { minTrustLevel: string; perPerson: number }
+type Draft = { minTrustLevel: string; perPerson: number };
 
 // The values the bot accepts for minTrustLevel (MusicService.ParseMinTrustLevel); anything else means everyone.
 const trustLevels: readonly string[] = [
@@ -45,117 +45,117 @@ const trustLevels: readonly string[] = [
   'vip',
   'moderators',
   'broadcaster',
-]
-const perPersonId = useId()
+];
+const perPersonId = useId();
 
-const { t } = useI18n()
-const { channelId } = useCurrentChannel()
-const configQuery = useMusicConfig(channelId)
-const blockedQuery = useBlockedTracks(channelId)
-const save = useSaveMusicConfig(channelId)
-const unblock = useUnblockTrack(channelId)
-const block = useBlockTrack(channelId)
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const configQuery = useMusicConfig(channelId);
+const blockedQuery = useBlockedTracks(channelId);
+const save = useSaveMusicConfig(channelId);
+const unblock = useUnblockTrack(channelId);
+const block = useBlockTrack(channelId);
 
 const state = usePanelState(configQuery, (config: MusicConfig | null): boolean =>
-  config === null)
+  config === null);
 
 function draftOf(config: MusicConfig): Draft {
-  return { minTrustLevel: config.minTrustLevel, perPerson: Number(config.maxRequestsPerUser) }
+  return { minTrustLevel: config.minTrustLevel, perPerson: Number(config.maxRequestsPerUser) };
 }
 
-const draft: Ref<Draft | null> = ref<Draft | null>(null)
+const draft = ref<Draft | null>(null);
 
 watch(
   () => configQuery.data.value,
   (config: MusicConfig | null | undefined) => {
     draft.value = config
       ? draftOf(config)
-      : null
+      : null;
   },
   { immediate: true },
-)
+);
 
-const change: ComputedRef<MusicConfigChange> = computed<MusicConfigChange>(() => {
-  const config = configQuery.data.value
-  const edits = draft.value
+const change = computed<MusicConfigChange>(() => {
+  const config = configQuery.data.value;
+  const edits = draft.value;
 
   if (!config || !edits)
-    return {}
+    return {};
 
-  const result: MusicConfigChange = {}
+  const result: MusicConfigChange = {};
 
   if (edits.minTrustLevel !== config.minTrustLevel) {
-    result.minTrustLevel = edits.minTrustLevel
+    result.minTrustLevel = edits.minTrustLevel;
   }
 
   if (edits.perPerson !== draftOf(config).perPerson) {
-    result.maxRequestsPerUser = edits.perPerson
+    result.maxRequestsPerUser = edits.perPerson;
   }
 
-  return result
-})
+  return result;
+});
 const valid = computed<boolean>(
   () =>
     draft.value === null || (Number.isInteger(draft.value.perPerson) && draft.value.perPerson >= 1),
-)
-const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0)
+);
+const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0);
 
 function saveRules(): void {
   if (dirty.value) {
-    save.mutate(change.value)
+    save.mutate(change.value);
   }
 }
 
 function discard(): void {
-  const config = configQuery.data.value
+  const config = configQuery.data.value;
 
   draft.value = config
     ? draftOf(config)
-    : null
+    : null;
 }
 
-const blocked: ComputedRef<BlockedTrack[]> = computed<BlockedTrack[]>(
+const blocked = computed<BlockedTrack[]>(
   () => blockedQuery.data.value ?? [],
-)
+);
 
 // Allow takes the row out at once; the notice below keeps the song for a short window so Undo can block it again.
-const allowed: Ref<BlockedTrack | null> = ref<BlockedTrack | null>(null)
+const allowed = ref<BlockedTrack | null>(null);
 const undoWindow = useTimeoutFn(
   () => {
-    allowed.value = null
+    allowed.value = null;
   },
   DEFAULT_UNDO_MS,
   { immediate: false },
-)
+);
 
 function allow(track: BlockedTrack): void {
-  allowed.value = track
-  unblock.mutate({ blockedTrackId: track.id })
-  undoWindow.start()
+  allowed.value = track;
+  unblock.mutate({ blockedTrackId: track.id });
+  undoWindow.start();
 }
 
 function undoAllow(): void {
-  const track = allowed.value
+  const track = allowed.value;
 
-  if (track === null) return
+  if (track === null) return;
 
-  undoWindow.stop()
-  allowed.value = null
+  undoWindow.stop();
+  allowed.value = null;
   const body: BlockTrack = {
     provider: track.provider,
     trackUri: track.trackUri,
     title: track.title,
-  }
+  };
 
   if (track.reason) {
-    body.reason = track.reason
+    body.reason = track.reason;
   }
 
   if (track.blockedByUserId) {
-    body.blockedByUserId = track.blockedByUserId
+    body.blockedByUserId = track.blockedByUserId;
   }
 
-  block.mutate(body)
+  block.mutate(body);
 }
 
 const missing = computed<KeyValueItem[]>(() =>
@@ -163,7 +163,7 @@ const missing = computed<KeyValueItem[]>(() =>
     label: t(`dashboard.music.rules.missing.${key}`),
     reason: t('dashboard.music.rules.notYet'),
   })),
-)
+);
 </script>
 
 <template>

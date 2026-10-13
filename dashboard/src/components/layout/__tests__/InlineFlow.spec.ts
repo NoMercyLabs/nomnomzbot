@@ -8,21 +8,21 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import InlineFlow from '@/components/layout/InlineFlow.vue'
-import type { InlineFlowKind } from '@/composables/useInlineFlow'
-import { i18n } from '@/i18n'
+import InlineFlow from '@/components/layout/InlineFlow.vue';
+import type { InlineFlowKind } from '@/composables/useInlineFlow';
+import { i18n } from '@/i18n';
 
-let mounted: VueWrapper | null = null
+let mounted: VueWrapper | null = null;
 
 afterEach(() => {
-  mounted?.unmount()
-  mounted = null
-  document.body.innerHTML = ''
-  vi.useRealTimers()
-})
+  mounted?.unmount();
+  mounted = null;
+  document.body.innerHTML = '';
+  vi.useRealTimers();
+});
 
 function flow(props: Record<string, unknown>): VueWrapper {
   mounted = mount(InlineFlow, {
@@ -30,50 +30,55 @@ function flow(props: Record<string, unknown>): VueWrapper {
     slots: { default: '<button type="button" data-opener>Clear queue</button>' },
     attachTo: document.body,
     global: { plugins: [i18n] },
-  })
+  });
 
-  return mounted
+  return mounted;
 }
 
 function step(): string | undefined {
-  const root: HTMLElement | null = document.body.querySelector('[data-slot="inline-flow"]')
+  const root: HTMLElement | null = document.body.querySelector('[data-slot="inline-flow"]');
 
-  return root?.dataset.step
+  return root?.dataset.step;
 }
 
 function opener(): HTMLButtonElement {
-  return document.body.querySelector('[data-opener]') as HTMLButtonElement
+  return document.body.querySelector('[data-opener]') as HTMLButtonElement;
 }
 
 function control(act: string): HTMLButtonElement | null {
-  return document.body.querySelector(`[data-flow-act="${act}"]`)
+  return document.body.querySelector(`[data-flow-act="${act}"]`);
 }
 
 function press(act: string): void {
-  control(act)?.click()
+  control(act)?.click();
 }
 
 function box(): HTMLElement | null {
-  return document.body.querySelector('[data-slot="inline-flow-box"]')
+  return document.body.querySelector('[data-slot="inline-flow-box"]');
 }
 
 describe('the inline flow', () => {
   it('grows from the left edge, or from the right edge for a group at the end of a row', async () => {
-    flow({ kind: 'note', text: 'Opens Spotify.' })
-    opener().click()
-    await flushPromises()
-    expect(box()?.classList.contains('left-0')).toBe(true)
-    mounted?.unmount()
+    flow({ kind: 'note', text: 'Opens Spotify.' });
+    opener().click();
+    await flushPromises();
+    expect(box()?.classList.contains('left-0')).toBe(true);
+    mounted?.unmount();
 
-    flow({ kind: 'note', text: 'Opens Spotify.', right: true })
-    opener().click()
-    await flushPromises()
-    expect(box()?.classList.contains('right-0')).toBe(true)
-    expect(box()?.classList.contains('left-0')).toBe(false)
-  })
+    flow({
+      kind: 'note',
+      text: 'Opens Spotify.',
+      right: true,
+    });
+
+    opener().click();
+    await flushPromises();
+    expect(box()?.classList.contains('right-0')).toBe(true);
+    expect(box()?.classList.contains('left-0')).toBe(false);
+  });
 
   it('confirm asks first and runs the action only on the second press', async () => {
-    const action = vi.fn<() => void>()
+    const action = vi.fn<() => void>();
 
     flow({
       kind: 'confirm',
@@ -81,144 +86,177 @@ describe('the inline flow', () => {
       yes: 'Clear',
       result: 'Queue cleared.',
       action,
-    })
+    });
 
-    opener().click()
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(step()).toBe('ask')
-    expect(action).not.toHaveBeenCalled()
-    expect(box()?.textContent).toContain('Clear 12 songs?')
+    expect(step()).toBe('ask');
+    expect(action).not.toHaveBeenCalled();
+    expect(box()?.textContent).toContain('Clear 12 songs?');
 
-    press('ok')
-    await flushPromises()
+    press('ok');
+    await flushPromises();
 
-    expect(action).toHaveBeenCalledTimes(1)
-    expect(step()).toBe('done')
-    expect(box()?.textContent).toContain('Queue cleared.')
-  })
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(step()).toBe('done');
+    expect(box()?.textContent).toContain('Queue cleared.');
+  });
 
   it('Esc backs out of a confirm without running the action and gives back the opener', async () => {
-    const action = vi.fn<() => void>()
+    const action = vi.fn<() => void>();
 
-    flow({ kind: 'confirm', ask: 'Clear 12 songs?', result: 'Queue cleared.', action })
-    opener().click()
-    await flushPromises()
+    flow({
+      kind: 'confirm',
+      ask: 'Clear 12 songs?',
+      result: 'Queue cleared.',
+      action,
+    });
 
-    control('back')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(action).not.toHaveBeenCalled()
-    expect(step()).toBe('idle')
-    expect(box()).toBeNull()
-    expect(document.activeElement).toBe(opener())
-  })
+    control('back')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flushPromises();
+
+    expect(action).not.toHaveBeenCalled();
+    expect(step()).toBe('idle');
+    expect(box()).toBeNull();
+    expect(document.activeElement).toBe(opener());
+  });
 
   it('Cancel backs out of a confirm without running the action', async () => {
-    const action = vi.fn<() => void>()
+    const action = vi.fn<() => void>();
 
-    flow({ kind: 'confirm', ask: 'Clear 12 songs?', action })
-    opener().click()
-    await flushPromises()
+    flow({
+      kind: 'confirm',
+      ask: 'Clear 12 songs?',
+      action,
+    });
 
-    press('back')
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(action).not.toHaveBeenCalled()
-    expect(step()).toBe('idle')
-  })
+    press('back');
+    await flushPromises();
+
+    expect(action).not.toHaveBeenCalled();
+    expect(step()).toBe('idle');
+  });
 
   it('run shows pending while the action works, then the result', async () => {
-    let finish: () => void = () => {}
+    let finish: () => void = () => {};
     const action = vi.fn<() => Promise<void>>(
       () =>
         new Promise<void>((resolve: () => void) => {
-          finish = resolve
+          finish = resolve;
         }),
-    )
+    );
 
-    flow({ kind: 'run', text: 'Playing the sound', result: 'Sound played.', action })
+    flow({
+      kind: 'run',
+      text: 'Playing the sound',
+      result: 'Sound played.',
+      action,
+    });
 
-    opener().click()
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(action).toHaveBeenCalledTimes(1)
-    expect(step()).toBe('pending')
-    expect(box()?.textContent).toContain('Playing the sound')
-    expect(box()?.textContent).not.toContain('Sound played.')
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(step()).toBe('pending');
+    expect(box()?.textContent).toContain('Playing the sound');
+    expect(box()?.textContent).not.toContain('Sound played.');
 
-    finish()
-    await flushPromises()
+    finish();
+    await flushPromises();
 
-    expect(step()).toBe('done')
-    expect(box()?.textContent).toContain('Sound played.')
-  })
+    expect(step()).toBe('done');
+    expect(box()?.textContent).toContain('Sound played.');
+  });
 
   it('apply runs at once with no question', async () => {
-    const action = vi.fn<() => void>()
+    const action = vi.fn<() => void>();
 
-    flow({ kind: 'apply', result: 'Saved.', action })
+    flow({
+      kind: 'apply',
+      result: 'Saved.',
+      action,
+    });
 
-    opener().click()
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(action).toHaveBeenCalledTimes(1)
-    expect(step()).toBe('done')
-  })
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(step()).toBe('done');
+  });
 
   it('Undo calls the undo handler and restores the start state', async () => {
-    const action = vi.fn<() => void>()
-    const revert = vi.fn<() => void>()
+    const action = vi.fn<() => void>();
+    const revert = vi.fn<() => void>();
 
-    flow({ kind: 'apply', result: 'Saved.', action, revert })
-    opener().click()
-    await flushPromises()
-    expect(control('undo')).not.toBeNull()
+    flow({
+      kind: 'apply',
+      result: 'Saved.',
+      action,
+      revert,
+    });
 
-    press('undo')
-    await flushPromises()
+    opener().click();
+    await flushPromises();
+    expect(control('undo')).not.toBeNull();
 
-    expect(revert).toHaveBeenCalledTimes(1)
-    expect(step()).toBe('idle')
-    expect(box()).toBeNull()
-    expect(opener().closest('[data-slot="inline-flow-opener"]')?.hasAttribute('inert')).toBe(false)
-  })
+    press('undo');
+    await flushPromises();
+
+    expect(revert).toHaveBeenCalledTimes(1);
+    expect(step()).toBe('idle');
+    expect(box()).toBeNull();
+    expect(opener().closest('[data-slot="inline-flow-opener"]')?.hasAttribute('inert')).toBe(false);
+  });
 
   it('the Undo window ends: after undoMs the result and Undo are gone and the handler can no longer run', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const revert = vi.fn<() => void>()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const revert = vi.fn<() => void>();
 
-    flow({ kind: 'apply', result: 'Saved.', action: vi.fn<() => void>(), revert, undoMs: 5000 })
-    opener().click()
-    await flushPromises()
+    flow({
+      kind: 'apply',
+      result: 'Saved.',
+      action: vi.fn<() => void>(),
+      revert,
+      undoMs: 5000,
+    });
 
-    await vi.advanceTimersByTimeAsync(4999)
-    expect(step()).toBe('done')
-    expect(control('undo')).not.toBeNull()
+    opener().click();
+    await flushPromises();
 
-    await vi.advanceTimersByTimeAsync(2)
-    await flushPromises()
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(step()).toBe('done');
+    expect(control('undo')).not.toBeNull();
 
-    expect(step()).toBe('idle')
-    expect(control('undo')).toBeNull()
-    expect(revert).not.toHaveBeenCalled()
-  })
+    await vi.advanceTimersByTimeAsync(2);
+    await flushPromises();
+
+    expect(step()).toBe('idle');
+    expect(control('undo')).toBeNull();
+    expect(revert).not.toHaveBeenCalled();
+  });
 
   it('shows a failure, not a result, when the action rejects', async () => {
     flow({
       kind: 'apply',
       result: 'Saved.',
       action: vi.fn<() => Promise<void>>().mockRejectedValue(new Error('boom')),
-    })
+    });
 
-    opener().click()
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(step()).toBe('failed')
-    expect(box()?.textContent).toContain('That did not work.')
-    expect(box()?.textContent).not.toContain('Saved.')
-    expect(control('undo')).toBeNull()
-  })
+    expect(step()).toBe('failed');
+    expect(box()?.textContent).toContain('That did not work.');
+    expect(box()?.textContent).not.toContain('Saved.');
+    expect(control('undo')).toBeNull();
+  });
 
   it('shows the reason the bot gave when the page passes one for a failure', async () => {
     flow({
@@ -226,28 +264,28 @@ describe('the inline flow', () => {
       result: 'Sent.',
       failure: 'No such event type.',
       action: vi.fn<() => Promise<void>>().mockRejectedValue(new Error('No such event type.')),
-    })
+    });
 
-    opener().click()
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(step()).toBe('failed')
-    expect(box()?.textContent).toContain('No such event type.')
-    expect(box()?.textContent).not.toContain('That did not work.')
-  })
+    expect(step()).toBe('failed');
+    expect(box()?.textContent).toContain('No such event type.');
+    expect(box()?.textContent).not.toContain('That did not work.');
+  });
 
   it('note shows its line and Done, and has no action to run', async () => {
-    flow({ kind: 'note', text: 'This page comes later.' })
+    flow({ kind: 'note', text: 'This page comes later.' });
 
-    opener().click()
-    await flushPromises()
+    opener().click();
+    await flushPromises();
 
-    expect(step()).toBe('done')
-    expect(box()?.textContent).toContain('This page comes later.')
-    expect(control('undo')).toBeNull()
+    expect(step()).toBe('done');
+    expect(box()?.textContent).toContain('This page comes later.');
+    expect(control('undo')).toBeNull();
 
-    press('back')
-    await flushPromises()
-    expect(step()).toBe('idle')
-  })
-})
+    press('back');
+    await flushPromises();
+    expect(step()).toBe('idle');
+  });
+});

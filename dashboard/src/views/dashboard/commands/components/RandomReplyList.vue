@@ -9,28 +9,28 @@
 -->
 <script setup lang="ts">
 // The replies a command picks from at random. There is always at least one row.
-import Plus from '~icons/nnz/add'
-import X from '~icons/nnz/cross'
+import Plus from '~icons/nnz/add';
+import X from '~icons/nnz/cross';
 
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
-const replies = defineModel<string[]>({ required: true })
+const replies = defineModel<string[]>({ required: true });
 
 function set(index: number, text: string | number): void {
   replies.value = replies.value.map((reply: string, at: number): string =>
     at === index
       ? String(text)
       : reply,
-  )
+  );
 }
 
 function add(): void {
-  replies.value = [...replies.value, '']
+  replies.value = [...replies.value, ''];
 }
 
 function remove(index: number): void {
-  replies.value = replies.value.filter((_reply: string, at: number): boolean => at !== index)
+  replies.value = replies.value.filter((_reply: string, at: number): boolean => at !== index);
 }
 </script>
 
@@ -58,7 +58,12 @@ function remove(index: number): void {
         <X aria-hidden="true" />
       </Button>
     </div>
-    <Button type="button" variant="outline" size="sm" class="justify-self-start" @click="add">
+    <Button type="button"
+            variant="outline"
+            size="sm"
+            class="justify-self-start"
+            @click="add"
+    >
       <Plus aria-hidden="true" />
       {{ $t('dashboard.commands.editor.addReply') }}
     </Button>

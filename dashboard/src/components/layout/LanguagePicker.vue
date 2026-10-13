@@ -8,9 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { AcceptableValue } from 'reka-ui'
-import { useI18n } from 'vue-i18n'
-import Translate from '~icons/nnz/translate'
+import type { AcceptableValue } from 'reka-ui';
+import { useI18n } from 'vue-i18n';
+import Translate from '~icons/nnz/translate';
 
 import {
   Select,
@@ -19,19 +19,19 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { locales, setLocale, type Locale } from '@/i18n'
+} from '@/components/ui/select';
+import { locales, setLocale, type Locale } from '@/i18n';
 
-const { locale } = useI18n()
+const { locale } = useI18n();
 
 // Each language is named in its own language, so a reader finds theirs without reading the current one.
 function ownName(tag: Locale): string {
-  return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag
+  return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
 }
 
 function choose(value: AcceptableValue): void {
   if (typeof value === 'string' && (locales as readonly string[]).includes(value)) {
-    void setLocale(value as Locale)
+    void setLocale(value as Locale);
   }
 }
 </script>

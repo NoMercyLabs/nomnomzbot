@@ -11,24 +11,24 @@
 // The one profile dialog of the frame (spec row ProfileDialog + UserName). A UserName opens it through
 // the profileDialog store; a second name swaps the person. It shows only what the bot stores:
 // a tab with nothing to show says so. The tabs are local state, not the route: the page behind keeps its own ?view=.
-import { computed, ref, watch, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Cross from '~icons/nnz/cross'
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Cross from '~icons/nnz/cross';
 
 import {
   useBanMember,
   useCommunityMember,
   useVipChange,
   type CommunityMember,
-} from '@/api/community'
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import StatTile from '@/components/layout/StatTile.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import VirtualList from '@/components/layout/VirtualList.vue'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
+} from '@/api/community';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import StatTile from '@/components/layout/StatTile.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import VirtualList from '@/components/layout/VirtualList.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -36,112 +36,112 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimisticSave'
-import { useProfileDialogStore } from '@/stores/profileDialog'
-import { useSaveErrorsStore } from '@/stores/saveErrors'
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { SAVE_FAILED_MESSAGE, SAVE_FAILED_TITLE } from '@/composables/useOptimisticSave';
+import { useProfileDialogStore } from '@/stores/profileDialog';
+import { useSaveErrorsStore } from '@/stores/saveErrors';
 
-type ActivityLine = CommunityMember['recentActivity'][number]
+type ActivityLine = CommunityMember['recentActivity'][number];
 
-const TABS: readonly string[] = ['overview', 'chat', 'activity', 'moderation']
-const KNOWN_TRUST: readonly string[] = ['viewer', 'moderator', 'vip']
+const TABS: readonly string[] = ['overview', 'chat', 'activity', 'moderation'];
+const KNOWN_TRUST: readonly string[] = ['viewer', 'moderator', 'vip'];
 
-const { t, n, locale } = useI18n()
-const profile = useProfileDialogStore()
-const errors = useSaveErrorsStore()
-const { channelId } = useCurrentChannel()
+const { t, n, locale } = useI18n();
+const profile = useProfileDialogStore();
+const errors = useSaveErrorsStore();
+const { channelId } = useCurrentChannel();
 
-const isOpen = computed(() => profile.userId !== null)
-const tab = ref('overview')
-const confirmBan = ref(false)
+const isOpen = computed(() => profile.userId !== null);
+const tab = ref('overview');
+const confirmBan = ref(false);
 
 const member = useCommunityMember(channelId, () =>
-  profile.userId)
-const person: ComputedRef<CommunityMember | null> = computed(() => member.data.value ?? null)
+  profile.userId);
+const person = computed<CommunityMember | null>(() => member.data.value ?? null);
 
 // The mutations need the channel id when they are made; the dialog is mounted inside a signed-in channel.
-const vipChange = useVipChange(channelId.value ?? '')
-const ban = useBanMember(channelId.value ?? '')
+const vipChange = useVipChange(channelId.value ?? '');
+const ban = useBanMember(channelId.value ?? '');
 
 // Twitch answers per person; null means Twitch could not be asked, so the dialog says unknown instead of guessing.
-const isVip: ComputedRef<boolean | null> = computed(() => person.value?.isVip ?? null)
-const vipLabel: ComputedRef<string> = computed(() => {
+const isVip = computed<boolean | null>(() => person.value?.isVip ?? null);
+const vipLabel = computed<string>(() => {
   if (isVip.value === null)
-    return t('profile.vip.unknown')
+    return t('profile.vip.unknown');
 
   return isVip.value
     ? t('profile.vip.remove')
-    : t('profile.vip.make')
-})
-const title: ComputedRef<string> = computed(() => person.value?.displayName ?? t('profile.title'))
-const lines: ComputedRef<ActivityLine[]> = computed(() => person.value?.recentActivity ?? [])
+    : t('profile.vip.make');
+});
+const title = computed<string>(() => person.value?.displayName ?? t('profile.title'));
+const lines = computed<ActivityLine[]>(() => person.value?.recentActivity ?? []);
 
 watch(
   () => profile.userId,
   () => {
-    tab.value = 'overview'
-    confirmBan.value = false
+    tab.value = 'overview';
+    confirmBan.value = false;
   },
-)
+);
 
 function shortDate(value: string): string {
   return new Date(value).toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  })
+  });
 }
 
 function trustLabel(level: string): string {
   return KNOWN_TRUST.includes(level)
     ? t(`profile.trust.${level}`)
-    : level
+    : level;
 }
 
-const facts: ComputedRef<KeyValueItem[]> = computed(() => {
-  const who = person.value
+const facts = computed<KeyValueItem[]>(() => {
+  const who = person.value;
 
   if (!who)
-    return []
+    return [];
 
   return [
     { label: t('profile.facts.username'), value: `@${who.username}` },
     { label: t('profile.facts.trust'), value: trustLabel(who.trustLevel) },
     { label: t('profile.facts.firstSeen'), value: shortDate(who.firstSeen) },
     { label: t('profile.facts.lastSeen'), value: shortDate(who.lastSeen) },
-  ]
-})
+  ];
+});
 
 function setOpen(open: boolean): void {
   if (!open) {
-    profile.close()
+    profile.close();
   }
 }
 
 function giveFocusBack(event: Event): void {
-  event.preventDefault()
-  profile.opener?.focus()
+  event.preventDefault();
+  profile.opener?.focus();
 }
 
 function toggleVip(): void {
-  if (!profile.userId || isVip.value === null) return
+  if (!profile.userId || isVip.value === null) return;
 
-  vipChange.mutate({ userId: profile.userId, vip: !isVip.value })
+  vipChange.mutate({ userId: profile.userId, vip: !isVip.value });
 }
 
 async function banNow(): Promise<void> {
-  if (!profile.userId) return
+  if (!profile.userId) return;
 
   try {
-    await ban.mutateAsync({ userId: profile.userId, reason: t('profile.ban.reason') })
+    await ban.mutateAsync({ userId: profile.userId, reason: t('profile.ban.reason') });
   } catch {
-    errors.report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE)
+    errors.report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE);
   }
 
-  confirmBan.value = false
+  confirmBan.value = false;
 }
 </script>
 

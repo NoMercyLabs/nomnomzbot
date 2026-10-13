@@ -10,15 +10,15 @@
 <script setup lang="ts">
 // How text looks for this person on every page. There is no server endpoint for it: the options live in
 // this browser (useReadability) and apply at once, so the footer says "saved on this device".
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, type ComputedRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SegmentedControl from '@/components/layout/SegmentedControl.vue'
-import SettingRow from '@/components/layout/SettingRow.vue'
-import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import {
   readabilitySizeMax,
   readabilitySizeMin,
@@ -26,64 +26,64 @@ import {
   type Readability,
   type ReadabilityPreset,
   type UseReadability,
-} from '@/composables/useReadability'
+} from '@/composables/useReadability';
 
-import ReadabilityRow from './components/ReadabilityRow.vue'
+import ReadabilityRow from './components/ReadabilityRow.vue';
 
-const { t } = useI18n()
-const { settings, activePreset, applyPreset }: UseReadability = useReadability()
+const { t } = useI18n();
+const { settings, activePreset, applyPreset }: UseReadability = useReadability();
 
 interface Choice<T extends string> {
-  value: T
-  label: string
+  value: T;
+  label: string;
 }
 
-const presets: ComputedRef<Choice<ReadabilityPreset>[]> = computed<Choice<ReadabilityPreset>[]>(
+const presets = computed<Choice<ReadabilityPreset>[]>(
   () => [
     { value: 'default', label: t('dashboard.settings.readability.presets.default') },
     { value: 'dyslexia', label: t('dashboard.settings.readability.presets.dyslexia') },
     { value: 'contrast', label: t('dashboard.settings.readability.presets.contrast') },
   ],
-)
-const fonts: ComputedRef<Choice<Readability['font']>[]> = computed<Choice<Readability['font']>[]>(
+);
+const fonts = computed<Choice<Readability['font']>[]>(
   () => [
     { value: 'system', label: t('dashboard.settings.readability.font.system') },
     { value: 'hyperlegible', label: t('dashboard.settings.readability.font.hyperlegible') },
     { value: 'lexend', label: t('dashboard.settings.readability.font.lexend') },
   ],
-)
+);
 const lineSpacings: ComputedRef<Choice<Readability['lh']>[]> = computed<
   Choice<Readability['lh']>[]
 >(() => [
   { value: 'normal', label: t('dashboard.settings.readability.lineSpacing.normal') },
   { value: 'wide', label: t('dashboard.settings.readability.lineSpacing.wide') },
   { value: 'wider', label: t('dashboard.settings.readability.lineSpacing.wider') },
-])
+]);
 const spacings: ComputedRef<Choice<Readability['spacing']>[]> = computed<
   Choice<Readability['spacing']>[]
 >(() => [
   { value: 'normal', label: t('dashboard.settings.readability.spacing.normal') },
   { value: 'wide', label: t('dashboard.settings.readability.spacing.wide') },
-])
+]);
 const motions: ComputedRef<Choice<Readability['motion']>[]> = computed<
   Choice<Readability['motion']>[]
 >(() => [
   { value: 'system', label: t('dashboard.settings.readability.motion.system') },
   { value: 'reduce', label: t('dashboard.settings.readability.motion.reduce') },
-])
+]);
 const densities: ComputedRef<Choice<Readability['density']>[]> = computed<
   Choice<Readability['density']>[]
 >(() => [
   { value: 'compact', label: t('dashboard.settings.readability.density.compact') },
   { value: 'comfortable', label: t('dashboard.settings.readability.density.comfortable') },
   { value: 'touch', label: t('dashboard.settings.readability.density.touch') },
-])
+]);
 
 function setSize(next: number[] | undefined): void {
-  const size = next?.[0]
+  const size = next?.[0];
 
   if (size !== undefined) {
-    settings.value = { ...settings.value, size }
+    settings.value = { ...settings.value, size };
   }
 }
 </script>

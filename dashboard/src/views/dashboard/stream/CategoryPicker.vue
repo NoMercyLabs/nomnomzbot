@@ -9,27 +9,27 @@
 -->
 <script setup lang="ts">
 // The category: what it is now, a search that Twitch answers, and the categories of the last streams.
-import { refDebounced } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { refDebounced } from '@vueuse/core';
+import { computed, ref, type Ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useCategorySearch, type Category } from '@/api/stream'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { useCategorySearch, type Category } from '@/api/stream';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-const props = defineProps<{ channelId: string | null; recent: string[] }>()
-const { t } = useI18n()
-const game = defineModel<string>({ required: true })
+const props = defineProps<{ channelId: string | null; recent: string[] }>();
+const { t } = useI18n();
+const game = defineModel<string>({ required: true });
 
-const search = ref('')
-const asked: Readonly<Ref<string>> = refDebounced(search, 250)
-const results = useCategorySearch(() => props.channelId, asked)
-const found: ComputedRef<Category[]> = computed(() => results.data.value ?? [])
-const searching = computed(() => asked.value.trim() !== '' && results.isPending.value)
+const search = ref('');
+const asked: Readonly<Ref<string>> = refDebounced(search, 250);
+const results = useCategorySearch(() => props.channelId, asked);
+const found = computed<Category[]>(() => results.data.value ?? []);
+const searching = computed(() => asked.value.trim() !== '' && results.isPending.value);
 
 function pick(name: string): void {
-  game.value = name
-  search.value = ''
+  game.value = name;
+  search.value = '';
 }
 </script>
 

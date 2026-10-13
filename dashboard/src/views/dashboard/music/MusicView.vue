@@ -8,12 +8,12 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import ListEnd from '~icons/nnz/playlist-add'
-import Music from '~icons/nnz/note-eighth-pair'
-import Trash2 from '~icons/nnz/trash'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import ListEnd from '~icons/nnz/playlist-add';
+import Music from '~icons/nnz/note-eighth-pair';
+import Trash2 from '~icons/nnz/trash';
+import { computed, ref } from 'vue';
 
-import { useConnections } from '@/api/home'
+import { useConnections } from '@/api/home';
 import {
   usePauseMusic,
   usePromoteQueueItem,
@@ -23,71 +23,71 @@ import {
   useSkipMusic,
   type MusicQueue,
   type QueueItem,
-} from '@/api/music'
-import BoardCell from '@/components/layout/BoardCell.vue'
-import BoardGrid from '@/components/layout/BoardGrid.vue'
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+} from '@/api/music';
+import BoardCell from '@/components/layout/BoardCell.vue';
+import BoardGrid from '@/components/layout/BoardGrid.vue';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
-import NowPlayingCard from './components/NowPlayingCard.vue'
-import RulesPanel from './components/RulesPanel.vue'
+import NowPlayingCard from './components/NowPlayingCard.vue';
+import RulesPanel from './components/RulesPanel.vue';
 
-const { channelId } = useCurrentChannel()
+const { channelId } = useCurrentChannel();
 
-const queueQuery = useMusicQueue(channelId)
-const connections = useConnections(channelId)
-const pause = usePauseMusic(channelId)
-const resume = useResumeMusic(channelId)
-const skip = useSkipMusic(channelId)
-const promote = usePromoteQueueItem(channelId)
-const remove = useRemoveQueueItem(channelId)
+const queueQuery = useMusicQueue(channelId);
+const connections = useConnections(channelId);
+const pause = usePauseMusic(channelId);
+const resume = useResumeMusic(channelId);
+const skip = useSkipMusic(channelId);
+const promote = usePromoteQueueItem(channelId);
+const remove = useRemoveQueueItem(channelId);
 
-const nowPlaying: ComputedRef<NonNullable<typeof queueQuery.data.value>['nowPlaying']> = computed(
+const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlaying']>(
   () => queueQuery.data.value?.nowPlaying ?? null,
-)
-const rows: ComputedRef<QueueItem[]> = computed<QueueItem[]>(
+);
+const rows = computed<QueueItem[]>(
   () => queueQuery.data.value?.queue ?? [],
-)
+);
 
 const nowState = usePanelState(queueQuery, (queue: MusicQueue): boolean =>
-  !queue.nowPlaying)
+  !queue.nowPlaying);
 const queueState = usePanelState(
   queueQuery,
   (queue: MusicQueue): boolean => queue.queue.length === 0,
-)
+);
 
-const spotify: ComputedRef<{ tone: StatusTone; key: string }> = computed(() => {
-  const status = connections.data.value?.find((item) => item.provider === 'spotify')
+const spotify = computed<{ tone: StatusTone; key: string }>(() => {
+  const status = connections.data.value?.find((item) => item.provider === 'spotify');
 
   if (!status?.connected)
-    return { tone: 'off', key: 'off' }
+    return { tone: 'off', key: 'off' };
 
   return status.needsReauth
     ? { tone: 'bad', key: 'reauth' }
-    : { tone: 'ok', key: 'connected' }
-})
+    : { tone: 'ok', key: 'connected' };
+});
 
-const removing: Ref<QueueItem | null> = ref<QueueItem | null>(null)
-const confirmOpen: ComputedRef<boolean> = computed<boolean>({
+const removing = ref<QueueItem | null>(null);
+const confirmOpen = computed<boolean>({
   get: () => removing.value !== null,
   set: (open: boolean) => {
     if (!open) {
-      removing.value = null
+      removing.value = null;
     }
   },
-})
+});
 
 function confirmRemove(): void {
-  if (removing.value === null) return
+  if (removing.value === null) return;
 
-  remove.mutate({ position: Number(removing.value.position) })
-  removing.value = null
+  remove.mutate({ position: Number(removing.value.position) });
+  removing.value = null;
 }
 </script>
 

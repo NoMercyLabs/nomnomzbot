@@ -14,56 +14,56 @@ import {
   useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
-} from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { useOptimisticSave } from '@/composables/useOptimisticSave'
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type StreamInfo = components['schemas']['StreamInfoDto']
-export type AdSchedule = components['schemas']['TwitchAdSchedule']
+export type StreamInfo = components['schemas']['StreamInfoDto'];
+export type AdSchedule = components['schemas']['TwitchAdSchedule'];
 
 // What the form edits and sends: the same three fields as UpdateStreamRequest, never empty-as-null.
 export type StreamInfoDraft = {
-  title: string
-  gameName: string
-  tags: string[]
-}
-export type Category = components['schemas']['CategoryDto']
-export type PastStream = components['schemas']['StreamListItemDto']
+  title: string;
+  gameName: string;
+  tags: string[];
+};
+export type Category = components['schemas']['CategoryDto'];
+export type PastStream = components['schemas']['StreamListItemDto'];
 
-const version = '1'
+const version = '1';
 // The recent titles and categories come from the last streams.
-const historySize = 20
+const historySize = 20;
 
 // Twitch moves the next ad by this much per snooze.
-export const SNOOZE_SECONDS: number = 300
+export const SNOOZE_SECONDS: number = 300;
 
 export const streamInfoKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'stream',
-]
+];
 export const adScheduleKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'ad-schedule',
-]
+];
 
 export const streamHistoryKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'stream-history',
-]
+];
 export const categorySearchKey = (channelId: string | null, query: string): unknown[] => [
   'channels',
   channelId,
   'stream-categories',
   query,
-]
+];
 
 export function useStreamInfo(
   channelId: MaybeRefOrGetter<string | null>,
@@ -74,13 +74,13 @@ export function useStreamInfo(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('stream', response.status)
+      throw failed('stream', response.status);
 
-    return data?.data ?? null
-  })
+    return data?.data ?? null;
+  });
 }
 
 async function readAdSchedule(channelId: string): Promise<AdSchedule | null> {
@@ -89,18 +89,18 @@ async function readAdSchedule(channelId: string): Promise<AdSchedule | null> {
     {
       params: { path: { version, channelId } },
     },
-  )
+  );
 
   if (error !== undefined)
-    throw failed('ad schedule', response.status)
+    throw failed('ad schedule', response.status);
 
-  return data?.data ?? null
+  return data?.data ?? null;
 }
 
 export function useAdSchedule(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<AdSchedule | null, Error> {
-  return channelQuery(channelId, adScheduleKey, readAdSchedule)
+  return channelQuery(channelId, adScheduleKey, readAdSchedule);
 }
 
 // One snooze pushes the next ad back and uses up one of the snoozes Twitch still allows.
@@ -110,18 +110,18 @@ export function useSnoozeAd(
   return useOptimisticSave<AdSchedule | null, void>({
     queryKey: () => adScheduleKey(toValue(channelId)),
     mutationFn: async (): Promise<AdSchedule | null> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/live-ops/ads/snooze',
         {
           params: { path: { version, channelId: id } },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('snooze', response.status)
+        throw failed('snooze', response.status);
 
-      return readAdSchedule(id)
+      return readAdSchedule(id);
     },
     apply: (current: AdSchedule | null | undefined): AdSchedule | null =>
       current
@@ -131,7 +131,7 @@ export function useSnoozeAd(
             snoozeCount: Math.max(0, Number(current.snoozeCount) - 1),
           }
         : null,
-  })
+  });
 }
 
 // The newest streams first; the form takes its recent titles and categories from here.
@@ -144,13 +144,13 @@ export function useStreamHistory(
       {
         params: { path: { version, channelId: id }, query: { PageSize: historySize } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('stream history', response.status)
+      throw failed('stream history', response.status);
 
-    return [...(data?.data ?? [])]
-  })
+    return [...(data?.data ?? [])];
+  });
 }
 
 // Twitch does the searching; an empty search asks nothing.
@@ -169,45 +169,45 @@ export function useCategorySearch(
             query: { query: toValue(search) },
           },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('categories', response.status)
+        throw failed('categories', response.status);
 
-      return [...(data?.data ?? [])]
+      return [...(data?.data ?? [])];
     },
     enabled: computed(() => toValue(channelId) !== null && toValue(search).trim() !== ''),
-  })
+  });
 }
 
 // The title, category and tags go to Twitch in one request; the cache shows them at once and rolls back on a refusal.
 export function useSaveStreamInfo(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<StreamInfo | null, Error, StreamInfoDraft, number> {
-  const queries = useQueryClient()
+  const queries = useQueryClient();
 
   return useOptimisticSave<StreamInfo | null, StreamInfoDraft>({
     queryKey: () => streamInfoKey(toValue(channelId)),
     mutationFn: async (draft: StreamInfoDraft): Promise<StreamInfo | null> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { data, error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/stream',
         {
           params: { path: { version, channelId: id } },
           body: draft,
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('stream info', response.status)
+        throw failed('stream info', response.status);
 
-      return data?.data ?? queries.getQueryData<StreamInfo | null>(streamInfoKey(id)) ?? null
+      return data?.data ?? queries.getQueryData<StreamInfo | null>(streamInfoKey(id)) ?? null;
     },
     apply: (current: StreamInfo | null | undefined, draft: StreamInfoDraft): StreamInfo | null =>
       current
         ? { ...current, ...draft }
         : null,
-  })
+  });
 }
 
 // Starts a connect: the bot answers with the page of the platform where the streamer says yes.
@@ -228,17 +228,17 @@ export function useConnectIntegration(
           },
           body: { scopeSetKey: variables.scopeSetKey, returnUrl: window.location.href },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('connect', response.status)
+        throw failed('connect', response.status);
 
-      const url = data?.data?.authorizeUrl
+      const url = data?.data?.authorizeUrl;
 
       if (!url)
-        throw failed('connect', response.status)
+        throw failed('connect', response.status);
 
-      return url
+      return url;
     },
-  })
+  });
 }

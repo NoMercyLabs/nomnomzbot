@@ -8,37 +8,40 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia, type Pinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { i18n } from '@/i18n'
-import { useSaveErrorsStore } from '@/stores/saveErrors'
+import { i18n } from '@/i18n';
+import { useSaveErrorsStore } from '@/stores/saveErrors';
 
-import en from '../i18n/en.json'
-import QuickActionsPanel from '../components/QuickActionsPanel.vue'
+import en from '../i18n/en.json';
+import QuickActionsPanel from '../components/QuickActionsPanel.vue';
 
-type Call = { method: string; path: string }
+type Call = { method: string; path: string };
 type Answer = {
-  data?: unknown
-  error?: unknown
-  response: { status: number; ok: boolean }
-}
+  data?: unknown;
+  error?: unknown;
+  response: { status: number; ok: boolean };
+};
 
-const calls: Call[] = []
-let answers: Record<string, () => Answer> = {}
+const calls: Call[] = [];
+let answers: Record<string, () => Answer> = {};
 
-const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } })
-const refused = (): Answer => ({ error: { status: 'error' }, response: { status: 500, ok: false } })
-const nowSeconds = (): number => Math.floor(Date.now() / 1000)
+const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
+const refused = (): Answer => ({
+  error: { status: 'error' },
+  response: { status: 500, ok: false },
+});
+const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
-let snoozeCount = 2
-let snoozeFails = false
-let toggleFails = false
-let timers: Record<string, unknown>[] = []
+let snoozeCount = 2;
+let snoozeFails = false;
+let toggleFails = false;
+let timers: Record<string, unknown>[] = [];
 
 const schedule = (): Record<string, number> => ({
   snoozeCount,
@@ -47,7 +50,7 @@ const schedule = (): Record<string, number> => ({
   duration: 180,
   lastAdAt: 0,
   prerollFreeTime: 0,
-})
+});
 
 const timer = (
   name: string,
@@ -63,7 +66,7 @@ const timer = (
   lastFiredAt: new Date(Date.now() - firedMinutesAgo * 60_000).toISOString(),
   messageCount: 1,
   createdAt: '2026-01-01T00:00:00Z',
-})
+});
 
 const queueItem = (position: number, requestedBy: string | null): Record<string, unknown> => ({
   position,
@@ -73,7 +76,7 @@ const queueItem = (position: number, requestedBy: string | null): Record<string,
   durationMs: 1000,
   requestedBy,
   cost: 0,
-})
+});
 
 function freshAnswers(): Record<string, () => Answer> {
   return {
@@ -86,16 +89,16 @@ function freshAnswers(): Record<string, () => Answer> {
     '/timers': () => ok(timers),
     '/live-ops/polls': () => ok([]),
     '/live-ops/predictions': () => ok([]),
-  }
+  };
 }
 
 function answer(method: string, path: string): Answer {
-  calls.push({ method, path })
-  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+  calls.push({ method, path });
+  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
 
   return match
     ? answers[match]!()
-    : ok(null)
+    : ok(null);
 }
 
 vi.mock('@/api/client', () => ({
@@ -103,72 +106,72 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string) => answer('GET', path),
     POST: async (path: string, options?: { params?: { path?: { id?: string } } }) => {
-      const id = options?.params?.path?.id
+      const id = options?.params?.path?.id;
 
       calls.push({ method: 'POST', path: id
         ? path.replace('{id}', id)
-        : path })
+        : path });
 
       if (path.endsWith('/toggle')) {
         if (toggleFails)
-          return refused()
+          return refused();
 
-        const target = timers.find((entry) => entry.id === id)
+        const target = timers.find((entry) => entry.id === id);
 
         if (target) {
-          target.isEnabled = !target.isEnabled
+          target.isEnabled = !target.isEnabled;
         }
 
-        return { data: { data: target }, response: { status: 200, ok: true } }
+        return { data: { data: target }, response: { status: 200, ok: true } };
       }
 
       if (snoozeFails)
-        return refused()
+        return refused();
 
       if (path.endsWith('/ads/snooze')) {
-        snoozeCount -= 1
+        snoozeCount -= 1;
       }
 
-      return { data: { data: null }, response: { status: 200, ok: true } }
+      return { data: { data: null }, response: { status: 200, ok: true } };
     },
   },
-}))
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+}));
 
-let mounted: VueWrapper | null = null
-let pinia: Pinia
-let router: Router
+let mounted: VueWrapper | null = null;
+let pinia: Pinia;
+let router: Router;
 
 beforeEach(() => {
-  calls.length = 0
-  snoozeCount = 2
-  snoozeFails = false
-  toggleFails = false
+  calls.length = 0;
+  snoozeCount = 2;
+  snoozeFails = false;
+  toggleFails = false;
 
   timers = [
     timer('discord', 10, true, 6),
     timer('socials', 30, true, 5),
     timer('lurk', 20, true, 2),
     timer('old', 5, false, 1),
-  ]
+  ];
 
-  answers = freshAnswers()
-  pinia = createPinia()
-  setActivePinia(pinia)
-  i18n.global.mergeLocaleMessage('en', en)
-})
+  answers = freshAnswers();
+  pinia = createPinia();
+  setActivePinia(pinia);
+  i18n.global.mergeLocaleMessage('en', en);
+});
 
 afterEach(() => {
-  mounted?.unmount()
-  mounted = null
-  document.body.innerHTML = ''
-})
+  mounted?.unmount();
+  mounted = null;
+  document.body.innerHTML = '';
+});
 
 async function open(): Promise<void> {
-  const blank = { template: '<div />' }
+  const blank = { template: '<div />' };
 
   router = createRouter({
     history: createMemoryHistory(),
@@ -189,9 +192,9 @@ async function open(): Promise<void> {
         component: blank,
       },
     ],
-  })
+  });
 
-  await router.push('/app')
+  await router.push('/app');
 
   mounted = mount(QuickActionsPanel, {
     attachTo: document.body,
@@ -206,92 +209,92 @@ async function open(): Promise<void> {
         ],
       ],
     },
-  })
+  });
 
-  await settle()
+  await settle();
 }
 
 const settle = async (): Promise<void> => {
-  await flushPromises()
-  await new Promise((done) => setTimeout(done, 0))
-  await flushPromises()
-}
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+};
 
 const row = (name: string): HTMLElement =>
-  document.body.querySelector<HTMLElement>(`[data-quick-row="${name}"]`) as HTMLElement
+  document.body.querySelector<HTMLElement>(`[data-quick-row="${name}"]`) as HTMLElement;
 const buttonIn = (root: HTMLElement, label: string): HTMLElement =>
   [...root.querySelectorAll<HTMLElement>('button, a')].find(
     (b) => b.textContent?.trim() === label,
-  ) as HTMLElement
-const posts = (): Call[] => calls.filter((call) => call.method === 'POST')
+  ) as HTMLElement;
+const posts = (): Call[] => calls.filter((call) => call.method === 'POST');
 
 describe('QuickActionsPanel', () => {
   it('shows each row with the values the server gave', async () => {
-    await open()
+    await open();
 
-    expect(document.body.textContent).toContain('Quick actions')
+    expect(document.body.textContent).toContain('Quick actions');
 
     expect(row('ad').querySelector('[data-slot="countdown-time"]')?.textContent).toMatch(
       /^12:\d\d$/,
-    )
+    );
 
-    expect(row('ad').textContent).toContain('3 min')
-    expect(row('ad').textContent).toContain('2 snoozes left')
-    expect(row('music').textContent).toContain('3 waiting')
-    expect(row('music').textContent).toContain('All sent by DukaSoft')
-    expect(row('timers').textContent).toContain('3 timers on')
-    expect(row('timers').textContent).toContain('Next timer: discord')
-    expect(row('timers').textContent).not.toMatch(/\d:\d\d/)
-    expect(row('poll').textContent).toContain('Poll or prediction')
-  })
+    expect(row('ad').textContent).toContain('3 min');
+    expect(row('ad').textContent).toContain('2 snoozes left');
+    expect(row('music').textContent).toContain('3 waiting');
+    expect(row('music').textContent).toContain('All sent by DukaSoft');
+    expect(row('timers').textContent).toContain('3 timers on');
+    expect(row('timers').textContent).toContain('Next timer: discord');
+    expect(row('timers').textContent).not.toMatch(/\d:\d\d/);
+    expect(row('poll').textContent).toContain('Poll or prediction');
+  });
 
   it('links the song queue to the music page', async () => {
-    await open()
+    await open();
 
-    buttonIn(row('music'), 'Open queue').click()
-    await settle()
+    buttonIn(row('music'), 'Open queue').click();
+    await settle();
 
-    expect(router.currentRoute.value.name).toBe('dashboard-music')
-  })
+    expect(router.currentRoute.value.name).toBe('dashboard-music');
+  });
 
   it('snoozes once: one call, and the row shows one snooze fewer', async () => {
-    await open()
+    await open();
 
-    buttonIn(row('ad'), 'Snooze 5 min').click()
-    await settle()
+    buttonIn(row('ad'), 'Snooze 5 min').click();
+    await settle();
 
     expect(posts()).toEqual([
       { method: 'POST', path: expect.stringContaining('/live-ops/ads/snooze') },
-    ])
+    ]);
 
-    expect(row('ad').textContent).toContain('1 snooze left')
-  })
+    expect(row('ad').textContent).toContain('1 snooze left');
+  });
 
   it('turns Snooze off when no snooze is left', async () => {
-    snoozeCount = 0
-    await open()
+    snoozeCount = 0;
+    await open();
 
-    expect(row('ad').textContent).toContain('No snoozes left')
-    expect((buttonIn(row('ad'), 'Snooze 5 min') as HTMLButtonElement).disabled).toBe(true)
-  })
+    expect(row('ad').textContent).toContain('No snoozes left');
+    expect((buttonIn(row('ad'), 'Snooze 5 min') as HTMLButtonElement).disabled).toBe(true);
+  });
 
   it('reports a refused snooze and puts the count back', async () => {
-    snoozeFails = true
-    await open()
+    snoozeFails = true;
+    await open();
 
-    buttonIn(row('ad'), 'Snooze 5 min').click()
-    await settle()
+    buttonIn(row('ad'), 'Snooze 5 min').click();
+    await settle();
 
-    expect(useSaveErrorsStore().items).toHaveLength(1)
-    expect(row('ad').textContent).toContain('2 snoozes left')
-  })
+    expect(useSaveErrorsStore().items).toHaveLength(1);
+    expect(row('ad').textContent).toContain('2 snoozes left');
+  });
 
   it('says plainly that no poll or prediction runs, with no start buttons', async () => {
-    await open()
+    await open();
 
-    expect(row('poll').textContent).toContain('No poll or prediction running')
-    expect(row('poll').querySelectorAll('button, a')).toHaveLength(0)
-  })
+    expect(row('poll').textContent).toContain('No poll or prediction running');
+    expect(row('poll').querySelectorAll('button, a')).toHaveLength(0);
+  });
 
   it('shows the time left of a running poll', async () => {
     answers['/live-ops/polls'] = () =>
@@ -314,19 +317,19 @@ describe('QuickActionsPanel', () => {
           endedAt: '2026-01-01T00:05:00Z',
           choices: [],
         },
-      ])
+      ]);
 
-    await open()
+    await open();
 
-    expect(row('poll').textContent).toContain('Which game next?')
-    expect(row('poll').textContent).not.toContain('Old poll')
+    expect(row('poll').textContent).toContain('Which game next?');
+    expect(row('poll').textContent).not.toContain('Old poll');
 
     expect(row('poll').querySelector('[data-slot="countdown-time"]')?.textContent).toMatch(
       /^[45]:\d\d$/,
-    )
+    );
 
-    expect(row('poll').textContent).not.toContain('No poll or prediction running')
-  })
+    expect(row('poll').textContent).not.toContain('No poll or prediction running');
+  });
 
   it('shows a locked prediction as locked, with no clock', async () => {
     answers['/live-ops/predictions'] = () =>
@@ -341,88 +344,88 @@ describe('QuickActionsPanel', () => {
           lockedAt: new Date().toISOString(),
           outcomes: [],
         },
-      ])
+      ]);
 
-    await open()
+    await open();
 
-    expect(row('poll').textContent).toContain('Will it build?')
-    expect(row('poll').textContent).toContain('Locked')
-    expect(row('poll').querySelector('[data-slot="countdown-time"]')).toBeNull()
-  })
+    expect(row('poll').textContent).toContain('Will it build?');
+    expect(row('poll').textContent).toContain('Locked');
+    expect(row('poll').querySelector('[data-slot="countdown-time"]')).toBeNull();
+  });
 
   it('shows its own error line for a row whose source failed, and the others still render', async () => {
-    answers['/music/queue'] = refused
-    await open()
+    answers['/music/queue'] = refused;
+    await open();
 
-    expect(row('music').textContent).toContain('The song queue could not load.')
-    expect(row('music').textContent).not.toContain('waiting')
-    expect(row('ad').textContent).toContain('2 snoozes left')
-    expect(row('timers').textContent).toContain('3 timers on')
-  })
+    expect(row('music').textContent).toContain('The song queue could not load.');
+    expect(row('music').textContent).not.toContain('waiting');
+    expect(row('ad').textContent).toContain('2 snoozes left');
+    expect(row('timers').textContent).toContain('3 timers on');
+  });
 
   it('invents nothing: empty sources say so and show no numbers', async () => {
-    answers['/ads/schedule'] = () => ok(null)
-    answers['/music/queue'] = () => ok({ nowPlaying: null, queue: [] })
-    answers['/timers'] = () => ok([])
-    await open()
+    answers['/ads/schedule'] = () => ok(null);
+    answers['/music/queue'] = () => ok({ nowPlaying: null, queue: [] });
+    answers['/timers'] = () => ok([]);
+    await open();
 
-    expect(row('ad').textContent).toContain('No ad break is scheduled.')
-    expect(row('ad').querySelector('[data-slot="countdown-time"]')).toBeNull()
-    expect(row('music').textContent).toContain('The queue is empty.')
-    expect(row('music').textContent).not.toContain('waiting')
-    expect(row('timers').textContent).toContain('No timers are on.')
-  })
+    expect(row('ad').textContent).toContain('No ad break is scheduled.');
+    expect(row('ad').querySelector('[data-slot="countdown-time"]')).toBeNull();
+    expect(row('music').textContent).toContain('The queue is empty.');
+    expect(row('music').textContent).not.toContain('waiting');
+    expect(row('timers').textContent).toContain('No timers are on.');
+  });
 
   describe('timers dialog', () => {
     const dialog = (): HTMLElement =>
-      document.body.querySelector<HTMLElement>('[role="dialog"]') as HTMLElement
+      document.body.querySelector<HTMLElement>('[role="dialog"]') as HTMLElement;
     const timerRow = (name: string): HTMLElement =>
-      document.body.querySelector<HTMLElement>(`[data-timer-row="${name}"]`) as HTMLElement
+      document.body.querySelector<HTMLElement>(`[data-timer-row="${name}"]`) as HTMLElement;
 
     async function openDialog(): Promise<void> {
-      await open()
-      buttonIn(row('timers'), 'Open timers').click()
-      await settle()
+      await open();
+      buttonIn(row('timers'), 'Open timers').click();
+      await settle();
     }
 
     it('lists every timer with its state', async () => {
-      await openDialog()
+      await openDialog();
 
-      expect(dialog().textContent).toContain('A paused timer stays saved. It does not fire.')
-      expect(timerRow('discord').textContent).toContain('On, every 10 min')
-      expect(timerRow('socials').textContent).toContain('On, every 30 min')
-      expect(timerRow('old').textContent).toContain('Paused')
-      expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined()
-      expect(buttonIn(timerRow('old'), 'Resume')).toBeDefined()
-      expect(buttonIn(dialog(), 'Done')).toBeDefined()
-    })
+      expect(dialog().textContent).toContain('A paused timer stays saved. It does not fire.');
+      expect(timerRow('discord').textContent).toContain('On, every 10 min');
+      expect(timerRow('socials').textContent).toContain('On, every 30 min');
+      expect(timerRow('old').textContent).toContain('Paused');
+      expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined();
+      expect(buttonIn(timerRow('old'), 'Resume')).toBeDefined();
+      expect(buttonIn(dialog(), 'Done')).toBeDefined();
+    });
 
     it('pauses an enabled timer: one toggle call for its id, and the row reads Paused', async () => {
-      await openDialog()
+      await openDialog();
 
-      buttonIn(timerRow('discord'), 'Pause').click()
-      await settle()
+      buttonIn(timerRow('discord'), 'Pause').click();
+      await settle();
 
       expect(posts()).toEqual([
         { method: 'POST', path: expect.stringContaining('/timers/discord/toggle') },
-      ])
+      ]);
 
-      expect(timerRow('discord').textContent).toContain('Paused')
-      expect(timerRow('discord').textContent).not.toContain('On, every')
-      expect(buttonIn(timerRow('discord'), 'Resume')).toBeDefined()
-      expect(timerRow('socials').textContent).toContain('On, every 30 min')
-    })
+      expect(timerRow('discord').textContent).toContain('Paused');
+      expect(timerRow('discord').textContent).not.toContain('On, every');
+      expect(buttonIn(timerRow('discord'), 'Resume')).toBeDefined();
+      expect(timerRow('socials').textContent).toContain('On, every 30 min');
+    });
 
     it('reports a failed toggle and keeps the old state', async () => {
-      toggleFails = true
-      await openDialog()
+      toggleFails = true;
+      await openDialog();
 
-      buttonIn(timerRow('discord'), 'Pause').click()
-      await settle()
+      buttonIn(timerRow('discord'), 'Pause').click();
+      await settle();
 
-      expect(useSaveErrorsStore().items).toHaveLength(1)
-      expect(timerRow('discord').textContent).toContain('On, every 10 min')
-      expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined()
-    })
-  })
-})
+      expect(useSaveErrorsStore().items).toHaveLength(1);
+      expect(timerRow('discord').textContent).toContain('On, every 10 min');
+      expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined();
+    });
+  });
+});

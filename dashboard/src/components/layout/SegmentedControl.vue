@@ -10,15 +10,15 @@
 <script setup lang="ts" generic="T extends string">
 // One choice from 2 to 4 named options. One option is always chosen: pressing the open one again,
 // which would clear it in the library, changes nothing.
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-defineProps<{ label: string; options: readonly { value: T; label: string }[] }>()
+defineProps<{ label: string; options: readonly { value: T; label: string }[] }>();
 
-const chosen = defineModel<T>({ required: true })
+const chosen = defineModel<T>({ required: true });
 
 function choose(next: unknown): void {
   if (typeof next === 'string' && next !== '') {
-    chosen.value = next as T
+    chosen.value = next as T;
   }
 }
 </script>

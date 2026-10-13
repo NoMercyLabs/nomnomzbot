@@ -9,19 +9,19 @@
 -->
 <script setup lang="ts">
 // The dashboard tour under the hero: five tabs, each showing a sample of one dashboard page.
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import DemoRows from './DemoRows.vue'
+import DemoRows from './DemoRows.vue';
 
 type Tab = {
-  id: 'dashboard' | 'chat' | 'mod' | 'rules' | 'alerts'
-  group: 'home' | 'chat' | 'moderation' | 'stream'
-}
+  id: 'dashboard' | 'chat' | 'mod' | 'rules' | 'alerts';
+  group: 'home' | 'chat' | 'moderation' | 'stream';
+};
 
 const tabs: Tab[] = [
   { id: 'dashboard', group: 'home' },
@@ -29,20 +29,24 @@ const tabs: Tab[] = [
   { id: 'mod', group: 'moderation' },
   { id: 'rules', group: 'moderation' },
   { id: 'alerts', group: 'stream' },
-]
-const stats: string[] = ['viewers', 'followers', 'chatters', 'uptime']
+];
+const stats: string[] = ['viewers', 'followers', 'chatters', 'uptime'];
 const filters: {
-  name: string
-  detail?: string
-  on: boolean
+  name: string;
+  detail?: string;
+  on: boolean;
 }[] = [
   { name: 'linkFilter', on: true },
-  { name: 'capsFilter', detail: 'capsDetail', on: true },
+  {
+    name: 'capsFilter',
+    detail: 'capsDetail',
+    on: true,
+  },
   { name: 'bannedPhrases', on: false },
-]
-const blocked: string[] = ['blocked1', 'blocked2', 'blocked3']
+];
+const blocked: string[] = ['blocked1', 'blocked2', 'blocked3'];
 
-const { t } = useI18n()
+const { t } = useI18n();
 </script>
 
 <template>

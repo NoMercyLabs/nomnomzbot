@@ -10,13 +10,13 @@
 <script setup lang="ts">
 // The home header. From md up it shows the links inline; below md they move into a side sheet,
 // so a phone header is one line: the brand and one menu button.
-import { useI18n } from 'vue-i18n'
-import Cross from '~icons/nnz/cross'
-import MenuBurger from '~icons/nnz/menu-burger'
+import { useI18n } from 'vue-i18n';
+import Cross from '~icons/nnz/cross';
+import MenuBurger from '~icons/nnz/menu-burger';
 
-import AppMark from '@/components/layout/AppMark.vue'
-import LanguagePicker from '@/components/layout/LanguagePicker.vue'
-import { Button } from '@/components/ui/button'
+import AppMark from '@/components/layout/AppMark.vue';
+import LanguagePicker from '@/components/layout/LanguagePicker.vue';
+import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetClose,
@@ -24,21 +24,25 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet'
+} from '@/components/ui/sheet';
 
 type Link = {
-  key: string
-  href: string
-  external?: boolean
-}
+  key: string;
+  href: string;
+  external?: boolean;
+};
 
-const { t } = useI18n()
+const { t } = useI18n();
 const links: Link[] = [
   { key: 'site.home.nav.features', href: '#outcomes' },
   { key: 'site.home.nav.deploy', href: '#deploy' },
   { key: 'site.home.nav.integrations', href: '#integrations' },
-  { key: 'site.home.github', href: t('site.home.githubUrl'), external: true },
-]
+  {
+    key: 'site.home.github',
+    href: t('site.home.githubUrl'),
+    external: true,
+  },
+];
 </script>
 
 <template>
@@ -58,8 +62,7 @@ const links: Link[] = [
         class="rounded-[8px] px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
         :href="link.href"
         v-bind="link.external ? { target: '_blank', rel: 'noopener' } : {}"
-        >{{ t(link.key) }}</a
-      >
+      >{{ t(link.key) }}</a>
     </nav>
     <div class="hidden items-center gap-2 md:flex">
       <LanguagePicker />
@@ -97,8 +100,7 @@ const links: Link[] = [
               class="rounded-[12px] px-3 py-2 hover:bg-muted"
               :href="link.href"
               v-bind="link.external ? { target: '_blank', rel: 'noopener' } : {}"
-              >{{ t(link.key) }}</a
-            >
+            >{{ t(link.key) }}</a>
           </SheetClose>
         </nav>
         <div class="flex flex-col gap-3">

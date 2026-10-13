@@ -12,7 +12,7 @@
 // Header and footer stay; only the body scrolls; the dialog is at most 90% of the window.
 // Cancel is outline on the left; the red button names the action. Pressing it emits confirm and
 // leaves the dialog open: the owner closes it (v-model:open) when the work is done, so pending can show.
-import BlastList from '@/components/layout/BlastList.vue'
+import BlastList from '@/components/layout/BlastList.vue';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -20,23 +20,27 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 withDefaults(
   defineProps<{
-    open: boolean
-    title: string
-    description?: string
-    consequences?: string[]
-    action: string
-    pending?: boolean
+    open: boolean;
+    title: string;
+    description?: string;
+    consequences?: string[];
+    action: string;
+    pending?: boolean;
   }>(),
-  { description: undefined, consequences: () => [], pending: false },
-)
+  {
+    description: undefined,
+    consequences: () => [],
+    pending: false,
+  },
+);
 
-defineEmits<{ 'update:open': [open: boolean]; confirm: [] }>()
+defineEmits<{ 'update:open': [open: boolean]; confirm: [] }>();
 </script>
 
 <template>

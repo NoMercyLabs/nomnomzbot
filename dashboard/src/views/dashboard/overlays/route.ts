@@ -8,9 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router';
 
-import { loadPage } from '@/i18n'
+import { loadPage } from '@/i18n';
 
 export const dashboardOverlaysRoute = {
   path: 'overlays',
@@ -20,4 +20,4 @@ export const dashboardOverlaysRoute = {
       () => import('./OverlaysView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
-} as const satisfies RouteRecordRaw
+} as const satisfies RouteRecordRaw;

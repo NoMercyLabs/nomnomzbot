@@ -8,10 +8,10 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import ChevronDown from '~icons/nnz/chevron-down'
+import { useI18n } from 'vue-i18n';
+import ChevronDown from '~icons/nnz/chevron-down';
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Sidebar,
   SidebarContent,
@@ -20,14 +20,14 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarProvider,
-} from '@/components/ui/sidebar'
-import ChannelSwitch from './ChannelSwitch.vue'
-import ProfileMenu from './ProfileMenu.vue'
-import SidebarEntries from './SidebarEntries.vue'
-import { useNavigation } from './useNavigation'
+} from '@/components/ui/sidebar';
+import ChannelSwitch from './ChannelSwitch.vue';
+import ProfileMenu from './ProfileMenu.vue';
+import SidebarEntries from './SidebarEntries.vue';
+import { useNavigation } from './useNavigation';
 
-const { t } = useI18n()
-const { groups, toggle } = useNavigation()
+const { t } = useI18n();
+const { groups, toggle } = useNavigation();
 </script>
 
 <template>

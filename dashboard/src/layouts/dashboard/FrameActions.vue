@@ -9,8 +9,8 @@
 -->
 <script setup lang="ts">
 // Shield mode sits in every dashboard header (frame.css:60); the error inbox sits beside it.
-import ErrorInbox from './ErrorInbox.vue'
-import ShieldToggle from './ShieldToggle.vue'
+import ErrorInbox from './ErrorInbox.vue';
+import ShieldToggle from './ShieldToggle.vue';
 </script>
 
 <template>

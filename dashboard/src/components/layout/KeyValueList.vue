@@ -11,14 +11,14 @@
 // Facts as a label and a value (C11): a value with no source shows a dash and, when given, the reason.
 // The value slot lets a row show a StatusBadge or a link instead of plain text.
 export interface KeyValueItem {
-  label: string
-  value?: string | number | null
-  reason?: string
+  label: string;
+  value?: string | number | null;
+  reason?: string;
 }
 
-defineProps<{ items: readonly KeyValueItem[] }>()
+defineProps<{ items: readonly KeyValueItem[] }>();
 
-const missing: string = '-'
+const missing: string = '-';
 </script>
 
 <template>

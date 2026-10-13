@@ -8,12 +8,12 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Cross from '~icons/nnz/cross'
-import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Cross from '~icons/nnz/cross';
+import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetClose,
@@ -22,21 +22,21 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet'
-import type { NavEntry } from './navigation'
-import { useNavigation } from './useNavigation'
+} from '@/components/ui/sheet';
+import type { NavEntry } from './navigation';
+import { useNavigation } from './useNavigation';
 
-const { t } = useI18n()
-const { entries, isCurrent } = useNavigation()
-const more = ref(false)
+const { t } = useI18n();
+const { entries, isCurrent } = useNavigation();
+const more = ref(false);
 
 // The pages a thumb needs most stay in the bar; the rest open in the sheet.
 const barEntries = computed<NavEntry[]>(() =>
   entries.value.filter((entry) => entry.bottom).slice(0, 4),
-)
+);
 const sheetEntries = computed<NavEntry[]>(() =>
   entries.value.filter((entry) => !barEntries.value.includes(entry)),
-)
+);
 </script>
 
 <template>

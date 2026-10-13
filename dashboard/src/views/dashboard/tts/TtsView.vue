@@ -8,106 +8,106 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useTtsConfig, useTtsOverlay, type TtsConfig } from '@/api/tts'
-import BoardCell from '@/components/layout/BoardCell.vue'
-import BoardGrid from '@/components/layout/BoardGrid.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePageView } from '@/composables/usePageView'
-import { usePanelState } from '@/composables/usePanelState'
-import { useProviderName } from '@/composables/useProviderName'
+import { useTtsConfig, useTtsOverlay, type TtsConfig } from '@/api/tts';
+import BoardCell from '@/components/layout/BoardCell.vue';
+import BoardGrid from '@/components/layout/BoardGrid.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
+import { usePanelState } from '@/composables/usePanelState';
+import { useProviderName } from '@/composables/useProviderName';
 
-import VoicesTab from './VoicesTab.vue'
+import VoicesTab from './VoicesTab.vue';
 
-const { t, locale } = useI18n()
-const providerName = useProviderName()
-const { channelId } = useCurrentChannel()
-const config = useTtsConfig(channelId)
-const overlay = useTtsOverlay(channelId)
+const { t, locale } = useI18n();
+const providerName = useProviderName();
+const { channelId } = useCurrentChannel();
+const config = useTtsConfig(channelId);
+const overlay = useTtsOverlay(channelId);
 
-const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() => [
+const tabs = computed<PageTab[]>(() => [
   { value: 'overview', label: t('dashboard.tts.tabs.overview') },
   { value: 'voices', label: t('dashboard.tts.tabs.voices') },
   { value: 'rules', label: t('dashboard.tts.tabs.rules') },
-])
-const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value))
+]);
+const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
 
-const settings: ComputedRef<TtsConfig | null> = computed<TtsConfig | null>(
+const settings = computed<TtsConfig | null>(
   () => config.data.value ?? null,
-)
+);
 
 const settingsState = usePanelState<TtsConfig | null>(
   config,
   (data: TtsConfig | null) => data === null,
-)
+);
 
-const voiceDetail: ComputedRef<string> = computed<string>(() => {
-  const current = settings.value
+const voiceDetail = computed<string>(() => {
+  const current = settings.value;
 
   if (current === null)
-    return ''
+    return '';
 
-  const provider = providerName(current.defaultProvider)
+  const provider = providerName(current.defaultProvider);
 
   if (current.defaultVoiceId)
-    return t('dashboard.tts.settings.voice.detail', { voice: current.defaultVoiceId, provider })
+    return t('dashboard.tts.settings.voice.detail', { voice: current.defaultVoiceId, provider });
 
   return t(
     current.followsPlatformDefaultVoice
       ? 'dashboard.tts.settings.voice.platform'
       : 'dashboard.tts.settings.voice.none',
     { provider },
-  )
-})
+  );
+});
 
-const limitsDetail: ComputedRef<string> = computed<string>(() => {
-  const current = settings.value
+const limitsDetail = computed<string>(() => {
+  const current = settings.value;
 
   if (current === null)
-    return ''
+    return '';
 
-  const count = String(current.maxCharacters)
+  const count = String(current.maxCharacters);
   const bots: string = t(
     current.skipBotMessages
       ? 'dashboard.tts.settings.limits.skipBots'
       : 'dashboard.tts.settings.limits.readBots',
-  )
+  );
 
-  return `${t('dashboard.tts.settings.limits.detail', { count })} · ${bots}`
-})
+  return `${t('dashboard.tts.settings.limits.detail', { count })} · ${bots}`;
+});
 
-const wordsDetail: ComputedRef<string> = computed<string>(() =>
+const wordsDetail = computed<string>(() =>
   t(
     settings.value?.profanityCensorEnabled
       ? 'dashboard.tts.settings.words.censored'
       : 'dashboard.tts.settings.words.uncensored',
   ),
-)
+);
 
-const overlayDetail: ComputedRef<string> = computed<string>(() => {
+const overlayDetail = computed<string>(() => {
   if (overlay.isError.value)
-    return t('dashboard.tts.settings.overlay.error')
+    return t('dashboard.tts.settings.overlay.error');
 
-  const ranAt = overlay.data.value?.lastRanAt
+  const ranAt = overlay.data.value?.lastRanAt;
 
   if (overlay.data.value === undefined || overlay.data.value === null)
-    return ''
+    return '';
 
   if (!ranAt)
-    return t('dashboard.tts.settings.overlay.never')
+    return t('dashboard.tts.settings.overlay.never');
 
   return t('dashboard.tts.settings.overlay.lastUsed', {
     time: new Date(ranAt).toLocaleString(locale.value),
-  })
-})
+  });
+});
 </script>
 
 <template>

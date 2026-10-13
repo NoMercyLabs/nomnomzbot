@@ -16,32 +16,32 @@
 // harm: the confirm button is red only when the action destroys something.
 // The step is wider than one button, so wrap every control it replaces in the slot; right anchors
 // it to the right edge for a group at the end of a row.
-import { onKeyStroke } from '@vueuse/core'
-import { nextTick, ref, watch, type Ref } from 'vue'
-import Check from '~icons/nnz/check'
+import { onKeyStroke } from '@vueuse/core';
+import { nextTick, ref, watch } from 'vue';
+import Check from '~icons/nnz/check';
 
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import {
   useInlineFlow,
   type InlineFlowKind,
   type InlineFlowStep,
-} from '@/composables/useInlineFlow'
+} from '@/composables/useInlineFlow';
 
 const props = withDefaults(
   defineProps<{
-    kind: InlineFlowKind
-    label: string
-    ask?: string
-    yes?: string
-    text?: string
-    result?: string
-    failure?: string
-    harm?: boolean
-    right?: boolean
-    action?: () => void | Promise<void>
-    revert?: () => void | Promise<void>
-    undoMs?: number
+    kind: InlineFlowKind;
+    label: string;
+    ask?: string;
+    yes?: string;
+    text?: string;
+    result?: string;
+    failure?: string;
+    harm?: boolean;
+    right?: boolean;
+    action?: () => void | Promise<void>;
+    revert?: () => void | Promise<void>;
+    undoMs?: number;
   }>(),
   {
     ask: undefined,
@@ -55,41 +55,41 @@ const props = withDefaults(
     revert: undefined,
     undoMs: undefined,
   },
-)
+);
 
 const { step, canUndo, start, confirm, undo, back } = useInlineFlow({
   kind: () => props.kind,
   action: () => props.action,
   revert: () => props.revert,
   undoMs: () => props.undoMs,
-})
+});
 
-const root: Ref<HTMLElement | null> = ref(null)
-const opener: Ref<HTMLElement | null> = ref(null)
-const box: Ref<HTMLElement | null> = ref(null)
+const root = ref<HTMLElement | null>(null);
+const opener = ref<HTMLElement | null>(null);
+const box = ref<HTMLElement | null>(null);
 
-onKeyStroke('Escape', back, { target: root })
+onKeyStroke('Escape', back, { target: root });
 
 // Focus follows the step: the safe button first, and the opener again when the step ends.
 watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
-  await nextTick()
+  await nextTick();
 
   if (now === 'idle') {
     if (before !== 'idle') {
-      opener.value?.querySelector<HTMLElement>('button, [href], [tabindex]')?.focus()
+      opener.value?.querySelector<HTMLElement>('button, [href], [tabindex]')?.focus();
     }
 
-    return
+    return;
   }
 
   const target: string = now === 'ask'
     ? 'back'
     : canUndo.value
       ? 'undo'
-      : 'back'
+      : 'back';
 
-  box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus()
-})
+  box.value?.querySelector<HTMLElement>(`[data-flow-act="${target}"]`)?.focus();
+});
 </script>
 
 <template>
@@ -147,7 +147,12 @@ watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
           <Check v-if="kind !== 'note'" class="size-4 flex-none" aria-hidden="true" />
           {{ kind === 'note' ? text : (result ?? $t('common.flow.done')) }}
         </span>
-        <Button v-if="canUndo" data-flow-act="undo" size="sm" variant="outline" @click="undo">
+        <Button v-if="canUndo"
+                data-flow-act="undo"
+                size="sm"
+                variant="outline"
+                @click="undo"
+        >
           {{ $t('common.flow.undo') }}
         </Button>
         <Button data-flow-act="back" size="sm" variant="ghost" @click="back">{{

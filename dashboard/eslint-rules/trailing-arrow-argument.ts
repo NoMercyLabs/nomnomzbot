@@ -8,7 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { AST_NODE_TYPES, ESLintUtils, type TSESLint, type TSESTree } from '@typescript-eslint/utils'
+import {
+  AST_NODE_TYPES,
+  ESLintUtils,
+  type TSESLint,
+  type TSESTree,
+} from '@typescript-eslint/utils';
 
 // Owner 2026-10-13: an arrow after another call argument breaks its line, and "lets move the arrow
 // to the first line". So `setQueryData(queryKey, (current) =>` ends the line and the body starts
@@ -17,31 +22,36 @@ import { AST_NODE_TYPES, ESLintUtils, type TSESLint, type TSESTree } from '@type
 // Owner 2026-10-13, on `() =>` with `({` on the next line: "this is terrible for reading". An object
 // or array body opens on the `=>` line, like a block body.
 
-const indentUnit = '  '
+const indentUnit = '  ';
 
 function lineIndent(source: TSESLint.SourceCode, line: number): string {
-  return /^\s*/.exec(source.lines[line - 1] ?? '')?.[0] ?? ''
+  return /^\s*/.exec(source.lines[line - 1] ?? '')?.[0] ?? '';
 }
 
 function isTrailingArrowArgument(arrow: TSESTree.ArrowFunctionExpression): boolean {
   if (arrow.body.type === AST_NODE_TYPES.BlockStatement)
-    return false
+    return false;
 
-  const call = arrow.parent
+  const call = arrow.parent;
 
   if (call.type !== AST_NODE_TYPES.CallExpression && call.type !== AST_NODE_TYPES.NewExpression) {
-    return false
+    return false;
   }
 
-  const index = call.arguments.indexOf(arrow)
-  const previous = call.arguments[index - 1]
-  const isLast = index === call.arguments.length - 1
+  const index = call.arguments.indexOf(arrow);
+  const previous = call.arguments[index - 1];
+  const isLast = index === call.arguments.length - 1;
 
-  return isLast && index > 0 && previous !== undefined && previous.loc.end.line === arrow.loc.start.line
+  return (
+    isLast && index > 0 && previous !== undefined && previous.loc.end.line === arrow.loc.start.line
+  );
 }
 
 function isLiteralBody(arrow: TSESTree.ArrowFunctionExpression): boolean {
-  return arrow.body.type === AST_NODE_TYPES.ObjectExpression || arrow.body.type === AST_NODE_TYPES.ArrayExpression
+  return (
+    arrow.body.type === AST_NODE_TYPES.ObjectExpression ||
+    arrow.body.type === AST_NODE_TYPES.ArrayExpression
+  );
 }
 
 export const trailingArrowArgument = ESLintUtils.RuleCreator.withoutDocs({
@@ -56,44 +66,45 @@ export const trailingArrowArgument = ESLintUtils.RuleCreator.withoutDocs({
   },
   defaultOptions: [],
   create(context) {
-    const source = context.sourceCode
+    const source = context.sourceCode;
 
     return {
       ArrowFunctionExpression(arrow) {
-        if (!isTrailingArrowArgument(arrow)) return
+        if (!isTrailingArrowArgument(arrow)) return;
 
         const arrowToken = source.getTokenBefore(arrow.body, (token) =>
-          token.value === '=>')
+          token.value === '=>');
         const first = arrowToken === null
           ? null
-          : source.getTokenAfter(arrowToken)
+          : source.getTokenAfter(arrowToken);
 
-        if (arrowToken === null || first === null) return
+        if (arrowToken === null || first === null) return;
 
-        const sameLine = first.loc.start.line === arrowToken.loc.end.line
+        const sameLine = first.loc.start.line === arrowToken.loc.end.line;
 
         if (isLiteralBody(arrow)) {
-          if (sameLine) return
+          if (sameLine) return;
 
           context.report({
             node: arrowToken,
             messageId: 'literalOnArrowLine',
             fix: (fixer) => fixer.replaceTextRange([arrowToken.range[1], first.range[0]], ' '),
-          })
+          });
 
-          return
+          return;
         }
 
-        if (!sameLine) return
+        if (!sameLine) return;
 
-        const indent = lineIndent(source, arrowToken.loc.end.line) + indentUnit
+        const indent = lineIndent(source, arrowToken.loc.end.line) + indentUnit;
 
         context.report({
           node: arrowToken,
           messageId: 'bodyNextLine',
-          fix: (fixer) => fixer.replaceTextRange([arrowToken.range[1], first.range[0]], `\n${indent}`),
-        })
+          fix: (fixer) =>
+            fixer.replaceTextRange([arrowToken.range[1], first.range[0]], `\n${indent}`),
+        });
       },
-    }
+    };
   },
-})
+});

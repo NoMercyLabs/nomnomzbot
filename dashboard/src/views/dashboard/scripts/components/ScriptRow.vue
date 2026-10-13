@@ -10,33 +10,33 @@
 <script setup lang="ts">
 // One script in the list: its name, when it last ran, whether that run worked, and its on/off switch.
 // The switch sits beside the pick button, not inside it, so a press on it never opens the script.
-import { useTimeAgoIntl } from '@vueuse/core'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useTimeAgoIntl } from '@vueuse/core';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useSetScriptEnabled, type CodeScriptSummary } from '@/api/codeScripts'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Switch } from '@/components/ui/switch'
+import { useSetScriptEnabled, type CodeScriptSummary } from '@/api/codeScripts';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Switch } from '@/components/ui/switch';
 
-const props = defineProps<{ script: CodeScriptSummary; selected: boolean }>()
+const props = defineProps<{ script: CodeScriptSummary; selected: boolean }>();
 
-defineEmits<{ pick: [] }>()
+defineEmits<{ pick: [] }>();
 
-const { t, locale } = useI18n()
-const setEnabled = useSetScriptEnabled()
+const { t, locale } = useI18n();
+const setEnabled = useSetScriptEnabled();
 
 const ago = useTimeAgoIntl(() => props.script.lastRanAt ?? new Date(0), {
   locale: locale.value,
-})
-const detail: ComputedRef<string> = computed<string>(() =>
+});
+const detail = computed<string>(() =>
   props.script.lastRanAt
     ? t('dashboard.scripts.list.lastRun', { when: ago.value })
     : t('dashboard.scripts.list.neverRun'),
-)
+);
 
 function toggle(isEnabled: boolean): void {
-  setEnabled.mutate({ id: props.script.id, isEnabled })
+  setEnabled.mutate({ id: props.script.id, isEnabled });
 }
 </script>
 

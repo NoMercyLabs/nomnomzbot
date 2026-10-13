@@ -8,24 +8,24 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { type UseQueryReturnType } from '@tanstack/vue-query'
-import { type MaybeRefOrGetter } from 'vue'
+import { type UseQueryReturnType } from '@tanstack/vue-query';
+import { type MaybeRefOrGetter } from 'vue';
 
-import { channelQuery, failed } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type Reward = components['schemas']['RewardDetail']
+export type Reward = components['schemas']['RewardDetail'];
 
-const version = '1'
+const version = '1';
 // Twitch allows at most 50 custom rewards per channel, so one page holds them all.
-const pageSize = 100
+const pageSize = 100;
 
 export const rewardsKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'rewards',
-]
+];
 
 export function useRewards(
   channelId: MaybeRefOrGetter<string | null>,
@@ -36,11 +36,11 @@ export function useRewards(
       {
         params: { path: { version, channelId: id }, query: { PageSize: pageSize } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('rewards', response.status)
+      throw failed('rewards', response.status);
 
-    return [...(data?.data ?? [])]
-  })
+    return [...(data?.data ?? [])];
+  });
 }

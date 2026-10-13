@@ -10,25 +10,25 @@
 <script setup lang="ts">
 // One stat: label on top, the value, then one line of context. No icons.
 // The value takes color only when it is a warning (warn). A number is grouped in the reader's language.
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = withDefaults(
   defineProps<{
-    label: string
-    value: string | number
-    context?: string
-    warn?: boolean
+    label: string;
+    value: string | number;
+    context?: string;
+    warn?: boolean;
   }>(),
   { context: undefined, warn: false },
-)
+);
 
-const { n } = useI18n()
+const { n } = useI18n();
 const shown = computed<string>(() =>
   typeof props.value === 'number'
     ? n(props.value)
     : props.value,
-)
+);
 </script>
 
 <template>

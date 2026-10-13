@@ -9,14 +9,14 @@
 -->
 <script setup lang="ts">
 // One cell of a BoardGrid: span = columns of 12, rows = rows it covers.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue';
 
-const props = withDefaults(defineProps<{ span?: number; rows?: number }>(), { span: 12, rows: 1 })
+const props = withDefaults(defineProps<{ span?: number; rows?: number }>(), { span: 12, rows: 1 });
 
-const placement: ComputedRef<Record<string, string>> = computed<Record<string, string>>(() => ({
+const placement = computed<Record<string, string>>(() => ({
   gridColumn: `span ${props.span}`,
   gridRow: `span ${props.rows}`,
-}))
+}));
 </script>
 
 <template>

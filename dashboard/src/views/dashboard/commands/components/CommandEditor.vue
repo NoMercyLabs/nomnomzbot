@@ -10,109 +10,109 @@
 <script setup lang="ts">
 // The editor of one custom command. The Enabled switch saves at once; every other field is a draft
 // that Save sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
-import ChevronDown from '~icons/nnz/chevron-down'
-import Trash2 from '~icons/nnz/trash'
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import ChevronDown from '~icons/nnz/chevron-down';
+import Trash2 from '~icons/nnz/trash';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   useToggleCommand,
   useUpdateCommand,
   type CommandChange,
   type CommandListItem,
-} from '@/api/commands'
-import { usePipelines } from '@/api/pipelines'
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SettingRow from '@/components/layout/SettingRow.vue'
-import TemplateField from '@/components/layout/TemplateField.vue'
-import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+} from '@/api/commands';
+import { usePipelines } from '@/api/pipelines';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import TemplateField from '@/components/layout/TemplateField.vue';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+} from '@/components/ui/select';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import CodeTierNote from './CodeTierNote.vue'
-import { changeOf, draftOf, sameDraft, type CommandDraft } from './commandDraft'
-import { permissionLevels } from './permissionLevels'
-import RandomReplyList from './RandomReplyList.vue'
+import CodeTierNote from './CodeTierNote.vue';
+import { changeOf, draftOf, sameDraft, type CommandDraft } from './commandDraft';
+import { permissionLevels } from './permissionLevels';
+import RandomReplyList from './RandomReplyList.vue';
 
-const props = defineProps<{ row: CommandListItem }>()
-const emit = defineEmits<{ remove: [name: string] }>()
+const props = defineProps<{ row: CommandListItem }>();
+const emit = defineEmits<{ remove: [name: string] }>();
 
-const { t } = useI18n()
-const { channelId } = useCurrentChannel()
-const update = useUpdateCommand(channelId)
-const toggle = useToggleCommand(channelId)
-const pipelines = usePipelines(channelId)
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const update = useUpdateCommand(channelId);
+const toggle = useToggleCommand(channelId);
+const pipelines = usePipelines(channelId);
 
-const draft = ref<CommandDraft>(draftOf(props.row))
+const draft = ref<CommandDraft>(draftOf(props.row));
 // What the form was last loaded or saved with. A row that changes under an edited form never overwrites the edits.
-const baseline = ref<CommandDraft>(draftOf(props.row))
-const failure: Ref<string | null> = ref(null)
-const confirmOpen = ref(false)
+const baseline = ref<CommandDraft>(draftOf(props.row));
+const failure = ref<string | null>(null);
+const confirmOpen = ref(false);
 
 watch(
   () => props.row,
   (row: CommandListItem): void => {
-    if (!sameDraft(draft.value, baseline.value)) return
+    if (!sameDraft(draft.value, baseline.value)) return;
 
-    draft.value = draftOf(row)
-    baseline.value = draftOf(row)
+    draft.value = draftOf(row);
+    baseline.value = draftOf(row);
   },
-)
+);
 
-const change = computed<CommandChange>(() => changeOf(draft.value, props.row))
-const dirtyCount = computed<number>(() => Object.keys(change.value).length)
-const unsaved: ComputedRef<string> = computed<string>(() =>
+const change = computed<CommandChange>(() => changeOf(draft.value, props.row));
+const dirtyCount = computed<number>(() => Object.keys(change.value).length);
+const unsaved = computed<string>(() =>
   dirtyCount.value === 0
     ? ''
     : t('dashboard.commands.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
-)
-const random = computed<boolean>(() => draft.value.replies.length > 0)
+);
+const random = computed<boolean>(() => draft.value.replies.length > 0);
 
 function setRandom(on: boolean): void {
   draft.value.replies = on
     ? ['']
-    : []
+    : [];
 }
 
 function setNumber(key: 'cooldownSeconds' | 'userCooldownSeconds', value: string | number): void {
-  draft.value[key] = Number(value)
+  draft.value[key] = Number(value);
 }
 
 async function save(): Promise<void> {
-  if (dirtyCount.value === 0) return
+  if (dirtyCount.value === 0) return;
 
-  failure.value = null
+  failure.value = null;
 
   try {
-    await update.mutateAsync({ commandName: props.row.name, change: change.value })
-    baseline.value = { ...draft.value, replies: [...draft.value.replies] }
+    await update.mutateAsync({ commandName: props.row.name, change: change.value });
+    baseline.value = { ...draft.value, replies: [...draft.value.replies] };
   } catch (error) {
     failure.value = error instanceof Error
       ? error.message
-      : String(error)
+      : String(error);
   }
 }
 
 function discard(): void {
-  failure.value = null
-  draft.value = draftOf(props.row)
-  baseline.value = draftOf(props.row)
+  failure.value = null;
+  draft.value = draftOf(props.row);
+  baseline.value = draftOf(props.row);
 }
 
 function remove(): void {
-  confirmOpen.value = false
-  emit('remove', props.row.name)
+  confirmOpen.value = false;
+  emit('remove', props.row.name);
 }
 </script>
 

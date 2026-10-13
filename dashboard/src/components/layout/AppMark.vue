@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The NomNomzBot mark beside its name: the designer pack's chat-bot glyph.
 // Neutral, so the page's one accent stays on its main action.
-import ChatBot from '~icons/nnz/chat-bot'
+import ChatBot from '~icons/nnz/chat-bot';
 </script>
 
 <template>

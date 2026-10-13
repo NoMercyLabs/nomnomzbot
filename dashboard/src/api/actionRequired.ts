@@ -8,19 +8,19 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import type { components } from './schema'
-import { client } from './client'
+import type { components } from './schema';
+import { client } from './client';
 
-export type ActionRequiredItem = components['schemas']['ActionRequiredItemDto']
+export type ActionRequiredItem = components['schemas']['ActionRequiredItemDto'];
 
 export const actionRequiredKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'action-required',
-]
+];
 
 // The items that need the person now (C9): the source of the error inbox in the frame.
 export function useActionRequired(
@@ -34,11 +34,11 @@ export function useActionRequired(
         {
           params: { path: { version: '1', channelId: toValue(channelId) as string } },
         },
-      )
+      );
 
-      return data?.data ?? []
+      return data?.data ?? [];
     },
     enabled: computed(() => toValue(channelId) !== null),
     refetchInterval: 60_000,
-  })
+  });
 }

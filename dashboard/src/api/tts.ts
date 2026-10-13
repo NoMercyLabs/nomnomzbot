@@ -15,63 +15,63 @@ import {
   type UseInfiniteQueryReturnType,
   type UseMutationReturnType,
   type UseQueryReturnType,
-} from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { useOptimisticSave } from '@/composables/useOptimisticSave'
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed, refusal } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed, refusal } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type TtsConfig = components['schemas']['TtsConfigDto']
-export type TtsOverlay = components['schemas']['TtsOverlayDto']
-export type TtsVoice = components['schemas']['TtsVoiceDto']
-export type TtsSampleResult = components['schemas']['TtsTestResultDto']
-export type TtsVoiceFilters = { q: string }
+export type TtsConfig = components['schemas']['TtsConfigDto'];
+export type TtsOverlay = components['schemas']['TtsOverlayDto'];
+export type TtsVoice = components['schemas']['TtsVoiceDto'];
+export type TtsSampleResult = components['schemas']['TtsTestResultDto'];
+export type TtsVoiceFilters = { q: string };
 export type TtsVoicePage = {
-  voices: TtsVoice[]
-  hasMore: boolean
-  nextPage: number | null
-  total: number | null
-}
-export type TtsVoicePick = { voiceId: string; provider: string }
-export type TtsSampleRequest = { voiceId: string; text: string }
+  voices: TtsVoice[];
+  hasMore: boolean;
+  nextPage: number | null;
+  total: number | null;
+};
+export type TtsVoicePick = { voiceId: string; provider: string };
+export type TtsSampleRequest = { voiceId: string; text: string };
 
-const version = '1'
+const version = '1';
 // The server clamps a voices page to 200 rows.
-const voicePageSize = 200
-const firstVoicePage = 1
-const languageFamilies: readonly string[] = ['en', 'nl', 'de', 'fr', 'es']
+const voicePageSize = 200;
+const firstVoicePage = 1;
+const languageFamilies: readonly string[] = ['en', 'nl', 'de', 'fr', 'es'];
 
 // The order the voice list and its chips show the language families in.
-export const voiceFamilyOrder: readonly string[] = [...languageFamilies, 'other']
+export const voiceFamilyOrder: readonly string[] = [...languageFamilies, 'other'];
 
 // The realtime layer writes into these entries, so the keys are part of the module's surface.
 export const ttsConfigKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'tts-config',
-]
+];
 export const ttsOverlayKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'tts-overlay',
-]
+];
 export const ttsVoicesKey = (channelId: string | null, filters: TtsVoiceFilters): unknown[] => [
   'channels',
   channelId,
   'tts-voices',
   filters,
-]
+];
 
 // The language part of a locale such as en-US or nl_BE; a language the page has no chip for is "other".
 export function voiceFamily(locale: string): string {
-  const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? ''
+  const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? '';
 
   return languageFamilies.includes(language)
     ? language
-    : 'other'
+    : 'other';
 }
 
 export function useTtsConfig(
@@ -83,13 +83,13 @@ export function useTtsConfig(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('tts config', response.status)
+      throw failed('tts config', response.status);
 
-    return data?.data ?? null
-  })
+    return data?.data ?? null;
+  });
 }
 
 export function useTtsOverlay(
@@ -101,13 +101,13 @@ export function useTtsOverlay(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('tts overlay', response.status)
+      throw failed('tts overlay', response.status);
 
-    return data?.data ?? null
-  })
+    return data?.data ?? null;
+  });
 }
 
 async function readVoicePage(channelId: string, q: string, page: number): Promise<TtsVoicePage> {
@@ -116,18 +116,23 @@ async function readVoicePage(channelId: string, q: string, page: number): Promis
     {
       params: {
         path: { version, channelId },
-        query: q === ''
-          ? { page, pageSize: voicePageSize }
-          : { q, page, pageSize: voicePageSize },
+        query:
+          q === ''
+            ? { page, pageSize: voicePageSize }
+            : {
+                q,
+                page,
+                pageSize: voicePageSize,
+              },
       },
     },
-  )
+  );
 
   if (error !== undefined)
-    throw failed('tts voices', response.status)
+    throw failed('tts voices', response.status);
 
-  const nextPage = Number(data?.nextPage)
-  const total = Number(data?.total ?? Number.NaN)
+  const nextPage = Number(data?.nextPage);
+  const total = Number(data?.total ?? Number.NaN);
 
   return {
     voices: data?.data ?? [],
@@ -138,7 +143,7 @@ async function readVoicePage(channelId: string, q: string, page: number): Promis
     total: Number.isFinite(total)
       ? total
       : null,
-  }
+  };
 }
 
 // The catalog can hold thousands of voices; pages are appended while the bot says there are more.
@@ -156,7 +161,7 @@ export function useTtsVoices(
         ? (last.nextPage ?? all.length + 1)
         : undefined,
     enabled: computed(() => toValue(channelId) !== null),
-  })
+  });
 }
 
 // A picked voice shows as the channel voice at once and rolls back when the bot refuses it.
@@ -176,12 +181,12 @@ export function useSetTtsVoice(
             followPlatformDefaultVoice: false,
           },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw refusal('tts config', error, response.status)
+        throw refusal('tts config', error, response.status);
 
-      return data?.data ?? null
+      return data?.data ?? null;
     },
     apply: (
       current: TtsConfig | null | undefined,
@@ -195,7 +200,7 @@ export function useSetTtsVoice(
             followsPlatformDefaultVoice: false,
           }
         : null,
-  })
+  });
 }
 
 export function useTtsSample(
@@ -209,12 +214,12 @@ export function useTtsSample(
           params: { path: { version, channelId: toValue(channelId) as string } },
           body: { text, voiceId },
         },
-      )
+      );
 
       if (error !== undefined || !data?.data)
-        throw refusal('tts sample', error, response.status)
+        throw refusal('tts sample', error, response.status);
 
-      return data.data
+      return data.data;
     },
-  })
+  });
 }

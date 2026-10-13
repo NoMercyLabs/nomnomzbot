@@ -13,8 +13,8 @@
 // so this component only speaks to it: it answers the page's requests through the callbacks below and emits
 // close when the page asks to close. A request without its callback gets a visible failure from the bridge.
 // Both sides require the dashboard's own origin; /editor is served through the same address as the dashboard.
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   useEditorBridge,
@@ -29,25 +29,25 @@ import {
   type TestRunResult,
   type TestTrigger,
   type VersionsPage,
-} from '@/composables/useEditorBridge'
-import { useEditorLabels } from '@/composables/useEditorLabels'
+} from '@/composables/useEditorBridge';
+import { useEditorLabels } from '@/composables/useEditorLabels';
 
 const props = withDefaults(
   defineProps<{
-    title: string
-    files: EditorFiles
-    entry: string
+    title: string;
+    files: EditorFiles;
+    entry: string;
     // Hints the highlighting and the layout: 'script' has no preview pane, 'vue' is a widget.
-    language?: string
-    sdkTypes?: string
-    sdkTypesUnavailable?: boolean
-    testTriggers?: TestTrigger[]
-    save: (files: EditorFiles) => Promise<CompileFeedback>
+    language?: string;
+    sdkTypes?: string;
+    sdkTypesUnavailable?: boolean;
+    testTriggers?: TestTrigger[];
+    save: (files: EditorFiles) => Promise<CompileFeedback>;
     // The first page of saved versions; with history, it makes the page show its History view.
-    initialHistory?: VersionsPage
-    history?: EditorHistoryRunner
-    testRun?: (request: TestRunRequest) => Promise<EditorOutcome<TestRunResult>>
-    previewAction?: (request: PreviewActionRequest) => Promise<PreviewActionResult>
+    initialHistory?: VersionsPage;
+    history?: EditorHistoryRunner;
+    testRun?: (request: TestRunRequest) => Promise<EditorOutcome<TestRunResult>>;
+    previewAction?: (request: PreviewActionRequest) => Promise<PreviewActionResult>;
   }>(),
   {
     language: 'script',
@@ -59,13 +59,13 @@ const props = withDefaults(
     testRun: undefined,
     previewAction: undefined,
   },
-)
+);
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>();
 
-const { t } = useI18n()
-const frame = useTemplateRef<HTMLIFrameElement>('frame')
-const labels = useEditorLabels(() => props.testRun !== undefined)
+const { t } = useI18n();
+const frame = useTemplateRef<HTMLIFrameElement>('frame');
+const labels = useEditorLabels(() => props.testRun !== undefined);
 
 const payload = computed<EditorOpenPayload>(() => ({
   title: props.title,
@@ -77,7 +77,7 @@ const payload = computed<EditorOpenPayload>(() => ({
   testTriggers: props.testTriggers,
   history: props.initialHistory,
   labels: labels.value,
-}))
+}));
 
 useEditorBridge({
   origin: window.location.origin,
@@ -92,19 +92,19 @@ useEditorBridge({
   previewAction: props.previewAction
     ? (request) => props.previewAction!(request)
     : undefined,
-})
+});
 
-const opener: Ref<HTMLElement | null> = ref(null)
+const opener = ref<HTMLElement | null>(null);
 
 onMounted(() => {
   opener.value = document.activeElement instanceof HTMLElement
     ? document.activeElement
-    : null
+    : null;
 
-  frame.value?.focus()
-})
+  frame.value?.focus();
+});
 
-onBeforeUnmount(() => opener.value?.focus())
+onBeforeUnmount(() => opener.value?.focus());
 </script>
 
 <template>

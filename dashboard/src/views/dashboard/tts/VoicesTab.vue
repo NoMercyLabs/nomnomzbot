@@ -8,11 +8,11 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { refDebounced, useLocalStorage, type RemovableRef } from '@vueuse/core'
-import Check from '~icons/nnz/check'
-import WaveForm from '~icons/nnz/wave-form'
-import { computed, ref, watch, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { refDebounced, useLocalStorage } from '@vueuse/core';
+import Check from '~icons/nnz/check';
+import WaveForm from '~icons/nnz/wave-form';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   useSetTtsVoice,
@@ -22,55 +22,55 @@ import {
   voiceFamilyOrder,
   type TtsVoice,
   type TtsVoicePage,
-} from '@/api/tts'
-import BoardCell from '@/components/layout/BoardCell.vue'
-import BoardGrid from '@/components/layout/BoardGrid.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
-import SearchField from '@/components/layout/SearchField.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import VirtualList from '@/components/layout/VirtualList.vue'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { useProviderName } from '@/composables/useProviderName'
+} from '@/api/tts';
+import BoardCell from '@/components/layout/BoardCell.vue';
+import BoardGrid from '@/components/layout/BoardGrid.vue';
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import SearchField from '@/components/layout/SearchField.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import VirtualList from '@/components/layout/VirtualList.vue';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useProviderName } from '@/composables/useProviderName';
 
-import PlaySampleButton from './PlaySampleButton.vue'
-import { groupVoices, localeLabel, type VoiceListItem } from './voiceGroups'
+import PlaySampleButton from './PlaySampleButton.vue';
+import { groupVoices, localeLabel, type VoiceListItem } from './voiceGroups';
 
-const ROW_HEIGHT = 56
-const SEARCH_DELAY = 250
-const ALL = 'all'
-const SEPARATOR = ' · '
-const SHOWN_STYLES = 2
+const ROW_HEIGHT = 56;
+const SEARCH_DELAY = 250;
+const ALL = 'all';
+const SEPARATOR = ' · ';
+const SHOWN_STYLES = 2;
 
-const { t, te, locale } = useI18n()
-const providerName = useProviderName()
-const { channelId } = useCurrentChannel()
-const config = useTtsConfig(channelId)
-const search = ref('')
-const family: RemovableRef<string> = useLocalStorage('nnz.tts.voiceFamily', ALL)
-const asked = refDebounced(search, SEARCH_DELAY)
-const catalog = useTtsVoices(channelId, () => ({ q: asked.value }))
-const pick = useSetTtsVoice(channelId)
+const { t, te, locale } = useI18n();
+const providerName = useProviderName();
+const { channelId } = useCurrentChannel();
+const config = useTtsConfig(channelId);
+const search = ref('');
+const family = useLocalStorage<string>('nnz.tts.voiceFamily', ALL);
+const asked = refDebounced(search, SEARCH_DELAY);
+const catalog = useTtsVoices(channelId, () => ({ q: asked.value }));
+const pick = useSetTtsVoice(channelId);
 
-const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
+const loaded = computed<TtsVoice[]>(() =>
   (catalog.data.value?.pages ?? []).flatMap((page: TtsVoicePage) => page.voices),
-)
+);
 
 // The language chips filter the loaded pages; the server has no language-family filter.
 const visible = computed<TtsVoice[]>(() =>
   family.value === ALL
     ? loaded.value
     : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === family.value),
-)
+);
 
-const items = computed<VoiceListItem[]>(() => groupVoices(visible.value, locale.value))
+const items = computed<VoiceListItem[]>(() => groupVoices(visible.value, locale.value));
 
 type Chip = {
-  value: string
-  label: string
-  count: number
-}
+  value: string;
+  label: string;
+  count: number;
+};
 
 const chips = computed<Chip[]>(() =>
   [ALL, ...voiceFamilyOrder].map((value: string): Chip => ({
@@ -81,20 +81,20 @@ const chips = computed<Chip[]>(() =>
         ? loaded.value.length
         : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === value).length,
   })),
-)
+);
 
 // The search box and the chips live inside the panel, so a new search must not swap the panel for a skeleton.
-const settled = ref(false)
+const settled = ref(false);
 
 watch(
   () => catalog.data.value,
   (data: unknown) => {
     if (data !== undefined) {
-      settled.value = true
+      settled.value = true;
     }
   },
   { immediate: true },
-)
+);
 
 const panelState = computed<PanelState>(() =>
   catalog.isError.value
@@ -102,40 +102,40 @@ const panelState = computed<PanelState>(() =>
     : settled.value
       ? 'ready'
       : 'loading',
-)
+);
 
-const chosen: ComputedRef<string | null> = computed<string | null>(
+const chosen = computed<string | null>(
   () => config.data.value?.defaultVoiceId ?? null,
-)
+);
 const current = computed<TtsVoice | undefined>(() =>
   loaded.value.find((voice: TtsVoice) => voice.id === chosen.value),
-)
+);
 
 // Only a total the bot returned is shown; the loaded pages never stand in for it.
-const subtitle: ComputedRef<string | undefined> = computed<string | undefined>(() => {
-  const total = catalog.data.value?.pages[0]?.total
+const subtitle = computed<string | undefined>(() => {
+  const total = catalog.data.value?.pages[0]?.total;
 
   return total === null || total === undefined
     ? undefined
-    : t('dashboard.tts.voices.subtitle', { total })
-})
+    : t('dashboard.tts.voices.subtitle', { total });
+});
 
 // While the server has more pages, the loaded voices are not the whole catalog, so the count says "the first".
-const count: ComputedRef<string> = computed<string>(() =>
+const count = computed<string>(() =>
   t(catalog.hasNextPage.value
     ? 'dashboard.tts.voices.countFirst'
     : 'dashboard.tts.voices.count', {
     shown: visible.value.length,
     loaded: loaded.value.length,
   }),
-)
+);
 
 function genderLabel(gender: string): string {
-  const key = `dashboard.tts.voices.gender.${gender.toLowerCase()}`
+  const key = `dashboard.tts.voices.gender.${gender.toLowerCase()}`;
 
   return te(key)
     ? t(key)
-    : gender
+    : gender;
 }
 
 function detail(voice: TtsVoice): string {
@@ -145,10 +145,10 @@ function detail(voice: TtsVoice): string {
     voice.styles.slice(0, SHOWN_STYLES).join(', '),
   ]
     .filter((part: string) => part !== '')
-    .join(SEPARATOR)
+    .join(SEPARATOR);
 }
 
-const currentName = computed<string | null>(() => current.value?.displayName ?? chosen.value)
+const currentName = computed<string | null>(() => current.value?.displayName ?? chosen.value);
 
 const currentDetail = computed<string>(() =>
   [
@@ -161,11 +161,11 @@ const currentDetail = computed<string>(() =>
   ]
     .filter((part: string) => part !== '')
     .join(SEPARATOR),
-)
+);
 
 function choose(voice: TtsVoice): void {
   if (voice.id !== chosen.value) {
-    pick.mutate({ voiceId: voice.id, provider: voice.provider })
+    pick.mutate({ voiceId: voice.id, provider: voice.provider });
   }
 }
 </script>

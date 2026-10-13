@@ -8,11 +8,11 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Command,
   CommandEmpty,
@@ -20,36 +20,40 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel'
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
 
 // compact: the name only, for the narrow header where the sidebar is not shown.
-defineProps<{ compact?: boolean }>()
+defineProps<{ compact?: boolean }>();
 
-const { t } = useI18n()
-const { channels, current, isPending, choose } = useCurrentChannel()
-const open = ref(false)
+const { t } = useI18n();
+const { channels, current, isPending, choose } = useCurrentChannel();
+const open = ref(false);
 
-const own = computed<ChannelChoice[]>(() => channels.value.filter((row) => row.kind === 'own'))
+const own = computed<ChannelChoice[]>(() => channels.value.filter((row) => row.kind === 'own'));
 // Live channels first: a moderator opens the one that needs them now.
 const moderated = computed<ChannelChoice[]>(() =>
   channels.value
     .filter((row) => row.kind === 'moderated')
     .sort((a, b) => Number(b.isLive === true) - Number(a.isLive === true)),
-)
+);
 const liveCount = computed<number>(
   () => moderated.value.filter((row) => row.isLive === true).length,
-)
+);
 
 type ChannelGroup = {
-  key: string
-  heading: string
-  rows: ChannelChoice[]
-}
+  key: string;
+  heading: string;
+  rows: ChannelChoice[];
+};
 const groups = computed<ChannelGroup[]>(() =>
   [
-    { key: 'own', heading: t('frame.channel.yours'), rows: own.value },
+    {
+      key: 'own',
+      heading: t('frame.channel.yours'),
+      rows: own.value,
+    },
     {
       key: 'moderated',
       heading: t('frame.channel.moderated', {
@@ -59,27 +63,27 @@ const groups = computed<ChannelGroup[]>(() =>
       rows: moderated.value,
     },
   ].filter((group) => group.rows.length > 0),
-)
+);
 
 function initials(name: string): string {
   return name
     .replace(/[^A-Za-z0-9]/g, '')
     .slice(0, 2)
-    .toUpperCase()
+    .toUpperCase();
 }
 
 function stateWord(row: ChannelChoice): string | null {
   if (row.isLive === null)
-    return null
+    return null;
 
   return row.isLive
     ? t('frame.channel.live')
-    : t('frame.channel.offline')
+    : t('frame.channel.offline');
 }
 
 async function pick(row: ChannelChoice): Promise<void> {
-  await choose(row)
-  open.value = false
+  await choose(row);
+  open.value = false;
 }
 </script>
 

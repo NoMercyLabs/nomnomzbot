@@ -8,57 +8,57 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter, type RouteLocationRaw } from 'vue-router'
-import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down'
-import BookOpen from '~icons/nnz/book-open'
-import DoorOut from '~icons/nnz/door-out'
-import Shield from '~icons/nnz/shield'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRouter, type RouteLocationRaw } from 'vue-router';
+import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
+import BookOpen from '~icons/nnz/book-open';
+import DoorOut from '~icons/nnz/door-out';
+import Shield from '~icons/nnz/shield';
 
-import { signOut, useCurrentUser } from '@/api/auth'
-import LanguagePicker from '@/components/layout/LanguagePicker.vue'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Separator } from '@/components/ui/separator'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { loginRoute } from '@/views/site/login/route'
+import { signOut, useCurrentUser } from '@/api/auth';
+import LanguagePicker from '@/components/layout/LanguagePicker.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { loginRoute } from '@/views/site/login/route';
 
 // icon: only the picture, for the narrow header.
-defineProps<{ icon?: boolean }>()
+defineProps<{ icon?: boolean }>();
 
-const { t } = useI18n()
-const router = useRouter()
-const { data: user } = useCurrentUser()
-const { current } = useCurrentChannel()
-const open = ref(false)
+const { t } = useI18n();
+const router = useRouter();
+const { data: user } = useCurrentUser();
+const { current } = useCurrentChannel();
+const open = ref(false);
 
-const settingsLink: RouteLocationRaw = { name: 'dashboard-settings', query: { view: 'device' } }
-const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' }
+const settingsLink: RouteLocationRaw = { name: 'dashboard-settings', query: { view: 'device' } };
+const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' };
 
 // The two links appear when their page exists, like every other entry of the frame.
-const hasReadability = computed<boolean>(() => router.hasRoute('dashboard-settings'))
+const hasReadability = computed<boolean>(() => router.hasRoute('dashboard-settings'));
 const hasAdmin = computed<boolean>(
   () => user.value?.isAdmin === true && router.hasRoute('dashboard-admin-channels'),
-)
+);
 
 const initials = computed<string>(() =>
   (user.value?.displayName ?? '')
     .replace(/[^A-Za-z0-9]/g, '')
     .slice(0, 2)
     .toUpperCase(),
-)
+);
 const role = computed<string>(() =>
   current.value?.kind === 'moderated'
     ? t('frame.profile.moderator')
     : t('frame.profile.broadcaster'),
-)
+);
 
 async function leave(): Promise<void> {
-  open.value = false
-  await signOut()
-  await router.push({ name: loginRoute.name })
+  open.value = false;
+  await signOut();
+  await router.push({ name: loginRoute.name });
 }
 </script>
 

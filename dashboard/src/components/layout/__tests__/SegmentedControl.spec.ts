@@ -8,40 +8,49 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils';
+import { describe, expect, it } from 'vitest';
 
-import SegmentedControl from '@/components/layout/SegmentedControl.vue'
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 
 const options: { value: string; label: string }[] = [
   { value: 'normal', label: 'Normal' },
   { value: 'wide', label: 'Wide' },
   { value: 'wider', label: 'Wider' },
-]
+];
 
 function control(modelValue: string): VueWrapper {
-  return mount(SegmentedControl, { props: { label: 'Line spacing', options, modelValue } })
+  return mount(SegmentedControl, {
+    props: {
+      label: 'Line spacing',
+      options,
+      modelValue,
+    },
+  });
 }
 
 describe('the segmented control', () => {
   it('names the group and raises only the chosen option', () => {
-    const wrapper = control('wide')
-    const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]')
+    const wrapper = control('wide');
+    const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]');
 
-    expect(wrapper.find('[data-slot="toggle-group"]').attributes('aria-label')).toBe('Line spacing')
-    expect(items.map((item) => item.attributes('data-state'))).toEqual(['off', 'on', 'off'])
+    expect(wrapper.find('[data-slot="toggle-group"]').attributes('aria-label')).toBe(
+      'Line spacing',
+    );
+
+    expect(items.map((item) => item.attributes('data-state'))).toEqual(['off', 'on', 'off']);
     // The open item is raised on the muted track (frame.css:158-160), the look FilterBar had alone before.
-    expect(items[1]!.classes()).toContain('data-[state=on]:bg-background')
-  })
+    expect(items[1]!.classes()).toContain('data-[state=on]:bg-background');
+  });
 
   it('emits the option a person presses and keeps one chosen when the open one is pressed again', async () => {
-    const wrapper = control('wide')
-    const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]')
+    const wrapper = control('wide');
+    const items: DOMWrapper<Element>[] = wrapper.findAll('[data-slot="toggle-group-item"]');
 
-    await items[1]!.trigger('click')
-    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    await items[1]!.trigger('click');
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
 
-    await items[2]!.trigger('click')
-    expect(wrapper.emitted('update:modelValue')).toEqual([['wider']])
-  })
-})
+    await items[2]!.trigger('click');
+    expect(wrapper.emitted('update:modelValue')).toEqual([['wider']]);
+  });
+});

@@ -8,79 +8,79 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { ref, type Ref } from 'vue'
-import Check from '~icons/nnz/check'
-import Cross from '~icons/nnz/cross'
+import { ref } from 'vue';
+import Check from '~icons/nnz/check';
+import Cross from '~icons/nnz/cross';
 
-import { activeBot } from '@/api/activeBot'
-import { switchBot } from '@/api/auth'
-import { probeBot, type BotProbe } from '@/api/system'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { officialOrigin, servedOrigin, toBotOrigin } from '@/lib/botAddress'
-import { useConnectionsStore } from '@/stores/connections'
+import { activeBot } from '@/api/activeBot';
+import { switchBot } from '@/api/auth';
+import { probeBot, type BotProbe } from '@/api/system';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { officialOrigin, servedOrigin, toBotOrigin } from '@/lib/botAddress';
+import { useConnectionsStore } from '@/stores/connections';
 
-const emit = defineEmits<{ back: [] }>()
+const emit = defineEmits<{ back: [] }>();
 
-const connections = useConnectionsStore()
-const chosen = ref(activeBot.value)
-const typed = ref('')
-const checking = ref(false)
-const checked: Ref<{ origin: string; probe: BotProbe } | 'invalid' | null> = ref(null)
+const connections = useConnectionsStore();
+const chosen = ref(activeBot.value);
+const typed = ref('');
+const checking = ref(false);
+const checked = ref<{ origin: string; probe: BotProbe } | 'invalid' | null>(null);
 
 function host(origin: string): string {
-  return new URL(origin).host
+  return new URL(origin).host;
 }
 
 function detail(origin: string): string {
   if (origin === servedOrigin)
-    return 'site.login.bots.thisPage'
+    return 'site.login.bots.thisPage';
 
   return origin === officialOrigin
     ? 'site.login.bots.official'
-    : 'site.login.bots.used'
+    : 'site.login.bots.used';
 }
 
 function forget(origin: string): void {
-  connections.forget(origin)
+  connections.forget(origin);
 
   if (chosen.value === origin) {
     chosen.value = activeBot.value === origin
       ? servedOrigin
-      : activeBot.value
+      : activeBot.value;
   }
 }
 
 // This client stays open; only the bot it talks to changes.
 function useChosen(): void {
-  switchBot(chosen.value)
-  emit('back')
+  switchBot(chosen.value);
+  emit('back');
 }
 
 async function check(): Promise<void> {
-  const origin = toBotOrigin(typed.value)
+  const origin = toBotOrigin(typed.value);
 
   if (!origin) {
-    checked.value = 'invalid'
+    checked.value = 'invalid';
 
-    return
+    return;
   }
 
-  checking.value = true
-  const probe = await probeBot(origin)
+  checking.value = true;
+  const probe = await probeBot(origin);
 
-  checking.value = false
-  checked.value = { origin, probe }
+  checking.value = false;
+  checked.value = { origin, probe };
 
-  if (probe.state === 'unreachable' || probe.state === 'mixedContent') return
+  if (probe.state === 'unreachable' || probe.state === 'mixedContent') return;
 
-  connections.remember(origin)
-  chosen.value = origin
-  typed.value = ''
+  connections.remember(origin);
+  chosen.value = origin;
+  typed.value = '';
 }
 </script>
 

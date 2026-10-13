@@ -9,48 +9,48 @@
 -->
 <script setup lang="ts">
 // Where the stream info goes: Twitch is always there, Kick and YouTube connect from here, X Live is not built yet.
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useConnections, type IntegrationStatus } from '@/api/home'
-import { useConnectIntegration } from '@/api/stream'
-import InlineFlow from '@/components/layout/InlineFlow.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useConnections, type IntegrationStatus } from '@/api/home';
+import { useConnectIntegration } from '@/api/stream';
+import InlineFlow from '@/components/layout/InlineFlow.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
 // The scope set each platform needs to manage a stream (server OAuthProviderRegistry).
 const CONNECTABLE: readonly { provider: string; scopeSetKey: string }[] = [
   { provider: 'kick', scopeSetKey: 'kick.chat' },
   { provider: 'youtube', scopeSetKey: 'youtube.manage' },
-]
+];
 
-const { t } = useI18n()
-const { channelId, current } = useCurrentChannel()
-const connectionsQuery = useConnections(channelId)
-const connect = useConnectIntegration(channelId)
-const state = usePanelState(connectionsQuery)
+const { t } = useI18n();
+const { channelId, current } = useCurrentChannel();
+const connectionsQuery = useConnections(channelId);
+const connect = useConnectIntegration(channelId);
+const state = usePanelState(connectionsQuery);
 
 function connectionOf(provider: string): IntegrationStatus | undefined {
   return (connectionsQuery.data.value ?? []).find(
     (connection: IntegrationStatus) => connection.provider === provider,
-  )
+  );
 }
 
 function platformName(provider: string): string {
-  return t(`common.provider.${provider}`)
+  return t(`common.provider.${provider}`);
 }
 
-const twitchAccount = computed(() => current.value?.displayName)
+const twitchAccount = computed(() => current.value?.displayName);
 
 async function open(provider: string, scopeSetKey: string): Promise<void> {
-  const url: string = await connect.mutateAsync({ provider, scopeSetKey })
+  const url: string = await connect.mutateAsync({ provider, scopeSetKey });
 
-  window.location.assign(url)
+  window.location.assign(url);
 }
 </script>
 

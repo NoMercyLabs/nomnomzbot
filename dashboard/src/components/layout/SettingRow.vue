@@ -10,24 +10,24 @@
 <script setup lang="ts">
 // A setting: title and help on the left, a Switch on the right. The whole row is one label,
 // so a press anywhere on it toggles the switch. Radius 8 fits a RowGroup (12 - 4).
-import { useId } from 'vue'
+import { useId } from 'vue';
 
-import { Switch } from '@/components/ui/switch'
+import { Switch } from '@/components/ui/switch';
 
 withDefaults(
   defineProps<{
-    title: string
-    description?: string
-    disabled?: boolean
+    title: string;
+    description?: string;
+    disabled?: boolean;
   }>(),
   {
     description: undefined,
     disabled: false,
   },
-)
+);
 
-const checked = defineModel<boolean>({ default: false })
-const titleId = useId()
+const checked = defineModel<boolean>({ default: false });
+const titleId = useId();
 </script>
 
 <template>

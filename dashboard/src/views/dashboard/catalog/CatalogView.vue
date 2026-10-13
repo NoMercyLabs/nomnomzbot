@@ -9,59 +9,59 @@
 -->
 <script setup lang="ts">
 // Development only: every shared building block in each of its states (spec section 5, step 2).
-import { useLocalStorage, type RemovableRef } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useLocalStorage } from '@vueuse/core';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useCommunityFirstPage, type CommunityRow } from '@/api/community'
-import UserName from '@/components/layout/UserName.vue'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useCommunityFirstPage, type CommunityRow } from '@/api/community';
+import UserName from '@/components/layout/UserName.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import BoardCell from '@/components/layout/BoardCell.vue'
-import BoardGrid from '@/components/layout/BoardGrid.vue'
-import ChartPanel, { type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue'
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
-import FormDialog from '@/components/layout/FormDialog.vue'
-import InlineFlow from '@/components/layout/InlineFlow.vue'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import ListDetail from '@/components/layout/ListDetail.vue'
-import HelperPanel from '@/components/layout/HelperPanel.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SearchField from '@/components/layout/SearchField.vue'
-import SettingRow from '@/components/layout/SettingRow.vue'
-import StatStrip from '@/components/layout/StatStrip.vue'
-import StatTile from '@/components/layout/StatTile.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import TemplateField from '@/components/layout/TemplateField.vue'
-import Countdown from '@/components/layout/Countdown.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import VirtualList from '@/components/layout/VirtualList.vue'
-import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { usePageView } from '@/composables/usePageView'
-import CodeEditor from '@/components/layout/CodeEditor.vue'
+import BoardCell from '@/components/layout/BoardCell.vue';
+import BoardGrid from '@/components/layout/BoardGrid.vue';
+import ChartPanel, { type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue';
+import FormDialog from '@/components/layout/FormDialog.vue';
+import InlineFlow from '@/components/layout/InlineFlow.vue';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import ListDetail from '@/components/layout/ListDetail.vue';
+import HelperPanel from '@/components/layout/HelperPanel.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SearchField from '@/components/layout/SearchField.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import StatStrip from '@/components/layout/StatStrip.vue';
+import StatTile from '@/components/layout/StatTile.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import TemplateField from '@/components/layout/TemplateField.vue';
+import Countdown from '@/components/layout/Countdown.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import VirtualList from '@/components/layout/VirtualList.vue';
+import { Button } from '@/components/ui/button';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { usePageView } from '@/composables/usePageView';
+import CodeEditor from '@/components/layout/CodeEditor.vue';
 import {
   fetchScriptProject,
   fetchScriptSdkTypes,
   saveScriptProject,
   useCodeScripts,
   type ScriptProject,
-} from '@/api/codeScripts'
-import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge'
+} from '@/api/codeScripts';
+import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 const tabs: PageTab[] = [
   { value: 'blocks', label: t('dashboard.catalog.tabs.blocks') },
   { value: 'states', label: t('dashboard.catalog.tabs.states') },
   { value: 'layouts', label: t('dashboard.catalog.tabs.layouts') },
-]
-const view = usePageView(tabs.map((tab: PageTab) => tab.value))
+];
+const view = usePageView(tabs.map((tab: PageTab) => tab.value));
 
 const kvItems: KeyValueItem[] = [
   { label: t('dashboard.catalog.kv.region'), value: t('dashboard.catalog.kv.regionValue') },
@@ -70,18 +70,18 @@ const kvItems: KeyValueItem[] = [
     value: null,
     reason: t('dashboard.catalog.kv.uptimeReason'),
   },
-]
+];
 
 const stateOptions: FilterOption[] = ['all', 'on', 'off'].map((key: string) => ({
   value: key,
   label: t(`dashboard.catalog.filter.${key}`),
-}))
+}));
 const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year'].map(
   (key: string) => ({
     value: key,
     label: t(`dashboard.catalog.filter.${key}`),
   }),
-)
+);
 
 // Demo data only: these numbers are invented for the catalog and never shown anywhere else.
 const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].map(
@@ -89,131 +89,163 @@ const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].ma
     day: new Date(2026, 0, day + 1),
     lines,
   }),
-)
+);
 const monthDemo: ChartRow[] = [
-  { month: 'Sep', returning: 36, fresh: 50 },
-  { month: 'Oct', returning: 43, fresh: 27 },
-  { month: 'Nov', returning: 41, fresh: 41 },
-  { month: 'Dec', returning: 49, fresh: 45 },
-  { month: 'Jan', returning: 35, fresh: 12 },
-]
+  {
+    month: 'Sep',
+    returning: 36,
+    fresh: 50,
+  },
+  {
+    month: 'Oct',
+    returning: 43,
+    fresh: 27,
+  },
+  {
+    month: 'Nov',
+    returning: 41,
+    fresh: 41,
+  },
+  {
+    month: 'Dec',
+    returning: 49,
+    fresh: 45,
+  },
+  {
+    month: 'Jan',
+    returning: 35,
+    fresh: 12,
+  },
+];
 const lineSeries: ChartSeries[] = [
-  { key: 'lines', labelKey: 'dashboard.catalog.chart.line.title', color: 'chart-1' },
-]
+  {
+    key: 'lines',
+    labelKey: 'dashboard.catalog.chart.line.title',
+    color: 'chart-1',
+  },
+];
 const monthSeries: ChartSeries[] = [
-  { key: 'returning', labelKey: 'dashboard.catalog.chart.series.returning', color: 'chart-1' },
-  { key: 'fresh', labelKey: 'dashboard.catalog.chart.series.fresh', color: 'chart-3' },
-]
+  {
+    key: 'returning',
+    labelKey: 'dashboard.catalog.chart.series.returning',
+    color: 'chart-1',
+  },
+  {
+    key: 'fresh',
+    labelKey: 'dashboard.catalog.chart.series.fresh',
+    color: 'chart-3',
+  },
+];
 
-const ttsOn = ref(true)
-const modsOn = ref(false)
-const stateFilter: RemovableRef<string> = useLocalStorage('nnz.catalog.state', 'all')
-const sinceFilter: RemovableRef<string> = useLocalStorage('nnz.catalog.since', 'week')
-const query = ref('')
-const retries = ref(0)
-const detailOpen = ref(false)
-const confirmOpen = ref(false)
-const confirmPending = ref(false)
-const confirmed = ref(0)
+const ttsOn = ref(true);
+const modsOn = ref(false);
+const stateFilter = useLocalStorage<string>('nnz.catalog.state', 'all');
+const sinceFilter = useLocalStorage<string>('nnz.catalog.since', 'week');
+const query = ref('');
+const retries = ref(0);
+const detailOpen = ref(false);
+const confirmOpen = ref(false);
+const confirmPending = ref(false);
+const confirmed = ref(0);
 const consequences = ['chat', 'pipeline', 'history'].map((key: string) =>
   t(`dashboard.catalog.confirm.${key}`),
-)
+);
 
 // Real members of the open channel (first page of the community list), so the profile dialog opens on real data.
-const { channelId } = useCurrentChannel()
-const community = useCommunityFirstPage(channelId)
-const people: ComputedRef<CommunityRow[]> = computed(() => community.data.value ?? [])
+const { channelId } = useCurrentChannel();
+const community = useCommunityFirstPage(channelId);
+const people = computed<CommunityRow[]>(() => community.data.value ?? []);
 
-const formOpen = ref(false)
+const formOpen = ref(false);
 
 // The code editor opens on the channel's first real script. Reading only: nothing saves until someone presses Save in it.
 type EditorSession = {
-  id: string
-  name: string
-  project: ScriptProject
-  sdkTypes: string | null
-}
-const scripts = useCodeScripts()
-const editorSession: Ref<EditorSession | null> = ref(null)
-const editorMissing = ref(false)
+  id: string;
+  name: string;
+  project: ScriptProject;
+  sdkTypes: string | null;
+};
+const scripts = useCodeScripts();
+const editorSession = ref<EditorSession | null>(null);
+const editorMissing = ref(false);
 
 async function openEditor(): Promise<void> {
-  const first = scripts.data.value?.[0]
+  const first = scripts.data.value?.[0];
 
-  editorMissing.value = first === undefined
+  editorMissing.value = first === undefined;
 
-  if (!first) return
+  if (!first) return;
 
-  const project = await fetchScriptProject(first.id)
+  const project = await fetchScriptProject(first.id);
 
-  if (!project) return
+  if (!project) return;
 
   editorSession.value = {
     id: first.id,
     name: first.name,
     project,
     sdkTypes: await fetchScriptSdkTypes(first.id),
-  }
+  };
 }
 
 async function saveEditor(files: EditorFiles): Promise<CompileFeedback> {
-  const session = editorSession.value
+  const session = editorSession.value;
 
   if (!session)
-    return { ok: false, message: '' }
+    return { ok: false, message: '' };
 
-  return saveScriptProject(session.id, { ...session.project, files })
+  return saveScriptProject(session.id, { ...session.project, files });
 }
 
-const formPending = ref(false)
-const formName = ref('')
-const formNameError: Ref<string | undefined> = ref(undefined)
-const formServerError: Ref<string | undefined> = ref(undefined)
-const formCreated: Ref<string[]> = ref([])
+const formPending = ref(false);
+const formName = ref('');
+const formNameError = ref<string | undefined>(undefined);
+const formServerError = ref<string | undefined>(undefined);
+const formCreated = ref<string[]>([]);
 
 function submitForm(): void {
-  formServerError.value = undefined
+  formServerError.value = undefined;
 
   formNameError.value =
     formName.value.trim() === ''
       ? t('dashboard.catalog.form.nameMissing')
-      : undefined
+      : undefined;
 
-  if (formNameError.value) return
+  if (formNameError.value) return;
 
-  formPending.value = true
+  formPending.value = true;
 
   setTimeout(() => {
-    formPending.value = false
+    formPending.value = false;
 
     if (formName.value.trim() === 'so') {
-      formServerError.value = t('dashboard.catalog.form.nameTaken')
+      formServerError.value = t('dashboard.catalog.form.nameTaken');
 
-      return
+      return;
     }
 
-    formCreated.value.push(formName.value.trim())
-    formName.value = ''
-    formOpen.value = false
-  }, 800)
+    formCreated.value.push(formName.value.trim());
+    formName.value = '';
+    formOpen.value = false;
+  }, 800);
 }
 
-const templateText = ref('')
-const templateField: Ref<InstanceType<typeof TemplateField> | null> = ref(null)
+const templateText = ref('');
+const templateField = ref<InstanceType<typeof TemplateField> | null>(null);
 
-const countdownTarget = ref(Date.now() + 15_000)
-const countdownZeros = ref(0)
+const countdownTarget = ref(Date.now() + 15_000);
+const countdownZeros = ref(0);
 
 function restartCountdown(): void {
-  countdownTarget.value = Date.now() + 15_000
+  countdownTarget.value = Date.now() + 15_000;
 }
 
 // Demo data for the VirtualList example only: 5,000 generated rows, some long enough to wrap.
 interface DemoRow {
-  id: number
-  text: string
+  id: number;
+  text: string;
 }
-const demoRows: Ref<DemoRow[]> = ref(
+const demoRows = ref<DemoRow[]>(
   Array.from({ length: 5000 }, (_: unknown, id: number) => ({
     id,
     text:
@@ -222,29 +254,29 @@ const demoRows: Ref<DemoRow[]> = ref(
         ? ' ' + t('dashboard.catalog.virtual.long')
         : ''),
   })),
-)
+);
 
 function addDemoRow(): void {
-  const id = demoRows.value.length
+  const id = demoRows.value.length;
 
   demoRows.value = [
     ...demoRows.value,
     { id, text: t('dashboard.catalog.virtual.row', { number: id + 1 }) },
-  ]
+  ];
 }
 
 function pause(): Promise<void> {
-  return new Promise((resolve: () => void) => setTimeout(resolve, 900))
+  return new Promise((resolve: () => void) => setTimeout(resolve, 900));
 }
 
 function confirmDelete(): void {
-  confirmPending.value = true
+  confirmPending.value = true;
 
   setTimeout(() => {
-    confirmPending.value = false
-    confirmOpen.value = false
-    confirmed.value += 1
-  }, 800)
+    confirmPending.value = false;
+    confirmOpen.value = false;
+    confirmed.value += 1;
+  }, 800);
 }
 </script>
 

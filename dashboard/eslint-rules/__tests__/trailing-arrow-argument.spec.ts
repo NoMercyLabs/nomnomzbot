@@ -8,17 +8,17 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { RuleTester } from '@typescript-eslint/rule-tester'
-import { afterAll, describe, it } from 'vitest'
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import { afterAll, describe, it } from 'vitest';
 
-import { trailingArrowArgument } from '../trailing-arrow-argument'
+import { trailingArrowArgument } from '../trailing-arrow-argument';
 
-RuleTester.afterAll = afterAll
-RuleTester.describe = describe
-RuleTester.it = it
-RuleTester.itOnly = it.only
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
-const tester = new RuleTester()
+const tester = new RuleTester();
 
 tester.run('trailing-arrow-argument', trailingArrowArgument, {
   valid: [
@@ -27,14 +27,14 @@ tester.run('trailing-arrow-argument', trailingArrowArgument, {
     // A lone or first callback stays on one line.
     'ids.map((row) => row.id)',
     'watch(() => open, run)',
-    // An arrow on its own line, as Prettier breaks long argument lists, stays.
+    // An arrow on its own line, as a long argument list breaks, stays.
     'set(\n  key,\n  (current) => apply(current),\n)',
     // An arrow with more arguments after it is not the trailing one, so it stays on one line.
     'watch(settings, (next) => apply(next), { deep: true })',
     // A block body stays.
     'set(key, (current) => {\n  apply(current)\n})',
     // An object or array body opens on the `=>` line, like a block body.
-    "vi.mock('../client', () => ({ client: http }))",
+    'vi.mock(\'../client\', () => ({ client: http }))',
     'attach(hub, handlers, () => ({\n  queries,\n  channelId: joined,\n}))',
     'set(key, (feed) => [\n  ...feed,\n  line,\n])',
   ],
@@ -56,4 +56,4 @@ tester.run('trailing-arrow-argument', trailingArrowArgument, {
       errors: [{ messageId: 'literalOnArrowLine' }],
     },
   ],
-})
+});

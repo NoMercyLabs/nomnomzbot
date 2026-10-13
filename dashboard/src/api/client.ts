@@ -8,28 +8,28 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import createClient from 'openapi-fetch'
-import type { paths } from './schema'
+import createClient from 'openapi-fetch';
+import type { paths } from './schema';
 
-import { activeBot } from './activeBot'
+import { activeBot } from './activeBot';
 
-import { servedOrigin } from '@/lib/botAddress'
+import { servedOrigin } from '@/lib/botAddress';
 
-export const client = createClient<paths>({ baseUrl: servedOrigin })
+export const client = createClient<paths>({ baseUrl: servedOrigin });
 
 // Every call goes to the chosen bot. Registered first, so the sign-in middleware sees the final address.
 client.use({
   async onRequest({ request }) {
-    const url = new URL(request.url)
+    const url = new URL(request.url);
 
     if (url.origin === activeBot.value)
-      return request
+      return request;
 
-    const target = new URL(url.pathname + url.search, activeBot.value)
+    const target = new URL(url.pathname + url.search, activeBot.value);
     // The body is read out: a Request passed as the init of another drops its stream body.
     const body = request.body
       ? await request.blob()
-      : undefined
+      : undefined;
 
     return new Request(target, {
       method: request.method,
@@ -37,6 +37,6 @@ client.use({
       body,
       credentials: request.credentials,
       signal: request.signal,
-    })
+    });
   },
-})
+});

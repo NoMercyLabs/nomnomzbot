@@ -8,18 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
 // The words for a provider id the server sends (twitch, spotify, edge, ...).
 // A provider this client has no name for yet shows its id as the server sent it.
 export function useProviderName(): (id: string) => string {
-  const { t, te } = useI18n()
+  const { t, te } = useI18n();
 
   return (id: string): string => {
-    const key = `common.provider.${id}`
+    const key = `common.provider.${id}`;
 
     return te(key)
       ? t(key)
-      : id
-  }
+      : id;
+  };
 }

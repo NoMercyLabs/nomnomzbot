@@ -8,60 +8,60 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import Plus from '~icons/nnz/add'
-import { computed, ref, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import Plus from '~icons/nnz/add';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
-import { useCommands, useDeleteCommand, type CommandListItem } from '@/api/commands'
-import ListDetail from '@/components/layout/ListDetail.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePageView } from '@/composables/usePageView'
+import { useCommands, useDeleteCommand, type CommandListItem } from '@/api/commands';
+import ListDetail from '@/components/layout/ListDetail.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
 
-import BuiltinList from './components/BuiltinList.vue'
-import CommandEditor from './components/CommandEditor.vue'
-import CommandList from './components/CommandList.vue'
-import NewCommandDialog from './components/NewCommandDialog.vue'
+import BuiltinList from './components/BuiltinList.vue';
+import CommandEditor from './components/CommandEditor.vue';
+import CommandList from './components/CommandList.vue';
+import NewCommandDialog from './components/NewCommandDialog.vue';
 
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const { channelId } = useCurrentChannel()
-const commands = useCommands(channelId)
-const remove = useDeleteCommand(channelId)
+const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
+const { channelId } = useCurrentChannel();
+const commands = useCommands(channelId);
+const remove = useDeleteCommand(channelId);
 
-const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() => [
+const tabs = computed<PageTab[]>(() => [
   { value: 'custom', label: t('dashboard.commands.tabs.custom') },
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
-])
-const view = usePageView(['custom', 'builtin'])
+]);
+const view = usePageView(['custom', 'builtin']);
 
 // The open command lives in the address (?command=), so a refresh or a link keeps it.
-const selected: ComputedRef<string | null> = computed<string | null>(() =>
+const selected = computed<string | null>(() =>
   typeof route.query.command === 'string'
     ? route.query.command
     : null,
-)
-const row: ComputedRef<CommandListItem | undefined> = computed<CommandListItem | undefined>(() =>
+);
+const row = computed<CommandListItem | undefined>(() =>
   (commands.data.value ?? []).find(
     (item: CommandListItem): boolean => item.name === selected.value,
   ),
-)
+);
 
 function select(name: string | undefined): void {
-  void router.push({ query: { ...route.query, command: name } })
+  void router.push({ query: { ...route.query, command: name } });
 }
 
 function removeCommand(name: string): void {
-  select(undefined)
-  remove.mutate({ commandName: name })
+  select(undefined);
+  remove.mutate({ commandName: name });
 }
 
-const creating = ref(false)
+const creating = ref(false);
 </script>
 
 <template>

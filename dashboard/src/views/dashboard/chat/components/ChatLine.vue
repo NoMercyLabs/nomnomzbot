@@ -11,76 +11,78 @@
 // One chat line. The action tray floats over the line on hover or focus and never moves it.
 // Timeout picks its length in a menu, Delete runs at once, Ban asks the page for its confirm
 // dialog, and Profile opens the one profile dialog of the frame.
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { toast } from 'vue-sonner'
-import Clock from '~icons/nnz/clock'
-import StopSign from '~icons/nnz/stop-sign'
-import Trash from '~icons/nnz/trash'
-import UserCircle from '~icons/nnz/user-circle'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
+import Clock from '~icons/nnz/clock';
+import StopSign from '~icons/nnz/stop-sign';
+import Trash from '~icons/nnz/trash';
+import UserCircle from '~icons/nnz/user-circle';
 
-import { useDeleteChatMessage, useTimeoutUser, type ChatLine } from '@/api/chat'
-import UserName from '@/components/layout/UserName.vue'
-import { Button } from '@/components/ui/button'
+import { useDeleteChatMessage, useTimeoutUser, type ChatLine } from '@/api/chat';
+import UserName from '@/components/layout/UserName.vue';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatLength } from '@/lib/time'
-import { useProfileDialogStore } from '@/stores/profileDialog'
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatLength } from '@/lib/time';
+import { useProfileDialogStore } from '@/stores/profileDialog';
 
-const LENGTHS: readonly number[] = [60, 600, 3600, 86400]
+const LENGTHS: readonly number[] = [60, 600, 3600, 86400];
 
 const props = defineProps<{
-  line: ChatLine
-  channelId: string | null
-}>()
+  line: ChatLine;
+  channelId: string | null;
+}>();
 
-const emit = defineEmits<{ ban: [line: ChatLine] }>()
+const emit = defineEmits<{ ban: [line: ChatLine] }>();
 
-const { t, locale } = useI18n()
-const timeouts = useTimeoutUser(() => props.channelId)
-const deletes = useDeleteChatMessage(() => props.channelId)
-const profile = useProfileDialogStore()
+const { t, locale } = useI18n();
+const timeouts = useTimeoutUser(() => props.channelId);
+const deletes = useDeleteChatMessage(() => props.channelId);
+const profile = useProfileDialogStore();
 
-const time: ComputedRef<string> = computed(() =>
+const time = computed<string>(() =>
   new Date(props.line.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-)
+);
 
 // A timeout or ban says what happened, with the timeout's length; other removals only strike the line.
-const removal: ComputedRef<string | null> = computed(() => {
-  const { removed, timeoutSeconds } = props.line
+const removal = computed<string | null>(() => {
+  const { removed, timeoutSeconds } = props.line;
 
   if (removed === 'banned') {
-    return t('dashboard.chat.line.banned')
+    return t('dashboard.chat.line.banned');
   }
 
   if (removed === 'timeout' && timeoutSeconds !== undefined) {
-    return t('dashboard.chat.line.timedOut', { length: formatLength(timeoutSeconds, locale.value) })
+    return t('dashboard.chat.line.timedOut', {
+      length: formatLength(timeoutSeconds, locale.value),
+    });
   }
 
-  return null
-})
+  return null;
+});
 
 async function timeout(seconds: number): Promise<void> {
   try {
-    await timeouts.mutateAsync({ targetUserId: props.line.userId, durationSeconds: seconds })
-    toast.success(t('dashboard.chat.timeout.result', { name: props.line.displayName }))
+    await timeouts.mutateAsync({ targetUserId: props.line.userId, durationSeconds: seconds });
+    toast.success(t('dashboard.chat.timeout.result', { name: props.line.displayName }));
   } catch {
-    toast.error(t('dashboard.chat.timeout.failure'))
+    toast.error(t('dashboard.chat.timeout.failure'));
   }
 }
 
 async function remove(): Promise<void> {
   try {
-    await deletes.mutateAsync(props.line.id)
-    toast.success(t('dashboard.chat.delete.result'))
+    await deletes.mutateAsync(props.line.id);
+    toast.success(t('dashboard.chat.delete.result'));
   } catch {
-    toast.error(t('dashboard.chat.delete.failure'))
+    toast.error(t('dashboard.chat.delete.failure'));
   }
 }
 
@@ -90,11 +92,11 @@ function openProfile(event: MouseEvent): void {
     event.currentTarget instanceof HTMLElement
       ? event.currentTarget
       : null,
-  )
+  );
 }
 
 function emoteUrl(urls: Record<string, string>): string | undefined {
-  return urls['1'] ?? Object.values(urls)[0]
+  return urls['1'] ?? Object.values(urls)[0];
 }
 </script>
 

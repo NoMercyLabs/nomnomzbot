@@ -8,9 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router';
 
-import { loadPage } from '@/i18n'
+import { loadPage } from '@/i18n';
 
 // Development builds only (the router adds it behind import.meta.env.DEV).
 export const dashboardCatalogRoute = {
@@ -21,4 +21,4 @@ export const dashboardCatalogRoute = {
       () => import('./CatalogView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
-} as const satisfies RouteRecordRaw
+} as const satisfies RouteRecordRaw;

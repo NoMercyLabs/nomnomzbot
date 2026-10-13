@@ -10,28 +10,28 @@
 <script setup lang="ts">
 // The settings page. Channel: a list of settings beside the open one (only Readability is built so far).
 // This device: what stays in this browser, with a link back into the Channel list.
-import BookOpenText from '~icons/nnz/book-open'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import BookOpenText from '~icons/nnz/book-open';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import ListDetail from '@/components/layout/ListDetail.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { usePageView } from '@/composables/usePageView'
+import ListDetail from '@/components/layout/ListDetail.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { usePageView } from '@/composables/usePageView';
 
-import DeviceView from './DeviceView.vue'
-import ReadabilityView from './ReadabilityView.vue'
+import DeviceView from './DeviceView.vue';
+import ReadabilityView from './ReadabilityView.vue';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() => [
+const tabs = computed<PageTab[]>(() => [
   { value: 'channel', label: t('dashboard.settings.tabs.channel') },
   { value: 'device', label: t('dashboard.settings.tabs.device') },
-])
-const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value))
+]);
+const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value));
 </script>
 
 <template>

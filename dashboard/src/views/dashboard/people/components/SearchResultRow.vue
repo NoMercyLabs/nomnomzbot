@@ -11,28 +11,28 @@
 // One hit of the all-users search: avatar and name only, so typing stays quick.
 // A person this channel has never seen says so in plain text with a dot.
 // The marker shares the detail line, so the name keeps the full width and never breaks.
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import type { ViewerOption } from '@/api/community'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import type { ViewerOption } from '@/api/community';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const props = defineProps<{ option: ViewerOption; selected: boolean }>()
+const props = defineProps<{ option: ViewerOption; selected: boolean }>();
 
-defineEmits<{ pick: [] }>()
+defineEmits<{ pick: [] }>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const initials: ComputedRef<string> = computed<string>(() =>
+const initials = computed<string>(() =>
   props.option.label.slice(0, 2).toUpperCase(),
-)
+);
 
-const detail: ComputedRef<string> = computed<string>(() =>
+const detail = computed<string>(() =>
   props.option.inChannel
     ? props.option.subLabel
     : `${props.option.subLabel} · ${t('dashboard.people.list.notInChannel')}`,
-)
+);
 </script>
 
 <template>

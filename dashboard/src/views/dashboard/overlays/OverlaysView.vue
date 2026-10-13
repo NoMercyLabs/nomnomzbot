@@ -11,45 +11,45 @@
 // The Overlays page: every overlay of the channel as a list, tabs that filter it, and one overlay beside it.
 // The overlay in view is the id in ?id=, so a link opens it; with no id the first row of the list shows.
 // Tab counts come from the loaded list: the bot has no count endpoint.
-import { computed, ref, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
-import { useWidgets, type Widget } from '@/api/widgets'
-import ListDetail from '@/components/layout/ListDetail.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import SearchField from '@/components/layout/SearchField.vue'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePageView } from '@/composables/usePageView'
-import { usePanelState } from '@/composables/usePanelState'
+import { useWidgets, type Widget } from '@/api/widgets';
+import ListDetail from '@/components/layout/ListDetail.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import SearchField from '@/components/layout/SearchField.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
+import { usePanelState } from '@/composables/usePanelState';
 
-import OverlayDetail from './components/OverlayDetail.vue'
-import OverlayRow from './components/OverlayRow.vue'
+import OverlayDetail from './components/OverlayDetail.vue';
+import OverlayRow from './components/OverlayRow.vue';
 
-const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'problem']
+const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'problem'];
 
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const { channelId } = useCurrentChannel()
+const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
+const { channelId } = useCurrentChannel();
 
-const widgets = useWidgets(channelId)
-const view = usePageView(TAB_VALUES)
-const search = ref('')
+const widgets = useWidgets(channelId);
+const view = usePageView(TAB_VALUES);
+const search = ref('');
 
-const loaded = computed(() => widgets.data.value)
+const loaded = computed(() => widgets.data.value);
 
 const FILTERS: Readonly<Record<string, (widget: Widget) => boolean>> = {
   all: () => true,
   on: (widget: Widget) => widget.isEnabled,
   off: (widget: Widget) => !widget.isEnabled,
   problem: (widget: Widget) => Boolean(widget.lastRuntimeError),
-}
+};
 
 function countOf(tab: string): number | undefined {
-  return loaded.value?.filter(FILTERS[tab]!).length
+  return loaded.value?.filter(FILTERS[tab]!).length;
 }
 
 const tabs = computed<PageTab[]>(() =>
@@ -58,67 +58,67 @@ const tabs = computed<PageTab[]>(() =>
     label: t(`dashboard.overlays.tabs.${value}`),
     count: countOf(value),
   })),
-)
+);
 
 const visible = computed(() => {
-  const typed = search.value.trim().toLowerCase()
+  const typed = search.value.trim().toLowerCase();
 
   return loaded.value
     ?.filter(FILTERS[view.value] ?? FILTERS.all!)
-    .filter((widget: Widget) => typed === '' || widget.name.toLowerCase().includes(typed))
-})
+    .filter((widget: Widget) => typed === '' || widget.name.toLowerCase().includes(typed));
+});
 
 const listState = usePanelState(widgets, () =>
-  false)
+  false);
 const panelState = computed(() => {
   if (listState.value !== 'ready')
-    return listState.value
+    return listState.value;
 
   return visible.value?.length === 0
     ? 'empty'
-    : 'ready'
-})
+    : 'ready';
+});
 
-const emptyText: ComputedRef<string> = computed<string>(() => {
+const emptyText = computed<string>(() => {
   if (search.value.trim() !== '')
-    return t('dashboard.overlays.noMatch', { query: search.value.trim() })
+    return t('dashboard.overlays.noMatch', { query: search.value.trim() });
 
   return t(
     loaded.value?.length === 0
       ? 'dashboard.overlays.list.empty'
       : 'dashboard.overlays.list.emptyTab',
-  )
-})
+  );
+});
 
-const hint = computed<string>(() => t(`dashboard.overlays.hints.${view.value}`))
-const count: ComputedRef<string | undefined> = computed(() =>
+const hint = computed<string>(() => t(`dashboard.overlays.hints.${view.value}`));
+const count = computed<string | undefined>(() =>
   panelState.value === 'ready'
     ? t('dashboard.overlays.count', { count: visible.value?.length ?? 0 })
     : undefined,
-)
+);
 
 const asked = computed<string>(() =>
   typeof route.query.id === 'string'
     ? route.query.id
-    : '')
+    : '');
 // An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
-const selected: ComputedRef<Widget | null> = computed(() => {
+const selected = computed<Widget | null>(() => {
   if (asked.value !== '')
-    return loaded.value?.find((widget: Widget) => widget.id === asked.value) ?? null
+    return loaded.value?.find((widget: Widget) => widget.id === asked.value) ?? null;
 
-  return visible.value?.[0] ?? null
-})
-const selectedId = computed<string>(() => selected.value?.id ?? '')
+  return visible.value?.[0] ?? null;
+});
+const selectedId = computed<string>(() => selected.value?.id ?? '');
 
 function pick(widget: Widget): void {
-  void router.push({ query: { ...route.query, id: widget.id } })
+  void router.push({ query: { ...route.query, id: widget.id } });
 }
 
 function back(): void {
-  const { id, ...rest } = route.query
+  const { id, ...rest } = route.query;
 
-  void id
-  void router.push({ query: rest })
+  void id;
+  void router.push({ query: rest });
 }
 </script>
 

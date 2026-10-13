@@ -9,46 +9,46 @@
 -->
 <script setup lang="ts">
 // Tags of the stream: Enter adds one, the x removes one and a line right under offers Undo.
-import X from '~icons/nnz/cross'
-import { ref, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import X from '~icons/nnz/cross';
+import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 // Twitch allows at most 10 tags per stream.
-const MAX_TAGS: number = 10
+const MAX_TAGS: number = 10;
 
-const { t } = useI18n()
-const tags = defineModel<string[]>({ required: true })
-const entry = ref('')
-const removed: Ref<{ tag: string; index: number } | null> = ref(null)
+const { t } = useI18n();
+const tags = defineModel<string[]>({ required: true });
+const entry = ref('');
+const removed = ref<{ tag: string; index: number } | null>(null);
 
 function add(): void {
-  const tag = entry.value.trim()
+  const tag = entry.value.trim();
 
-  entry.value = ''
-  const known = tags.value.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
+  entry.value = '';
+  const known = tags.value.some((existing: string) => existing.toLowerCase() === tag.toLowerCase());
 
-  if (tag === '' || known || tags.value.length >= MAX_TAGS) return
+  if (tag === '' || known || tags.value.length >= MAX_TAGS) return;
 
-  tags.value = [...tags.value, tag]
-  removed.value = null
+  tags.value = [...tags.value, tag];
+  removed.value = null;
 }
 
 function remove(index: number): void {
-  removed.value = { tag: tags.value[index] as string, index }
-  tags.value = tags.value.filter((_tag: string, at: number) => at !== index)
+  removed.value = { tag: tags.value[index] as string, index };
+  tags.value = tags.value.filter((_tag: string, at: number) => at !== index);
 }
 
 function undo(): void {
-  if (removed.value === null) return
+  if (removed.value === null) return;
 
-  const next: string[] = [...tags.value]
+  const next: string[] = [...tags.value];
 
-  next.splice(Math.min(removed.value.index, next.length), 0, removed.value.tag)
-  tags.value = next
-  removed.value = null
+  next.splice(Math.min(removed.value.index, next.length), 0, removed.value.tag);
+  tags.value = next;
+  removed.value = null;
 }
 </script>
 

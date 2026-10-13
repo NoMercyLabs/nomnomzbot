@@ -10,33 +10,33 @@
 <script setup lang="ts">
 // Every timer of the channel with its state. Pause stops a timer from firing and keeps it saved;
 // Resume starts it again. Pause is the outline action, Resume the quiet one: no row shouts.
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-import { useToggleTimer, type Timer } from '@/api/liveOps'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
+import { useToggleTimer, type Timer } from '@/api/liveOps';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+} from '@/components/ui/dialog';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-defineProps<{ timers: Timer[] }>()
+defineProps<{ timers: Timer[] }>();
 
-const open = defineModel<boolean>('open', { required: true })
+const open = defineModel<boolean>('open', { required: true });
 
-const { t } = useI18n()
-const { channelId } = useCurrentChannel()
-const toggle = useToggleTimer(channelId)
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const toggle = useToggleTimer(channelId);
 
 function stateText(timer: Timer): string {
   return timer.isEnabled
     ? t('dashboard.home.quick.timerOn', { minutes: Number(timer.intervalMinutes) })
-    : t('dashboard.home.quick.timerPaused')
+    : t('dashboard.home.quick.timerPaused');
 }
 </script>
 

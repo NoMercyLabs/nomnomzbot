@@ -8,31 +8,31 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core'
-import { provide } from 'vue'
+import { useMediaQuery } from '@vueuse/core';
+import { provide } from 'vue';
 
-import { frameActionsKey } from '@/components/layout/frameActions'
-import ProfileDialog from '@/components/layout/ProfileDialog.vue'
-import { Toaster } from '@/components/ui/sonner'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { useRealtime } from '@/realtime/useRealtime'
+import { frameActionsKey } from '@/components/layout/frameActions';
+import ProfileDialog from '@/components/layout/ProfileDialog.vue';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useRealtime } from '@/realtime/useRealtime';
 
-import BottomBar from './dashboard/BottomBar.vue'
-import ChannelSwitch from './dashboard/ChannelSwitch.vue'
-import DashboardSidebar from './dashboard/DashboardSidebar.vue'
-import FrameActions from './dashboard/FrameActions.vue'
-import NavRail from './dashboard/NavRail.vue'
-import ProfileMenu from './dashboard/ProfileMenu.vue'
+import BottomBar from './dashboard/BottomBar.vue';
+import ChannelSwitch from './dashboard/ChannelSwitch.vue';
+import DashboardSidebar from './dashboard/DashboardSidebar.vue';
+import FrameActions from './dashboard/FrameActions.vue';
+import NavRail from './dashboard/NavRail.vue';
+import ProfileMenu from './dashboard/ProfileMenu.vue';
 
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
-const wide = useMediaQuery('(min-width: 840px)')
-const medium = useMediaQuery('(min-width: 600px)')
+const wide = useMediaQuery('(min-width: 840px)');
+const medium = useMediaQuery('(min-width: 600px)');
 
-const { channelId } = useCurrentChannel()
+const { channelId } = useCurrentChannel();
 
-provide(frameActionsKey, FrameActions)
-useRealtime()
+provide(frameActionsKey, FrameActions);
+useRealtime();
 </script>
 
 <template>

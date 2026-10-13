@@ -13,99 +13,99 @@
 // render, so a row may wrap. Give it the height the parent allows (flex-1 min-h-0 or a fixed height).
 // stick: a chat-style list. At the bottom it stays at the bottom as rows arrive. Scrolled up, the
 // reader keeps their place, new rows are counted, and one button returns to the bottom.
-import { useVirtualizer, type PartialKeys, type VirtualizerOptions } from '@tanstack/vue-virtual'
-import { computed, nextTick, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { useVirtualizer, type PartialKeys, type VirtualizerOptions } from '@tanstack/vue-virtual';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 
 const props = withDefaults(
   defineProps<{
-    items: readonly T[]
-    itemKey: (item: T, index: number) => string | number
-    estimateSize: number
-    label: string
-    stick?: boolean
+    items: readonly T[];
+    itemKey: (item: T, index: number) => string | number;
+    estimateSize: number;
+    label: string;
+    stick?: boolean;
   }>(),
   { stick: false },
-)
+);
 
-defineSlots<{ default(props: { item: T; index: number }): unknown }>()
+defineSlots<{ default(props: { item: T; index: number }): unknown }>();
 
-const AT_BOTTOM_SLACK = 8
-const OVERSCAN = 8
+const AT_BOTTOM_SLACK = 8;
+const OVERSCAN = 8;
 
-const scrollArea: Ref<HTMLElement | null> = ref(null)
-const atBottom = ref(true)
-const newBelow = ref(0)
+const scrollArea = ref<HTMLElement | null>(null);
+const atBottom = ref(true);
+const newBelow = ref(0);
 
 type Options = PartialKeys<
   VirtualizerOptions<HTMLElement, Element>,
   'observeElementRect' | 'observeElementOffset' | 'scrollToFn'
->
+>;
 
-const options: ComputedRef<Options> = computed(() => ({
+const options = computed<Options>(() => ({
   count: props.items.length,
   getScrollElement: () => scrollArea.value,
   estimateSize: () => props.estimateSize,
   getItemKey: (index: number) => props.itemKey(props.items[index]!, index),
   overscan: OVERSCAN,
-}))
-const virtualizer = useVirtualizer(options)
+}));
+const virtualizer = useVirtualizer(options);
 
 function measure(element: unknown): void {
   if (element instanceof Element) {
-    virtualizer.value.measureElement(element)
+    virtualizer.value.measureElement(element);
   }
 }
 
 function viewportHeight(element: HTMLElement): number {
-  return virtualizer.value.scrollRect?.height ?? element.clientHeight
+  return virtualizer.value.scrollRect?.height ?? element.clientHeight;
 }
 
 function maxOffset(element: HTMLElement): number {
-  return Math.max(0, virtualizer.value.getTotalSize() - viewportHeight(element))
+  return Math.max(0, virtualizer.value.getTotalSize() - viewportHeight(element));
 }
 
 function onScroll(): void {
-  const element = scrollArea.value
+  const element = scrollArea.value;
 
-  if (!element) return
+  if (!element) return;
 
-  atBottom.value = maxOffset(element) - element.scrollTop <= AT_BOTTOM_SLACK
+  atBottom.value = maxOffset(element) - element.scrollTop <= AT_BOTTOM_SLACK;
 
   if (atBottom.value) {
-    newBelow.value = 0
+    newBelow.value = 0;
   }
 }
 
 function scrollToBottom(): void {
-  if (props.items.length === 0) return
+  if (props.items.length === 0) return;
 
-  virtualizer.value.scrollToIndex(props.items.length - 1, { align: 'end' })
+  virtualizer.value.scrollToIndex(props.items.length - 1, { align: 'end' });
 }
 
 function jumpToBottom(): void {
-  newBelow.value = 0
-  scrollToBottom()
+  newBelow.value = 0;
+  scrollToBottom();
 }
 
 function scrollBy(delta: number): void {
-  const element = scrollArea.value
+  const element = scrollArea.value;
 
-  if (!element) return
+  if (!element) return;
 
-  const wanted = Math.max(0, element.scrollTop + delta)
-  const offset = Math.min(maxOffset(element), wanted)
+  const wanted = Math.max(0, element.scrollTop + delta);
+  const offset = Math.min(maxOffset(element), wanted);
 
-  virtualizer.value.scrollToOffset(offset)
+  virtualizer.value.scrollToOffset(offset);
 }
 
 function onKey(event: KeyboardEvent): void {
-  const element = scrollArea.value
+  const element = scrollArea.value;
 
-  if (!element || event.target !== element) return
+  if (!element || event.target !== element) return;
 
-  const page = viewportHeight(element)
+  const page = viewportHeight(element);
   const moves: Record<string, () => void> = {
     ArrowDown: () => scrollBy(props.estimateSize),
     ArrowUp: () => scrollBy(-props.estimateSize),
@@ -113,41 +113,41 @@ function onKey(event: KeyboardEvent): void {
     PageUp: () => scrollBy(-page),
     Home: () => scrollBy(-element.scrollTop),
     End: () => scrollBy(maxOffset(element) - element.scrollTop),
-  }
-  const move = moves[event.key]
+  };
+  const move = moves[event.key];
 
-  if (!move) return
+  if (!move) return;
 
-  event.preventDefault()
-  move()
+  event.preventDefault();
+  move();
 }
 
 watch(
   () => props.items.length,
   async (count: number, before: number) => {
-    if (!props.stick) return
+    if (!props.stick) return;
 
     if (count <= before) {
-      newBelow.value = 0
+      newBelow.value = 0;
 
-      return
+      return;
     }
 
     if (atBottom.value) {
-      await nextTick()
-      scrollToBottom()
+      await nextTick();
+      scrollToBottom();
     } else {
-      newBelow.value += count - before
+      newBelow.value += count - before;
     }
   },
-)
+);
 
 onMounted(async () => {
-  if (!props.stick) return
+  if (!props.stick) return;
 
-  await nextTick()
-  scrollToBottom()
-})
+  await nextTick();
+  scrollToBottom();
+});
 </script>
 
 <template>

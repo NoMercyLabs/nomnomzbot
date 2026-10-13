@@ -351,15 +351,15 @@
    "covers": []
   },
   {
-   "id": "dashboard-type-members-per-line",
+   "id": "dashboard-members-per-line",
    "paths": [
     "**/dashboard/src/**"
    ],
    "brief": [
     "dashboard"
    ],
-   "text": "A TypeScript object type with 3 or more members puts each member on its own line, even when it fits on one line. ESLint `app/type-members-per-line` flags it and `eslint --fix` wraps it.",
-   "source": "Stoney 2026-10-13: \"lets make this lenght wrap in formatted object: type PanelQuery<T> = { data: Ref<T | undefined>; isPending: Ref<boolean>; isError: Ref<boolean> }\"",
+   "text": "An object type or object literal with 3 or more entries puts each entry on its own line, even when it fits on one line. ESLint `app/members-per-line` flags it and `eslint --fix` wraps it.",
+   "source": "Stoney 2026-10-13: \"lets make this lenght wrap in formatted object: type PanelQuery<T> = { data: Ref<T | undefined>; isPending: Ref<boolean>; isError: Ref<boolean> }\" and \"i like this: return { ...labels, ...words('codeEditor.testRun'), roles: words('codeEditor.testRun.roles') } [one entry per line] over return { ...labels, ...words('codeEditor.testRun'), roles: words('codeEditor.testRun.roles') }\"",
    "covers": []
   },
   {
@@ -1366,6 +1366,52 @@
    },
    "covers": [
     "feedback-docs-english-only.md"
+   ]
+  },
+  {
+   "id": "dashboard-semicolons",
+   "paths": [
+    "**/dashboard/src/**",
+    "**/dashboard/eslint-rules/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "Dashboard TypeScript and Vue code ends statements and object-type members with semicolons. ESLint is the only formatter (no Prettier): the `app/format` stylistic preset (semi: true) fails the gate on a missing one and `eslint --fix` adds it.",
+   "source": "Stoney 2026-10-13: \"force semicolons\"",
+   "covers": []
+  },
+  {
+   "id": "dashboard-generics-over-annotations",
+   "paths": [
+    "**/dashboard/src/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "Dashboard code passes a type to a generic call instead of annotating the variable: `computed<T>(...)`, `ref<T>(...)`, `new Set<T>(...)`, never `const x: ComputedRef<T> = computed(...)`. ESLint `app/generic-over-annotation` flags it and `eslint --fix` moves the type.",
+   "source": "Stoney 2026-10-13: \"prefer const primaryRoute = computed<{ name: string; label: string } | null>(() => { over const primaryRoute: ComputedRef<{ name: string; label: string } | null> = computed(() => {\" and \"this is basically a use generics wherever supported\"",
+   "covers": [
+    "feedback-ts-no-redundant-annotations.md"
+   ]
+  },
+  {
+   "id": "every-action-reachable-everywhere",
+   "paths": [
+    "**/server/src/**/PipelineActions/**",
+    "**/server/src/**/CustomCode/**",
+    "**/server/src/**/DevPlatform/**",
+    "**/server/src/**/AutomationApi/**"
+   ],
+   "brief": [
+    "[Pp]ipeline action",
+    "SDK",
+    "bot\\.call"
+   ],
+   "text": "Every bot action is reachable from every surface where a user creates actions and reactions: pipelines (commands, rewards, event responses, timers), the code scripts SDK, overlays and the automation API. A new action is exposed on every surface in the same slice, and the parity test fails when one is missing.",
+   "source": "Stoney 2026-10-13: \"this is the same rule as i said earlier, every action must be reachable form any place if the user desires this, that is why we have an SDK, it must all be exposed everywhere a user can create actions and reactions\"",
+   "covers": [
+    "feedback-every-action-reachable-everywhere.md"
    ]
   },
   {

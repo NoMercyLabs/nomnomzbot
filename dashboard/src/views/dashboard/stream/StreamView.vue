@@ -9,62 +9,62 @@
 -->
 <script setup lang="ts">
 // The stream page: header with the live state, then the stream info beside where it goes and what to check.
-import { useIntervalFn, useNow } from '@vueuse/core'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useIntervalFn, useNow } from '@vueuse/core';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useStreamHistory, useStreamInfo, type StreamInfo } from '@/api/stream'
-import BoardCell from '@/components/layout/BoardCell.vue'
-import BoardGrid from '@/components/layout/BoardGrid.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useStreamHistory, useStreamInfo, type StreamInfo } from '@/api/stream';
+import BoardCell from '@/components/layout/BoardCell.vue';
+import BoardGrid from '@/components/layout/BoardGrid.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import GoLiveChecklist from './GoLiveChecklist.vue'
-import { formatDuration } from './formatDuration'
-import PlatformRows from './PlatformRows.vue'
-import StreamInfoPanel from './StreamInfoPanel.vue'
+import GoLiveChecklist from './GoLiveChecklist.vue';
+import { formatDuration } from './formatDuration';
+import PlatformRows from './PlatformRows.vue';
+import StreamInfoPanel from './StreamInfoPanel.vue';
 
-const { t, locale } = useI18n()
-const { channelId } = useCurrentChannel()
-const infoQuery = useStreamInfo(channelId)
-const historyQuery = useStreamHistory(channelId)
-const now = useNow({ scheduler: (tick: () => void) => useIntervalFn(tick, 30_000) })
+const { t, locale } = useI18n();
+const { channelId } = useCurrentChannel();
+const infoQuery = useStreamInfo(channelId);
+const historyQuery = useStreamHistory(channelId);
+const now = useNow({ scheduler: (tick: () => void) => useIntervalFn(tick, 30_000) });
 
-const info: ComputedRef<StreamInfo | null> = computed(() => infoQuery.data.value ?? null)
-const live = computed(() => info.value?.isLive === true)
+const info = computed<StreamInfo | null>(() => infoQuery.data.value ?? null);
+const live = computed(() => info.value?.isLive === true);
 
 const date = (value: string): string =>
-  new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(value))
+  new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(value));
 
-const meta: ComputedRef<string> = computed(() => {
-  const current = info.value
+const meta = computed<string>(() => {
+  const current = info.value;
 
   if (current === null)
-    return ''
+    return '';
 
   if (current.isLive && current.startedAt)
     return t('dashboard.stream.liveMeta', {
       time: formatDuration((now.value.getTime() - new Date(current.startedAt).getTime()) / 1000),
       category: current.gameName,
-    })
+    });
 
-  const last = historyQuery.data.value?.[0]
+  const last = historyQuery.data.value?.[0];
 
   // A stream the bot never closed has no end or length: the header gives only its date.
   if (last?.endedAt && last.durationSeconds != null)
     return t('dashboard.stream.lastStream', {
       date: date(last.endedAt),
       length: formatDuration(Number(last.durationSeconds)),
-    })
+    });
 
-  const lastDate = last?.startedAt ?? current.lastStreamedAt
+  const lastDate = last?.startedAt ?? current.lastStreamedAt;
 
   if (lastDate)
-    return t('dashboard.stream.lastStreamDate', { date: date(lastDate) })
+    return t('dashboard.stream.lastStreamDate', { date: date(lastDate) });
 
-  return t('dashboard.stream.noStreamYet')
-})
+  return t('dashboard.stream.noStreamYet');
+});
 </script>
 
 <template>

@@ -10,12 +10,12 @@
 <script setup lang="ts">
 // The channels of the registry, one row each. The bot sorts the list (newest first), so the heads do not sort.
 // The name is the one button of a row: it picks the channel, for the keyboard and the pointer alike.
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import type { AdminTenant } from '@/api/admin'
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import type { AdminTenant } from '@/api/admin';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Table,
   TableBody,
@@ -23,43 +23,43 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from '@/components/ui/table';
 
-defineProps<{ rows: readonly AdminTenant[]; selectedId: string }>()
-defineEmits<{ pick: [row: AdminTenant] }>()
+defineProps<{ rows: readonly AdminTenant[]; selectedId: string }>();
+defineEmits<{ pick: [row: AdminTenant] }>();
 
-const { t, locale } = useI18n()
+const { t, locale } = useI18n();
 
 const TONES: Readonly<Record<string, StatusTone>> = {
   active: 'ok',
   suspended: 'off',
   churned: 'off',
   platform_banned: 'bad',
-}
+};
 
 function tone(status: string | undefined): StatusTone {
-  return TONES[status ?? ''] ?? 'off'
+  return TONES[status ?? ''] ?? 'off';
 }
 
 function statusLabel(status: string | undefined): string {
-  return t(`dashboard.admin.status.${status ?? 'unknown'}`)
+  return t(`dashboard.admin.status.${status ?? 'unknown'}`);
 }
 
 function initials(name: string | undefined): string {
   return (name ?? '')
     .replace(/[^A-Za-z0-9]/g, '')
     .slice(0, 2)
-    .toUpperCase()
+    .toUpperCase();
 }
 
-const dates: ComputedRef<Intl.DateTimeFormat> = computed(
+const dates = computed<Intl.DateTimeFormat>(
   () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }),
-)
+);
 
 function created(value: string | undefined): string {
   return value
     ? dates.value.format(new Date(value))
-    : ''
+    : '';
 }
 </script>
 

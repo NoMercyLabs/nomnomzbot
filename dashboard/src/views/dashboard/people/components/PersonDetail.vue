@@ -11,91 +11,91 @@
 // The detail beside the People list: what the bot knows about one person, read only.
 // The row supplies the facts every person has. The profile endpoint adds the rest, but only
 // for a person with an internal id; the full profile stays the ProfileDialog (UserName opens it).
-import ArrowLeft from '~icons/nnz/arrow-left'
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import ArrowLeft from '~icons/nnz/arrow-left';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useViewerProfile, type CommunityRow, type PersonProfile } from '@/api/people'
-import DetailPane from '@/components/layout/DetailPane.vue'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
-import StatStrip from '@/components/layout/StatStrip.vue'
-import StatTile from '@/components/layout/StatTile.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import UserName from '@/components/layout/UserName.vue'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useViewerProfile, type CommunityRow, type PersonProfile } from '@/api/people';
+import DetailPane from '@/components/layout/DetailPane.vue';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import StatStrip from '@/components/layout/StatStrip.vue';
+import StatTile from '@/components/layout/StatTile.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import UserName from '@/components/layout/UserName.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
 // detailState: a person opened from a search hit arrives as name and avatar; the rest loads in parts.
 const props = withDefaults(defineProps<{ person: CommunityRow; detailState?: PanelState }>(), {
   detailState: 'ready',
-})
+});
 
-defineEmits<{ back: []; retry: [] }>()
+defineEmits<{ back: []; retry: [] }>();
 
-const { t, n, locale } = useI18n()
-const { channelId } = useCurrentChannel()
+const { t, n, locale } = useI18n();
+const { channelId } = useCurrentChannel();
 
 const profile = useViewerProfile(channelId, () =>
-  props.person.internalUserId)
-const hasProfile = computed<boolean>(() => props.person.internalUserId !== null)
+  props.person.internalUserId);
+const hasProfile = computed<boolean>(() => props.person.internalUserId !== null);
 const profileState = usePanelState(profile, (data: PersonProfile | null) =>
-  data === null)
+  data === null);
 
 const moderationState = computed<PanelState>(() => {
   if (props.detailState !== 'ready')
-    return props.detailState
+    return props.detailState;
 
   if (!hasProfile.value)
-    return 'empty'
+    return 'empty';
 
   if (profileState.value === 'ready' && profile.data.value?.moderationHistory == null)
-    return 'empty'
+    return 'empty';
 
-  return profileState.value
-})
-const moderationEmpty: ComputedRef<string> = computed<string>(() =>
+  return profileState.value;
+});
+const moderationEmpty = computed<string>(() =>
   t(
     hasProfile.value
       ? 'dashboard.people.detail.moderation.empty'
       : 'dashboard.people.detail.noProfile',
   ),
-)
+);
 
 // Twitch sends the tier as a plan code: 1000, 2000, 3000, or Prime.
 function tierName(code: string | null): string | null {
   if (code === null)
-    return null
+    return null;
 
-  const level: RegExpMatchArray | null = /^([123])000$/.exec(code)
+  const level: RegExpMatchArray | null = /^([123])000$/.exec(code);
 
   if (level)
-    return t('dashboard.people.detail.overview.tierLevel', { level: level[1] })
+    return t('dashboard.people.detail.overview.tierLevel', { level: level[1] });
 
   return code.toLowerCase() === 'prime'
     ? t('dashboard.people.detail.overview.tierPrime')
-    : code
+    : code;
 }
 
 function shortDate(value: string | null | undefined): string | null {
   if (!value)
-    return null
+    return null;
 
   return new Date(value).toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  })
+  });
 }
 
-const handle = computed<string>(() => `@${props.person.username}`)
-const watchHours: ComputedRef<string> = computed<string>(() =>
+const handle = computed<string>(() => `@${props.person.username}`);
+const watchHours = computed<string>(() =>
   n(Number(props.person.watchHours), { maximumFractionDigits: 1 }),
-)
+);
 
-const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
+const overview = computed<KeyValueItem[]>(() => {
   const items: KeyValueItem[] = [
     { label: t('dashboard.people.detail.overview.login'), value: `@${props.person.username}` },
     { label: t('dashboard.people.detail.overview.twitchId'), value: props.person.id },
@@ -107,11 +107,11 @@ const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
       label: t('dashboard.people.detail.overview.lastSeen'),
       value: shortDate(props.person.lastSeen),
     },
-  ]
-  const data = profile.data.value
+  ];
+  const data = profile.data.value;
 
   if (!data)
-    return items
+    return items;
 
   return [
     ...items.slice(0, 2),
@@ -137,14 +137,14 @@ const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
         ]
       : []),
     ...items.slice(2),
-  ]
-})
+  ];
+});
 
-const moderation: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
-  const history = profile.data.value?.moderationHistory
+const moderation = computed<KeyValueItem[]>(() => {
+  const history = profile.data.value?.moderationHistory;
 
   if (!history)
-    return []
+    return [];
 
   return [
     {
@@ -166,10 +166,10 @@ const moderation: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
         ? `${history.lastActionType} · ${shortDate(history.lastActionAt) ?? ''}`
         : null,
     },
-  ]
-})
+  ];
+});
 
-const streak = computed(() => profile.data.value?.streak)
+const streak = computed(() => profile.data.value?.streak);
 </script>
 
 <template>

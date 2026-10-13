@@ -11,80 +11,80 @@
 // One settings field: label and "key . type . help" on the left, the control its type asks for,
 // and Reset when the value differs from the default (12-overlays.html:304-313).
 // A type the dashboard does not know shows its value read-only.
-import RotateCcw from '~icons/nnz/arrow-counter-clockwise'
-import { computed, useId, type ComputedRef } from 'vue'
+import RotateCcw from '~icons/nnz/arrow-counter-clockwise';
+import { computed, useId } from 'vue';
 
-import type { WidgetSettingsField } from '@/api/widgets'
-import MultiChoice from '@/components/layout/MultiChoice.vue'
-import SettingRow from '@/components/layout/SettingRow.vue'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import type { WidgetSettingsField } from '@/api/widgets';
+import MultiChoice from '@/components/layout/MultiChoice.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
-import { clampNumber, humanize, useSettingText } from './settingField'
+import { clampNumber, humanize, useSettingText } from './settingField';
 
 const props = defineProps<{
-  field: WidgetSettingsField
-  value: unknown
-  changed: boolean
-}>()
-const emit = defineEmits<{ update: [value: unknown]; reset: [] }>()
+  field: WidgetSettingsField;
+  value: unknown;
+  changed: boolean;
+}>();
+const emit = defineEmits<{ update: [value: unknown]; reset: [] }>();
 
-const text = useSettingText()
-const titleId = useId()
+const text = useSettingText();
+const titleId = useId();
 
-const label = computed<string>(() => text(props.field.label, humanize(props.field.key)))
-const meta: ComputedRef<string> = computed<string>(() => {
+const label = computed<string>(() => text(props.field.label, humanize(props.field.key)));
+const meta = computed<string>(() => {
   const help: string | null = props.field.help
     ? text(props.field.help, '')
-    : null
+    : null;
 
-  return [props.field.key, props.field.type, help].filter(Boolean).join(' · ')
-})
+  return [props.field.key, props.field.type, help].filter(Boolean).join(' · ');
+});
 
 interface Choice {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
-const choices: ComputedRef<Choice[]> = computed<Choice[]>(() =>
+const choices = computed<Choice[]>(() =>
   (props.field.options ?? []).map((option): Choice => ({
     value: option.value,
     label: text(option.label, humanize(option.value)),
   })),
-)
+);
 const chosenLabel = computed<string>(
   () =>
     choices.value.find((choice: Choice) => choice.value === props.value)?.label ??
     String(props.value ?? ''),
-)
-const picked: ComputedRef<string[]> = computed<string[]>(() =>
+);
+const picked = computed<string[]>(() =>
   Array.isArray(props.value)
     ? props.value.map(String)
     : [],
-)
+);
 const shown = computed<string>(() =>
   props.value === null || props.value === undefined
     ? ''
     : String(props.value),
-)
+);
 const known = computed<boolean>(() =>
   ['bool', 'number', 'text', 'color', 'select', 'multiselect'].includes(props.field.type),
-)
+);
 
 // The number is held inside min and max on change; the box shows the held value even when it did not move.
 function onNumber(event: Event): void {
-  const box = event.target as HTMLInputElement
-  const next: unknown = clampNumber(box.value, props.field, props.value)
+  const box = event.target as HTMLInputElement;
+  const next: unknown = clampNumber(box.value, props.field, props.value);
 
-  box.value = String(next)
-  emit('update', next)
+  box.value = String(next);
+  emit('update', next);
 }
 </script>
 

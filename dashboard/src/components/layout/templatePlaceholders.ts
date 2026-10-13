@@ -8,27 +8,27 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { TemplateHelper } from '@/api/templates'
-import { merge } from '@/lib/array'
+import type { TemplateHelper } from '@/api/templates';
+import { merge } from '@/lib/array';
 
 export function braced(key: string): string {
-  return `{${key}}`
+  return `{${key}}`;
 }
 
 export interface OpenPlaceholder {
   /** Index of the opening brace. */
-  from: number
+  from: number;
   /** What was typed after the brace. */
-  query: string
+  query: string;
 }
 
 // The brace the caret is inside, if the person is still writing its name.
 export function openPlaceholder(text: string, caret: number): OpenPlaceholder | null {
-  const match: RegExpExecArray | null = /\{([\w.<>:|-]*)$/.exec(text.slice(0, caret))
+  const match: RegExpExecArray | null = /\{([\w.<>:|-]*)$/.exec(text.slice(0, caret));
 
   return match
     ? { from: match.index, query: match[1] ?? '' }
-    : null
+    : null;
 }
 
 // Helpers that start with the query come first, then those that only contain it.
@@ -36,66 +36,66 @@ export function filterHelpers(
   helpers: readonly TemplateHelper[],
   query: string,
 ): readonly TemplateHelper[] {
-  const needle = query.toLowerCase()
+  const needle = query.toLowerCase();
   const starts = helpers.filter((helper: TemplateHelper) =>
     helper.key.toLowerCase().startsWith(needle),
-  )
+  );
   const contains = helpers.filter(
     (helper: TemplateHelper) =>
       !helper.key.toLowerCase().startsWith(needle) && helper.key.toLowerCase().includes(needle),
-  )
+  );
 
-  return merge(starts, contains)
+  return merge(starts, contains);
 }
 
 // A key such as "args.<n>" stands for a family: every name that starts with "args." and goes on.
 function matches(helper: TemplateHelper, name: string): boolean {
-  const key = helper.key.toLowerCase()
-  const open = key.indexOf('<')
+  const key = helper.key.toLowerCase();
+  const open = key.indexOf('<');
 
   if (open === -1)
-    return key === name
+    return key === name;
 
-  const prefix: string = key.slice(0, open)
+  const prefix: string = key.slice(0, open);
 
-  return name.length > prefix.length && name.startsWith(prefix)
+  return name.length > prefix.length && name.startsWith(prefix);
 }
 
 // Every {name} in the text that no helper of this place accepts, each once, in written order.
 export function unknownPlaceholders(text: string, helpers: TemplateHelper[]): string[] {
-  const unknown: string[] = []
+  const unknown: string[] = [];
 
   for (const match of text.matchAll(/\{([^{}\s][^{}]*)\}/g)) {
-    const name: string = (match[1] ?? '').trim().toLowerCase()
+    const name: string = (match[1] ?? '').trim().toLowerCase();
 
-    if (helpers.some((helper: TemplateHelper) => matches(helper, name))) continue
+    if (helpers.some((helper: TemplateHelper) => matches(helper, name))) continue;
 
     if (!unknown.includes(match[0])) {
-      unknown.push(match[0])
+      unknown.push(match[0]);
     }
   }
 
-  return unknown
+  return unknown;
 }
 
 // The panel groups helpers by the first part of the key: user, user.name and user.id are all "user".
 export function helperGroup(key: string): string {
-  return key.split(/[.:<]/)[0] ?? key
+  return key.split(/[.:<]/)[0] ?? key;
 }
 
 export function groupHelpers(
   helpers: readonly TemplateHelper[],
 ): Array<{ group: string; helpers: TemplateHelper[] }> {
-  const groups = new Map()
+  const groups = new Map();
 
   for (const helper of helpers) {
-    const group = helperGroup(helper.key)
+    const group = helperGroup(helper.key);
 
-    groups.set(group, [...(groups.get(group) ?? []), helper])
+    groups.set(group, [...(groups.get(group) ?? []), helper]);
   }
 
   return [...groups].map(([group, grouped]: [string, TemplateHelper[]]) => ({
     group,
     helpers: grouped,
-  }))
+  }));
 }

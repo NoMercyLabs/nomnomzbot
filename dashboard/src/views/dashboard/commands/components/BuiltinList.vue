@@ -9,24 +9,24 @@
 -->
 <script setup lang="ts">
 // The commands the bot ships with. This slice only switches them on and off.
-import { computed, type ComputedRef } from 'vue'
+import { computed } from 'vue';
 
-import { useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SettingRow from '@/components/layout/SettingRow.vue'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
-const { channelId } = useCurrentChannel()
-const builtins = useBuiltins(channelId)
-const toggle = useToggleBuiltin(channelId)
+const { channelId } = useCurrentChannel();
+const builtins = useBuiltins(channelId);
+const toggle = useToggleBuiltin(channelId);
 
-const rows: ComputedRef<BuiltinCommand[]> = computed<BuiltinCommand[]>(
+const rows = computed<BuiltinCommand[]>(
   () => builtins.data.value ?? [],
-)
+);
 const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
-  data.length === 0)
+  data.length === 0);
 </script>
 
 <template>

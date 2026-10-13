@@ -9,34 +9,34 @@
 -->
 <script setup lang="ts">
 // The checks before a stream starts. A check that cannot run says so; it never shows a guess.
-import { computed, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useBotStatus } from '@/api/home'
-import { useRewards, type Reward } from '@/api/rewards'
-import { useShieldMode } from '@/api/shield'
-import { useStreamInfo, type StreamInfo } from '@/api/stream'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useBotStatus } from '@/api/home';
+import { useRewards, type Reward } from '@/api/rewards';
+import { useShieldMode } from '@/api/shield';
+import { useStreamInfo, type StreamInfo } from '@/api/stream';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
 type Check = {
-  key: string
-  tone: 'ok' | 'bad' | 'off'
-  label: string
-}
+  key: string;
+  tone: 'ok' | 'bad' | 'off';
+  label: string;
+};
 
-const { t } = useI18n()
-const { channelId } = useCurrentChannel()
-const infoQuery = useStreamInfo(channelId)
-const botQuery = useBotStatus(channelId)
-const rewardsQuery = useRewards(channelId)
-const shieldQuery = useShieldMode(channelId)
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const infoQuery = useStreamInfo(channelId);
+const botQuery = useBotStatus(channelId);
+const rewardsQuery = useRewards(channelId);
+const shieldQuery = useShieldMode(channelId);
 
 const state = usePanelState(infoQuery, (info: StreamInfo | null) =>
-  info === null)
+  info === null);
 
 function unchecked(key: string, what: string): Check {
   return {
@@ -45,15 +45,15 @@ function unchecked(key: string, what: string): Check {
     label: t('dashboard.stream.checklist.couldNotCheck', {
       what: t(`dashboard.stream.checklist.what.${what}`),
     }),
-  }
+  };
 }
 
-const checks: ComputedRef<Check[]> = computed(() => {
-  const list: Check[] = []
-  const info: StreamInfo | null = infoQuery.data.value ?? null
+const checks = computed<Check[]>(() => {
+  const list: Check[] = [];
+  const info: StreamInfo | null = infoQuery.data.value ?? null;
 
   if (info !== null) {
-    const set: boolean = (info.title ?? '').trim() !== '' && (info.gameName ?? '').trim() !== ''
+    const set: boolean = (info.title ?? '').trim() !== '' && (info.gameName ?? '').trim() !== '';
 
     list.push({
       key: 'title',
@@ -65,9 +65,9 @@ const checks: ComputedRef<Check[]> = computed(() => {
           ? 'dashboard.stream.checklist.titleSet'
           : 'dashboard.stream.checklist.titleMissing',
       ),
-    })
+    });
 
-    const tagCount = info.tags?.length ?? 0
+    const tagCount = info.tags?.length ?? 0;
 
     list.push({
       key: 'tags',
@@ -75,13 +75,13 @@ const checks: ComputedRef<Check[]> = computed(() => {
         ? 'ok'
         : 'off',
       label: t('dashboard.stream.checklist.tagsAdded', { count: tagCount }),
-    })
+    });
   }
 
   if (botQuery.isError.value) {
-    list.push(unchecked('bot', 'bot'))
+    list.push(unchecked('bot', 'bot'));
   } else if (botQuery.data.value !== undefined) {
-    const inChat = botQuery.data.value?.connected === true
+    const inChat = botQuery.data.value?.connected === true;
 
     list.push({
       key: 'bot',
@@ -91,18 +91,18 @@ const checks: ComputedRef<Check[]> = computed(() => {
       label: t(inChat
         ? 'dashboard.stream.checklist.botIn'
         : 'dashboard.stream.checklist.botOut'),
-    })
+    });
   }
 
   if (rewardsQuery.isError.value) {
-    list.push(unchecked('rewards', 'rewards'))
+    list.push(unchecked('rewards', 'rewards'));
   } else if (rewardsQuery.data.value !== undefined) {
-    const rewards = rewardsQuery.data.value
-    const off = rewards.filter((reward: Reward) => !reward.isEnabled || reward.isPaused)
+    const rewards = rewardsQuery.data.value;
+    const off = rewards.filter((reward: Reward) => !reward.isEnabled || reward.isPaused);
     const counts = { n: rewards.length - off.length, m: rewards.length } as const satisfies {
-      n: number
-      m: number
-    }
+      n: number;
+      m: number;
+    };
 
     // A reward switched off is the streamer's choice, so it gets the neutral dot with its name.
     if (off.length === 0) {
@@ -110,7 +110,7 @@ const checks: ComputedRef<Check[]> = computed(() => {
         key: 'rewards',
         tone: 'ok',
         label: t('dashboard.stream.checklist.rewardsAllOn', counts),
-      })
+      });
     }
 
     off.forEach((reward: Reward) =>
@@ -119,13 +119,13 @@ const checks: ComputedRef<Check[]> = computed(() => {
         tone: 'off',
         label: t('dashboard.stream.checklist.rewardOff', { ...counts, title: reward.title }),
       }),
-    )
+    );
   }
 
   if (shieldQuery.isError.value) {
-    list.push(unchecked('shield', 'shield'))
+    list.push(unchecked('shield', 'shield'));
   } else if (shieldQuery.data.value !== undefined) {
-    const shielded = shieldQuery.data.value
+    const shielded = shieldQuery.data.value;
 
     list.push({
       key: 'shield',
@@ -137,11 +137,11 @@ const checks: ComputedRef<Check[]> = computed(() => {
           ? 'dashboard.stream.checklist.shieldOn'
           : 'dashboard.stream.checklist.shieldOff',
       ),
-    })
+    });
   }
 
-  return list
-})
+  return list;
+});
 </script>
 
 <template>

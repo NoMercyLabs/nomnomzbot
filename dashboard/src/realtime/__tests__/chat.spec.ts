@@ -8,20 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient } from '@tanstack/vue-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient } from '@tanstack/vue-query';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { chatKey, chatLineLimit, type ChatLine } from '@/api/chat'
+import { chatKey, chatLineLimit, type ChatLine } from '@/api/chat';
 
-import type { ChatMessagePayload } from '../payloads'
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
+import type { ChatMessagePayload } from '../payloads';
+import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
 
 vi.mock('@microsoft/signalr', () => ({
   HubConnectionBuilder: FakeHubConnectionBuilder,
   HubConnection: FakeHubConnection,
-}))
+}));
 
-type Hub = typeof import('../dashboardHub')
+type Hub = typeof import('../dashboardHub');
 
 const line = (id: string, channelId: string, userId: string = 'u1'): ChatMessagePayload => ({
   id,
@@ -47,70 +47,70 @@ const line = (id: string, channelId: string, userId: string = 'u1'): ChatMessage
   replyParentUserName: null,
   timestamp: '2026-10-13T10:00:00Z',
   provider: 'twitch',
-})
+});
 
 async function started(): Promise<[Hub, QueryClient, FakeHubConnection]> {
-  const hub = await import('../dashboardHub')
-  const queries = new QueryClient()
+  const hub = await import('../dashboardHub');
+  const queries = new QueryClient();
 
-  await hub.startDashboardHub(queries)
+  await hub.startDashboardHub(queries);
 
-  return [hub, queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
+  return [hub, queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)];
 }
 
 const lines = (queries: QueryClient, channelId: string): ChatLine[] | undefined =>
-  queries.getQueryData<ChatLine[]>(chatKey(channelId))
+  queries.getQueryData<ChatLine[]>(chatKey(channelId));
 
 beforeEach(() => {
-  vi.resetModules()
-  FakeHubConnection.instances = []
-})
+  vi.resetModules();
+  FakeHubConnection.instances = [];
+});
 
 describe('ChatMessage', () => {
   it('lands in the cache of the channel named in the line, not the channel the hub watches', async () => {
-    const [hub, queries, connection] = await started()
+    const [hub, queries, connection] = await started();
 
-    await hub.watchChannel('A')
-    queries.setQueryData<ChatLine[]>(chatKey('A'), [])
-    queries.setQueryData<ChatLine[]>(chatKey('B'), [])
+    await hub.watchChannel('A');
+    queries.setQueryData<ChatLine[]>(chatKey('A'), []);
+    queries.setQueryData<ChatLine[]>(chatKey('B'), []);
 
-    connection.receive('ChatMessage', line('m1', 'B'))
+    connection.receive('ChatMessage', line('m1', 'B'));
 
-    expect(lines(queries, 'B')?.map((l) => l.id)).toEqual(['m1'])
-    expect(lines(queries, 'A')).toEqual([])
-  })
+    expect(lines(queries, 'B')?.map((l) => l.id)).toEqual(['m1']);
+    expect(lines(queries, 'A')).toEqual([]);
+  });
 
   it('ignores a line whose id is already in the feed', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
 
-    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A')])
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A')]);
 
-    connection.receive('ChatMessage', { ...line('m1', 'A'), message: 'sent again' })
-    connection.receive('ChatMessage', line('m2', 'A'))
+    connection.receive('ChatMessage', { ...line('m1', 'A'), message: 'sent again' });
+    connection.receive('ChatMessage', line('m2', 'A'));
 
     expect(lines(queries, 'A')?.map((l) => [l.id, l.message])).toEqual([
       ['m1', 'message m1'],
       ['m2', 'message m2'],
-    ])
-  })
+    ]);
+  });
 
   it('keeps the newest 500 lines and drops the oldest one when the 501st arrives', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
     const full: ChatLine[] = Array.from({ length: chatLineLimit }, (_, index) =>
       line(`m${index}`, 'A'),
-    )
+    );
 
-    queries.setQueryData<ChatLine[]>(chatKey('A'), full)
+    queries.setQueryData<ChatLine[]>(chatKey('A'), full);
 
-    connection.receive('ChatMessage', line('newest', 'A'))
+    connection.receive('ChatMessage', line('newest', 'A'));
 
-    const feed = lines(queries, 'A')
+    const feed = lines(queries, 'A');
 
-    expect(feed).toHaveLength(chatLineLimit)
-    expect(feed?.[0]?.id).toBe('m1')
-    expect(feed?.at(-1)?.id).toBe('newest')
-  })
-})
+    expect(feed).toHaveLength(chatLineLimit);
+    expect(feed?.[0]?.id).toBe('m1');
+    expect(feed?.at(-1)?.id).toBe('newest');
+  });
+});
 
 const channelEvent = (type: string, broadcasterId: string, data: unknown): unknown => ({
   type,
@@ -119,19 +119,19 @@ const channelEvent = (type: string, broadcasterId: string, data: unknown): unkno
   userDisplayName: null,
   data,
   timestamp: '2026-10-13T10:00:00Z',
-})
+});
 
 describe('chat moderation events', () => {
   it('message_deleted marks exactly the line with that id and leaves the others', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
 
     queries.setQueryData<ChatLine[]>(chatKey('A'), [
       line('m1', 'A'),
       line('m2', 'A'),
       line('m3', 'A'),
-    ])
+    ]);
 
-    queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m2', 'B')])
+    queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m2', 'B')]);
 
     connection.receive(
       'ChannelEvent',
@@ -141,37 +141,37 @@ describe('chat moderation events', () => {
         targetUserId: 'u1',
         deletedByDisplayName: 'Mod',
       }),
-    )
+    );
 
     expect(lines(queries, 'A')?.map((l) => [l.id, l.removed])).toEqual([
       ['m1', undefined],
       ['m2', 'deleted'],
       ['m3', undefined],
-    ])
+    ]);
 
-    expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined()
-  })
+    expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined();
+  });
 
   it('chat_cleared marks every line of that channel and no line of another channel', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
 
-    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A'), line('m2', 'A', 'u2')])
-    queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B')])
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A'), line('m2', 'A', 'u2')]);
+    queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B')]);
 
     connection.receive(
       'ChannelEvent',
       channelEvent('chat_cleared', 'A', { clearedByUserId: 'mod' }),
-    )
+    );
 
-    expect(lines(queries, 'A')?.map((l) => l.removed)).toEqual(['cleared', 'cleared'])
-    expect(lines(queries, 'B')?.map((l) => l.removed)).toEqual([undefined])
-  })
+    expect(lines(queries, 'A')?.map((l) => l.removed)).toEqual(['cleared', 'cleared']);
+    expect(lines(queries, 'B')?.map((l) => l.removed)).toEqual([undefined]);
+  });
 
   it('user_messages_cleared marks the lines of that person in that channel only', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
 
-    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1'), line('m2', 'A', 'u2')])
-    queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B', 'u1')])
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1'), line('m2', 'A', 'u2')]);
+    queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B', 'u1')]);
 
     connection.receive(
       'ChannelEvent',
@@ -180,15 +180,15 @@ describe('chat moderation events', () => {
         targetUserDisplayName: 'U1',
         targetUserLogin: 'u1',
       }),
-    )
+    );
 
     expect(lines(queries, 'A')?.map((l) => [l.userId, l.removed])).toEqual([
       ['u1', 'purged'],
       ['u2', undefined],
-    ])
+    ]);
 
-    expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined()
-  })
+    expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined();
+  });
 
   it.each([
     ['timeout', 600, 'timeout', 600],
@@ -196,11 +196,20 @@ describe('chat moderation events', () => {
     ['ban', null, 'banned', undefined],
   ])(
     'a %s mod action of %s seconds marks that person lines in that channel only, with its length',
-    async (action: string, durationSeconds: number | null, removed: string, length: number | undefined) => {
-      const [, queries, connection] = await started()
+    async (
+      action: string,
+      durationSeconds: number | null,
+      removed: string,
+      length: number | undefined,
+    ) => {
+      const [, queries, connection] = await started();
 
-      queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1'), line('m2', 'A', 'u2')])
-      queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B', 'u1')])
+      queries.setQueryData<ChatLine[]>(chatKey('A'), [
+        line('m1', 'A', 'u1'),
+        line('m2', 'A', 'u2'),
+      ]);
+
+      queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m3', 'B', 'u1')]);
 
       connection.receive('ModAction', {
         action,
@@ -209,21 +218,21 @@ describe('chat moderation events', () => {
         reason: null,
         durationSeconds,
         broadcasterId: 'A',
-      })
+      });
 
       expect(lines(queries, 'A')?.map((l) => [l.userId, l.removed, l.timeoutSeconds])).toEqual([
         ['u1', removed, length],
         ['u2', undefined, undefined],
-      ])
+      ]);
 
-      expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined()
+      expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined();
     },
-  )
+  );
 
   it('the purge Twitch sends with a timeout keeps the timeout and its length', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
 
-    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1')])
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1')]);
 
     connection.receive('ModAction', {
       action: 'timeout',
@@ -232,7 +241,7 @@ describe('chat moderation events', () => {
       reason: null,
       durationSeconds: 300,
       broadcasterId: 'A',
-    })
+    });
 
     connection.receive(
       'ChannelEvent',
@@ -241,15 +250,17 @@ describe('chat moderation events', () => {
         targetUserDisplayName: 'U1',
         targetUserLogin: 'u1',
       }),
-    )
+    );
 
-    expect(lines(queries, 'A')?.map((l) => [l.removed, l.timeoutSeconds])).toEqual([['timeout', 300]])
-  })
+    expect(lines(queries, 'A')?.map((l) => [l.removed, l.timeoutSeconds])).toEqual([
+      ['timeout', 300],
+    ]);
+  });
 
   it('an unban mod action leaves the feed alone', async () => {
-    const [, queries, connection] = await started()
+    const [, queries, connection] = await started();
 
-    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1')])
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1')]);
 
     connection.receive('ModAction', {
       action: 'unban',
@@ -258,8 +269,8 @@ describe('chat moderation events', () => {
       reason: null,
       durationSeconds: null,
       broadcasterId: 'A',
-    })
+    });
 
-    expect(lines(queries, 'A')?.[0]?.removed).toBeUndefined()
-  })
-})
+    expect(lines(queries, 'A')?.[0]?.removed).toBeUndefined();
+  });
+});

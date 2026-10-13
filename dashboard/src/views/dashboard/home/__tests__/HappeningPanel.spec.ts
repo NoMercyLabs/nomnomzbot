@@ -8,25 +8,25 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { i18n } from '@/i18n'
+import { i18n } from '@/i18n';
 
-import HappeningPanel from '../components/HappeningPanel.vue'
-import en from '../i18n/en.json'
+import HappeningPanel from '../components/HappeningPanel.vue';
+import en from '../i18n/en.json';
 
 type Fed = {
-  type: string
-  username: string | null
-  data: unknown
-}
+  type: string;
+  username: string | null;
+  data: unknown;
+};
 
-let fed: Fed[] = []
+let fed: Fed[] = [];
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -45,27 +45,27 @@ vi.mock('@/api/client', () => ({
       response: { status: 200, ok: true },
     }),
   },
-}))
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1'), current: ref({ isLive: true }) }),
-}))
+}));
 
-let mounted: VueWrapper | null = null
+let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
-  setActivePinia(createPinia())
-  i18n.global.mergeLocaleMessage('en', en)
-})
+  setActivePinia(createPinia());
+  i18n.global.mergeLocaleMessage('en', en);
+});
 
 afterEach(() => {
-  mounted?.unmount()
-  mounted = null
-  document.body.innerHTML = ''
-})
+  mounted?.unmount();
+  mounted = null;
+  document.body.innerHTML = '';
+});
 
 async function rowsFor(items: Fed[]): Promise<{ title: string; detail: string }[]> {
-  fed = items
+  fed = items;
 
   mounted = mount(HappeningPanel, {
     props: { live: true },
@@ -80,18 +80,18 @@ async function rowsFor(items: Fed[]): Promise<{ title: string; detail: string }[
         ],
       ],
     },
-  })
+  });
 
-  await flushPromises()
-  await new Promise((done) => setTimeout(done, 0))
-  await flushPromises()
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
 
-  const nodes = [...document.body.querySelectorAll<HTMLElement>('[data-activity-row]')]
+  const nodes = [...document.body.querySelectorAll<HTMLElement>('[data-activity-row]')];
 
   return nodes.map((node) => ({
     title: node.querySelector('.font-medium')?.textContent ?? '',
     detail: node.querySelector('.font-medium + span')?.textContent ?? '',
-  }))
+  }));
 }
 
 describe('HappeningPanel names who', () => {
@@ -117,12 +117,12 @@ describe('HappeningPanel names who', () => {
         username: null,
         data: { fromBroadcasterDisplayName: 'CptTree', viewerCount: 6 },
       },
-    ])
+    ]);
 
-    expect(rows.map((row) => row.title)).toEqual(['Jeroen', 'Kitte', 'Aaoa', 'CptTree'])
-    expect(rows[0]?.detail).toContain('Shoutout waiting')
-    expect(rows[2]?.detail).toContain('Shoutout sent')
-  })
+    expect(rows.map((row) => row.title)).toEqual(['Jeroen', 'Kitte', 'Aaoa', 'CptTree']);
+    expect(rows[0]?.detail).toContain('Shoutout waiting');
+    expect(rows[2]?.detail).toContain('Shoutout sent');
+  });
 
   it('names the user on a channel event whose server username is empty', async () => {
     const rows = await rowsFor([
@@ -141,11 +141,11 @@ describe('HappeningPanel names who', () => {
         username: null,
         data: { userDisplayName: 'StanLeFresh' },
       },
-    ])
+    ]);
 
-    expect(rows.map((row) => row.title)).toEqual(['Troll', 'Gifter', 'StanLeFresh'])
-    expect(rows[2]?.detail).toContain('Followed')
-  })
+    expect(rows.map((row) => row.title)).toEqual(['Troll', 'Gifter', 'StanLeFresh']);
+    expect(rows[2]?.detail).toContain('Followed');
+  });
 
   it('keeps the generic title for an event that carries no name at all', async () => {
     const rows = await rowsFor([
@@ -154,8 +154,8 @@ describe('HappeningPanel names who', () => {
         username: null,
         data: { level: 1 },
       },
-    ])
+    ]);
 
-    expect(rows[0]?.title).toBe('Hype train started')
-  })
-})
+    expect(rows[0]?.title).toBe('Hype train started');
+  });
+});

@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // What went wrong in one failed test run: the error, where in the code, the steps it took and what it did.
 // Opening the editor at that line comes with the editor slice; here the place is plain text.
-import { computed } from 'vue'
+import { computed } from 'vue';
 
 import {
   Dialog,
@@ -18,15 +18,15 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
-import type { SessionRun } from './sessionRun'
+import type { SessionRun } from './sessionRun';
 
-const props = defineProps<{ run: SessionRun | null }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ run: SessionRun | null }>();
+const emit = defineEmits<{ close: [] }>();
 
-const place = computed(() => props.run?.result.errors?.[0])
+const place = computed(() => props.run?.result.errors?.[0]);
 </script>
 
 <template>

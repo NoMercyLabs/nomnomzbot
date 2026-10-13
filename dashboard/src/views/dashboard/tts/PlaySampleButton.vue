@@ -8,65 +8,65 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import LoaderFade from '~icons/nnz/loader-fade'
-import Play from '~icons/nnz/play'
-import Square from '~icons/nnz/stop'
-import { computed, onBeforeUnmount, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import LoaderFade from '~icons/nnz/loader-fade';
+import Play from '~icons/nnz/play';
+import Square from '~icons/nnz/stop';
+import { computed, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useTtsSample } from '@/api/tts'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useTtsSample } from '@/api/tts';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-type SampleState = 'idle' | 'loading' | 'playing'
+type SampleState = 'idle' | 'loading' | 'playing';
 
 // One voice, one button: the first press asks the bot for a sample and plays it, the next press stops it.
 // compact hides the words and keeps them as the accessible name.
 const props = withDefaults(defineProps<{ voiceId: string; compact?: boolean }>(), {
   compact: false,
-})
+});
 
-const { t } = useI18n()
-const { channelId } = useCurrentChannel()
-const sample = useTtsSample(channelId)
-const audio: Ref<HTMLAudioElement | null> = ref(null)
-const playing = ref(false)
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const sample = useTtsSample(channelId);
+const audio = ref<HTMLAudioElement | null>(null);
+const playing = ref(false);
 
-const state: ComputedRef<SampleState> = computed<SampleState>(() =>
+const state = computed<SampleState>(() =>
   playing.value
     ? 'playing'
     : sample.isPending.value
       ? 'loading'
       : 'idle',
-)
+);
 
 function stop(): void {
-  audio.value?.pause()
-  audio.value = null
-  playing.value = false
+  audio.value?.pause();
+  audio.value = null;
+  playing.value = false;
 }
 
 async function toggle(): Promise<void> {
   if (playing.value)
-    return stop()
+    return stop();
 
   try {
     const result = await sample.mutateAsync({
       voiceId: props.voiceId,
       text: t('dashboard.tts.voices.sampleText'),
-    })
-    const player = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`)
+    });
+    const player = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
 
-    player.addEventListener('ended', stop)
-    audio.value = player
-    playing.value = true
-    await player.play()
+    player.addEventListener('ended', stop);
+    audio.value = player;
+    playing.value = true;
+    await player.play();
   } catch {
-    stop()
+    stop();
   }
 }
 
-onBeforeUnmount(stop)
+onBeforeUnmount(stop);
 </script>
 
 <template>

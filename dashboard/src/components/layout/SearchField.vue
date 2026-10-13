@@ -10,24 +10,24 @@
 <script setup lang="ts">
 // The search box of a list. The key "/" focuses it from anywhere on the page, unless
 // the person is already typing in a field.
-import { useEventListener } from '@vueuse/core'
-import { useTemplateRef } from 'vue'
-import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass'
+import { useEventListener } from '@vueuse/core';
+import { useTemplateRef } from 'vue';
+import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { Kbd } from '@/components/ui/kbd'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Kbd } from '@/components/ui/kbd';
 
-defineProps<{ placeholder: string }>()
+defineProps<{ placeholder: string }>();
 
-const query = defineModel<string>({ default: '' })
-const input = useTemplateRef<{ $el: HTMLInputElement }>('input')
-const shortcut: string = '/'
+const query = defineModel<string>({ default: '' });
+const input = useTemplateRef<{ $el: HTMLInputElement }>('input');
+const shortcut: string = '/';
 
 function isTyping(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
-  )
+  );
 }
 
 useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
@@ -37,11 +37,11 @@ useEventListener(document, 'keydown', (event: KeyboardEvent): void => {
     event.metaKey ||
     event.altKey ||
     isTyping(event.target)
-  ) return
+  ) return;
 
-  event.preventDefault()
-  input.value?.$el.focus()
-})
+  event.preventDefault();
+  input.value?.$el.focus();
+});
 </script>
 
 <template>

@@ -10,35 +10,35 @@
 <script setup lang="ts">
 // The full helper list of one place (spec row Textarea + Command), grouped by the first part of the key.
 // Pressing a helper inserts "{key}" at the caret its TemplateField remembered; the press does not steal focus.
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates'
-import { Input } from '@/components/ui/input'
+import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates';
+import { Input } from '@/components/ui/input';
 
-import { useHelperText } from './useHelperText'
-import { braced, filterHelpers, groupHelpers } from './templatePlaceholders'
+import { useHelperText } from './useHelperText';
+import { braced, filterHelpers, groupHelpers } from './templatePlaceholders';
 
 const props = withDefaults(
   defineProps<{
-    target: { insert: (text: string) => unknown } | null
-    context: TemplateContext
-    eventType?: string
+    target: { insert: (text: string) => unknown } | null;
+    context: TemplateContext;
+    eventType?: string;
   }>(),
   { eventType: undefined },
-)
+);
 
-const { t } = useI18n()
-const { describe, groupLabel } = useHelperText()
+const { t } = useI18n();
+const { describe, groupLabel } = useHelperText();
 const helpers = useTemplateHelpers(
   () => props.context,
   () => props.eventType,
-)
-const query = ref('')
+);
+const query = ref('');
 const shown = computed<readonly TemplateHelper[]>(() =>
   filterHelpers(helpers.data.value ?? [], query.value.trim()),
-)
-const groups = computed(() => groupHelpers(shown.value))
+);
+const groups = computed(() => groupHelpers(shown.value));
 </script>
 
 <template>

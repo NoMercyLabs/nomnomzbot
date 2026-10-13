@@ -13,44 +13,44 @@ import {
   useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
-} from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { useOptimisticSave } from '@/composables/useOptimisticSave'
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { client } from './client'
-import type { components } from './schema'
+import { client } from './client';
+import type { components } from './schema';
 
-export type MusicQueue = components['schemas']['MusicQueueDto']
-export type QueueItem = components['schemas']['QueueItemDto']
-export type NowPlaying = components['schemas']['NowPlayingDto']
-export type MusicConfig = components['schemas']['MusicConfigDto']
-export type MusicConfigChange = components['schemas']['UpdateMusicConfigDto']
-export type BlockedTrack = components['schemas']['BlockedTrackDto']
-export type BlockTrack = components['schemas']['BlockTrackRequest']
+export type MusicQueue = components['schemas']['MusicQueueDto'];
+export type QueueItem = components['schemas']['QueueItemDto'];
+export type NowPlaying = components['schemas']['NowPlayingDto'];
+export type MusicConfig = components['schemas']['MusicConfigDto'];
+export type MusicConfigChange = components['schemas']['UpdateMusicConfigDto'];
+export type BlockedTrack = components['schemas']['BlockedTrackDto'];
+export type BlockTrack = components['schemas']['BlockTrackRequest'];
 
-const version = '1'
-const blockedPageSize = 100
+const version = '1';
+const blockedPageSize = 100;
 
 // The realtime layer writes into the queue entry, so the keys are part of the module's surface.
 export const musicQueueKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'music-queue',
-]
+];
 export const musicConfigKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'music-config',
-]
+];
 export const blockedTracksKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'music-blocked-tracks',
-]
+];
 
 function failed(what: string, status: number): Error {
-  return new Error(`${what} ${status}`)
+  return new Error(`${what} ${status}`);
 }
 
 function channelQuery<T>(
@@ -62,7 +62,7 @@ function channelQuery<T>(
     queryKey: computed(() => key(toValue(channelId))),
     queryFn: () => fetch(toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
-  })
+  });
 }
 
 async function readQueue(channelId: string): Promise<MusicQueue> {
@@ -71,12 +71,12 @@ async function readQueue(channelId: string): Promise<MusicQueue> {
     {
       params: { path: { version, channelId } },
     },
-  )
+  );
 
   if (error !== undefined)
-    throw failed('music queue', response.status)
+    throw failed('music queue', response.status);
 
-  return data?.data ?? { nowPlaying: null, queue: [] }
+  return data?.data ?? { nowPlaying: null, queue: [] };
 }
 
 async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
@@ -85,18 +85,18 @@ async function readBlocked(channelId: string): Promise<BlockedTrack[]> {
     {
       params: { path: { version, channelId }, query: { PageSize: blockedPageSize } },
     },
-  )
+  );
 
   if (error !== undefined)
-    throw failed('blocked tracks', response.status)
+    throw failed('blocked tracks', response.status);
 
-  return data?.data ?? []
+  return data?.data ?? [];
 }
 
 export function useMusicQueue(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<MusicQueue, Error> {
-  return channelQuery(channelId, musicQueueKey, readQueue)
+  return channelQuery(channelId, musicQueueKey, readQueue);
 }
 
 export function useMusicConfig(
@@ -111,42 +111,42 @@ export function useMusicConfig(
         {
           params: { path: { version, channelId: id } },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('music config', response.status)
+        throw failed('music config', response.status);
 
-      return data?.data ?? null
+      return data?.data ?? null;
     },
-  )
+  );
 }
 
 export function useBlockedTracks(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<BlockedTrack[], Error> {
-  return channelQuery(channelId, blockedTracksKey, readBlocked)
+  return channelQuery(channelId, blockedTracksKey, readBlocked);
 }
 
-type QueueMutation = UseMutationReturnType<MusicQueue, Error, void, number>
-type RowMutation = UseMutationReturnType<MusicQueue, Error, { position: number }, number>
+type QueueMutation = UseMutationReturnType<MusicQueue, Error, void, number>;
+type RowMutation = UseMutationReturnType<MusicQueue, Error, { position: number }, number>;
 
 // Rows keep the position numbers the bot handed out, in order, so the next call names the row on screen.
 function renumbered(original: QueueItem[], rows: QueueItem[]): QueueItem[] {
   return rows.map((row: QueueItem, index: number): QueueItem => ({
     ...row,
     position: original[index]?.position ?? row.position,
-  }))
+  }));
 }
 
 function withPlaying(current: MusicQueue | undefined, isPlaying: boolean): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] }
+  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
 
   return {
     ...base,
     nowPlaying: base.nowPlaying === null
       ? null
       : { ...base.nowPlaying, isPlaying },
-  }
+  };
 }
 
 function transport(
@@ -160,72 +160,78 @@ function transport(
   return useOptimisticSave<MusicQueue, void>({
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async (): Promise<MusicQueue> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(path, {
         params: { path: { version, channelId: id } },
-      })
+      });
 
       if (error !== undefined)
-        throw failed('music control', response.status)
+        throw failed('music control', response.status);
 
-      return readQueue(id)
+      return readQueue(id);
     },
     apply: (current: MusicQueue | undefined): MusicQueue =>
       isPlaying === null
         ? (current ?? { nowPlaying: null, queue: [] })
         : withPlaying(current, isPlaying),
-  })
+  });
 }
 
 export function usePauseMusic(channelId: MaybeRefOrGetter<string | null>): QueueMutation {
-  return transport(channelId, '/api/v{version}/channels/{channelId}/music/pause', false)
+  return transport(channelId, '/api/v{version}/channels/{channelId}/music/pause', false);
 }
 
 export function useResumeMusic(channelId: MaybeRefOrGetter<string | null>): QueueMutation {
-  return transport(channelId, '/api/v{version}/channels/{channelId}/music/resume', true)
+  return transport(channelId, '/api/v{version}/channels/{channelId}/music/resume', true);
 }
 
 // A skip changes the track only when the bot answers, so nothing moves before then.
 export function useSkipMusic(channelId: MaybeRefOrGetter<string | null>): QueueMutation {
-  return transport(channelId, '/api/v{version}/channels/{channelId}/music/skip', null)
+  return transport(channelId, '/api/v{version}/channels/{channelId}/music/skip', null);
 }
 
 export function usePromoteQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
   return useOptimisticSave<MusicQueue, { position: number }>({
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/music/queue/{position}/promote',
         {
-          params: { path: { version, channelId: id, position } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              position,
+            },
+          },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('promote', response.status)
+        throw failed('promote', response.status);
 
-      return readQueue(id)
+      return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position }: { position: number }): MusicQueue => {
-      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] }
-      const moved = base.queue.find((item: QueueItem) => item.position === position)
+      const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+      const moved = base.queue.find((item: QueueItem) => item.position === position);
 
       if (moved === undefined)
-        return base
+        return base;
 
-      const rest = base.queue.filter((item: QueueItem) => item.position !== position)
+      const rest = base.queue.filter((item: QueueItem) => item.position !== position);
 
-      return { ...base, queue: renumbered(base.queue, [moved, ...rest]) }
+      return { ...base, queue: renumbered(base.queue, [moved, ...rest]) };
     },
-  })
+  });
 }
 
 function leavesQueue(current: MusicQueue | undefined, position: number): MusicQueue {
-  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] }
-  const rest = base.queue.filter((item: QueueItem) => item.position !== position)
+  const base: MusicQueue = current ?? { nowPlaying: null, queue: [] };
+  const rest = base.queue.filter((item: QueueItem) => item.position !== position);
 
-  return { ...base, queue: renumbered(base.queue, rest) }
+  return { ...base, queue: renumbered(base.queue, rest) };
 }
 
 // A removed song leaves the queue at once; a refused remove puts it back and reaches the error inbox.
@@ -233,49 +239,61 @@ export function useRemoveQueueItem(channelId: MaybeRefOrGetter<string | null>): 
   return useOptimisticSave<MusicQueue, { position: number }>({
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/music/queue/{position}',
         {
-          params: { path: { version, channelId: id, position } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              position,
+            },
+          },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('remove song', response.status)
+        throw failed('remove song', response.status);
 
-      return readQueue(id)
+      return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position }: { position: number }): MusicQueue =>
       leavesQueue(current, position),
-  })
+  });
 }
 
 // Banning a queued song takes it out of the queue and adds it to the blocked list.
 export function useBanQueueItem(channelId: MaybeRefOrGetter<string | null>): RowMutation {
-  const queries = useQueryClient()
+  const queries = useQueryClient();
 
   return useOptimisticSave<MusicQueue, { position: number }>({
     queryKey: () => musicQueueKey(toValue(channelId)),
     mutationFn: async ({ position }: { position: number }): Promise<MusicQueue> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/music/queue/{position}/ban',
         {
-          params: { path: { version, channelId: id, position } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              position,
+            },
+          },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('ban song', response.status)
+        throw failed('ban song', response.status);
 
-      await queries.invalidateQueries({ queryKey: blockedTracksKey(id) })
+      await queries.invalidateQueries({ queryKey: blockedTracksKey(id) });
 
-      return readQueue(id)
+      return readQueue(id);
     },
     apply: (current: MusicQueue | undefined, { position }: { position: number }): MusicQueue =>
       leavesQueue(current, position),
-  })
+  });
 }
 
 export function useBlockTrack(
@@ -284,19 +302,19 @@ export function useBlockTrack(
   return useOptimisticSave<BlockedTrack[], BlockTrack>({
     queryKey: () => blockedTracksKey(toValue(channelId)),
     mutationFn: async (track: BlockTrack): Promise<BlockedTrack[]> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/music/blocked-tracks',
         {
           params: { path: { version, channelId: id } },
           body: track,
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('block song', response.status)
+        throw failed('block song', response.status);
 
-      return readBlocked(id)
+      return readBlocked(id);
     },
     apply: (current: BlockedTrack[] | undefined, track: BlockTrack): BlockedTrack[] => [
       {
@@ -310,7 +328,7 @@ export function useBlockTrack(
       },
       ...(current ?? []),
     ],
-  })
+  });
 }
 
 export function useUnblockTrack(
@@ -319,31 +337,37 @@ export function useUnblockTrack(
   return useOptimisticSave<BlockedTrack[], { blockedTrackId: string }>({
     queryKey: () => blockedTracksKey(toValue(channelId)),
     mutationFn: async ({ blockedTrackId }: { blockedTrackId: string }): Promise<BlockedTrack[]> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/music/blocked-tracks/{blockedTrackId}',
         {
-          params: { path: { version, channelId: id, blockedTrackId } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              blockedTrackId,
+            },
+          },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('unblock song', response.status)
+        throw failed('unblock song', response.status);
 
-      return readBlocked(id)
+      return readBlocked(id);
     },
     apply: (
       current: BlockedTrack[] | undefined,
       { blockedTrackId }: { blockedTrackId: string },
     ): BlockedTrack[] =>
       (current ?? []).filter((track: BlockedTrack) => track.id !== blockedTrackId),
-  })
+  });
 }
 
 function definedOnly(change: MusicConfigChange): Partial<MusicConfig> {
   return Object.fromEntries(
     Object.entries(change).filter(([, value]) => value !== undefined && value !== null),
-  ) as Partial<MusicConfig>
+  ) as Partial<MusicConfig>;
 }
 
 // Only the changed fields travel in the PUT; the cache shows them at once and then holds what the bot returns.
@@ -353,19 +377,19 @@ export function useSaveMusicConfig(
   return useOptimisticSave<MusicConfig | null, MusicConfigChange>({
     queryKey: () => musicConfigKey(toValue(channelId)),
     mutationFn: async (change: MusicConfigChange): Promise<MusicConfig | null> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { data, error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/music/config',
         {
           params: { path: { version, channelId: id } },
           body: change,
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('save music config', response.status)
+        throw failed('save music config', response.status);
 
-      return data?.data ?? null
+      return data?.data ?? null;
     },
     apply: (
       current: MusicConfig | null | undefined,
@@ -374,5 +398,5 @@ export function useSaveMusicConfig(
       current
         ? { ...current, ...definedOnly(change) }
         : null,
-  })
+  });
 }

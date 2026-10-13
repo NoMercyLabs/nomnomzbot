@@ -12,23 +12,23 @@
 // tier: lead = the one panel the page is for; quiet = status the eye may skip, so its title is muted.
 // state (C7): the panel keeps its size in every state. A skeleton shows only after 150 ms,
 // so a fast answer never flashes one. The default slot shows only in the ready state.
-import { useTimeoutFn } from '@vueuse/core'
-import { ref, watch } from 'vue'
+import { useTimeoutFn } from '@vueuse/core';
+import { ref, watch } from 'vue';
 
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export type PanelState = 'ready' | 'loading' | 'empty' | 'error'
+export type PanelState = 'ready' | 'loading' | 'empty' | 'error';
 
 const props = withDefaults(
   defineProps<{
-    title: string
-    description?: string
-    tier?: 'lead' | 'default' | 'quiet'
-    pad?: boolean
-    state?: PanelState
-    emptyText?: string
-    errorText?: string
+    title: string;
+    description?: string;
+    tier?: 'lead' | 'default' | 'quiet';
+    pad?: boolean;
+    state?: PanelState;
+    emptyText?: string;
+    errorText?: string;
   }>(),
   {
     description: undefined,
@@ -38,33 +38,32 @@ const props = withDefaults(
     emptyText: undefined,
     errorText: undefined,
   },
-)
+);
 
-defineEmits<{ retry: [] }>()
+defineEmits<{ retry: [] }>();
 
-const skeletonShown = ref(false)
+const skeletonShown = ref(false);
 const { start, stop } = useTimeoutFn(
   () => {
-    skeletonShown.value = true
+    skeletonShown.value = true;
   },
   150,
   { immediate: false },
-)
+);
 
 watch(
   () => props.state,
   (state: PanelState) => {
-    skeletonShown.value = false
+    skeletonShown.value = false;
 
     if (state === 'loading') {
-      start()
-    }
-    else {
-      stop()
+      start();
+    } else {
+      stop();
     }
   },
   { immediate: true },
-)
+);
 </script>
 
 <template>

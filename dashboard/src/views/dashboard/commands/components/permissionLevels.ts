@@ -18,4 +18,4 @@ export const permissionLevels: readonly string[] = [
   'LeadModerator',
   'Editor',
   'Broadcaster',
-]
+];

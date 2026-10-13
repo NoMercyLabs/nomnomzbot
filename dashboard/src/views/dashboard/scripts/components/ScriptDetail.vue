@@ -13,13 +13,13 @@
 // Delete reads the blast list first and asks; nothing is deleted before the owner confirms.
 // Run test is a dry run: nothing it does reaches chat. Edit code comes with the editor.
 // Powers are plain text here: the bot has no per-power switch yet.
-import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
-import { useTimeAgoIntl } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import ArrowLeft from '~icons/nnz/arrow-left'
-import Play from '~icons/nnz/play'
-import Trash from '~icons/nnz/trash'
+import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
+import { useTimeAgoIntl } from '@vueuse/core';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import ArrowLeft from '~icons/nnz/arrow-left';
+import Play from '~icons/nnz/play';
+import Trash from '~icons/nnz/trash';
 
 import {
   fetchBlastRadius,
@@ -29,79 +29,79 @@ import {
   useSetScriptEnabled,
   type BlastRadius,
   type CodeScriptSummary,
-} from '@/api/codeScripts'
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import DetailPane from '@/components/layout/DetailPane.vue'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import type { TestTrigger } from '@/composables/useEditorBridge'
-import { usePanelState } from '@/composables/usePanelState'
+} from '@/api/codeScripts';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import DetailPane from '@/components/layout/DetailPane.vue';
+import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import type { TestTrigger } from '@/composables/useEditorBridge';
+import { usePanelState } from '@/composables/usePanelState';
 
-import type { SessionRun } from './sessionRun'
-import { useScriptTester } from './useScriptTester'
+import type { SessionRun } from './sessionRun';
+import { useScriptTester } from './useScriptTester';
 
-const props = defineProps<{ scriptId: string; summary?: CodeScriptSummary }>()
+const props = defineProps<{ scriptId: string; summary?: CodeScriptSummary }>();
 const emit = defineEmits<{
-  deleted: []
-  back: []
-  ran: [run: Omit<SessionRun, 'id'>]
-}>()
+  deleted: [];
+  back: [];
+  ran: [run: Omit<SessionRun, 'id'>];
+}>();
 
-const { t, te, locale } = useI18n()
-const detail = useScriptDetail(() => props.scriptId)
-const setEnabled = useSetScriptEnabled()
-const remove = useDeleteCodeScript()
+const { t, te, locale } = useI18n();
+const detail = useScriptDetail(() => props.scriptId);
+const setEnabled = useSetScriptEnabled();
+const remove = useDeleteCodeScript();
 const triggers: UseQueryReturnType<TestTrigger[], Error> = useQuery({
   queryKey: ['code-scripts', 'test-triggers'],
   queryFn: fetchTestTriggers,
-})
-const tester = useScriptTester(() => props.scriptId)
+});
+const tester = useScriptTester(() => props.scriptId);
 
 const state = usePanelState(detail, () =>
-  false)
-const script = computed(() => detail.data.value)
+  false);
+const script = computed(() => detail.data.value);
 // The detail answer carries no run facts; the list row of the same script does.
-const ago = useTimeAgoIntl(() => props.summary?.lastRanAt ?? new Date(0), { locale: locale.value })
+const ago = useTimeAgoIntl(() => props.summary?.lastRanAt ?? new Date(0), { locale: locale.value });
 
 const runTone = computed<StatusTone>(() => {
   if (props.summary?.lastRuntimeError)
-    return 'bad'
+    return 'bad';
 
   return props.summary?.lastRanAt
     ? 'ok'
-    : 'off'
-})
-const runTitle: ComputedRef<string> = computed<string>(() => {
+    : 'off';
+});
+const runTitle = computed<string>(() => {
   if (props.summary?.lastRuntimeError)
-    return t('dashboard.scripts.detail.runFailed')
+    return t('dashboard.scripts.detail.runFailed');
 
   if (!props.summary?.lastRanAt)
-    return t('dashboard.scripts.list.neverRun')
+    return t('dashboard.scripts.list.neverRun');
 
-  return t('dashboard.scripts.detail.runWorked', { when: ago.value })
-})
+  return t('dashboard.scripts.detail.runWorked', { when: ago.value });
+});
 
-const facts: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => [
+const facts = computed<KeyValueItem[]>(() => [
   { label: t('dashboard.scripts.detail.version'), value: script.value?.currentVersion?.version },
   { label: t('dashboard.scripts.detail.language'), value: script.value?.language },
-])
-const powers: ComputedRef<string[]> = computed<string[]>(
+]);
+const powers = computed<string[]>(
   () => script.value?.currentVersion?.declaredCapabilities ?? [],
-)
+);
 
 function toggle(isEnabled: boolean): void {
-  setEnabled.mutate({ id: props.scriptId, isEnabled })
+  setEnabled.mutate({ id: props.scriptId, isEnabled });
 }
 
 async function test(trigger: TestTrigger | null): Promise<void> {
-  const done = await tester.run(trigger)
+  const done = await tester.run(trigger);
 
-  if (!done) return
+  if (!done) return;
 
   emit('ran', {
     scriptId: props.scriptId,
@@ -109,18 +109,18 @@ async function test(trigger: TestTrigger | null): Promise<void> {
     at: new Date(),
     trigger: done.trigger,
     result: done.result,
-  })
+  });
 }
 
-const confirmOpen = ref(false)
-const consequences: Ref<string[]> = ref([])
-const deleteError: Ref<string | undefined> = ref(undefined)
+const confirmOpen = ref(false);
+const consequences = ref<string[]>([]);
+const deleteError = ref<string | undefined>(undefined);
 
 // A category key is a resource key; a key this page has no words for shows its last part.
 function categoryLabel(key: string): string {
   return te(key)
     ? t(key)
-    : (key.split('.').pop() ?? key)
+    : (key.split('.').pop() ?? key);
 }
 
 function blastLines(blast: BlastRadius): string[] {
@@ -137,35 +137,35 @@ function blastLines(blast: BlastRadius): string[] {
           names: category.sample.join(', '),
         },
       ),
-    )
+    );
 
   return lines.length > 0
     ? lines
-    : [t('dashboard.scripts.delete.nothing')]
+    : [t('dashboard.scripts.delete.nothing')];
 }
 
 async function askDelete(): Promise<void> {
-  deleteError.value = undefined
+  deleteError.value = undefined;
 
   try {
-    consequences.value = blastLines(await fetchBlastRadius(props.scriptId))
-    confirmOpen.value = true
+    consequences.value = blastLines(await fetchBlastRadius(props.scriptId));
+    confirmOpen.value = true;
   } catch (failure) {
-    deleteError.value = (failure as Error).message
+    deleteError.value = (failure as Error).message;
   }
 }
 
 function confirmDelete(): void {
   remove.mutate(props.scriptId, {
     onSuccess: (): void => {
-      confirmOpen.value = false
-      emit('deleted')
+      confirmOpen.value = false;
+      emit('deleted');
     },
     onError: (failure: Error): void => {
-      confirmOpen.value = false
-      deleteError.value = failure.message
+      confirmOpen.value = false;
+      deleteError.value = failure.message;
     },
-  })
+  });
 }
 </script>
 

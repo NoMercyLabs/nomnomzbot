@@ -8,24 +8,24 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, ref } from 'vue'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { i18n } from '@/i18n'
-import DashboardLayout from '@/layouts/DashboardLayout.vue'
-import ProfileMenu from '@/layouts/dashboard/ProfileMenu.vue'
+import { i18n } from '@/i18n';
+import DashboardLayout from '@/layouts/DashboardLayout.vue';
+import ProfileMenu from '@/layouts/dashboard/ProfileMenu.vue';
 
 const user = ref<{
-  displayName: string
-  profileImageUrl: string | null
-  isAdmin: boolean
+  displayName: string;
+  profileImageUrl: string | null;
+  isAdmin: boolean;
 }>({
   displayName: 'Streamer',
   profileImageUrl: null,
   isAdmin: false,
-})
+});
 
 vi.mock('@/api/auth', () => ({
   useCurrentUser: () => ({ data: user }),
@@ -33,7 +33,7 @@ vi.mock('@/api/auth', () => ({
   // Signed out for the live hubs: these tests cover the frame, not live updates.
   useSignedIn: () => ref(false),
   getAccessToken: () => '',
-}))
+}));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
@@ -43,12 +43,12 @@ vi.mock('@/composables/useCurrentChannel', () => ({
     isPending: ref(false),
     choose: vi.fn<() => Promise<void>>(),
   }),
-}))
+}));
 
 // A window of the given width: matchMedia answers min-width queries against it.
 function setWidth(width: number): void {
   window.matchMedia = ((query: string): MediaQueryList => {
-    const min = query.match(/min-width:\s*(\d+)px/)
+    const min = query.match(/min-width:\s*(\d+)px/);
 
     return {
       matches: min
@@ -61,14 +61,14 @@ function setWidth(width: number): void {
       removeListener: () => {},
       dispatchEvent: () => false,
       onchange: null,
-    } as MediaQueryList
-  }) as typeof window.matchMedia
+    } as MediaQueryList;
+  }) as typeof window.matchMedia;
 }
 
-const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-stub': slot }) })
+const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-stub': slot }) });
 
 function mountLayout(width: number): VueWrapper {
-  setWidth(width)
+  setWidth(width);
 
   return mount(DashboardLayout, {
     global: {
@@ -84,84 +84,102 @@ function mountLayout(width: number): VueWrapper {
         RouterView: stub('view'),
       },
     },
-  })
+  });
 }
 
 function frames(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('[data-stub]').map((node) => node.attributes('data-stub') as string)
+  return wrapper.findAll('[data-stub]').map((node) => node.attributes('data-stub') as string);
 }
 
 afterEach(() => {
-  document.body.innerHTML = ''
-  user.value = { displayName: 'Streamer', profileImageUrl: null, isAdmin: false }
-})
+  document.body.innerHTML = '';
+
+  user.value = {
+    displayName: 'Streamer',
+    profileImageUrl: null,
+    isAdmin: false,
+  };
+});
 
 describe('the dashboard frame by window width', () => {
   it('shows the sidebar from 840 px and no rail or bottom bar', () => {
-    const shown = frames(mountLayout(1000))
+    const shown = frames(mountLayout(1000));
 
-    expect(shown).toContain('sidebar')
-    expect(shown).not.toContain('rail')
-    expect(shown).not.toContain('bottom')
-  })
+    expect(shown).toContain('sidebar');
+    expect(shown).not.toContain('rail');
+    expect(shown).not.toContain('bottom');
+  });
 
   it('puts no bar above the page on a wide screen, so the page header is the only header', () => {
-    const wrapper = mountLayout(1000)
+    const wrapper = mountLayout(1000);
 
-    expect(wrapper.find('[data-slot="frame-header"]').exists()).toBe(false)
-    expect(frames(wrapper)).not.toContain('shield')
-  })
+    expect(wrapper.find('[data-slot="frame-header"]').exists()).toBe(false);
+    expect(frames(wrapper)).not.toContain('shield');
+  });
 
   it('shows the icon rail between 600 and 839 px', () => {
-    const shown = frames(mountLayout(700))
+    const shown = frames(mountLayout(700));
 
-    expect(shown).toContain('rail')
-    expect(shown).not.toContain('sidebar')
-    expect(shown).not.toContain('bottom')
-  })
+    expect(shown).toContain('rail');
+    expect(shown).not.toContain('sidebar');
+    expect(shown).not.toContain('bottom');
+  });
 
   it('shows the bottom bar under 600 px, with the channel switch in the header', () => {
-    const shown = frames(mountLayout(400))
+    const shown = frames(mountLayout(400));
 
-    expect(shown).toContain('bottom')
-    expect(shown).toContain('switch')
-    expect(shown).not.toContain('sidebar')
-    expect(shown).not.toContain('rail')
-  })
-})
+    expect(shown).toContain('bottom');
+    expect(shown).toContain('switch');
+    expect(shown).not.toContain('sidebar');
+    expect(shown).not.toContain('rail');
+  });
+});
 
 describe('the profile menu', () => {
-  const page = defineComponent({ render: () => h('div') })
+  const page = defineComponent({ render: () => h('div') });
 
   async function openMenu(isAdmin: boolean): Promise<string> {
-    user.value = { displayName: 'Streamer', profileImageUrl: null, isAdmin }
-    setWidth(1000)
+    user.value = {
+      displayName: 'Streamer',
+      profileImageUrl: null,
+      isAdmin,
+    };
+
+    setWidth(1000);
     const router: Router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { name: 'dashboard-admin-channels', path: '/admin', component: page },
-        { name: 'dashboard-settings', path: '/settings', component: page },
+        {
+          name: 'dashboard-admin-channels',
+          path: '/admin',
+          component: page,
+        },
+        {
+          name: 'dashboard-settings',
+          path: '/settings',
+          component: page,
+        },
       ],
-    })
+    });
     const wrapper: VueWrapper = mount(ProfileMenu, {
       attachTo: document.body,
       global: { plugins: [i18n, router] },
-    })
+    });
 
-    await wrapper.find('[data-slot="profile-menu"]').trigger('click')
-    await flushPromises()
+    await wrapper.find('[data-slot="profile-menu"]').trigger('click');
+    await flushPromises();
 
-    return document.body.textContent ?? ''
+    return document.body.textContent ?? '';
   }
 
   it('offers Platform admin to an admin', async () => {
-    expect(await openMenu(true)).toContain('Platform admin')
-  })
+    expect(await openMenu(true)).toContain('Platform admin');
+  });
 
   it('does not offer Platform admin to anyone else', async () => {
-    const text = await openMenu(false)
+    const text = await openMenu(false);
 
-    expect(text).toContain('Sign out')
-    expect(text).not.toContain('Platform admin')
-  })
-})
+    expect(text).toContain('Sign out');
+    expect(text).not.toContain('Platform admin');
+  });
+});

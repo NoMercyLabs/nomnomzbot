@@ -8,12 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-const mutateAsync = vi.fn<(twitchId: string) => Promise<{ id: string } | null>>()
+const mutateAsync = vi.fn<(twitchId: string) => Promise<{ id: string } | null>>();
 
 vi.mock('@/api/channels', () => ({
   useMyChannels: () => ({
@@ -38,51 +38,61 @@ vi.mock('@/api/channels', () => ({
   }),
   useModeratedChannels: () => ({
     data: ref([
-      { id: 'tw-1', login: 'friend', displayName: 'Friend', isOnboarded: true },
-      { id: 'tw-2', login: 'newplace', displayName: 'NewPlace', isOnboarded: false },
+      {
+        id: 'tw-1',
+        login: 'friend',
+        displayName: 'Friend',
+        isOnboarded: true,
+      },
+      {
+        id: 'tw-2',
+        login: 'newplace',
+        displayName: 'NewPlace',
+        isOnboarded: false,
+      },
     ]),
   }),
   useEnterModeratedChannel: () => ({ mutateAsync, isPending: ref(false) }),
-}))
+}));
 
 beforeEach(() => {
-  localStorage.clear()
-  mutateAsync.mockReset()
-})
+  localStorage.clear();
+  mutateAsync.mockReset();
+});
 
 describe('the channel being managed', () => {
   it('lists the own channel, the set-up moderated channel once, and the one not set up yet', () => {
-    const channels = useCurrentChannel()
+    const channels = useCurrentChannel();
 
     expect(channels.channels.value.map((row) => [row.login, row.kind, row.channelId])).toEqual([
       ['streamer', 'own', 'own-id'],
       ['friend', 'moderated', 'mod-id'],
       ['newplace', 'moderated', null],
-    ])
-  })
+    ]);
+  });
 
   it('writes the chosen channel to nnz.channel and makes it the current one', async () => {
-    const channels = useCurrentChannel()
+    const channels = useCurrentChannel();
 
-    expect(channels.channelId.value).toBe('own-id')
+    expect(channels.channelId.value).toBe('own-id');
 
-    const friend = channels.channels.value[1]!
+    const friend = channels.channels.value[1]!;
 
-    await channels.choose(friend)
+    await channels.choose(friend);
 
-    expect(localStorage.getItem('nnz.channel')).toBe('mod-id')
-    expect(channels.current.value?.login).toBe('friend')
-    expect(channels.channelId.value).toBe('mod-id')
-    expect(mutateAsync).not.toHaveBeenCalled()
-  })
+    expect(localStorage.getItem('nnz.channel')).toBe('mod-id');
+    expect(channels.current.value?.login).toBe('friend');
+    expect(channels.channelId.value).toBe('mod-id');
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
 
   it('sets a channel up in moderator mode first, then chooses the id it got back', async () => {
-    mutateAsync.mockResolvedValue({ id: 'fresh-id' })
-    const channels = useCurrentChannel()
+    mutateAsync.mockResolvedValue({ id: 'fresh-id' });
+    const channels = useCurrentChannel();
 
-    await channels.choose(channels.channels.value[2]!)
+    await channels.choose(channels.channels.value[2]!);
 
-    expect(mutateAsync).toHaveBeenCalledWith('tw-2')
-    expect(localStorage.getItem('nnz.channel')).toBe('fresh-id')
-  })
-})
+    expect(mutateAsync).toHaveBeenCalledWith('tw-2');
+    expect(localStorage.getItem('nnz.channel')).toBe('fresh-id');
+  });
+});

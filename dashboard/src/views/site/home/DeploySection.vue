@@ -10,20 +10,20 @@
 <script setup lang="ts">
 // Self-host or hosted. The license note under the cards must stay visible: hosting NomNomzBot as a
 // service for third parties is reserved to NoMercy Labs, while self-hosting your own bot is always free.
-import { useI18n } from 'vue-i18n'
-import Check from '~icons/nnz/check'
+import { useI18n } from 'vue-i18n';
+import Check from '~icons/nnz/check';
 
-import PanelCard from '@/components/layout/PanelCard.vue'
-import { Button } from '@/components/ui/button'
+import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
 
-type Option = { id: 'self' | 'hosted'; connect: boolean }
+type Option = { id: 'self' | 'hosted'; connect: boolean };
 
 const options: Option[] = [
   { id: 'self', connect: true },
   { id: 'hosted', connect: false },
-]
-const points: string[] = ['point1', 'point2', 'point3']
-const { t } = useI18n()
+];
+const points: string[] = ['point1', 'point2', 'point3'];
+const { t } = useI18n();
 </script>
 
 <template>

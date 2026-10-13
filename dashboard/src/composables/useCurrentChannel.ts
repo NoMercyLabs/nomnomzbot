@@ -8,39 +8,39 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useLocalStorage, type RemovableRef } from '@vueuse/core'
-import { computed, type ComputedRef } from 'vue'
+import { useLocalStorage } from '@vueuse/core';
+import { computed, type ComputedRef } from 'vue';
 
-import { useEnterModeratedChannel, useModeratedChannels, useMyChannels } from '@/api/channels'
-import { merge } from '@/lib/array'
+import { useEnterModeratedChannel, useModeratedChannels, useMyChannels } from '@/api/channels';
+import { merge } from '@/lib/array';
 
 export type ChannelChoice = {
-  login: string
-  displayName: string
-  profileImageUrl: string | null
+  login: string;
+  displayName: string;
+  profileImageUrl: string | null;
   // Null when the bot has no live state for the channel (a Twitch channel the person moderates, not set up here yet).
-  isLive: boolean | null
-  kind: 'own' | 'moderated'
+  isLive: boolean | null;
+  kind: 'own' | 'moderated';
   // Null until the channel is set up in this bot; choosing it sets it up in moderator mode first.
-  channelId: string | null
-  twitchId: string | null
-}
+  channelId: string | null;
+  twitchId: string | null;
+};
 
 export type CurrentChannel = {
-  channels: ComputedRef<readonly ChannelChoice[]>
-  current: ComputedRef<ChannelChoice | null>
-  channelId: ComputedRef<string | null>
-  isPending: ComputedRef<boolean>
-  choose: (choice: ChannelChoice) => Promise<void>
-}
+  channels: ComputedRef<readonly ChannelChoice[]>;
+  current: ComputedRef<ChannelChoice | null>;
+  channelId: ComputedRef<string | null>;
+  isPending: ComputedRef<boolean>;
+  choose: (choice: ChannelChoice) => Promise<void>;
+};
 
 // The channel being managed. It outlives a reload and is shared by every part of the frame.
-const chosenChannelId: RemovableRef<string> = useLocalStorage<string>('nnz.channel', '')
+const chosenChannelId = useLocalStorage<string>('nnz.channel', '');
 
 export function useCurrentChannel(): CurrentChannel {
-  const mine = useMyChannels()
-  const moderated = useModeratedChannels()
-  const enter = useEnterModeratedChannel()
+  const mine = useMyChannels();
+  const moderated = useModeratedChannels();
+  const enter = useEnterModeratedChannel();
 
   const channels = computed<readonly ChannelChoice[]>(() => {
     const own: ChannelChoice[] = (mine.data.value ?? []).map((row) => ({
@@ -53,8 +53,8 @@ export function useCurrentChannel(): CurrentChannel {
         : 'moderated',
       channelId: row.id,
       twitchId: null,
-    }))
-    const known: Set<string> = new Set(own.map((row) => row.login.toLowerCase()))
+    }));
+    const known = new Set<string>(own.map((row) => row.login.toLowerCase()));
     const notSetUp: ChannelChoice[] = (moderated.data.value ?? [])
       .filter((row) => !known.has(row.login.toLowerCase()))
       .map((row) => ({
@@ -65,10 +65,10 @@ export function useCurrentChannel(): CurrentChannel {
         kind: 'moderated',
         channelId: null,
         twitchId: row.id,
-      }))
+      }));
 
-    return merge(own, notSetUp)
-  })
+    return merge(own, notSetUp);
+  });
 
   const current = computed<ChannelChoice | null>(
     () =>
@@ -78,21 +78,21 @@ export function useCurrentChannel(): CurrentChannel {
       channels.value.find((row) => row.kind === 'own') ??
       channels.value.find((row) => row.channelId !== null) ??
       null,
-  )
+  );
 
   async function choose(choice: ChannelChoice): Promise<void> {
     if (choice.channelId) {
-      chosenChannelId.value = choice.channelId
+      chosenChannelId.value = choice.channelId;
 
-      return
+      return;
     }
 
-    if (!choice.twitchId) return
+    if (!choice.twitchId) return;
 
-    const entered = await enter.mutateAsync(choice.twitchId)
+    const entered = await enter.mutateAsync(choice.twitchId);
 
     if (entered) {
-      chosenChannelId.value = entered.id
+      chosenChannelId.value = entered.id;
     }
   }
 
@@ -102,5 +102,5 @@ export function useCurrentChannel(): CurrentChannel {
     channelId: computed(() => current.value?.channelId ?? null),
     isPending: computed(() => enter.isPending.value),
     choose,
-  }
+  };
 }

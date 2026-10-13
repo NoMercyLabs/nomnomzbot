@@ -8,9 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest';
 
-import { isMixedContent, toBotOrigin } from '../botAddress'
+import { isMixedContent, toBotOrigin } from '../botAddress';
 
 describe('toBotOrigin', () => {
   it.each([
@@ -27,25 +27,25 @@ describe('toBotOrigin', () => {
     ['homeserver:5080', 'http://homeserver:5080'],
     ['HTTP://LocalHost:5080', 'http://localhost:5080'],
   ])('turns %j into %j', (typed, origin) => {
-    expect(toBotOrigin(typed)).toBe(origin)
-  })
+    expect(toBotOrigin(typed)).toBe(origin);
+  });
 
   it.each(['', '   ', 'ftp://bot.example.com', 'http://', 'not a host'])('refuses %j', (typed) => {
-    expect(toBotOrigin(typed)).toBeNull()
-  })
-})
+    expect(toBotOrigin(typed)).toBeNull();
+  });
+});
 
 describe('isMixedContent', () => {
   it('blocks a plain http bot from an https page', () => {
-    expect(isMixedContent('https://bot.example.com', 'http://192.168.1.20:5080')).toBe(true)
-  })
+    expect(isMixedContent('https://bot.example.com', 'http://192.168.1.20:5080')).toBe(true);
+  });
 
   it('allows the loopback bot, which browsers treat as secure', () => {
-    expect(isMixedContent('https://bot.example.com', 'http://localhost:5080')).toBe(false)
-    expect(isMixedContent('https://bot.example.com', 'http://127.0.0.1:5080')).toBe(false)
-  })
+    expect(isMixedContent('https://bot.example.com', 'http://localhost:5080')).toBe(false);
+    expect(isMixedContent('https://bot.example.com', 'http://127.0.0.1:5080')).toBe(false);
+  });
 
   it('allows any bot from a plain http page', () => {
-    expect(isMixedContent('http://localhost:5090', 'http://192.168.1.20:5080')).toBe(false)
-  })
-})
+    expect(isMixedContent('http://localhost:5090', 'http://192.168.1.20:5080')).toBe(false);
+  });
+});

@@ -14,82 +14,82 @@ import {
   useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
-} from '@tanstack/vue-query'
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+} from '@tanstack/vue-query';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
-import { merge } from '@/lib/array'
-import type { ChatMessagePayload } from '@/realtime/payloads'
+import { merge } from '@/lib/array';
+import type { ChatMessagePayload } from '@/realtime/payloads';
 
-import { client } from './client'
+import { client } from './client';
 
 // The live feed of one channel, oldest line first. The hub appends to it; the page seeds it from the history call.
-export const chatKey = (channelId: string | null): unknown[] => ['channels', channelId, 'chat']
+export const chatKey = (channelId: string | null): unknown[] => ['channels', channelId, 'chat'];
 
-export const chatLineLimit = 500
+export const chatLineLimit = 500;
 
 // Why a line is no longer shown as normal: one message deleted, a person's lines purged, timed out or
 // banned, or the whole chat cleared.
-export type ChatLineRemoval = 'deleted' | 'purged' | 'timeout' | 'banned' | 'cleared'
+export type ChatLineRemoval = 'deleted' | 'purged' | 'timeout' | 'banned' | 'cleared';
 
 // A timeout can last from 1 second to 14 days, so a timed-out line keeps its length.
-export type ChatLineMark = { removed: ChatLineRemoval; timeoutSeconds?: number }
+export type ChatLineMark = { removed: ChatLineRemoval; timeoutSeconds?: number };
 
-export type ChatLine = ChatMessagePayload & Partial<ChatLineMark>
+export type ChatLine = ChatMessagePayload & Partial<ChatLineMark>;
 
-export const chatMessageMaxLength = 500
+export const chatMessageMaxLength = 500;
 
-export type ChatScope = 'this_channel' | 'all_moderated'
+export type ChatScope = 'this_channel' | 'all_moderated';
 
 export type SendChatInput = {
-  message: string
-  senderIdentity?: string
-  replyToMessageId?: string | null
-}
+  message: string;
+  senderIdentity?: string;
+  replyToMessageId?: string | null;
+};
 export type TimeoutInput = {
-  targetUserId: string
-  durationSeconds: number
-  reason?: string | null
-}
+  targetUserId: string;
+  durationSeconds: number;
+  reason?: string | null;
+};
 export type BanInput = {
-  targetUserId: string
-  scope: ChatScope
-  reason?: string | null
-}
-export type UnbanInput = { targetUserId: string; scope: ChatScope }
+  targetUserId: string;
+  scope: ChatScope;
+  reason?: string | null;
+};
+export type UnbanInput = { targetUserId: string; scope: ChatScope };
 
 function ensureOk(response: Response, what: string): void {
   if (!response.ok)
-    throw new Error(`${what} ${response.status}`)
+    throw new Error(`${what} ${response.status}`);
 }
 
 // Lines that arrived live while the history call ran stay; the history wins on a shared id.
 function mergeHistory(history: ChatLine[], live: ChatLine[] | undefined): ChatLine[] {
-  const known: Set<string> = new Set(history.map((line) => line.id))
-  const fresh: ChatLine[] = (live ?? []).filter((line) => !known.has(line.id))
+  const known = new Set<string>(history.map((line) => line.id));
+  const fresh: ChatLine[] = (live ?? []).filter((line) => !known.has(line.id));
 
-  return merge(history, fresh).slice(-chatLineLimit)
+  return merge(history, fresh).slice(-chatLineLimit);
 }
 
 export function useChatHistory(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ChatLine[], Error> {
-  const queries = useQueryClient()
+  const queries = useQueryClient();
 
   return useQuery({
     queryKey: computed(() => chatKey(toValue(channelId))),
     queryFn: async (): Promise<ChatLine[]> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { data } = await client.GET('/api/v{version}/channels/{channelId}/chat/messages', {
         params: { path: { version: '1', channelId: id }, query: { limit: chatLineLimit } },
-      })
+      });
 
-      const live = queries.getQueryData<ChatLine[]>(chatKey(id))
+      const live = queries.getQueryData<ChatLine[]>(chatKey(id));
 
-      return mergeHistory(data?.data ?? [], live)
+      return mergeHistory(data?.data ?? [], live);
     },
     enabled: computed(() => toValue(channelId) !== null),
     staleTime: Infinity,
-  })
+  });
 }
 
 export function useSendChat(
@@ -98,7 +98,7 @@ export function useSendChat(
   return useMutation({
     mutationFn: async (input: SendChatInput): Promise<void> => {
       if (input.message.length > chatMessageMaxLength)
-        throw new Error('chat message too long')
+        throw new Error('chat message too long');
 
       const { response } = await client.POST('/api/v{version}/channels/{channelId}/chat/messages', {
         params: { path: { version: '1', channelId: toValue(channelId) as string } },
@@ -107,11 +107,11 @@ export function useSendChat(
           senderIdentity: input.senderIdentity ?? 'you',
           replyToMessageId: input.replyToMessageId ?? null,
         },
-      })
+      });
 
-      ensureOk(response, 'send')
+      ensureOk(response, 'send');
     },
-  })
+  });
 }
 
 export function useDeleteChatMessage(
@@ -122,13 +122,19 @@ export function useDeleteChatMessage(
       const { response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/chat/messages/{messageId}',
         {
-          params: { path: { version: '1', channelId: toValue(channelId) as string, messageId } },
+          params: {
+            path: {
+              version: '1',
+              channelId: toValue(channelId) as string,
+              messageId,
+            },
+          },
         },
-      )
+      );
 
-      ensureOk(response, 'delete')
+      ensureOk(response, 'delete');
     },
-  })
+  });
 }
 
 export function useTimeoutUser(
@@ -147,11 +153,11 @@ export function useTimeoutUser(
             reason: input.reason ?? null,
           },
         },
-      )
+      );
 
-      ensureOk(response, 'timeout')
+      ensureOk(response, 'timeout');
     },
-  })
+  });
 }
 
 export function useBanUser(
@@ -169,11 +175,11 @@ export function useBanUser(
             reason: input.reason ?? null,
           },
         },
-      )
+      );
 
-      ensureOk(response, 'ban')
+      ensureOk(response, 'ban');
     },
-  })
+  });
 }
 
 export function useUnbanUser(
@@ -187,9 +193,9 @@ export function useUnbanUser(
           params: { path: { version: '1', channelId: toValue(channelId) as string } },
           body: { targetTwitchUserId: input.targetUserId, scope: input.scope },
         },
-      )
+      );
 
-      ensureOk(response, 'unban')
+      ensureOk(response, 'unban');
     },
-  })
+  });
 }

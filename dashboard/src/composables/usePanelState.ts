@@ -8,15 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { computed, type ComputedRef, type Ref } from 'vue'
+import { computed, type ComputedRef, type Ref } from 'vue';
 
-import type { PanelState } from '@/components/layout/PanelCard.vue'
+import type { PanelState } from '@/components/layout/PanelCard.vue';
 
 type PanelQuery<T> = {
-  data: Ref<T | undefined>
-  isPending: Ref<boolean>
-  isError: Ref<boolean>
-}
+  data: Ref<T | undefined>;
+  isPending: Ref<boolean>;
+  isError: Ref<boolean>;
+};
 
 // One query feeds one panel: an error wins, then loading, then the empty check on the loaded data.
 export function usePanelState<T>(
@@ -25,13 +25,13 @@ export function usePanelState<T>(
 ): ComputedRef<PanelState> {
   return computed<PanelState>(() => {
     if (query.isError.value)
-      return 'error'
+      return 'error';
 
     if (query.isPending.value || query.data.value === undefined)
-      return 'loading'
+      return 'loading';
 
     return isEmpty(query.data.value)
       ? 'empty'
-      : 'ready'
-  })
+      : 'ready';
+  });
 }

@@ -8,16 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { QueryClient } from '@tanstack/vue-query'
+import type { QueryClient } from '@tanstack/vue-query';
 
 export type HubEventContext = {
-  queries: QueryClient
+  queries: QueryClient;
   // The channel this connection joined; null on the operator hub.
-  channelId: string | null
-}
+  channelId: string | null;
+};
 
 // One hub event and what it does to the cache. The area files (channels.ts, community.ts) list these.
 export type HubEventHandler<TPayload> = {
-  event: string
-  handle: (context: HubEventContext, payload: TPayload) => void
-}
+  event: string;
+  handle: (context: HubEventContext, payload: TPayload) => void;
+};

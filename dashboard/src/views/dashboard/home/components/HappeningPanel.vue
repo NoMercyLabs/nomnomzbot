@@ -8,53 +8,53 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, type Component, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, type Component } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { RouterLink, useRouter } from 'vue-router';
 
-import { useActivity, type ActivityEvent } from '@/api/home'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useActivity, type ActivityEvent } from '@/api/home';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
-import ArrowRight from '~icons/nnz/arrow-right'
+import ArrowRight from '~icons/nnz/arrow-right';
 
-import { describeActivity, type ActivityRowText } from './activityKinds'
+import { describeActivity, type ActivityRowText } from './activityKinds';
 
-defineProps<{ live: boolean }>()
+defineProps<{ live: boolean }>();
 
-const { t, locale } = useI18n()
-const { channelId } = useCurrentChannel()
+const { t, locale } = useI18n();
+const { channelId } = useCurrentChannel();
 
-const activityQuery = useActivity(channelId)
+const activityQuery = useActivity(channelId);
 const activityState = usePanelState(activityQuery, (items: ActivityEvent[]) =>
-  items.length === 0)
+  items.length === 0);
 
-const router = useRouter()
+const router = useRouter();
 // "All events" shows only when an events page exists: a link that lands elsewhere breaks its promise.
-const allEventsRoute: ComputedRef<string | null> = computed(() =>
+const allEventsRoute = computed<string | null>(() =>
   router.hasRoute('dashboard-events')
     ? 'dashboard-events'
     : null,
-)
+);
 
 type Row = {
-  id: string
-  icon: Component
-  title: string
-  detail: string | undefined
-  time: string
-}
+  id: string;
+  icon: Component;
+  title: string;
+  detail: string | undefined;
+  time: string;
+};
 
 function say(text: ActivityRowText): string {
-  const count: unknown = text.params?.count
+  const count: unknown = text.params?.count;
 
   return t(text.key, text.params ?? {}, typeof count === 'number'
     ? count
-    : 1)
+    : 1);
 }
 
 function eventTime(event: ActivityEvent): string {
@@ -63,16 +63,16 @@ function eventTime(event: ActivityEvent): string {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).format(new Date(event.timestamp))
+  }).format(new Date(event.timestamp));
 }
 
-const rows: ComputedRef<Row[]> = computed(() =>
+const rows = computed<Row[]>(() =>
   (activityQuery.data.value ?? []).map((event: ActivityEvent): Row => {
-    const view = describeActivity(event)
-    const detail = say(view.detail)
+    const view = describeActivity(event);
+    const detail = say(view.detail);
     const title = view.title
       ? say(view.title)
-      : (event.username ?? view.actor ?? undefined)
+      : (event.username ?? view.actor ?? undefined);
 
     return {
       id: event.id,
@@ -82,9 +82,9 @@ const rows: ComputedRef<Row[]> = computed(() =>
         ? undefined
         : detail,
       time: eventTime(event),
-    }
+    };
   }),
-)
+);
 </script>
 
 <template>

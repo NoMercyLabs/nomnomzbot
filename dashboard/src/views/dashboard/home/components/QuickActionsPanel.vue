@@ -12,9 +12,9 @@
 // the timers and a running poll or prediction. Each row reads its own source, so one failing
 // source shows its own line and the others still render. Nothing here is invented: a source
 // with no data says so.
-import { computed, ref, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import {
   usePolls,
@@ -23,117 +23,117 @@ import {
   type Poll,
   type Prediction,
   type Timer,
-} from '@/api/liveOps'
-import { useMusicQueue, type QueueItem } from '@/api/music'
-import { useAdSchedule, useSnoozeAd, type AdSchedule } from '@/api/stream'
-import Countdown from '@/components/layout/Countdown.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import BarChart from '~icons/nnz/bar-chart'
-import Megaphone from '~icons/nnz/megaphone'
-import NoteDouble from '~icons/nnz/note-double'
-import Timer24 from '~icons/nnz/timer'
+} from '@/api/liveOps';
+import { useMusicQueue, type QueueItem } from '@/api/music';
+import { useAdSchedule, useSnoozeAd, type AdSchedule } from '@/api/stream';
+import Countdown from '@/components/layout/Countdown.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import BarChart from '~icons/nnz/bar-chart';
+import Megaphone from '~icons/nnz/megaphone';
+import NoteDouble from '~icons/nnz/note-double';
+import Timer24 from '~icons/nnz/timer';
 
-import TimersDialog from './TimersDialog.vue'
+import TimersDialog from './TimersDialog.vue';
 
 type Running = {
-  title: string
-  kind: 'poll' | 'prediction'
-  target: number | null
-}
+  title: string;
+  kind: 'poll' | 'prediction';
+  target: number | null;
+};
 
-const { t } = useI18n()
-const router = useRouter()
-const { channelId } = useCurrentChannel()
+const { t } = useI18n();
+const router = useRouter();
+const { channelId } = useCurrentChannel();
 
-const adQuery = useAdSchedule(channelId)
-const snooze = useSnoozeAd(channelId)
-const queueQuery = useMusicQueue(channelId)
-const timersQuery = useTimers(channelId)
-const pollsQuery = usePolls(channelId)
-const predictionsQuery = usePredictions(channelId)
+const adQuery = useAdSchedule(channelId);
+const snooze = useSnoozeAd(channelId);
+const queueQuery = useMusicQueue(channelId);
+const timersQuery = useTimers(channelId);
+const pollsQuery = usePolls(channelId);
+const predictionsQuery = usePredictions(channelId);
 
-const MS: number = 1000
+const MS: number = 1000;
 
-const timersOpen = ref(false)
-const allTimers: ComputedRef<Timer[]> = computed(() => timersQuery.data.value ?? [])
+const timersOpen = ref(false);
+const allTimers = computed<Timer[]>(() => timersQuery.data.value ?? []);
 
 // An ad break the server did not schedule has no time; zero means none.
-const ad: ComputedRef<AdSchedule | null> = computed(() => {
-  const schedule: AdSchedule | null = adQuery.data.value ?? null
+const ad = computed<AdSchedule | null>(() => {
+  const schedule: AdSchedule | null = adQuery.data.value ?? null;
 
   return schedule !== null && Number(schedule.nextAdAt) > 0
     ? schedule
-    : null
-})
-const snoozesLeft = computed(() => Number(ad.value?.snoozeCount ?? 0))
-const adMinutes = computed(() => Math.round(Number(ad.value?.duration ?? 0) / 60))
-const adDetail: ComputedRef<string> = computed(() =>
+    : null;
+});
+const snoozesLeft = computed(() => Number(ad.value?.snoozeCount ?? 0));
+const adMinutes = computed(() => Math.round(Number(ad.value?.duration ?? 0) / 60));
+const adDetail = computed<string>(() =>
   [
     t('dashboard.home.quick.adLength', { minutes: adMinutes.value }),
     t('dashboard.home.quick.snoozesLeft', snoozesLeft.value),
   ].join(' · '),
-)
+);
 
-const queue: ComputedRef<QueueItem[]> = computed(() => queueQuery.data.value?.queue ?? [])
-const senders: ComputedRef<string[]> = computed(() => [
+const queue = computed<QueueItem[]>(() => queueQuery.data.value?.queue ?? []);
+const senders = computed<string[]>(() => [
   ...new Set(
     queue.value
       .map((item: QueueItem): string | null => item.requestedBy ?? null)
       .filter((n): n is string => n !== null),
   ),
-])
-const queueDetail: ComputedRef<string> = computed(() => {
-  const waiting: string = t('dashboard.home.quick.waiting', { count: queue.value.length })
+]);
+const queueDetail = computed<string>(() => {
+  const waiting: string = t('dashboard.home.quick.waiting', { count: queue.value.length });
   const everyoneNamed =
     senders.value.length === 1 &&
-    queue.value.every((item: QueueItem) => item.requestedBy === senders.value[0])
+    queue.value.every((item: QueueItem) => item.requestedBy === senders.value[0]);
 
   return everyoneNamed
     ? `${waiting} · ${t('dashboard.home.quick.allSentBy', { name: senders.value[0] })}`
-    : waiting
-})
+    : waiting;
+});
 
 // The server sends no next-fire time, so the next timer is the enabled one whose last fire plus interval comes first.
 function dueAt(timer: Timer): number {
   return (
     new Date(timer.lastFiredAt ?? timer.createdAt).getTime() +
-    Number(timer.intervalMinutes) * 60 * MS
-  )
+      Number(timer.intervalMinutes) * 60 * MS
+  );
 }
 
-const enabledTimers: ComputedRef<Timer[]> = computed(() =>
+const enabledTimers = computed<Timer[]>(() =>
   (timersQuery.data.value ?? []).filter((timer: Timer) => timer.isEnabled),
-)
-const nextTimer: ComputedRef<Timer | null> = computed(
+);
+const nextTimer = computed<Timer | null>(
   () => [...enabledTimers.value].sort((a: Timer, b: Timer) => dueAt(a) - dueAt(b))[0] ?? null,
-)
+);
 
-const running: ComputedRef<Running | null> = computed(() => {
+const running = computed<Running | null>(() => {
   const poll: Poll | undefined = (pollsQuery.data.value ?? []).find(
     (p: Poll) => p.status.toUpperCase() === 'ACTIVE',
-  )
+  );
 
   if (poll !== undefined) {
     return {
       title: poll.title,
       kind: 'poll',
       target: new Date(poll.startedAt).getTime() + Number(poll.duration) * MS,
-    }
+    };
   }
 
   const prediction: Prediction | undefined = (predictionsQuery.data.value ?? []).find(
     (p: Prediction) => ['ACTIVE', 'LOCKED'].includes(p.status.toUpperCase()),
-  )
+  );
 
   if (prediction === undefined)
-    return null
+    return null;
 
-  const open = prediction.status.toUpperCase() === 'ACTIVE'
+  const open = prediction.status.toUpperCase() === 'ACTIVE';
 
   return {
     title: prediction.title,
@@ -141,12 +141,12 @@ const running: ComputedRef<Running | null> = computed(() => {
     target: open
       ? new Date(prediction.createdAt).getTime() + Number(prediction.predictionWindow) * MS
       : null,
-  }
-})
-const pollsPending = computed(() => pollsQuery.isPending.value || predictionsQuery.isPending.value)
-const pollsFailed = computed(() => pollsQuery.isError.value || predictionsQuery.isError.value)
+  };
+});
+const pollsPending = computed(() => pollsQuery.isPending.value || predictionsQuery.isPending.value);
+const pollsFailed = computed(() => pollsQuery.isError.value || predictionsQuery.isError.value);
 
-const musicLinked: ComputedRef<boolean> = computed(() => router.hasRoute('dashboard-music'))
+const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
 </script>
 
 <template>

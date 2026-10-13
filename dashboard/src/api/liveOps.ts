@@ -8,34 +8,34 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query'
-import { toValue, type MaybeRefOrGetter } from 'vue'
+import { type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
-import { useOptimisticSave } from '@/composables/useOptimisticSave'
+import { useOptimisticSave } from '@/composables/useOptimisticSave';
 
-import { channelQuery, failed } from './channelQuery'
-import { client } from './client'
-import type { components } from './schema'
+import { channelQuery, failed } from './channelQuery';
+import { client } from './client';
+import type { components } from './schema';
 
-export type Poll = components['schemas']['TwitchPoll']
-export type Prediction = components['schemas']['TwitchPrediction']
-export type Timer = components['schemas']['TimerListItem']
+export type Poll = components['schemas']['TwitchPoll'];
+export type Prediction = components['schemas']['TwitchPrediction'];
+export type Timer = components['schemas']['TimerListItem'];
 
-const version = '1'
-const timerPageSize = 100
+const version = '1';
+const timerPageSize = 100;
 
-export const timersKey = (channelId: string | null): unknown[] => ['channels', channelId, 'timers']
+export const timersKey = (channelId: string | null): unknown[] => ['channels', channelId, 'timers'];
 
 export const pollsKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'live-ops-polls',
-]
+];
 export const predictionsKey = (channelId: string | null): unknown[] => [
   'channels',
   channelId,
   'live-ops-predictions',
-]
+];
 
 // The channel's polls, active and ended. Use isRunning to pick the one that still takes votes.
 export function usePolls(
@@ -47,13 +47,13 @@ export function usePolls(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('polls', response.status)
+      throw failed('polls', response.status);
 
-    return [...(data?.data ?? [])]
-  })
+    return [...(data?.data ?? [])];
+  });
 }
 
 // The channel's predictions, open, locked and ended.
@@ -66,13 +66,13 @@ export function usePredictions(
       {
         params: { path: { version, channelId: id } },
       },
-    )
+    );
 
     if (error !== undefined)
-      throw failed('predictions', response.status)
+      throw failed('predictions', response.status);
 
-    return [...(data?.data ?? [])]
-  })
+    return [...(data?.data ?? [])];
+  });
 }
 
 async function readTimers(channelId: string): Promise<Timer[]> {
@@ -81,19 +81,19 @@ async function readTimers(channelId: string): Promise<Timer[]> {
     {
       params: { path: { version, channelId }, query: { PageSize: timerPageSize } },
     },
-  )
+  );
 
   if (error !== undefined)
-    throw failed('timers', response.status)
+    throw failed('timers', response.status);
 
-  return [...(data?.data ?? [])]
+  return [...(data?.data ?? [])];
 }
 
 // The channel's timers. Use isEnabled to pick the ones that fire.
 export function useTimers(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<Timer[], Error> {
-  return channelQuery(channelId, timersKey, readTimers)
+  return channelQuery(channelId, timersKey, readTimers);
 }
 
 // Pauses an enabled timer or resumes a paused one. A paused timer stays saved and does not fire.
@@ -104,27 +104,30 @@ export function useToggleTimer(
   return useOptimisticSave<Timer[], string>({
     queryKey: () => timersKey(toValue(channelId)),
     mutationFn: async (timerId: string): Promise<Timer[]> => {
-      const id = toValue(channelId) as string
+      const id = toValue(channelId) as string;
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/timers/{id}/toggle',
         {
-          params: { path: {
-            version,
-            channelId: id,
-            id: timerId,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: id,
+              id: timerId,
+            },
+          },
         },
-      )
+      );
 
       if (error !== undefined)
-        throw failed('timer-toggle', response.status)
+        throw failed('timer-toggle', response.status);
 
-      return readTimers(id)
+      return readTimers(id);
     },
     apply: (current: Timer[] | undefined, timerId: string): Timer[] =>
       (current ?? []).map((timer: Timer) =>
         timer.id === timerId
           ? { ...timer, isEnabled: !timer.isEnabled }
-          : timer),
-  })
+          : timer,
+      ),
+  });
 }

@@ -14,10 +14,10 @@
 // Typing asks the bot for every known user in any channel and shows name and avatar only. Enter or a
 // click opens the person: the header shows the light row at once and each part fills in as it arrives.
 // A button looks a name up live on Twitch for someone the bot has never seen.
-import { refDebounced } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { refDebounced } from '@vueuse/core';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   TwitchUserNotFoundError,
@@ -25,110 +25,122 @@ import {
   useTwitchLookup,
   useViewerSearch,
   type ViewerOption,
-} from '@/api/community'
-import { useCommunityList, type CommunityPage, type CommunityRow } from '@/api/people'
-import ListDetail from '@/components/layout/ListDetail.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
-import SearchField from '@/components/layout/SearchField.vue'
-import VirtualList from '@/components/layout/VirtualList.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePageView } from '@/composables/usePageView'
-import { usePanelState } from '@/composables/usePanelState'
+} from '@/api/community';
+import { useCommunityList, type CommunityPage, type CommunityRow } from '@/api/people';
+import ListDetail from '@/components/layout/ListDetail.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue';
+import SearchField from '@/components/layout/SearchField.vue';
+import VirtualList from '@/components/layout/VirtualList.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePageView } from '@/composables/usePageView';
+import { usePanelState } from '@/composables/usePanelState';
 
-import PersonDetail from './components/PersonDetail.vue'
-import PersonRow from './components/PersonRow.vue'
-import SearchResultRow from './components/SearchResultRow.vue'
+import PersonDetail from './components/PersonDetail.vue';
+import PersonRow from './components/PersonRow.vue';
+import SearchResultRow from './components/SearchResultRow.vue';
 
 // The light row a search hit or a Twitch lookup gives: name, avatar and login, nothing heavier.
 type Seed = {
-  id: string
-  login: string
-  displayName: string
-  profileImageUrl: string | null
-}
+  id: string;
+  login: string;
+  displayName: string;
+  profileImageUrl: string | null;
+};
 
-const SEARCH_PAUSE_MS = 250
-const NEW_WINDOW_DAYS = 90
-const ROW_HEIGHT = 56
-const TAB_VALUES: readonly string[] = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new']
-const UNLISTED: readonly string[] = ['subscriber', 'regular']
+const SEARCH_PAUSE_MS = 250;
+const NEW_WINDOW_DAYS = 90;
+const ROW_HEIGHT = 56;
+const TAB_VALUES: readonly string[] = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new'];
+const UNLISTED: readonly string[] = ['subscriber', 'regular'];
 
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const { channelId } = useCurrentChannel()
+const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
+const { channelId } = useCurrentChannel();
 
-const everyone = useCommunityList(channelId, 'all', '')
-const moderators = useCommunityList(channelId, 'moderator', '')
-const vips = useCommunityList(channelId, 'vip', '')
+const everyone = useCommunityList(channelId, 'all', '');
+const moderators = useCommunityList(channelId, 'moderator', '');
+const vips = useCommunityList(channelId, 'vip', '');
 
-const view = usePageView(TAB_VALUES)
-const search = ref('')
-const pausedSearch = refDebounced(search, SEARCH_PAUSE_MS)
-const typed = computed<string>(() => search.value.trim())
-const searching = computed<boolean>(() => typed.value !== '')
+const view = usePageView(TAB_VALUES);
+const search = ref('');
+const pausedSearch = refDebounced(search, SEARCH_PAUSE_MS);
+const typed = computed<string>(() => search.value.trim());
+const searching = computed<boolean>(() => typed.value !== '');
 const found = useViewerSearch(channelId, () =>
-  pausedSearch.value.trim())
-const lookup = useTwitchLookup(channelId)
-const seed: Ref<Seed | null> = ref(null)
-const lookupMissing = ref('')
+  pausedSearch.value.trim());
+const lookup = useTwitchLookup(channelId);
+const seed = ref<Seed | null>(null);
+const lookupMissing = ref('');
 
 function rowsOf(query: typeof everyone): CommunityRow[] | undefined {
-  return query.data.value?.pages.flatMap((page: CommunityPage) => page.rows)
+  return query.data.value?.pages.flatMap((page: CommunityPage) => page.rows);
 }
 
 function totalOf(query: typeof everyone): number | undefined {
-  return query.data.value?.pages[0]?.total ?? undefined
+  return query.data.value?.pages[0]?.total ?? undefined;
 }
 
-const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() => [
-  { value: 'all', label: t('dashboard.people.tabs.all'), count: totalOf(everyone) },
-  { value: 'moderator', label: t('dashboard.people.tabs.moderator'), count: totalOf(moderators) },
-  { value: 'vip', label: t('dashboard.people.tabs.vip'), count: totalOf(vips) },
+const tabs = computed<PageTab[]>(() => [
+  {
+    value: 'all',
+    label: t('dashboard.people.tabs.all'),
+    count: totalOf(everyone),
+  },
+  {
+    value: 'moderator',
+    label: t('dashboard.people.tabs.moderator'),
+    count: totalOf(moderators),
+  },
+  {
+    value: 'vip',
+    label: t('dashboard.people.tabs.vip'),
+    count: totalOf(vips),
+  },
   { value: 'subscriber', label: t('dashboard.people.tabs.subscriber') },
   { value: 'regular', label: t('dashboard.people.tabs.regular') },
   { value: 'new', label: t('dashboard.people.tabs.new') },
-])
+]);
 
-const activeQuery: ComputedRef<typeof everyone | null> = computed(() => {
+const activeQuery = computed<typeof everyone | null>(() => {
   if (UNLISTED.includes(view.value))
-    return null
+    return null;
 
   if (view.value === 'moderator')
-    return moderators
+    return moderators;
 
   if (view.value === 'vip')
-    return vips
+    return vips;
 
-  return everyone
-})
+  return everyone;
+});
 
 function isNew(row: CommunityRow): boolean {
-  return Date.now() - new Date(row.firstSeen).getTime() <= NEW_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  return Date.now() - new Date(row.firstSeen).getTime() <= NEW_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 }
 
-const tabRows: ComputedRef<CommunityRow[] | undefined> = computed(() => {
+const tabRows = computed<CommunityRow[] | undefined>(() => {
   if (activeQuery.value === null)
-    return []
+    return [];
 
-  const rows = rowsOf(activeQuery.value)
+  const rows = rowsOf(activeQuery.value);
 
   return view.value === 'new'
     ? rows?.filter(isNew)
-    : rows
-})
+    : rows;
+});
 
-const visible = computed(() => tabRows.value)
+const visible = computed(() => tabRows.value);
 
 // Hits of an older keystroke never show under newer text.
 const hits = computed(() =>
   pausedSearch.value.trim() === typed.value
     ? found.data.value
     : undefined,
-)
+);
 
 const tabState = usePanelState(
   {
@@ -137,67 +149,72 @@ const tabState = usePanelState(
     isError: computed<boolean>(() => activeQuery.value?.isError.value ?? false),
   },
   (rows: CommunityRow[]) => rows.length === 0,
-)
+);
 const searchState = usePanelState(
-  { data: hits, isPending: found.isPending, isError: found.isError },
+  {
+    data: hits,
+    isPending: found.isPending,
+    isError: found.isError,
+  },
   (options: ViewerOption[]) => options.length === 0,
-)
+);
 const listState = computed<PanelState>(() =>
   searching.value
     ? searchState.value
-    : tabState.value)
+    : tabState.value,
+);
 
-const emptyText: ComputedRef<string> = computed<string>(() => {
+const emptyText = computed<string>(() => {
   if (view.value === 'subscriber')
-    return t('dashboard.people.list.noSubscribers')
+    return t('dashboard.people.list.noSubscribers');
 
   if (view.value === 'regular')
-    return t('dashboard.people.list.noRegulars')
+    return t('dashboard.people.list.noRegulars');
 
   if (searching.value)
-    return t('dashboard.people.noMatch', { query: typed.value })
+    return t('dashboard.people.noMatch', { query: typed.value });
 
-  return t('dashboard.people.list.empty')
-})
+  return t('dashboard.people.list.empty');
+});
 
-const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`))
-const count: ComputedRef<string | undefined> = computed(() => {
+const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`));
+const count = computed<string | undefined>(() => {
   if (listState.value !== 'ready')
-    return undefined
+    return undefined;
 
   const total = (searching.value
     ? hits.value
-    : visible.value)?.length ?? 0
+    : visible.value)?.length ?? 0;
 
-  return t('dashboard.people.count', { count: total }, total)
-})
+  return t('dashboard.people.count', { count: total }, total);
+});
 
 // The person in ?u= can sit in any loaded list (a moderator is also in All), so look in all three.
 const asked = computed<string>(() =>
   typeof route.query.u === 'string'
     ? route.query.u
-    : '')
-const loadedRow: ComputedRef<CommunityRow | null> = computed(() => {
-  const login = asked.value.toLowerCase()
+    : '');
+const loadedRow = computed<CommunityRow | null>(() => {
+  const login = asked.value.toLowerCase();
 
   if (login === '')
-    return null
+    return null;
 
   const loaded: CommunityRow[] = [everyone, moderators, vips].flatMap(
     (query: typeof everyone) => rowsOf(query) ?? [],
-  )
+  );
 
-  return loaded.find((row: CommunityRow) => row.username.toLowerCase() === login) ?? null
-})
+  return loaded.find((row: CommunityRow) => row.username.toLowerCase() === login) ?? null;
+});
 
 // A seeded person that is not in a loaded list: the full record is asked for only now, never while typing.
-const seedInView: ComputedRef<Seed | null> = computed(() =>
+const seedInView = computed<Seed | null>(() =>
   loadedRow.value === null && seed.value?.login.toLowerCase() === asked.value.toLowerCase()
     ? seed.value
     : null,
-)
+);
 const member = useCommunityMember(channelId, () =>
-  seedInView.value?.id ?? null)
+  seedInView.value?.id ?? null);
 
 function lightRow(from: Seed): CommunityRow {
   return {
@@ -213,38 +230,38 @@ function lightRow(from: Seed): CommunityRow {
     isBanned: false,
     firstSeen: '',
     lastSeen: '',
-  }
+  };
 }
 
-const selected: ComputedRef<CommunityRow | null> = computed(() => {
+const selected = computed<CommunityRow | null>(() => {
   if (loadedRow.value)
-    return loadedRow.value
+    return loadedRow.value;
 
   if (seedInView.value === null)
-    return null
+    return null;
 
-  return member.data.value ?? lightRow(seedInView.value)
-})
+  return member.data.value ?? lightRow(seedInView.value);
+});
 
 const detailState = computed<PanelState>(() => {
   if (seedInView.value === null)
-    return 'ready'
+    return 'ready';
 
   if (member.isError.value)
-    return 'error'
+    return 'error';
 
   return member.data.value
     ? 'ready'
-    : 'loading'
-})
+    : 'loading';
+});
 
 function pick(row: CommunityRow): void {
-  void router.push({ query: { ...route.query, u: row.username } })
+  void router.push({ query: { ...route.query, u: row.username } });
 }
 
 function open(from: Seed): void {
-  seed.value = from
-  void router.push({ query: { ...route.query, u: from.login } })
+  seed.value = from;
+  void router.push({ query: { ...route.query, u: from.login } });
 }
 
 function openOption(option: ViewerOption): void {
@@ -253,43 +270,43 @@ function openOption(option: ViewerOption): void {
     login: option.subLabel.replace(/^@/, ''),
     displayName: option.label,
     profileImageUrl: option.imageUrl,
-  })
+  });
 }
 
 function openFirstHit(): void {
-  const first = hits.value?.[0]
+  const first = hits.value?.[0];
 
   if (first) {
-    openOption(first)
+    openOption(first);
   }
 }
 
 async function lookUp(): Promise<void> {
-  const login = typed.value.replace(/^@/, '')
+  const login = typed.value.replace(/^@/, '');
 
-  lookupMissing.value = ''
+  lookupMissing.value = '';
 
   try {
-    const person = await lookup.mutateAsync(login)
+    const person = await lookup.mutateAsync(login);
 
     open({
       id: person.id,
       login: person.login,
       displayName: person.displayName,
       profileImageUrl: person.profileImageUrl,
-    })
+    });
   } catch (error: unknown) {
     if (error instanceof TwitchUserNotFoundError) {
-      lookupMissing.value = login
+      lookupMissing.value = login;
     }
   }
 }
 
 function back(): void {
-  const { u, ...rest } = route.query
+  const { u, ...rest } = route.query;
 
-  void u
-  void router.push({ query: rest })
+  void u;
+  void router.push({ query: rest });
 }
 </script>
 

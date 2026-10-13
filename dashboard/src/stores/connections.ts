@@ -8,50 +8,55 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useLocalStorage, type RemovableRef } from '@vueuse/core'
-import { defineStore } from 'pinia'
-import { computed, type ComputedRef } from 'vue'
+import { useLocalStorage } from '@vueuse/core';
+import { defineStore } from 'pinia';
+import { computed } from 'vue';
 
-import { merge } from '@/lib/array'
-import { officialOrigin, servedOrigin } from '@/lib/botAddress'
+import { merge } from '@/lib/array';
+import { officialOrigin, servedOrigin } from '@/lib/botAddress';
 
-const alwaysListed: readonly string[] = [servedOrigin, officialOrigin]
+const alwaysListed: readonly string[] = [servedOrigin, officialOrigin];
 
 function readOrigins(raw: string): string[] {
   try {
-    const parsed: unknown = JSON.parse(raw)
+    const parsed: unknown = JSON.parse(raw);
 
     return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')
       ? parsed
-      : []
+      : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 // The bots this browser has reached, so the visitor can go back without typing the address again.
 export const useConnectionsStore = defineStore('connections', () => {
-  const saved: RemovableRef<string[]> = useLocalStorage<string[]>('nnz.bots', [], {
+  const saved = useLocalStorage<string[]>('nnz.bots', [], {
     serializer: { read: readOrigins, write: (origins) => JSON.stringify(origins) },
-  })
+  });
 
-  const bots: ComputedRef<string[]> = computed(() => [
+  const bots = computed<string[]>(() => [
     ...new Set(merge(alwaysListed, saved.value)),
-  ])
+  ]);
 
   function isAlwaysListed(origin: string): boolean {
-    return alwaysListed.includes(origin)
+    return alwaysListed.includes(origin);
   }
 
   function remember(origin: string): void {
-    if (isAlwaysListed(origin)) return
+    if (isAlwaysListed(origin)) return;
 
-    saved.value = [origin, ...saved.value.filter((known) => known !== origin)]
+    saved.value = [origin, ...saved.value.filter((known) => known !== origin)];
   }
 
   function forget(origin: string): void {
-    saved.value = saved.value.filter((known) => known !== origin)
+    saved.value = saved.value.filter((known) => known !== origin);
   }
 
-  return { bots, isAlwaysListed, remember, forget }
-})
+  return {
+    bots,
+    isAlwaysListed,
+    remember,
+    forget,
+  };
+});

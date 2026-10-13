@@ -9,12 +9,12 @@
 -->
 <script setup lang="ts">
 // The settings that stay in this browser. Today that is Readability only, so one link opens it.
-import ArrowRight from '~icons/nnz/arrow-right'
+import ArrowRight from '~icons/nnz/arrow-right';
 
-import PanelCard from '@/components/layout/PanelCard.vue'
-import { Button } from '@/components/ui/button'
+import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
 
-defineEmits<{ openReadability: [] }>()
+defineEmits<{ openReadability: [] }>();
 </script>
 
 <template>

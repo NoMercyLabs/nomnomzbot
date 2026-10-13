@@ -8,15 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { RuleTester } from '@typescript-eslint/rule-tester'
-import { afterAll, describe, it } from 'vitest'
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import { afterAll, describe, it } from 'vitest';
 
-import { noRedundantTypeAnnotation } from '../no-redundant-type-annotation'
+import { noRedundantTypeAnnotation } from '../no-redundant-type-annotation';
 
-RuleTester.afterAll = afterAll
-RuleTester.describe = describe
-RuleTester.it = it
-RuleTester.itOnly = it.only
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
 const tester = new RuleTester({
   languageOptions: {
@@ -25,7 +25,7 @@ const tester = new RuleTester({
       tsconfigRootDir: import.meta.dirname,
     },
   },
-})
+});
 
 tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
   valid: [
@@ -35,7 +35,7 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     'export const shared: Record<string, number> = { a: 1 }',
     'declare function props(): {}; const given: Record<string, unknown> = props()',
     // Narrows through a generic that only the annotation feeds.
-    "const root: HTMLElement | null = document.querySelector('.x')",
+    'const root: HTMLElement | null = document.querySelector(\'.x\')',
     'const later: Promise<number> = new Promise((done) => done(1))',
     // Gives a bare arrow its parameter types.
     'const label: (n: number) => string = (n) => String(n)',
@@ -44,16 +44,16 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
     // A `let` may be reassigned with a wider value.
     'let total: number = Math.max(1, 2)',
     // A table whose value has an optional field keeps it readable on every key.
-    "type Row = { label: string; hint?: string }; const rows: Record<'a' | 'b', Row> = { a: { label: 'A' }, b: { label: 'B', hint: 'h' } }",
+    'type Row = { label: string; hint?: string }; const rows: Record<\'a\' | \'b\', Row> = { a: { label: \'A\' }, b: { label: \'B\', hint: \'h\' } }',
     // `as const` would reject the write or freeze the list.
     'const counter: { seen: number } = { seen: 0 }; counter.seen++',
     'const bucket: { seen: string[] } = { seen: [] }',
   ],
   invalid: [
     {
-      code: "type Theme = { bg: string; fg: string }; const dark: Theme = { bg: '#000', fg: '#fff' }",
+      code: 'type Theme = { bg: string; fg: string }; const dark: Theme = { bg: \'#000\', fg: \'#fff\' }',
       output:
-        "type Theme = { bg: string; fg: string }; const dark = { bg: '#000', fg: '#fff' } as const satisfies Theme",
+        'type Theme = { bg: string; fg: string }; const dark = { bg: \'#000\', fg: \'#fff\' } as const satisfies Theme',
       errors: [{ messageId: 'table' }],
     },
     {
@@ -68,16 +68,16 @@ tester.run('no-redundant-type-annotation', noRedundantTypeAnnotation, {
       errors: [{ messageId: 'redundant' }],
     },
     {
-      code: "type Preset = 'calm' | 'loud'; const volume: Record<Preset, number> = { calm: 1, loud: 9 }",
+      code: 'type Preset = \'calm\' | \'loud\'; const volume: Record<Preset, number> = { calm: 1, loud: 9 }',
       output:
-        "type Preset = 'calm' | 'loud'; const volume = { calm: 1, loud: 9 } as const satisfies Record<Preset, number>",
+        'type Preset = \'calm\' | \'loud\'; const volume = { calm: 1, loud: 9 } as const satisfies Record<Preset, number>',
       errors: [{ messageId: 'table' }],
     },
     {
-      code: "const sizes: Record<string, { px: number }> = { sm: { px: 14 } }; for (const [name, size] of Object.entries(sizes)) console.log(name, size.px, sizes.sm, sizes['sm'])",
+      code: 'const sizes: Record<string, { px: number }> = { sm: { px: 14 } }; for (const [name, size] of Object.entries(sizes)) console.log(name, size.px, sizes.sm, sizes[\'sm\'])',
       output:
-        "const sizes = { sm: { px: 14 } } as const satisfies Record<string, { px: number }>; for (const [name, size] of Object.entries(sizes)) console.log(name, size.px, sizes.sm, sizes['sm'])",
+        'const sizes = { sm: { px: 14 } } as const satisfies Record<string, { px: number }>; for (const [name, size] of Object.entries(sizes)) console.log(name, size.px, sizes.sm, sizes[\'sm\'])',
       errors: [{ messageId: 'table' }],
     },
   ],
-})
+});

@@ -10,48 +10,48 @@
 <script setup lang="ts">
 // The send box under the feed. Send is the one primary action of the page. A message over the
 // limit never leaves the browser; a failed send keeps the text so nothing is lost.
-import { computed, ref, type ComputedRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { chatMessageMaxLength, useSendChat } from '@/api/chat'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
+import { chatMessageMaxLength, useSendChat } from '@/api/chat';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
-const COUNT_FROM: number = 400
+const COUNT_FROM: number = 400;
 
-const props = defineProps<{ channelId: string | null }>()
+const props = defineProps<{ channelId: string | null }>();
 
-const { t } = useI18n()
-const sender = useSendChat(() => props.channelId)
+const { t } = useI18n();
+const sender = useSendChat(() => props.channelId);
 
-const text = ref('')
-const failed = ref(false)
+const text = ref('');
+const failed = ref(false);
 
-const tooLong = computed(() => text.value.length > chatMessageMaxLength)
-const showCount = computed(() => text.value.length > COUNT_FROM)
+const tooLong = computed(() => text.value.length > chatMessageMaxLength);
+const showCount = computed(() => text.value.length > COUNT_FROM);
 const canSend = computed(
   () => text.value.trim() !== '' && !tooLong.value && !sender.isPending.value,
-)
-const problem: ComputedRef<string> = computed(() => {
+);
+const problem = computed<string>(() => {
   if (tooLong.value)
-    return t('dashboard.chat.composer.tooLong', { max: chatMessageMaxLength })
+    return t('dashboard.chat.composer.tooLong', { max: chatMessageMaxLength });
 
   return failed.value
     ? t('dashboard.chat.composer.failed')
-    : ''
-})
+    : '';
+});
 
 async function submit(): Promise<void> {
-  if (!canSend.value) return
+  if (!canSend.value) return;
 
-  failed.value = false
+  failed.value = false;
 
   try {
-    await sender.mutateAsync({ message: text.value, senderIdentity: 'you' })
-    text.value = ''
+    await sender.mutateAsync({ message: text.value, senderIdentity: 'you' });
+    text.value = '';
   } catch {
-    failed.value = true
+    failed.value = true;
   }
 }
 </script>

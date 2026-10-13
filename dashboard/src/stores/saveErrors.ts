@@ -8,19 +8,19 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { defineStore } from 'pinia'
-import { ref, type Ref } from 'vue'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 export type SaveError = {
-  id: string
-  titleKey: string
-  messageKey: string
-  detectedAt: string
-}
+  id: string;
+  titleKey: string;
+  messageKey: string;
+  detectedAt: string;
+};
 
 // Saves that failed in this browser. The error inbox lists them beside the items the server reports.
 export const useSaveErrorsStore = defineStore('saveErrors', () => {
-  const items: Ref<SaveError[]> = ref([])
+  const items = ref<SaveError[]>([]);
 
   function report(titleKey: string, messageKey: string): void {
     items.value.push({
@@ -28,12 +28,16 @@ export const useSaveErrorsStore = defineStore('saveErrors', () => {
       titleKey,
       messageKey,
       detectedAt: new Date().toISOString(),
-    })
+    });
   }
 
   function dismiss(id: string): void {
-    items.value = items.value.filter((item) => item.id !== id)
+    items.value = items.value.filter((item) => item.id !== id);
   }
 
-  return { items, report, dismiss }
-})
+  return {
+    items,
+    report,
+    dismiss,
+  };
+});

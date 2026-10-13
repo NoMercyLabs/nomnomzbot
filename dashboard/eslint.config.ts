@@ -8,23 +8,23 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { globalIgnores } from 'eslint/config'
-import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
-import pluginVue from 'eslint-plugin-vue'
-import pluginPlaywright from 'eslint-plugin-playwright'
-import pluginVitest from '@vitest/eslint-plugin'
-import pluginOxlint from 'eslint-plugin-oxlint'
-import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n'
-import skipFormatting from 'eslint-config-prettier/flat'
-import pluginUnusedImports from 'eslint-plugin-unused-imports'
-import pluginStylistic from '@stylistic/eslint-plugin'
+import { globalIgnores } from 'eslint/config';
+import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript';
+import pluginVue from 'eslint-plugin-vue';
+import pluginPlaywright from 'eslint-plugin-playwright';
+import pluginVitest from '@vitest/eslint-plugin';
+import pluginOxlint from 'eslint-plugin-oxlint';
+import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n';
+import pluginUnusedImports from 'eslint-plugin-unused-imports';
+import pluginStylistic from '@stylistic/eslint-plugin';
 
-import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body'
-import { bodyShape } from './eslint-rules/body-shape'
-import { maxCallNesting } from './eslint-rules/max-call-nesting'
-import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation'
-import { trailingArrowArgument } from './eslint-rules/trailing-arrow-argument'
-import { typeMembersPerLine } from './eslint-rules/type-members-per-line'
+import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body';
+import { bodyShape } from './eslint-rules/body-shape';
+import { maxCallNesting } from './eslint-rules/max-call-nesting';
+import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation';
+import { trailingArrowArgument } from './eslint-rules/trailing-arrow-argument';
+import { membersPerLine } from './eslint-rules/members-per-line';
+import { genericOverAnnotation } from './eslint-rules/generic-over-annotation';
 
 const pluginApp = {
   rules: {
@@ -33,9 +33,10 @@ const pluginApp = {
     'max-call-nesting': maxCallNesting,
     'no-redundant-type-annotation': noRedundantTypeAnnotation,
     'trailing-arrow-argument': trailingArrowArgument,
-    'type-members-per-line': typeMembersPerLine,
+    'members-per-line': membersPerLine,
+    'generic-over-annotation': genericOverAnnotation,
   },
-}
+};
 
 // To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
 // import { configureVueProject } from '@vue/eslint-config-typescript'
@@ -135,7 +136,9 @@ export default defineConfigWithVueTs(
   },
 
   {
-    // A local whose annotation repeats its value's type drops it (owner 2026-10-13).
+    // A local whose annotation repeats its value's type drops it, and a generic call takes the
+    // type as a generic instead of an annotation (owner 2026-10-13: "use generics wherever
+    // supported").
     name: 'app/no-redundant-type-annotation',
     files: ['src/**/*.{vue,ts}'],
     ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
@@ -143,16 +146,81 @@ export default defineConfigWithVueTs(
       parserOptions: { projectService: true, extraFileExtensions: ['.vue'] },
     },
     plugins: { app: pluginApp },
-    rules: { 'app/no-redundant-type-annotation': 'error' },
+    rules: {
+      'app/no-redundant-type-annotation': 'error',
+      'app/generic-over-annotation': 'error',
+    },
   },
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
-  skipFormatting,
+  {
+    // ESLint is the one formatter (owner 2026-10-13: "can we not move the settings from prettier
+    // into eslint so we don't have 2 tools fighting eachother"). The stylistic preset carries the
+    // old Prettier settings; the house rules below refine it.
+    name: 'app/format',
+    files: ['src/**/*.{vue,ts}', 'e2e/**/*.ts', 'eslint-rules/**/*.ts', '*.ts'],
+    ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
+    plugins: { '@stylistic': pluginStylistic },
+    rules: {
+      ...pluginStylistic.configs.customize({
+        indent: 2,
+        quotes: 'single',
+        semi: true,
+        commaDangle: 'always-multiline',
+        braceStyle: '1tbs',
+        arrowParens: true,
+        quoteProps: 'as-needed',
+        jsx: false,
+      }).rules,
+      '@stylistic/max-len': [
+        'error',
+        {
+          code: 100,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreRegExpLiterals: true,
+          ignoreComments: true,
+        },
+      ],
+    },
+  },
+
+  {
+    // Vue templates keep their house shape: 2-space indent, double-quoted
+    // attributes, one attribute per line once an element spans lines.
+    name: 'app/format-vue-template',
+    files: ['src/**/*.vue'],
+    ignores: ['src/components/ui/**'],
+    rules: {
+      // vue/max-len below measures .vue files; the stylistic one would count class lists too.
+      '@stylistic/max-len': 'off',
+      'vue/html-indent': ['error', 2],
+      'vue/html-quotes': ['error', 'double'],
+      'vue/html-closing-bracket-newline': 'error',
+      'vue/html-closing-bracket-spacing': 'error',
+      'vue/mustache-interpolation-spacing': 'error',
+      'vue/no-multi-spaces': 'error',
+      'vue/max-attributes-per-line': ['error', { singleline: { max: 4 }, multiline: { max: 1 } }],
+      'vue/max-len': [
+        'error',
+        {
+          code: 100,
+          template: 100,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreHTMLAttributeValues: true,
+          ignoreComments: true,
+        },
+      ],
+    },
+  },
 
   {
     // A blank line sets apart each group of statements (owner 2026-10-13: "add some new lines
-    // in between things"). `eslint --fix` adds them; Prettier keeps them.
+    // in between things"). `eslint --fix` adds them.
     name: 'app/blank-lines',
     files: ['src/**/*.{vue,ts}', 'e2e/**/*.ts', 'eslint-rules/**/*.ts'],
     ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
@@ -180,8 +248,7 @@ export default defineConfigWithVueTs(
 
   {
     // Owner 2026-10-13: a ternary puts `? a` and `: b` on their own lines, and an if body is a
-    // bare exit on the if line, a returned value on the next line, or a block. Prettier joins
-    // both back onto one line, so `npm run format` runs `eslint --fix` after Prettier.
+    // bare exit on the if line, a returned value on the next line, or a block.
     name: 'app/layout',
     files: ['src/**/*.{vue,ts}', 'e2e/**/*.ts', 'eslint-rules/**/*.ts'],
     ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
@@ -201,7 +268,7 @@ export default defineConfigWithVueTs(
       'app/body-shape': 'error',
       'app/trailing-arrow-argument': 'error',
       'app/max-call-nesting': 'error',
-      'app/type-members-per-line': 'error',
+      'app/members-per-line': 'error',
     },
   },
 
@@ -216,10 +283,10 @@ export default defineConfigWithVueTs(
         'error',
         {
           selector:
-            "ArrayExpression[elements.0.type='SpreadElement'][elements.1.type='SpreadElement']",
+            'ArrayExpression[elements.0.type=\'SpreadElement\'][elements.1.type=\'SpreadElement\']',
           message: 'Join lists with merge(a, b) from @/lib/array.',
         },
       ],
     },
   },
-)
+);

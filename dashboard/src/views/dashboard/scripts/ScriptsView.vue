@@ -11,51 +11,51 @@
 // The Scripts page: every code script of the channel as a list, tabs that filter it, and a slot for one script beside it.
 // The script in view is the id in ?script=. Tab counts come from the loaded list: the bot has no count endpoint.
 // A refusal of the list (custom code switched off, no right) shows the bot's own reason, not the empty text.
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
-import Add from '~icons/nnz/add'
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
+import Add from '~icons/nnz/add';
 
-import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts'
-import ListDetail from '@/components/layout/ListDetail.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import SearchField from '@/components/layout/SearchField.vue'
-import { Button } from '@/components/ui/button'
-import { usePageView } from '@/composables/usePageView'
-import { usePanelState } from '@/composables/usePanelState'
+import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts';
+import ListDetail from '@/components/layout/ListDetail.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import SearchField from '@/components/layout/SearchField.vue';
+import { Button } from '@/components/ui/button';
+import { usePageView } from '@/composables/usePageView';
+import { usePanelState } from '@/composables/usePanelState';
 
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
-import FailedRunDialog from './components/FailedRunDialog.vue'
-import NewScriptDialog from './components/NewScriptDialog.vue'
-import ScriptDetail from './components/ScriptDetail.vue'
-import ScriptRow from './components/ScriptRow.vue'
-import ScriptRunsPanel from './components/ScriptRunsPanel.vue'
-import type { SessionRun } from './components/sessionRun'
+import FailedRunDialog from './components/FailedRunDialog.vue';
+import NewScriptDialog from './components/NewScriptDialog.vue';
+import ScriptDetail from './components/ScriptDetail.vue';
+import ScriptRow from './components/ScriptRow.vue';
+import ScriptRunsPanel from './components/ScriptRunsPanel.vue';
+import type { SessionRun } from './components/sessionRun';
 
-const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed']
+const TAB_VALUES: readonly string[] = ['all', 'on', 'off', 'failed'];
 
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
+const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
-const scripts = useCodeScripts()
-const view = usePageView(TAB_VALUES)
-const search = ref('')
+const scripts = useCodeScripts();
+const view = usePageView(TAB_VALUES);
+const search = ref('');
 
-const loaded = computed(() => scripts.data.value)
+const loaded = computed(() => scripts.data.value);
 
 const FILTERS: Readonly<Record<string, (script: CodeScriptSummary) => boolean>> = {
   all: () => true,
   on: (script: CodeScriptSummary) => script.isEnabled,
   off: (script: CodeScriptSummary) => !script.isEnabled,
   failed: (script: CodeScriptSummary) => Boolean(script.lastRuntimeError),
-}
+};
 
 function countOf(tab: string): number | undefined {
-  return loaded.value?.filter(FILTERS[tab]!).length
+  return loaded.value?.filter(FILTERS[tab]!).length;
 }
 
 const tabs = computed<PageTab[]>(() =>
@@ -64,10 +64,10 @@ const tabs = computed<PageTab[]>(() =>
     label: t(`dashboard.scripts.tabs.${value}`),
     count: countOf(value),
   })),
-)
+);
 
-const visible: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => {
-  const typed = search.value.trim().toLowerCase()
+const visible = computed<CodeScriptSummary[] | undefined>(() => {
+  const typed = search.value.trim().toLowerCase();
 
   return loaded.value
     ?.filter(FILTERS[view.value] ?? FILTERS.all!)
@@ -76,80 +76,80 @@ const visible: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => {
         typed === '' ||
         script.name.toLowerCase().includes(typed) ||
         (script.description ?? '').toLowerCase().includes(typed),
-    )
-})
+    );
+});
 
 const listState = usePanelState(scripts, () =>
-  false)
+  false);
 const panelState = computed(() => {
   if (listState.value !== 'ready')
-    return listState.value
+    return listState.value;
 
   return visible.value?.length === 0
     ? 'empty'
-    : 'ready'
-})
+    : 'ready';
+});
 
-const emptyText: ComputedRef<string> = computed<string>(() => {
+const emptyText = computed<string>(() => {
   if (search.value.trim() !== '')
-    return t('dashboard.scripts.noMatch', { query: search.value.trim() })
+    return t('dashboard.scripts.noMatch', { query: search.value.trim() });
 
   return t(
     loaded.value?.length === 0
       ? 'dashboard.scripts.list.empty'
       : 'dashboard.scripts.list.emptyTab',
-  )
-})
-const errorText: ComputedRef<string> = computed<string>(
+  );
+});
+const errorText = computed<string>(
   () => scripts.error.value?.message || t('dashboard.scripts.list.error'),
-)
+);
 
-const hint = computed<string>(() => t(`dashboard.scripts.hints.${view.value}`))
-const count: ComputedRef<string | undefined> = computed(() =>
+const hint = computed<string>(() => t(`dashboard.scripts.hints.${view.value}`));
+const count = computed<string | undefined>(() =>
   panelState.value === 'ready'
     ? t('dashboard.scripts.count', { count: visible.value?.length ?? 0 })
     : undefined,
-)
+);
 
 const asked = computed<string>(() =>
   typeof route.query.script === 'string'
     ? route.query.script
     : '',
-)
-const selectedId = asked
+);
+const selectedId = asked;
 
 function pick(script: CodeScriptSummary): void {
-  void router.push({ query: { ...route.query, script: script.id } })
+  void router.push({ query: { ...route.query, script: script.id } });
 }
 
 function back(): void {
-  const { script, ...rest } = route.query
+  const { script, ...rest } = route.query;
 
-  void script
-  void router.push({ query: rest })
+  void script;
+  void router.push({ query: rest });
 }
 
-const newOpen = ref(false)
+const newOpen = ref(false);
 
 // The test runs of this visit, newest first. A failed run opens its dialog at once.
-const runs: Ref<SessionRun[]> = ref([])
-const failedRun: Ref<SessionRun | null> = ref(null)
-const runsOpen = ref(false)
-let nextRunId: number = 1
+const runs = ref<SessionRun[]>([]);
+const failedRun = ref<SessionRun | null>(null);
+const runsOpen = ref(false);
+let nextRunId: number = 1;
 
 function ran(run: Omit<SessionRun, 'id'>): void {
-  const entry: SessionRun = { ...run, id: nextRunId++ }
+  const entry: SessionRun = { ...run, id: nextRunId++ };
 
-  runs.value = [entry, ...runs.value]
+  runs.value = [entry, ...runs.value];
 
   if (!entry.result.success) {
-    failedRun.value = entry
+    failedRun.value = entry;
   }
 }
 
 function opened(id: string | null): void {
   if (id !== null) {
-    void router.push({ query: { ...route.query, script: id } })
+    void router.push({ query: { ...route.query, script: id } });
   }
 }
 </script>

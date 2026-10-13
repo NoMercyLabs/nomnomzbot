@@ -8,25 +8,25 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import SearchField from '@/components/layout/SearchField.vue'
+import SearchField from '@/components/layout/SearchField.vue';
 
-let mounted: VueWrapper | undefined
+let mounted: VueWrapper | undefined;
 
 afterEach(() => {
-  mounted?.unmount()
-  document.body.innerHTML = ''
-})
+  mounted?.unmount();
+  document.body.innerHTML = '';
+});
 
 function field(): HTMLInputElement {
   mounted = mount(SearchField, {
     attachTo: document.body,
     props: { placeholder: 'Search commands', modelValue: '' },
-  })
+  });
 
-  return mounted.find('input').element
+  return mounted.find('input').element;
 }
 
 function press(key: string, target: EventTarget = document.body): KeyboardEvent {
@@ -34,59 +34,59 @@ function press(key: string, target: EventTarget = document.body): KeyboardEvent 
     key,
     bubbles: true,
     cancelable: true,
-  })
+  });
 
-  target.dispatchEvent(event)
+  target.dispatchEvent(event);
 
-  return event
+  return event;
 }
 
 describe('the search field', () => {
   it('focuses on the key "/" and keeps the slash out of the box', () => {
-    const input = field()
+    const input = field();
 
-    const event = press('/')
+    const event = press('/');
 
-    expect(document.activeElement).toBe(input)
-    expect(event.defaultPrevented).toBe(true)
-  })
+    expect(document.activeElement).toBe(input);
+    expect(event.defaultPrevented).toBe(true);
+  });
 
   it('leaves "/" alone while a person types in another field', () => {
-    const input = field()
-    const other: HTMLInputElement = document.createElement('input')
+    const input = field();
+    const other: HTMLInputElement = document.createElement('input');
 
-    document.body.appendChild(other)
-    other.focus()
+    document.body.appendChild(other);
+    other.focus();
 
-    const event = press('/', other)
+    const event = press('/', other);
 
-    expect(document.activeElement).toBe(other)
-    expect(document.activeElement).not.toBe(input)
-    expect(event.defaultPrevented).toBe(false)
-  })
+    expect(document.activeElement).toBe(other);
+    expect(document.activeElement).not.toBe(input);
+    expect(event.defaultPrevented).toBe(false);
+  });
 
   it('emits what is typed', async () => {
-    field()
+    field();
 
-    await mounted!.find('input').setValue('hel')
+    await mounted!.find('input').setValue('hel');
 
-    expect(mounted!.emitted('update:modelValue')).toEqual([['hel']])
-  })
+    expect(mounted!.emitted('update:modelValue')).toEqual([['hel']]);
+  });
 
   it('names the box by its placeholder', () => {
-    field()
+    field();
 
-    expect(mounted!.find('input').attributes('aria-label')).toBe('Search commands')
-  })
+    expect(mounted!.find('input').attributes('aria-label')).toBe('Search commands');
+  });
 
   it('stops listening once removed', () => {
-    const input = field()
+    const input = field();
 
-    mounted!.unmount()
-    mounted = undefined
+    mounted!.unmount();
+    mounted = undefined;
 
-    press('/')
+    press('/');
 
-    expect(document.activeElement).not.toBe(input)
-  })
-})
+    expect(document.activeElement).not.toBe(input);
+  });
+});

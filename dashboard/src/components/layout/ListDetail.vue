@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The list and detail layout: a list column, the detail beside it, and an optional aside.
 // On a phone only one shows: the list, or the detail over the list once showDetail is true.
-withDefaults(defineProps<{ showDetail?: boolean }>(), { showDetail: false })
+withDefaults(defineProps<{ showDetail?: boolean }>(), { showDetail: false });
 </script>
 
 <template>

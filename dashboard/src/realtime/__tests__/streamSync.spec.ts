@@ -8,26 +8,26 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { QueryClient } from '@tanstack/vue-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient } from '@tanstack/vue-query';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream'
+import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream';
 
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
+import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
 
 vi.mock('@microsoft/signalr', () => ({
   HubConnectionBuilder: FakeHubConnectionBuilder,
   HubConnection: FakeHubConnection,
-}))
+}));
 
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
-  const hub = await import('../dashboardHub')
-  const queries = new QueryClient()
+  const hub = await import('../dashboardHub');
+  const queries = new QueryClient();
 
-  await hub.startDashboardHub(queries)
-  await hub.watchChannel('c1')
+  await hub.startDashboardHub(queries);
+  await hub.watchChannel('c1');
 
-  return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)]
+  return [queries, FakeHubConnection.at(FakeHubConnection.instances.length - 1)];
 }
 
 const info: StreamInfo = {
@@ -38,19 +38,19 @@ const info: StreamInfo = {
   viewerCount: 0,
   startedAt: null,
   language: 'en',
-}
+};
 
 beforeEach(() => {
-  vi.resetModules()
-  FakeHubConnection.instances = []
-})
+  vi.resetModules();
+  FakeHubConnection.instances = [];
+});
 
 describe('stream live sync', () => {
   it('going live writes the live state into the stream info and marks the history stale', async () => {
-    const [queries, connection] = await started()
+    const [queries, connection] = await started();
 
-    queries.setQueryData(streamInfoKey('c1'), info)
-    queries.setQueryData(streamHistoryKey('c1'), [])
+    queries.setQueryData(streamInfoKey('c1'), info);
+    queries.setQueryData(streamHistoryKey('c1'), []);
 
     connection.receive('StreamStatusChanged', {
       isLive: true,
@@ -58,7 +58,7 @@ describe('stream live sync', () => {
       title: 'New title',
       gameName: 'New game',
       startedAt: '2026-10-13T10:00:00Z',
-    })
+    });
 
     expect(queries.getQueryData<StreamInfo>(streamInfoKey('c1'))).toMatchObject({
       isLive: true,
@@ -66,19 +66,19 @@ describe('stream live sync', () => {
       gameName: 'New game',
       startedAt: '2026-10-13T10:00:00Z',
       tags: ['a'],
-    })
+    });
 
-    expect(queries.getQueryState(streamHistoryKey('c1'))?.isInvalidated).toBe(true)
-  })
+    expect(queries.getQueryState(streamHistoryKey('c1'))?.isInvalidated).toBe(true);
+  });
 
   it('going offline keeps the title when the payload carries none', async () => {
-    const [queries, connection] = await started()
+    const [queries, connection] = await started();
 
     queries.setQueryData(streamInfoKey('c1'), {
       ...info,
       isLive: true,
       startedAt: '2026-10-13T10:00:00Z',
-    })
+    });
 
     connection.receive('StreamStatusChanged', {
       isLive: false,
@@ -86,45 +86,45 @@ describe('stream live sync', () => {
       title: null,
       gameName: null,
       startedAt: null,
-    })
+    });
 
     expect(queries.getQueryData<StreamInfo>(streamInfoKey('c1'))).toMatchObject({
       isLive: false,
       title: 'Old title',
       gameName: 'Old game',
-    })
-  })
+    });
+  });
 
   it('a title change from Twitch updates the title and category only', async () => {
-    const [queries, connection] = await started()
+    const [queries, connection] = await started();
 
-    queries.setQueryData(streamInfoKey('c1'), info)
+    queries.setQueryData(streamInfoKey('c1'), info);
 
     connection.receive('StreamInfoChanged', {
       broadcasterId: 'x',
       broadcasterDisplayName: 'Stoney_Eagle',
       title: 'From Twitch',
       gameName: 'Just Chatting',
-    })
+    });
 
     expect(queries.getQueryData<StreamInfo>(streamInfoKey('c1'))).toMatchObject({
       title: 'From Twitch',
       gameName: 'Just Chatting',
       tags: ['a'],
       language: 'en',
-    })
-  })
+    });
+  });
 
   it('a title change creates no cache entry when the page never loaded the stream info', async () => {
-    const [queries, connection] = await started()
+    const [queries, connection] = await started();
 
     connection.receive('StreamInfoChanged', {
       broadcasterId: 'x',
       broadcasterDisplayName: 'Stoney_Eagle',
       title: 'From Twitch',
       gameName: 'Just Chatting',
-    })
+    });
 
-    expect(queries.getQueryData(streamInfoKey('c1'))).toBeUndefined()
-  })
-})
+    expect(queries.getQueryData(streamInfoKey('c1'))).toBeUndefined();
+  });
+});

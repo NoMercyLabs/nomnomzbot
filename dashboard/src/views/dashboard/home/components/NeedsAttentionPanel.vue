@@ -8,33 +8,33 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useActionRequired, type ActionRequiredItem } from '@/api/actionRequired'
-import { attentionWords } from '@/api/actionRequiredText'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import RowGroup from '@/components/layout/RowGroup.vue'
-import SummaryRow from '@/components/layout/SummaryRow.vue'
-import { Button } from '@/components/ui/button'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useActionRequired, type ActionRequiredItem } from '@/api/actionRequired';
+import { attentionWords } from '@/api/actionRequiredText';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
-const { t, te } = useI18n()
-const { channelId } = useCurrentChannel()
+const { t, te } = useI18n();
+const { channelId } = useCurrentChannel();
 
-const attentionQuery = useActionRequired(channelId)
+const attentionQuery = useActionRequired(channelId);
 const attentionState = usePanelState(
   attentionQuery,
   (items: ActionRequiredItem[]) => items.length === 0,
-)
+);
 
 const attention = computed(() =>
   (attentionQuery.data.value ?? []).map((item) => ({
     id: item.id,
     ...attentionWords(item, { t, te }),
   })),
-)
+);
 </script>
 
 <template>

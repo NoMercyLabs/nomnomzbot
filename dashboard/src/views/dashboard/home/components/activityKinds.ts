@@ -8,30 +8,30 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { Component } from 'vue'
+import type { Component } from 'vue';
 
-import type { ActivityEvent } from '@/api/home'
+import type { ActivityEvent } from '@/api/home';
 
-import BirthdayCake from '~icons/nnz/birthday-cake'
-import ChatBubble from '~icons/nnz/chat-bubble'
-import Diamond from '~icons/nnz/diamond'
-import Fire from '~icons/nnz/fire'
-import GiftCard from '~icons/nnz/gift-card'
-import Hammer from '~icons/nnz/hammer'
-import HeartBroken from '~icons/nnz/heart-broken'
-import Megaphone from '~icons/nnz/megaphone'
-import Moderator from '~icons/nnz/moderator'
-import PaperPlaneSend from '~icons/nnz/paper-plane-send'
-import PresentationChart from '~icons/nnz/presentation-chart'
-import Rocket from '~icons/nnz/rocket'
-import Star from '~icons/nnz/star'
-import SwordsCrossing from '~icons/nnz/swords-crossing'
-import Ticket from '~icons/nnz/ticket'
-import Timer from '~icons/nnz/timer'
-import Trophy from '~icons/nnz/trophy'
-import UserAdd from '~icons/nnz/user-add'
-import UserRemove from '~icons/nnz/user-remove'
-import Wave from '~icons/nnz/wave'
+import BirthdayCake from '~icons/nnz/birthday-cake';
+import ChatBubble from '~icons/nnz/chat-bubble';
+import Diamond from '~icons/nnz/diamond';
+import Fire from '~icons/nnz/fire';
+import GiftCard from '~icons/nnz/gift-card';
+import Hammer from '~icons/nnz/hammer';
+import HeartBroken from '~icons/nnz/heart-broken';
+import Megaphone from '~icons/nnz/megaphone';
+import Moderator from '~icons/nnz/moderator';
+import PaperPlaneSend from '~icons/nnz/paper-plane-send';
+import PresentationChart from '~icons/nnz/presentation-chart';
+import Rocket from '~icons/nnz/rocket';
+import Star from '~icons/nnz/star';
+import SwordsCrossing from '~icons/nnz/swords-crossing';
+import Ticket from '~icons/nnz/ticket';
+import Timer from '~icons/nnz/timer';
+import Trophy from '~icons/nnz/trophy';
+import UserAdd from '~icons/nnz/user-add';
+import UserRemove from '~icons/nnz/user-remove';
+import Wave from '~icons/nnz/wave';
 
 import {
   parseActivityData,
@@ -40,31 +40,31 @@ import {
   pickText,
   tierOf,
   type ActivityData,
-} from './activityData'
+} from './activityData';
 
 // Text for the panel to translate: an i18n key with optional params.
-export type ActivityRowText = { key: string; params?: Record<string, string | number> }
+export type ActivityRowText = { key: string; params?: Record<string, string | number> };
 export type ActivityRowView = {
-  icon: Component
+  icon: Component;
   // The person named in the data, for when the server sent no username.
-  actor: string | null
-  title: ActivityRowText | null
-  detail: ActivityRowText
-}
+  actor: string | null;
+  title: ActivityRowText | null;
+  detail: ActivityRowText;
+};
 
-type Describe = (data: ActivityData) => { title?: ActivityRowText; detail: ActivityRowText } | null
+type Describe = (data: ActivityData) => { title?: ActivityRowText; detail: ActivityRowText } | null;
 type ActivityKind = {
-  icon: Component
-  label: string
-  describe?: Describe
-}
+  icon: Component;
+  label: string;
+  describe?: Describe;
+};
 
-const TYPE: string = 'dashboard.home.activity.type.'
-const DETAIL: string = 'dashboard.home.activity.detail.'
+const TYPE: string = 'dashboard.home.activity.type.';
+const DETAIL: string = 'dashboard.home.activity.detail.';
 const detail = (name: string, params?: Record<string, string | number>): ActivityRowText => ({
   key: DETAIL + name,
   params,
-})
+});
 
 // The server writes the person's name under a different key per event; first one that holds a name wins.
 const ACTOR_KEYS = [
@@ -74,31 +74,31 @@ const ACTOR_KEYS = [
   'fromDisplayName',
   'actorDisplay',
   'user',
-] as const
+] as const;
 
 // A shoutout row leads with who was shouted out; the action stays the small line.
 const shoutout =
   (label: string, read: (data: ActivityData) => string | null): Describe =>
     (data: ActivityData) => {
-      const name = read(data)
+      const name = read(data);
 
       return name === null
         ? null
-        : { title: detail('person', { name }), detail: { key: TYPE + label } }
-    }
+        : { title: detail('person', { name }), detail: { key: TYPE + label } };
+    };
 
 function subscribed(data: ActivityData): ReturnType<Describe> {
-  const tier = tierOf(data.tier)
+  const tier = tierOf(data.tier);
 
   if (tier === null)
-    return null
+    return null;
 
-  const months = pickCount(data, 'cumulativeMonths', 'months')
+  const months = pickCount(data, 'cumulativeMonths', 'months');
 
   if (months !== null && months > 1)
-    return { detail: detail('subscribedMonths', { tier, months }) }
+    return { detail: detail('subscribedMonths', { tier, months }) };
 
-  return { detail: detail('subscribed', { tier }) }
+  return { detail: detail('subscribed', { tier }) };
 }
 
 const KINDS: Record<string, ActivityKind> = {
@@ -117,13 +117,13 @@ const KINDS: Record<string, ActivityKind> = {
     icon: GiftCard,
     label: 'channel_subscription_gift',
     describe: (data: ActivityData) => {
-      const tier = tierOf(data.tier)
-      const count = pickCount(data, 'giftCount', 'count')
+      const tier = tierOf(data.tier);
+      const count = pickCount(data, 'giftCount', 'count');
 
       if (tier === null || count === null)
-        return null
+        return null;
 
-      return { detail: detail('gifted', { count, tier }) }
+      return { detail: detail('gifted', { count, tier }) };
     },
   },
   'channel.subscription.gift.received': {
@@ -134,49 +134,49 @@ const KINDS: Record<string, ActivityKind> = {
     icon: HeartBroken,
     label: 'channel_subscription_end',
     describe: (data: ActivityData) => {
-      const tier = tierOf(data.tier)
+      const tier = tierOf(data.tier);
 
       if (tier === null)
-        return null
+        return null;
 
       return { detail: detail(data.isGift === true
         ? 'giftSubEnded'
-        : 'subEnded', { tier }) }
+        : 'subEnded', { tier }) };
     },
   },
   'channel.cheer': {
     icon: Diamond,
     label: 'channel_cheer',
     describe: (data: ActivityData) => {
-      const count = pickCount(data, 'bits')
+      const count = pickCount(data, 'bits');
 
       return count === null
         ? null
-        : { detail: detail('cheered', { count }) }
+        : { detail: detail('cheered', { count }) };
     },
   },
   'channel.raid': {
     icon: SwordsCrossing,
     label: 'channel_raid',
     describe: (data: ActivityData) => {
-      const count = pickCount(data, 'viewerCount', 'viewers')
+      const count = pickCount(data, 'viewerCount', 'viewers');
 
       return count === null
         ? null
-        : { detail: detail('raidedWith', { count }) }
+        : { detail: detail('raidedWith', { count }) };
     },
   },
   'channel.raid.out': {
     icon: PaperPlaneSend,
     label: 'channel_raid_out',
     describe: (data: ActivityData) => {
-      const name = pickText(data, 'user', 'targetDisplayName', 'toDisplayName')
-      const count = pickCount(data, 'viewerCount', 'viewers')
+      const name = pickText(data, 'user', 'targetDisplayName', 'toDisplayName');
+      const count = pickCount(data, 'viewerCount', 'viewers');
 
       if (name === null || count === null)
-        return null
+        return null;
 
-      return { title: detail('raidedTarget', { name }), detail: detail('wentAlong', { count }) }
+      return { title: detail('raidedTarget', { name }), detail: detail('wentAlong', { count }) };
     },
   },
   'channel.raid.start': { icon: PaperPlaneSend, label: 'channel_raid_start' },
@@ -184,11 +184,11 @@ const KINDS: Record<string, ActivityKind> = {
     icon: Ticket,
     label: 'channel_redemption',
     describe: (data: ActivityData) => {
-      const reward = pickText(data, 'rewardTitle', 'reward')
+      const reward = pickText(data, 'rewardTitle', 'reward');
 
       return reward === null
         ? null
-        : { detail: detail('redeemed', { reward }) }
+        : { detail: detail('redeemed', { reward }) };
     },
   },
   'channel.ban': { icon: Hammer, label: 'channel_ban' },
@@ -197,11 +197,11 @@ const KINDS: Record<string, ActivityKind> = {
     icon: Timer,
     label: 'channel_timeout',
     describe: (data: ActivityData) => {
-      const seconds = pickCount(data, 'durationSeconds')
+      const seconds = pickCount(data, 'durationSeconds');
 
       return seconds === null
         ? null
-        : { detail: detail('timedOut', { minutes: Math.max(1, Math.round(seconds / 60)) }) }
+        : { detail: detail('timedOut', { minutes: Math.max(1, Math.round(seconds / 60)) }) };
     },
   },
   'channel.moderator.add': { icon: Moderator, label: 'channel_moderator_add' },
@@ -222,41 +222,45 @@ const KINDS: Record<string, ActivityKind> = {
     icon: Megaphone,
     label: 'bot_shoutout_pending',
     describe: shoutout('bot_shoutout_pending', (data: ActivityData) =>
-      pickNestedText(data, 'Target', 'DisplayName')),
+      pickNestedText(data, 'Target', 'DisplayName'),
+    ),
   },
   'bot.shoutout.auto-pending': {
     icon: Megaphone,
     label: 'bot_shoutout_auto_pending',
     describe: shoutout('bot_shoutout_auto_pending', (data: ActivityData) =>
-      pickText(data, 'DisplayName')),
+      pickText(data, 'DisplayName'),
+    ),
   },
   'channel.shoutout.create': {
     icon: Megaphone,
     label: 'channel_shoutout_create',
     describe: shoutout('channel_shoutout_create', (data: ActivityData) =>
-      pickText(data, 'toDisplayName')),
+      pickText(data, 'toDisplayName'),
+    ),
   },
   'channel.shoutout.receive': {
     icon: Megaphone,
     label: 'channel_shoutout_receive',
     describe: shoutout('channel_shoutout_receive', (data: ActivityData) =>
-      pickText(data, 'fromBroadcasterDisplayName')),
+      pickText(data, 'fromBroadcasterDisplayName'),
+    ),
   },
   'bot.shoutout.native-attempt': { icon: Megaphone, label: 'bot_shoutout_native_attempt' },
   'bot.shoutout.sent': { icon: Megaphone, label: 'bot_shoutout_sent' },
-}
+};
 
-const OTHER: ActivityKind = { icon: Megaphone, label: 'other' }
+const OTHER: ActivityKind = { icon: Megaphone, label: 'other' };
 
 export function describeActivity(event: ActivityEvent): ActivityRowView {
-  const kind = KINDS[event.type] ?? OTHER
-  const data = parseActivityData(event.data)
-  const described: ReturnType<Describe> = kind.describe?.(data) ?? null
+  const kind = KINDS[event.type] ?? OTHER;
+  const data = parseActivityData(event.data);
+  const described: ReturnType<Describe> = kind.describe?.(data) ?? null;
 
   return {
     icon: kind.icon,
     actor: pickText(data, ...ACTOR_KEYS),
     title: described?.title ?? null,
     detail: described?.detail ?? { key: TYPE + kind.label },
-  }
+  };
 }

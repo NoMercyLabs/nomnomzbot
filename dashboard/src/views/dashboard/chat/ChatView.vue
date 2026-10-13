@@ -11,74 +11,74 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { useLocalStorage, type RemovableRef } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useLocalStorage } from '@vueuse/core';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
-import StatusBadge from '@/components/layout/StatusBadge.vue'
-import VirtualList from '@/components/layout/VirtualList.vue'
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
+import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import VirtualList from '@/components/layout/VirtualList.vue';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { usePanelState } from '@/composables/usePanelState';
 
-import ChatComposer from './components/ChatComposer.vue'
-import ChatLine from './components/ChatLine.vue'
+import ChatComposer from './components/ChatComposer.vue';
+import ChatLine from './components/ChatLine.vue';
 
-const { t } = useI18n()
-const { channelId, current } = useCurrentChannel()
+const { t } = useI18n();
+const { channelId, current } = useCurrentChannel();
 
-const history = useChatHistory(channelId)
-const banner = useBanUser(channelId)
+const history = useChatHistory(channelId);
+const banner = useBanUser(channelId);
 
-const hideCommands: RemovableRef<boolean> = useLocalStorage('nnz.chat.hideCommands', false)
-const banTarget: Ref<ChatLineData | null> = ref(null)
-const banFailed = ref(false)
+const hideCommands = useLocalStorage<boolean>('nnz.chat.hideCommands', false);
+const banTarget = ref<ChatLineData | null>(null);
+const banFailed = ref(false);
 
-const lines: ComputedRef<ChatLineData[]> = computed(() => history.data.value ?? [])
+const lines = computed<ChatLineData[]>(() => history.data.value ?? []);
 const visible = computed(() =>
   hideCommands.value
     ? lines.value.filter((line: ChatLineData) => !line.isCommand)
     : lines.value,
-)
+);
 
 const panelState = usePanelState(history, () =>
-  visible.value.length === 0)
-const emptyText: ComputedRef<string> = computed(() =>
+  visible.value.length === 0);
+const emptyText = computed<string>(() =>
   lines.value.length > 0
     ? t('dashboard.chat.feed.emptyCommands')
     : t('dashboard.chat.feed.empty'),
-)
-const live = computed(() => current.value?.isLive === true)
+);
+const live = computed(() => current.value?.isLive === true);
 
-const banOpen = computed(() => banTarget.value !== null)
+const banOpen = computed(() => banTarget.value !== null);
 
 function askBan(line: ChatLineData): void {
-  banFailed.value = false
-  banTarget.value = line
+  banFailed.value = false;
+  banTarget.value = line;
 }
 
 function closeBan(open: boolean): void {
   if (!open) {
-    banTarget.value = null
+    banTarget.value = null;
   }
 }
 
 async function confirmBan(): Promise<void> {
-  const target = banTarget.value
+  const target = banTarget.value;
 
-  if (!target) return
+  if (!target) return;
 
   try {
-    await banner.mutateAsync({ targetUserId: target.userId, scope: 'this_channel' })
-    banTarget.value = null
+    await banner.mutateAsync({ targetUserId: target.userId, scope: 'this_channel' });
+    banTarget.value = null;
   } catch {
-    banTarget.value = null
-    banFailed.value = true
+    banTarget.value = null;
+    banFailed.value = true;
   }
 }
 </script>

@@ -9,83 +9,91 @@
 -->
 <script setup lang="ts">
 // A new command: a name and what it does. A code command is not offered: no endpoint attaches a script.
-import { ref, watch, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useCreateCommand, type NewCommand } from '@/api/commands'
-import { usePipelines } from '@/api/pipelines'
-import FormDialog from '@/components/layout/FormDialog.vue'
-import TemplateField from '@/components/layout/TemplateField.vue'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { useCreateCommand, type NewCommand } from '@/api/commands';
+import { usePipelines } from '@/api/pipelines';
+import FormDialog from '@/components/layout/FormDialog.vue';
+import TemplateField from '@/components/layout/TemplateField.vue';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { useCurrentChannel } from '@/composables/useCurrentChannel'
+} from '@/components/ui/select';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-type Kind = 'template' | 'pipeline'
+type Kind = 'template' | 'pipeline';
 
-const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ created: [name: string] }>()
+const open = defineModel<boolean>('open', { required: true });
+const emit = defineEmits<{ created: [name: string] }>();
 
-const { t } = useI18n()
-const { channelId } = useCurrentChannel()
-const create = useCreateCommand(channelId)
-const pipelines = usePipelines(channelId)
+const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const create = useCreateCommand(channelId);
+const pipelines = usePipelines(channelId);
 
-const name = ref('')
-const kind: Ref<Kind> = ref<Kind>('template')
-const reply = ref('')
-const pipelineId = ref('')
-const error: Ref<string | undefined> = ref(undefined)
+const name = ref('');
+const kind = ref<Kind>('template');
+const reply = ref('');
+const pipelineId = ref('');
+const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
-  if (!isOpen) return
+  if (!isOpen) return;
 
-  name.value = ''
-  kind.value = 'template'
-  reply.value = ''
-  pipelineId.value = ''
-  error.value = undefined
-})
+  name.value = '';
+  kind.value = 'template';
+  reply.value = '';
+  pipelineId.value = '';
+  error.value = undefined;
+});
 
 function cleaned(raw: string): string {
-  return raw.trim().replace(/^!+/, '').toLowerCase()
+  return raw.trim().replace(/^!+/, '').toLowerCase();
 }
 
 function bodyOf(clean: string): NewCommand {
   return kind.value === 'template'
-    ? { name: clean, tier: 'template', templateResponse: reply.value }
-    : { name: clean, tier: 'pipeline', pipelineId: pipelineId.value }
+    ? {
+        name: clean,
+        tier: 'template',
+        templateResponse: reply.value,
+      }
+    : {
+        name: clean,
+        tier: 'pipeline',
+        pipelineId: pipelineId.value,
+      };
 }
 
 async function submit(): Promise<void> {
-  const clean = cleaned(name.value)
+  const clean = cleaned(name.value);
 
   if (clean === '') {
-    error.value = t('dashboard.commands.dialog.nameRequired')
+    error.value = t('dashboard.commands.dialog.nameRequired');
 
-    return
+    return;
   }
 
-  error.value = undefined
+  error.value = undefined;
 
   try {
-    await create.mutateAsync(bodyOf(clean))
+    await create.mutateAsync(bodyOf(clean));
   } catch (failure) {
     error.value = failure instanceof Error
       ? failure.message
-      : String(failure)
+      : String(failure);
 
-    return
+    return;
   }
 
-  open.value = false
-  emit('created', clean)
+  open.value = false;
+  emit('created', clean);
 }
 </script>
 

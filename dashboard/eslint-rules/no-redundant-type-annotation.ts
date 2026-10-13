@@ -8,8 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { ESLintUtils, type TSESLint, type TSESTree } from '@typescript-eslint/utils'
-import ts from 'typescript'
+import { ESLintUtils, type TSESLint, type TSESTree } from '@typescript-eslint/utils';
+import ts from 'typescript';
 
 // Owner 2026-10-13: "don't type variables if the return type of the value matches and does not
 // change for things like this: const queries: QueryClient = useQueryClient()", and a typed
@@ -17,15 +17,15 @@ import ts from 'typescript'
 // So a `const` loses an annotation its value already has, a fixed-key table moves its annotation
 // to `as const satisfies`, and an annotation that widens or narrows a value stays.
 
-const looseFlags = ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never
+const looseFlags = ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never;
 const primitiveFlags =
-  ts.TypeFlags.String | ts.TypeFlags.Number | ts.TypeFlags.Boolean | ts.TypeFlags.BigInt
+  ts.TypeFlags.String | ts.TypeFlags.Number | ts.TypeFlags.Boolean | ts.TypeFlags.BigInt;
 
 function isLoose(type: ts.Type): boolean {
   if ((type.flags & looseFlags) !== 0)
-    return true
+    return true;
 
-  return type.isUnion() && type.types.some(isLoose)
+  return type.isUnion() && type.types.some(isLoose);
 }
 
 function isLiteralNode(node: ts.Node): boolean {
@@ -38,37 +38,37 @@ function isLiteralNode(node: ts.Node): boolean {
     node.kind === ts.SyntaxKind.TrueKeyword ||
     node.kind === ts.SyntaxKind.FalseKeyword ||
     node.kind === ts.SyntaxKind.NullKeyword
-  )
+  );
 }
 
 function unwrap(node: ts.Expression): ts.Expression {
   if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node))
-    return unwrap(node.expression)
+    return unwrap(node.expression);
 
   if (ts.isNonNullExpression(node))
-    return unwrap(node.expression)
+    return unwrap(node.expression);
 
-  return node
+  return node;
 }
 
 // `(locale) => ...` gets its parameter types from the annotation.
 function isContextTypedFunction(node: ts.Expression): boolean {
-  const value = unwrap(node)
+  const value = unwrap(node);
 
   if (!ts.isArrowFunction(value) && !ts.isFunctionExpression(value))
-    return false
+    return false;
 
-  return value.parameters.some((parameter) => parameter.type === undefined)
+  return value.parameters.some((parameter) => parameter.type === undefined);
 }
 
 function mentions(typeNode: ts.Node, name: string): boolean {
   if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
     if (typeNode.typeName.text === name)
-      return true
+      return true;
   }
 
   return ts.forEachChild(typeNode, (child) =>
-    mentions(child, name)) === true
+    mentions(child, name)) === true;
 }
 
 // A generic call infers from the annotation when a type parameter shows up only in its return
@@ -79,27 +79,27 @@ function infersFromAnnotation(
   checker: ts.TypeChecker,
 ): boolean {
   if (node.typeArguments !== undefined)
-    return false
+    return false;
 
-  const declaration = checker.getResolvedSignature(node)?.declaration
+  const declaration = checker.getResolvedSignature(node)?.declaration;
 
   if (declaration === undefined || ts.isJSDocSignature(declaration))
-    return false
+    return false;
 
-  const typeParameters = declaration.typeParameters ?? []
+  const typeParameters = declaration.typeParameters ?? [];
 
   if (typeParameters.length === 0)
-    return false
+    return false;
 
   if (ts.isNewExpression(node))
-    return true
+    return true;
 
   return typeParameters.some(
     (parameter) =>
       !declaration.parameters.some(
         (input) => input.type !== undefined && mentions(input.type, parameter.name.text),
       ),
-  )
+  );
 }
 
 // A literal, generic call or `new` in the value may take its type from the annotation:
@@ -107,28 +107,28 @@ function infersFromAnnotation(
 // return type, and `as` / `satisfies` expressions, stand on their own.
 function leansOnAnnotation(node: ts.Node, checker: ts.TypeChecker): boolean {
   if (ts.isFunctionLike(node) && node.type !== undefined)
-    return false
+    return false;
 
   if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node))
-    return false
+    return false;
 
   if (
     (ts.isCallExpression(node) || ts.isNewExpression(node)) &&
     infersFromAnnotation(node, checker)
   ) {
-    return true
+    return true;
   }
 
   if (isLiteralNode(node) && ts.isExpression(node)) {
-    const context = checker.getContextualType(node)
+    const context = checker.getContextualType(node);
 
     if (context !== undefined && !isLoose(context) && (context.flags & primitiveFlags) === 0) {
-      return true
+      return true;
     }
   }
 
   return ts.forEachChild(node, (child) =>
-    leansOnAnnotation(child, checker)) === true
+    leansOnAnnotation(child, checker)) === true;
 }
 
 // `const current: number = page` inside `while (page !== null)` names the type the loop's own
@@ -139,64 +139,64 @@ function readsLoopNarrowedLet(
   checker: ts.TypeChecker,
 ): boolean {
   const loop = ts.findAncestor(node, (ancestor) =>
-    ts.isIterationStatement(ancestor, false))
+    ts.isIterationStatement(ancestor, false));
 
   if (loop === undefined)
-    return false
+    return false;
 
   const visit = (child: ts.Node): boolean => {
     if (ts.isIdentifier(child)) {
-      const declaration = checker.getSymbolAtLocation(child)?.valueDeclaration
+      const declaration = checker.getSymbolAtLocation(child)?.valueDeclaration;
 
       if (
         declaration !== undefined &&
         ts.isVariableDeclaration(declaration) &&
         (ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Let) !== 0
       ) {
-        return true
+        return true;
       }
     }
 
-    return ts.forEachChild(child, visit) === true
-  }
+    return ts.forEachChild(child, visit) === true;
+  };
 
-  return visit(value)
+  return visit(value);
 }
 
 // `: Record<string, unknown>` over a `{}` value lets the code read any key.
 function addsIndex(declared: ts.Type, value: ts.Type, checker: ts.TypeChecker): boolean {
-  return checker.getIndexInfosOfType(declared).length > checker.getIndexInfosOfType(value).length
+  return checker.getIndexInfosOfType(declared).length > checker.getIndexInfosOfType(value).length;
 }
 
-const entryReaders = new Set(['entries', 'keys', 'values'])
-const shapeDepth = 4
+const entryReaders = new Set(['entries', 'keys', 'values']);
+const shapeDepth = 4;
 
 // `as const` drops what the literal leaves out and freezes every list. A shape with an optional
 // field the code may read, or a mutable list the code may push to, keeps its annotation.
 function hasLooseShape(type: ts.Type, checker: ts.TypeChecker, depth: number): boolean {
   if (depth === 0)
-    return false
+    return false;
 
   if (type.isUnion())
-    return type.types.some((member) => hasLooseShape(member, checker, depth))
+    return type.types.some((member) => hasLooseShape(member, checker, depth));
 
   if (type.symbol?.name === 'Array')
-    return true
+    return true;
 
   if (type.getCallSignatures().length > 0)
-    return false
+    return false;
 
-  const fields = type.getProperties()
+  const fields = type.getProperties();
 
   if (fields.some((field) => (field.flags & ts.SymbolFlags.Optional) !== 0))
-    return true
+    return true;
 
   const inner = [
     ...fields.map((field) => checker.getTypeOfSymbol(field)),
     ...checker.getIndexInfosOfType(type).map((info) => info.type),
-  ]
+  ];
 
-  return inner.some((member) => hasLooseShape(member, checker, depth - 1))
+  return inner.some((member) => hasLooseShape(member, checker, depth - 1));
 }
 
 function isLiteralKey(
@@ -204,13 +204,13 @@ function isLiteralKey(
   toTsType: (node: TSESTree.Node) => ts.Type,
 ): boolean {
   if (node.type === 'Literal')
-    return true
+    return true;
 
-  const key = toTsType(node)
+  const key = toTsType(node);
 
   return (key.isUnion()
     ? key.types
-    : [key]).every((member) => member.isLiteral())
+    : [key]).every((member) => member.isLiteral());
 }
 
 // A read that looks a key up by name: `t.name`, `t['name']`, `t[preset]` with a literal-typed
@@ -219,17 +219,17 @@ function isNamedRead(
   identifier: TSESTree.Node,
   toTsType: (node: TSESTree.Node) => ts.Type,
 ): boolean {
-  const parent = identifier.parent
+  const parent = identifier.parent;
 
   if (parent === undefined)
-    return false
+    return false;
 
   if (parent.type === 'MemberExpression' && parent.object === identifier) {
-    return !parent.computed || isLiteralKey(parent.property as TSESTree.Expression, toTsType)
+    return !parent.computed || isLiteralKey(parent.property as TSESTree.Expression, toTsType);
   }
 
   if (parent.type === 'CallExpression' && parent.arguments[0] === identifier) {
-    const callee = parent.callee
+    const callee = parent.callee;
 
     return (
       callee.type === 'MemberExpression' &&
@@ -237,29 +237,29 @@ function isNamedRead(
       callee.object.name === 'Object' &&
       callee.property.type === 'Identifier' &&
       entryReaders.has(callee.property.name)
-    )
+    );
   }
 
   if (parent.type === 'ForInStatement')
-    return parent.right === identifier
+    return parent.right === identifier;
 
-  return parent.type === 'SpreadElement'
+  return parent.type === 'SpreadElement';
 }
 
 // `t.x = 1`, `t.x++`, `delete t.x`: a frozen object would reject them.
 function isWrite(identifier: TSESTree.Node): boolean {
-  const member = identifier.parent
+  const member = identifier.parent;
 
   if (member?.type !== 'MemberExpression' || member.object !== identifier)
-    return false
+    return false;
 
-  const parent = member.parent
+  const parent = member.parent;
 
   return (
     (parent?.type === 'AssignmentExpression' && parent.left === member) ||
     parent?.type === 'UpdateExpression' ||
     (parent?.type === 'UnaryExpression' && parent.operator === 'delete')
-  )
+  );
 }
 
 // A constant object states its type as `as const satisfies T`. It keeps a plain annotation when
@@ -275,25 +275,25 @@ function isConstantObject(
   toTsType: (node: TSESTree.Node) => ts.Type,
 ): boolean {
   if (init.type !== 'ObjectExpression' || init.properties.length === 0)
-    return false
+    return false;
 
   if (isLoose(declared) || hasLooseShape(declared, checker, shapeDepth))
-    return false
+    return false;
 
   const references = (scope.getDeclaredVariables(node)[0]?.references ?? []).filter(
     (reference) => reference.identifier !== node.id,
-  )
+  );
 
   if (references.some((reference) => isWrite(reference.identifier)))
-    return false
+    return false;
 
   if (checker.getIndexInfosOfType(declared).length === 0)
-    return true
+    return true;
 
   if (node.parent.parent?.type === 'ExportNamedDeclaration')
-    return false
+    return false;
 
-  return references.every((reference) => isNamedRead(reference.identifier, toTsType))
+  return references.every((reference) => isNamedRead(reference.identifier, toTsType));
 }
 
 export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
@@ -309,27 +309,27 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
   },
   defaultOptions: [],
   create(context) {
-    const services = ESLintUtils.getParserServices(context)
-    const checker = services.program.getTypeChecker()
+    const services = ESLintUtils.getParserServices(context);
+    const checker = services.program.getTypeChecker();
     const toType = (node: TSESTree.TypeNode): ts.Type =>
-      checker.getTypeFromTypeNode(services.esTreeNodeToTSNodeMap.get(node) as ts.TypeNode)
+      checker.getTypeFromTypeNode(services.esTreeNodeToTSNodeMap.get(node) as ts.TypeNode);
     const toTsType = (node: TSESTree.Node): ts.Type =>
-      checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(node))
+      checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(node));
 
     return {
       VariableDeclarator(node): void {
-        const annotation = node.id.typeAnnotation
-        const init = node.init
+        const annotation = node.id.typeAnnotation;
+        const init = node.init;
 
-        if (annotation === undefined || init === null) return
+        if (annotation === undefined || init === null) return;
 
-        if (node.id.type !== 'Identifier' || node.parent.kind !== 'const') return
+        if (node.id.type !== 'Identifier' || node.parent.kind !== 'const') return;
 
-        const scope = context.sourceCode.scopeManager
-        const declared = toType(annotation.typeAnnotation)
+        const scope = context.sourceCode.scopeManager;
+        const declared = toType(annotation.typeAnnotation);
 
         if (scope !== null && isConstantObject(node, init, declared, checker, scope, toTsType)) {
-          const typeText = context.sourceCode.getText(annotation.typeAnnotation)
+          const typeText = context.sourceCode.getText(annotation.typeAnnotation);
 
           context.report({
             node: annotation,
@@ -338,35 +338,35 @@ export const noRedundantTypeAnnotation = ESLintUtils.RuleCreator.withoutDocs({
               fixer.remove(annotation),
               fixer.insertTextAfter(init, ` as const satisfies ${typeText}`),
             ],
-          })
+          });
 
-          return
+          return;
         }
 
-        const declarator = services.esTreeNodeToTSNodeMap.get(node)
-        const valueNode = services.esTreeNodeToTSNodeMap.get(init) as ts.Expression
-        const value = checker.getTypeAtLocation(valueNode)
+        const declarator = services.esTreeNodeToTSNodeMap.get(node);
+        const valueNode = services.esTreeNodeToTSNodeMap.get(init) as ts.Expression;
+        const value = checker.getTypeAtLocation(valueNode);
 
-        if (isLoose(declared) || isLoose(value)) return
+        if (isLoose(declared) || isLoose(value)) return;
 
-        if (addsIndex(declared, value, checker)) return
+        if (addsIndex(declared, value, checker)) return;
 
-        if (!checker.isTypeAssignableTo(declared, value)) return
+        if (!checker.isTypeAssignableTo(declared, value)) return;
 
-        if (!checker.isTypeAssignableTo(value, declared)) return
+        if (!checker.isTypeAssignableTo(value, declared)) return;
 
-        if (isContextTypedFunction(valueNode)) return
+        if (isContextTypedFunction(valueNode)) return;
 
-        if (leansOnAnnotation(valueNode, checker)) return
+        if (leansOnAnnotation(valueNode, checker)) return;
 
-        if (readsLoopNarrowedLet(declarator, valueNode, checker)) return
+        if (readsLoopNarrowedLet(declarator, valueNode, checker)) return;
 
         context.report({
           node: annotation,
           messageId: 'redundant',
           fix: (fixer) => fixer.remove(annotation),
-        })
+        });
       },
-    }
+    };
   },
-})
+});

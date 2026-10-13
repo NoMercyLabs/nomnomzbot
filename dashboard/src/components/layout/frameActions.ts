@@ -8,8 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { Component, InjectionKey } from 'vue'
+import type { Component, InjectionKey } from 'vue';
 
 // The frame's own controls (Shield mode, the error inbox) end the page header's title row,
 // so a page has one header, as in the mockups (frame.css:60).
-export const frameActionsKey: InjectionKey<Component> = Symbol('frameActions')
+export const frameActionsKey: InjectionKey<Component> = Symbol('frameActions');
