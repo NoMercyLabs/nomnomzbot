@@ -63,6 +63,52 @@ Each row is one decision. My recommendation is in the row. Stoney signs the whol
 | V21 | Type roles | The shadcn new-york-v4 source sets every size. Card title 16 semibold. Section label, form label and item title 14 medium. Description 14 normal, muted. Page title 20. 12 only for badges, counts, captions and table headers. A title and its description differ by weight and colour, not by size. | Stoney 2026-10-13: "UI-regels ... die standaard zijn voor het hele internet". Sources: `card.tsx`, `item.tsx`, `field.tsx`. |
 | V22 | Grouped lists | Items in one group sit on the muted surface, with a 1 px divider (foreground at 10 %) between them. The group is part of its card, never a floating block. Two inputs that set one thing (for example Limits) are one field with one label. | Stoney 2026-10-13: "overal netjes een divider en de hiërarchie". One component (V13) carries it. |
 | V23 | Page map first | Before any page is built, a script-built map puts every feature of `FEATURES-BY-SIDEBAR.md` on one page, one view and one level (overview, detail, advanced). The map is the checklist for the page slices. | "Terwijl jij dus van tevoren weet waar alles terecht komt." |
+| V24 | Folder layout | Fixed before the first file, in section 2a. The generators set the base (create-vue, shadcn-vue `components.json`); we add only what they lack. | Stoney 2026-10-13: "goed nadenkt over de folderstructuur ... zodat we dus niet constant gaan lopen wisselen en switchen en renamen en verplaatsen". |
+
+## 2a. Folder layout (V24)
+
+One name runs through every layer: the page slug. The TTS page is route `/tts`, folder `views/tts/`,
+query file `api/tts.ts`, translation keys `tts.*`. Find one, and you find all.
+
+```
+dashboard/
+  index.html  package.json  vite.config.ts  tsconfig*.json  eslint.config.ts   (create-vue)
+  components.json                        (shadcn-vue init)
+  e2e/                                   (create-vue, Playwright)
+    gates/       affordance, work, hover, fit, axe (section 4), run on every route
+    speed/       the budgets of section 3
+  src/
+    main.ts  App.vue                     (create-vue)
+    router/      index.ts: the routes, one lazy import per view (V10, V15)
+    views/       one folder per page slug (create-vue's own name for pages)
+      tts/
+        TtsView.vue        the page
+        components/        parts used by this page only
+        __tests__/         (create-vue)
+    components/
+      ui/        shadcn-vue output; changed only through its CLI
+      layout/    our own building blocks (V13, V21, V22): PageShell, BoardGrid, Panel,
+                 SummaryRow, DetailHeader, InlineFlow
+      shared/    a part used by two or more views (moved here on the second user, not before)
+    api/
+      client.ts            the one openapi-fetch client
+      schema.d.ts          generated from server/openapi/v1.json, never edited
+      <slug>.ts            the queries and mutations of one area (V4, V6, V7)
+    realtime/    dashboardHub.ts, adminHub.ts: hub events write into the query cache (V8)
+    stores/      Pinia, UI state only (V18)                    (create-vue)
+    composables/ shared use* functions (current channel, optimistic save)
+    i18n/        index.ts; locales/en.json, nl.json (V17)
+    styles/      tokens.css (from the mockup tokens), main.css
+    lib/         utils.ts holds cn() only, as shadcn-vue requires; nothing else goes here
+```
+
+Placement rules:
+
+- A file lives with the one page that uses it. On a second user it moves to `components/shared/`. That
+  is the only planned move.
+- No `utils`, `helpers` or `misc` folder. `lib/utils.ts` is shadcn's fixed name for `cn()`.
+- Generated folders (`components/ui/`, `api/schema.d.ts`) are never edited by hand.
+- A new top-level folder in `src/` needs a row in this table first.
 
 ## 3. Speed budgets (a test fails when one is broken)
 
