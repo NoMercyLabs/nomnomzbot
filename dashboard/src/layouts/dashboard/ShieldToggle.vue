@@ -35,6 +35,7 @@ const setShield = useSetShieldMode(channelId)
   >
     <ShieldCheck v-if="shield.data.value" aria-hidden="true" />
     <Shield v-else aria-hidden="true" />
-    {{ shield.data.value ? t('frame.shield.on') : t('frame.shield.off') }}
+    <!-- On a phone-wide pane only the icon shows; the words stay as its accessible name. -->
+    <span class="@max-md:sr-only">{{ shield.data.value ? t('frame.shield.on') : t('frame.shield.off') }}</span>
   </Toggle>
 </template>

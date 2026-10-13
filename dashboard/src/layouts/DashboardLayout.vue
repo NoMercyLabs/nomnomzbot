@@ -42,7 +42,9 @@ provide(frameActionsKey, FrameActions)
         <div class="w-48 min-w-0">
           <ChannelSwitch compact />
         </div>
-        <ProfileMenu class="ml-auto" icon />
+        <div class="ml-auto">
+          <ProfileMenu icon />
+        </div>
       </header>
       <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <RouterView />

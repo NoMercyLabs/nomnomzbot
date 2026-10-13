@@ -21,19 +21,22 @@ const frameActions: Component | null = inject(frameActionsKey, null)
 </script>
 
 <template>
-  <header class="flex-none">
-    <div class="flex h-16 items-center gap-3 border-b border-border px-6">
+  <!-- A narrow pane drops the quiet text first (meta, then the crumb); past that the actions wrap to their own line. -->
+  <header class="@container flex-none">
+    <div
+      class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0"
+    >
       <span
         v-if="crumb"
         data-slot="page-crumb"
-        class="text-muted-foreground after:ml-3 after:opacity-50 after:content-['/']"
+        class="hidden text-muted-foreground after:ml-3 after:opacity-50 after:content-['/'] @xl:inline"
       >
         {{ crumb }}
       </span>
       <h1 class="min-w-0 truncate text-xl font-semibold tracking-tight">{{ title }}</h1>
       <slot name="status" />
-      <div class="ml-auto flex items-center gap-3">
-        <span v-if="$slots.meta" class="text-muted-foreground"><slot name="meta" /></span>
+      <div class="ml-auto flex shrink-0 items-center gap-3">
+        <span v-if="$slots.meta" class="hidden text-muted-foreground @4xl:inline"><slot name="meta" /></span>
         <slot name="actions" />
         <component :is="frameActions" v-if="frameActions" />
       </div>
