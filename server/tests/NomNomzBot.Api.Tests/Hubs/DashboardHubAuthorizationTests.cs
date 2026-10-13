@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -45,7 +46,8 @@ public sealed class DashboardHubAuthorizationTests
         IChatProvider Chat,
         IOperatorChatSender OperatorSender,
         IActionAuthorizationService Gate2,
-        IGroupManager Groups
+        IGroupManager Groups,
+        IChannelAccessService Access
     );
 
     private static Fixture Build(
@@ -106,7 +108,7 @@ public sealed class DashboardHubAuthorizationTests
             Context = context,
             Groups = groups,
         };
-        return new(hub, chat, operatorSender, gate2, groups);
+        return new(hub, chat, operatorSender, gate2, groups, access);
     }
 
     [Fact]
@@ -290,6 +292,85 @@ public sealed class DashboardHubAuthorizationTests
                 $"channel-{Channel2}",
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    // ── The Vue dashboard joins with the channel's public ULID, never the raw Guid ──────────────
+
+    [Fact]
+    public async Task Joining_with_the_ulid_form_adds_the_connection_to_the_dashed_guid_group()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: true, connectionId: "conn-ulid");
+
+        JoinChannelResponse response = await f.Hub.JoinChannel(GuidUlidCodec.Encode(Channel));
+
+        response.Success.Should().BeTrue();
+        await f
+            .Access.Received(1)
+            .CanResolveTenantAsync(
+                Caller.ToString(),
+                Channel.ToString(),
+                Arg.Any<CancellationToken>()
+            );
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync("conn-ulid", $"channel-{Channel}", Arg.Any<CancellationToken>());
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync("conn-ulid", $"channel-{Channel}:chat", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Joining_a_ulid_channel_the_caller_cannot_access_is_refused_and_adds_no_group()
+    {
+        Fixture f = Build(entryAllowed: false, gate2Allows: true, connectionId: "conn-ulid-no");
+
+        JoinChannelResponse response = await f.Hub.JoinChannel(GuidUlidCodec.Encode(Channel));
+
+        response.Success.Should().BeFalse();
+        response.Error.Should().Be("Access denied");
+        await f
+            .Access.Received(1)
+            .CanResolveTenantAsync(
+                Caller.ToString(),
+                Channel.ToString(),
+                Arg.Any<CancellationToken>()
+            );
+        await f
+            .Groups.DidNotReceive()
+            .AddToGroupAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Leaving_with_the_ulid_form_removes_the_dashed_guid_groups()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: true, connectionId: "conn-ulid-leave");
+        await f.Hub.JoinChannel(GuidUlidCodec.Encode(Channel));
+
+        await f.Hub.LeaveChannel(GuidUlidCodec.Encode(Channel));
+
+        await f
+            .Groups.Received(1)
+            .RemoveFromGroupAsync(
+                "conn-ulid-leave",
+                $"channel-{Channel}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Sending_chat_with_the_ulid_form_reaches_the_channel_gates_and_sends()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: true);
+
+        SendMessageResponse response = await f.Hub.SendChatMessage(
+            GuidUlidCodec.Encode(Channel),
+            "hi chat"
+        );
+
+        response.Success.Should().BeTrue();
+        await f
+            .OperatorSender.Received(1)
+            .SendAsUserAsync(Caller, Channel, "hi chat", null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
