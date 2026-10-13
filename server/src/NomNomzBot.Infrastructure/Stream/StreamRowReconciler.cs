@@ -25,8 +25,8 @@ internal static class StreamRowReconciler
     /// Closes every open Stream row of a channel the bot knows is not streaming, but only where the end is
     /// provable: the latest chat message stored against that stream, else the latest chat message of the
     /// channel inside the row's window (its <c>StartedAt</c> up to the next stream row's <c>StartedAt</c>, or
-    /// <paramref name="upperBound"/> when no later row exists). With no such chat the row stays open — the
-    /// bot never invents a stream length. The newest open row also gets its empty title and category
+    /// <paramref name="upperBound"/> when no later row exists). With no such chat the row ends at its own
+    /// start — the bot never invents a stream length, and an open row would count as live. The newest open row also gets its empty title and category
     /// filled from the channel's stored values (<paramref name="backfillText"/>; the online handler passes
     /// false because the channel's stored text then belongs to the NEW stream). Returns true when a row changed.
     /// </summary>
@@ -65,6 +65,8 @@ internal static class StreamRowReconciler
                 upperBound,
                 ct
             );
+            // No chat proves a later end: the start is the only proven moment. An open row would count as live.
+            end ??= row.StartedAt;
             if (end is null)
                 continue;
             row.EndedAt = end;

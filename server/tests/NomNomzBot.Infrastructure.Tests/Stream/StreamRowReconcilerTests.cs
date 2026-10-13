@@ -117,7 +117,7 @@ public sealed class StreamRowReconcilerTests
     }
 
     [Fact]
-    public async Task Without_any_chat_in_its_window_the_row_stays_open_because_no_end_is_provable()
+    public async Task Without_any_chat_in_its_window_the_row_closes_at_its_start_so_it_adds_no_live_time()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         Channel channel = NewChannel();
@@ -135,7 +135,8 @@ public sealed class StreamRowReconcilerTests
         await db.SaveChangesAsync();
 
         Domain.Stream.Entities.Stream row = await Reload(db, "s-1");
-        row.EndedAt.Should().BeNull("a chat from before the stream started proves nothing");
+        row.EndedAt.Should()
+            .Be(Started, "a chat from before the stream started proves nothing, so only the start is proven");
         row.Title.Should().Be("Chill night", "the text backfill still applies to an open row");
     }
 

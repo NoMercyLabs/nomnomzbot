@@ -142,7 +142,7 @@ public sealed class ChannelOnlineHandlerTests
     }
 
     [Fact]
-    public async Task A_stale_open_stream_with_no_chat_in_its_window_stays_open_instead_of_getting_an_invented_end()
+    public async Task A_stale_open_stream_with_no_chat_in_its_window_closes_at_its_start_instead_of_an_invented_end()
     {
         (ChannelOnlineHandler sut, AuthDbContext db, _) = Build();
         DateTimeOffset staleStart = new(2026, 8, 20, 10, 0, 0, TimeSpan.Zero);
@@ -171,7 +171,8 @@ public sealed class ChannelOnlineHandlerTests
         NomNomzBot.Domain.Stream.Entities.Stream stale = await db.Streams.SingleAsync(s =>
             s.Id == "stale-stream"
         );
-        stale.EndedAt.Should().BeNull("no chat proves when it ended");
+        stale.EndedAt.Should()
+            .Be(staleStart, "no chat proves a later end, and an open row would count as live");
         stale.Title.Should().BeNull("the new stream's title is never copied onto the old row");
     }
 
