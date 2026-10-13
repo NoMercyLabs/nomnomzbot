@@ -180,6 +180,7 @@ function makeRouter(): Router {
     routes: [
       { path: '/app', name: 'dashboard-home', component: blank },
       { path: '/app/chat', name: 'dashboard-chat', component: blank },
+      { path: '/app/stream', name: 'dashboard-stream', component: blank },
     ],
   })
 }
@@ -239,6 +240,43 @@ describe('HomeView', () => {
     expect(panel('Happening now').textContent).toContain('StanLeFresh')
     expect(panel('Happening now').textContent).toContain('Followed')
     expect(document.body.querySelector('a[href="/app/chat"]')?.textContent).toContain('Open chat')
+  })
+
+  it('shows each happening row with its icon, readable detail and weekday plus 24h time', async () => {
+    const at = (type: string, username: string | null, data: unknown): Record<string, unknown> => ({
+      id: `${type}-${username}`,
+      type,
+      userId: 'u1',
+      username,
+      data: JSON.stringify(data),
+      timestamp: '2026-10-10T21:15:00',
+    })
+    answers['/activity'] = () =>
+      ok([
+        at('channel.subscription.end', 'night_light90', { tier: '1000', isGift: true }),
+        at('channel.raid.out', null, { user: 'JeroenLabs', viewers: '16' }),
+        at('channel.raid', 'CptTree', { viewers: 6 }),
+        at('channel.subscription.gift', 'Gifter', { giftCount: 5, tier: '1000' }),
+        at('channel.something.new', 'Odd', null),
+      ])
+    await open()
+
+    const rows: HTMLElement[] = [
+      ...panel('Happening now').querySelectorAll<HTMLElement>('[data-activity-row]'),
+    ]
+    const lines: string[] = rows.map((row) => row.textContent ?? '')
+    expect(lines[0]).toContain('night_light90')
+    expect(lines[0]).toContain('Gift sub ended · tier 1')
+    expect(lines[0]).toMatch(/Sat,? 21:15/)
+    expect(lines[1]).toContain('Raided JeroenLabs')
+    expect(lines[1]).toContain('16 viewers went along')
+    expect(lines[2]).toContain('Raided with 6 viewers')
+    expect(lines[3]).toContain('Gifted 5 subs · tier 1')
+    expect(lines[4]).toContain('Channel event')
+    expect(lines.join(' ')).not.toContain('channel.')
+    for (const row of rows) expect(row.querySelector('svg')).not.toBeNull()
+    // No events page exists yet, so no "All events" link points somewhere else.
+    expect(panel('Happening now').textContent).not.toContain('All events')
   })
 
   it('shows an offline stream: no live badge, the offline reason in the queue and the last stream', async () => {

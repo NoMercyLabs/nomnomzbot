@@ -26,6 +26,7 @@ import { useProviderName } from '@/composables/useProviderName'
 import ConnectionsPanel from './components/ConnectionsPanel.vue'
 import HappeningPanel from './components/HappeningPanel.vue'
 import NeedsAttentionPanel from './components/NeedsAttentionPanel.vue'
+import QuickActionsPanel from './components/QuickActionsPanel.vue'
 import ReviewQueuePanel from './components/ReviewQueuePanel.vue'
 
 const { t } = useI18n()
@@ -103,7 +104,11 @@ const primaryRoute: ComputedRef<{ name: string; label: string } | null> = comput
       <ConnectionsPanel />
     </BoardCell>
 
-    <BoardCell :span="9">
+    <BoardCell :span="5">
+      <QuickActionsPanel />
+    </BoardCell>
+
+    <BoardCell :span="4">
       <HappeningPanel :live="live" />
     </BoardCell>
   </BoardGrid>
