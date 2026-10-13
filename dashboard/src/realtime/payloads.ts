@@ -74,6 +74,17 @@ export type AdminSystemStatusPayload = {
   stats: unknown
 }
 
+// Hubs/Clients/IAdminClient.cs: ReceiveChannelRegistryUpdate (AdminBroadcastHandlers.cs). Three anonymous shapes share one event:
+// going live carries isLive, streamTitle and gameName; going offline carries isLive; a suspension carries status.
+export type AdminChannelRegistryPayload = {
+  broadcasterId: string
+  channelName?: string
+  isLive?: boolean
+  streamTitle?: string | null
+  gameName?: string | null
+  status?: string
+}
+
 // Hubs/Clients/IDashboardClient.cs: ChatMessage carries DashboardChatMessageDto, the same record the history call returns.
 export type ChatMessagePayload = components['schemas']['DashboardChatMessageDto']
 

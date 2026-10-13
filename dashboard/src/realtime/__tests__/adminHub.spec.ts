@@ -23,7 +23,7 @@ beforeEach(() => {
 describe('admin hub events', () => {
   it('a system status push replaces the cached snapshot', async () => {
     const { startAdminHub } = await import('../adminHub')
-    const { adminSystemStatusKey } = await import('../admin')
+    const { adminSystemStatusKey } = await import('@/api/admin')
     const queries: QueryClient = new QueryClient()
     await startAdminHub(queries)
 
