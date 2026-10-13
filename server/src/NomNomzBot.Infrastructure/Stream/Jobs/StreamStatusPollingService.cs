@@ -189,6 +189,20 @@ public sealed class StreamStatusPollingService : BackgroundService
                         ctx.CurrentStreamId = null;
                     }
 
+                    // A restart or a missed stream.offline leaves a row open with no in-memory edge to see.
+                    // Any conclusive "offline" read closes every open row of the channel.
+                    if (
+                        result.IsFailure
+                        && result.ErrorCode == TwitchErrorCodes.NotFound
+                        && await StreamRowReconciler.CloseOpenStreamsAsync(
+                            db,
+                            dbChannel,
+                            _timeProvider.GetUtcNow(),
+                            ct
+                        )
+                    )
+                        changed++;
+
                     // Each live poll doubles as a viewer-count sample: journaled, it becomes the
                     // per-stream viewer time series the daily PeakViewers aggregate folds from.
                     StreamViewerCountSampledEvent? sample = BuildViewerCountSample(
@@ -207,6 +221,11 @@ public sealed class StreamStatusPollingService : BackgroundService
                             ct
                         );
                         if (FoldPeakViewers(streamRow, result.Value.ViewerCount))
+                            changed++;
+                        if (
+                            streamRow is not null
+                            && StreamRowReconciler.BackfillMetadata(streamRow, dbChannel)
+                        )
                             changed++;
                     }
                 }

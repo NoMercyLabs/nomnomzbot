@@ -456,7 +456,17 @@ public sealed class BotLifecycleService : BackgroundService
                     channel.GameName = result.Value.GameName;
             }
 
-            if (channel.IsLive != wasLive || result.IsSuccess)
+            // A stream row left open by a restart or a missed stream.offline is closed on this offline read.
+            bool closedRows =
+                result.IsFailure
+                && await NomNomzBot.Infrastructure.Stream.StreamRowReconciler.CloseOpenStreamsAsync(
+                    db,
+                    channel,
+                    TimeProvider.System.GetUtcNow(),
+                    ct
+                );
+
+            if (channel.IsLive != wasLive || result.IsSuccess || closedRows)
                 await db.SaveChangesAsync(ct);
 
             _logger.LogInformation(
