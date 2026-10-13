@@ -41,7 +41,7 @@ defineEmits<{ 'update:open': [open: boolean]; confirm: [] }>()
 
 <template>
   <AlertDialog :open="open" @update:open="$emit('update:open', $event)">
-    <AlertDialogContent class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-115">
+    <AlertDialogContent class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 data-[size=default]:sm:max-w-115">
       <div class="grid flex-none gap-1.5 px-6 pt-6 pb-4">
         <AlertDialogTitle class="text-lg font-semibold">{{ title }}</AlertDialogTitle>
         <AlertDialogDescription v-if="description" class="text-sm text-muted-foreground">

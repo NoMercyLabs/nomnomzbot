@@ -72,6 +72,15 @@
 [data-slot='button'][data-variant='destructive']:hover {
   background: color-mix(in oklab, var(--destructive) 14%, transparent);
 }
+/* The final confirm of a dialog (mockup .btn.destructive, frame.css:128). */
+[data-slot='alert-dialog-footer'] [data-slot='button'][data-variant='destructive'] {
+  background: var(--destructive);
+  border-color: transparent;
+  color: var(--destructive-foreground);
+}
+[data-slot='alert-dialog-footer'] [data-slot='button'][data-variant='destructive']:hover {
+  background: color-mix(in oklab, var(--destructive) 88%, var(--foreground));
+}
 [data-slot='button']:disabled {
   cursor: not-allowed;
 }
