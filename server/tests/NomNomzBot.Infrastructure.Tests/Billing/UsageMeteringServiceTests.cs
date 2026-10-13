@@ -129,4 +129,59 @@ public sealed class UsageMeteringServiceTests : IDisposable
 
         (await sut.RecordAsync(Channel, Metric, 0)).ErrorCode.Should().Be("VALIDATION_FAILED");
     }
+
+    private static async Task<Guid> SeedChannelAsync(
+        EventStoreTestDbContext db,
+        bool ownerIsPlatform
+    )
+    {
+        NomNomzBot.Domain.Identity.Entities.User owner = new()
+        {
+            Username = "owner",
+            UsernameNormalized = "owner",
+            DisplayName = "Owner",
+            IsPlatformPrincipal = ownerIsPlatform,
+        };
+        NomNomzBot.Domain.Identity.Entities.Channel channel = new()
+        {
+            OwnerUserId = owner.Id,
+            Name = "chan",
+            NameNormalized = "chan",
+        };
+        db.Users.Add(owner);
+        db.Channels.Add(channel);
+        await db.SaveChangesAsync();
+        return channel.Id;
+    }
+
+    [Fact]
+    public async Task Check_never_caps_a_channel_owned_by_a_platform_principal()
+    {
+        EventStoreTestDbContext db = await NewContextAsync();
+        Guid channelId = await SeedChannelAsync(db, ownerIsPlatform: true);
+        UsageMeteringService sut = NewService(db, TestTiers.WithLimit(Metric, 100), new());
+        await sut.RecordAsync(channelId, Metric, 5_000); // far over the free limit
+
+        QuotaCheckDto check = (await sut.CheckAsync(channelId, Metric, 10)).Value;
+
+        check.Allowed.Should().BeTrue();
+        check.Limit.Should().Be(-1);
+        check.Remaining.Should().Be(long.MaxValue);
+        check.Used.Should().Be(5_000);
+    }
+
+    [Fact]
+    public async Task Check_still_refuses_an_ordinary_channel_over_its_limit()
+    {
+        EventStoreTestDbContext db = await NewContextAsync();
+        Guid channelId = await SeedChannelAsync(db, ownerIsPlatform: false);
+        UsageMeteringService sut = NewService(db, TestTiers.WithLimit(Metric, 100), new());
+        await sut.RecordAsync(channelId, Metric, 5_000);
+
+        QuotaCheckDto check = (await sut.CheckAsync(channelId, Metric, 10)).Value;
+
+        check.Allowed.Should().BeFalse();
+        check.Limit.Should().Be(100);
+        check.Remaining.Should().Be(0);
+    }
 }

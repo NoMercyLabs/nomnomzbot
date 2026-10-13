@@ -161,7 +161,10 @@ public sealed class UsageMeteringService(
         CancellationToken ct = default
     )
     {
-        long limit = (await tiers.GetLimitAsync(broadcasterId, metricKey, ct)).Value;
+        bool ownerUncapped = await IsOwnedByPlatformPrincipalAsync(broadcasterId, ct);
+        long limit = ownerUncapped
+            ? -1
+            : (await tiers.GetLimitAsync(broadcasterId, metricKey, ct)).Value;
         (DateTime periodStart, _) = CurrentMonth();
         long used = await db
             .UsageRecords.Where(u =>
@@ -176,6 +179,14 @@ public sealed class UsageMeteringService(
         long remaining = limit == -1 ? long.MaxValue : Math.Max(0, limit - used);
         return Result.Success(new QuotaCheckDto(allowed, metricKey, used, limit, remaining));
     }
+
+    // The instance owner (a platform principal) never hits a usage cap on their own channel.
+    private Task<bool> IsOwnedByPlatformPrincipalAsync(Guid broadcasterId, CancellationToken ct) =>
+        db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Join(db.Users, c => c.OwnerUserId, u => u.Id, (_, u) => u.IsPlatformPrincipal)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<Result<IReadOnlyList<UsageMetricDto>>> GetCurrentUsageAsync(
         Guid broadcasterId,

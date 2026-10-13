@@ -288,7 +288,18 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         // EF discovers entity types from every DbSet<T> property (an IApplicationDbContext requirement) and
         // would try to map their jsonb-of-complex-type columns (unsupported on SQLite). Ignore every entity
         // these tests do not exercise so the model stays minimal and provider-agnostic.
-        modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.Channel>();
+        // Channel is mapped minimally for the usage-metering owner lookup (Channel.OwnerUserId -> Users) —
+        // its navs point at ignored entities and its List<string> columns are jsonb, so drop them.
+        modelBuilder.Entity<NomNomzBot.Domain.Identity.Entities.Channel>(b =>
+        {
+            b.Ignore(c => c.User);
+            b.Ignore(c => c.Moderators);
+            b.Ignore(c => c.Streams);
+            b.Ignore(c => c.Events);
+            b.Ignore(c => c.PlatformConnections);
+            b.Ignore(c => c.Tags);
+            b.Ignore(c => c.ContentLabels);
+        });
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
@@ -374,7 +385,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Channel> Channels =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
