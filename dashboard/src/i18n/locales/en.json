@@ -4,6 +4,18 @@
     "language": "Language",
     "close": "Close",
     "cancel": "Cancel",
+    "provider": {
+      "twitch": "Twitch",
+      "twitch_bot": "Twitch bot account",
+      "kick": "Kick",
+      "kick_bot": "Kick bot account",
+      "youtube": "YouTube",
+      "spotify": "Spotify",
+      "discord": "Discord",
+      "patreon": "Patreon",
+      "shopify": "Shopify",
+      "treatstream": "TreatStream"
+    },
     "confirm": {
       "whatHappens": "What happens"
     },

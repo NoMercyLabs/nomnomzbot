@@ -1,7 +1,59 @@
 {
   "dashboard": {
     "home": {
-      "greeting": "Hi, {name}"
+      "greeting": "Hi, {name}",
+      "title": "Home",
+      "live": "Live on {platforms}",
+      "offline": "Offline",
+      "openChat": "Open chat",
+      "editStream": "Edit stream info",
+      "liveLine": "Live for {uptime} · {viewers} viewers · {followers} followers",
+      "offlineLine": "{followers} followers · {subscribers} subscribers",
+      "queue": {
+        "title": "Review queue",
+        "waiting": "{count} waiting",
+        "hint": "Twitch drops a held message after a while. Allowing one teaches the spam filter.",
+        "emptyLive": "Nothing waits for you right now.",
+        "emptyOffline": "Nothing waits for you. Held messages and spam checks show up here during a stream.",
+        "error": "The review queue could not load.",
+        "allow": "Allow",
+        "deny": "Deny",
+        "denied": "Denied",
+        "review": "Review the message from {name}",
+        "unknownSender": "Unknown sender",
+        "shieldOn": "Shield mode on",
+        "shieldOff": "Shield mode off"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "empty": "Nothing needs you right now.",
+        "error": "This list could not load.",
+        "open": "Open"
+      },
+      "connections": {
+        "title": "Connections",
+        "services": "Bot and services",
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "reauth": "Sign in again",
+        "bot": "Bot account",
+        "botOffline": "Not in chat",
+        "error": "Connections could not load."
+      },
+      "activity": {
+        "live": "Happening now",
+        "offline": "Last stream",
+        "empty": "Nothing happened yet.",
+        "error": "Events could not load.",
+        "allEvents": "All events",
+        "type": {
+          "channel_follow": "Followed",
+          "channel_subscribe": "Subscribed",
+          "channel_cheer": "Cheered",
+          "channel_raid": "Raided",
+          "other": "Channel event"
+        }
+      }
     }
   }
 }

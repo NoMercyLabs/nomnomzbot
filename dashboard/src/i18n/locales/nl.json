@@ -4,6 +4,18 @@
     "language": "Taal",
     "close": "Sluiten",
     "cancel": "Annuleren",
+    "provider": {
+      "twitch": "Twitch",
+      "twitch_bot": "Twitch-botaccount",
+      "kick": "Kick",
+      "kick_bot": "Kick-botaccount",
+      "youtube": "YouTube",
+      "spotify": "Spotify",
+      "discord": "Discord",
+      "patreon": "Patreon",
+      "shopify": "Shopify",
+      "treatstream": "TreatStream"
+    },
     "confirm": {
       "whatHappens": "Wat er gebeurt"
     },

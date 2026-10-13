@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "home": {
+      "greeting": "Hoi, {name}",
+      "title": "Start",
+      "live": "Live op {platforms}",
+      "offline": "Offline",
+      "openChat": "Chat openen",
+      "editStream": "Streaminfo bewerken",
+      "liveLine": "Live sinds {uptime} · {viewers} kijkers · {followers} volgers",
+      "offlineLine": "{followers} volgers · {subscribers} abonnees",
+      "queue": {
+        "title": "Te beoordelen",
+        "waiting": "{count} wachtend",
+        "hint": "Twitch laat een vastgehouden bericht na een tijdje vallen. Toestaan leert het spamfilter bij.",
+        "emptyLive": "Er wacht nu niets op je.",
+        "emptyOffline": "Er wacht niets op je. Vastgehouden berichten en spamcontroles verschijnen hier tijdens een stream.",
+        "error": "De beoordelingslijst kon niet laden.",
+        "allow": "Toestaan",
+        "deny": "Weigeren",
+        "denied": "Geweigerd",
+        "review": "Beoordeel het bericht van {name}",
+        "unknownSender": "Onbekende afzender",
+        "shieldOn": "Schildmodus aan",
+        "shieldOff": "Schildmodus uit"
+      },
+      "attention": {
+        "title": "Heeft aandacht nodig",
+        "empty": "Niets heeft je nu nodig.",
+        "error": "Deze lijst kon niet laden.",
+        "open": "Openen"
+      },
+      "connections": {
+        "title": "Koppelingen",
+        "services": "Bot en diensten",
+        "connected": "Gekoppeld",
+        "notConnected": "Niet gekoppeld",
+        "reauth": "Opnieuw inloggen",
+        "bot": "Botaccount",
+        "botOffline": "Niet in de chat",
+        "error": "Koppelingen konden niet laden."
+      },
+      "activity": {
+        "live": "Nu gebeurd",
+        "offline": "Vorige stream",
+        "empty": "Er is nog niets gebeurd.",
+        "error": "Gebeurtenissen konden niet laden.",
+        "allEvents": "Alle gebeurtenissen",
+        "type": {
+          "channel_follow": "Volgt nu",
+          "channel_subscribe": "Abonneerde",
+          "channel_cheer": "Cheerde",
+          "channel_raid": "Raidde",
+          "other": "Kanaalgebeurtenis"
+        }
+      }
+    }
+  }
+}
