@@ -57,6 +57,24 @@ Seen live 2026-10-13 18:43: Stoney_Eagle (the broadcaster) sent `!sr arkona - na
 - **Input:** the song-request builtin and its length/limit checks, the cooldown bypass for mods, the reply-parent handling (`QuoteBuiltin.AddFromBareReplyOrReadAsync` pattern), the permission ladder.
 - **Done-when:** a test proves the broadcaster and a mod pass every song-request limit (length and the others) while a viewer is still refused; a reply `!permit` from a mod or the broadcaster to a refused `!sr` queues that song for its original requester; live, the broadcaster's own over-length `!sr` is queued.
 
+## OWNER REQUEST 2026-10-14 — scripts and widgets subscribe to their events; test values come from a declared schema
+
+Owner words, verbatim: "these really need their test value declaration schema defined and implemented, having all of them there is too much and not realistic. remember i said that widgets should subscribe to events they want??? this is why... you can use their description needs to do this. you can use my stream donation timer as idea, its in my own github profile folder" / "it is streamer.bot schema" / "yea, lets talk about it"
+
+Reference: `C:/Projects/StoneyEagle/donation-stream-timer/script.js:252-265` sends a Streamer.bot `{ request: "Subscribe", events: { Kofi: [...], Twitch: [...] } }`. Status: in discussion — no code until settled.
+
+Owner answers, verbatim: "1. i don't know for scripts, they usually get what they get when they are added to a pipeline, so this also needs extra thought. 2/ i want one uniform system that people can rely on so lets not change any event names and stick with our scheme. 3. reset, and maybe make something green, or change to test again is maybe better."
+
+Settled: our event names stay as they are (one uniform scheme). Test values reset to the sample after each run; the done state shows green with "Test again". Owner: "and retry on error?" — a failed run shows its reason with "Retry". Open: how a script declares or derives its events.
+
+## OWNER REQUEST 2026-10-14 — a chatter without a chat color gets the least-used one
+
+Owner, verbatim: "someone without a fixed chat collor should get one asigned that is least used by the chatters in the last 2 weeks of streaming, once they set one they take president"
+
+### S-CHAT-ASSIGNED-COLOR — assign the least-used color to a chatter who has none
+- **Decided by Arc:** the palette is Twitch's 15 standard chat colors; "least used" counts distinct chatters per color in this channel's chat during its streams of the last 14 days; the assignment is stored per channel and chatter so it stays stable; a color the chatter sets on Twitch always wins.
+- **Done-when:** a chat line from a chatter with no color carries the assigned color to the dashboard and overlays; a chatter who sets a color shows that color from their next line; tests prove the least-used pick, the stable reuse, and the precedence.
+
 ## OWNER REQUEST 2026-10-12 — suggest a shoutout for a chatter who streams seriously
 
 Owner, verbatim: "i like the idea of having every user who chats be looked up to see if they are a streamer who takes it seriously and streams at least once a week for the last month, the more the higher the priority, what do you think, can we add a prompt somwhere about "hey, maybe you should give this person a shoutout, they streamed x in the last month doing x y and z"?"

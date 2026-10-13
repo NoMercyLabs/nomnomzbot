@@ -90,6 +90,11 @@ looks for a tag that spans several fragments (e.g. `<marquee>` around emotes) an
 built string passes through `ChatHtmlSanitizer` (allow-listed tags, https-guarded urls) before it becomes the fragment
 text — nothing unsanitised is ever emitted.
 
+Chat HTML never carries `audio`, `video`, `source` or `track`, and nothing that runs code (handlers, script urls, data
+urls, svg or math). The dashboard runs the same rules again in the browser (`dashboard/src/lib/html.ts`). Owner,
+2026-10-14: "audio and video are reserved for orchestrated events made by us or the bot user, chat must NEVER be able to
+inject unwanted code anywhere. that is why the html is heavily sanitized"
+
 ### 3.2 `IThirdPartyEmoteProvider` — NEW (`Application/Chat/Services/`)
 
 ```csharp
