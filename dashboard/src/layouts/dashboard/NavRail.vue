@@ -34,8 +34,12 @@ const { groups, isCurrent } = useNavigation()
         size="icon"
         as-child
       >
-        <RouterLink :to="{ name: entry.route }" :title="t(`frame.nav.${entry.label}`)" :aria-label="t(`frame.nav.${entry.label}`)">
-          <component :is="entry.icon" aria-hidden="true" />
+        <RouterLink
+          :to="{ name: entry.route }"
+          :title="t(`frame.nav.${entry.label}`)"
+          :aria-label="t(`frame.nav.${entry.label}`)"
+        >
+          <component :is="entry.icon" class="size-5" aria-hidden="true" />
         </RouterLink>
       </Button>
     </template>

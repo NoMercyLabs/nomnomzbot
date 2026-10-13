@@ -50,7 +50,7 @@ const { groups, toggle } = useNavigation()
                 <CollapsibleTrigger :disabled="group.holdsOpenPage" class="w-full justify-between">
                   {{ t(`frame.group.${group.key}`) }}
                   <ChevronDown
-                    class="size-4 transition-transform"
+                    class="size-3.5 transition-transform"
                     :class="group.open ? '' : '-rotate-90'"
                     aria-hidden="true"
                   />

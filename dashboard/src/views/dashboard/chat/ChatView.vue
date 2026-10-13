@@ -11,25 +11,25 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
+import { useLocalStorage, type RemovableRef } from '@vueuse/core'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat'
-import FilterBar from '@/components/layout/FilterBar.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import VirtualList from '@/components/layout/VirtualList.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import { Label } from '@/components/ui/label'
+import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { usePanelState } from '@/composables/usePanelState'
 
 import ChatComposer from './components/ChatComposer.vue'
 import ChatLine from './components/ChatLine.vue'
-
-const LENGTHS: readonly string[] = ['60', '600', '3600', '86400']
 
 const { t } = useI18n()
 const { channelId, current } = useCurrentChannel()
@@ -37,8 +37,7 @@ const { channelId, current } = useCurrentChannel()
 const history = useChatHistory(channelId)
 const banner = useBanUser(channelId)
 
-const hideCommands: Ref<boolean> = ref(false)
-const length: Ref<string> = ref('600')
+const hideCommands: RemovableRef<boolean> = useLocalStorage('nnz.chat.hideCommands', false)
 const banTarget: Ref<ChatLineData | null> = ref(null)
 const banFailed: Ref<boolean> = ref(false)
 
@@ -52,12 +51,6 @@ const emptyText: ComputedRef<string> = computed(() =>
   lines.value.length > 0 ? t('dashboard.chat.feed.emptyCommands') : t('dashboard.chat.feed.empty'),
 )
 const live: ComputedRef<boolean> = computed(() => current.value?.isLive === true)
-const lengthOptions: ComputedRef<{ value: string; label: string }[]> = computed(() =>
-  LENGTHS.map((value: string) => ({ value, label: t(`dashboard.chat.lengths.${value}`) })),
-)
-const lengthName: ComputedRef<string> = computed(() =>
-  t(`dashboard.chat.lengthNames.${length.value}`),
-)
 
 const banOpen: ComputedRef<boolean> = computed(() => banTarget.value !== null)
 
@@ -107,11 +100,6 @@ async function confirmBan(): Promise<void> {
       @retry="history.refetch()"
     >
       <template #actions>
-        <FilterBar
-          v-model="length"
-          :label="$t('dashboard.chat.timeoutLength')"
-          :options="lengthOptions"
-        />
         <div class="flex items-center gap-2">
           <Switch id="chat-hide-commands" v-model="hideCommands" />
           <Label for="chat-hide-commands" class="text-sm font-normal">
@@ -119,25 +107,21 @@ async function confirmBan(): Promise<void> {
           </Label>
         </div>
       </template>
-      <div class="flex h-full min-h-80 flex-col">
-        <VirtualList
-          stick
-          :items="visible"
-          :item-key="(line: ChatLineData) => line.id"
-          :estimate-size="40"
-          :label="$t('dashboard.chat.feed.label')"
-        >
-          <template #default="{ item }">
-            <ChatLine
-              :line="item"
-              :channel-id="channelId"
-              :timeout-seconds="Number(length)"
-              :timeout-name="lengthName"
-              @ban="askBan"
-            />
-          </template>
-        </VirtualList>
-      </div>
+      <TooltipProvider :delay-duration="300">
+        <div class="flex h-full min-h-80 flex-col">
+          <VirtualList
+            stick
+            :items="visible"
+            :item-key="(line: ChatLineData) => line.id"
+            :estimate-size="40"
+            :label="$t('dashboard.chat.feed.label')"
+          >
+            <template #default="{ item }">
+              <ChatLine :line="item" :channel-id="channelId" @ban="askBan" />
+            </template>
+          </VirtualList>
+        </div>
+      </TooltipProvider>
       <template #footer>
         <ChatComposer :channel-id="channelId" />
       </template>
@@ -153,4 +137,5 @@ async function confirmBan(): Promise<void> {
     @update:open="closeBan"
     @confirm="confirmBan"
   />
+  <Toaster />
 </template>

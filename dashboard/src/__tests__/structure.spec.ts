@@ -147,6 +147,46 @@ describe('folder layout', () => {
     )
   })
 
+  // Stoney 2026-10-13: "don't border an already bordered icon within a button". A tray of icon buttons is
+  // one edged surface; the frame takes the edge off its buttons, so every tray must carry data-tray.
+  it('takes the edge off icon buttons inside a tray, and the chat line tray is one', () => {
+    const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8')
+    const chatLine: string = readFileSync(
+      join(src, 'views', 'dashboard', 'chat', 'components', 'ChatLine.vue'),
+      'utf8',
+    )
+
+    expect(frame).toMatch(
+      /\[data-tray\]\s+\.group\\\/button\[data-size\^='icon'\]\s*\{[^}]*border-color:\s*transparent/,
+    )
+    expect(chatLine).toMatch(/<div\b[^>]*\bdata-tray\b/)
+  })
+
+  // Stoney 2026-10-13: "there needs to be more contrast on the hovered chat message and also on the quick
+  // action button box and the hover on each button should raise it further". The tray is a raised surface
+  // with a 3:1 edge, and a hovered tray button lifts above it.
+  it('raises the tray above its row and a hovered tray button above the tray', () => {
+    const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8')
+
+    expect(frame).toMatch(/\[data-tray\]\s*\{[^}]*border-color:\s*var\(--input\)[^}]*box-shadow:/)
+    expect(frame).toMatch(
+      /\[data-tray\]\s+\.group\\\/button\[data-size\^='icon'\]:hover\s*\{[^}]*background:[^}]*box-shadow:/,
+    )
+  })
+
+  // Stoney 2026-10-13: "the icon size in the navbar is too small, it should match the font better and follow
+  // the correct visual hirarchy". A nav icon fills the text line (20px); a group chevron stays below it (14px).
+  it('sizes a nav icon to its text line and keeps the group chevron smaller', () => {
+    const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8')
+
+    expect(frame).toMatch(
+      /\[data-sidebar='menu-button'\]\s*>\s*svg\s*\{[^}]*width:\s*20px;[^}]*height:\s*20px/,
+    )
+    expect(frame).toMatch(
+      /\[data-slot='sidebar-group-label'\]\s*>\s*svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px/,
+    )
+  })
+
   // Stoney 2026-10-13: "If I have to correct you on icons then you're fired" and "use the moooom icons
   // from my designer". Icons come from the designer pack (`~icons/nnz/<name>`, assets/icons/line); brand
   // logos from simple-icons, drawn by PlatformLogo from the library's own path. Lucide stays only inside

@@ -65,6 +65,22 @@
   text-decoration: none;
   border-color: var(--input);
 }
+/* A tray (data-tray) is already one edged surface, and many icons draw their own ring: its icon buttons
+   carry no edge of their own (owner 2026-10-13). They nest concentric: tray 12px, 2px padding, 10px. */
+[data-tray] .group\/button[data-size^='icon'] {
+  border-color: transparent;
+  border-radius: 10px;
+}
+/* The tray floats above a hovered row, and a hovered button lifts above the tray (owner 2026-10-13). */
+[data-tray] {
+  background: color-mix(in oklab, var(--foreground) 10%, var(--popover));
+  border-color: var(--input);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.5);
+}
+[data-tray] .group\/button[data-size^='icon']:hover {
+  background: color-mix(in oklab, var(--foreground) 24%, var(--popover));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+}
 /* Red is for harm only: a plain edge and red text; solid red stays for the final confirm in a dialog. */
 .group\/button[data-variant='destructive'] {
   background: transparent;
@@ -143,6 +159,17 @@
   height: 24px;
   margin-bottom: var(--s0_5);
   border-radius: 8px;
+}
+
+/* A nav icon fills the text line it sits on, and the group chevron stays below it (owner 2026-10-13: "match
+   the font better and follow the correct visual hirarchy"). The shadcn 16px read smaller than the words. */
+[data-sidebar='menu-button'] > svg {
+  width: 20px;
+  height: 20px;
+}
+[data-slot='sidebar-group-label'] > svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Concentric radius: a list option sits 4px (the group's p-1) inside a --radius-md list. */

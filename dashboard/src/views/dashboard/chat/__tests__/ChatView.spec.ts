@@ -104,6 +104,14 @@ function stubLayout(): void {
       disconnect(): void {}
     },
   )
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  )
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
@@ -143,6 +151,7 @@ let queries: QueryClient
 
 beforeEach(() => {
   calls.length = 0
+  localStorage.clear()
   sendOk = true
   history = [
     line('m1', 'u1', 'Alice', 'first words'),
@@ -189,8 +198,10 @@ const rowOf = (id: string): HTMLElement =>
   rows().find((row) => row.dataset.lineId === id) as HTMLElement
 const action = (id: string, name: string): HTMLButtonElement =>
   rowOf(id).querySelector(`[data-line-action="${name}"]`) as HTMLButtonElement
-const flowButton = (id: string, step: string): HTMLButtonElement =>
-  rowOf(id).querySelector(`[data-flow-act="${step}"]`) as HTMLButtonElement
+// jsdom has no pointer capture, so the menu is opened the keyboard way (Enter on the trigger).
+const openMenu = (trigger: HTMLElement): void => {
+  trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+}
 const input = (): HTMLInputElement =>
   document.body.querySelector('input[data-composer]') as HTMLInputElement
 const writes = (): Call[] => calls.filter((call) => call.method !== 'GET')
@@ -238,26 +249,75 @@ describe('ChatView', () => {
 
     action('m2', 'delete').click()
     await settle()
-    flowButton('m2', 'ok').click()
-    await settle()
     expect(writes()).toEqual([expect.objectContaining({ method: 'DELETE', messageId: 'm2' })])
   })
 
-  it('times out the person with the default 600 seconds', async () => {
+  it('shows four tray buttons in order: timeout, delete, ban, profile', async () => {
     await open()
-    action('m2', 'timeout').click()
+    const names: (string | undefined)[] = [
+      ...rowOf('m2').querySelectorAll<HTMLElement>('[data-line-action]'),
+    ].map((button) => button.dataset.lineAction)
+    expect(names).toEqual(['timeout', 'delete', 'ban', 'profile'])
+  })
+
+  it('keeps every tray button a plain ghost icon with a 20px icon, harm only in the ban confirm', async () => {
+    await open()
+    for (const name of ['timeout', 'delete', 'ban', 'profile']) {
+      const button: HTMLButtonElement = action('m2', name)
+      expect(button.dataset.variant).toBe('ghost')
+      expect(button.dataset.size).toBe('icon')
+      expect(button.querySelector('svg')!.classList.contains('size-5')).toBe(true)
+    }
+  })
+
+  it('opens the profile of the line person from the profile button', async () => {
+    await open()
+    const store = useProfileDialogStore(pinia)
+    action('m2', 'profile').click()
     await settle()
+    expect(store.userId).toBe('u2')
+  })
+
+  it('opens a length menu on Timeout and sends nothing until a length is picked', async () => {
+    await open()
+    openMenu(action('m2', 'timeout'))
+    await settle()
+    const items: string[] = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-timeout-length]'),
+    ].map((item) => item.dataset.timeoutLength ?? '')
+    expect(items).toEqual(['60', '600', '3600', '86400'])
     expect(writes()).toEqual([])
-    flowButton('m2', 'ok').click()
+  })
+
+  it('times out the person for the picked length', async () => {
+    await open()
+    openMenu(action('m2', 'timeout'))
+    await settle()
+    document.body.querySelector<HTMLElement>('[data-timeout-length="3600"]')!.click()
     await settle()
     expect(writes()).toHaveLength(1)
     expect(writes()[0]!.path).toBe('/api/v{version}/channels/{channelId}/moderation/actions')
     expect(writes()[0]!.body).toEqual({
       action: 'timeout',
       targetUserId: 'u2',
-      durationSeconds: 600,
+      durationSeconds: 3600,
       reason: null,
     })
+  })
+
+  it('has no length filter in the panel header', async () => {
+    await open()
+    expect(document.body.querySelector('[data-slot="filter-bar"]')).toBeNull()
+  })
+
+  it('shows the character counter only past 400 characters', async () => {
+    await open()
+    await type('x'.repeat(400))
+    expect(document.body.querySelector('[data-composer-count]')).toBeNull()
+    await type('x'.repeat(401))
+    expect(document.body.querySelector('[data-composer-count]')?.textContent?.trim()).toBe(
+      '401/500',
+    )
   })
 
   it('bans only after the confirm, in this channel', async () => {
@@ -312,6 +372,17 @@ describe('ChatView', () => {
     document.body.querySelector<HTMLElement>('[role="switch"]')!.click()
     await settle()
     expect(rowIds()).toEqual(['m1', 'm2'])
+  })
+
+  it('remembers Hide commands after the page is closed and opened again', async () => {
+    await open()
+    document.body.querySelector<HTMLElement>('[role="switch"]')!.click()
+    await settle()
+    mounted?.unmount()
+    mounted = null
+    await open()
+    expect(rowIds()).toEqual(['m1', 'm2'])
+    expect(localStorage.getItem('nnz.chat.hideCommands')).toBe('true')
   })
 
   it('shows the error of a failed send and keeps the text', async () => {

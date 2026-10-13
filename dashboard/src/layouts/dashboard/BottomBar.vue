@@ -53,7 +53,7 @@ const sheetEntries = computed<NavEntry[]>(() =>
       as-child
     >
       <RouterLink :to="{ name: entry.route }">
-        <component :is="entry.icon" aria-hidden="true" />
+        <component :is="entry.icon" class="size-5" aria-hidden="true" />
         <span class="truncate">{{ t(`frame.nav.${entry.label}`) }}</span>
       </RouterLink>
     </Button>

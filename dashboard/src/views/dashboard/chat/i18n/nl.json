@@ -8,16 +8,9 @@
         "offline": "Offline"
       },
       "hideCommands": "Verberg commando's",
-      "timeoutLength": "Duur van de time-out",
       "lengths": {
         "60": "1 min",
         "600": "10 min",
-        "3600": "1 uur",
-        "86400": "1 dag"
-      },
-      "lengthNames": {
-        "60": "1 minuut",
-        "600": "10 minuten",
         "3600": "1 uur",
         "86400": "1 dag"
       },
@@ -31,26 +24,25 @@
       },
       "line": {
         "actions": "Acties voor {name}",
-        "removed": "Verwijderd bericht"
+        "removed": "Verwijderd bericht",
+        "profile": "Open profiel van {name}",
+        "profileTip": "Open profiel"
       },
       "timeout": {
         "label": "Time-out voor {name}",
-        "flow": "Bevestiging van time-out",
-        "ask": "{name} {length} een time-out geven?",
-        "yes": "Time-out",
+        "tip": "Time-out",
+        "menu": "Duur van de time-out",
         "result": "{name} heeft een time-out",
         "failure": "De time-out is niet gelukt."
       },
       "delete": {
         "label": "Bericht verwijderen",
-        "flow": "Bevestiging van verwijderen",
-        "ask": "Dit bericht verwijderen?",
-        "yes": "Verwijder",
         "result": "Bericht verwijderd",
         "failure": "Het bericht is niet verwijderd."
       },
       "ban": {
         "label": "Ban {name}",
+        "tip": "Ban",
         "title": "{name} bannen?",
         "description": "{name} kan niet chatten of terugkomen tot je de ban opheft.",
         "consequences": "De ban geldt alleen voor dit kanaal.",

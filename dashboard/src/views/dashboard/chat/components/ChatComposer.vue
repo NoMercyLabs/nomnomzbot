@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 
+const COUNT_FROM: number = 400
+
 const props = defineProps<{ channelId: string | null }>()
 
 const { t } = useI18n()
@@ -27,6 +29,7 @@ const text: Ref<string> = ref('')
 const failed: Ref<boolean> = ref(false)
 
 const tooLong: ComputedRef<boolean> = computed(() => text.value.length > chatMessageMaxLength)
+const showCount: ComputedRef<boolean> = computed(() => text.value.length > COUNT_FROM)
 const canSend: ComputedRef<boolean> = computed(
   () => text.value.trim() !== '' && !tooLong.value && !sender.isPending.value,
 )
@@ -59,6 +62,8 @@ async function submit(): Promise<void> {
         :placeholder="$t('dashboard.chat.composer.placeholder')"
       />
       <span
+        v-if="showCount"
+        data-composer-count
         class="flex-none text-sm text-muted-foreground tabular-nums"
         :class="{ 'text-destructive': tooLong }"
       >
