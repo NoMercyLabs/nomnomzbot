@@ -44,6 +44,7 @@ public class CurrencyController(
     /// <summary>Read the channel's currency configuration.</summary>
     [HttpGet("config")]
     [RequireAction("economy:config:read")]
+    [ProducesResponseType<StatusResponseDto<CurrencyConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -153,6 +154,7 @@ public class CurrencyController(
     /// <summary>Read a viewer's wallet by user id, creating the account on first access (the Gate-2 arm of self-or-Gate-2).</summary>
     [HttpGet("accounts/{viewerUserId:guid}")]
     [RequireAction("economy:account:read")]
+    [ProducesResponseType<StatusResponseDto<CurrencyAccountDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccount(
         string channelId,
         Guid viewerUserId,

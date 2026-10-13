@@ -33,6 +33,9 @@ public sealed record PlatformBotAdminStatusDto(
     string? BotDisplayName
 );
 
+/// <summary>The Twitch authorize URL the setup wizard opens to connect the platform bot (wire name <c>oauthUrl</c>).</summary>
+public sealed record BotOAuthUrlDto(string OauthUrl);
+
 /// <summary>
 /// The counted blast radius a platform-bot reconnect/replace would touch — every channel that has no
 /// active custom bot of its own and therefore speaks through the shared platform bot. Must be rendered

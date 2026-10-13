@@ -42,6 +42,9 @@ public class EconomyLeaderboardsController(
     /// <summary>List the channel's leaderboard configurations.</summary>
     [HttpGet("configs")]
     [RequireAction("economy:leaderboards:config:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<LeaderboardConfigDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> ListConfigs(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -103,6 +106,9 @@ public class EconomyLeaderboardsController(
     /// <summary>Read the live ranking for a leaderboard, optionally limited to the top N entries.</summary>
     [HttpGet("{configId:guid}")]
     [RequireAction("economy:leaderboards:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<LeaderboardEntryDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetRanking(
         string channelId,
         Guid configId,

@@ -36,6 +36,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
     /// <summary>List the savings jars this channel is a member of.</summary>
     [HttpGet]
     [RequireAction("economy:jars:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<SavingsJarDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListJars(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -60,6 +61,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
     /// <summary>Read a single savings jar by id, membership permitting.</summary>
     [HttpGet("{jarId:guid}")]
     [RequireAction("economy:jars:read")]
+    [ProducesResponseType<StatusResponseDto<SavingsJarDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetJar(string channelId, Guid jarId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

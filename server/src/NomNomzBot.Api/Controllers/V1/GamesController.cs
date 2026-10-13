@@ -45,6 +45,7 @@ public class GamesController(
     /// <summary>List the channel's mini-game configurations.</summary>
     [HttpGet]
     [RequireAction("economy:games:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<GameConfigDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListGames(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -152,6 +153,7 @@ public class GamesController(
     /// <summary>Check whether a viewer has granted 18+ consent on this channel.</summary>
     [HttpGet("consent/{viewerUserId:guid}")]
     [RequireAction("economy:consent:read")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConsent(
         string channelId,
         Guid viewerUserId,

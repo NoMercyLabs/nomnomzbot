@@ -58,6 +58,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
     /// <summary>Fetch a single federation peer by id.</summary>
     [HttpGet("peers/{peerId:guid}")]
     [Authorize(Policy = IamPermissionKeys.AuditRead)]
+    [ProducesResponseType<StatusResponseDto<FederationPeerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPeer(Guid peerId, CancellationToken ct) =>
         ResultResponse(await peers.GetPeerAsync(peerId, ct));
 

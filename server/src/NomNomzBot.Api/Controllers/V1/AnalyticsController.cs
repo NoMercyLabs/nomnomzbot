@@ -42,6 +42,9 @@ public class AnalyticsController(
     /// <summary>Read the channel's daily analytics series for a date range.</summary>
     [HttpGet("channel/daily")]
     [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ChannelAnalyticsDailyDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetChannelDaily(
         Guid channelId,
         [FromQuery] DateOnly from,
@@ -52,6 +55,7 @@ public class AnalyticsController(
     /// <summary>Read the channel's aggregated analytics summary for a date range.</summary>
     [HttpGet("channel/summary")]
     [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<ChannelAnalyticsSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChannelSummary(
         Guid channelId,
         [FromQuery] DateOnly from,
@@ -62,6 +66,9 @@ public class AnalyticsController(
     /// <summary>Read the channel's activity broken out by streaming platform for a date range (D1).</summary>
     [HttpGet("channel/by-platform")]
     [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetChannelByPlatform(
         Guid channelId,
         [FromQuery] DateOnly from,
@@ -72,6 +79,7 @@ public class AnalyticsController(
     /// <summary>Rank the channel's top viewers by the chosen metric over a date range.</summary>
     [HttpGet("channel/top-viewers")]
     [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TopViewerDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTopViewers(
         Guid channelId,
         [FromQuery] TopViewerMetric metric,
@@ -89,6 +97,7 @@ public class AnalyticsController(
     /// <summary>The channel's stream history, newest first — the per-stream analytics entry point.</summary>
     [HttpGet("streams")]
     [RequireAction("analytics:read")]
+    [ProducesResponseType<PaginatedResponse<StreamListItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListStreams(
         Guid channelId,
         [FromQuery] PageRequestDto request,
@@ -109,6 +118,7 @@ public class AnalyticsController(
     /// <summary>One stream's per-stream aggregates (messages, chatters, follows, subs, cheers, commands, redemptions, peak viewers).</summary>
     [HttpGet("streams/{streamId}")]
     [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<StreamAnalyticsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStream(
         Guid channelId,
         string streamId,
@@ -120,6 +130,7 @@ public class AnalyticsController(
     /// <summary>List viewer analytics profiles matching the query, paginated.</summary>
     [HttpGet("viewers")]
     [RequireAction("analytics:viewer:read")]
+    [ProducesResponseType<PaginatedResponse<ViewerProfileListItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListViewers(
         Guid channelId,
         [FromQuery] ViewerProfileQuery query,
@@ -137,6 +148,7 @@ public class AnalyticsController(
 
     /// <summary>Read a single viewer's analytics profile (self-or-Gate-2, authorized in-action).</summary>
     [HttpGet("viewers/{viewerUserId:guid}")]
+    [ProducesResponseType<StatusResponseDto<ViewerProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetViewer(
         Guid channelId,
         Guid viewerUserId,
@@ -150,6 +162,9 @@ public class AnalyticsController(
 
     /// <summary>Read a viewer's engagement series over a date range (self-or-Gate-2).</summary>
     [HttpGet("viewers/{viewerUserId:guid}/engagement")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ViewerEngagementDailyDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetViewerEngagement(
         Guid channelId,
         Guid viewerUserId,
@@ -167,6 +182,7 @@ public class AnalyticsController(
 
     /// <summary>Read a viewer's current attendance streak (self-or-Gate-2).</summary>
     [HttpGet("viewers/{viewerUserId:guid}/streak")]
+    [ProducesResponseType<StatusResponseDto<WatchStreakDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetViewerStreak(
         Guid channelId,
         Guid viewerUserId,

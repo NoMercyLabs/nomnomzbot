@@ -108,6 +108,9 @@ public class BundlesController(
     /// <summary>List the channel's installed bundles.</summary>
     [HttpGet("installed")]
     [RequireAction("bundles:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<InstalledBundleDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> ListInstalled(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

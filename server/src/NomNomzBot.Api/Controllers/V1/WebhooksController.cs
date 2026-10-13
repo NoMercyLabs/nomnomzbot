@@ -59,6 +59,7 @@ public class WebhooksController(
     /// <summary>Fetch a single inbound webhook endpoint by id.</summary>
     [HttpGet("inbound/{endpointId:guid}")]
     [RequireAction("webhooks:inbound:read")]
+    [ProducesResponseType<StatusResponseDto<InboundWebhookEndpointDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInbound(
         Guid channelId,
         Guid endpointId,
@@ -159,6 +160,7 @@ public class WebhooksController(
     /// <summary>Fetch a single outbound webhook endpoint by id.</summary>
     [HttpGet("outbound/{endpointId:guid}")]
     [RequireAction("webhooks:outbound:read")]
+    [ProducesResponseType<StatusResponseDto<OutboundWebhookEndpointDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetOutbound(
         Guid channelId,
         Guid endpointId,

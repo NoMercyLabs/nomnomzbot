@@ -193,6 +193,7 @@ public class ChannelBotController : BaseController
     [Authorize]
     [RequireAction("channelbot:connect")]
     [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<OAuthStartDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartChannelBotOAuth(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))
@@ -217,6 +218,7 @@ public class ChannelBotController : BaseController
     [HttpGet("{channelId}/bot/status")]
     [Authorize]
     [RequireAction("channelbot:read")]
+    [ProducesResponseType<StatusResponseDto<BotStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChannelBotStatus(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))

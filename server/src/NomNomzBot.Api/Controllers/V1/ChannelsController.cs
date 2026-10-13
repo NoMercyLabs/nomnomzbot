@@ -64,7 +64,7 @@ public class ChannelsController : BaseController
 
     /// <summary>List all channels the current user owns or moderates.</summary>
     [HttpGet]
-    [ProducesResponseType<PaginatedResponse<ChannelDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<PaginatedResponse<ChannelSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
         [FromQuery] PageRequestDto request,
         CancellationToken ct

@@ -46,6 +46,7 @@ public class CodeScriptsController(
 {
     /// <summary>List the channel's code scripts, paginated (feature-gated like all script routes).</summary>
     [HttpGet]
+    [ProducesResponseType<PaginatedResponse<CodeScriptSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] PageRequestDto request, CancellationToken ct)
     {
         Result gate = await FeatureGateAsync(ct);
@@ -62,6 +63,7 @@ public class CodeScriptsController(
 
     /// <summary>Read a single code script by id.</summary>
     [HttpGet("{id:guid}")]
+    [ProducesResponseType<StatusResponseDto<CodeScriptDetailDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
         Result gate = await FeatureGateAsync(ct);
@@ -99,6 +101,7 @@ public class CodeScriptsController(
 
     /// <summary>Load a script's current multi-file project (its <c>src/</c> file set + manifest) for the editor.</summary>
     [HttpGet("{id:guid}/project")]
+    [ProducesResponseType<StatusResponseDto<ProjectDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProject(Guid id, CancellationToken ct)
     {
         Result gate = await FeatureGateAsync(ct);
@@ -126,6 +129,7 @@ public class CodeScriptsController(
 
     /// <summary>List a code script's versions, paginated.</summary>
     [HttpGet("{id:guid}/versions")]
+    [ProducesResponseType<PaginatedResponse<CodeScriptVersionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListVersions(
         Guid id,
         [FromQuery] PageRequestDto request,

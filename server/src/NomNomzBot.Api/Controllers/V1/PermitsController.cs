@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Enums;
@@ -46,6 +47,9 @@ public class PermitsController(IPermitService permits, ICurrentUserService curre
     /// <summary>List the channel's active permit grants.</summary>
     [HttpGet]
     [RequireAction("roles:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<PermitGrantDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> List(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
