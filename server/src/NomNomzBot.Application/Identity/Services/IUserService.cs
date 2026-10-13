@@ -35,6 +35,19 @@ public interface IUserService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Saves a Twitch account read from Helix as a <c>User</c>: creates it when the Twitch id is new, otherwise
+    /// refreshes its login, display name and (when Twitch sent one) profile image. Same get-or-create path as
+    /// <see cref="GetOrCreateAsync"/>, so the person is "known" afterwards and a profile can open.
+    /// </summary>
+    Task<Result<UserDto>> UpsertTwitchProfileAsync(
+        string twitchUserId,
+        string login,
+        string displayName,
+        string? profileImageUrl,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Update a user's profile information.</summary>
     Task<Result<UserProfileDto>> UpdateProfileAsync(
         string userId,

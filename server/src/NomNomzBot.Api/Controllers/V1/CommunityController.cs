@@ -24,6 +24,8 @@ using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
@@ -50,6 +52,7 @@ public partial class CommunityController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IViewerProfileService _viewerProfile;
     private readonly ITwitchUsersApi _users;
+    private readonly IUserService _userService;
 
     public CommunityController(
         IApplicationDbContext db,
@@ -61,9 +64,11 @@ public partial class CommunityController : BaseController
         ICommunityStandingService communityStanding,
         ICurrentUserService currentUser,
         IViewerProfileService viewerProfile,
-        ITwitchUsersApi users
+        ITwitchUsersApi users,
+        IUserService userService
     )
     {
+        _userService = userService;
         _db = db;
         _channels = channels;
         _moderators = moderators;
@@ -190,7 +195,18 @@ public partial class CommunityController : BaseController
     /// (the identifier the moderation / trust / VIP / TTS-voice inputs all consume — never the internal
     /// <c>User.Id</c> Guid); <c>Label</c> is the display name, <c>SubLabel</c> the username.
     /// </summary>
-    public record ViewerOptionDto(string Id, string Label, string SubLabel);
+    /// <remarks>
+    /// <c>ImageUrl</c> is the stored Twitch profile picture (null when the bot has none). <c>InChannel</c> is
+    /// true when the person chatted here or has a tracked <see cref="ViewerProfile"/> here. Public Twitch
+    /// identity only — nothing from another channel.
+    /// </remarks>
+    public record ViewerOptionDto(
+        string Id,
+        string Label,
+        string SubLabel,
+        string? ImageUrl,
+        bool InChannel
+    );
 
     /// <summary>
     /// A Twitch account resolved straight from the platform by login (Helix Get Users) — for a person the bot
@@ -241,6 +257,8 @@ public partial class CommunityController : BaseController
     /// carry a tracked <see cref="ViewerProfile"/> — by username or display name. Powers the "pick a viewer"
     /// inputs that feed moderation, trust, VIP, and TTS-voice assignment; each option's id is the Twitch user
     /// id those flows consume. An empty query returns the first page of viewers ordered by display name.
+    /// <c>scope=all</c> searches every user the bot knows, in any channel; each option says whether the
+    /// person is known in this channel.
     /// </summary>
     [RequireAction("community:read")]
     [HttpGet("search")]
@@ -249,28 +267,36 @@ public partial class CommunityController : BaseController
         string channelId,
         [FromQuery] string? q,
         [FromQuery] int? limit,
+        [FromQuery] string? scope,
         CancellationToken ct
     )
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
+        string reach = string.IsNullOrWhiteSpace(scope)
+            ? "channel"
+            : scope.Trim().ToLowerInvariant();
+        if (reach is not ("channel" or "all"))
+            return BadRequestResponse("Scope is channel or all.", "INVALID_SCOPE");
+
         int take = Math.Clamp(limit ?? 20, 1, 50);
         string term = (q ?? string.Empty).Trim().ToLowerInvariant();
 
         // A "channel viewer" is a User who has chatted here or has a tracked ViewerProfile here — both keyed
         // on the Twitch user id (ChatMessage.UserId / ViewerProfile.ViewerTwitchUserId == User.TwitchUserId).
-        IQueryable<User> viewers = _db.Users.Where(u =>
-            u.TwitchUserId != null
-            && (
-                _db.ChatMessages.Any(m =>
-                    m.BroadcasterId == broadcasterId && m.UserId == u.TwitchUserId
-                )
-                || _db.ViewerProfiles.Any(p =>
-                    p.BroadcasterId == broadcasterId && p.ViewerTwitchUserId == u.TwitchUserId
-                )
-            )
-        );
+        IQueryable<User> known = _db.Users.Where(u => u.TwitchUserId != null);
+        IQueryable<User> viewers =
+            reach == "all"
+                ? known
+                : known.Where(u =>
+                    _db.ChatMessages.Any(m =>
+                        m.BroadcasterId == broadcasterId && m.UserId == u.TwitchUserId
+                    )
+                    || _db.ViewerProfiles.Any(p =>
+                        p.BroadcasterId == broadcasterId && p.ViewerTwitchUserId == u.TwitchUserId
+                    )
+                );
 
         if (term.Length > 0)
             viewers = viewers.Where(u =>
@@ -280,7 +306,18 @@ public partial class CommunityController : BaseController
         List<ViewerOptionDto> options = await viewers
             .OrderBy(u => u.DisplayName)
             .Take(take)
-            .Select(u => new ViewerOptionDto(u.TwitchUserId!, u.DisplayName, u.Username))
+            .Select(u => new ViewerOptionDto(
+                u.TwitchUserId!,
+                u.DisplayName,
+                u.Username,
+                u.ProfileImageUrl,
+                _db.ChatMessages.Any(m =>
+                    m.BroadcasterId == broadcasterId && m.UserId == u.TwitchUserId
+                )
+                    || _db.ViewerProfiles.Any(p =>
+                        p.BroadcasterId == broadcasterId && p.ViewerTwitchUserId == u.TwitchUserId
+                    )
+            ))
             .ToListAsync(ct);
 
         return Ok(new StatusResponseDto<List<ViewerOptionDto>> { Data = options });
@@ -323,6 +360,20 @@ public partial class CommunityController : BaseController
                 $"No Twitch account named {normalised}.",
                 "TWITCH_USER_NOT_FOUND"
             );
+
+        // Save the account through the same get-or-create path chat uses, so the person is "known" from now on.
+        string? imageUrl = string.IsNullOrWhiteSpace(user.ProfileImageUrl)
+            ? null
+            : user.ProfileImageUrl;
+        Result<UserDto> saved = await _userService.UpsertTwitchProfileAsync(
+            user.Id,
+            user.Login,
+            user.DisplayName,
+            imageUrl,
+            ct
+        );
+        if (saved.IsFailure)
+            return ResultResponse(saved);
 
         return Ok(
             new StatusResponseDto<PlatformViewerDto>

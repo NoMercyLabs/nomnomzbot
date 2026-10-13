@@ -26504,7 +26504,7 @@
         "tags": [
           "Community"
         ],
-        "summary": "Autocomplete search over the channel's known viewers — the users who have chatted in this channel or\r\ncarry a tracked ViewerProfile — by username or display name. Powers the \"pick a viewer\"\r\ninputs that feed moderation, trust, VIP, and TTS-voice assignment; each option's id is the Twitch user\r\nid those flows consume. An empty query returns the first page of viewers ordered by display name.",
+        "summary": "Autocomplete search over the channel's known viewers — the users who have chatted in this channel or\r\ncarry a tracked ViewerProfile — by username or display name. Powers the \"pick a viewer\"\r\ninputs that feed moderation, trust, VIP, and TTS-voice assignment; each option's id is the Twitch user\r\nid those flows consume. An empty query returns the first page of viewers ordered by display name.\r\n`scope=all` searches every user the bot knows, in any channel; each option says whether the\r\nperson is known in this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -26531,6 +26531,13 @@
                 "string"
               ],
               "format": "int32"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -143126,7 +143133,9 @@
         "required": [
           "id",
           "label",
-          "subLabel"
+          "subLabel",
+          "imageUrl",
+          "inChannel"
         ],
         "type": "object",
         "properties": {
@@ -143138,6 +143147,15 @@
           },
           "subLabel": {
             "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inChannel": {
+            "type": "boolean"
           }
         },
         "description": "Minimal option projection for the \"pick a viewer\" autocomplete inputs. `Id` is the Twitch user id\r\n(the identifier the moderation / trust / VIP / TTS-voice inputs all consume — never the internal\r\n`User.Id` Guid); `Label` is the display name, `SubLabel` the username."
