@@ -133,8 +133,14 @@ a:not([data-slot]):hover {
 /* Hit areas (owner 2026-10-12, tester THINDAL: "too small, easier to hit"). The look stays compact. A
    transparent ::before grows the press target to --hit (24px minimum), --hit-icon (32px) for an icon-only
    control, and 44px on a touch screen. It never changes the visible size or the layout. */
+/* In the base layer so a placed control keeps its place: an unlayered rule beats every Tailwind utility,
+   so `absolute` on a dialog's close button lost to this. */
+@layer base {
+  :where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option']) {
+    position: relative;
+  }
+}
 :where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option']) {
-  position: relative;
   --_hit: var(--hit);
 }
 :where([data-size^='icon'], button:has(> svg:only-child)) {
