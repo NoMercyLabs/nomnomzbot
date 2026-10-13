@@ -218,6 +218,23 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
+    public bool MoveTo(int from, int to)
+    {
+        lock (_lock)
+        {
+            if (from < 0 || from >= _queue.Count || to < 0 || to >= _queue.Count)
+                return false;
+            if (from == to)
+                return true;
+
+            QueueEntry entry = _queue[from];
+            _queue.RemoveAt(from);
+            _queue.Insert(to, entry);
+            RecalculateRanks();
+            return true;
+        }
+    }
+
     /// <summary>
     /// Returns a snapshot of the queue as (item, rank, ownerKey) tuples.
     /// </summary>

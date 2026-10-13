@@ -117,6 +117,105 @@ public sealed class MusicServiceQueuePromoteBanTests
         db.BlockedTracks.Should().BeEmpty();
     }
 
+    private static async Task<(MusicService Sut, RecordingEventBus Bus)> BuildWithThreeQueued()
+    {
+        (MusicService sut, RecordingEventBus bus, MusicTestDbContext _) = Build();
+        await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
+        await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q2", "viewer2");
+        await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q3", "viewer3");
+        return (sut, bus);
+    }
+
+    private static async Task<List<string?>> QueueOrder(MusicService sut)
+    {
+        MusicQueue queue = await sut.GetQueueAsync(ChannelId.ToString());
+        return [.. queue.Queue.Select(i => i.RequestedBy)];
+    }
+
+    [Fact]
+    public async Task Move_down_to_the_end_places_the_item_last_and_publishes_the_new_order()
+    {
+        (MusicService sut, RecordingEventBus bus) = await BuildWithThreeQueued();
+
+        Result result = await sut.MoveAsync(ChannelId.ToString(), 0, 2);
+
+        result.IsSuccess.Should().BeTrue();
+        (await QueueOrder(sut)).Should().Equal("viewer2", "viewer3", "viewer1");
+        SongRequestQueueChangedEvent last = bus
+            .Published.OfType<SongRequestQueueChangedEvent>()
+            .Last();
+        last.Items.Select(i => i.RequestedBy).Should().Equal("viewer2", "viewer3", "viewer1");
+    }
+
+    [Fact]
+    public async Task Move_up_places_the_item_exactly_at_the_dropped_position()
+    {
+        (MusicService sut, RecordingEventBus bus) = await BuildWithThreeQueued();
+
+        Result result = await sut.MoveAsync(ChannelId.ToString(), 2, 1);
+
+        result.IsSuccess.Should().BeTrue();
+        (await QueueOrder(sut)).Should().Equal("viewer1", "viewer3", "viewer2");
+        bus.Published.OfType<SongRequestQueueChangedEvent>()
+            .Last()
+            .Items.Select(i => i.RequestedBy)
+            .Should()
+            .Equal("viewer1", "viewer3", "viewer2");
+    }
+
+    [Fact]
+    public async Task Move_to_the_same_position_succeeds_without_changing_anything()
+    {
+        (MusicService sut, RecordingEventBus bus) = await BuildWithThreeQueued();
+        int publishedBefore = bus.Published.OfType<SongRequestQueueChangedEvent>().Count();
+
+        Result result = await sut.MoveAsync(ChannelId.ToString(), 1, 1);
+
+        result.IsSuccess.Should().BeTrue();
+        (await QueueOrder(sut)).Should().Equal("viewer1", "viewer2", "viewer3");
+        bus.Published.OfType<SongRequestQueueChangedEvent>().Should().HaveCount(publishedBefore);
+    }
+
+    [Fact]
+    public async Task Move_from_out_of_range_is_not_found_and_leaves_the_queue_untouched()
+    {
+        (MusicService sut, RecordingEventBus bus) = await BuildWithThreeQueued();
+        int publishedBefore = bus.Published.OfType<SongRequestQueueChangedEvent>().Count();
+
+        Result result = await sut.MoveAsync(ChannelId.ToString(), 3, 0);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        (await QueueOrder(sut)).Should().Equal("viewer1", "viewer2", "viewer3");
+        bus.Published.OfType<SongRequestQueueChangedEvent>().Should().HaveCount(publishedBefore);
+    }
+
+    [Fact]
+    public async Task Move_to_out_of_range_fails_validation_and_leaves_the_queue_untouched()
+    {
+        (MusicService sut, RecordingEventBus bus) = await BuildWithThreeQueued();
+        int publishedBefore = bus.Published.OfType<SongRequestQueueChangedEvent>().Count();
+
+        Result result = await sut.MoveAsync(ChannelId.ToString(), 0, 3);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await QueueOrder(sut)).Should().Equal("viewer1", "viewer2", "viewer3");
+        bus.Published.OfType<SongRequestQueueChangedEvent>().Should().HaveCount(publishedBefore);
+    }
+
+    [Fact]
+    public async Task Move_keeps_fair_ranking_for_a_later_request_from_the_moved_owner()
+    {
+        (MusicService sut, _) = await BuildWithThreeQueued();
+        await sut.MoveAsync(ChannelId.ToString(), 0, 2);
+
+        // viewer1's item now sits last with rank 1; their next request is rank 2 and lands after it.
+        await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q4", "viewer1");
+
+        (await QueueOrder(sut)).Should().Equal("viewer2", "viewer3", "viewer1", "viewer1");
+    }
+
     private static (MusicService Sut, RecordingEventBus Bus, MusicTestDbContext Db) Build()
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -181,6 +280,13 @@ public sealed class MusicServiceQueuePromoteBanTests
             {"tracks":{"items":[{"name":"Song Q2","uri":"spotify:track:q2","duration_ms":210000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
             """;
 
+        private const string SearchJsonQ3 = """
+            {"tracks":{"items":[{"name":"Song Q3","uri":"spotify:track:q3","duration_ms":220000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
+            """;
+        private const string SearchJsonQ4 = """
+            {"tracks":{"items":[{"name":"Song Q4","uri":"spotify:track:q4","duration_ms":230000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
+            """;
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
@@ -195,8 +301,10 @@ public sealed class MusicServiceQueuePromoteBanTests
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
 
             string query = request.RequestUri!.Query;
-            string json = query.Contains("q1", StringComparison.OrdinalIgnoreCase)
-                ? SearchJsonQ1
+            string json =
+                query.Contains("q1", StringComparison.OrdinalIgnoreCase) ? SearchJsonQ1
+                : query.Contains("q3", StringComparison.OrdinalIgnoreCase) ? SearchJsonQ3
+                : query.Contains("q4", StringComparison.OrdinalIgnoreCase) ? SearchJsonQ4
                 : SearchJsonQ2;
 
             return Task.FromResult(

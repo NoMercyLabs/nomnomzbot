@@ -1281,6 +1281,13 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<Result> MoveAsync(
+            string broadcasterId,
+            int fromPosition,
+            int toPosition,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<Result<BlockedTrackDto>> BanQueuedTrackAsync(
             string broadcasterId,
             int position,

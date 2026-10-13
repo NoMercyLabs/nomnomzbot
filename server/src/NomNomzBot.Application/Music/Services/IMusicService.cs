@@ -207,6 +207,19 @@ public interface IMusicService
     );
 
     /// <summary>
+    /// Places the queued item at <paramref name="fromPosition"/> exactly at <paramref name="toPosition"/>
+    /// — a moderator's drag-and-drop reorder. Fails <c>NOT_FOUND</c> when there is no item at
+    /// <paramref name="fromPosition"/> and <c>VALIDATION_FAILED</c> when <paramref name="toPosition"/>
+    /// is outside the queue. Same position succeeds as a no-op.
+    /// </summary>
+    Task<Result> MoveAsync(
+        string broadcasterId,
+        int fromPosition,
+        int toPosition,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Bans the queued (or historical) track at <paramref name="position"/> from future song requests —
     /// the dashboard counterpart to <c>!bansong</c> (which only bans whatever is currently playing).
     /// Reuses <see cref="IBlockedTrackService.BlockAsync"/> so the block is enforced by the same
