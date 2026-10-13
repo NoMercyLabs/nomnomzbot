@@ -171,7 +171,8 @@ public sealed class ChannelOnlineHandlerTests
         NomNomzBot.Domain.Stream.Entities.Stream stale = await db.Streams.SingleAsync(s =>
             s.Id == "stale-stream"
         );
-        stale.EndedAt.Should()
+        stale
+            .EndedAt.Should()
             .Be(staleStart, "no chat proves a later end, and an open row would count as live");
         stale.Title.Should().BeNull("the new stream's title is never copied onto the old row");
     }

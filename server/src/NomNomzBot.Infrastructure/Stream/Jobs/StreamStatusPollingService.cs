@@ -192,8 +192,7 @@ public sealed class StreamStatusPollingService : BackgroundService
                     // A restart or a missed stream.offline leaves a row open with no in-memory edge to see.
                     // Any conclusive "offline" read closes every open row of the channel.
                     if (
-                        result.IsFailure
-                        && result.ErrorCode == TwitchErrorCodes.NotFound
+                        result is { IsFailure: true, ErrorCode: TwitchErrorCodes.NotFound }
                         && await StreamRowReconciler.CloseOpenStreamsAsync(
                             db,
                             dbChannel,

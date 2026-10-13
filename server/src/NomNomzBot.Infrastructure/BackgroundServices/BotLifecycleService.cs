@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Infrastructure.Stream;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -459,7 +460,7 @@ public sealed class BotLifecycleService : BackgroundService
             // A stream row left open by a restart or a missed stream.offline is closed on this offline read.
             bool closedRows =
                 result.IsFailure
-                && await NomNomzBot.Infrastructure.Stream.StreamRowReconciler.CloseOpenStreamsAsync(
+                && await StreamRowReconciler.CloseOpenStreamsAsync(
                     db,
                     channel,
                     TimeProvider.System.GetUtcNow(),

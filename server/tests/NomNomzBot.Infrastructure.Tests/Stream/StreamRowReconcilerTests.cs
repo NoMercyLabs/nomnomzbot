@@ -136,7 +136,10 @@ public sealed class StreamRowReconcilerTests
 
         Domain.Stream.Entities.Stream row = await Reload(db, "s-1");
         row.EndedAt.Should()
-            .Be(Started, "a chat from before the stream started proves nothing, so only the start is proven");
+            .Be(
+                Started,
+                "a chat from before the stream started proves nothing, so only the start is proven"
+            );
         row.Title.Should().Be("Chill night", "the text backfill still applies to an open row");
     }
 
