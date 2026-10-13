@@ -367,14 +367,14 @@ describe('QuickActionsPanel', () => {
     expect(row('ad').textContent).toContain('2 snoozes left');
   });
 
-  it('says plainly that no poll or prediction runs, and offers only Start a poll', async () => {
+  it('says plainly that no poll or prediction runs, and offers Start a poll and Start a prediction', async () => {
     await open();
 
     expect(row('poll').textContent).toContain('No poll or prediction running');
 
     const labels = [...row('poll').querySelectorAll('button, a')].map((b) => b.textContent?.trim());
 
-    expect(labels).toEqual(['Start a poll']);
+    expect(labels).toEqual(['Start a poll', 'Start a prediction']);
   });
 
   it('shows the time left of a running poll', async () => {

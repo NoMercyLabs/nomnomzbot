@@ -62,19 +62,7 @@ export function usePolls(
 export function usePredictions(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<Prediction[], Error> {
-  return channelQuery(channelId, predictionsKey, async (id: string): Promise<Prediction[]> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/live-ops/predictions',
-      {
-        params: { path: { version, channelId: id } },
-      },
-    );
-
-    if (error !== undefined)
-      throw failed('predictions', response.status);
-
-    return [...(data?.data ?? [])];
-  });
+  return channelQuery(channelId, predictionsKey, readPredictions);
 }
 
 async function readTimers(channelId: string): Promise<Timer[]> {
@@ -190,6 +178,166 @@ function provisionalPoll(poll: NewPoll): Poll {
     startedAt: new Date().toISOString(),
     endedAt: null,
   };
+}
+
+export type NewPrediction = components['schemas']['CreatePredictionDto'];
+
+export type PredictionResolution = {
+  predictionId: string;
+  winningOutcomeId: string;
+};
+
+// A prediction is running while Twitch reports it ACTIVE (taking points) or LOCKED (waiting for the result).
+export const isPredictionRunning = (prediction: Prediction): boolean =>
+  ['ACTIVE', 'LOCKED'].includes(prediction.status.toUpperCase());
+
+function provisionalPrediction(prediction: NewPrediction): Prediction {
+  return {
+    id: 'pending',
+    broadcasterId: '',
+    broadcasterName: '',
+    broadcasterLogin: '',
+    title: prediction.title,
+    winningOutcomeId: null,
+    outcomes: prediction.outcomes.map((title: string, index: number) => ({
+      id: `pending-${index}`,
+      title,
+      users: 0,
+      channelPoints: 0,
+      topPredictors: [],
+      color: '',
+    })),
+    predictionWindow: prediction.predictionWindowSeconds,
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString(),
+    endedAt: null,
+    lockedAt: null,
+  };
+}
+
+async function readPredictions(channelId: string): Promise<Prediction[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/live-ops/predictions',
+    {
+      params: { path: { version, channelId } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('predictions', response.status);
+
+  return [...(data?.data ?? [])];
+}
+
+// Starts a prediction on Twitch. The list shows it at once, with no points, and takes the server's list after.
+export function useStartPrediction(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Prediction[], Error, NewPrediction, number> {
+  return useOptimisticSave<Prediction[], NewPrediction>({
+    queryKey: () => predictionsKey(toValue(channelId)),
+    mutationFn: async (prediction: NewPrediction): Promise<Prediction[]> => {
+      const id = toValue(channelId) as string;
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/live-ops/predictions',
+        {
+          params: { path: { version, channelId: id } },
+          body: prediction,
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('prediction-start', response.status);
+
+      return readPredictions(id);
+    },
+    apply: (current: Prediction[] | undefined, prediction: NewPrediction): Prediction[] => [
+      provisionalPrediction(prediction),
+      ...(current ?? []),
+    ],
+  });
+}
+
+async function endPrediction(
+  channelId: string,
+  predictionId: string,
+  body: components['schemas']['EndPredictionDto'],
+): Promise<Prediction[]> {
+  const { error, response } = await client.PATCH(
+    '/api/v{version}/channels/{channelId}/live-ops/predictions/{predictionId}/end',
+    {
+      params: { path: {
+        version,
+        channelId,
+        predictionId,
+      } },
+      body,
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('prediction-end', response.status);
+
+  return readPredictions(channelId);
+}
+
+function changePrediction(
+  predictions: Prediction[] | undefined,
+  predictionId: string,
+  change: Partial<Prediction>,
+): Prediction[] {
+  return (predictions ?? []).map((prediction: Prediction) =>
+    prediction.id === predictionId
+      ? { ...prediction, ...change }
+      : prediction,
+  );
+}
+
+// Locks an open prediction: viewers can no longer put points on it. The variable is the prediction id.
+export function useLockPrediction(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Prediction[], Error, string, number> {
+  return useOptimisticSave<Prediction[], string>({
+    queryKey: () => predictionsKey(toValue(channelId)),
+    mutationFn: (predictionId: string): Promise<Prediction[]> =>
+      endPrediction(toValue(channelId) as string, predictionId, { status: 'LOCKED' }),
+    apply: (current: Prediction[] | undefined, predictionId: string): Prediction[] =>
+      changePrediction(current, predictionId, {
+        status: 'LOCKED',
+        lockedAt: new Date().toISOString(),
+      }),
+  });
+}
+
+// Resolves a prediction: the points of the winning outcome's predictors pay out on Twitch.
+export function useResolvePrediction(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Prediction[], Error, PredictionResolution, number> {
+  return useOptimisticSave<Prediction[], PredictionResolution>({
+    queryKey: () => predictionsKey(toValue(channelId)),
+    mutationFn: (resolution: PredictionResolution): Promise<Prediction[]> =>
+      endPrediction(toValue(channelId) as string, resolution.predictionId, {
+        status: 'RESOLVED',
+        winningOutcomeId: resolution.winningOutcomeId,
+      }),
+    apply: (current: Prediction[] | undefined, resolution: PredictionResolution): Prediction[] =>
+      changePrediction(current, resolution.predictionId, {
+        status: 'RESOLVED',
+        winningOutcomeId: resolution.winningOutcomeId,
+      }),
+  });
+}
+
+// Cancels a prediction: Twitch gives every viewer their points back. The variable is the prediction id.
+export function useCancelPrediction(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Prediction[], Error, string, number> {
+  return useOptimisticSave<Prediction[], string>({
+    queryKey: () => predictionsKey(toValue(channelId)),
+    mutationFn: (predictionId: string): Promise<Prediction[]> =>
+      endPrediction(toValue(channelId) as string, predictionId, { status: 'CANCELED' }),
+    apply: (current: Prediction[] | undefined, predictionId: string): Prediction[] =>
+      changePrediction(current, predictionId, { status: 'CANCELED' }),
+  });
 }
 
 // Ends a running poll early and shows its result to viewers on Twitch. The variable is the poll id.

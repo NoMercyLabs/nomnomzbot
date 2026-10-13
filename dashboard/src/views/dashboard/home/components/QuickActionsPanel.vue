@@ -18,6 +18,7 @@ import { useRouter } from 'vue-router';
 
 import {
   isPollRunning,
+  isPredictionRunning,
   usePolls,
   usePredictions,
   useTimers,
@@ -40,6 +41,7 @@ import NoteDouble from '~icons/nnz/note-double';
 import Timer24 from '~icons/nnz/timer';
 
 import PollDialog from './PollDialog.vue';
+import PredictionDialog from './PredictionDialog.vue';
 import TimersDialog from './TimersDialog.vue';
 
 type Running = {
@@ -120,6 +122,11 @@ const runningPoll = computed<Poll | null>(
   () => (pollsQuery.data.value ?? []).find(isPollRunning) ?? null,
 );
 
+const predictionOpen = ref(false);
+const runningPrediction = computed<Prediction | null>(
+  () => (predictionsQuery.data.value ?? []).find(isPredictionRunning) ?? null,
+);
+
 const running = computed<Running | null>(() => {
   const poll = runningPoll.value;
 
@@ -131,11 +138,9 @@ const running = computed<Running | null>(() => {
     };
   }
 
-  const prediction: Prediction | undefined = (predictionsQuery.data.value ?? []).find(
-    (p: Prediction) => ['ACTIVE', 'LOCKED'].includes(p.status.toUpperCase()),
-  );
+  const prediction = runningPrediction.value;
 
-  if (prediction === undefined)
+  if (prediction === null)
     return null;
 
   const open = prediction.status.toUpperCase() === 'ACTIVE';
@@ -280,9 +285,12 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
               <template v-else>{{ t('dashboard.home.quick.locked') }}</template>
             </span>
           </template>
-          <template v-if="runningPoll !== null" #trailing>
-            <Button variant="ghost" size="sm" @click="pollOpen = true">
+          <template #trailing>
+            <Button v-if="runningPoll !== null" variant="ghost" size="sm" @click="pollOpen = true">
               {{ t('dashboard.home.quick.pollOpen') }}
+            </Button>
+            <Button v-else variant="ghost" size="sm" @click="predictionOpen = true">
+              {{ t('dashboard.home.quick.predictionOpen') }}
             </Button>
           </template>
         </SummaryRow>
@@ -298,11 +306,15 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
             <Button variant="outline" size="sm" @click="pollOpen = true">
               {{ t('dashboard.home.quick.pollStart') }}
             </Button>
+            <Button variant="outline" size="sm" @click="predictionOpen = true">
+              {{ t('dashboard.home.quick.predictionStart') }}
+            </Button>
           </template>
         </SummaryRow>
       </div>
     </RowGroup>
     <TimersDialog v-model:open="timersOpen" :timers="allTimers" />
     <PollDialog v-model:open="pollOpen" :poll="runningPoll" />
+    <PredictionDialog v-model:open="predictionOpen" :prediction="runningPrediction" />
   </PanelCard>
 </template>
