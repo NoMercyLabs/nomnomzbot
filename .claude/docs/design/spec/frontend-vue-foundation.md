@@ -180,7 +180,13 @@ Each step is one validated slice.
    - the error inbox in the frame: every actionable error shows outside the page and links to its fix;
    - loading: a skeleton only after 150 ms; empty and error states as shared components.
 4. Translations converted (V17), with a count check. The script writes each key into its page's `i18n/` file by the page map, and into `common.*` when two or more areas use it.
-5. Shared components (V13, V21, V22), shown on one catalogue page that runs the same gates.
+5. Shared components (V13, V21, V22), shown on one catalogue page that runs the same gates. The component set,
+   the page-to-route map and the build order are in `frontend-vue-components.md`. Traps found so far:
+   - every `shadcn-vue add` puts a Google Fonts import back into `main.css`; remove it (guard: `structure.spec.ts`);
+   - CLI parts carry English screen-reader labels; callers hide them (same guard, rules in the components spec);
+   - a `Select` item list needs a `SelectGroup` around its items;
+   - sign-in from a plain-http LAN address has no secure context, so the client uses the device code flow there;
+   - the Vite dev server forwards the API with `xfwd`, so the bot sees the browser's origin.
 6. The page map (V23).
 7. Pages, one slice each, stream-facing first: Home, Chat, Stream, TTS, Music, People, Commands, then the rest of the 33. Stoney walks each page in the running app; what does not feel right is fixed in the component, so every page gets it.
 8. The server serves `dashboard/` in place of the Wasm app. Delete `app/`.
