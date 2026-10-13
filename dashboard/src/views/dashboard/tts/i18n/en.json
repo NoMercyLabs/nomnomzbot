@@ -57,6 +57,16 @@
         "sampleText": "Hello chat, this is how I sound.",
         "playSample": "Play a sample of {voice}",
         "stopSample": "Stop the sample of {voice}",
+        "playLabel": "Play sample",
+        "stopLabel": "Stop",
+        "subtitle": "{total} voices",
+        "hint": "Click a row to make it the channel default",
+        "loading": "Loading voices",
+        "gender": {
+          "female": "Female",
+          "male": "Male",
+          "neutral": "Neutral"
+        },
         "family": {
           "all": "All",
           "en": "English",
@@ -70,12 +80,6 @@
           "title": "Channel voice",
           "none": "No voice is picked yet.",
           "platform": "This channel follows the platform voice until you pick one."
-        },
-        "fact": {
-          "voice": "Voice",
-          "locale": "Language",
-          "gender": "Gender",
-          "provider": "Provider"
         },
         "detection": {
           "title": "Language detection",

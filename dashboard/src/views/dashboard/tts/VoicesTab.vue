@@ -8,45 +8,50 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { InfiniteData } from '@tanstack/vue-query'
-import { refDebounced } from '@vueuse/core'
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { refDebounced, useLocalStorage, type RemovableRef } from '@vueuse/core'
+import Check from '~icons/nnz/check'
+import WaveForm from '~icons/nnz/wave-form'
+import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSetTtsVoice, useTtsConfig, useTtsVoices, voiceFamily, type TtsConfig, type TtsVoice, type TtsVoicePage } from '@/api/tts'
+import {
+  useSetTtsVoice,
+  useTtsConfig,
+  useTtsVoices,
+  voiceFamily,
+  voiceFamilyOrder,
+  type TtsVoice,
+  type TtsVoicePage,
+} from '@/api/tts'
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
-import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
-import PanelCard from '@/components/layout/PanelCard.vue'
+import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
 import SearchField from '@/components/layout/SearchField.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import VirtualList from '@/components/layout/VirtualList.vue'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
-import { usePanelState } from '@/composables/usePanelState'
 import { useProviderName } from '@/composables/useProviderName'
 
 import PlaySampleButton from './PlaySampleButton.vue'
+import { groupVoices, localeLabel, type VoiceListItem } from './voiceGroups'
 
 const ROW_HEIGHT = 56
 const SEARCH_DELAY = 250
 const ALL = 'all'
-const families: readonly string[] = [ALL, 'en', 'nl', 'de', 'fr', 'es', 'other']
+const SEPARATOR = ' · '
+const SHOWN_STYLES = 2
 
-const { t } = useI18n()
+const { t, te, locale } = useI18n()
 const providerName = useProviderName()
 const { channelId } = useCurrentChannel()
 const config = useTtsConfig(channelId)
 const search: Ref<string> = ref('')
-const family: Ref<string> = ref(ALL)
+const family: RemovableRef<string> = useLocalStorage('nnz.tts.voiceFamily', ALL)
 const asked: Readonly<Ref<string>> = refDebounced(search, SEARCH_DELAY)
 const catalogue = useTtsVoices(channelId, () => ({ q: asked.value }))
 const pick = useSetTtsVoice(channelId)
-
-const options: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() =>
-  families.map((value: string): FilterOption => ({ value, label: t(`dashboard.tts.voices.family.${value}`) })),
-)
 
 const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
   (catalogue.data.value?.pages ?? []).flatMap((page: TtsVoicePage) => page.voices),
@@ -54,38 +59,96 @@ const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
 
 // The language chips filter the loaded pages; the server has no language-family filter.
 const visible: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
-  family.value === ALL ? loaded.value : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === family.value),
+  family.value === ALL
+    ? loaded.value
+    : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === family.value),
 )
 
-const listState = usePanelState<InfiniteData<TtsVoicePage, number>>(catalogue, () => visible.value.length === 0)
-const currentState = usePanelState<TtsConfig | null>(config, (data: TtsConfig | null) => data === null)
+const items: ComputedRef<VoiceListItem[]> = computed<VoiceListItem[]>(() =>
+  groupVoices(visible.value, locale.value),
+)
 
-const chosen: ComputedRef<string | null> = computed<string | null>(() => config.data.value?.defaultVoiceId ?? null)
+type Chip = { value: string; label: string; count: number }
+
+const chips: ComputedRef<Chip[]> = computed<Chip[]>(() =>
+  [ALL, ...voiceFamilyOrder].map((value: string): Chip => ({
+    value,
+    label: t(`dashboard.tts.voices.family.${value}`),
+    count:
+      value === ALL
+        ? loaded.value.length
+        : loaded.value.filter((voice: TtsVoice) => voiceFamily(voice.locale) === value).length,
+  })),
+)
+
+// The search box and the chips live inside the panel, so a new search must not swap the panel for a skeleton.
+const settled: Ref<boolean> = ref(false)
+watch(
+  () => catalogue.data.value,
+  (data: unknown) => {
+    if (data !== undefined) settled.value = true
+  },
+  { immediate: true },
+)
+const panelState: ComputedRef<PanelState> = computed<PanelState>(() =>
+  catalogue.isError.value ? 'error' : settled.value ? 'ready' : 'loading',
+)
+
+const chosen: ComputedRef<string | null> = computed<string | null>(
+  () => config.data.value?.defaultVoiceId ?? null,
+)
 const current: ComputedRef<TtsVoice | undefined> = computed<TtsVoice | undefined>(() =>
   loaded.value.find((voice: TtsVoice) => voice.id === chosen.value),
 )
 
-const facts: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => [
-  { label: t('dashboard.tts.voices.fact.voice'), value: current.value?.displayName ?? chosen.value },
-  { label: t('dashboard.tts.voices.fact.locale'), value: current.value?.locale },
-  { label: t('dashboard.tts.voices.fact.gender'), value: current.value?.gender },
-  {
-    label: t('dashboard.tts.voices.fact.provider'),
-    value: config.data.value ? providerName(config.data.value.defaultProvider) : undefined,
-  },
-])
+// Only a total the bot returned is shown; the loaded pages never stand in for it.
+const subtitle: ComputedRef<string | undefined> = computed<string | undefined>(() => {
+  const total: number | null | undefined = catalogue.data.value?.pages[0]?.total
+  return total === null || total === undefined
+    ? undefined
+    : t('dashboard.tts.voices.subtitle', { total })
+})
 
 // While the server has more pages, the loaded voices are not the whole catalogue, so the count says "the first".
 const count: ComputedRef<string> = computed<string>(() =>
-  t(catalogue.hasNextPage.value ? 'dashboard.tts.voices.countFirst' : 'dashboard.tts.voices.count', {
-    shown: visible.value.length,
-    loaded: loaded.value.length,
-  }),
+  t(
+    catalogue.hasNextPage.value ? 'dashboard.tts.voices.countFirst' : 'dashboard.tts.voices.count',
+    {
+      shown: visible.value.length,
+      loaded: loaded.value.length,
+    },
+  ),
 )
 
-function detail(voice: TtsVoice): string {
-  return [voice.locale, voice.gender, ...voice.styles.slice(0, 2)].filter((part: string) => part !== '').join(' · ')
+function genderLabel(gender: string): string {
+  const key = `dashboard.tts.voices.gender.${gender.toLowerCase()}`
+  return te(key) ? t(key) : gender
 }
+
+function detail(voice: TtsVoice): string {
+  return [
+    localeLabel(voice.locale, locale.value),
+    genderLabel(voice.gender),
+    voice.styles.slice(0, SHOWN_STYLES).join(', '),
+  ]
+    .filter((part: string) => part !== '')
+    .join(SEPARATOR)
+}
+
+const currentName: ComputedRef<string | null> = computed<string | null>(
+  () => current.value?.displayName ?? chosen.value,
+)
+
+const currentDetail: ComputedRef<string> = computed<string>(() =>
+  [
+    current.value
+      ? `${localeLabel(current.value.locale, locale.value)}${SEPARATOR}${genderLabel(current.value.gender)}`
+      : '',
+    config.data.value ? providerName(config.data.value.defaultProvider) : '',
+  ]
+    .filter((part: string) => part !== '')
+    .join(SEPARATOR),
+)
 
 function choose(voice: TtsVoice): void {
   if (voice.id !== chosen.value) pick.mutate({ voiceId: voice.id, provider: voice.provider })
@@ -94,62 +157,131 @@ function choose(voice: TtsVoice): void {
 
 <template>
   <BoardGrid :rows="2">
-    <BoardCell :span="5">
-      <PanelCard
-        :title="$t('dashboard.tts.voices.current.title')"
-        tier="lead"
-        pad
-        :state="currentState"
-        :empty-text="$t('dashboard.tts.voices.current.none')"
-        :error-text="$t('dashboard.tts.settings.error')"
-        @retry="config.refetch()"
-      >
-        <div class="grid gap-4">
-          <KeyValueList :items="facts" />
-          <p v-if="config.data.value?.followsPlatformDefaultVoice" class="text-sm text-muted-foreground">
-            {{ $t('dashboard.tts.voices.current.platform') }}
-          </p>
-        </div>
-      </PanelCard>
-    </BoardCell>
     <BoardCell :span="7" :rows="2">
       <PanelCard
         :title="$t('dashboard.tts.voices.title')"
-        :state="listState"
-        :empty-text="$t('dashboard.tts.voices.empty')"
+        :description="subtitle"
+        tier="lead"
+        pad
+        :state="panelState"
         :error-text="$t('dashboard.tts.voices.error')"
         @retry="catalogue.refetch()"
       >
-        <template #actions>
-          <FilterBar v-model="family" :label="$t('dashboard.tts.voices.language')" :options="options">
-            <SearchField v-model="search" :placeholder="$t('dashboard.tts.voices.search')" />
-          </FilterBar>
-        </template>
-        <VirtualList
-          class="h-full"
-          :items="visible"
-          :item-key="(voice: TtsVoice) => voice.id"
-          :estimate-size="ROW_HEIGHT"
-          :label="$t('dashboard.tts.voices.title')"
-        >
-          <template #default="{ item }">
-            <SummaryRow
-              data-voice-row
-              :data-voice-id="item.id"
-              pick
-              role="radio"
-              :aria-checked="item.id === chosen"
-              :selected="item.id === chosen"
-              :title="item.displayName"
-              :detail="detail(item)"
-              @click="choose(item)"
+        <div class="flex h-full min-h-0 flex-col gap-3">
+          <div
+            v-if="chosen !== null"
+            data-current-voice
+            class="flex flex-none items-center gap-3 rounded-[12px] border border-border p-3"
+          >
+            <span
+              class="flex size-10 flex-none items-center justify-center rounded-[8px] bg-muted text-muted-foreground"
             >
-              <template #trailing><PlaySampleButton :voice-id="item.id" /></template>
-            </SummaryRow>
-          </template>
-        </VirtualList>
+              <WaveForm class="size-5" aria-hidden="true" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-medium wrap-break-word">{{ currentName }}</span>
+              <span class="block text-sm text-muted-foreground">{{ currentDetail }}</span>
+              <span
+                v-if="config.data.value?.followsPlatformDefaultVoice"
+                class="block text-sm text-muted-foreground"
+              >
+                {{ $t('dashboard.tts.voices.current.platform') }}
+              </span>
+            </span>
+            <PlaySampleButton :voice-id="chosen" />
+          </div>
+          <p v-else data-current-voice class="flex-none text-sm text-muted-foreground">
+            {{ $t('dashboard.tts.voices.current.none') }}
+          </p>
+
+          <SearchField
+            v-model="search"
+            class="w-full flex-none"
+            :placeholder="$t('dashboard.tts.voices.search')"
+          />
+
+          <div
+            role="group"
+            :aria-label="$t('dashboard.tts.voices.language')"
+            class="flex flex-none flex-wrap gap-1.5"
+          >
+            <Button
+              v-for="chip in chips"
+              :key="chip.value"
+              :data-voice-family="chip.value"
+              type="button"
+              variant="outline"
+              size="sm"
+              class="h-7 gap-1.5 px-2.5"
+              :class="
+                family === chip.value
+                  ? 'bg-accent text-accent-foreground dark:bg-accent dark:hover:bg-accent'
+                  : ''
+              "
+              :aria-pressed="family === chip.value"
+              @click="family = chip.value"
+            >
+              {{ chip.label }}
+              <span class="text-muted-foreground tabular-nums">{{ chip.count }}</span>
+            </Button>
+          </div>
+
+          <div
+            v-if="catalogue.isPending.value"
+            class="grid flex-none gap-2"
+            :aria-label="$t('dashboard.tts.voices.loading')"
+            aria-busy="true"
+          >
+            <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-[12px]" />
+          </div>
+          <p
+            v-else-if="visible.length === 0"
+            class="py-6 text-center text-sm text-muted-foreground"
+          >
+            {{ $t('dashboard.tts.voices.empty') }}
+          </p>
+          <VirtualList
+            v-else
+            class="min-h-0 flex-1"
+            :items="items"
+            :item-key="(item: VoiceListItem) => item.key"
+            :estimate-size="ROW_HEIGHT"
+            :label="$t('dashboard.tts.voices.title')"
+          >
+            <template #default="{ item }">
+              <div
+                v-if="item.kind === 'heading'"
+                data-voice-group
+                class="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground"
+              >
+                {{ item.label }}
+              </div>
+              <SummaryRow
+                v-else
+                data-voice-row
+                :data-voice-id="item.voice.id"
+                pick
+                role="radio"
+                :aria-checked="item.voice.id === chosen"
+                :selected="item.voice.id === chosen"
+                :title="item.voice.displayName"
+                :detail="detail(item.voice)"
+                @click="choose(item.voice)"
+              >
+                <template #leading>
+                  <Check
+                    class="size-4 flex-none"
+                    :class="item.voice.id === chosen ? '' : 'invisible'"
+                    aria-hidden="true"
+                  />
+                </template>
+                <template #trailing><PlaySampleButton :voice-id="item.voice.id" /></template>
+              </SummaryRow>
+            </template>
+          </VirtualList>
+        </div>
         <template #footer>
-          <span data-voice-count class="mr-auto text-sm text-muted-foreground">{{ count }}</span>
+          <span data-voice-count class="text-sm text-muted-foreground">{{ count }}</span>
           <Button
             v-if="catalogue.hasNextPage.value"
             data-voice-more
@@ -160,6 +292,9 @@ function choose(voice: TtsVoice): void {
           >
             {{ $t('dashboard.tts.voices.more') }}
           </Button>
+          <span class="ml-auto text-xs text-muted-foreground">{{
+            $t('dashboard.tts.voices.hint')
+          }}</span>
         </template>
       </PanelCard>
     </BoardCell>

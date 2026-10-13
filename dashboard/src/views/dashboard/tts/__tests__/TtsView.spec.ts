@@ -92,7 +92,15 @@ async function open(query: string = ''): Promise<void> {
   mounted = mount(TtsView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await flushPromises()
@@ -109,13 +117,16 @@ const rowOf = (title: string): HTMLElement =>
   [...panel('Settings').querySelectorAll<HTMLElement>('[data-settings-row]')].find((row) =>
     row.textContent?.includes(title),
   ) as HTMLElement
-const badgeTone = (): string | null => document.body.querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone') ?? null
+const badgeTone = (): string | null =>
+  document.body.querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone') ?? null
 
 describe('TtsView overview', () => {
   it('shows the three tabs and starts on Overview', async () => {
     await open()
 
-    const tabs: string[] = [...document.body.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent?.trim() ?? '')
+    const tabs: string[] = [...document.body.querySelectorAll('[role="tab"]')].map(
+      (tab) => tab.textContent?.trim() ?? '',
+    )
     expect(tabs).toEqual(['Overview', 'Voices', 'Rules'])
     expect(panel('Spoken history')).toBeDefined()
   })
@@ -145,7 +156,8 @@ describe('TtsView overview', () => {
   })
 
   it('says the channel follows the platform voice when no voice is picked', async () => {
-    answers['/tts/config'] = () => ok({ ...config, defaultVoiceId: null, followsPlatformDefaultVoice: true })
+    answers['/tts/config'] = () =>
+      ok({ ...config, defaultVoiceId: null, followsPlatformDefaultVoice: true })
     await open()
 
     expect(rowOf('Voice').textContent).toContain('Follows the platform voice')
@@ -157,7 +169,8 @@ describe('TtsView overview', () => {
 
     mounted?.unmount()
     document.body.innerHTML = ''
-    answers['/tts/overlay'] = () => ok({ overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: '2026-10-13T09:00:00Z' })
+    answers['/tts/overlay'] = () =>
+      ok({ overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: '2026-10-13T09:00:00Z' })
     await open()
     expect(rowOf('Speaker overlay').textContent).toContain('Last used')
     expect(rowOf('Speaker overlay').textContent).not.toContain('Never used')
@@ -167,7 +180,9 @@ describe('TtsView overview', () => {
     await open()
 
     expect(panel('Spoken history').getAttribute('data-state')).toBe('empty')
-    expect(panel('Spoken history').textContent).toContain('The bot does not keep a readable record of spoken messages yet.')
+    expect(panel('Spoken history').textContent).toContain(
+      'The bot does not keep a readable record of spoken messages yet.',
+    )
   })
 
   it('shows the error state when the config read is refused, and no badge', async () => {

@@ -57,6 +57,16 @@
         "sampleText": "Hallo chat, zo klink ik.",
         "playSample": "Speel een voorbeeld van {voice}",
         "stopSample": "Stop het voorbeeld van {voice}",
+        "playLabel": "Voorbeeld afspelen",
+        "stopLabel": "Stop",
+        "subtitle": "{total} stemmen",
+        "hint": "Klik op een rij om die stem de kanaalstem te maken",
+        "loading": "Stemmen laden",
+        "gender": {
+          "female": "Vrouw",
+          "male": "Man",
+          "neutral": "Neutraal"
+        },
         "family": {
           "all": "Alle",
           "en": "Engels",
@@ -70,12 +80,6 @@
           "title": "Kanaalstem",
           "none": "Er is nog geen stem gekozen.",
           "platform": "Dit kanaal volgt de platformstem tot je er een kiest."
-        },
-        "fact": {
-          "voice": "Stem",
-          "locale": "Taal",
-          "gender": "Geslacht",
-          "provider": "Aanbieder"
         },
         "detection": {
           "title": "Taalherkenning",

@@ -14,19 +14,25 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import FilterBar from '@/components/layout/FilterBar.vue'
 import { i18n } from '@/i18n'
 
 import en from '../i18n/en.json'
 import VoicesTab from '../VoicesTab.vue'
 
 type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
-type Call = { method: string; path: string; init: { params?: { query?: Record<string, unknown> }; body?: unknown } }
+type Call = {
+  method: string
+  path: string
+  init: { params?: { query?: Record<string, unknown> }; body?: unknown }
+}
 
 const calls: Call[] = []
 let answers: Record<string, () => Answer> = {}
 
-const ok = (data: unknown, extra: Record<string, unknown> = {}): Answer => ({ data: { data, ...extra }, response: { status: 200, ok: true } })
+const ok = (data: unknown, extra: Record<string, unknown> = {}): Answer => ({
+  data: { data, ...extra },
+  response: { status: 200, ok: true },
+})
 
 const voice = (id: string, locale: string, gender: string = 'female'): Record<string, unknown> => ({
   id,
@@ -72,7 +78,9 @@ const catalogue: Record<string, unknown>[] = [
 
 function record(method: string, path: string, init: Call['init']): Answer | undefined {
   calls.push({ method, path, init })
-  const match: string | undefined = Object.keys(answers).find((key) => key.startsWith(`${method} `) && path.endsWith(key.slice(method.length + 1)))
+  const match: string | undefined = Object.keys(answers).find(
+    (key) => key.startsWith(`${method} `) && path.endsWith(key.slice(method.length + 1)),
+  )
   return match ? answers[match]!() : undefined
 }
 
@@ -97,6 +105,7 @@ let pinia: Pinia
 const played: string[] = []
 
 beforeEach(() => {
+  localStorage.clear()
   calls.length = 0
   played.length = 0
   answers = {
@@ -126,16 +135,32 @@ beforeEach(() => {
       }
     },
   )
-  const sizeOf = (element: Element): number => (element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT)
-  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  const sizeOf = (element: Element): number =>
+    element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    return { width: 300, height: sizeOf(this), top: 0, left: 0, right: 300, bottom: sizeOf(this), x: 0, y: 0 } as DOMRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return {
+      width: 300,
+      height: sizeOf(this),
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: sizeOf(this),
+      x: 0,
+      y: 0,
+    } as DOMRect
   })
 })
 
@@ -157,23 +182,47 @@ async function open(): Promise<void> {
   mounted = mount(VoicesTab, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
 }
 
-const rows = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-voice-row]')]
+const rows = (): HTMLElement[] => [
+  ...document.body.querySelectorAll<HTMLElement>('[data-voice-row]'),
+]
 const ids = (): (string | null)[] => rows().map((row) => row.getAttribute('data-voice-id'))
-const rowOf = (id: string): HTMLElement => rows().find((row) => row.getAttribute('data-voice-id') === id) as HTMLElement
-const count = (): string => document.body.querySelector('[data-voice-count]')?.textContent?.trim() ?? ''
+const rowOf = (id: string): HTMLElement =>
+  rows().find((row) => row.getAttribute('data-voice-id') === id) as HTMLElement
+const count = (): string =>
+  document.body.querySelector('[data-voice-count]')?.textContent?.trim() ?? ''
+const chip = (family: string): HTMLElement =>
+  document.body.querySelector<HTMLElement>(`[data-voice-family="${family}"]`) as HTMLElement
+const chipText = (family: string): string =>
+  chip(family).textContent?.replace(/\s+/g, ' ').trim() ?? ''
+const headings = (): string[] =>
+  [...document.body.querySelectorAll<HTMLElement>('[data-voice-group]')].map(
+    (heading) => heading.textContent?.trim() ?? '',
+  )
 const writes = (method: string): Call[] => calls.filter((call) => call.method === method)
 
 describe('VoicesTab', () => {
   it('lists the catalogue, marks the channel voice and counts the voices', async () => {
     await open()
 
-    expect(ids()).toEqual(['en-US-AriaNeural', 'nl-NL-ColetteNeural', 'nl-BE-ArnaudNeural', 'ja-JP-NanamiNeural'])
+    expect(ids()).toEqual([
+      'en-US-AriaNeural',
+      'nl-BE-ArnaudNeural',
+      'nl-NL-ColetteNeural',
+      'ja-JP-NanamiNeural',
+    ])
     expect(rowOf('en-US-AriaNeural').getAttribute('aria-checked')).toBe('true')
     expect(rowOf('nl-NL-ColetteNeural').getAttribute('aria-checked')).toBe('false')
     expect(count()).toBe('4 of 4 voices')
@@ -182,12 +231,12 @@ describe('VoicesTab', () => {
   it('keeps only the voices of the chosen language and counts them against the whole catalogue', async () => {
     await open()
 
-    mounted!.findComponent(FilterBar).vm.$emit('update:modelValue', 'nl')
+    chip('nl').click()
     await settle()
-    expect(ids()).toEqual(['nl-NL-ColetteNeural', 'nl-BE-ArnaudNeural'])
+    expect(ids()).toEqual(['nl-BE-ArnaudNeural', 'nl-NL-ColetteNeural'])
     expect(count()).toBe('2 of 4 voices')
 
-    mounted!.findComponent(FilterBar).vm.$emit('update:modelValue', 'other')
+    chip('other').click()
     await settle()
     expect(ids()).toEqual(['ja-JP-NanamiNeural'])
   })
@@ -196,13 +245,17 @@ describe('VoicesTab', () => {
     await open()
     answers['GET /tts/voices'] = () => ok([catalogue[1]], { hasMore: false, nextPage: null })
 
-    const input: HTMLInputElement = document.body.querySelector('input[type="search"]') as HTMLInputElement
+    const input: HTMLInputElement = document.body.querySelector(
+      'input[type="search"]',
+    ) as HTMLInputElement
     input.value = 'colette'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await new Promise((done) => setTimeout(done, 350))
     await settle()
 
-    const search: Call | undefined = calls.filter((call) => call.method === 'GET' && call.path.endsWith('/tts/voices')).at(-1)
+    const search: Call | undefined = calls
+      .filter((call) => call.method === 'GET' && call.path.endsWith('/tts/voices'))
+      .at(-1)
     expect(search?.init.params?.query).toEqual({ q: 'colette', page: 1, pageSize: 200 })
     expect(ids()).toEqual(['nl-NL-ColetteNeural'])
     expect(count()).toBe('1 of 1 voices')
@@ -214,11 +267,14 @@ describe('VoicesTab', () => {
     await open()
 
     expect(count()).toBe('4 of the first 4 voices')
-    answers['GET /tts/voices'] = () => ok([voice('de-DE-KatjaNeural', 'de-DE')], { hasMore: false, nextPage: null })
+    answers['GET /tts/voices'] = () =>
+      ok([voice('de-DE-KatjaNeural', 'de-DE')], { hasMore: false, nextPage: null })
     document.body.querySelector<HTMLElement>('[data-voice-more]')!.click()
     await settle()
 
-    const next: Call | undefined = calls.filter((call) => call.method === 'GET' && call.path.endsWith('/tts/voices')).at(-1)
+    const next: Call | undefined = calls
+      .filter((call) => call.method === 'GET' && call.path.endsWith('/tts/voices'))
+      .at(-1)
     expect(next?.init.params?.query).toEqual({ page: 2, pageSize: 200 })
     expect(ids()).toContain('de-DE-KatjaNeural')
     expect(count()).toBe('5 of 5 voices')
@@ -252,7 +308,10 @@ describe('VoicesTab', () => {
   })
 
   it('puts the old voice back when the bot refuses the pick', async () => {
-    answers['PUT /tts/config'] = () => ({ error: { message: 'No such voice' }, response: { status: 400, ok: false } })
+    answers['PUT /tts/config'] = () => ({
+      error: { message: 'No such voice' },
+      response: { status: 400, ok: false },
+    })
     await open()
 
     rowOf('nl-NL-ColetteNeural').click()
@@ -273,25 +332,118 @@ describe('VoicesTab', () => {
   })
 
   it('asks the bot for a sample in that voice and plays the audio it returns', async () => {
-    answers['POST /tts/test'] = () => ok({ voiceId: 'nl-NL-ColetteNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
+    answers['POST /tts/test'] = () =>
+      ok({ voiceId: 'nl-NL-ColetteNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
     await open()
 
-    rowOf('nl-NL-ColetteNeural').parentElement!.querySelector<HTMLElement>('[data-voice-play]')!.click()
+    rowOf('nl-NL-ColetteNeural')
+      .parentElement!.querySelector<HTMLElement>('[data-voice-play]')!
+      .click()
     await settle()
 
     expect(writes('POST')).toHaveLength(1)
-    expect(writes('POST')[0]!.init.body).toEqual({ text: 'Hello chat, this is how I sound.', voiceId: 'nl-NL-ColetteNeural' })
+    expect(writes('POST')[0]!.init.body).toEqual({
+      text: 'Hello chat, this is how I sound.',
+      voiceId: 'nl-NL-ColetteNeural',
+    })
     expect(played).toEqual(['data:audio/mpeg;base64,QUJD'])
     expect(writes('PUT')).toHaveLength(0)
   })
 
-  it('shows the error state with a retry when the catalogue cannot be read', async () => {
-    answers['GET /tts/voices'] = () => ({ error: { status: 'error' }, response: { status: 500, ok: false } })
+  it('groups the voices under one heading per language, English first and the United States before other English', async () => {
+    answers['GET /tts/voices'] = () =>
+      ok(
+        [
+          voice('nl-NL-ColetteNeural', 'nl-NL'),
+          voice('en-GB-SoniaNeural', 'en-GB'),
+          voice('ja-JP-NanamiNeural', 'ja-JP'),
+          voice('en-US-AriaNeural', 'en-US'),
+          voice('de-DE-KatjaNeural', 'de-DE'),
+        ],
+        { hasMore: false, nextPage: null },
+      )
     await open()
 
-    const card: HTMLElement | undefined = [...document.body.querySelectorAll<HTMLElement>('[data-slot="panel-card"]')].find((panel) =>
-      panel.querySelector('h2')?.textContent?.includes('Voices'),
-    )
+    expect(headings()).toEqual([
+      'English (United States)',
+      'English (United Kingdom)',
+      'Dutch (Netherlands)',
+      'German (Germany)',
+      'Japanese (Japan)',
+    ])
+    expect(ids()).toEqual([
+      'en-US-AriaNeural',
+      'en-GB-SoniaNeural',
+      'nl-NL-ColetteNeural',
+      'de-DE-KatjaNeural',
+      'ja-JP-NanamiNeural',
+    ])
+  })
+
+  it('shows how many voices each language chip holds', async () => {
+    await open()
+
+    expect(chipText('all')).toBe('All 4')
+    expect(chipText('nl')).toBe('Dutch 2')
+    expect(chipText('en')).toBe('English 1')
+    expect(chip('all').getAttribute('aria-pressed')).toBe('true')
+    chip('nl').click()
+    await settle()
+    expect(chip('nl').getAttribute('aria-pressed')).toBe('true')
+    expect(chip('all').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('remembers the chosen language after the page is left and opened again', async () => {
+    await open()
+    chip('nl').click()
+    await settle()
+    mounted?.unmount()
+
+    await open()
+
+    expect(chip('nl').getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('shows the catalogue total only when the bot returns it', async () => {
+    await open()
+    expect(document.body.textContent).not.toContain('322')
+    mounted!.unmount()
+
+    answers['GET /tts/voices'] = () => ok(catalogue, { hasMore: true, nextPage: 2, total: 322 })
+    await open()
+    expect(document.body.textContent).toContain('322 voices')
+  })
+
+  it('puts a labelled play button on the channel voice card that samples the channel voice', async () => {
+    answers['POST /tts/test'] = () =>
+      ok({ voiceId: 'en-US-AriaNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
+    await open()
+
+    const card: HTMLElement = document.body.querySelector('[data-current-voice]') as HTMLElement
+    expect(card.textContent).toContain('English (United States)')
+    expect(card.textContent).toContain('Female')
+    const play: HTMLElement = card.querySelector<HTMLElement>('[data-voice-play]') as HTMLElement
+    expect(play.textContent).toContain('Play sample')
+    play.click()
+    await settle()
+
+    expect(writes('POST')[0]!.init.body).toEqual({
+      text: 'Hello chat, this is how I sound.',
+      voiceId: 'en-US-AriaNeural',
+    })
+    expect(played).toEqual(['data:audio/mpeg;base64,QUJD'])
+  })
+
+  it('shows the error state with a retry when the catalogue cannot be read', async () => {
+    answers['GET /tts/voices'] = () => ({
+      error: { status: 'error' },
+      response: { status: 500, ok: false },
+    })
+    await open()
+
+    const card: HTMLElement | undefined = [
+      ...document.body.querySelectorAll<HTMLElement>('[data-slot="panel-card"]'),
+    ].find((panel) => panel.querySelector('h2')?.textContent?.includes('Voices'))
     expect(card?.getAttribute('data-state')).toBe('error')
     expect(rows()).toHaveLength(0)
   })

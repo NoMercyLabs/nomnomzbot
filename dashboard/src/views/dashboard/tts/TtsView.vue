@@ -40,28 +40,47 @@ const tabs: ComputedRef<PageTab[]> = computed<PageTab[]>(() => [
 ])
 const view = usePageView(() => tabs.value.map((tab: PageTab) => tab.value))
 
-const settings: ComputedRef<TtsConfig | null> = computed<TtsConfig | null>(() => config.data.value ?? null)
+const settings: ComputedRef<TtsConfig | null> = computed<TtsConfig | null>(
+  () => config.data.value ?? null,
+)
 
-const settingsState: ComputedRef<PanelState> = usePanelState<TtsConfig | null>(config, (data: TtsConfig | null) => data === null)
+const settingsState: ComputedRef<PanelState> = usePanelState<TtsConfig | null>(
+  config,
+  (data: TtsConfig | null) => data === null,
+)
 
 const voiceDetail: ComputedRef<string> = computed<string>(() => {
   const current: TtsConfig | null = settings.value
   if (current === null) return ''
   const provider: string = providerName(current.defaultProvider)
-  if (current.defaultVoiceId) return t('dashboard.tts.settings.voice.detail', { voice: current.defaultVoiceId, provider })
-  return t(current.followsPlatformDefaultVoice ? 'dashboard.tts.settings.voice.platform' : 'dashboard.tts.settings.voice.none', { provider })
+  if (current.defaultVoiceId)
+    return t('dashboard.tts.settings.voice.detail', { voice: current.defaultVoiceId, provider })
+  return t(
+    current.followsPlatformDefaultVoice
+      ? 'dashboard.tts.settings.voice.platform'
+      : 'dashboard.tts.settings.voice.none',
+    { provider },
+  )
 })
 
 const limitsDetail: ComputedRef<string> = computed<string>(() => {
   const current: TtsConfig | null = settings.value
   if (current === null) return ''
   const count: string = String(current.maxCharacters)
-  const bots: string = t(current.skipBotMessages ? 'dashboard.tts.settings.limits.skipBots' : 'dashboard.tts.settings.limits.readBots')
+  const bots: string = t(
+    current.skipBotMessages
+      ? 'dashboard.tts.settings.limits.skipBots'
+      : 'dashboard.tts.settings.limits.readBots',
+  )
   return `${t('dashboard.tts.settings.limits.detail', { count })} · ${bots}`
 })
 
 const wordsDetail: ComputedRef<string> = computed<string>(() =>
-  t(settings.value?.profanityCensorEnabled ? 'dashboard.tts.settings.words.censored' : 'dashboard.tts.settings.words.uncensored'),
+  t(
+    settings.value?.profanityCensorEnabled
+      ? 'dashboard.tts.settings.words.censored'
+      : 'dashboard.tts.settings.words.uncensored',
+  ),
 )
 
 const overlayDetail: ComputedRef<string> = computed<string>(() => {
@@ -69,7 +88,9 @@ const overlayDetail: ComputedRef<string> = computed<string>(() => {
   const ranAt: TtsOverlay['lastRanAt'] | undefined = overlay.data.value?.lastRanAt
   if (overlay.data.value === undefined || overlay.data.value === null) return ''
   if (!ranAt) return t('dashboard.tts.settings.overlay.never')
-  return t('dashboard.tts.settings.overlay.lastUsed', { time: new Date(ranAt).toLocaleString(locale.value) })
+  return t('dashboard.tts.settings.overlay.lastUsed', {
+    time: new Date(ranAt).toLocaleString(locale.value),
+  })
 })
 </script>
 
@@ -114,7 +135,9 @@ const overlayDetail: ComputedRef<string> = computed<string>(() => {
             data-settings-row
             pick
             :title="$t('dashboard.tts.settings.who.title')"
-            :detail="$t('dashboard.tts.settings.who.detail', { permission: settings.minPermission })"
+            :detail="
+              $t('dashboard.tts.settings.who.detail', { permission: settings.minPermission })
+            "
             @click="view = 'rules'"
           />
           <SummaryRow
@@ -131,7 +154,11 @@ const overlayDetail: ComputedRef<string> = computed<string>(() => {
             :detail="wordsDetail"
             @click="view = 'rules'"
           />
-          <SummaryRow data-settings-row :title="$t('dashboard.tts.settings.overlay.title')" :detail="overlayDetail" />
+          <SummaryRow
+            data-settings-row
+            :title="$t('dashboard.tts.settings.overlay.title')"
+            :detail="overlayDetail"
+          />
         </RowGroup>
       </PanelCard>
     </BoardCell>
@@ -141,7 +168,11 @@ const overlayDetail: ComputedRef<string> = computed<string>(() => {
 
   <BoardGrid v-else :rows="1">
     <BoardCell>
-      <PanelCard :title="$t('dashboard.tts.rules.title')" state="empty" :empty-text="$t('dashboard.tts.rules.empty')" />
+      <PanelCard
+        :title="$t('dashboard.tts.rules.title')"
+        state="empty"
+        :empty-text="$t('dashboard.tts.rules.empty')"
+      />
     </BoardCell>
   </BoardGrid>
 </template>
