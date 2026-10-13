@@ -10,10 +10,26 @@
 
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig } from 'vite'
+import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
+
+// The bot the dev server talks to. NNZ_API points it at another bot, such as the live box, for real data:
+// every save then changes that bot.
+const api: string = process.env.NNZ_API ?? 'http://localhost:5080'
+
+// The bot checks a refresh's Origin against the address it sees, and it sees this hop's scheme (http).
+// Behind the https tunnel the browser sends https://, so every refresh was refused and each load asked
+// for sign-in. A same-host origin is passed on with the hop's scheme; any other origin is left as it is.
+const sameHostOrigin: NonNullable<ProxyOptions['configure']> = (proxy) => {
+  proxy.on('proxyReq', (proxyReq, req) => {
+    const origin: string | undefined = req.headers.origin
+    const host: string | undefined = req.headers.host
+    if (!origin || !host || !URL.canParse(origin) || new URL(origin).host !== host) return
+    proxyReq.setHeader('origin', `${new URL(api).protocol}//${host}`)
+  })
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -31,11 +47,11 @@ export default defineConfig({
     // The https tunnel to this dev server, so a phone signs in by redirect.
     allowedHosts: ['vue.nomnomz.bot'],
     proxy: {
-      '/api': { target: 'http://localhost:5080', xfwd: true },
-      '/hubs': { target: 'http://localhost:5080', ws: true, xfwd: true },
+      '/api': { target: api, xfwd: true, configure: sameHostOrigin },
+      '/hubs': { target: api, ws: true, xfwd: true },
       // The code editor page is an iframe that must share the dashboard's origin (both sides check it).
-      '/editor': { target: 'http://localhost:5080', xfwd: true },
-      '/health': { target: 'http://localhost:5080', xfwd: true },
+      '/editor': { target: api, xfwd: true },
+      '/health': { target: api, xfwd: true },
     },
   },
   resolve: {
