@@ -41,9 +41,21 @@ public sealed class TwitchVideosApi(
         if (user.IsFailure)
             return user.WithValue<TwitchPage<TwitchVideo>>(default!);
 
+        return await GetVideosByTwitchUserIdAsync(user.Value, type, period, sort, page, ct);
+    }
+
+    public async Task<Result<TwitchPage<TwitchVideo>>> GetVideosByTwitchUserIdAsync(
+        string twitchUserId,
+        string? type,
+        string? period,
+        string? sort,
+        TwitchPageRequest page,
+        CancellationToken ct = default
+    )
+    {
         List<KeyValuePair<string, string>> query =
         [
-            new("user_id", user.Value),
+            new("user_id", twitchUserId),
             new("first", page.PageSize.ToString()),
         ];
         if (type is not null)

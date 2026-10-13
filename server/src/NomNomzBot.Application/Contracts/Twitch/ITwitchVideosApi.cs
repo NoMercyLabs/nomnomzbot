@@ -36,6 +36,20 @@ public interface ITwitchVideosApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Videos for any channel by its raw Twitch user id (<c>user_id</c>), with the same
+    /// <paramref name="type"/>, <paramref name="period"/> and <paramref name="sort"/> filters and paging as
+    /// <see cref="GetVideosByBroadcasterAsync"/>. No tenant is involved. App token; no scope.
+    /// </summary>
+    Task<Result<TwitchPage<TwitchVideo>>> GetVideosByTwitchUserIdAsync(
+        string twitchUserId,
+        string? type,
+        string? period,
+        string? sort,
+        TwitchPageRequest page,
+        CancellationToken ct = default
+    );
+
     /// <summary>Get Videos — fetch specific videos by their (raw Twitch) ids. App token; no scope.</summary>
     Task<Result<IReadOnlyList<TwitchVideo>>> GetVideosByIdsAsync(
         IReadOnlyList<string> videoIds,

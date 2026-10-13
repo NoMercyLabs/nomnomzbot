@@ -425,6 +425,13 @@ public static class DependencyInjection
             Stream.RaidSuggestions.RaidScoringRulesStore
         >();
         services.AddScoped<Stream.RaidSuggestions.RaidSuggestionService>();
+        // Who to shout out this stream: chatters who stream often. Twitch lookups and "Not now" dismissals
+        // live in the singleton state so they outlive one request.
+        services.AddSingleton<Stream.ShoutoutSuggestions.ShoutoutSuggestionState>();
+        services.AddScoped<
+            Application.Moderation.Services.IShoutoutSuggestionService,
+            Stream.ShoutoutSuggestions.ShoutoutSuggestionService
+        >();
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
         // A live channel's ad schedule is read once a minute; chat and the overlays hear the warnings before an ad.

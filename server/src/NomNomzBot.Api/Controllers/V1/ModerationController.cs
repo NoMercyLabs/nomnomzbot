@@ -56,6 +56,7 @@ public class ModerationController : BaseController
     private readonly IModerationHistoryService _history;
     private readonly IMassBanConsentService _massBan;
     private readonly IEnumerable<ICommandAction> _actions;
+    private readonly IShoutoutSuggestionService _shoutoutSuggestions;
 
     public ModerationController(
         IModerationService moderationService,
@@ -72,9 +73,11 @@ public class ModerationController : BaseController
         ITemplateHelperValidator templateHelperValidator,
         IModerationHistoryService history,
         IMassBanConsentService massBan,
-        IEnumerable<ICommandAction> actions
+        IEnumerable<ICommandAction> actions,
+        IShoutoutSuggestionService shoutoutSuggestions
     )
     {
+        _shoutoutSuggestions = shoutoutSuggestions;
         _massBan = massBan;
         _twitchModeration = twitchModeration;
         _moderationService = moderationService;
@@ -1882,6 +1885,46 @@ public class ModerationController : BaseController
             return StatusCode(StatusCodes.Status500InternalServerError);
         StatusResponseDto<ShoutoutOutcomeDto> response = new() { Data = new(path) };
         return path is "queued" or "already_queued" ? Accepted(response) : Ok(response);
+    }
+
+    /// <summary>
+    /// Chatters of the current stream the streamer may want to shout out: up to 10, most streams in the last
+    /// 14 days first. Empty while the channel is offline. Send one with <c>POST moderation/shoutout</c>.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("shoutout-suggestions")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ShoutoutSuggestionDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetShoutoutSuggestions(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<IReadOnlyList<ShoutoutSuggestionDto>> result = await _shoutoutSuggestions.GetAsync(
+            broadcasterId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(
+            new StatusResponseDto<IReadOnlyList<ShoutoutSuggestionDto>> { Data = result.Value }
+        );
+    }
+
+    /// <summary>"Not now": hides one suggested chatter for the rest of the current stream.</summary>
+    [RequireAction("moderation:shoutout")]
+    [HttpPost("shoutout-suggestions/{twitchUserId}/dismiss")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public IActionResult DismissShoutoutSuggestion(string channelId, string twitchUserId)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = _shoutoutSuggestions.Dismiss(broadcasterId, twitchUserId);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
     }
 
     public record ShoutoutTemplateDto(string? Template);
