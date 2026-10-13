@@ -40,27 +40,52 @@ function inApp(link: string): boolean {
 <template>
   <Popover v-model:open="open">
     <PopoverTrigger as-child>
-      <Button variant="ghost" size="sm" data-slot="error-inbox" :aria-label="t('frame.inbox.title')">
+      <Button variant="outline" size="sm" data-error-inbox :aria-label="t('frame.inbox.title')">
         <Inbox aria-hidden="true" />
         <Badge v-if="count" variant="secondary">{{ count }}</Badge>
       </Button>
     </PopoverTrigger>
     <PopoverContent align="end" class="w-80 p-0">
-      <h2 class="border-b border-border px-4 py-3 text-sm font-semibold">{{ t('frame.inbox.title') }}</h2>
-      <p v-if="!count" class="px-4 py-6 text-sm text-muted-foreground">{{ t('frame.inbox.empty') }}</p>
+      <h2 class="border-b border-border px-4 py-3 text-sm font-semibold">
+        {{ t('frame.inbox.title') }}
+      </h2>
+      <p v-if="!count" class="px-4 py-6 text-sm text-muted-foreground">
+        {{ t('frame.inbox.empty') }}
+      </p>
       <ul v-else class="flex max-h-80 flex-col overflow-y-auto p-1">
-        <li v-for="failed in saveErrors.items" :key="failed.id" class="flex flex-col gap-1 rounded-md px-3 py-2">
+        <li
+          v-for="failed in saveErrors.items"
+          :key="failed.id"
+          class="flex flex-col gap-1 rounded-md px-3 py-2"
+        >
           <span class="text-sm font-medium">{{ t(failed.titleKey) }}</span>
           <span class="text-sm text-muted-foreground">{{ t(failed.messageKey) }}</span>
-          <Button variant="ghost" size="sm" class="mt-1 self-start" @click="saveErrors.dismiss(failed.id)">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="mt-1 self-start"
+            @click="saveErrors.dismiss(failed.id)"
+          >
             {{ t('frame.inbox.dismiss') }}
           </Button>
         </li>
         <li v-for="item in items" :key="item.id" class="flex flex-col gap-1 rounded-md px-3 py-2">
-          <span class="text-sm font-medium">{{ words(item.titleKey, 'frame.inbox.unknownTitle') }}</span>
-          <span class="text-sm text-muted-foreground">{{ words(item.messageKey, 'frame.inbox.unknownMessage') }}</span>
-          <Button v-if="inApp(item.deepLinkRoute)" variant="outline" size="sm" class="mt-1 self-start" as-child>
-            <RouterLink :to="item.deepLinkRoute" @click="open = false">{{ t('frame.inbox.open') }}</RouterLink>
+          <span class="text-sm font-medium">{{
+            words(item.titleKey, 'frame.inbox.unknownTitle')
+          }}</span>
+          <span class="text-sm text-muted-foreground">{{
+            words(item.messageKey, 'frame.inbox.unknownMessage')
+          }}</span>
+          <Button
+            v-if="inApp(item.deepLinkRoute)"
+            variant="outline"
+            size="sm"
+            class="mt-1 self-start"
+            as-child
+          >
+            <RouterLink :to="item.deepLinkRoute" @click="open = false">{{
+              t('frame.inbox.open')
+            }}</RouterLink>
           </Button>
         </li>
       </ul>

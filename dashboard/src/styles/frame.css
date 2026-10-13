@@ -10,12 +10,14 @@
 
 /* The control rules of the approved mockups (layout-mockups/base/frame.css), laid over the shadcn-vue
    output by its data-slot and data-variant, so components/ui stays as the CLI wrote it.
-   Unlayered on purpose: it wins over the Tailwind utilities the components carry. */
+   Unlayered on purpose: it wins over the Tailwind utilities the components carry.
+   A button is found by its cva class group/button, not data-slot: a trigger rendered as-child
+   (popover, dialog, menu) replaces data-slot with its own, and such a button lost every rule here. */
 
 /* Anything you can press looks pressable at rest (owner 2026-10-12). Three weights: default = solid accent,
    the one primary action; outline = an edge at 3:1 or more (WCAG 1.4.11); ghost = full-tone text with an
    underline, so it reads as a link and never as a label. */
-[data-slot='button'] {
+.group\/button {
   height: var(--btn-h);
   padding-inline: var(--s4);
   gap: var(--s2);
@@ -23,71 +25,112 @@
   font-weight: 500;
   cursor: pointer;
 }
-[data-slot='button'][data-size='sm'] {
+.group\/button[data-size='sm'] {
   height: var(--btn-h-sm);
   padding-inline: var(--s3);
   border-radius: var(--radius-sm);
 }
-[data-slot='button'][data-size^='icon'] {
+.group\/button[data-size^='icon'] {
   width: var(--btn-h);
   padding: 0;
   border-radius: var(--radius-sm);
 }
-[data-slot='button'][data-size='icon-sm'] {
+.group\/button[data-size='icon-sm'] {
   width: var(--btn-h-sm);
   height: var(--btn-h-sm);
 }
-[data-slot='button'][data-variant='default']:hover {
+.group\/button[data-variant='default']:hover {
   background: color-mix(in oklab, var(--primary) 88%, var(--foreground));
 }
-[data-slot='button'][data-variant='outline'] {
+.group\/button[data-variant='outline'] {
   background: transparent;
   border-color: var(--input);
   box-shadow: none;
 }
-[data-slot='button'][data-variant='outline']:hover {
+.group\/button[data-variant='outline']:hover {
   background: var(--muted);
   border-color: color-mix(in oklab, var(--foreground) 65%, transparent);
 }
-[data-slot='button'][data-variant='ghost'] {
+.group\/button[data-variant='ghost'] {
   text-decoration: underline;
   text-decoration-color: color-mix(in oklab, var(--foreground) 45%, transparent);
   text-underline-offset: 4px;
 }
-[data-slot='button'][data-variant='ghost']:hover {
+.group\/button[data-variant='ghost']:hover {
   background: var(--muted);
   text-decoration-color: var(--foreground);
 }
 /* An icon alone has no text to underline, so it gets the outline edge instead. */
-[data-slot='button'][data-variant='ghost'][data-size^='icon'] {
+.group\/button[data-variant='ghost'][data-size^='icon'] {
   text-decoration: none;
   border-color: var(--input);
 }
 /* Red is for harm only: a plain edge and red text; solid red stays for the final confirm in a dialog. */
-[data-slot='button'][data-variant='destructive'] {
+.group\/button[data-variant='destructive'] {
   background: transparent;
   border-color: var(--input);
   color: var(--destructive);
 }
-[data-slot='button'][data-variant='destructive']:hover {
+.group\/button[data-variant='destructive']:hover {
   background: color-mix(in oklab, var(--destructive) 14%, transparent);
 }
 /* The final confirm of a dialog (mockup .btn.destructive, frame.css:128). */
-[data-slot='alert-dialog-footer'] [data-slot='button'][data-variant='destructive'] {
+[data-slot='alert-dialog-footer'] .group\/button[data-variant='destructive'] {
   background: var(--destructive);
   border-color: transparent;
   color: var(--destructive-foreground);
 }
-[data-slot='alert-dialog-footer'] [data-slot='button'][data-variant='destructive']:hover {
+[data-slot='alert-dialog-footer'] .group\/button[data-variant='destructive']:hover {
   background: color-mix(in oklab, var(--destructive) 88%, var(--foreground));
 }
-[data-slot='button']:disabled {
+.group\/button:disabled {
   cursor: not-allowed;
 }
 /* No list options here: a shadcn list item shows focus with its own background, and a ring is clipped by the list. */
-:where([data-slot='button'], a, [role='radio']):focus-visible {
+:where(.group\/button, a, [role='radio']):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Tabs are the mockup's .tabs/.tab (frame.css:79-81): a muted track with 3px padding, the chosen tab
+   lifted on --background. Concentric radius: 16 - 3 = 13. */
+[data-slot='tabs-list'] {
+  padding: 3px;
+  gap: 2px;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+}
+[data-slot='tabs-trigger'] {
+  height: var(--tab-h);
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 3px);
+  gap: var(--s1_5);
+}
+[data-slot='tabs-trigger'][data-state='active'] {
+  background: var(--background);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* The mockup switch (frame.css:151-155): 36 x 20 with a 14px thumb 2px from each edge. */
+[data-slot='switch'] {
+  width: 36px;
+  height: 20px;
+  padding-inline: 2px;
+}
+[data-slot='switch-thumb'] {
+  width: 14px;
+  height: 14px;
+}
+[data-slot='switch-thumb'][data-state='checked'] {
+  translate: 16px 0;
+}
+
+/* A sidebar group label is the mockup's .sb-fold (frame.css:301): 24px tall, radius 8. */
+[data-slot='sidebar-group-label'] {
+  height: 24px;
+  margin-bottom: var(--s0_5);
+  border-radius: 8px;
 }
 
 /* Concentric radius: a list option sits 4px (the group's p-1) inside a --radius-md list. */
@@ -136,17 +179,41 @@ a:not([data-slot]):hover {
 /* In the base layer so a placed control keeps its place: an unlayered rule beats every Tailwind utility,
    so `absolute` on a dialog's close button lost to this. */
 @layer base {
-  :where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option']) {
+  :where(
+    a[href],
+    button,
+    [role='button'],
+    [role='radio'],
+    [role='switch'],
+    [role='tab'],
+    [role='option']
+  ) {
     position: relative;
   }
 }
-:where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option']) {
+:where(
+  a[href],
+  button,
+  [role='button'],
+  [role='radio'],
+  [role='switch'],
+  [role='tab'],
+  [role='option']
+) {
   --_hit: var(--hit);
 }
 :where([data-size^='icon'], button:has(> svg:only-child)) {
   --_hit: var(--hit-icon);
 }
-:where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option'])::before {
+:where(
+  a[href],
+  button,
+  [role='button'],
+  [role='radio'],
+  [role='switch'],
+  [role='tab'],
+  [role='option']
+)::before {
   content: '';
   position: absolute;
   inset-block: min(0px, calc((100% - var(--_hit)) / 2));
