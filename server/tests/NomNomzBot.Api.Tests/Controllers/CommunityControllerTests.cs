@@ -38,13 +38,14 @@ public sealed class CommunityControllerTests
         CommunityControllerTestDbContext db,
         ITwitchChannelsApi channels,
         ITwitchModerationApi? moderation = null,
-        ITwitchUsersApi? users = null
+        ITwitchUsersApi? users = null,
+        ITwitchModeratorsApi? moderators = null
     )
     {
         CommunityController controller = new(
             db,
             channels,
-            Substitute.For<ITwitchModeratorsApi>(),
+            moderators ?? Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<ITwitchSubscriptionsApi>(),
             moderation ?? Substitute.For<ITwitchModerationApi>(),
             TimeProvider.System,
@@ -658,6 +659,139 @@ public sealed class CommunityControllerTests
         // reversed BroadcasterId or a missing filter would leak B's row into A's list (or vice versa).
         body.Data.Select(b => b.Id).Should().BeEquivalentTo(["twitch-a-target"]);
         body.Data.Should().NotContain(b => b.Id == "twitch-b-target");
+    }
+
+    private static async Task<CommunityController.UserDetailDto> DetailAsync(
+        ITwitchModeratorsApi moderators
+    )
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                TwitchUserId = "twitch-555",
+                Username = "some_viewer",
+                UsernameNormalized = "some_viewer",
+                DisplayName = "Some_Viewer",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderators: moderators
+        );
+
+        IActionResult result = await controller.GetUserDetail(
+            Broadcaster.ToString(),
+            "twitch-555",
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        return (
+            (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
+        ).Data!;
+    }
+
+    [Fact]
+    public async Task GetUserDetail_says_vip_true_and_moderator_false_when_twitch_lists_only_the_vip_role()
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Broadcaster,
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "twitch-555"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchVip>(
+                        [new("twitch-555", "Some_Viewer", "some_viewer")],
+                        null,
+                        1
+                    )
+                )
+            );
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Broadcaster,
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "twitch-555"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+
+        CommunityController.UserDetailDto detail = await DetailAsync(moderators);
+
+        detail.IsVip.Should().BeTrue();
+        detail.IsModerator.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetUserDetail_says_vip_false_and_moderator_true_when_twitch_lists_only_the_moderator_role()
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModerator>(
+                        [new("twitch-555", "some_viewer", "Some_Viewer")],
+                        null,
+                        1
+                    )
+                )
+            );
+
+        CommunityController.UserDetailDto detail = await DetailAsync(moderators);
+
+        detail.IsVip.Should().BeFalse();
+        detail.IsModerator.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetUserDetail_says_null_for_both_roles_when_twitch_cannot_answer()
+    {
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchPage<TwitchVip>>("no scope", TwitchErrorCodes.MissingScope)
+            );
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchPage<TwitchModerator>>(
+                    "twitch down",
+                    TwitchErrorCodes.NotFound
+                )
+            );
+
+        CommunityController.UserDetailDto detail = await DetailAsync(moderators);
+
+        detail.IsVip.Should().BeNull();
+        detail.IsModerator.Should().BeNull();
     }
 
     private static string BanEntryJson(string userId, string bannedBy) =>

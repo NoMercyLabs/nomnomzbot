@@ -195,6 +195,40 @@ public sealed class TwitchModeratorsApi(
         return await transport.GetPageAsync<TwitchVip>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadVips)]
+    public async Task<Result<TwitchPage<TwitchVip>>> GetVipsByUserIdAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> twitchUserIds,
+        CancellationToken ct = default
+    )
+    {
+        if (twitchUserIds.Count is 0 or > MaxUserIdFilter)
+            return Errors
+                .ValidationFailed($"Get VIPs filters on 1 to {MaxUserIdFilter} user ids.")
+                .WithValue<TwitchPage<TwitchVip>>(default!);
+
+        Result scope = await RequireScopeAsync(broadcasterId, TwitchScopes.ChannelReadVips, ct);
+        if (scope.IsFailure)
+            return scope.WithValue<TwitchPage<TwitchVip>>(default!);
+
+        Result<string> channel = await ResolveAsync(broadcasterId, ct);
+        if (channel.IsFailure)
+            return channel.WithValue<TwitchPage<TwitchVip>>(default!);
+
+        List<KeyValuePair<string, string>> query = [new("broadcaster_id", channel.Value)];
+        query.AddRange(twitchUserIds.Select(id => new KeyValuePair<string, string>("user_id", id)));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "channels/vips",
+            TwitchHelixAuth.User,
+            broadcasterId,
+            Query: query
+        );
+
+        return await transport.GetPageAsync<TwitchVip>(request, ct);
+    }
+
     [RequiresTwitchScope(TwitchScopes.ChannelManageVips)]
     public async Task<Result> AddVipAsync(
         Guid broadcasterId,

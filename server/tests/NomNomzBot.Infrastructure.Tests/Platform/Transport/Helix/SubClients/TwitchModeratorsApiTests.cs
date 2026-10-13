@@ -149,6 +149,53 @@ public class TwitchModeratorsApiTests
     }
 
     [Fact]
+    public async Task GetVipsByUserId_SendsOneUserIdFilterPerUser_OnTheVipsEndpoint()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchVip>([new("1", "VipName", "viplogin")], null, 0),
+        };
+        TwitchModeratorsApi api = Build(transport, TwitchScopes.ChannelReadVips);
+
+        Result<TwitchPage<TwitchVip>> result = await api.GetVipsByUserIdAsync(Tenant, ["1", "2"]);
+
+        result.Value.Items.Should().ContainSingle().Which.UserId.Should().Be("1");
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("channels/vips");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.User);
+        transport
+            .LastRequest.Query.Should()
+            .BeEquivalentTo(
+                new List<KeyValuePair<string, string>>
+                {
+                    new("broadcaster_id", TwitchId),
+                    new("user_id", "1"),
+                    new("user_id", "2"),
+                }
+            );
+    }
+
+    [Fact]
+    public async Task GetVipsByUserId_RejectsEmptyOrOversizedFilter_AndMissingScope_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchModeratorsApi api = Build(transport, TwitchScopes.ChannelReadVips);
+        TwitchModeratorsApi noScope = Build(transport);
+
+        Result<TwitchPage<TwitchVip>> empty = await api.GetVipsByUserIdAsync(Tenant, []);
+        Result<TwitchPage<TwitchVip>> oversized = await api.GetVipsByUserIdAsync(
+            Tenant,
+            [.. Enumerable.Range(1, 101).Select(i => i.ToString())]
+        );
+        Result<TwitchPage<TwitchVip>> denied = await noScope.GetVipsByUserIdAsync(Tenant, ["1"]);
+
+        empty.ErrorCode.Should().Be("VALIDATION_FAILED");
+        oversized.ErrorCode.Should().Be("VALIDATION_FAILED");
+        denied.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task AddModerator_MissingScope_ShortCircuits_WithoutCallingTransport()
     {
         CapturingHelixTransport transport = new();

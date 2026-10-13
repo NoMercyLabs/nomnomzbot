@@ -166,7 +166,11 @@ public partial class CommunityController : BaseController
         DateTime FirstSeen,
         DateTime LastSeen,
         List<ActivityDto> RecentActivity,
-        List<BanRecordDto> BanHistory
+        List<BanRecordDto> BanHistory,
+        // Asked of Twitch for this one user: true/false when Twitch answered, null when it could not
+        // (missing token or scope, or an error) — never a guess.
+        bool? IsVip,
+        bool? IsModerator
     );
 
     public record ActivityDto(string Type, string Content, DateTime Timestamp);
@@ -879,10 +883,41 @@ public partial class CommunityController : BaseController
             messageStats?.FirstSeen ?? user.CreatedAt,
             messageStats?.LastSeen ?? user.CreatedAt,
             recentMessages,
-            banHistory
+            banHistory,
+            await AskTwitchIsVipAsync(broadcasterId, userId, ct),
+            await AskTwitchIsModeratorAsync(broadcasterId, userId, ct)
         );
 
         return Ok(new StatusResponseDto<UserDetailDto> { Data = detail });
+    }
+
+    /// <summary>Whether Twitch lists the user as a VIP of the channel; null when Twitch could not answer.</summary>
+    private async Task<bool?> AskTwitchIsVipAsync(
+        Guid broadcasterId,
+        string twitchUserId,
+        CancellationToken ct
+    )
+    {
+        Result<TwitchPage<TwitchVip>> vips = await _moderators.GetVipsByUserIdAsync(
+            broadcasterId,
+            [twitchUserId],
+            ct
+        );
+        return vips.IsSuccess ? vips.Value.Items.Any(v => v.UserId == twitchUserId) : null;
+    }
+
+    /// <summary>Whether Twitch lists the user as a moderator of the channel; null when Twitch could not answer.</summary>
+    private async Task<bool?> AskTwitchIsModeratorAsync(
+        Guid broadcasterId,
+        string twitchUserId,
+        CancellationToken ct
+    )
+    {
+        Result<TwitchPage<TwitchModerator>> moderators =
+            await _moderators.GetModeratorsByUserIdAsync(broadcasterId, [twitchUserId], ct);
+        return moderators.IsSuccess
+            ? moderators.Value.Items.Any(m => m.UserId == twitchUserId)
+            : null;
     }
 
     // ── Set trust level ───────────────────────────────────────────────────────

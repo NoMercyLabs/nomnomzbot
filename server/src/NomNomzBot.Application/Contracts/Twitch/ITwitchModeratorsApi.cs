@@ -60,6 +60,16 @@ public interface ITwitchModeratorsApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get VIPs filtered by <c>user_id</c> — which of up to 100 Twitch users hold VIP status in the channel.
+    /// A user absent from the result is not a VIP. Requires <c>channel:read:vips</c>.
+    /// </summary>
+    Task<Result<TwitchPage<TwitchVip>>> GetVipsByUserIdAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> twitchUserIds,
+        CancellationToken ct = default
+    );
+
     /// <summary>Add Channel VIP — grants the target user VIP status. Requires <c>channel:manage:vips</c>.</summary>
     Task<Result> AddVipAsync(
         Guid broadcasterId,

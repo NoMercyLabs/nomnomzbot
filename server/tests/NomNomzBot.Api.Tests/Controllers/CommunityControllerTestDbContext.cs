@@ -118,6 +118,13 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
 
         b.Entity<ViewerProfile>().HasKey(p => p.Id);
 
+        b.Entity<ChannelModerator>(e =>
+        {
+            e.HasKey(m => new { m.ChannelId, m.UserId });
+            e.Ignore(m => m.Channel);
+            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId);
+        });
+
         b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>(e =>
         {
             e.HasKey(c => c.Id);
@@ -137,6 +144,7 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
         typeof(ChatMessage),
         typeof(User),
         typeof(ViewerProfile),
+        typeof(ChannelModerator),
         typeof(NomNomzBot.Domain.Platform.Entities.Configuration),
     ];
 
@@ -156,7 +164,7 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
-    public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
+    public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
