@@ -16,12 +16,10 @@ import type { ChannelSummary } from '@/api/channels';
 import { myChannelsQuery } from '@/api/channels';
 import { shieldKey } from '@/api/shield';
 
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
+import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}));
+vi.mock('@microsoft/signalr', (importOriginal) =>
+  fakeSignalR(importOriginal));
 
 type Hub = typeof import('../dashboardHub');
 type Status = (typeof import('../hubStatus'))['dashboardHubStatus'];

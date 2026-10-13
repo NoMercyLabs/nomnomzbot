@@ -109,8 +109,15 @@ export type FakeRetryPolicy = {
 
 export class FakeHubConnectionBuilder {
   static policy: FakeRetryPolicy | boolean | null = null;
+  static logLevel: number | null = null;
 
   private url = '';
+  configureLogging(level: number): this {
+    FakeHubConnectionBuilder.logLevel = level;
+
+    return this;
+  }
+
   withUrl(url: string): this {
     this.url = url;
 
@@ -130,4 +137,15 @@ export class FakeHubConnectionBuilder {
 
     return connection;
   }
+}
+
+type SignalR = typeof import('@microsoft/signalr');
+
+// The vi.mock factory every hub spec shares: the real module (enums such as LogLevel) with the fakes swapped in.
+export async function fakeSignalR(importOriginal: () => Promise<SignalR>) {
+  return {
+    ...await importOriginal(),
+    HubConnectionBuilder: FakeHubConnectionBuilder,
+    HubConnection: FakeHubConnection,
+  };
 }

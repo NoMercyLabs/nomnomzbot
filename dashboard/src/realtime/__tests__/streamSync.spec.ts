@@ -13,12 +13,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream';
 
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
+import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}));
+vi.mock('@microsoft/signalr', (importOriginal) =>
+  fakeSignalR(importOriginal));
 
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
   const hub = await import('../dashboardHub');

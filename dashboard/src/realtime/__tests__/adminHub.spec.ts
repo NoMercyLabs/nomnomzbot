@@ -11,12 +11,10 @@
 import { QueryClient } from '@tanstack/vue-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
+import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}));
+vi.mock('@microsoft/signalr', (importOriginal) =>
+  fakeSignalR(importOriginal));
 
 beforeEach(() => {
   vi.resetModules();

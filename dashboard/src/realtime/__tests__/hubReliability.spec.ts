@@ -11,12 +11,10 @@
 import { QueryClient } from '@tanstack/vue-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
+import { FakeHubConnection, FakeHubConnectionBuilder, fakeSignalR } from './fakeSignalR';
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}));
+vi.mock('@microsoft/signalr', (importOriginal) =>
+  fakeSignalR(importOriginal));
 
 beforeEach(() => {
   vi.resetModules();
@@ -25,6 +23,7 @@ beforeEach(() => {
   FakeHubConnection.startFailures = 0;
   FakeHubConnection.startCalls = 0;
   FakeHubConnectionBuilder.policy = null;
+  FakeHubConnectionBuilder.logLevel = null;
 });
 
 afterEach(() => {
@@ -98,6 +97,17 @@ describe('hub start', () => {
     await hub.watchChannel('c1');
 
     expect(dashboardJoinErrors.value).toEqual([{ channelId: 'c1', message: 'Access denied' }]);
+  });
+});
+
+describe('hub logging', () => {
+  it('logs warnings and errors only, so the access token in the hub URL never reaches the console', async () => {
+    const hub = await import('../dashboardHub');
+    const { LogLevel } = await import('@microsoft/signalr');
+
+    await hub.startDashboardHub(new QueryClient());
+
+    expect(FakeHubConnectionBuilder.logLevel).toBe(LogLevel.Warning);
   });
 });
 

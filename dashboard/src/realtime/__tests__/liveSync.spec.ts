@@ -20,12 +20,10 @@ import { pipelinesKey } from '@/api/pipelines';
 import { rewardsKey } from '@/api/rewards';
 import { adScheduleKey } from '@/api/stream';
 
-import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR';
+import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}));
+vi.mock('@microsoft/signalr', (importOriginal) =>
+  fakeSignalR(importOriginal));
 
 type Keys = (channelId: string | null) => unknown[];
 

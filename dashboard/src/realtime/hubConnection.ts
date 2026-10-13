@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { HubConnection, HubConnectionBuilder, type IRetryPolicy } from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, LogLevel, type IRetryPolicy } from '@microsoft/signalr';
 import type { Ref } from 'vue';
 
 import { activeBot } from '@/api/activeBot';
@@ -29,10 +29,12 @@ export const reconnectPolicy = {
   nextRetryDelayInMilliseconds: ({ previousRetryCount }) => retryDelay(previousRetryCount),
 } as const satisfies IRetryPolicy;
 
-// The same base address as the API client. The server reads the token from the query string on /hubs paths.
+// The same base address as the API client. The server reads the token from the query string on /hubs paths;
+// the client logs that URL at Information level, so logging stays at Warning to keep the token out of the console.
 export function buildHub(path: string, status: Ref<HubStatus>): HubConnection {
   const connection: HubConnection = new HubConnectionBuilder()
     .withUrl(new URL(path, activeBot.value).toString(), { accessTokenFactory: getAccessToken })
+    .configureLogging(LogLevel.Warning)
     .withAutomaticReconnect(reconnectPolicy)
     .build();
 
