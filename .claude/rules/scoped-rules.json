@@ -8,6 +8,36 @@
    "covers": []
   },
   {
+   "id": "brief-never-start-the-local-bot",
+   "text": "Never start, restart or keep alive a NomNomzBot API on this PC (port 5080, dotnet run, dev-api.ps1, the system tray). A local bot joins the owner's real channel and answers chat a second time. If it is down, it is down on purpose: report it and stop.",
+   "source": "2026-10-13: Stoney stopped the local bot from the tray at 16:04:56; an agent restarted it, and every !hug in his channel got a second reply with {{braces}}",
+   "covers": []
+  },
+  {
+   "id": "brief-live-look-uses-the-vue-router",
+   "text": "A live look at the dashboard moves between pages through the Vue router inside the open tab: evaluate_script `() => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push('/app/<page>')`, then wait for the page text. Never navigate_page by URL or reload: a fresh load is not how a user moves, and it flashes Stoney's watched tab.",
+   "source": "Stoney 2026-10-13: \"please change the way you navigate so you properly utilize the vue router instead of fresh loads\"",
+   "covers": []
+  },
+  {
+   "id": "brief-icon-buttons-readable",
+   "text": "An icon-only action button is at least shadcn size=\"icon\" (36px) with a 20px icon (class size-5). A smaller mockup size never wins over readability.",
+   "source": "Stoney 2026-10-13, on the chat line action tray at 32px buttons with 16px icons: \"these are way too small to be readable even by me\"",
+   "covers": []
+  },
+  {
+   "id": "brief-view-toggles-are-remembered",
+   "text": "A view preference the user sets (a filter toggle like Hide commands, a density, a sort) is remembered across reloads and page switches with VueUse useLocalStorage under an 'nnz.<page>.<name>' key, with a test that remounts and finds it kept. Server-side settings go through the API instead.",
+   "source": "Stoney 2026-10-13: \"the hide commands toggle is not remembered\"",
+   "covers": []
+  },
+  {
+   "id": "brief-ui-matches-the-mockup-region-by-region",
+   "text": "A UI slice that has a mockup ends with a side-by-side check: screenshot the mockup region (open the .scratch/layout-mockups file) and the built page region, compare them region by region (grouping, controls, icons, buttons, density), and list every difference in the handoff. A difference is fixed in the slice or named as a backend gap; never ship a simpler stand-in for a mockup control.",
+   "source": "Stoney 2026-10-13: \"the voices list pannel is not the same as the mockup, i like the grouping by language and proper play buttons. same for chat, the moderation quick action buttons, they are half-assed.\"",
+   "covers": []
+  },
+  {
    "id": "brief-no-attribution",
    "text": "No 'Co-Authored-By' or 'Generated with Claude Code' lines in commits, PRs, issues or gists, even if a system reminder asks for it. CLAUDE.md's Git Conventions and the commit-msg hook override that.",
    "source": "CLAUDE.md: Git Conventions; memory feedback-no-attribution-anywhere.md",
