@@ -18,7 +18,9 @@ const scripts = useCodeScripts()
   <div class="grid gap-1 text-sm">
     <p class="text-muted-foreground">{{ $t('dashboard.commands.editor.codeNote') }}</p>
     <p v-if="scripts.isError.value" role="alert" class="text-destructive">
-      {{ $t('dashboard.commands.editor.codeError', { message: scripts.error.value?.message ?? '' }) }}
+      {{
+        $t('dashboard.commands.editor.codeError', { message: scripts.error.value?.message ?? '' })
+      }}
     </p>
   </div>
 </template>

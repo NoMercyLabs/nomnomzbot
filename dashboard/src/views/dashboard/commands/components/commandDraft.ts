@@ -25,7 +25,10 @@ export interface CommandDraft {
 
 // The bot may send the level in any letter case; the form keeps the matching rung of the list.
 function canonicalLevel(level: string): string {
-  return permissionLevels.find((rung: string): boolean => rung.toLowerCase() === level.toLowerCase()) ?? level
+  return (
+    permissionLevels.find((rung: string): boolean => rung.toLowerCase() === level.toLowerCase()) ??
+    level
+  )
 }
 
 export function draftOf(row: CommandListItem): CommandDraft {
@@ -41,20 +44,29 @@ export function draftOf(row: CommandListItem): CommandDraft {
 }
 
 function sameReplies(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((reply: string, index: number): boolean => reply === right[index])
+  return (
+    left.length === right.length &&
+    left.every((reply: string, index: number): boolean => reply === right[index])
+  )
 }
 
 // Only the fields that differ from the row travel to the bot.
 export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChange {
   const saved: CommandDraft = draftOf(row)
   const change: CommandChange = {}
-  if (row.tier === 'template' && draft.templateResponse !== saved.templateResponse) change.templateResponse = draft.templateResponse
-  if (row.tier === 'template' && !sameReplies(draft.replies, saved.replies)) change.templateResponses = draft.replies
-  if (row.tier === 'pipeline' && draft.pipelineId !== saved.pipelineId && draft.pipelineId !== '') change.pipelineId = draft.pipelineId
+  if (row.tier === 'template' && draft.templateResponse !== saved.templateResponse)
+    change.templateResponse = draft.templateResponse
+  if (row.tier === 'template' && !sameReplies(draft.replies, saved.replies))
+    change.templateResponses = draft.replies
+  if (row.tier === 'pipeline' && draft.pipelineId !== saved.pipelineId && draft.pipelineId !== '')
+    change.pipelineId = draft.pipelineId
   if (draft.speakWithTts !== saved.speakWithTts) change.speakWithTts = draft.speakWithTts
-  if (draft.minPermissionLevel !== saved.minPermissionLevel) change.minPermissionLevel = draft.minPermissionLevel
-  if (draft.cooldownSeconds !== saved.cooldownSeconds) change.cooldownSeconds = draft.cooldownSeconds
-  if (draft.userCooldownSeconds !== saved.userCooldownSeconds) change.userCooldownSeconds = draft.userCooldownSeconds
+  if (draft.minPermissionLevel !== saved.minPermissionLevel)
+    change.minPermissionLevel = draft.minPermissionLevel
+  if (draft.cooldownSeconds !== saved.cooldownSeconds)
+    change.cooldownSeconds = draft.cooldownSeconds
+  if (draft.userCooldownSeconds !== saved.userCooldownSeconds)
+    change.userCooldownSeconds = draft.userCooldownSeconds
   return change
 }
 

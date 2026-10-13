@@ -11,15 +11,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { useCurrentChannel, type ChannelChoice, type CurrentChannel } from '@/composables/useCurrentChannel'
+import {
+  useCurrentChannel,
+  type ChannelChoice,
+  type CurrentChannel,
+} from '@/composables/useCurrentChannel'
 
 const mutateAsync = vi.fn<(twitchId: string) => Promise<{ id: string } | null>>()
 
 vi.mock('@/api/channels', () => ({
   useMyChannels: () => ({
     data: ref([
-      { id: 'own-id', login: 'streamer', displayName: 'Streamer', profileImageUrl: null, isLive: true, role: 'broadcaster' },
-      { id: 'mod-id', login: 'friend', displayName: 'Friend', profileImageUrl: null, isLive: false, role: 'moderator' },
+      {
+        id: 'own-id',
+        login: 'streamer',
+        displayName: 'Streamer',
+        profileImageUrl: null,
+        isLive: true,
+        role: 'broadcaster',
+      },
+      {
+        id: 'mod-id',
+        login: 'friend',
+        displayName: 'Friend',
+        profileImageUrl: null,
+        isLive: false,
+        role: 'moderator',
+      },
     ]),
   }),
   useModeratedChannels: () => ({

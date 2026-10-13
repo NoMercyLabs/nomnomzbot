@@ -10,7 +10,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import { SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
+import {
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
 import type { NavEntry } from './navigation'
 import { useNavigation } from './useNavigation'
 

@@ -131,7 +131,10 @@ describe('the profile menu', () => {
         { name: 'dashboard-settings', path: '/settings', component: page },
       ],
     })
-    const wrapper: VueWrapper = mount(ProfileMenu, { attachTo: document.body, global: { plugins: [i18n, router] } })
+    const wrapper: VueWrapper = mount(ProfileMenu, {
+      attachTo: document.body,
+      global: { plugins: [i18n, router] },
+    })
     await wrapper.find('[data-slot="profile-menu"]').trigger('click')
     await flushPromises()
     return document.body.textContent ?? ''

@@ -18,7 +18,13 @@ import FormDialog from '@/components/layout/FormDialog.vue'
 import TemplateField from '@/components/layout/TemplateField.vue'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
 type Kind = 'template' | 'pipeline'
@@ -101,12 +107,21 @@ async function submit(): Promise<void> {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="template">{{ $t('dashboard.commands.dialog.typeTemplate') }}</SelectItem>
-          <SelectItem value="pipeline">{{ $t('dashboard.commands.dialog.typePipeline') }}</SelectItem>
+          <SelectItem value="template">{{
+            $t('dashboard.commands.dialog.typeTemplate')
+          }}</SelectItem>
+          <SelectItem value="pipeline">{{
+            $t('dashboard.commands.dialog.typePipeline')
+          }}</SelectItem>
         </SelectContent>
       </Select>
     </Field>
-    <TemplateField v-if="kind === 'template'" v-model="reply" context="command" :label="$t('dashboard.commands.editor.reply')" />
+    <TemplateField
+      v-if="kind === 'template'"
+      v-model="reply"
+      context="command"
+      :label="$t('dashboard.commands.editor.reply')"
+    />
     <Field v-else>
       <FieldLabel>{{ $t('dashboard.commands.editor.pipeline') }}</FieldLabel>
       <Select v-model="pipelineId">
@@ -114,7 +129,11 @@ async function submit(): Promise<void> {
           <SelectValue :placeholder="$t('dashboard.commands.editor.pipelinePlaceholder')" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem v-for="pipeline in pipelines.data.value ?? []" :key="pipeline.id" :value="pipeline.id">
+          <SelectItem
+            v-for="pipeline in pipelines.data.value ?? []"
+            :key="pipeline.id"
+            :value="pipeline.id"
+          >
             {{ pipeline.name }}
           </SelectItem>
         </SelectContent>

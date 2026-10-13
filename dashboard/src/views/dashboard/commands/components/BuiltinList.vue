@@ -22,7 +22,9 @@ const { channelId } = useCurrentChannel()
 const builtins = useBuiltins(channelId)
 const toggle = useToggleBuiltin(channelId)
 
-const rows: ComputedRef<BuiltinCommand[]> = computed<BuiltinCommand[]>(() => builtins.data.value ?? [])
+const rows: ComputedRef<BuiltinCommand[]> = computed<BuiltinCommand[]>(
+  () => builtins.data.value ?? [],
+)
 const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean => data.length === 0)
 </script>
 
