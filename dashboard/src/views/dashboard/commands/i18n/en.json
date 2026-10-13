@@ -20,8 +20,10 @@
         "noMatch": "No command matches your search.",
         "off": "Off",
         "uses": "{count} use | {count} uses",
-        "kindPipeline": "Runs a pipeline",
-        "kindCode": "Runs a code script",
+        "kindText": "Text reply",
+        "kindRandom": "Random reply",
+        "kindPipeline": "Pipeline",
+        "kindCode": "Code script",
         "pick": "Pick a command to edit it.",
         "pickTitle": "No command open"
       },

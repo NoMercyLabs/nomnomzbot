@@ -38,30 +38,40 @@ const sortOptions: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() => 
 
 const panel = usePanelState(commands, (data: CommandListItem[]): boolean => data.length === 0)
 // The empty state holds a button, so the panel shows it as ready content.
-const state: ComputedRef<PanelState> = computed<PanelState>(() => (panel.value === 'empty' ? 'ready' : panel.value))
+const state: ComputedRef<PanelState> = computed<PanelState>(() =>
+  panel.value === 'empty' ? 'ready' : panel.value,
+)
 const none: ComputedRef<boolean> = computed<boolean>(() => panel.value === 'empty')
 
 function matches(row: CommandListItem, needle: string): boolean {
-  return [row.name, ...row.aliases].some((word: string): boolean => word.toLowerCase().includes(needle))
+  return [row.name, ...row.aliases].some((word: string): boolean =>
+    word.toLowerCase().includes(needle),
+  )
 }
 
 const rows: ComputedRef<CommandListItem[]> = computed<CommandListItem[]>(() => {
   const needle: string = search.value.trim().replace(/^!+/, '').toLowerCase()
-  const found: CommandListItem[] = (commands.data.value ?? []).filter((row: CommandListItem): boolean => matches(row, needle))
+  const found: CommandListItem[] = (commands.data.value ?? []).filter(
+    (row: CommandListItem): boolean => matches(row, needle),
+  )
   return found.sort((left: CommandListItem, right: CommandListItem): number =>
-    sort.value === 'name' ? left.name.localeCompare(right.name) : Number(right.useCount) - Number(left.useCount),
+    sort.value === 'name'
+      ? left.name.localeCompare(right.name)
+      : Number(right.useCount) - Number(left.useCount),
   )
 })
 
-function replyLine(row: CommandListItem): string {
+// The row names what kind of command it is; the reply text itself lives in the editor (owner 2026-10-13).
+function kindOf(row: CommandListItem): string {
   if (row.tier === 'pipeline') return t('dashboard.commands.list.kindPipeline')
   if (row.tier === 'code') return t('dashboard.commands.list.kindCode')
-  return row.templateResponse ?? row.templateResponses?.[0] ?? ''
+  if ((row.templateResponses?.length ?? 0) > 0) return t('dashboard.commands.list.kindRandom')
+  return t('dashboard.commands.list.kindText')
 }
 
 function detailOf(row: CommandListItem): string {
   const uses: number = Number(row.useCount)
-  return [replyLine(row), t('dashboard.commands.list.uses', { count: uses }, uses)].filter((part: string): boolean => part !== '').join(' · ')
+  return `${kindOf(row)} · ${t('dashboard.commands.list.uses', { count: uses }, uses)}`
 }
 </script>
 
@@ -82,7 +92,9 @@ function detailOf(row: CommandListItem): string {
         class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
       >
         {{ $t('dashboard.commands.list.empty') }}
-        <Button type="button" size="sm" @click="emit('create')">{{ $t('dashboard.commands.list.makeFirst') }}</Button>
+        <Button type="button" size="sm" @click="emit('create')">{{
+          $t('dashboard.commands.list.makeFirst')
+        }}</Button>
       </div>
       <p v-else-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
         {{ $t('dashboard.commands.list.noMatch') }}

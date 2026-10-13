@@ -16,6 +16,7 @@ import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useViewerProfile, type CommunityRow, type PersonProfile } from '@/api/people'
+import DetailPane from '@/components/layout/DetailPane.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import PanelCard, { type PanelState } from '@/components/layout/PanelCard.vue'
 import StatStrip from '@/components/layout/StatStrip.vue'
@@ -34,16 +35,23 @@ const { t, n, locale } = useI18n()
 const { channelId } = useCurrentChannel()
 
 const profile = useViewerProfile(channelId, () => props.person.internalUserId)
-const hasProfile: ComputedRef<boolean> = computed<boolean>(() => props.person.internalUserId !== null)
+const hasProfile: ComputedRef<boolean> = computed<boolean>(
+  () => props.person.internalUserId !== null,
+)
 const profileState = usePanelState(profile, (data: PersonProfile | null) => data === null)
 
 const moderationState: ComputedRef<PanelState> = computed<PanelState>(() => {
   if (!hasProfile.value) return 'empty'
-  if (profileState.value === 'ready' && profile.data.value?.moderationHistory == null) return 'empty'
+  if (profileState.value === 'ready' && profile.data.value?.moderationHistory == null)
+    return 'empty'
   return profileState.value
 })
 const moderationEmpty: ComputedRef<string> = computed<string>(() =>
-  t(hasProfile.value ? 'dashboard.people.detail.moderation.empty' : 'dashboard.people.detail.noProfile'),
+  t(
+    hasProfile.value
+      ? 'dashboard.people.detail.moderation.empty'
+      : 'dashboard.people.detail.noProfile',
+  ),
 )
 
 // Twitch sends the tier as a plan code: 1000, 2000, 3000, or Prime.
@@ -56,77 +64,143 @@ function tierName(code: string | null): string | null {
 
 function shortDate(value: string | null | undefined): string | null {
   if (!value) return null
-  return new Date(value).toLocaleDateString(locale.value, { year: 'numeric', month: 'short', day: 'numeric' })
+  return new Date(value).toLocaleDateString(locale.value, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 const handle: ComputedRef<string> = computed<string>(() => `@${props.person.username}`)
-const watchHours: ComputedRef<string> = computed<string>(() => n(Number(props.person.watchHours), { maximumFractionDigits: 1 }))
+const watchHours: ComputedRef<string> = computed<string>(() =>
+  n(Number(props.person.watchHours), { maximumFractionDigits: 1 }),
+)
 
 const overview: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
   const items: KeyValueItem[] = [
     { label: t('dashboard.people.detail.overview.login'), value: `@${props.person.username}` },
     { label: t('dashboard.people.detail.overview.twitchId'), value: props.person.id },
-    { label: t('dashboard.people.detail.overview.firstSeen'), value: shortDate(props.person.firstSeen) },
-    { label: t('dashboard.people.detail.overview.lastSeen'), value: shortDate(props.person.lastSeen) },
+    {
+      label: t('dashboard.people.detail.overview.firstSeen'),
+      value: shortDate(props.person.firstSeen),
+    },
+    {
+      label: t('dashboard.people.detail.overview.lastSeen'),
+      value: shortDate(props.person.lastSeen),
+    },
   ]
   const data: PersonProfile | null | undefined = profile.data.value
   if (!data) return items
   return [
     ...items.slice(0, 2),
-    { label: t('dashboard.people.detail.overview.pronoun'), value: data.identity.pronoun ?? t('dashboard.people.detail.overview.pronounUnset') },
-    { label: t('dashboard.people.detail.overview.standing'), value: data.identity.communityStanding },
+    {
+      label: t('dashboard.people.detail.overview.pronoun'),
+      value: data.identity.pronoun ?? t('dashboard.people.detail.overview.pronounUnset'),
+    },
+    {
+      label: t('dashboard.people.detail.overview.standing'),
+      value: data.identity.communityStanding,
+    },
     { label: t('dashboard.people.detail.overview.tier'), value: tierName(data.identity.subTier) },
     ...(data.activity
-      ? [{ label: t('dashboard.people.detail.overview.follower'), value: t(data.activity.isFollower ? 'dashboard.people.detail.overview.yes' : 'dashboard.people.detail.overview.no') }]
+      ? [
+          {
+            label: t('dashboard.people.detail.overview.follower'),
+            value: t(
+              data.activity.isFollower
+                ? 'dashboard.people.detail.overview.yes'
+                : 'dashboard.people.detail.overview.no',
+            ),
+          },
+        ]
       : []),
     ...items.slice(2),
   ]
 })
 
 const moderation: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
-  const history: PersonProfile['moderationHistory'] | undefined = profile.data.value?.moderationHistory
+  const history: PersonProfile['moderationHistory'] | undefined =
+    profile.data.value?.moderationHistory
   if (!history) return []
   return [
-    { label: t('dashboard.people.detail.moderation.timeouts'), value: n(Number(history.timeoutCount)) },
+    {
+      label: t('dashboard.people.detail.moderation.timeouts'),
+      value: n(Number(history.timeoutCount)),
+    },
     { label: t('dashboard.people.detail.moderation.bans'), value: n(Number(history.banCount)) },
-    { label: t('dashboard.people.detail.moderation.warnings'), value: n(Number(history.warningCount)) },
-    { label: t('dashboard.people.detail.moderation.deleted'), value: n(Number(history.messagesDeletedCount)) },
+    {
+      label: t('dashboard.people.detail.moderation.warnings'),
+      value: n(Number(history.warningCount)),
+    },
+    {
+      label: t('dashboard.people.detail.moderation.deleted'),
+      value: n(Number(history.messagesDeletedCount)),
+    },
     {
       label: t('dashboard.people.detail.moderation.lastAction'),
-      value: history.lastActionType ? `${history.lastActionType} · ${shortDate(history.lastActionAt) ?? ''}` : null,
+      value: history.lastActionType
+        ? `${history.lastActionType} · ${shortDate(history.lastActionAt) ?? ''}`
+        : null,
     },
   ]
 })
 
-const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(() => profile.data.value?.streak)
+const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(
+  () => profile.data.value?.streak,
+)
 </script>
 
 <template>
-  <div data-slot="person-detail" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-    <div class="flex items-center gap-3">
-      <Button variant="ghost" size="icon-sm" class="md:hidden" :aria-label="$t('dashboard.people.back')" @click="$emit('back')">
-        <ArrowLeft />
-      </Button>
-      <Avatar class="size-12">
-        <AvatarImage v-if="person.profileImageUrl" :src="person.profileImageUrl" :alt="person.displayName" />
-        <AvatarFallback>{{ person.displayName.slice(0, 2).toUpperCase() }}</AvatarFallback>
-      </Avatar>
-      <div class="grid min-w-0 gap-0.5">
-        <UserName class="truncate text-lg" :user-id="person.id" :name="person.displayName" />
-        <span class="truncate text-sm text-muted-foreground">{{ handle }}</span>
+  <DetailPane data-person-detail>
+    <template #header>
+      <div class="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="md:hidden"
+          :aria-label="$t('dashboard.people.back')"
+          @click="$emit('back')"
+        >
+          <ArrowLeft />
+        </Button>
+        <Avatar class="size-12">
+          <AvatarImage
+            v-if="person.profileImageUrl"
+            :src="person.profileImageUrl"
+            :alt="person.displayName"
+          />
+          <AvatarFallback>{{ person.displayName.slice(0, 2).toUpperCase() }}</AvatarFallback>
+        </Avatar>
+        <div class="grid min-w-0 gap-0.5">
+          <UserName class="truncate text-lg" :user-id="person.id" :name="person.displayName" />
+          <span class="truncate text-sm text-muted-foreground">{{ handle }}</span>
+        </div>
+        <StatusBadge
+          v-if="person.isBanned"
+          class="ml-auto"
+          tone="bad"
+          :label="$t('dashboard.people.list.banned')"
+        />
       </div>
-      <StatusBadge v-if="person.isBanned" class="ml-auto" tone="bad" :label="$t('dashboard.people.list.banned')" />
-    </div>
+    </template>
 
     <StatStrip>
-      <StatTile :label="$t('dashboard.people.detail.stats.messages')" :value="Number(person.messageCount)" />
+      <StatTile
+        :label="$t('dashboard.people.detail.stats.messages')"
+        :value="Number(person.messageCount)"
+      />
       <StatTile :label="$t('dashboard.people.detail.stats.watchHours')" :value="watchHours" />
-      <StatTile :label="$t('dashboard.people.detail.stats.commands')" :value="Number(person.commandsUsed)" />
+      <StatTile
+        :label="$t('dashboard.people.detail.stats.commands')"
+        :value="Number(person.commandsUsed)"
+      />
       <StatTile
         v-if="streak"
         :label="$t('dashboard.people.detail.stats.streak')"
         :value="Number(streak.currentStreak)"
-        :context="$t('dashboard.people.detail.stats.streakContext', { max: Number(streak.maxStreak) })"
+        :context="
+          $t('dashboard.people.detail.stats.streakContext', { max: Number(streak.maxStreak) })
+        "
       />
     </StatStrip>
 
@@ -155,5 +229,5 @@ const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(() => 
       state="empty"
       :empty-text="$t('dashboard.people.detail.loyalty.empty')"
     />
-  </div>
+  </DetailPane>
 </template>

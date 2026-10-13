@@ -172,7 +172,7 @@ const tabCount = (label: string): string =>
     .replace(label, '')
     .trim()
 const detail = (): HTMLElement =>
-  document.body.querySelector('[data-slot="overlay-detail"]') as HTMLElement
+  document.body.querySelector('[data-overlay-detail]') as HTMLElement
 const button = (label: string): HTMLButtonElement =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
     b.textContent?.includes(label),

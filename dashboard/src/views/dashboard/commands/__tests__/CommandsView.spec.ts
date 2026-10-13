@@ -22,7 +22,12 @@ import CommandsView from '../CommandsView.vue'
 import en from '../i18n/en.json'
 
 type Options = { params?: { path?: Record<string, unknown> }; body?: Record<string, unknown> }
-type Call = { method: string; path: string; name: unknown; body: Record<string, unknown> | undefined }
+type Call = {
+  method: string
+  path: string
+  name: unknown
+  body: Record<string, unknown> | undefined
+}
 type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
 type Row = Record<string, unknown>
 
@@ -33,7 +38,10 @@ let refusePut: string | null = null
 let refusePost: string | null = null
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } })
-const refused = (message: string, status: number = 400): Answer => ({ error: { message }, response: { status, ok: false } })
+const refused = (message: string, status: number = 400): Answer => ({
+  error: { message },
+  response: { status, ok: false },
+})
 
 const command = (name: string, overrides: Row = {}): Row => ({
   id: `id-${name}`,
@@ -67,7 +75,16 @@ function freshAnswers(): Record<string, () => Answer> {
     '/code-scripts': () => ok([]),
     '/templates/helpers': () => ok([]),
     '/builtins': () =>
-      ok([{ builtinKey: 'uptime', name: 'uptime', isEnabled: true, isReserved: false, speakWithTts: false, replyOverrideCount: 0 }]),
+      ok([
+        {
+          builtinKey: 'uptime',
+          name: 'uptime',
+          isEnabled: true,
+          isReserved: false,
+          speakWithTts: false,
+          replyOverrideCount: 0,
+        },
+      ]),
   }
 }
 
@@ -77,14 +94,20 @@ function read(path: string): Answer {
 }
 
 function write(method: string, path: string, options?: Options): Answer {
-  calls.push({ method, path, name: options?.params?.path?.commandName ?? options?.params?.path?.builtinKey, body: options?.body })
+  calls.push({
+    method,
+    path,
+    name: options?.params?.path?.commandName ?? options?.params?.path?.builtinKey,
+    body: options?.body,
+  })
   if (method === 'PUT' && refusePut) return refused(refusePut)
   if (method === 'POST' && refusePost) return refused(refusePost, 409)
   if (method === 'PUT') {
     const index: number = rows.findIndex((row) => row.name === options?.params?.path?.commandName)
     rows[index] = { ...rows[index], ...options?.body }
   }
-  if (method === 'DELETE') rows = rows.filter((row) => row.name !== options?.params?.path?.commandName)
+  if (method === 'DELETE')
+    rows = rows.filter((row) => row.name !== options?.params?.path?.commandName)
   if (method === 'POST') rows.push(command(String(options?.body?.name), options?.body))
   return { response: { status: 200, ok: true } }
 }
@@ -145,15 +168,26 @@ async function open(url: string = '/app/commands'): Promise<void> {
   mounted = mount(CommandsView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
 }
 
-const rowEls = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-command-row]')]
+const rowEls = (): HTMLElement[] => [
+  ...document.body.querySelectorAll<HTMLElement>('[data-command-row]'),
+]
 const rowNames = (): (string | undefined)[] => rowEls().map((row) => row.dataset.commandName)
-const editor = (): HTMLElement | null => document.body.querySelector<HTMLElement>('[data-command-editor]')
+const editor = (): HTMLElement | null =>
+  document.body.querySelector<HTMLElement>('[data-command-editor]')
 const buttonByText = (label: string, root: ParentNode = document.body): HTMLButtonElement =>
   [...root.querySelectorAll<HTMLButtonElement>('button')].find(
     (b) => b.textContent?.trim() === label || b.getAttribute('aria-label') === label,
@@ -175,27 +209,42 @@ async function type(el: HTMLInputElement | HTMLTextAreaElement, value: string): 
 }
 
 async function pick(name: string): Promise<void> {
-  rowEls().find((row) => row.dataset.commandName === name)!.click()
+  rowEls()
+    .find((row) => row.dataset.commandName === name)!
+    .click()
   await settle()
 }
 
 describe('CommandsView list', () => {
-  it('lists every command with a reply line, its uses and an Off mark on a disabled one', async () => {
+  it('lists every command with its type, its uses and an Off mark on a disabled one, never the reply text', async () => {
+    rows[2] = command('dice', {
+      templateResponse: null,
+      templateResponses: ['One', 'Two'],
+      useCount: 3,
+    })
     await open()
 
-    expect(rowNames().sort()).toEqual(['hello', 'pipe', 'socials'])
-    const hello: string = rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent ?? ''
+    expect(rowNames().sort()).toEqual(['dice', 'hello', 'socials'])
+    const hello: string =
+      rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent ?? ''
     expect(hello).toContain('!hello')
-    expect(hello).toContain('Hello there')
-    expect(hello).toContain('12 uses')
-    const socials: string = rowEls().find((row) => row.dataset.commandName === 'socials')!.textContent ?? ''
+    expect(hello).toContain('Text reply · 12 uses')
+    expect(hello).not.toContain('Hello there')
+    const dice: string =
+      rowEls().find((row) => row.dataset.commandName === 'dice')!.textContent ?? ''
+    expect(dice).toContain('Random reply · 3 uses')
+    expect(dice).not.toContain('One')
+    const socials: string =
+      rowEls().find((row) => row.dataset.commandName === 'socials')!.textContent ?? ''
     expect(socials).toContain('Off')
     expect(hello).not.toContain('Off')
   })
 
   it('filters by name and by alias, and says so when nothing matches', async () => {
     await open()
-    const search: HTMLInputElement = document.body.querySelector<HTMLInputElement>('[data-slot="search-field"] input')!
+    const search: HTMLInputElement = document.body.querySelector<HTMLInputElement>(
+      '[data-slot="search-field"] input',
+    )!
 
     await type(search, 'soc')
     expect(rowNames()).toEqual(['socials'])
@@ -239,7 +288,12 @@ describe('CommandsView list', () => {
 
 describe('CommandsView editor', () => {
   it('opens the command named in the address and fills the form from its row', async () => {
-    rows[0] = command('hello', { templateResponse: 'Hi chat', cooldownSeconds: 7, userCooldownSeconds: 30, speakWithTts: true })
+    rows[0] = command('hello', {
+      templateResponse: 'Hi chat',
+      cooldownSeconds: 7,
+      userCooldownSeconds: 30,
+      speakWithTts: true,
+    })
     await open('/app/commands?command=hello')
 
     expect(editor()!.textContent).toContain('!hello')
@@ -272,7 +326,10 @@ describe('CommandsView editor', () => {
 
     expect(writes('PUT')).toHaveLength(1)
     expect(writes('PUT')[0]!.name).toBe('hello')
-    expect(writes('PUT')[0]!.body).toEqual({ templateResponse: 'Hello everyone', cooldownSeconds: 20 })
+    expect(writes('PUT')[0]!.body).toEqual({
+      templateResponse: 'Hello everyone',
+      cooldownSeconds: 20,
+    })
     expect(unsaved()).toBe('')
     expect(buttonByText('Save changes').disabled).toBe(true)
   })
@@ -309,12 +366,16 @@ describe('CommandsView editor', () => {
     switchOf('Enabled').click()
     await settle()
     expect(writes('PUT')[0]!.body).toEqual({ isEnabled: false })
-    expect(rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent).toContain('Off')
+    expect(rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent).toContain(
+      'Off',
+    )
 
     refusePut = 'No right'
     switchOf('Enabled').click()
     await settle()
-    expect(rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent).toContain('Off')
+    expect(rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent).toContain(
+      'Off',
+    )
   })
 
   it('sends speakWithTts when Read it aloud is switched on', async () => {
@@ -334,7 +395,9 @@ describe('CommandsView editor', () => {
 
     switchOf('Pick a random reply').click()
     await settle()
-    const inputs = (): HTMLTextAreaElement[] => [...editor()!.querySelectorAll<HTMLTextAreaElement>('[data-random-reply] textarea')]
+    const inputs = (): HTMLTextAreaElement[] => [
+      ...editor()!.querySelectorAll<HTMLTextAreaElement>('[data-random-reply] textarea'),
+    ]
     expect(inputs()).toHaveLength(1)
     await type(inputs()[0]!, 'One')
     buttonByText('Add a reply').click()
@@ -372,7 +435,16 @@ describe('CommandsView editor', () => {
   })
 
   it('has no Followers rung in the role list', () => {
-    expect(permissionLevels).toEqual(['Everyone', 'Subscriber', 'Vip', 'Artist', 'Moderator', 'LeadModerator', 'Editor', 'Broadcaster'])
+    expect(permissionLevels).toEqual([
+      'Everyone',
+      'Subscriber',
+      'Vip',
+      'Artist',
+      'Moderator',
+      'LeadModerator',
+      'Editor',
+      'Broadcaster',
+    ])
   })
 })
 
@@ -387,12 +459,19 @@ describe('CommandsView new command', () => {
     await openDialog()
 
     await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, '  !Welcome ')
-    await type(document.body.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!, 'Welcome in')
+    await type(
+      document.body.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!,
+      'Welcome in',
+    )
     document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click()
     await settle()
 
     expect(writes('POST')).toHaveLength(1)
-    expect(writes('POST')[0]!.body).toMatchObject({ name: 'welcome', tier: 'template', templateResponse: 'Welcome in' })
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'welcome',
+      tier: 'template',
+      templateResponse: 'Welcome in',
+    })
     expect(rowNames()).toContain('welcome')
     expect(router.currentRoute.value.query.command).toBe('welcome')
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
@@ -408,7 +487,9 @@ describe('CommandsView new command', () => {
     document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click()
     await settle()
 
-    expect(document.body.querySelector('[data-form-error]')?.textContent).toContain('already exists')
+    expect(document.body.querySelector('[data-form-error]')?.textContent).toContain(
+      'already exists',
+    )
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
   })
 

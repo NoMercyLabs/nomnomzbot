@@ -20,8 +20,10 @@
         "noMatch": "Geen commando past bij je zoekopdracht.",
         "off": "Uit",
         "uses": "{count} keer gebruikt | {count} keer gebruikt",
-        "kindPipeline": "Draait een pipeline",
-        "kindCode": "Draait een codescript",
+        "kindText": "Tekstantwoord",
+        "kindRandom": "Willekeurig antwoord",
+        "kindPipeline": "Pipeline",
+        "kindCode": "Codescript",
         "pick": "Kies een commando om het te bewerken.",
         "pickTitle": "Geen commando open"
       },

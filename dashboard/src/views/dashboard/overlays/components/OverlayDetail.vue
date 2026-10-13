@@ -17,6 +17,7 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useSetWidgetEnabled, useTestWidgetEvent, type Widget } from '@/api/widgets'
+import DetailPane from '@/components/layout/DetailPane.vue'
 import InlineFlow from '@/components/layout/InlineFlow.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
@@ -142,57 +143,63 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
 </script>
 
 <template>
-  <div data-slot="overlay-detail" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-    <div class="flex flex-wrap items-center gap-3">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        class="md:hidden"
-        :aria-label="$t('dashboard.overlays.back')"
-        @click="$emit('back')"
-      >
-        <ArrowLeft />
-      </Button>
-      <span
-        class="flex size-12 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
-      >
-        <component :is="kind.icon" class="size-5" aria-hidden="true" />
-      </span>
-      <div class="grid min-w-0 gap-1">
-        <h2 class="truncate text-lg font-semibold">{{ widget.name }}</h2>
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{{ $t(`dashboard.overlays.kinds.${kind.key}`) }}</Badge>
-          <Badge v-if="builtIn" variant="outline">{{
-            $t('dashboard.overlays.detail.builtIn')
-          }}</Badge>
-          <Badge v-if="widget.isCustomized" variant="outline">{{
-            $t('dashboard.overlays.detail.edited')
-          }}</Badge>
-          <span class="text-sm text-muted-foreground">{{ widget.framework }}</span>
+  <DetailPane data-overlay-detail>
+    <template #header>
+      <div class="flex flex-wrap items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="md:hidden"
+          :aria-label="$t('dashboard.overlays.back')"
+          @click="$emit('back')"
+        >
+          <ArrowLeft />
+        </Button>
+        <span
+          class="flex size-12 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
+        >
+          <component :is="kind.icon" class="size-5" aria-hidden="true" />
+        </span>
+        <div class="grid min-w-0 gap-1">
+          <h2 class="truncate text-lg font-semibold">{{ widget.name }}</h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{{ $t(`dashboard.overlays.kinds.${kind.key}`) }}</Badge>
+            <Badge v-if="builtIn" variant="outline">{{
+              $t('dashboard.overlays.detail.builtIn')
+            }}</Badge>
+            <Badge v-if="widget.isCustomized" variant="outline">{{
+              $t('dashboard.overlays.detail.edited')
+            }}</Badge>
+            <span class="text-sm text-muted-foreground">{{ widget.framework }}</span>
+          </div>
+        </div>
+        <div class="ml-auto flex flex-wrap items-center gap-3">
+          <label class="flex items-center gap-2 text-sm text-muted-foreground">
+            {{
+              $t(
+                widget.isEnabled ? 'dashboard.overlays.detail.on' : 'dashboard.overlays.detail.off',
+              )
+            }}
+            <Switch
+              :model-value="widget.isEnabled"
+              :aria-label="$t('dashboard.overlays.detail.switchLabel')"
+              @update:model-value="toggle(Boolean($event))"
+            />
+          </label>
+          <div class="grid justify-items-end gap-1">
+            <Button :disabled="!widget.overlayUrl" @click="copyAddress">
+              <component :is="copied ? Check : Copy" aria-hidden="true" />
+              {{
+                $t(copied ? 'dashboard.overlays.detail.copied' : 'dashboard.overlays.detail.copy')
+              }}
+            </Button>
+            <span v-if="!widget.overlayUrl" class="text-sm text-muted-foreground">{{
+              $t('dashboard.overlays.detail.noAddress')
+            }}</span>
+          </div>
         </div>
       </div>
-      <div class="ml-auto flex flex-wrap items-center gap-3">
-        <label class="flex items-center gap-2 text-sm text-muted-foreground">
-          {{
-            $t(widget.isEnabled ? 'dashboard.overlays.detail.on' : 'dashboard.overlays.detail.off')
-          }}
-          <Switch
-            :model-value="widget.isEnabled"
-            :aria-label="$t('dashboard.overlays.detail.switchLabel')"
-            @update:model-value="toggle(Boolean($event))"
-          />
-        </label>
-        <div class="grid justify-items-end gap-1">
-          <Button :disabled="!widget.overlayUrl" @click="copyAddress">
-            <component :is="copied ? Check : Copy" aria-hidden="true" />
-            {{ $t(copied ? 'dashboard.overlays.detail.copied' : 'dashboard.overlays.detail.copy') }}
-          </Button>
-          <span v-if="!widget.overlayUrl" class="text-sm text-muted-foreground">{{
-            $t('dashboard.overlays.detail.noAddress')
-          }}</span>
-        </div>
-      </div>
-    </div>
+    </template>
 
     <!-- The mockup's two columns (12-overlays.html:355-367): a grid child does not shrink, so no panel
          scrolls inside itself. -->
@@ -266,5 +273,5 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
         </PanelCard>
       </div>
     </div>
-  </div>
+  </DetailPane>
 </template>
