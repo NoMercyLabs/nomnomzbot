@@ -11,7 +11,7 @@
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 
-namespace NomNomzBot.Api.Identifiers;
+namespace NomNomzBot.Api.OpenApi;
 
 /// <summary>
 /// Publishes a free-form map (<c>Dictionary&lt;string, object?&gt;</c>) as <c>additionalProperties: {}</c> (any

@@ -21,6 +21,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.OpenApi;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Common.Interfaces;
