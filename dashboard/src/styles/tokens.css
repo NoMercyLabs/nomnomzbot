@@ -1,0 +1,115 @@
+/* -----------------------------------------------------------------------------
+   Copyright (c) NoMercy Labs.
+
+   This file is part of NomNomzBot, free software licensed under the GNU Affero
+   General Public License v3.0 or later. You may redistribute and/or modify it
+   under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+   ----------------------------------------------------------------------------- */
+
+/* Tokens copied from app/.../core/designsystem/theme/Tokens.kt (DarkTokens, LightTokens, Radii) and
+   Spacing/Typography from spec/frontend-design-system.md section 1.3. The accent family is replaced at
+   load by accent.js, a 1:1 port of Tokens.withAccent(). */
+@import url('https://rsms.me/inter/inter.css');
+
+:root {
+  --background: oklch(0.177638 0 0);
+  --foreground: oklch(0.949119 0 0);
+  --card: oklch(0.213423 0 0);
+  --card-foreground: oklch(0.949119 0 0);
+  --popover: oklch(0.213423 0 0);
+  --primary: oklch(0.692953 0.114282 309.045);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.399069 0.101692 304.522);
+  --secondary-foreground: oklch(0.914771 0.037602 313.61);
+  --muted: oklch(0.251965 0 0);
+  --muted-foreground: oklch(0.773104 0 0);
+  --accent: oklch(0.692953 0.114282 309.045);
+  --accent-foreground: oklch(0 0 0);
+  --destructive: oklch(0.710627 0.166148 22.216);
+  --destructive-foreground: oklch(0 0 0);
+  --border: oklch(0.239292 0 0);
+  --input: oklch(0.55 0 0); /* control edge: 3:1 or more on background, card and muted (WCAG 1.4.11) */
+  --ring: oklch(0.692953 0.114282 309.045);
+  --success: oklch(0.795095 0.234563 145.534);
+  --sidebar: oklch(0.168416 0 0);
+  --sidebar-foreground: oklch(0.949119 0 0);
+  --sidebar-primary: oklch(0.692953 0.114282 309.045);
+  --sidebar-primary-foreground: oklch(0 0 0);
+  --sidebar-accent: oklch(0.232614 0.04334 304.159);
+  --sidebar-accent-foreground: oklch(0.949119 0 0);
+  --sidebar-border: oklch(0.239292 0 0);
+
+  /* Radii() in Tokens.kt */
+  --radius-sm: 16px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+
+  /* Space.* (4dp scale) */
+  --s0_5: 2px; --s1: 4px; --s1_5: 6px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s6: 24px; --s8: 32px; --s12: 48px;
+
+  /* Typography scale: size / line height */
+  --text-xs: 12px; --lh-xs: 16px;
+  --text-sm: 14px; --lh-sm: 20px;
+  --text-base: 16px; --lh-base: 24px;
+  --text-lg: 18px; --lh-lg: 28px;
+  --text-xl: 20px; --lh-xl: 28px;
+  --text-2xl: 24px; --lh-2xl: 32px;  --font: 'Inter', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* Density (compact is the default and the desktop look). shell.js sets html[data-density] from localStorage mock.density.
+     --hit and --hit-icon are the invisible minimum hit areas: frame.css grows a ::before, never the visible control. */
+  --hit: 24px; --hit-icon: 32px;
+  --btn-h: 36px; --btn-h-sm: 32px; --input-h: 36px; --sb-item-h: 32px; --tab-h: 30px; --seg-h: 28px;
+  --row-h: 44px; --row-pad-y: 8px; --td-h: 48px; --th-h: 40px; --pop-row-h: 40px;
+}
+html[data-density=comfortable] {
+  --sb-item-h: 36px; --tab-h: 32px; --seg-h: 32px; --row-pad-y: 10px; --td-h: 52px;
+  --btn-h-sm: 34px; --pop-row-h: 42px;
+}
+html[data-density=touch] {
+  --hit: 44px; --hit-icon: 44px;
+  --btn-h: 44px; --btn-h-sm: 44px; --input-h: 44px; --sb-item-h: 44px; --tab-h: 38px; --seg-h: 40px;
+  --row-h: 52px; --row-pad-y: 12px; --td-h: 56px; --th-h: 44px; --pop-row-h: 44px;
+}
+@media (pointer: coarse) {
+  :root { --hit: 44px; --hit-icon: 44px; }
+}
+
+:root.light {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  /* shadcn ships 0.556; that is 4.23:1 on the 0.96 sidebar. 0.5 holds 4.5:1 on every light surface (axe, 2026-10-12). */
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.6 0 0); /* control edge: 3:1 or more on white */
+  --ring: oklch(0.708 0 0);
+  --success: oklch(0.627 0.194 142.5);
+  --sidebar: oklch(0.96 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+}
+
+/* One scrollbar for every scroll area, so no OS default ever shows (owner 2026-10-12). hover-check.py gates it. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--muted-foreground); }
