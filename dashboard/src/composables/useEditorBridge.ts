@@ -132,8 +132,10 @@ function stringMap(value: unknown): Record<string, string> {
 
   const out: Record<string, string> = {}
 
-  for (const [key, entry] of Object.entries(value)) if (typeof entry === 'string') {
-    out[key] = entry
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') {
+      out[key] = entry
+    }
   }
 
   return out

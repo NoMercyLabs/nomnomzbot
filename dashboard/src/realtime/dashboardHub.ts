@@ -101,7 +101,9 @@ export async function watchChannels(channels: ChannelWatch[]): Promise<void> {
 
   watched.clear()
 
-  for (const [id, classes] of next) watched.set(id, classes)
+  for (const [id, classes] of next) {
+    watched.set(id, classes)
+  }
 
   if (!connection) return
 
@@ -113,7 +115,9 @@ export async function watchChannels(channels: ChannelWatch[]): Promise<void> {
     dashboardJoinErrors.value = dashboardJoinErrors.value.filter((error) => error.channelId !== id)
   }
 
-  for (const channel of changed) await joinWithClasses(channel.id, channel.classes)
+  for (const channel of changed) {
+    await joinWithClasses(channel.id, channel.classes)
+  }
 }
 
 export async function watchChannel(channelId: string | null): Promise<void> {

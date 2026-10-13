@@ -11,7 +11,7 @@
 import { RuleTester } from '@typescript-eslint/rule-tester'
 import { afterAll, describe, it } from 'vitest'
 
-import { ifBodyShape } from '../if-body-shape'
+import { bodyShape } from '../body-shape'
 
 RuleTester.afterAll = afterAll
 RuleTester.describe = describe
@@ -20,7 +20,7 @@ RuleTester.itOnly = it.only
 
 const tester = new RuleTester()
 
-tester.run('if-body-shape', ifBodyShape, {
+tester.run('body-shape', bodyShape, {
   valid: [
     // A bare exit stays on the if line.
     'function f(a: boolean) { if (a) return }',
@@ -64,6 +64,27 @@ tester.run('if-body-shape', ifBodyShape, {
       code: 'function f(a: boolean) {\n  if (a) g()\n  else h()\n}',
       output: 'function f(a: boolean) {\n  if (a) {\n    g()\n  }\n  else {\n    h()\n  }\n}',
       errors: [{ messageId: 'block' }, { messageId: 'block' }],
+    },
+    {
+      // A loop body always sits in a block.
+      code: 'function f(rows: string[]) {\n  for (const row of rows)\n    g(row)\n}',
+      output: 'function f(rows: string[]) {\n  for (const row of rows) {\n    g(row)\n  }\n}',
+      errors: [{ messageId: 'loopBlock' }],
+    },
+    {
+      code: 'function f(n: number) {\n  for (let i = 0; i < n; i++) g(i)\n}',
+      output: 'function f(n: number) {\n  for (let i = 0; i < n; i++) {\n    g(i)\n  }\n}',
+      errors: [{ messageId: 'loopBlock' }],
+    },
+    {
+      code: 'function f(o: object) {\n  for (const k in o) g(k)\n}',
+      output: 'function f(o: object) {\n  for (const k in o) {\n    g(k)\n  }\n}',
+      errors: [{ messageId: 'loopBlock' }],
+    },
+    {
+      code: 'function f(a: boolean) {\n  while (a) g()\n}',
+      output: 'function f(a: boolean) {\n  while (a) {\n    g()\n  }\n}',
+      errors: [{ messageId: 'loopBlock' }],
     },
   ],
 })

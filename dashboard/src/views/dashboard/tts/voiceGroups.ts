@@ -46,8 +46,9 @@ function localeOrder(a: string, b: string): number {
 export function groupVoices(voices: readonly TtsVoice[], language: string): VoiceListItem[] {
   const byLocale = new Map<string, TtsVoice[]>()
 
-  for (const voice of voices)
+  for (const voice of voices) {
     byLocale.set(voice.locale, [...(byLocale.get(voice.locale) ?? []), voice])
+  }
 
   const locales = [...byLocale.keys()].sort(
     (a: string, b: string) =>

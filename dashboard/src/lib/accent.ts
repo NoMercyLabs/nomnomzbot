@@ -162,6 +162,7 @@ export function applyAccent(hex: string): void {
     ? 'light'
     : 'dark'
 
-  for (const [name, value] of Object.entries(accentTokens(hex, theme)))
+  for (const [name, value] of Object.entries(accentTokens(hex, theme))) {
     root.style.setProperty(`--${name}`, value)
+  }
 }

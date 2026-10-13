@@ -27,7 +27,9 @@ export function useEditorLabels(
 
       const own: Record<string, string> = {}
 
-      for (const match of raw.matchAll(/\{(\w+)\}/g)) own[match[1]!] = match[0]
+      for (const match of raw.matchAll(/\{(\w+)\}/g)) {
+        own[match[1]!] = match[0]
+      }
 
       out[id] = t(`${group}.${id}`, own)
     }

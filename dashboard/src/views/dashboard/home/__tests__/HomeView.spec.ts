@@ -289,7 +289,9 @@ describe('HomeView', () => {
     expect(lines[4]).toContain('Channel event')
     expect(lines.join(' ')).not.toContain('channel.')
 
-    for (const row of rows) expect(row.querySelector('svg')).not.toBeNull()
+    for (const row of rows) {
+      expect(row.querySelector('svg')).not.toBeNull()
+    }
 
     // No events page exists yet, so no "All events" link points somewhere else.
     expect(panel('Happening now').textContent).not.toContain('All events')

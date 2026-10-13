@@ -42,8 +42,9 @@ export function attachHandlers(
   handlers: HubEventHandler<never>[],
   context: () => HubEventContext,
 ): void {
-  for (const { event, handle } of handlers)
+  for (const { event, handle } of handlers) {
     connection.on(event, (payload: never) => {
       handle(context(), payload)
     })
+  }
 }

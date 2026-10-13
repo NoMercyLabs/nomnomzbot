@@ -13,7 +13,8 @@ import { AST_NODE_TYPES, ESLintUtils, type TSESLint, type TSESTree } from '@type
 // Owner 2026-10-13: "if statements may only directly return void, when a value is set then i
 // want a proper codeblock, and when a value is returned i want the return on the next line
 // indented". So a bare `return`, `break` or `continue` stays on the if line, a returned or thrown
-// value goes on the next line one level in, and every other body sits in a block.
+// value goes on the next line one level in, and every other body sits in a block. A loop body
+// always sits in a block.
 
 const indentUnit = '  '
 
@@ -39,7 +40,7 @@ function lineIndent(source: TSESLint.SourceCode, node: TSESTree.Node): string {
   return /^\s*/.exec(source.lines[node.loc.start.line - 1] ?? '')?.[0] ?? ''
 }
 
-export const ifBodyShape = ESLintUtils.RuleCreator.withoutDocs({
+export const bodyShape =ESLintUtils.RuleCreator.withoutDocs({
   meta: {
     type: 'layout',
     fixable: 'whitespace',
@@ -48,11 +49,49 @@ export const ifBodyShape = ESLintUtils.RuleCreator.withoutDocs({
       sameLine: 'A bare return, break or continue stays on the if line.',
       nextLine: 'A returned or thrown value goes on the next line, one level in.',
       block: 'An if that does more than return sits in a block.',
+      loopBlock: 'A loop body sits in a block.',
     },
   },
   defaultOptions: [],
   create(context) {
     const source = context.sourceCode
+
+    function wrapInBlock(
+      statement: TSESTree.Statement,
+      body: TSESTree.Statement,
+      before: TSESTree.Token,
+      messageId: 'block' | 'loopBlock',
+    ): void {
+      const indent = lineIndent(source, statement)
+      const text = source.getText(body)
+
+      context.report({
+        node: body,
+        messageId,
+        fix: (fixer) =>
+          fixer.replaceTextRange(
+            [before.range[1], body.range[1]],
+            ` {\n${indent}${indentUnit}${text}\n${indent}}`,
+          ),
+      })
+    }
+
+    function checkLoop(
+      loop:
+        | TSESTree.DoWhileStatement |
+        TSESTree.ForInStatement |
+        TSESTree.ForOfStatement |
+        TSESTree.ForStatement |
+        TSESTree.WhileStatement,
+    ): void {
+      if (loop.body.type === AST_NODE_TYPES.BlockStatement) return
+
+      const before = source.getTokenBefore(loop.body)
+
+      if (before === null) return
+
+      wrapInBlock(loop, loop.body, before, 'loopBlock')
+    }
 
     function check(statement: TSESTree.IfStatement, body: TSESTree.Statement | null): void {
       if (body === null || body.type === AST_NODE_TYPES.BlockStatement) return
@@ -85,17 +124,7 @@ export const ifBodyShape = ESLintUtils.RuleCreator.withoutDocs({
       }
 
       if (shape === 'block') {
-        const text = source.getText(body)
-
-        context.report({
-          node: body,
-          messageId: 'block',
-          fix: (fixer) =>
-            fixer.replaceTextRange(
-              [before.range[1], body.range[1]],
-              ` {\n${indent}${indentUnit}${text}\n${indent}}`,
-            ),
-        })
+        wrapInBlock(statement, body, before, 'block')
       }
     }
 
@@ -104,6 +133,11 @@ export const ifBodyShape = ESLintUtils.RuleCreator.withoutDocs({
         check(statement, statement.consequent)
         check(statement, statement.alternate)
       },
+      DoWhileStatement: checkLoop,
+      ForInStatement: checkLoop,
+      ForOfStatement: checkLoop,
+      ForStatement: checkLoop,
+      WhileStatement: checkLoop,
     }
   },
 })

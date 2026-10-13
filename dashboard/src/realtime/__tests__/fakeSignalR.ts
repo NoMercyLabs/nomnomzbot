@@ -72,7 +72,9 @@ export class FakeHubConnection {
     return Promise.resolve(this.answer(method, args))
   }
   receive(event: string, payload: unknown): void {
-    for (const handler of this.handlers.get(event) ?? []) handler(payload)
+    for (const handler of this.handlers.get(event) ?? []) {
+      handler(payload)
+    }
   }
 }
 

@@ -20,14 +20,14 @@ import pluginUnusedImports from 'eslint-plugin-unused-imports'
 import pluginStylistic from '@stylistic/eslint-plugin'
 
 import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body'
-import { ifBodyShape } from './eslint-rules/if-body-shape'
+import { bodyShape } from './eslint-rules/body-shape'
 import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation'
 import { trailingArrowArgument } from './eslint-rules/trailing-arrow-argument'
 
 const pluginApp = {
   rules: {
     'arrow-ternary-body': arrowTernaryBody,
-    'if-body-shape': ifBodyShape,
+    'body-shape': bodyShape,
     'no-redundant-type-annotation': noRedundantTypeAnnotation,
     'trailing-arrow-argument': trailingArrowArgument,
   },
@@ -191,7 +191,7 @@ export default defineConfigWithVueTs(
       ],
       '@stylistic/indent': ['error', 2, { offsetTernaryExpressions: true }],
       'app/arrow-ternary-body': 'error',
-      'app/if-body-shape': 'error',
+      'app/body-shape': 'error',
       'app/trailing-arrow-argument': 'error',
     },
   },

@@ -67,7 +67,9 @@ function widget(id: string, extra: Partial<Widget> = {}): Widget {
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
 
 async function until(check: () => boolean): Promise<void> {
-  for (let attempt = 0; attempt < 50 && !check(); attempt += 1) await settle()
+  for (let attempt = 0; attempt < 50 && !check(); attempt += 1) {
+    await settle()
+  }
 }
 
 function mount<T>(use: () => T): {

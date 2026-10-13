@@ -25,10 +25,11 @@ function messages(node: unknown, path: string, out: [string, string][]): [string
     out.push([path, node])
   }
   else if (node && typeof node === 'object') {
-    for (const [key, value] of Object.entries(node))
+    for (const [key, value] of Object.entries(node)) {
       messages(value, path
         ? `${path}.${key}`
         : key, out)
+    }
   }
 
   return out
@@ -45,7 +46,7 @@ describe('words files', () => {
   it('holds only messages that vue-i18n can compile', () => {
     const broken: string[] = []
 
-    for (const [file, words] of Object.entries(files))
+    for (const [file, words] of Object.entries(files)) {
       for (const [key, text] of messages(words, '', [])) {
         const errors: string[] = []
 
@@ -55,6 +56,7 @@ describe('words files', () => {
           broken.push(`${file} ${key}: ${errors[0]}`)
         }
       }
+    }
 
     expect(broken).toEqual([])
   })
