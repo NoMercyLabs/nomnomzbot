@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, type IRetryPolicy } from '@microsoft/signalr';
 import type { Ref } from 'vue';
 
 import { activeBot } from '@/api/activeBot';
@@ -17,11 +17,23 @@ import { getAccessToken } from '@/api/auth';
 import type { HubEventContext, HubEventHandler } from './hubEvent';
 import type { HubStatus } from './hubStatus';
 
+// Retry at once, then after 2 s, 10 s and every 30 s from there on.
+const retryDelays = [0, 2_000, 10_000, 30_000] as const;
+
+export function retryDelay(attempt: number): number {
+  return retryDelays[Math.min(attempt, retryDelays.length - 1)] ?? 30_000;
+}
+
+// The built-in policy gives up after four tries; this one never returns null, so a long outage still recovers.
+export const reconnectPolicy = {
+  nextRetryDelayInMilliseconds: ({ previousRetryCount }) => retryDelay(previousRetryCount),
+} as const satisfies IRetryPolicy;
+
 // The same base address as the API client. The server reads the token from the query string on /hubs paths.
 export function buildHub(path: string, status: Ref<HubStatus>): HubConnection {
   const connection: HubConnection = new HubConnectionBuilder()
     .withUrl(new URL(path, activeBot.value).toString(), { accessTokenFactory: getAccessToken })
-    .withAutomaticReconnect()
+    .withAutomaticReconnect(reconnectPolicy)
     .build();
 
   connection.onreconnecting(() => {

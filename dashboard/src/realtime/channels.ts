@@ -8,32 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { actionRequiredKey } from '@/api/actionRequired';
 import { myChannelsQuery, type ChannelSummary } from '@/api/channels';
-import { builtinsKey, commandsKey, type CommandListItem } from '@/api/commands';
+import { commandsKey, type CommandListItem } from '@/api/commands';
 import { shieldKey } from '@/api/shield';
 import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream';
-import { ttsConfigKey } from '@/api/tts';
-import { widgetsKey } from '@/api/widgets';
 
 import type { HubEventHandler } from './hubEvent';
 import type {
   ChannelEventPayload,
   CommandExecutedPayload,
-  ConfigChangedPayload,
   StreamInfoChangedPayload,
   StreamStatusPayload,
 } from './payloads';
-
-// The server names the domain of the action-required inbox "notifications" (ActionRequiredChangeNotifier.Domain).
-const actionRequiredDomain = 'notifications';
-// CommandService.cs and BuiltinCommandService.cs publish ConfigChanged with these domains.
-const commandsDomain = 'commands';
-const builtinsDomain = 'builtins';
-// TtsConfigService.cs publishes ConfigChanged with this domain after a config change.
-const ttsDomain = 'tts-config';
-// WidgetService.cs publishes ConfigChanged with this domain when an overlay is created, updated or deleted.
-const widgetsDomain = 'widgets';
 
 function bare(name: string): string {
   const unprefixed = name.startsWith('!')
@@ -47,7 +33,6 @@ function bare(name: string): string {
 export const channelHandlers: [
   HubEventHandler<StreamStatusPayload>,
   HubEventHandler<ChannelEventPayload>,
-  HubEventHandler<ConfigChangedPayload>,
   HubEventHandler<CommandExecutedPayload>,
   HubEventHandler<StreamInfoChangedPayload>,
 ] = [
@@ -86,30 +71,6 @@ export const channelHandlers: [
 
       if (event.type === 'shield_mode_end') {
         queries.setQueryData<boolean>(shieldKey(channelId), false);
-      }
-    },
-  },
-  {
-    event: 'ConfigChanged',
-    handle: ({ queries, channelId }, change) => {
-      if (change.domain === actionRequiredDomain) {
-        void queries.invalidateQueries({ queryKey: actionRequiredKey(channelId) });
-      }
-
-      if (change.domain === commandsDomain) {
-        void queries.invalidateQueries({ queryKey: commandsKey(channelId) });
-      }
-
-      if (change.domain === builtinsDomain) {
-        void queries.invalidateQueries({ queryKey: builtinsKey(channelId) });
-      }
-
-      if (change.domain === ttsDomain) {
-        void queries.invalidateQueries({ queryKey: ttsConfigKey(channelId) });
-      }
-
-      if (change.domain === widgetsDomain) {
-        void queries.invalidateQueries({ queryKey: widgetsKey(channelId) });
       }
     },
   },

@@ -21,3 +21,6 @@ export type HubEventHandler<TPayload> = {
   event: string;
   handle: (context: HubEventContext, payload: TPayload) => void;
 };
+
+// Builds the key of one page query for a channel; the realtime layer marks that query stale.
+export type QueryKeyBuilder = (channelId: string | null) => unknown[];

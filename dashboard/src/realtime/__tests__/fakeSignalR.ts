@@ -11,6 +11,9 @@
 // A stand-in for @microsoft/signalr: records every call and lets a test push a server event.
 export class FakeHubConnection {
   static instances: FakeHubConnection[] = [];
+  // How many start() calls fail before one succeeds, across all connections.
+  static startFailures = 0;
+  static startCalls = 0;
 
   static at(index: number): FakeHubConnection {
     const found = FakeHubConnection.instances[index];
@@ -60,6 +63,14 @@ export class FakeHubConnection {
   }
 
   start(): Promise<void> {
+    FakeHubConnection.startCalls += 1;
+
+    if (FakeHubConnection.startFailures > 0) {
+      FakeHubConnection.startFailures -= 1;
+
+      return Promise.reject(new Error('the server is not reachable'));
+    }
+
     return Promise.resolve();
   }
 
@@ -88,7 +99,17 @@ export class FakeHubConnection {
   }
 }
 
+export type FakeRetryPolicy = {
+  nextRetryDelayInMilliseconds: (context: {
+    previousRetryCount: number;
+    elapsedMilliseconds: number;
+    retryReason: Error;
+  }) => number | null;
+};
+
 export class FakeHubConnectionBuilder {
+  static policy: FakeRetryPolicy | boolean | null = null;
+
   private url = '';
   withUrl(url: string): this {
     this.url = url;
@@ -96,7 +117,9 @@ export class FakeHubConnectionBuilder {
     return this;
   }
 
-  withAutomaticReconnect(): this {
+  withAutomaticReconnect(policy?: FakeRetryPolicy): this {
+    FakeHubConnectionBuilder.policy = policy ?? true;
+
     return this;
   }
 
