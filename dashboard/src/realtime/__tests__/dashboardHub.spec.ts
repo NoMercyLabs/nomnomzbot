@@ -165,6 +165,16 @@ describe('dashboard hub channel groups', () => {
     expect(connection.invocations).toEqual([['LeaveChannel', 'c1']])
   })
 
+  it('dropping a watched channel that the frame also watches does not leave it', async () => {
+    const [hub, , connection] = await started()
+    await hub.watchChannel('c1')
+    await hub.watchChannels([{ id: 'c1', classes: ['chat'] }])
+    connection.invocations.length = 0
+    await hub.watchChannels([])
+
+    expect(connection.invocations).toEqual([])
+  })
+
   it('reports a refused join with the server message and clears it when the channel is left', async () => {
     const [hub, , connection] = await started()
     const { dashboardJoinErrors } = await import('../hubStatus')

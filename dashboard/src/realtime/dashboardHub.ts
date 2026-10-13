@@ -88,6 +88,8 @@ export async function watchChannels(channels: ChannelWatch[]): Promise<void> {
   for (const [id, classes] of next) watched.set(id, classes)
   if (!connection) return
   for (const id of removed) {
+    // The frame's own join of this channel stays; the page only drops its class set.
+    if (id === joinedChannel) continue
     await connection.invoke('LeaveChannel', id)
     dashboardJoinErrors.value = dashboardJoinErrors.value.filter((error) => error.channelId !== id)
   }
