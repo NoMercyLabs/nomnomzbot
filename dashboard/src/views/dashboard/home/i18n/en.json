@@ -61,7 +61,8 @@
         "title": "Needs attention",
         "empty": "Nothing needs you right now.",
         "error": "This list could not load.",
-        "open": "Open"
+        "open": "Open",
+        "dismiss": "Dismiss"
       },
       "connections": {
         "title": "Connections",

@@ -61,7 +61,8 @@
         "title": "Heeft aandacht nodig",
         "empty": "Niets heeft je nu nodig.",
         "error": "Deze lijst kon niet laden.",
-        "open": "Openen"
+        "open": "Openen",
+        "dismiss": "Negeren"
       },
       "connections": {
         "title": "Koppelingen",
