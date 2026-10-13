@@ -14,12 +14,14 @@ import { useI18n } from 'vue-i18n'
 
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
+import ChartPanel, { type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import FilterBar,{ type FilterOption } from '@/components/layout/FilterBar.vue'
 import FormDialog from '@/components/layout/FormDialog.vue'
 import InlineFlow from '@/components/layout/InlineFlow.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import ListDetail from '@/components/layout/ListDetail.vue'
+import HelperPanel from '@/components/layout/HelperPanel.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PageTabs, { type PageTab } from '@/components/layout/PageTabs.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
@@ -29,6 +31,7 @@ import SettingRow from '@/components/layout/SettingRow.vue'
 import StatStrip from '@/components/layout/StatStrip.vue'
 import StatTile from '@/components/layout/StatTile.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
+import TemplateField from '@/components/layout/TemplateField.vue'
 import Countdown from '@/components/layout/Countdown.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import VirtualList from '@/components/layout/VirtualList.vue'
@@ -59,6 +62,24 @@ const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year']
   value: key,
   label: t(`dashboard.catalogue.filter.${key}`),
 }))
+
+// Demo data only: these numbers are invented for the catalogue and never shown anywhere else.
+const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].map((lines: number, day: number) => ({
+  day: new Date(2026, 0, day + 1),
+  lines,
+}))
+const monthDemo: ChartRow[] = [
+  { month: 'Sep', returning: 36, fresh: 50 },
+  { month: 'Oct', returning: 43, fresh: 27 },
+  { month: 'Nov', returning: 41, fresh: 41 },
+  { month: 'Dec', returning: 49, fresh: 45 },
+  { month: 'Jan', returning: 35, fresh: 12 },
+]
+const lineSeries: ChartSeries[] = [{ key: 'lines', labelKey: 'dashboard.catalogue.chart.line.title', color: 'chart-1' }]
+const monthSeries: ChartSeries[] = [
+  { key: 'returning', labelKey: 'dashboard.catalogue.chart.series.returning', color: 'chart-1' },
+  { key: 'fresh', labelKey: 'dashboard.catalogue.chart.series.fresh', color: 'chart-3' },
+]
 
 const ttsOn: Ref<boolean> = ref(true)
 const modsOn: Ref<boolean> = ref(false)
@@ -97,6 +118,9 @@ function submitForm(): void {
     formOpen.value = false
   }, 800)
 }
+
+const templateText: Ref<string> = ref('')
+const templateField: Ref<InstanceType<typeof TemplateField> | null> = ref(null)
 
 const countdownTarget: Ref<number> = ref(Date.now() + 15_000)
 const countdownZeros: Ref<number> = ref(0)
@@ -290,6 +314,54 @@ function confirmDelete(): void {
               <span class="text-sm text-muted-foreground">
                 {{ t('dashboard.catalogue.countdown.count', { count: countdownZeros }) }}
               </span>
+            </div>
+          </PanelCard>
+
+          <ChartPanel
+            kind="line"
+            :title="t('dashboard.catalogue.chart.line.title')"
+            :takeaway="t('dashboard.catalogue.chart.line.takeaway')"
+            :data="lineDemo"
+            x="day"
+            :series="lineSeries"
+          />
+          <ChartPanel
+            kind="area"
+            :title="t('dashboard.catalogue.chart.area.title')"
+            :takeaway="t('dashboard.catalogue.chart.area.takeaway')"
+            :data="lineDemo"
+            x="day"
+            :series="lineSeries"
+          />
+          <ChartPanel
+            kind="bar"
+            :title="t('dashboard.catalogue.chart.bar.title')"
+            :takeaway="t('dashboard.catalogue.chart.bar.takeaway')"
+            :data="monthDemo"
+            x="month"
+            :series="monthSeries"
+          />
+          <ChartPanel
+            kind="groupedBar"
+            :title="t('dashboard.catalogue.chart.groupedBar.title')"
+            :takeaway="t('dashboard.catalogue.chart.groupedBar.takeaway')"
+            :data="monthDemo"
+            x="month"
+            :series="monthSeries"
+          />
+
+          <PanelCard :title="t('dashboard.catalogue.template.title')" pad>
+            <div class="grid gap-4 md:grid-cols-[1fr_20rem]">
+              <TemplateField
+                ref="templateField"
+                v-model="templateText"
+                context="command"
+                :label="t('dashboard.catalogue.template.label')"
+                :placeholder="t('dashboard.catalogue.template.placeholder')"
+              />
+              <div class="flex h-72 flex-col">
+                <HelperPanel :target="templateField" context="command" />
+              </div>
             </div>
           </PanelCard>
 

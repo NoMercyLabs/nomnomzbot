@@ -41,6 +41,12 @@
   --sidebar-accent: oklch(0.232614 0.04334 304.159);
   --sidebar-accent-foreground: oklch(0.949119 0 0);
   --sidebar-border: oklch(0.239292 0 0);
+  /* Chart series: a neutral ramp, as in the analytics mockup. The accent stays for the one primary action. */
+  --chart-1: oklch(0.9 0 0);
+  --chart-2: oklch(0.68 0 0);
+  --chart-3: oklch(0.52 0 0);
+  --chart-4: oklch(0.4 0 0);
+  --chart-5: oklch(0.3 0 0);
 
   /* Radii() in Tokens.kt */
   --radius-sm: 16px;
@@ -107,6 +113,11 @@ html[data-density=touch] {
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
+  --chart-1: oklch(0.3 0 0);
+  --chart-2: oklch(0.5 0 0);
+  --chart-3: oklch(0.64 0 0);
+  --chart-4: oklch(0.76 0 0);
+  --chart-5: oklch(0.86 0 0);
 }
 
 /* One scrollbar for every scroll area, so no OS default ever shows (owner 2026-10-12). hover-check.py gates it. */

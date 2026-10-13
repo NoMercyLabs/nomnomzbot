@@ -115,12 +115,39 @@
         "lead": "Lead panel",
         "quiet": "Quiet panel"
       },
+      "template": {
+        "title": "Template field and helper panel (command)",
+        "label": "Reply",
+        "placeholder": "Type an opening brace to pick a helper, or press one in the list"
+      },
       "virtual": {
         "title": "Virtual list (demo data)",
         "add": "Add a row",
         "count": "{count} generated rows, only the ones in view are drawn",
         "row": "Demo row {number}",
         "long": "This demo row is longer on purpose, so that it wraps on a narrow screen and shows that rows are measured."
+      },
+      "chart": {
+        "series": {
+          "returning": "Returning",
+          "fresh": "New"
+        },
+        "line": {
+          "title": "Line chart (demo data)",
+          "takeaway": "Demo numbers: chat lines rose from 1,200 to 3,400 in eight days."
+        },
+        "area": {
+          "title": "Area chart (demo data)",
+          "takeaway": "Demo numbers: the area under the line shows the same eight days as a volume."
+        },
+        "bar": {
+          "title": "Bar chart (demo data)",
+          "takeaway": "Demo numbers: the stacked bars add returning and new chatters for each month."
+        },
+        "groupedBar": {
+          "title": "Grouped bar chart (demo data)",
+          "takeaway": "Demo numbers: the grouped bars set returning next to new chatters for each month."
+        }
       },
       "layout": {
         "board": "Board",
