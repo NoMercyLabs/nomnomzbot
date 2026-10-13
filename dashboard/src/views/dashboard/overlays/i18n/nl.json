@@ -72,7 +72,26 @@
         "events": {
           "title": "Reageert op {count} gebeurtenissen",
           "titleOne": "Reageert op 1 gebeurtenis",
-          "none": "Deze overlay reageert op geen enkele gebeurtenis."
+          "none": "Deze overlay reageert op geen enkele gebeurtenis.",
+          "test": "Test",
+          "testLabel": "Test {event}"
+        },
+        "preview": {
+          "title": "Voorbeeld",
+          "unavailable": "Het dashboard kan deze overlay nog niet tekenen. Open het adres in OBS om hem te zien."
+        },
+        "settings": {
+          "title": "Instellingen",
+          "unsaved": "Niet opgeslagen wijzigingen. Open bronnen laden opnieuw bij opslaan.",
+          "allSaved": "Alles opgeslagen.",
+          "saved": "Opgeslagen.",
+          "failed": "Niet opgeslagen. Je wijzigingen staan er nog; probeer het opnieuw.",
+          "none": "Deze overlay heeft geen instellingen.",
+          "raw": "Deze overlay heeft geen instellingenformulier. Dit zijn de opgeslagen waarden.",
+          "error": "De instellingen konden niet laden.",
+          "reset": "Zet {name} terug naar de standaard",
+          "save": "Instellingen opslaan",
+          "changed": "Anders dan de standaard"
         },
         "module": {
           "title": "Module",

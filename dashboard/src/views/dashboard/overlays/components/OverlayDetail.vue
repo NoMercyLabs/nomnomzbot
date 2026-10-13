@@ -11,12 +11,13 @@
 // The head of one overlay: name and badges, the On/Off switch, the one primary action (copy the
 // browser source address), Health, what it reacts to, and the module facts.
 // The address holds a secret token. Copy sends the full address to the clipboard; the page only ever shows it cut.
-import { ArrowLeft, Check, Copy } from '@lucide/vue'
+import { ArrowLeft, Check, Copy, Play } from '@lucide/vue'
 import { useTimeAgoIntl, useTimeoutFn } from '@vueuse/core'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSetWidgetEnabled, type Widget } from '@/api/widgets'
+import { useSetWidgetEnabled, useTestWidgetEvent, type Widget } from '@/api/widgets'
+import InlineFlow from '@/components/layout/InlineFlow.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import PanelCard from '@/components/layout/PanelCard.vue'
 import RowGroup from '@/components/layout/RowGroup.vue'
@@ -27,7 +28,9 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
+import OverlaySettings from './OverlaySettings.vue'
 import { maskedAddress, overlayKind, plainEvent, type OverlayKind } from './overlayKind'
+import { numberOrNull } from './settingField'
 
 const COPIED_MS = 2000
 
@@ -93,6 +96,32 @@ const attachLine: ComputedRef<HealthLine> = computed<HealthLine>(() => {
 })
 
 const events: ComputedRef<string[]> = computed<string[]>(() => props.widget.eventSubscriptions)
+
+// Test sends the event type alone, so the bot fills in its own sample; each row shows what the bot said.
+const testEvent = useTestWidgetEvent(channelId)
+const testResults: Ref<Record<string, string>> = ref({})
+const testFailures: Ref<Record<string, string>> = ref({})
+
+async function sendTest(eventType: string): Promise<void> {
+  try {
+    const answer: string = await testEvent.mutateAsync({ eventType })
+    testResults.value = { ...testResults.value, [eventType]: answer }
+  } catch (error) {
+    testFailures.value = { ...testFailures.value, [eventType]: (error as Error).message }
+    throw error
+  }
+}
+
+// The preview cannot render the overlay yet; it names the size the overlay is set to when it has one.
+const size: ComputedRef<string | null> = computed<string | null>(() => {
+  const width: number | null = numberOrNull(
+    props.widget.settings?.width as number | string | undefined,
+  )
+  const height: number | null = numberOrNull(
+    props.widget.settings?.height as number | string | undefined,
+  )
+  return width === null || height === null ? null : `${width} × ${height}`
+})
 
 const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
   const base: string = 'dashboard.overlays.detail.module'
@@ -182,6 +211,15 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
           </div>
         </PanelCard>
 
+        <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.preview.title')">
+          <div data-slot="overlay-preview" class="flex flex-wrap items-center gap-2 text-sm">
+            <p class="min-w-0 flex-1 text-muted-foreground">
+              {{ $t('dashboard.overlays.detail.preview.unavailable') }}
+            </p>
+            <Badge v-if="size !== null" variant="outline" class="tabular-nums">{{ size }}</Badge>
+          </div>
+        </PanelCard>
+
         <PanelCard
           :title="
             events.length === 1
@@ -198,14 +236,35 @@ const module: ComputedRef<KeyValueItem[]> = computed<KeyValueItem[]>(() => {
               :data-event="key"
               :title="plainEvent(key)"
               :detail="plainEvent(key) === key ? undefined : key"
-            />
+            >
+              <template #end>
+                <InlineFlow
+                  kind="run"
+                  right
+                  :label="
+                    $t('dashboard.overlays.detail.events.testLabel', { event: plainEvent(key) })
+                  "
+                  :result="testResults[key]"
+                  :failure="testFailures[key]"
+                  :action="() => sendTest(key)"
+                >
+                  <Button data-test variant="outline" size="sm">
+                    <Play aria-hidden="true" />
+                    {{ $t('dashboard.overlays.detail.events.test') }}
+                  </Button>
+                </InlineFlow>
+              </template>
+            </SummaryRow>
           </RowGroup>
         </PanelCard>
       </div>
 
-      <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.module.title')">
-        <KeyValueList :items="module" />
-      </PanelCard>
+      <div class="grid gap-4">
+        <OverlaySettings :widget="widget" />
+        <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.module.title')">
+          <KeyValueList :items="module" />
+        </PanelCard>
+      </div>
     </div>
   </div>
 </template>

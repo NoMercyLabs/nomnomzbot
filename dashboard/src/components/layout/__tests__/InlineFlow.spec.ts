@@ -72,7 +72,13 @@ describe('the inline flow', () => {
 
   it('confirm asks first and runs the action only on the second press', async () => {
     const action: Mock = vi.fn<() => void>()
-    flow({ kind: 'confirm', ask: 'Clear 12 songs?', yes: 'Clear', result: 'Queue cleared.', action })
+    flow({
+      kind: 'confirm',
+      ask: 'Clear 12 songs?',
+      yes: 'Clear',
+      result: 'Queue cleared.',
+      action,
+    })
 
     opener().click()
     await flushPromises()
@@ -190,7 +196,11 @@ describe('the inline flow', () => {
   })
 
   it('shows a failure, not a result, when the action rejects', async () => {
-    flow({ kind: 'apply', result: 'Saved.', action: vi.fn<() => Promise<void>>().mockRejectedValue(new Error('boom')) })
+    flow({
+      kind: 'apply',
+      result: 'Saved.',
+      action: vi.fn<() => Promise<void>>().mockRejectedValue(new Error('boom')),
+    })
 
     opener().click()
     await flushPromises()
@@ -199,6 +209,22 @@ describe('the inline flow', () => {
     expect(box()?.textContent).toContain('That did not work.')
     expect(box()?.textContent).not.toContain('Saved.')
     expect(control('undo')).toBeNull()
+  })
+
+  it('shows the reason the bot gave when the page passes one for a failure', async () => {
+    flow({
+      kind: 'run',
+      result: 'Sent.',
+      failure: 'No such event type.',
+      action: vi.fn<() => Promise<void>>().mockRejectedValue(new Error('No such event type.')),
+    })
+
+    opener().click()
+    await flushPromises()
+
+    expect(step()).toBe('failed')
+    expect(box()?.textContent).toContain('No such event type.')
+    expect(box()?.textContent).not.toContain('That did not work.')
   })
 
   it('note shows its line and Done, and has no action to run', async () => {

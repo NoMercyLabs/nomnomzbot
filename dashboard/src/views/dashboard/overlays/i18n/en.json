@@ -72,7 +72,26 @@
         "events": {
           "title": "Reacts to {count} events",
           "titleOne": "Reacts to 1 event",
-          "none": "This overlay does not react to any event."
+          "none": "This overlay does not react to any event.",
+          "test": "Test",
+          "testLabel": "Test {event}"
+        },
+        "preview": {
+          "title": "Preview",
+          "unavailable": "The dashboard cannot draw this overlay yet. Open its address in OBS to see it."
+        },
+        "settings": {
+          "title": "Settings",
+          "unsaved": "Unsaved changes. Open sources reload on save.",
+          "allSaved": "All saved.",
+          "saved": "Saved.",
+          "failed": "Not saved. Your changes are still here; try again.",
+          "none": "This overlay has no settings.",
+          "raw": "This overlay has no settings form. These are its saved values.",
+          "error": "The settings could not load.",
+          "reset": "Reset {name} to default",
+          "save": "Save settings",
+          "changed": "Changed from the default"
         },
         "module": {
           "title": "Module",
