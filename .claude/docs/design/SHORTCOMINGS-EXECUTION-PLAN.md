@@ -21,6 +21,35 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-13 (evening) — row balance, dismissable errors, live updates, chat settings + active users panel
+
+Stoney, verbatim:
+
+> the card items need to have a visual balance because the padding on the right does not match with the visual space of the left with the icon, this must be properly handled for start icon, end icon, start button, end button, no icon and no button.
+> i can't dismiss an error.
+> the dashboard is not getting its live updates or does not reflect them and requires a navigation to make the change showing.
+> i would like my chat settings and user active sidepannel to be made now.
+
+- **S-VUE-DISMISS-ERROR** — every error the dashboard shows can be dismissed. Done when a test dismisses each error surface and it stays gone.
+- **S-VUE-LIVE-UPDATES** — server pushes update the open page without a navigation. Done when a test pushes an event and the panel changes without a route change.
+- **S-VUE-CHAT-SETTINGS** — the chat settings page from the mockup, on the shared foundation.
+- **S-VUE-ACTIVE-USERS-PANEL** — the active users side panel from the mockup.
+- **S-USER-CHAT-PREFERENCES** — a per-user GET/PUT for chat display preferences, so the Display
+  drawer saves to the account on every device (the mockup's promise). Until it lands the drawer keeps
+  its choices on the device and says so. Then the five options with no data yet: animated emotes
+  (a still-image URL per emote), read aloud, match language, voice and speed (per-user TTS choice).
+
+Stoney, verbatim (later the same evening):
+
+> i want to be able to drag songs up and down in the list and the server reordering the queue, i requested my end song but i also get bumped, so i need to be able to drag mine to the end haha, not prority but important
+
+- **S-SR-DRAG-REORDER** — the dashboard song queue rows can be dragged up and down; the server moves the entry to that place in the fair queue and every surface (overlays, `!queue`, the Spotify hand-over) follows. Done when a drag in the dashboard changes the server order and a test asserts the new order.
+Stoney, verbatim: "do i have the ability yet to play a song directly, skipping the queue in my code scripts yet? i want to add my song to the start and end of the stream. i asked you a while ago but i don't know if you actually made it"
+
+- **S-SDK-MUSIC-PLAYNOW** — code scripts get `bot.music.playNow(uri)` over `IMusicService.PlayTrackOnceAsync` (the call behind the `play_track_once` pipeline action), with its grant, typings in the SDK surface, and a test that a script run plays the track without touching the song-request queue.
+
+  Stoney, verbatim, correcting a misread: "not what i asked for, my song SHOULD be bumped... i just want to be able to move it". The bump is correct behavior; the only ask is moving a song.
+
 ## OWNER REQUEST 2026-10-13 — the broadcaster and mods are never blocked; `!permit` queues a held song request
 
 Owner, verbatim: "another case for permission settings, i need to be able to reply a sr command that is held for lenght and be able to use !permit so it is queued with my permission, and mods should never be blocked using any commands just like they don't have cooldowns they should also be able to use any command that follows their permission role"
@@ -172,6 +201,30 @@ Done already: `QuoteBuiltin.AddFromBareReplyOrReadAsync` stores the parent line 
 
 Arc's reading (not settled):
 - Every command and pipeline can read the reply parent (message, user, id), and a command target defaults to the reply parent.
+
+## OWNER REQUEST 2026-10-13 — fair queueing definitions
+
+Owner, verbatim: "the fair queueing system needs some definitions, when someone requests their first song of the stream they should be fairly bumped to the top without pushing away other first songs that have been bumped already. when bumping a song it should be directly reflected in spotify's queue by removing the queue and pushing the bumped song. bumping a song sshould be possible by a reward created by the user as a pipeline/single action, it should be a setting for the music system to enable or disable the auto bump for first requests while upholding any rules set on who is allowed to play what so the channel stays safe. removing a song should also directly reflect and be removed, starting it and then removing it defeats the purpose of the faur queueing system, its the same as for chat messages or tts speeches, something removed should ALWAYS take president over permissive actions. so the reply to the !sr command should also allow for !bump. everything should always be available across all features like code scripts, overlays, chat and everywhere a user may want to trigger this."
+
+Owner, verbatim: "and i mean reply with !bump, lets set the terminology in the rules, "a reply command""
+
+Owner, verbatim: "lets also make the next song be put in the queue when the current song is at 10 seconds to the end so we can bump to the very last moment and respond to removals quicker"
+
+Owner, verbatim: "still handle the skip as a fallback removal"
+
+Term set: **reply command** (PRODUCT-ALIGNMENT glossary). Hand-over window: **10 seconds** before the current song ends. A removal of a song already handed to Spotify is still skipped (fallback removal).
+
+### S-SR-FIRST-BUMP — a first request of the stream goes up fairly
+- **Input:** `FairQueue<T>`, `MusicService`, the music settings.
+- **Done-when:** with the setting on, a viewer's first request of the stream lands after the other first requests already bumped and before every later request; the setting off keeps plain fair order; every request rule (who may play what) still holds.
+
+### S-SR-SPOTIFY-MIRROR — a bump or a removal shows in Spotify at once
+- **Input:** `MusicService`, the Spotify player client.
+- **Done-when:** live, after a bump Spotify's queue holds the bumped song next; a removed song never starts; removal wins over any permissive action (same rule as chat and TTS).
+
+### S-SR-BUMP-EVERYWHERE — bump is one action every surface can call
+- **Input:** `MusicActions.cs`, the reward and pipeline action catalogue, the script SDK, the overlay API.
+- **Done-when:** a reward can bump (single action or pipeline); `!bump` works as a reply command to the bot's `!sr` answer; scripts and overlays reach the same bump.
 
 ### S-REPLY-COMMANDS — commands act on the message you reply to
 - **Input:** `ChatMessageReceivedEvent` reply fields, the command context and pipeline variables.
