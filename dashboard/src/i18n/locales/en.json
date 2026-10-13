@@ -2,10 +2,80 @@
   "common": {
     "signOut": "Sign out",
     "language": "Language",
+    "close": "Close",
     "panel": {
       "empty": "Nothing here yet.",
       "error": "This panel could not load.",
       "retry": "Try again"
+    }
+  },
+  "frame": {
+    "nav": {
+      "label": "Main navigation",
+      "more": "More",
+      "moreHelp": "All pages of the dashboard",
+      "home": "Home",
+      "chat": "Chat",
+      "stream": "Stream",
+      "analytics": "Analytics",
+      "obs": "OBS",
+      "vtubeStudio": "VTube Studio",
+      "commands": "Commands",
+      "triggersTimers": "Triggers and timers",
+      "eventResponses": "Event responses",
+      "pipelines": "Pipelines",
+      "overlays": "Overlays",
+      "scripts": "Scripts",
+      "library": "Library",
+      "gallery": "Gallery",
+      "people": "People",
+      "channelPoints": "Channel points",
+      "economy": "Economy",
+      "games": "Games",
+      "giveaways": "Giveaways",
+      "supporters": "Supporters",
+      "music": "Music",
+      "tts": "Text to speech",
+      "mediaShare": "Media share",
+      "settings": "Settings"
+    },
+    "group": {
+      "home": "Home",
+      "live": "Live",
+      "build": "Build",
+      "people": "People",
+      "loyalty": "Loyalty",
+      "musicVoice": "Music and voice",
+      "setup": "Setup"
+    },
+    "channel": {
+      "switch": "Switch channel",
+      "none": "No channel",
+      "find": "Find a channel",
+      "noMatch": "No channel found.",
+      "yours": "Your channel",
+      "moderated": "Channels you moderate ({live} live of {total})",
+      "live": "Live",
+      "offline": "Offline"
+    },
+    "profile": {
+      "menu": "Account menu",
+      "moderator": "Moderator",
+      "broadcaster": "Broadcaster",
+      "readability": "Readability",
+      "admin": "Platform admin"
+    },
+    "shield": {
+      "for": "Shield mode for {channel}",
+      "on": "Shield on",
+      "off": "Shield off"
+    },
+    "inbox": {
+      "title": "Action required",
+      "empty": "Nothing needs your attention.",
+      "open": "Open",
+      "unknownTitle": "Something needs your attention",
+      "unknownMessage": "Open the page to see what to do."
     }
   }
 }

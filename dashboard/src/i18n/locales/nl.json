@@ -2,10 +2,80 @@
   "common": {
     "signOut": "Afmelden",
     "language": "Taal",
+    "close": "Sluiten",
     "panel": {
       "empty": "Hier is nog niets.",
       "error": "Dit paneel kon niet laden.",
       "retry": "Probeer opnieuw"
+    }
+  },
+  "frame": {
+    "nav": {
+      "label": "Hoofdnavigatie",
+      "more": "Meer",
+      "moreHelp": "Alle pagina's van het dashboard",
+      "home": "Start",
+      "chat": "Chat",
+      "stream": "Stream",
+      "analytics": "Statistieken",
+      "obs": "OBS",
+      "vtubeStudio": "VTube Studio",
+      "commands": "Commando's",
+      "triggersTimers": "Triggers en timers",
+      "eventResponses": "Reacties op events",
+      "pipelines": "Pipelines",
+      "overlays": "Overlays",
+      "scripts": "Scripts",
+      "library": "Bibliotheek",
+      "gallery": "Galerij",
+      "people": "Mensen",
+      "channelPoints": "Kanaalpunten",
+      "economy": "Economie",
+      "games": "Spellen",
+      "giveaways": "Weggeefacties",
+      "supporters": "Supporters",
+      "music": "Muziek",
+      "tts": "Tekst naar spraak",
+      "mediaShare": "Media delen",
+      "settings": "Instellingen"
+    },
+    "group": {
+      "home": "Start",
+      "live": "Live",
+      "build": "Bouwen",
+      "people": "Mensen",
+      "loyalty": "Loyaliteit",
+      "musicVoice": "Muziek en stem",
+      "setup": "Instellen"
+    },
+    "channel": {
+      "switch": "Kanaal wisselen",
+      "none": "Geen kanaal",
+      "find": "Zoek een kanaal",
+      "noMatch": "Geen kanaal gevonden.",
+      "yours": "Jouw kanaal",
+      "moderated": "Kanalen die je modereert ({live} live van {total})",
+      "live": "Live",
+      "offline": "Offline"
+    },
+    "profile": {
+      "menu": "Accountmenu",
+      "moderator": "Moderator",
+      "broadcaster": "Streamer",
+      "readability": "Leesbaarheid",
+      "admin": "Platformbeheer"
+    },
+    "shield": {
+      "for": "Schildmodus voor {channel}",
+      "on": "Schild aan",
+      "off": "Schild uit"
+    },
+    "inbox": {
+      "title": "Actie nodig",
+      "empty": "Er is niets dat je aandacht nodig heeft.",
+      "open": "Openen",
+      "unknownTitle": "Er is iets dat je aandacht nodig heeft",
+      "unknownMessage": "Open de pagina om te zien wat je moet doen."
     }
   }
 }

@@ -1,0 +1,40 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<script setup lang="ts">
+import { Shield, ShieldCheck } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+
+import { useSetShieldMode, useShieldMode } from '@/api/shield'
+import { Toggle } from '@/components/ui/toggle'
+import { useCurrentChannel } from '@/composables/useCurrentChannel'
+
+const { t } = useI18n()
+const { channelId, current } = useCurrentChannel()
+const shield = useShieldMode(channelId)
+const setShield = useSetShieldMode(channelId)
+</script>
+
+<template>
+  <!-- The state comes from Twitch, so the button shows only once the real state is known. -->
+  <Toggle
+    v-if="shield.data.value !== undefined"
+    variant="outline"
+    size="sm"
+    data-slot="shield-toggle"
+    :model-value="shield.data.value"
+    :disabled="setShield.isPending.value"
+    :title="t('frame.shield.for', { channel: current?.displayName ?? '' })"
+    @update:model-value="(on: boolean) => setShield.mutate(on)"
+  >
+    <ShieldCheck v-if="shield.data.value" aria-hidden="true" />
+    <Shield v-else aria-hidden="true" />
+    {{ shield.data.value ? t('frame.shield.on') : t('frame.shield.off') }}
+  </Toggle>
+</template>
