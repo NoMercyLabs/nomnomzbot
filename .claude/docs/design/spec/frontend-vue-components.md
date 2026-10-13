@@ -98,7 +98,8 @@ state used by `PageTabs`), `useUndo`.
 | `/me` | `viewer/home` | board | `8-viewer.html` | none |
 | `/app/catalogue` | `dashboard/catalogue` | none | `9-components.html` | development builds only |
 
-Each page is one slice: its view, its `api/<slug>.ts` queries and mutations from the generated client, its
+Route names are `dashboard-<slug>` from the view folder (`dashboard-home`, `dashboard-chat`,
+`dashboard-admin-channels`); the sidebar shows an entry only when its route name exists. Each page is one slice: its view, its `api/<slug>.ts` queries and mutations from the generated client, its
 `i18n/` words, its tests, and a live check signed in against the local bot. A mockup control with no endpoint
 is not built as a fake: it shows the designed empty or "not recorded" state with its reason (C11).
 

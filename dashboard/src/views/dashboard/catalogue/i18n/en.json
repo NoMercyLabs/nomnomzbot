@@ -13,7 +13,6 @@
       "outline": "Discard",
       "status": {
         "ok": "Connected",
-        "warn": "Slow",
         "bad": "Failed",
         "live": "Live",
         "off": "Off"

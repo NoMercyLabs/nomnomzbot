@@ -89,12 +89,12 @@ describe('the status badge', () => {
     expect(wrapper.classes().some((name: string) => name.startsWith('bg-'))).toBe(false)
   })
 
-  it('tells a warning from a failure by the shape of the dot, not only its hue', () => {
-    const warn: VueWrapper = mount(StatusBadge, { props: { tone: 'warn', label: 'Slow' } })
+  it('paints harm red and a quiet state grey', () => {
     const bad: VueWrapper = mount(StatusBadge, { props: { tone: 'bad', label: 'Failed' } })
+    const off: VueWrapper = mount(StatusBadge, { props: { tone: 'off', label: 'Off' } })
 
-    expect(warn.find('[aria-hidden="true"]').classes()).not.toContain('bg-destructive')
     expect(bad.find('[aria-hidden="true"]').classes()).toContain('bg-destructive')
+    expect(off.find('[aria-hidden="true"]').classes()).toContain('bg-muted-foreground')
   })
 })
 

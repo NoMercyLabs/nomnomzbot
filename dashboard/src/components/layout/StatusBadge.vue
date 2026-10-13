@@ -9,14 +9,13 @@
 -->
 <script setup lang="ts">
 // Status is a dot plus words, never a tinted pill (C5). The words carry the meaning;
-// the tone only shapes the dot. warn is a hollow dot, so it differs from bad by shape, not by hue.
-export type StatusTone = 'ok' | 'warn' | 'bad' | 'live' | 'off'
+// the dot has the three mockup colours only (frame.css:148-150).
+export type StatusTone = 'ok' | 'bad' | 'live' | 'off'
 
 defineProps<{ tone: StatusTone; label: string }>()
 
 const dotClass: Record<StatusTone, string> = {
   ok: 'bg-success',
-  warn: 'border-2 border-foreground',
   bad: 'bg-destructive',
   live: 'bg-destructive',
   off: 'bg-muted-foreground',

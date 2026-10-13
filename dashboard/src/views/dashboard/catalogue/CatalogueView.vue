@@ -102,7 +102,6 @@ const detailOpen: Ref<boolean> = ref(false)
 
           <div class="flex flex-wrap gap-4">
             <StatusBadge tone="ok" :label="t('dashboard.catalogue.status.ok')" />
-            <StatusBadge tone="warn" :label="t('dashboard.catalogue.status.warn')" />
             <StatusBadge tone="bad" :label="t('dashboard.catalogue.status.bad')" />
             <StatusBadge tone="live" :label="t('dashboard.catalogue.status.live')" />
             <StatusBadge tone="off" :label="t('dashboard.catalogue.status.off')" />
