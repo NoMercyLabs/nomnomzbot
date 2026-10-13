@@ -165,19 +165,34 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         string decoded = LeetRun.Replace(token, run => DecodeRun(token, run));
         // A short trailing glyph belongs to the word when another part of this name proves leetspeak.
         // A plain word followed by a number (Dark1, Anna1990) keeps its number.
-        if (
-            hasInternalLeet
-            && token.Length is > 1 and <= 3
-            && char.IsLetter(token[^2])
-            && IsLeet(token[^1])
-        )
-            decoded = decoded[..^1] + Decode(token[^1].ToString());
+        if (hasInternalLeet)
+            decoded = DecodeTrailingGlyphs(token, decoded);
 
         if (decoded == token)
             return decoded;
 
         Match leading = LeadingLeetRun.Match(decoded);
         return leading.Success ? Decode(leading.Value) + decoded[leading.Length..] : decoded;
+    }
+
+    // "r1l37": the "37" ends the name and no letter follows it, so LeetRun never sees it. A run of two or more
+    // different leet glyphs after a letter is the end of the word. A single glyph decodes on a short
+    // token ("L3") or a token that has leet inside it ("n1ght5"); "Gamer1" and "Gamer11" keep their number.
+    private static string DecodeTrailingGlyphs(string token, string decoded)
+    {
+        int start = token.Length;
+        while (start > 0 && IsLeet(token[start - 1]))
+            start--;
+
+        int length = token.Length - start;
+        if (length == 0 || start == 0 || !char.IsLetter(token[start - 1]))
+            return decoded;
+
+        bool endsTheWord =
+            length == 1
+                ? token.Length <= 3 || LeetRun.IsMatch(token)
+                : token[start..].Distinct().Count() > 1;
+        return endsTheWord ? decoded[..^length] + Decode(token[start..]) : decoded;
     }
 
     // "Player1Gamer": a lowercase letter before the run and a capital after it is a word break, not
