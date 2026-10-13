@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "commands": {
+      "title": "Commands",
+      "crumb": "Build",
+      "new": "New command",
+      "tabs": {
+        "custom": "Custom",
+        "builtin": "Built-in"
+      },
+      "list": {
+        "title": "Commands",
+        "search": "Search commands",
+        "sort": "Sort by",
+        "sortUses": "Most used",
+        "sortName": "A to Z",
+        "empty": "No commands yet.",
+        "makeFirst": "Make the first command",
+        "error": "The commands could not load.",
+        "noMatch": "No command matches your search.",
+        "off": "Off",
+        "uses": "{count} use | {count} uses",
+        "kindPipeline": "Runs a pipeline",
+        "kindCode": "Runs a code script",
+        "pick": "Pick a command to edit it.",
+        "pickTitle": "No command open"
+      },
+      "editor": {
+        "enabled": "Enabled",
+        "enabledHelp": "A command that is off stays in the list and answers nobody.",
+        "reply": "Reply",
+        "replyPlaceholder": "What the bot says in chat",
+        "speak": "Read it aloud",
+        "speakHelp": "The reply also plays as speech on your stream.",
+        "random": "Pick a random reply",
+        "randomHelp": "The bot picks one of the replies below each time.",
+        "addReply": "Add a reply",
+        "removeReply": "Remove reply {number}",
+        "replyNumber": "Reply {number}",
+        "pipeline": "Pipeline",
+        "pipelinePlaceholder": "Pick a pipeline",
+        "noPipeline": "This command answers nothing until you pick a pipeline.",
+        "codeNote": "This command runs a code script. Linking a script to a command is not possible here yet.",
+        "codeError": "The scripts could not load: {message}",
+        "role": "Who can use it",
+        "platforms": "Platforms",
+        "platformsOnly": "Twitch only for now",
+        "moreOptions": "More options",
+        "chatCooldown": "Chat cooldown (seconds)",
+        "chatCooldownHelp": "How long nobody can use it after one use.",
+        "personCooldown": "Per-person cooldown (seconds)",
+        "personCooldownHelp": "How long the same person waits to use it again.",
+        "unsaved": "{count} unsaved change | {count} unsaved changes",
+        "save": "Save changes",
+        "discard": "Discard",
+        "delete": "Delete",
+        "confirmTitle": "Delete !{name}?",
+        "confirmBody": "The command is removed for good. Chat can no longer use it.",
+        "confirmAction": "Delete command"
+      },
+      "roles": {
+        "Everyone": "Everyone",
+        "Subscriber": "Subscribers",
+        "Vip": "VIPs",
+        "Artist": "Artists",
+        "Moderator": "Moderators",
+        "LeadModerator": "Lead moderators",
+        "Editor": "Editors",
+        "Broadcaster": "Only you"
+      },
+      "dialog": {
+        "title": "New command",
+        "description": "Pick a name. Chat types it with the prefix, for example !hello.",
+        "name": "Name",
+        "namePlaceholder": "hello",
+        "nameRequired": "Give the command a name.",
+        "type": "What it does",
+        "typeTemplate": "Sends a reply",
+        "typePipeline": "Runs a pipeline",
+        "create": "Create command"
+      },
+      "builtin": {
+        "title": "Built-in commands",
+        "empty": "No built-in commands.",
+        "error": "The built-in commands could not load."
+      }
+    }
+  }
+}

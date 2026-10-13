@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "commands": {
+      "title": "Commando's",
+      "crumb": "Bouwen",
+      "new": "Nieuw commando",
+      "tabs": {
+        "custom": "Eigen",
+        "builtin": "Ingebouwd"
+      },
+      "list": {
+        "title": "Commando's",
+        "search": "Commando's zoeken",
+        "sort": "Sorteren op",
+        "sortUses": "Meest gebruikt",
+        "sortName": "A tot Z",
+        "empty": "Nog geen commando's.",
+        "makeFirst": "Maak het eerste commando",
+        "error": "De commando's konden niet laden.",
+        "noMatch": "Geen commando past bij je zoekopdracht.",
+        "off": "Uit",
+        "uses": "{count} keer gebruikt | {count} keer gebruikt",
+        "kindPipeline": "Draait een pipeline",
+        "kindCode": "Draait een codescript",
+        "pick": "Kies een commando om het te bewerken.",
+        "pickTitle": "Geen commando open"
+      },
+      "editor": {
+        "enabled": "Aan",
+        "enabledHelp": "Een commando dat uit staat blijft in de lijst en antwoordt niemand.",
+        "reply": "Antwoord",
+        "replyPlaceholder": "Wat de bot in de chat zegt",
+        "speak": "Voorlezen",
+        "speakHelp": "Het antwoord wordt ook als spraak op je stream afgespeeld.",
+        "random": "Kies een willekeurig antwoord",
+        "randomHelp": "De bot kiest elke keer een van de antwoorden hieronder.",
+        "addReply": "Antwoord toevoegen",
+        "removeReply": "Antwoord {number} verwijderen",
+        "replyNumber": "Antwoord {number}",
+        "pipeline": "Pipeline",
+        "pipelinePlaceholder": "Kies een pipeline",
+        "noPipeline": "Dit commando doet niets tot je een pipeline kiest.",
+        "codeNote": "Dit commando draait een codescript. Een script aan een commando koppelen kan hier nog niet.",
+        "codeError": "De scripts konden niet laden: {message}",
+        "role": "Wie mag het gebruiken",
+        "platforms": "Platforms",
+        "platformsOnly": "Voorlopig alleen Twitch",
+        "moreOptions": "Meer opties",
+        "chatCooldown": "Wachttijd voor de chat (seconden)",
+        "chatCooldownHelp": "Hoe lang niemand het kan gebruiken na een keer.",
+        "personCooldown": "Wachttijd per persoon (seconden)",
+        "personCooldownHelp": "Hoe lang dezelfde persoon wacht voor hij het weer kan gebruiken.",
+        "unsaved": "{count} niet-opgeslagen wijziging | {count} niet-opgeslagen wijzigingen",
+        "save": "Wijzigingen opslaan",
+        "discard": "Weggooien",
+        "delete": "Verwijderen",
+        "confirmTitle": "!{name} verwijderen?",
+        "confirmBody": "Het commando wordt voorgoed verwijderd. De chat kan het niet meer gebruiken.",
+        "confirmAction": "Commando verwijderen"
+      },
+      "roles": {
+        "Everyone": "Iedereen",
+        "Subscriber": "Abonnees",
+        "Vip": "VIP's",
+        "Artist": "Artiesten",
+        "Moderator": "Moderators",
+        "LeadModerator": "Hoofdmoderators",
+        "Editor": "Editors",
+        "Broadcaster": "Alleen jij"
+      },
+      "dialog": {
+        "title": "Nieuw commando",
+        "description": "Kies een naam. De chat typt het met het voorvoegsel, bijvoorbeeld !hallo.",
+        "name": "Naam",
+        "namePlaceholder": "hallo",
+        "nameRequired": "Geef het commando een naam.",
+        "type": "Wat het doet",
+        "typeTemplate": "Stuurt een antwoord",
+        "typePipeline": "Draait een pipeline",
+        "create": "Commando maken"
+      },
+      "builtin": {
+        "title": "Ingebouwde commando's",
+        "empty": "Geen ingebouwde commando's.",
+        "error": "De ingebouwde commando's konden niet laden."
+      }
+    }
+  }
+}
