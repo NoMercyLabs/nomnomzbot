@@ -38,7 +38,7 @@ function choose(next: unknown): void {
       v-for="option in options"
       :key="option.value"
       :value="option.value"
-      class="h-(--seg-h) min-w-0 rounded-[6px] px-2 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+      class="h-(--seg-h) min-w-0 flex-1 rounded-[6px] px-2 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
     >
       {{ option.label }}
     </ToggleGroupItem>

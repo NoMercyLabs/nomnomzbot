@@ -82,6 +82,10 @@ vi.mock('@/api/client', () => ({
         messageId: '',
       });
 
+      if (path.endsWith('/auth/me')) {
+        return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };
+      }
+
       return { data: { data: history }, response: { status: 200, ok: true } };
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
@@ -229,6 +233,11 @@ async function open(): Promise<void> {
       {
         path: '/app/chat',
         name: 'dashboard-chat',
+        component: { template: '<div />' },
+      },
+      {
+        path: '/app/settings',
+        name: 'dashboard-settings',
         component: { template: '<div />' },
       },
     ],
@@ -504,5 +513,246 @@ describe('ChatView', () => {
     rowOf('m2').querySelector<HTMLElement>('[data-slot="user-name"]')!.click();
     await settle();
     expect(store.userId).toBe('u2');
+  });
+});
+
+describe('ChatView display drawer', () => {
+  const badge = {
+    setId: 'subscriber',
+    id: '1',
+    info: null,
+    urls: { 1: 'https://cdn.test/sub.png' },
+  };
+  const emote = {
+    urls: { 1: 'https://cdn.test/kappa.png' },
+    animated: false,
+    format: 'static',
+    zeroWidth: false,
+  };
+
+  beforeEach(() => {
+    history = [
+      line('m1', 'u1', 'Alice', 'first words', {
+        badges: [badge],
+        avatarUrl: 'https://cdn.test/alice.png',
+        color: '#0000ff',
+        fragments: [
+          { type: 'text', text: 'first words ' },
+          {
+            type: 'emote',
+            text: 'Kappa',
+            emote,
+          },
+        ],
+      }),
+      line('m2', 'u2', 'Bob', 'hey @stoney_eagle look', {
+        removed: 'deleted',
+        fragments: [{ type: 'text', text: 'hey @stoney_eagle look' }],
+      }),
+      line('m3', 'u3', 'Cara', 'third words'),
+    ];
+  });
+
+  const toggle = (): HTMLButtonElement =>
+    document.body.querySelector('[data-display-toggle]') as HTMLButtonElement;
+  const panel = (): HTMLElement | null => document.body.querySelector('[data-display-panel]');
+  const option = (name: string): HTMLElement =>
+    panel()!.querySelector(`[data-option="${name}"]`) as HTMLElement;
+
+  async function showPanel(): Promise<void> {
+    toggle().click();
+    await settle();
+  }
+
+  async function flip(name: string): Promise<void> {
+    option(name).querySelector<HTMLElement>('[role="switch"]')!.click();
+    await settle();
+  }
+
+  async function pick(name: string, label: string): Promise<void> {
+    const buttons = [...option(name).querySelectorAll<HTMLElement>('button')];
+
+    buttons.find((button) => button.textContent?.trim() === label)!.click();
+    await settle();
+  }
+
+  const stored = (): Record<string, unknown> =>
+    JSON.parse(localStorage.getItem('nnz.chat.display') ?? '{}') as Record<string, unknown>;
+  const display = en.dashboard.chat.display;
+
+  it('opens and closes the drawer from the header button', async () => {
+    await open();
+    expect(panel()).toBeNull();
+    expect(toggle().getAttribute('aria-pressed')).toBe('false');
+    await showPanel();
+    expect(panel()).not.toBeNull();
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    await showPanel();
+    expect(panel()).toBeNull();
+  });
+
+  it('says the choice is kept on this device, never on the account', async () => {
+    await open();
+    await showPanel();
+    expect(panel()!.textContent).toContain(display.kept);
+    expect(panel()!.textContent).not.toMatch(/account/i);
+  });
+
+  it('starts with the mockup defaults', async () => {
+    await open();
+    expect(rowOf('m1').querySelector('time')?.textContent).not.toMatch(/AM|PM/i);
+    expect(rowOf('m1').querySelector('time')?.textContent).toMatch(/\d{2}:\d{2}/);
+    expect(rowOf('m1').querySelector('img[data-badge]')).not.toBeNull();
+    expect(rowOf('m1').querySelector('img[data-avatar]')).toBeNull();
+    expect(rowOf('m1').querySelector('svg[data-platform]')).toBeNull();
+    expect(rowOf('m1').className).not.toContain('max-w-[65ch]');
+    expect(rowOf('m1').querySelector<HTMLElement>('img[data-emote]')!.style.height).toBe('1.5em');
+    expect(rowOf('m2').querySelector('p')!.className).toContain('line-through');
+    expect(rowOf('m2').querySelector('mark[data-mention]')?.textContent).toBe('@stoney_eagle');
+  });
+
+  it('timestamps: 12-hour shows AM or PM, off removes the time', async () => {
+    await open();
+    await showPanel();
+    await pick('timestamps', display.hour12);
+    expect(rowOf('m1').querySelector('time')?.textContent).toMatch(/AM|PM/i);
+    await pick('timestamps', display.off);
+    expect(rowOf('m1').querySelector('time')).toBeNull();
+    expect(stored().timestamps).toBe('off');
+  });
+
+  it('badges, avatars and platform icons each add or remove their mark', async () => {
+    await open();
+    await showPanel();
+    await flip('badges');
+    expect(rowOf('m1').querySelector('img[data-badge]')).toBeNull();
+    await flip('avatars');
+
+    expect(rowOf('m1').querySelector<HTMLImageElement>('img[data-avatar]')?.src).toBe(
+      'https://cdn.test/alice.png',
+    );
+
+    expect(rowOf('m3').querySelector('img[data-avatar]')).toBeNull();
+    await flip('platform');
+    expect(rowOf('m1').querySelector('svg[data-platform]')).not.toBeNull();
+  });
+
+  it('alternating rows mark every second visible row', async () => {
+    await open();
+    await showPanel();
+    await flip('alternating');
+    expect(rows().map((row) => row.dataset.alt)).toEqual(['off', 'on', 'off']);
+  });
+
+  it('name colors: as sent keeps the color, readable lifts it, off drops it', async () => {
+    await open();
+    await showPanel();
+
+    const nameColor = (): string =>
+      rowOf('m1').querySelector<HTMLElement>('[data-slot="user-name"]')!.style.color;
+
+    const readable = nameColor();
+
+    await pick('nameColors', display.asSent);
+    expect(nameColor()).toBe('rgb(0, 0, 255)');
+    expect(readable).not.toBe('rgb(0, 0, 255)');
+    expect(readable).not.toBe('');
+    await pick('nameColors', display.off);
+    expect(nameColor()).toBe('');
+  });
+
+  it('narrow lines cap the line width', async () => {
+    await open();
+    await showPanel();
+    await flip('narrow');
+    expect(rowOf('m1').className).toContain('max-w-[65ch]');
+  });
+
+  it('message spacing changes the vertical padding of a line', async () => {
+    await open();
+    await showPanel();
+    await pick('spacing', display.tight);
+    expect(rowOf('m1').className).toContain('py-0.5');
+    await pick('spacing', display.roomy);
+    expect(rowOf('m1').className).toContain('py-4');
+  });
+
+  it('emote size sets the emote height', async () => {
+    await open();
+    await showPanel();
+
+    const height = (): string =>
+      rowOf('m1').querySelector<HTMLElement>('img[data-emote]')!.style.height;
+
+    await pick('emoteSize', display.small);
+    expect(height()).toBe('1.2em');
+    await pick('emoteSize', display.large);
+    expect(height()).toBe('2.3em');
+  });
+
+  it('mention highlight can be switched off', async () => {
+    await open();
+    await showPanel();
+    expect(rowOf('m2').dataset.mention).toBe('true');
+    await flip('mentions');
+    expect(rowOf('m2').querySelector('mark[data-mention]')).toBeNull();
+    expect(rowOf('m2').dataset.mention).toBeUndefined();
+  });
+
+  it('deleted messages: show keeps the text readable and says deleted, hide removes the line', async () => {
+    await open();
+    await showPanel();
+    await pick('deleted', display.show);
+    expect(rowOf('m2').querySelector('p')!.className).not.toContain('line-through');
+    expect(rowOf('m2').textContent).toContain(display.deletedTag);
+    await pick('deleted', display.hide);
+    expect(rowIds()).toEqual(['m1', 'm3']);
+  });
+
+  it('Reset puts every option back to its default', async () => {
+    await open();
+    await showPanel();
+    await pick('timestamps', display.off);
+    await flip('avatars');
+    await pick('deleted', display.hide);
+    expect(rowIds()).toEqual(['m1', 'm3']);
+    panel()!.querySelector<HTMLElement>('[data-display-reset]')!.click();
+    await settle();
+    expect(rowIds()).toEqual(['m1', 'm2', 'm3']);
+    expect(rowOf('m1').querySelector('time')).not.toBeNull();
+    expect(rowOf('m1').querySelector('img[data-avatar]')).toBeNull();
+  });
+
+  it('keeps the choices after the page is opened again', async () => {
+    await open();
+    await showPanel();
+    await pick('timestamps', display.off);
+    await flip('narrow');
+    mounted?.unmount();
+    mounted = null;
+    await open();
+    expect(rowOf('m1').querySelector('time')).toBeNull();
+    expect(rowOf('m1').className).toContain('max-w-[65ch]');
+  });
+
+  it('puts a 3-option segmented control under its label, full width, so nothing is cut', async () => {
+    await open();
+    await showPanel();
+
+    const row = option('timestamps');
+    const control = row.querySelector<HTMLElement>('[role="group"]')!;
+
+    expect(row.className).toContain('flex-col');
+    expect(control.className).toContain('w-full');
+    expect(control.querySelectorAll('button')).toHaveLength(3);
+  });
+
+  it('links to the font and readability settings', async () => {
+    await open();
+    await showPanel();
+
+    const link = panel()!.querySelector<HTMLAnchorElement>('a[data-display-readability]');
+
+    expect(link?.getAttribute('href')).toBe('/app/settings');
   });
 });

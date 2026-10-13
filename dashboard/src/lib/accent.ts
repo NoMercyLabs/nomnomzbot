@@ -177,3 +177,18 @@ export function applyAccent(hex: string): void {
     root.style.setProperty(`--${name}`, value);
   }
 }
+
+// Someone else's chat color, lifted toward the text color until it reads at `min` on the page.
+// A color that cannot be read as hex comes back as null, so the caller keeps its own fallback.
+export function readableNameColor(hex: string, theme: Theme, min: number = 4.5): string | null {
+  const raw = parse(hex);
+
+  if (!raw)
+    return null;
+
+  const scheme = schemes[theme];
+  const background = rgb(scheme.background);
+  const foreground = rgb(scheme.foreground);
+
+  return css(readableOn(raw, background, foreground, min));
+}

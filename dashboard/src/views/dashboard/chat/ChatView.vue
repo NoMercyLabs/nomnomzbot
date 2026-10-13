@@ -14,19 +14,24 @@
 import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import SettingsFader from '~icons/nnz/settings-fader';
 
+import { useCurrentUser } from '@/api/auth';
 import { useBanUser, useChatHistory, type ChatLine as ChatLineData } from '@/api/chat';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import { useChatDisplay } from './chatDisplay';
 import ChatComposer from './components/ChatComposer.vue';
+import ChatDisplayPanel from './components/ChatDisplayPanel.vue';
 import ChatLine from './components/ChatLine.vue';
 
 const { t } = useI18n();
@@ -36,15 +41,20 @@ const history = useChatHistory(channelId);
 const banner = useBanUser(channelId);
 
 const hideCommands = useLocalStorage<boolean>('nnz.chat.hideCommands', false);
+const display = useChatDisplay();
+const displayOpen = ref(false);
+const currentUser = useCurrentUser();
+const me = computed<string | null>(() => currentUser.data.value?.username ?? null);
 const banTarget = ref<ChatLineData | null>(null);
 const banFailed = ref(false);
 
 const lines = computed<ChatLineData[]>(() => history.data.value ?? []);
-const visible = computed(() =>
-  hideCommands.value
-    ? lines.value.filter((line: ChatLineData) => !line.isCommand)
-    : lines.value,
-);
+const visible = computed<ChatLineData[]>(() =>
+  lines.value.filter(
+    (line: ChatLineData) =>
+      !(hideCommands.value && line.isCommand) &&
+      !(display.value.deleted === 'hide' && line.removed === 'deleted'),
+  ));
 
 const panelState = usePanelState(history, () =>
   visible.value.length === 0);
@@ -96,41 +106,63 @@ async function confirmBan(): Promise<void> {
     <p v-if="banFailed" role="alert" class="text-sm text-destructive">
       {{ $t('dashboard.chat.ban.failed') }}
     </p>
-    <PanelCard
-      class="min-h-96 flex-1"
-      tier="lead"
-      :title="$t('dashboard.chat.feed.title')"
-      :description="$t('dashboard.chat.feed.count', { count: visible.length })"
-      :state="panelState"
-      :empty-text="emptyText"
-      :error-text="$t('dashboard.chat.feed.error')"
-      @retry="history.refetch()"
-    >
-      <template #actions>
-        <div class="flex items-center gap-2">
-          <Switch id="chat-hide-commands" v-model="hideCommands" />
-          <Label for="chat-hide-commands" class="text-sm font-normal">
-            {{ $t('dashboard.chat.hideCommands') }}
-          </Label>
+    <div class="flex min-h-0 flex-1 gap-3">
+      <PanelCard
+        class="min-h-96 flex-1"
+        tier="lead"
+        :title="$t('dashboard.chat.feed.title')"
+        :description="$t('dashboard.chat.feed.count', { count: visible.length })"
+        :state="panelState"
+        :empty-text="emptyText"
+        :error-text="$t('dashboard.chat.feed.error')"
+        @retry="history.refetch()"
+      >
+        <template #actions>
+          <div class="flex items-center gap-2">
+            <Button
+              data-display-toggle
+              variant="outline"
+              size="sm"
+              :aria-pressed="displayOpen"
+              @click="displayOpen = !displayOpen"
+            >
+              <SettingsFader class="size-4" aria-hidden="true" />
+              {{ $t('dashboard.chat.display.toggle') }}
+            </Button>
+            <Switch id="chat-hide-commands" v-model="hideCommands" />
+            <Label for="chat-hide-commands" class="text-sm font-normal">
+              {{ $t('dashboard.chat.hideCommands') }}
+            </Label>
+          </div>
+        </template>
+        <div class="flex h-full min-h-80 flex-col">
+          <VirtualList
+            stick
+            :items="visible"
+            :item-key="(line: ChatLineData) => line.id"
+            :estimate-size="40"
+            :label="$t('dashboard.chat.feed.label')"
+          >
+            <template #default="{ item, index }">
+              <ChatLine
+                :line="item"
+                :channel-id="channelId"
+                :display="display"
+                :index="index"
+                :me="me"
+                @ban="askBan"
+              />
+            </template>
+          </VirtualList>
         </div>
-      </template>
-      <div class="flex h-full min-h-80 flex-col">
-        <VirtualList
-          stick
-          :items="visible"
-          :item-key="(line: ChatLineData) => line.id"
-          :estimate-size="40"
-          :label="$t('dashboard.chat.feed.label')"
-        >
-          <template #default="{ item }">
-            <ChatLine :line="item" :channel-id="channelId" @ban="askBan" />
-          </template>
-        </VirtualList>
-      </div>
-      <template #footer>
-        <ChatComposer :channel-id="channelId" />
-      </template>
-    </PanelCard>
+        <template #footer>
+          <ChatComposer :channel-id="channelId" />
+        </template>
+      </PanelCard>
+      <aside v-if="displayOpen" data-display-panel class="w-80 flex-none">
+        <ChatDisplayPanel v-model="display" />
+      </aside>
+    </div>
   </div>
   <ConfirmDialog
     :open="banOpen"
