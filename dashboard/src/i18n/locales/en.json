@@ -1,5 +1,6 @@
 {
   "common": {
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "language": "Language"
   }
 }

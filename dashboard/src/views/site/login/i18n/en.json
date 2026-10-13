@@ -1,9 +1,58 @@
 {
   "site": {
     "login": {
-      "title": "Sign in to NomNomzBot",
-      "description": "Use your Twitch account. You come back here when you are done.",
-      "twitch": "Sign in with Twitch"
+      "brand": "NomNomzBot",
+      "title": "Welcome",
+      "subtitle": "Continue with a connected platform.",
+      "terms": "By continuing, you agree to the terms of service and the privacy policy.",
+      "thisBot": "The bot this page belongs to",
+      "official": "The official NomNomzBot",
+      "change": "Change",
+      "loading": "Loading the sign-in options…",
+      "with": "Continue with {provider}",
+      "useCode": "Sign in with a code instead",
+      "codeWith": "Get a {provider} code",
+      "codeChoose": "Which account do you want a code for?",
+      "codeOnly": "{host} has its own sign-in page. From here, you sign in with a code.",
+      "codeInsecure": "Platforms send you back only to a secure address. On this address, you sign in with a code.",
+      "used": "Used on this browser",
+      "switchedOff": "{providers} is off on this bot. | {providers} are off on this bot.",
+      "unreachable": "This bot does not answer. Check that it runs, then try again.",
+      "noProviders": "This bot has no sign-in switched on yet. Its owner sets one up in the bot settings.",
+      "retry": "Try again",
+      "device": {
+        "starting": "Getting a code…",
+        "instruction": "Go to {site} and enter this code.",
+        "codeLabel": "Your sign-in code",
+        "open": "Open {site}",
+        "waiting": "Waiting for you to approve. This page goes on by itself.",
+        "expired": "The code ran out before it was used.",
+        "denied": "You did not approve the sign-in on {provider}.",
+        "error": "{provider} did not finish the sign-in.",
+        "failed": "The bot could not start a sign-in with {provider}.",
+        "again": "Get a new code",
+        "back": "Back"
+      },
+      "bots": {
+        "title": "Choose a bot",
+        "description": "Pick the bot you want to sign in to.",
+        "saved": "Bots you can sign in to",
+        "thisPage": "The bot this page belongs to",
+        "official": "The official NomNomzBot",
+        "used": "Used on this browser",
+        "use": "Use this bot",
+        "forget": "Forget {host}",
+        "address": "Bot address",
+        "placeholder": "192.168.1.20:5080 or bot.example.com",
+        "check": "Check",
+        "checking": "Checking…",
+        "invalid": "That is not a web address. Type a host name or IP, with the port if it has one.",
+        "ready": "{host} is a NomNomzBot. It is added and picked.",
+        "reachable": "Something answers at {host}, but it does not say it is a NomNomzBot. It is added and picked.",
+        "unreachable": "Nothing answers at {host}. Check that the bot runs, and that the address and port are right.",
+        "mixedContent": "This page is secure (https) and {host} is not (http). Browsers block calls between them, so this page cannot use it. Open {host} in the browser instead.",
+        "back": "Back"
+      }
     }
   }
 }

@@ -65,10 +65,17 @@ export default defineConfigWithVueTs(
   },
 
   {
-    // shadcn-vue generates single-word names (Button, Card); its folder is changed only through its CLI.
+    // shadcn-vue output is changed only through its CLI, so its own style is not linted.
+    // Its English screen-reader labels never reach a page: structure.spec.ts fails a caller
+    // that shows them.
     name: 'app/shadcn-generated',
-    files: ['src/components/ui/**/*.vue'],
-    rules: { 'vue/multi-word-component-names': 'off' },
+    files: ['src/components/ui/**/*.{vue,ts}'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+      '@intlify/vue-i18n/no-raw-text': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
   },
 
   {

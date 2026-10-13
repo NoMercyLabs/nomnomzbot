@@ -15,14 +15,20 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import './styles/main.css'
 import { queryClient } from './api/queryClient'
-import { i18n } from './i18n'
+import { i18n, startLocale } from './i18n'
+import { applyAccent, defaultAccent } from './lib/accent'
 import router from './router'
+
+// The approved pink stands in until the channel colour is known.
+applyAccent(defaultAccent)
 
 const app = createApp(App)
 
 app.use(createPinia())
-app.use(VueQueryPlugin, { queryClient })
+// The library adds its Vue DevTools panel in development builds only.
+app.use(VueQueryPlugin, { queryClient, enableDevtoolsV6Plugin: true })
 app.use(i18n)
 app.use(router)
 
+await startLocale()
 app.mount('#app')

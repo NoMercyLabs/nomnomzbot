@@ -7,10 +7,12 @@
 
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
-<script setup lang="ts"></script>
+<script setup lang="ts">
+// Each public page places the language picker in its own header.
+</script>
 
 <template>
-  <main class="flex min-h-svh items-center justify-center bg-background p-6 text-foreground">
+  <div class="min-h-svh bg-background text-foreground">
     <RouterView />
-  </main>
+  </div>
 </template>

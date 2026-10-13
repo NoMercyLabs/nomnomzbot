@@ -1,0 +1,139 @@
+/* -----------------------------------------------------------------------------
+   Copyright (c) NoMercy Labs.
+
+   This file is part of NomNomzBot, free software licensed under the GNU Affero
+   General Public License v3.0 or later. You may redistribute and/or modify it
+   under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+   ----------------------------------------------------------------------------- */
+
+/* The control rules of the approved mockups (layout-mockups/base/frame.css), laid over the shadcn-vue
+   output by its data-slot and data-variant, so components/ui stays as the CLI wrote it.
+   Unlayered on purpose: it wins over the Tailwind utilities the components carry. */
+
+/* Anything you can press looks pressable at rest (owner 2026-10-12). Three weights: default = solid accent,
+   the one primary action; outline = an edge at 3:1 or more (WCAG 1.4.11); ghost = full-tone text with an
+   underline, so it reads as a link and never as a label. */
+[data-slot='button'] {
+  height: var(--btn-h);
+  padding-inline: var(--s4);
+  gap: var(--s2);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+[data-slot='button'][data-size='sm'] {
+  height: var(--btn-h-sm);
+  padding-inline: var(--s3);
+  border-radius: var(--radius-sm);
+}
+[data-slot='button'][data-size^='icon'] {
+  width: var(--btn-h);
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+[data-slot='button'][data-size='icon-sm'] {
+  width: var(--btn-h-sm);
+  height: var(--btn-h-sm);
+}
+[data-slot='button'][data-variant='default']:hover {
+  background: color-mix(in oklab, var(--primary) 88%, var(--foreground));
+}
+[data-slot='button'][data-variant='outline'] {
+  background: transparent;
+  border-color: var(--input);
+  box-shadow: none;
+}
+[data-slot='button'][data-variant='outline']:hover {
+  background: var(--muted);
+  border-color: color-mix(in oklab, var(--foreground) 65%, transparent);
+}
+[data-slot='button'][data-variant='ghost'] {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--foreground) 45%, transparent);
+  text-underline-offset: 4px;
+}
+[data-slot='button'][data-variant='ghost']:hover {
+  background: var(--muted);
+  text-decoration-color: var(--foreground);
+}
+/* An icon alone has no text to underline, so it gets the outline edge instead. */
+[data-slot='button'][data-variant='ghost'][data-size^='icon'] {
+  text-decoration: none;
+  border-color: var(--input);
+}
+/* Red is for harm only: a plain edge and red text; solid red stays for the final confirm in a dialog. */
+[data-slot='button'][data-variant='destructive'] {
+  background: transparent;
+  border-color: var(--input);
+  color: var(--destructive);
+}
+[data-slot='button'][data-variant='destructive']:hover {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+}
+[data-slot='button']:disabled {
+  cursor: not-allowed;
+}
+/* No list options here: a shadcn list item shows focus with its own background, and a ring is clipped by the list. */
+:where([data-slot='button'], a, [role='radio']):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Concentric radius: a list option sits 4px (the group's p-1) inside a --radius-md list. */
+[data-slot='select-item'] {
+  border-radius: calc(var(--radius-md) - 4px);
+}
+
+[data-slot='input'] {
+  height: var(--input-h);
+  padding-inline: var(--s3);
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  box-shadow: none;
+}
+
+a:not([data-slot]) {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--foreground) 45%, transparent);
+  text-underline-offset: 4px;
+}
+a:not([data-slot]):hover {
+  text-decoration-color: var(--foreground);
+}
+
+/* Status is a dot beside plain text, never a tinted pill (owner 2026-10-13: too many colours). */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--muted-foreground);
+}
+.dot.ok {
+  background: var(--success);
+}
+.dot.bad {
+  background: var(--destructive);
+}
+
+/* Hit areas (owner 2026-10-12, tester THINDAL: "too small, easier to hit"). The look stays compact. A
+   transparent ::before grows the press target to --hit (24px minimum), --hit-icon (32px) for an icon-only
+   control, and 44px on a touch screen. It never changes the visible size or the layout. */
+:where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option']) {
+  position: relative;
+  --_hit: var(--hit);
+}
+:where([data-size^='icon'], button:has(> svg:only-child)) {
+  --_hit: var(--hit-icon);
+}
+:where(a[href], button, [role='button'], [role='radio'], [role='switch'], [role='tab'], [role='option'])::before {
+  content: '';
+  position: absolute;
+  inset-block: min(0px, calc((100% - var(--_hit)) / 2));
+  inset-inline: min(0px, calc((100% - var(--_hit)) / 2));
+}

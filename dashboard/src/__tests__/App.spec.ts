@@ -54,7 +54,7 @@ describe('sign-in guard', () => {
     expect(router.currentRoute.value.name).toBe(loginRoute.name)
     expect(router.currentRoute.value.query.return_to).toBe('/app')
     const { i18n } = await import('../i18n')
-    expect(i18n.global.t('site.login.title')).toBe('Sign in to NomNomzBot')
+    expect(i18n.global.t('site.login.title')).toBe('Welcome')
   })
 
   it('lets a visitor with a refresh cookie into the dashboard', async () => {

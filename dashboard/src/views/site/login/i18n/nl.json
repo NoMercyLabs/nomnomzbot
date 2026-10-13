@@ -1,0 +1,58 @@
+{
+  "site": {
+    "login": {
+      "brand": "NomNomzBot",
+      "title": "Welkom",
+      "subtitle": "Ga verder met een gekoppeld platform.",
+      "terms": "Door verder te gaan, ga je akkoord met de servicevoorwaarden en het privacybeleid.",
+      "thisBot": "De bot waar deze pagina bij hoort",
+      "official": "De officiële NomNomzBot",
+      "change": "Wijzigen",
+      "loading": "De aanmeldopties laden…",
+      "with": "Ga verder met {provider}",
+      "useCode": "Gebruik in plaats daarvan een code",
+      "codeWith": "Vraag een {provider}-code aan",
+      "codeChoose": "Voor welk account wil je een code?",
+      "codeOnly": "{host} heeft een eigen aanmeldpagina. Vanaf hier meld je je aan met een code.",
+      "codeInsecure": "Platforms sturen je alleen terug naar een beveiligd adres. Op dit adres meld je je aan met een code.",
+      "used": "Gebruikt in deze browser",
+      "switchedOff": "{providers} staat uit op deze bot. | {providers} staan uit op deze bot.",
+      "unreachable": "Deze bot reageert niet. Controleer of hij draait en probeer het opnieuw.",
+      "noProviders": "Op deze bot staat nog geen aanmelding aan. De eigenaar stelt er een in bij de botinstellingen.",
+      "retry": "Opnieuw proberen",
+      "device": {
+        "starting": "Code ophalen…",
+        "instruction": "Ga naar {site} en voer deze code in.",
+        "codeLabel": "Je aanmeldcode",
+        "open": "Open {site}",
+        "waiting": "Wachten op je goedkeuring. Deze pagina gaat vanzelf verder.",
+        "expired": "De code is verlopen voordat hij gebruikt werd.",
+        "denied": "Je hebt de aanmelding op {provider} niet goedgekeurd.",
+        "error": "{provider} heeft de aanmelding niet afgerond.",
+        "failed": "De bot kon geen aanmelding met {provider} starten.",
+        "again": "Nieuwe code ophalen",
+        "back": "Terug"
+      },
+      "bots": {
+        "title": "Kies een bot",
+        "description": "Kies de bot waarbij je je wilt aanmelden.",
+        "saved": "Bots waarbij je je kunt aanmelden",
+        "thisPage": "De bot waar deze pagina bij hoort",
+        "official": "De officiële NomNomzBot",
+        "used": "Gebruikt in deze browser",
+        "use": "Deze bot gebruiken",
+        "forget": "{host} vergeten",
+        "address": "Botadres",
+        "placeholder": "192.168.1.20:5080 of bot.example.com",
+        "check": "Controleren",
+        "checking": "Controleren…",
+        "invalid": "Dat is geen webadres. Typ een hostnaam of IP, met de poort als die er een heeft.",
+        "ready": "{host} is een NomNomzBot. Hij is toegevoegd en gekozen.",
+        "reachable": "Er reageert iets op {host}, maar het zegt niet dat het een NomNomzBot is. Het is toegevoegd en gekozen.",
+        "unreachable": "Er reageert niets op {host}. Controleer of de bot draait en of het adres en de poort kloppen.",
+        "mixedContent": "Deze pagina is beveiligd (https) en {host} niet (http). Browsers blokkeren verkeer daartussen, dus deze pagina kan hem niet gebruiken. Open {host} in plaats daarvan in de browser.",
+        "back": "Terug"
+      }
+    }
+  }
+}

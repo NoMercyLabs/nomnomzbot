@@ -1,0 +1,168 @@
+{
+  "site": {
+    "home": {
+      "title": "NomNomzBot: run je stream, niet je administratie",
+      "brand": "NomNomzBot",
+      "connect": "Verbind je kanaal",
+      "github": "GitHub",
+      "githubUrl": "https://github.com/NoMercyLabs/nomnomzbot",
+      "viewSource": "Bekijk de broncode",
+      "nav": {
+        "label": "Hoofdmenu",
+        "features": "Functies",
+        "deploy": "Zelf hosten of gehost",
+        "integrations": "Koppelingen",
+        "open": "Menu openen",
+        "close": "Menu sluiten"
+      },
+      "hero": {
+        "title": "Run je stream. Sla het gedoe over.",
+        "subtitle": "NomNomzBot modereert de chat, beantwoordt kijkers en speelt alerts af zodra ze gebeuren. Hij bedient Twitch, Kick, YouTube en X vanuit één dashboard.",
+        "finePrint": "Gratis, zelf gehost, open source (AGPL-3.0). Geen creditcard, geen limiet op gebruikers."
+      },
+      "demo": {
+        "label": "Een kijkje in het dashboard",
+        "channel": "crumb_tv",
+        "role": "Streamer",
+        "tabs": {
+          "dashboard": "Dashboard",
+          "chat": "Chat",
+          "mod": "Wachtrij",
+          "rules": "Regels",
+          "alerts": "Alerts"
+        },
+        "groups": {
+          "home": "Start",
+          "chat": "Chat",
+          "moderation": "Moderatie",
+          "stream": "Stream"
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "viewers": "Kijkers",
+          "viewersValue": "1.204",
+          "followers": "Volgers",
+          "followersValue": "38.910",
+          "chatters": "Chatters vandaag",
+          "chattersValue": "612",
+          "uptime": "Live sinds",
+          "uptimeValue": "2u 14m"
+        },
+        "chat": {
+          "title": "Chat"
+        },
+        "mod": {
+          "title": "Moderatiewachtrij"
+        },
+        "rules": {
+          "title": "Moderatieregels",
+          "linkFilter": "Linkfilter",
+          "capsFilter": "Hoofdletterfilter",
+          "capsDetail": "markeert boven 60% hoofdletters",
+          "bannedPhrases": "Verboden zinnen",
+          "on": "AAN",
+          "off": "UIT",
+          "blockedTitle": "Geblokkeerde woorden",
+          "blocked1": "free nitro",
+          "blocked2": "discord.gg/",
+          "blocked3": "cheap followers"
+        },
+        "alerts": {
+          "title": "Alerts"
+        }
+      },
+      "chatLines": {
+        "songrequestUser": "daisy_plays",
+        "songrequestText": "!songrequest never gonna give you up",
+        "botName": "NomNomzBot",
+        "songrequestReply": "in de wachtrij, 3e. Nu speelt: Come Alive, Foals",
+        "raidUser": "mod_kris",
+        "raidText": "!raid shoutout on",
+        "socialsUser": "viewer_87",
+        "socialsText": "!socials",
+        "socialsReply": "volg op X en Kick, de links staan in het paneel",
+        "uptimeUser": "viewer_42",
+        "uptimeText": "!uptime",
+        "uptimeReply": "al 2u 14m live"
+      },
+      "queue": {
+        "who1": "viewer_204",
+        "reason1": "gemeld: dezelfde link 6 keer geplaatst",
+        "action1": "Time-out",
+        "who2": "nite_owl22",
+        "reason2": "unbanverzoek: de time-out van 14 dagen is voorbij",
+        "action2": "Goedkeuren",
+        "who3": "chat_fan99",
+        "reason3": "gemeld: off-topic, niet tegen de regels",
+        "action3": "Negeren"
+      },
+      "alerts": {
+        "raidTitle": "crumb_tv raidde met 214 kijkers",
+        "raidDetail": "shoutout in de chat geplaatst · overlay op de stream afgespeeld",
+        "subTitle": "crumb_tv is voor maand 6 opnieuw gesubd",
+        "subDetail": "overlay afgespeeld · TTS las het bericht voor"
+      },
+      "audience": {
+        "line": "Gemaakt voor de streamer die de show runt en de mods die de chat schoon houden."
+      },
+      "outcomes": {
+        "chat": {
+          "title": "De chat krijgt antwoord voordat jij kunt typen",
+          "body": "Bouw een antwoord één keer in de visuele pipeline-editor. Daarna beantwoordt de bot elke !command, !songrequest en !socials zelf, zelfs drie tegelijk terwijl jij speelt."
+        },
+        "moderation": {
+          "title": "Modereer zonder op de chat te passen",
+          "body": "Meldingen en unbanverzoeken komen in één wachtrij, elk met het bericht erachter. Jij keurt goed, negeert of grijpt in zonder terug te scrollen door de chat."
+        },
+        "alerts": {
+          "title": "Mis nooit het moment dat telt",
+          "body": "Een follow, sub of raid start de alert, speelt de overlay af en plaatst de shoutout op het moment zelf. Je hoeft het nooit eerst in de chat te zien."
+        },
+        "platforms": {
+          "title": "Elk platform waarop je streamt, één dashboard",
+          "body": "Je commando's, mods en moderatieregels werken hetzelfde op elk platform waar je kijkers zitten. Voeg een platform toe zonder iets opnieuw te bouwen.",
+          "label": "Platforms",
+          "twitch": "Twitch",
+          "kick": "Kick",
+          "youtube": "YouTube",
+          "x": "X",
+          "answered": "Dezelfde pipeline beantwoordde !uptime op {platform}"
+        }
+      },
+      "deploy": {
+        "title": "Draai het op jouw manier",
+        "subtitle": "Host het gratis op je eigen machine, of wacht op de gehoste versie als je liever geen server draait.",
+        "self": {
+          "title": "Zelf hosten",
+          "tag": "Altijd gratis",
+          "point1": "Draait op jouw server met één Docker Compose-commando, of als één bestand zonder afhankelijkheden",
+          "point2": "Elke functie, zonder limiet op gebruikers en zonder betaalde niveaus",
+          "point3": "Open source (AGPL-3.0), dus je kunt het zelf controleren, forken en aanpassen"
+        },
+        "hosted": {
+          "title": "Gehost door NoMercy Labs",
+          "tag": "In ontwikkeling",
+          "point1": "Geen server nodig: log in en ga live",
+          "point2": "Hetzelfde dashboard, dezelfde functies",
+          "point3": "Kijkers krijgen één gratis account voor elke streamer op de server"
+        },
+        "note": "Alleen NoMercy Labs mag NomNomzBot als betaalde dienst voor andere streamers aanbieden. Je eigen bot draaien blijft gratis en onbeperkt, voor altijd."
+      },
+      "integrations": {
+        "title": "Werkt samen met wat je stream al gebruikt",
+        "spotify": "Spotify",
+        "discord": "Discord",
+        "youtube": "YouTube",
+        "tts": "Azure & ElevenLabs TTS",
+        "obs": "OBS"
+      },
+      "cta": {
+        "title": "Verbind een platform. Binnen een minuut sta je live in het dashboard.",
+        "body": "Host het gratis, voor altijd. Het heeft niets nodig van de servers van NoMercy."
+      },
+      "footer": {
+        "text": "© NomNomzBot. Gratis, open-source software (AGPL-3.0)."
+      }
+    }
+  }
+}

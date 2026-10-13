@@ -9,7 +9,8 @@
   "compilerOptions": {
     // Vitest runs in a different environment than the application code.
     // Adjust lib and types accordingly.
-    "lib": [],
+    // ES2022 like the app: the views the tests load use Intl.ListFormat.
+    "lib": ["ES2022"],
     "types": ["node", "jsdom"],
 
     // `vue-tsc --build` produces a .tsbuildinfo file for incremental type-checking.

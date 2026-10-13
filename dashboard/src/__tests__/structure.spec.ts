@@ -30,13 +30,77 @@ describe('folder layout', () => {
     expect(Object.keys(utils)).toEqual(['cn'])
   })
 
-  it('has no utils, helpers or misc file or folder besides lib/utils.ts', () => {
+  it('has no utils, helpers or misc file or folder besides lib/utils.ts and the shadcn-vue output', () => {
     const offenders: string[] = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
       .filter((path) => dumpingGround.test(path.split('/').pop() ?? ''))
-      .filter((path) => path !== 'lib/utils.ts')
+      .filter((path) => path !== 'lib/utils.ts' && !path.startsWith('components/ui/'))
 
     expect(offenders).toEqual([])
+  })
+
+  // The shadcn-vue CLI adds a Google Fonts import on every `add`; Inter is bundled from npm instead.
+  it('loads no style from another origin', () => {
+    const remote: string[] = allPaths(join(src, 'styles'))
+      .filter((path) => path.endsWith('.css'))
+      .filter((path) => /@import\s+url\(\s*['"]?https?:/.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+
+    expect(remote).toEqual([])
+  })
+
+  // V18: Pinia holds local state only; everything from the API lives in TanStack Query (V6).
+  it('keeps API data out of the Pinia stores', () => {
+    const fetching: string[] = allPaths(join(src, 'stores'))
+      .filter((path) => path.endsWith('.ts') && !path.includes('__tests__'))
+      .filter((path) => /from ['"](@\/api\/|\.\.\/api\/|@tanstack\/)/.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+
+    expect(fetching).toEqual([])
+  })
+
+  // Stoney 2026-10-13 (translated from Dutch): "the point is that we do not use Google with the privacy-invading junk".
+  it('calls no Google font or tracking host from any source file or the page shell', () => {
+    const google: RegExp = /googleapis\.com|gstatic\.com|google-analytics\.com|googletagmanager\.com/
+    const offenders: string[] = [...allPaths(src), join(src, '..', 'index.html')]
+      .filter((path) => /\.(vue|ts|css|html|json)$/.test(path) && !path.endsWith('schema.d.ts'))
+      .filter((path) => google.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(join(src, '..'), path).replace(/\\/g, '/'))
+
+    expect(offenders).toEqual([])
+  })
+
+  // The CLI parts carry English screen-reader labels, and the raw-text lint is off in components/ui.
+  // A caller hides the built-in close button and brings a translated one, and uses its own
+  // translated button instead of SidebarTrigger or BreadcrumbEllipsis. DialogScrollContent cannot
+  // hide its close label, so it is not used.
+  it('shows no untranslated shadcn label on any page', () => {
+    const ownFiles: string[] = allPaths(src).filter(
+      (path) => path.endsWith('.vue') && !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
+    )
+    const untranslated: string[] = ownFiles
+      .filter((path) => {
+        const text: string = readFileSync(path, 'utf8')
+        const closable: string[] = text.match(/<(SheetContent|DialogContent)\b[^>]*>/g) ?? []
+        return (
+          closable.some((tag) => !tag.includes(':show-close-button="false"')) ||
+          /<(SidebarTrigger|BreadcrumbEllipsis|DialogScrollContent)\b/.test(text) ||
+          /<DialogFooter\b[^>]*show-close-button(?!="false")/.test(text)
+        )
+      })
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+
+    expect(untranslated).toEqual([])
+  })
+
+  // Stoney 2026-10-13 (translated from Dutch): "you are really going to town with all those em dashes". Copy uses plain sentences.
+  it('writes no em dash in any words file', () => {
+    const dashed: string[] = allPaths(src)
+      .filter((path) => path.endsWith('.json') && /[\\/](i18n|locales)[\\/]/.test(path))
+      .filter((path) => readFileSync(path, 'utf8').includes('—'))
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+
+    expect(dashed).toEqual([])
   })
 
   it('gives each page translation file only the keys of its own page', () => {

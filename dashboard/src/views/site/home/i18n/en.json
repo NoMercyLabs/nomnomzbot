@@ -1,0 +1,168 @@
+{
+  "site": {
+    "home": {
+      "title": "NomNomzBot: run your stream, not your admin work",
+      "brand": "NomNomzBot",
+      "connect": "Connect your channel",
+      "github": "GitHub",
+      "githubUrl": "https://github.com/NoMercyLabs/nomnomzbot",
+      "viewSource": "View source",
+      "nav": {
+        "label": "Main",
+        "features": "Features",
+        "deploy": "Self-host vs hosted",
+        "integrations": "Integrations",
+        "open": "Open menu",
+        "close": "Close menu"
+      },
+      "hero": {
+        "title": "Run your stream. Skip the busywork.",
+        "subtitle": "NomNomzBot moderates chat, answers viewers, and fires alerts the instant they happen. It runs Twitch, Kick, YouTube, and X from one dashboard.",
+        "finePrint": "Free, self-hosted, open source (AGPL-3.0). No credit card, no seat limits."
+      },
+      "demo": {
+        "label": "A look inside the dashboard",
+        "channel": "crumb_tv",
+        "role": "Broadcaster",
+        "tabs": {
+          "dashboard": "Dashboard",
+          "chat": "Chat",
+          "mod": "Queue",
+          "rules": "Rules",
+          "alerts": "Alerts"
+        },
+        "groups": {
+          "home": "Home",
+          "chat": "Chat",
+          "moderation": "Moderation",
+          "stream": "Stream"
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "viewers": "Viewers",
+          "viewersValue": "1,204",
+          "followers": "Followers",
+          "followersValue": "38,910",
+          "chatters": "Chatters today",
+          "chattersValue": "612",
+          "uptime": "Uptime",
+          "uptimeValue": "2h 14m"
+        },
+        "chat": {
+          "title": "Chat"
+        },
+        "mod": {
+          "title": "Moderation queue"
+        },
+        "rules": {
+          "title": "Moderation rules",
+          "linkFilter": "Link filter",
+          "capsFilter": "Caps filter",
+          "capsDetail": "flags over 60% caps",
+          "bannedPhrases": "Banned phrases",
+          "on": "ON",
+          "off": "OFF",
+          "blockedTitle": "Blocked terms",
+          "blocked1": "free nitro",
+          "blocked2": "discord.gg/",
+          "blocked3": "cheap followers"
+        },
+        "alerts": {
+          "title": "Alerts"
+        }
+      },
+      "chatLines": {
+        "songrequestUser": "daisy_plays",
+        "songrequestText": "!songrequest never gonna give you up",
+        "botName": "NomNomzBot",
+        "songrequestReply": "queued, 3rd in line. Now playing: Come Alive, Foals",
+        "raidUser": "mod_kris",
+        "raidText": "!raid shoutout on",
+        "socialsUser": "viewer_87",
+        "socialsText": "!socials",
+        "socialsReply": "follow on X and Kick, the links are in the panel",
+        "uptimeUser": "viewer_42",
+        "uptimeText": "!uptime",
+        "uptimeReply": "live for 2h 14m"
+      },
+      "queue": {
+        "who1": "viewer_204",
+        "reason1": "reported: posting the same link 6 times",
+        "action1": "Timeout",
+        "who2": "nite_owl22",
+        "reason2": "unban request: the 14-day timeout has ended",
+        "action2": "Approve",
+        "who3": "chat_fan99",
+        "reason3": "reported: off-topic, not against the rules",
+        "action3": "Dismiss"
+      },
+      "alerts": {
+        "raidTitle": "crumb_tv raided with 214 viewers",
+        "raidDetail": "shoutout posted to chat · overlay played on stream",
+        "subTitle": "crumb_tv resubscribed for month 6",
+        "subDetail": "overlay played · TTS read the message"
+      },
+      "audience": {
+        "line": "Built for the streamer running the show and the mods keeping the chat clean."
+      },
+      "outcomes": {
+        "chat": {
+          "title": "Chat gets answered before you can type",
+          "body": "Build a reply once in the visual pipeline editor. The bot then answers every !command, !songrequest, and !socials on its own, even three at once while you play."
+        },
+        "moderation": {
+          "title": "Moderate without babysitting the chat",
+          "body": "Reports and unban requests land in one queue, each with the message behind it. You approve, dismiss, or act without scrolling back through chat."
+        },
+        "alerts": {
+          "title": "Never miss the moment that matters",
+          "body": "A follow, sub, or raid fires the alert, plays the overlay, and posts the shoutout the instant it happens. You never have to spot it in chat first."
+        },
+        "platforms": {
+          "title": "Every platform you stream to, one dashboard",
+          "body": "Your commands, mods, and moderation rules work the same on every platform your viewers use. Add a platform without rebuilding anything.",
+          "label": "Platforms",
+          "twitch": "Twitch",
+          "kick": "Kick",
+          "youtube": "YouTube",
+          "x": "X",
+          "answered": "The same pipeline answered !uptime on {platform}"
+        }
+      },
+      "deploy": {
+        "title": "Run it your way",
+        "subtitle": "Self-host on your own box for free, or wait for the hosted version if you'd rather not run a server.",
+        "self": {
+          "title": "Self-host",
+          "tag": "Free forever",
+          "point1": "Runs on your server with one Docker Compose command, or as a single binary with no dependencies",
+          "point2": "Every feature, with no seat limits and no paid tiers",
+          "point3": "Open source (AGPL-3.0), so you can audit, fork, and patch it yourself"
+        },
+        "hosted": {
+          "title": "Hosted by NoMercy Labs",
+          "tag": "In development",
+          "point1": "No server to run: sign in and go live",
+          "point2": "Same dashboard, same feature set",
+          "point3": "Viewers get one free account across every streamer on the instance"
+        },
+        "note": "Only NoMercy Labs may operate NomNomzBot as a paid service for other streamers. Running your own bot stays free and unrestricted, forever."
+      },
+      "integrations": {
+        "title": "Connects to what your stream already runs on",
+        "spotify": "Spotify",
+        "discord": "Discord",
+        "youtube": "YouTube",
+        "tts": "Azure & ElevenLabs TTS",
+        "obs": "OBS"
+      },
+      "cta": {
+        "title": "Connect a platform. You're live in the dashboard in under a minute.",
+        "body": "Self-host it for free, forever. It needs nothing from NoMercy's servers."
+      },
+      "footer": {
+        "text": "© NomNomzBot. Free, open-source software (AGPL-3.0)."
+      }
+    }
+  }
+}

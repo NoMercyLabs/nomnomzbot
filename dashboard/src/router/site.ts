@@ -10,13 +10,11 @@
 
 import type { RouteRecordRaw } from 'vue-router'
 
+import { homeRoute } from '@/views/site/home/route'
 import { loginRoute } from '@/views/site/login/route'
-
-// Until the site home exists, the site root opens the sign-in page.
-const siteRootRoute = { path: '', redirect: { name: loginRoute.name } } as const satisfies RouteRecordRaw
 
 export const siteRoutes: RouteRecordRaw = {
   path: '/',
   component: () => import('@/layouts/SiteLayout.vue'),
-  children: [siteRootRoute, loginRoute],
+  children: [homeRoute, loginRoute],
 }

@@ -23,12 +23,16 @@ export default defineConfig({
     tailwindcss(),
   ],
   // 5090 is the registered OAuth origin; the proxy keeps the refresh cookie same-origin.
+  // xfwd tells the bot the address the browser used (a phone on the network is not localhost), so its
+  // sign-in callback and its refresh origin check match that address.
   server: {
     port: 5090,
     strictPort: true,
+    // The https tunnel to this dev server, so a phone signs in by redirect.
+    allowedHosts: ['vue.nomnomz.bot'],
     proxy: {
-      '/api': 'http://localhost:5080',
-      '/hubs': { target: 'http://localhost:5080', ws: true },
+      '/api': { target: 'http://localhost:5080', xfwd: true },
+      '/hubs': { target: 'http://localhost:5080', ws: true, xfwd: true },
     },
   },
   resolve: {

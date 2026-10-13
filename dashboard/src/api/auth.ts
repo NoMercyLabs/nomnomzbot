@@ -11,6 +11,7 @@
 import { queryOptions, useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
 
 import type { components } from './schema'
+import { activeBot } from './activeBot'
 import { client } from './client'
 import { queryClient } from './queryClient'
 
@@ -49,9 +50,9 @@ export function isSignedIn(): boolean {
   return accessToken !== null
 }
 
-export function startSignIn(returnTo: string = '/'): void {
-  const query = new URLSearchParams({ client: 'web', return_to: returnTo })
-  window.location.assign(`/api/v1/auth/twitch?${query}`)
+// A sign-in that finished on this page (the device code) hands its access token over here.
+export function acceptAccessToken(token: string): void {
+  accessToken = token
 }
 
 // The OAuth callback returns the access token in the URL fragment; take it once and strip it.
@@ -97,6 +98,14 @@ export const currentUserQuery = queryOptions({ queryKey: ['auth', 'me'], queryFn
 
 export function useCurrentUser(): UseQueryReturnType<CurrentUser | null, Error> {
   return useQuery(currentUserQuery)
+}
+
+// A sign-in and its answers belong to one bot; another bot starts signed out with an empty cache.
+export function switchBot(origin: string): void {
+  if (origin === activeBot.value) return
+  accessToken = null
+  queryClient.clear()
+  activeBot.value = origin
 }
 
 export async function signOut(): Promise<void> {

@@ -11,6 +11,26 @@
 import createClient from 'openapi-fetch'
 import type { paths } from './schema'
 
-export const client = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_BASE_URL ?? window.location.origin,
+import { activeBot } from './activeBot'
+
+import { servedOrigin } from '@/lib/botAddress'
+
+export const client = createClient<paths>({ baseUrl: servedOrigin })
+
+// Every call goes to the chosen bot. Registered first, so the sign-in middleware sees the final address.
+client.use({
+  async onRequest({ request }) {
+    const url = new URL(request.url)
+    if (url.origin === activeBot.value) return request
+    const target = new URL(url.pathname + url.search, activeBot.value)
+    // The body is read out: a Request passed as the init of another drops its stream body.
+    const body: Blob | undefined = request.body ? await request.blob() : undefined
+    return new Request(target, {
+      method: request.method,
+      headers: request.headers,
+      body,
+      credentials: request.credentials,
+      signal: request.signal,
+    })
+  },
 })
