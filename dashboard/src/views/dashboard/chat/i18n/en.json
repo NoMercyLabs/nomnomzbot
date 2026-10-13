@@ -82,8 +82,7 @@
         "banned": "{name} is banned.",
         "undo": "Undo",
         "unban": "Unban",
-        "failed": "That did not go through. Nothing changed.",
-        "clearFocus": "Clear focus on {name}"
+        "failed": "That did not go through. Nothing changed."
       },
       "feed": {
         "title": "Chat feed",

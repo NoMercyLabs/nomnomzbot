@@ -82,8 +82,7 @@
         "banned": "{name} is verbannen.",
         "undo": "Ongedaan maken",
         "unban": "Unban",
-        "failed": "Dat is niet gelukt. Er is niets veranderd.",
-        "clearFocus": "Focus op {name} wissen"
+        "failed": "Dat is niet gelukt. Er is niets veranderd."
       },
       "feed": {
         "title": "Chatfeed",

@@ -17,6 +17,7 @@ import pluginOxlint from 'eslint-plugin-oxlint';
 import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n';
 import pluginUnusedImports from 'eslint-plugin-unused-imports';
 import pluginStylistic from '@stylistic/eslint-plugin';
+import * as jsoncParser from 'jsonc-eslint-parser';
 
 import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body';
 import { bodyShape } from './eslint-rules/body-shape';
@@ -82,6 +83,27 @@ export default defineConfigWithVueTs(
       '@intlify/vue-i18n/no-missing-keys': 'error',
       '@intlify/vue-i18n/no-raw-text': 'error',
       '@intlify/vue-i18n/no-v-html': 'error',
+    },
+  },
+
+  {
+    // A key written twice in a locale file silently keeps the last one (2026-10-13: clearFocus
+    // landed twice in the chat en.json and nl.json).
+    name: 'app/vue-i18n-locales',
+    files: ['src/i18n/locales/*.json', 'src/views/*/*/i18n/*.json'],
+    languageOptions: { parser: jsoncParser },
+    plugins: { '@intlify/vue-i18n': pluginVueI18n },
+    settings: {
+      'vue-i18n': {
+        localeDir: [
+          { pattern: './src/i18n/locales/*.json', localeKey: 'file' },
+          { pattern: './src/views/*/*/i18n/*.json', localeKey: 'file' },
+        ],
+        messageSyntaxVersion: '^11.0.0',
+      },
+    },
+    rules: {
+      '@intlify/vue-i18n/no-duplicate-keys-in-locale': 'error',
     },
   },
 
