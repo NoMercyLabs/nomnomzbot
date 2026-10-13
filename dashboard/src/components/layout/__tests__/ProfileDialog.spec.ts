@@ -89,41 +89,43 @@ function userIdOf(options: Options | undefined): string {
   return String((options?.params?.path as Record<string, unknown> | undefined)?.userId)
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
-      record(path, options)
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+        record(path, options)
 
-      return { data: { data: { ...people[userIdOf(options)] } } }
-    }),
-    POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
-      record(path, options)
+        return { data: { data: { ...people[userIdOf(options)] } } }
+      }),
+      POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+        record(path, options)
 
-      if (path.endsWith('/vip')) {
-        if (vipWrite) {
-          await vipWrite
+        if (path.endsWith('/vip')) {
+          if (vipWrite) {
+            await vipWrite
+          }
+
+          if (vipWriteFails)
+            return { error: { status: 'error' }, response: { ok: false } }
+
+          people[userIdOf(options)]!.isVip = true
         }
 
-        if (vipWriteFails)
-          return { error: { status: 'error' }, response: { ok: false } }
+        return { response: { ok: true } }
+      }),
+      DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+        record(path, options)
+        people[userIdOf(options)]!.isVip = false
 
-        people[userIdOf(options)]!.isVip = true
-      }
+        return { response: { ok: true } }
+      }),
+    },
+  }))
 
-      return { response: { ok: true } }
-    }),
-    DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
-      record(path, options)
-      people[userIdOf(options)]!.isVip = false
-
-      return { response: { ok: true } }
-    }),
-  },
-}))
-
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

@@ -46,7 +46,8 @@ const http = vi.hoisted(() => ({
   DELETE: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () => ({ client: http }))
+vi.mock('../client', () =>
+  ({ client: http }))
 
 const ok = { ok: true, status: 200, headers: new Headers() } as const satisfies Answer['response']
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))

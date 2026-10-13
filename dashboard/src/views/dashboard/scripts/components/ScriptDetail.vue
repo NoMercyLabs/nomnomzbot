@@ -58,7 +58,8 @@ const triggers: UseQueryReturnType<TestTrigger[], Error> = useQuery({
 })
 const tester = useScriptTester(() => props.scriptId)
 
-const state = usePanelState(detail, () => false)
+const state = usePanelState(detail, () =>
+  false)
 const script = computed(() => detail.data.value)
 // The detail answer carries no run facts; the list row of the same script does.
 const ago = useTimeAgoIntl(() => props.summary?.lastRanAt ?? new Date(0), { locale: locale.value })

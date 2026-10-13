@@ -38,9 +38,11 @@ defineEmits<{ back: []; retry: [] }>()
 const { t, n, locale } = useI18n()
 const { channelId } = useCurrentChannel()
 
-const profile = useViewerProfile(channelId, () => props.person.internalUserId)
+const profile = useViewerProfile(channelId, () =>
+  props.person.internalUserId)
 const hasProfile = computed<boolean>(() => props.person.internalUserId !== null)
-const profileState = usePanelState(profile, (data: PersonProfile | null) => data === null)
+const profileState = usePanelState(profile, (data: PersonProfile | null) =>
+  data === null)
 
 const moderationState = computed<PanelState>(() => {
   if (props.detailState !== 'ready')

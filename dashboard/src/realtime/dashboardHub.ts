@@ -65,10 +65,11 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
 
   const hub = buildHub(hubPath, dashboardHubStatus)
 
-  attachHandlers(hub, [...channelHandlers, ...communityHandlers, ...chatHandlers], () => ({
-    queries,
-    channelId: joinedChannel,
-  }))
+  attachHandlers(hub, [...channelHandlers, ...communityHandlers, ...chatHandlers], () =>
+    ({
+      queries,
+      channelId: joinedChannel,
+    }))
   hub.onreconnected(() => {
     if (joinedChannel) {
       void join(joinedChannel)

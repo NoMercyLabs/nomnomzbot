@@ -135,28 +135,30 @@ function answer(method: string, path: string, options: Options | undefined): Ans
     : ok(null)
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string, options?: Options) => answer('GET', path, options),
-    POST: async (path: string, options?: Options) => {
-      calls.push({ method: 'POST', path, body: options?.body })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string, options?: Options) => answer('GET', path, options),
+      POST: async (path: string, options?: Options) => {
+        calls.push({ method: 'POST', path, body: options?.body })
 
-      if (resolveFails)
-        return refused()
+        if (resolveFails)
+          return refused()
 
-      const itemId: unknown = options?.params?.path?.queueItemId
+        const itemId: unknown = options?.params?.path?.queueItemId
 
-      queue = queue.filter((item) => item.id !== itemId)
+        queue = queue.filter((item) => item.id !== itemId)
 
-      return { response: { status: 200, ok: true } }
+        return { response: { status: 200, ok: true } }
+      },
     },
-  },
-}))
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

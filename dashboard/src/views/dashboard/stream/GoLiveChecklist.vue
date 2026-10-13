@@ -31,7 +31,8 @@ const botQuery = useBotStatus(channelId)
 const rewardsQuery = useRewards(channelId)
 const shieldQuery = useShieldMode(channelId)
 
-const state = usePanelState(infoQuery, (info: StreamInfo | null) => info === null)
+const state = usePanelState(infoQuery, (info: StreamInfo | null) =>
+  info === null)
 
 function unchecked(key: string, what: string): Check {
   return {

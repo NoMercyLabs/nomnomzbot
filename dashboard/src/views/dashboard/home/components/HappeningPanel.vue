@@ -30,7 +30,8 @@ const { t, locale } = useI18n()
 const { channelId } = useCurrentChannel()
 
 const activityQuery = useActivity(channelId)
-const activityState = usePanelState(activityQuery, (items: ActivityEvent[]) => items.length === 0)
+const activityState = usePanelState(activityQuery, (items: ActivityEvent[]) =>
+  items.length === 0)
 
 const router = useRouter()
 // "All events" shows only when an events page exists: a link that lands elsewhere breaks its promise.

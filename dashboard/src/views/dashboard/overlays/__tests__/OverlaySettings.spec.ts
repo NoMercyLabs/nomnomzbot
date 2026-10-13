@@ -120,58 +120,60 @@ const widget = (
   ...over,
 })
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'GET', path, body: undefined })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ method: 'GET', path, body: undefined })
 
-      if (path.endsWith('/settings-schema')) {
-        const id = String(options?.params?.path?.widgetId)
+        if (path.endsWith('/settings-schema')) {
+          const id = String(options?.params?.path?.widgetId)
+
+          return {
+            data: {
+              data: { widgetKey: id, name: id, fields: schemas[id] ?? [], eventSubscriptions: [] },
+            },
+            response: { status: 200, ok: true },
+          }
+        }
 
         return {
-          data: {
-            data: { widgetKey: id, name: id, fields: schemas[id] ?? [], eventSubscriptions: [] },
-          },
+          data: { data: widgets, hasMore: false, nextPage: null },
           response: { status: 200, ok: true },
         }
-      }
+      },
+      PUT: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ method: 'PUT', path, body: options?.body })
 
-      return {
-        data: { data: widgets, hasMore: false, nextPage: null },
-        response: { status: 200, ok: true },
-      }
+        if (putRefusal !== null)
+          return { error: { message: putRefusal }, response: { status: 400, ok: false } }
+
+        const id = String(options?.params?.path?.widgetId)
+        const body = options?.body as Record<string, unknown>
+
+        widgets = widgets.map((row) =>
+          row.id === id
+            ? { ...row, ...body }
+            : row)
+
+        return { data: { data: null }, response: { status: 200, ok: true } }
+      },
+      POST: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ method: 'POST', path, body: options?.body })
+
+        if (testRefusal !== null)
+          return { error: { message: testRefusal }, response: { status: 400, ok: false } }
+
+        return { data: { data: 'Sent to 1 browser source.' }, response: { status: 200, ok: true } }
+      },
     },
-    PUT: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'PUT', path, body: options?.body })
+  }))
 
-      if (putRefusal !== null)
-        return { error: { message: putRefusal }, response: { status: 400, ok: false } }
-
-      const id = String(options?.params?.path?.widgetId)
-      const body = options?.body as Record<string, unknown>
-
-      widgets = widgets.map((row) =>
-        row.id === id
-          ? { ...row, ...body }
-          : row)
-
-      return { data: { data: null }, response: { status: 200, ok: true } }
-    },
-    POST: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'POST', path, body: options?.body })
-
-      if (testRefusal !== null)
-        return { error: { message: testRefusal }, response: { status: 400, ok: false } }
-
-      return { data: { data: 'Sent to 1 browser source.' }, response: { status: 200, ok: true } }
-    },
-  },
-}))
-
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

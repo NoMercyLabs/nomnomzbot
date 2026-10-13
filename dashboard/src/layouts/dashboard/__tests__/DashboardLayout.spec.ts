@@ -23,23 +23,25 @@ const user = ref<{ displayName: string; profileImageUrl: string | null; isAdmin:
   isAdmin: false,
 })
 
-vi.mock('@/api/auth', () => ({
-  useCurrentUser: () => ({ data: user }),
-  signOut: vi.fn<() => Promise<void>>(),
-  // Signed out for the live hubs: these tests cover the frame, not live updates.
-  useSignedIn: () => ref(false),
-  getAccessToken: () => '',
-}))
+vi.mock('@/api/auth', () =>
+  ({
+    useCurrentUser: () => ({ data: user }),
+    signOut: vi.fn<() => Promise<void>>(),
+    // Signed out for the live hubs: these tests cover the frame, not live updates.
+    useSignedIn: () => ref(false),
+    getAccessToken: () => '',
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({
-    channels: ref([]),
-    current: ref(null),
-    channelId: ref(null),
-    isPending: ref(false),
-    choose: vi.fn<() => Promise<void>>(),
-  }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({
+      channels: ref([]),
+      current: ref(null),
+      channelId: ref(null),
+      isPending: ref(false),
+      choose: vi.fn<() => Promise<void>>(),
+    }),
+  }))
 
 // A window of the given width: matchMedia answers min-width queries against it.
 function setWidth(width: number): void {

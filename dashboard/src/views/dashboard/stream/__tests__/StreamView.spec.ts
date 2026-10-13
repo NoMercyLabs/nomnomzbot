@@ -126,36 +126,38 @@ function answer(method: string, path: string, options: Options | undefined): Ans
     : ok(null)
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string, options?: Options) => answer('GET', path, options),
-    POST: async (path: string, options?: Options) => answer('POST', path, options),
-    PUT: async (path: string, options?: Options) => {
-      calls.push({
-        method: 'PUT',
-        path,
-        body: options?.body,
-        query: undefined,
-        pathParams: options?.params?.path,
-      })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string, options?: Options) => answer('GET', path, options),
+      POST: async (path: string, options?: Options) => answer('POST', path, options),
+      PUT: async (path: string, options?: Options) => {
+        calls.push({
+          method: 'PUT',
+          path,
+          body: options?.body,
+          query: undefined,
+          pathParams: options?.params?.path,
+        })
 
-      return saveRefused
-        ? refused()
-        : {
-            data: { data: { ...streamInfo, ...(options?.body as object) } },
-            response: { status: 200, ok: true },
-          }
+        return saveRefused
+          ? refused()
+          : {
+              data: { data: { ...streamInfo, ...(options?.body as object) } },
+              response: { status: 200, ok: true },
+            }
+      },
     },
-  },
-}))
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({
-    channelId: ref('c1'),
-    current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: false }),
-  }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({
+      channelId: ref('c1'),
+      current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: false }),
+    }),
+  }))
 
 const assign = vi.fn<(url: string) => void>()
 

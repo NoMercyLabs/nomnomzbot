@@ -26,7 +26,8 @@ export async function startAdminHub(queries: QueryClient): Promise<void> {
 
   const hub = buildHub(hubPath, adminHubStatus)
 
-  attachHandlers(hub, adminHandlers, () => ({ queries, channelId: null }))
+  attachHandlers(hub, adminHandlers, () =>
+    ({ queries, channelId: null }))
   connection = hub
 
   try {

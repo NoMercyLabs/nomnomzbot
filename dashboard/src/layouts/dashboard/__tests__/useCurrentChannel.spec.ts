@@ -15,35 +15,36 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
 const mutateAsync = vi.fn<(twitchId: string) => Promise<{ id: string } | null>>()
 
-vi.mock('@/api/channels', () => ({
-  useMyChannels: () => ({
-    data: ref([
-      {
-        id: 'own-id',
-        login: 'streamer',
-        displayName: 'Streamer',
-        profileImageUrl: null,
-        isLive: true,
-        role: 'broadcaster',
-      },
-      {
-        id: 'mod-id',
-        login: 'friend',
-        displayName: 'Friend',
-        profileImageUrl: null,
-        isLive: false,
-        role: 'moderator',
-      },
-    ]),
-  }),
-  useModeratedChannels: () => ({
-    data: ref([
-      { id: 'tw-1', login: 'friend', displayName: 'Friend', isOnboarded: true },
-      { id: 'tw-2', login: 'newplace', displayName: 'NewPlace', isOnboarded: false },
-    ]),
-  }),
-  useEnterModeratedChannel: () => ({ mutateAsync, isPending: ref(false) }),
-}))
+vi.mock('@/api/channels', () =>
+  ({
+    useMyChannels: () => ({
+      data: ref([
+        {
+          id: 'own-id',
+          login: 'streamer',
+          displayName: 'Streamer',
+          profileImageUrl: null,
+          isLive: true,
+          role: 'broadcaster',
+        },
+        {
+          id: 'mod-id',
+          login: 'friend',
+          displayName: 'Friend',
+          profileImageUrl: null,
+          isLive: false,
+          role: 'moderator',
+        },
+      ]),
+    }),
+    useModeratedChannels: () => ({
+      data: ref([
+        { id: 'tw-1', login: 'friend', displayName: 'Friend', isOnboarded: true },
+        { id: 'tw-2', login: 'newplace', displayName: 'NewPlace', isOnboarded: false },
+      ]),
+    }),
+    useEnterModeratedChannel: () => ({ mutateAsync, isPending: ref(false) }),
+  }))
 
 beforeEach(() => {
   localStorage.clear()

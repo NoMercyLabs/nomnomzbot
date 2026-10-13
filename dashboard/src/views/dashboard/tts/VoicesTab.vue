@@ -50,7 +50,8 @@ const config = useTtsConfig(channelId)
 const search = ref('')
 const family: RemovableRef<string> = useLocalStorage('nnz.tts.voiceFamily', ALL)
 const asked = refDebounced(search, SEARCH_DELAY)
-const catalogue = useTtsVoices(channelId, () => ({ q: asked.value }))
+const catalogue = useTtsVoices(channelId, () =>
+  ({ q: asked.value }))
 const pick = useSetTtsVoice(channelId)
 
 const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>

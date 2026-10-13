@@ -58,7 +58,8 @@ const isOpen = computed(() => profile.userId !== null)
 const tab = ref('overview')
 const confirmBan = ref(false)
 
-const member = useCommunityMember(channelId, () => profile.userId)
+const member = useCommunityMember(channelId, () =>
+  profile.userId)
 const person: ComputedRef<CommunityMember | null> = computed(() => member.data.value ?? null)
 
 // The mutations need the channel id when they are made; the dialog is mounted inside a signed-in channel.

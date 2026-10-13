@@ -16,10 +16,11 @@ import { builtinsKey, commandsKey, type CommandListItem } from '@/api/commands'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}))
+vi.mock('@microsoft/signalr', () =>
+  ({
+    HubConnectionBuilder: FakeHubConnectionBuilder,
+    HubConnection: FakeHubConnection,
+  }))
 
 type Hub = typeof import('../dashboardHub')
 

@@ -73,38 +73,40 @@ const fixtures = (): Record<string, unknown>[] => [
   widget('w4', 'Chat Box', { isEnabled: false, overlayUrl: null, isCustomized: true }),
 ]
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string): Promise<Answer> => {
-      calls.push({ method: 'GET', path, body: undefined })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string): Promise<Answer> => {
+        calls.push({ method: 'GET', path, body: undefined })
 
-      if (listFails)
-        return { error: { status: 'error' }, response: { status: 500, ok: false } }
+        if (listFails)
+          return { error: { status: 'error' }, response: { status: 500, ok: false } }
 
-      return {
-        data: { data: widgets, hasMore: false, nextPage: null },
-        response: { status: 200, ok: true },
-      }
+        return {
+          data: { data: widgets, hasMore: false, nextPage: null },
+          response: { status: 200, ok: true },
+        }
+      },
+      PUT: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ method: 'PUT', path, body: options?.body })
+        const id = String(options?.params?.path?.widgetId)
+        const body = options?.body as Record<string, unknown>
+
+        widgets = widgets.map((row) =>
+          row.id === id
+            ? { ...row, ...body }
+            : row)
+
+        return { data: { data: null }, response: { status: 200, ok: true } }
+      },
     },
-    PUT: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'PUT', path, body: options?.body })
-      const id = String(options?.params?.path?.widgetId)
-      const body = options?.body as Record<string, unknown>
+  }))
 
-      widgets = widgets.map((row) =>
-        row.id === id
-          ? { ...row, ...body }
-          : row)
-
-      return { data: { data: null }, response: { status: 200, ok: true } }
-    },
-  },
-}))
-
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

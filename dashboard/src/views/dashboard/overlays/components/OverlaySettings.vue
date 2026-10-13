@@ -40,7 +40,8 @@ const props = defineProps<{ widget: Widget }>()
 const { t } = useI18n()
 const text = useSettingText()
 const { channelId } = useCurrentChannel()
-const schema = useWidgetSchema(channelId, () => props.widget.id)
+const schema = useWidgetSchema(channelId, () =>
+  props.widget.id)
 const save = useSaveWidgetSettings(channelId)
 
 const fields: ComputedRef<WidgetSettingsField[]> = computed<WidgetSettingsField[]>(

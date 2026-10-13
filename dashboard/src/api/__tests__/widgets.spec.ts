@@ -34,7 +34,8 @@ const http = vi.hoisted(() => ({
   PUT: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () => ({ client: http }))
+vi.mock('../client', () =>
+  ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'

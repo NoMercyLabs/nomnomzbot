@@ -14,10 +14,11 @@ import { describe, expect, it } from 'vitest'
 import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
 
 function options(count: number): FilterOption[] {
-  return Array.from({ length: count }, (_: unknown, index: number) => ({
-    value: `v${index}`,
-    label: `Option ${index}`,
-  }))
+  return Array.from({ length: count }, (_: unknown, index: number) =>
+    ({
+      value: `v${index}`,
+      label: `Option ${index}`,
+    }))
 }
 
 function bar(count: number, modelValue: string = 'v0'): VueWrapper {

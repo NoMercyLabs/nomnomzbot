@@ -16,10 +16,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import words from '../i18n/en.json'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: {} }),
-  useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
-}))
+vi.mock('vue-router', () =>
+  ({
+    useRoute: () => ({ query: {} }),
+    useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
+  }))
 
 const official: string = 'https://nomnomz.bot'
 const twitch = {

@@ -127,7 +127,8 @@ export function useReadability(): UseReadability {
     },
   )
 
-  watch(settings, (next: Readability): void => applyReadability(next), {
+  watch(settings, (next: Readability): void =>
+    applyReadability(next), {
     deep: true,
     immediate: true,
     flush: 'sync',

@@ -144,7 +144,8 @@ function yTick(tick: number | Date): string {
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (char: string) => `&#${char.charCodeAt(0)};`)
+  return text.replace(/[&<>"']/g, (char: string) =>
+    `&#${char.charCodeAt(0)};`)
 }
 
 // Unovis wants the tooltip as an HTML string. The look matches ChartTooltipContent.

@@ -53,7 +53,8 @@ const save = useSaveStreamInfo(channelId)
 
 const draft: Ref<Partial<StreamInfoDraft>> = ref({})
 const info: ComputedRef<StreamInfo | null> = computed(() => infoQuery.data.value ?? null)
-const state = usePanelState(infoQuery, (data: StreamInfo | null) => data === null)
+const state = usePanelState(infoQuery, (data: StreamInfo | null) =>
+  data === null)
 
 const form: ComputedRef<StreamInfoDraft> = computed(() => ({
   title: draft.value.title ?? info.value?.title ?? '',

@@ -91,38 +91,40 @@ const summary = {
   streak: { currentStreak: 5, maxStreak: 11, lastSeenDate: '2026-10-12' },
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'GET', path, query: options?.params?.query ?? {} })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ method: 'GET', path, query: options?.params?.query ?? {} })
 
-      if (path.endsWith('/community/search'))
-        return searchAnswer(String(options?.params?.query?.q ?? ''))
+        if (path.endsWith('/community/search'))
+          return searchAnswer(String(options?.params?.query?.q ?? ''))
 
-      if (path.endsWith('/community/lookup'))
-        return lookupAnswer(String(options?.params?.query?.login ?? ''))
+        if (path.endsWith('/community/lookup'))
+          return lookupAnswer(String(options?.params?.query?.login ?? ''))
 
-      if (path.endsWith('/community'))
-        return listAnswer(options?.params?.query?.role as string | undefined)
+        if (path.endsWith('/community'))
+          return listAnswer(options?.params?.query?.role as string | undefined)
 
-      if (path.endsWith('/community/{userId}')) {
-        await memberGate
+        if (path.endsWith('/community/{userId}')) {
+          await memberGate
 
-        return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
-      }
+          return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
+        }
 
-      if (path.endsWith('/profile'))
-        return ok(summary)
+        if (path.endsWith('/profile'))
+          return ok(summary)
 
-      return ok(null)
+        return ok(null)
+      },
     },
-  },
-}))
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 const ROW_HEIGHT = 56
 const VIEWPORT_HEIGHT = 600

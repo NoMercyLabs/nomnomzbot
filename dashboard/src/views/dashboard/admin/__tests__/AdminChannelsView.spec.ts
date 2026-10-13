@@ -51,22 +51,23 @@ const tenant = (
   ...over,
 })
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ path, query: { ...options?.params?.query } })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ path, query: { ...options?.params?.query } })
 
-      if (refused)
-        return { error: { message: 'no' }, response: { status: 403, ok: false } }
+        if (refused)
+          return { error: { message: 'no' }, response: { status: 403, ok: false } }
 
-      return {
-        data: { data: rowsOnPage, total, hasMore: total > 25, nextPage: 2 },
-        response: { status: 200, ok: true },
-      }
+        return {
+          data: { data: rowsOnPage, total, hasMore: total > 25, nextPage: 2 },
+          response: { status: 200, ok: true },
+        }
+      },
     },
-  },
-}))
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

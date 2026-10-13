@@ -18,10 +18,11 @@ import { shieldKey } from '@/api/shield'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}))
+vi.mock('@microsoft/signalr', () =>
+  ({
+    HubConnectionBuilder: FakeHubConnectionBuilder,
+    HubConnection: FakeHubConnection,
+  }))
 
 type Hub = typeof import('../dashboardHub')
 type Status = (typeof import('../hubStatus'))['dashboardHubStatus']

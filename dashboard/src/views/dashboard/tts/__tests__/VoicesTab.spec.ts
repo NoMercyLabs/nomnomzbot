@@ -87,18 +87,20 @@ function record(method: string, path: string, init: Call['init']): Answer | unde
     : undefined
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string, init: Call['init']) => record('GET', path, init) ?? ok(null),
-    PUT: async (path: string, init: Call['init']) => record('PUT', path, init) ?? ok(null),
-    POST: async (path: string, init: Call['init']) => record('POST', path, init) ?? ok(null),
-  },
-}))
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string, init: Call['init']) => record('GET', path, init) ?? ok(null),
+      PUT: async (path: string, init: Call['init']) => record('PUT', path, init) ?? ok(null),
+      POST: async (path: string, init: Call['init']) => record('POST', path, init) ?? ok(null),
+    },
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 const ROW_HEIGHT = 56
 const VIEWPORT_HEIGHT = 560

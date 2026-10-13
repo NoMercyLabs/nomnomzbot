@@ -28,7 +28,8 @@ const http = vi.hoisted(() => ({
   GET: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () => ({ client: http }))
+vi.mock('../client', () =>
+  ({ client: http }))
 
 const config: TtsConfig = {
   isEnabled: true,

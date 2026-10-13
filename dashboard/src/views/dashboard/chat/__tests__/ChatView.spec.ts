@@ -66,38 +66,40 @@ const line = (
     ...over,
   }) as unknown as ChatLine
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string): Promise<Answer> => {
-      calls.push({ method: 'GET', path, body: undefined, messageId: '' })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string): Promise<Answer> => {
+        calls.push({ method: 'GET', path, body: undefined, messageId: '' })
 
-      return { data: { data: history }, response: { status: 200, ok: true } }
+        return { data: { data: history }, response: { status: 200, ok: true } }
+      },
+      POST: async (path: string, options?: Options): Promise<Answer> => {
+        calls.push({ method: 'POST', path, body: options?.body, messageId: '' })
+        const ok = !path.endsWith('/chat/messages') || sendOk
+
+        return { data: { data: null }, response: { status: ok
+          ? 200
+          : 500, ok } }
+      },
+      DELETE: async (path: string, options?: Options): Promise<Answer> => {
+        const messageId = String(options?.params?.path?.messageId)
+
+        calls.push({ method: 'DELETE', path, body: undefined, messageId })
+
+        return { data: { data: null }, response: { status: 200, ok: true } }
+      },
     },
-    POST: async (path: string, options?: Options): Promise<Answer> => {
-      calls.push({ method: 'POST', path, body: options?.body, messageId: '' })
-      const ok = !path.endsWith('/chat/messages') || sendOk
+  }))
 
-      return { data: { data: null }, response: { status: ok
-        ? 200
-        : 500, ok } }
-    },
-    DELETE: async (path: string, options?: Options): Promise<Answer> => {
-      const messageId = String(options?.params?.path?.messageId)
-
-      calls.push({ method: 'DELETE', path, body: undefined, messageId })
-
-      return { data: { data: null }, response: { status: 200, ok: true } }
-    },
-  },
-}))
-
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({
-    channelId: ref('c1'),
-    current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: true }),
-  }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({
+      channelId: ref('c1'),
+      current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: true }),
+    }),
+  }))
 
 const ROW_HEIGHT: number = 40
 const VIEWPORT_HEIGHT: number = 4000
@@ -197,7 +199,8 @@ async function open(): Promise<void> {
   await router.push('/app/chat')
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   // The page runs inside the frame's tooltip provider and toast host, so the test gives it the same.
-  const framed = defineComponent(() => () => h(TooltipProvider, () => [h(ChatView), h(Toaster)]))
+  const framed = defineComponent(() => () => h(TooltipProvider, () =>
+    [h(ChatView), h(Toaster)]))
 
   mounted = mount(framed, {
     attachTo: document.body,
@@ -245,10 +248,11 @@ describe('ChatView', () => {
 
   it('shows a line that is pushed into the feed', async () => {
     await open()
-    queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) => [
-      ...(feed ?? []),
-      line('m4', 'u3', 'Cara', 'just arrived'),
-    ])
+    queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) =>
+      [
+        ...(feed ?? []),
+        line('m4', 'u3', 'Cara', 'just arrived'),
+      ])
     await settle()
     expect(rowIds()).toEqual(['m1', 'm2', 'm3', 'm4'])
     expect(rowOf('m4').textContent).toContain('just arrived')

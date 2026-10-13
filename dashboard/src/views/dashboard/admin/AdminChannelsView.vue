@@ -75,7 +75,8 @@ const liveOptions = computed<FilterOption[]>(() =>
   })),
 )
 
-const panelState = usePanelState(tenants, (data) => (data.data?.length ?? 0) === 0)
+const panelState = usePanelState(tenants, (data) =>
+  (data.data?.length ?? 0) === 0)
 const errorText: ComputedRef<string> = computed<string>(() =>
   tenants.error.value?.message.endsWith('403')
     ? t('dashboard.admin.list.forbidden')

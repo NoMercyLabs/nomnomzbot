@@ -24,26 +24,28 @@ let releaseSample: Release = () => undefined
 const posts: unknown[] = []
 const paused: string[] = []
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    POST: async (_path: string, init: { body: unknown }) => {
-      posts.push(init.body)
-      await new Promise<void>((resolve) => {
-        releaseSample = resolve
-      })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      POST: async (_path: string, init: { body: unknown }) => {
+        posts.push(init.body)
+        await new Promise<void>((resolve) => {
+          releaseSample = resolve
+        })
 
-      return {
-        data: { data: { voiceId: 'v1', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' } },
-        response: { status: 200, ok: true },
-      }
+        return {
+          data: { data: { voiceId: 'v1', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' } },
+          response: { status: 200, ok: true },
+        }
+      },
     },
-  },
-}))
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 

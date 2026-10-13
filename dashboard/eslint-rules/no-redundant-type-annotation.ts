@@ -67,7 +67,8 @@ function mentions(typeNode: ts.Node, name: string): boolean {
       return true
   }
 
-  return ts.forEachChild(typeNode, (child) => mentions(child, name)) === true
+  return ts.forEachChild(typeNode, (child) =>
+    mentions(child, name)) === true
 }
 
 // A generic call infers from the annotation when a type parameter shows up only in its return
@@ -126,7 +127,8 @@ function leansOnAnnotation(node: ts.Node, checker: ts.TypeChecker): boolean {
     }
   }
 
-  return ts.forEachChild(node, (child) => leansOnAnnotation(child, checker)) === true
+  return ts.forEachChild(node, (child) =>
+    leansOnAnnotation(child, checker)) === true
 }
 
 // `const current: number = page` inside `while (page !== null)` names the type the loop's own
@@ -136,7 +138,8 @@ function readsLoopNarrowedLet(
   value: ts.Expression,
   checker: ts.TypeChecker,
 ): boolean {
-  const loop = ts.findAncestor(node, (ancestor) => ts.isIterationStatement(ancestor, false))
+  const loop = ts.findAncestor(node, (ancestor) =>
+    ts.isIterationStatement(ancestor, false))
 
   if (loop === undefined)
     return false

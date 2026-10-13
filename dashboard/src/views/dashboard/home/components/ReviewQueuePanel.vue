@@ -33,7 +33,8 @@ const { data: shieldOn } = useShieldMode(channelId)
 const resolve = useResolveQueueItem(channelId)
 
 const queue: ComputedRef<ReviewQueueItem[]> = computed(() => queueQuery.data.value ?? [])
-const queueState = usePanelState(queueQuery, (items: ReviewQueueItem[]) => items.length === 0)
+const queueState = usePanelState(queueQuery, (items: ReviewQueueItem[]) =>
+  items.length === 0)
 
 function sender(item: ReviewQueueItem): string {
   return item.targetUsernameSnapshot ?? t('dashboard.home.queue.unknownSender')

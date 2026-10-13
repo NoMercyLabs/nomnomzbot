@@ -47,23 +47,25 @@ const config = {
   followsPlatformDefaultVoice: false,
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string) => {
-      calls.push(path)
-      const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string) => {
+        calls.push(path)
+        const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-      return match
-        ? answers[match]!()
-        : ok(null)
+        return match
+          ? answers[match]!()
+          : ok(null)
+      },
     },
-  },
-}))
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

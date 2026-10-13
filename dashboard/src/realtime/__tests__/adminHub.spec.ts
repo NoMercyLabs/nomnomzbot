@@ -13,10 +13,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}))
+vi.mock('@microsoft/signalr', () =>
+  ({
+    HubConnectionBuilder: FakeHubConnectionBuilder,
+    HubConnection: FakeHubConnection,
+  }))
 
 beforeEach(() => {
   vi.resetModules()

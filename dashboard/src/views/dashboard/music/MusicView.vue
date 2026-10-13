@@ -55,7 +55,8 @@ const rows: ComputedRef<QueueItem[]> = computed<QueueItem[]>(
   () => queueQuery.data.value?.queue ?? [],
 )
 
-const nowState = usePanelState(queueQuery, (queue: MusicQueue): boolean => !queue.nowPlaying)
+const nowState = usePanelState(queueQuery, (queue: MusicQueue): boolean =>
+  !queue.nowPlaying)
 const queueState = usePanelState(
   queueQuery,
   (queue: MusicQueue): boolean => queue.queue.length === 0,

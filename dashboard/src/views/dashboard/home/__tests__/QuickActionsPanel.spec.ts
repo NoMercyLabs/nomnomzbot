@@ -98,28 +98,30 @@ function answer(method: string, path: string): Answer {
     : ok(null)
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string) => answer('GET', path),
-    POST: async (path: string) => {
-      calls.push({ method: 'POST', path })
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string) => answer('GET', path),
+      POST: async (path: string) => {
+        calls.push({ method: 'POST', path })
 
-      if (snoozeFails)
-        return refused()
+        if (snoozeFails)
+          return refused()
 
-      if (path.endsWith('/ads/snooze')) {
-        snoozeCount -= 1
-      }
+        if (path.endsWith('/ads/snooze')) {
+          snoozeCount -= 1
+        }
 
-      return { data: { data: null }, response: { status: 200, ok: true } }
+        return { data: { data: null }, response: { status: 200, ok: true } }
+      },
     },
-  },
-}))
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

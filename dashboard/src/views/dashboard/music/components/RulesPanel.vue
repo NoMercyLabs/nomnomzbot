@@ -56,7 +56,8 @@ const save = useSaveMusicConfig(channelId)
 const unblock = useUnblockTrack(channelId)
 const block = useBlockTrack(channelId)
 
-const state = usePanelState(configQuery, (config: MusicConfig | null): boolean => config === null)
+const state = usePanelState(configQuery, (config: MusicConfig | null): boolean =>
+  config === null)
 
 function draftOf(config: MusicConfig): Draft {
   return { minTrustLevel: config.minTrustLevel, perPerson: Number(config.maxRequestsPerUser) }

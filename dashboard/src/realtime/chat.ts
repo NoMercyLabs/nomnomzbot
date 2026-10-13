@@ -57,17 +57,20 @@ export const chatHandlers: [
       if (event.type === 'message_deleted') {
         const { messageId } = event.data as MessageDeletedPayload
 
-        markLines(queries, event.broadcasterId, 'deleted', (line) => line.id === messageId)
+        markLines(queries, event.broadcasterId, 'deleted', (line) =>
+          line.id === messageId)
       }
 
       if (event.type === 'chat_cleared') {
-        markLines(queries, event.broadcasterId, 'cleared', () => true)
+        markLines(queries, event.broadcasterId, 'cleared', () =>
+          true)
       }
 
       if (event.type === 'user_messages_cleared') {
         const { targetUserId } = event.data as UserMessagesClearedPayload
 
-        markLines(queries, event.broadcasterId, 'purged', (line) => line.userId === targetUserId)
+        markLines(queries, event.broadcasterId, 'purged', (line) =>
+          line.userId === targetUserId)
       }
     },
   },

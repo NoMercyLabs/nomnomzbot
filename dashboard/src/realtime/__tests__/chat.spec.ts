@@ -16,10 +16,11 @@ import { chatKey, chatLineLimit, type ChatLine } from '@/api/chat'
 import type { ChatMessagePayload } from '../payloads'
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () => ({
-  HubConnectionBuilder: FakeHubConnectionBuilder,
-  HubConnection: FakeHubConnection,
-}))
+vi.mock('@microsoft/signalr', () =>
+  ({
+    HubConnectionBuilder: FakeHubConnectionBuilder,
+    HubConnection: FakeHubConnection,
+  }))
 
 type Hub = typeof import('../dashboardHub')
 

@@ -107,18 +107,20 @@ function write(method: string, path: string, options?: Options): Answer {
   return { response: { status: 200, ok: true } }
 }
 
-vi.mock('@/api/client', () => ({
-  client: {
-    use: () => undefined,
-    GET: async (path: string) => read(path),
-    POST: async (path: string, options?: Options) => write('POST', path, options),
-    DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
-  },
-}))
+vi.mock('@/api/client', () =>
+  ({
+    client: {
+      use: () => undefined,
+      GET: async (path: string) => read(path),
+      POST: async (path: string, options?: Options) => write('POST', path, options),
+      DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
+    },
+  }))
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1') }),
-}))
+vi.mock('@/composables/useCurrentChannel', () =>
+  ({
+    useCurrentChannel: () => ({ channelId: ref('c1') }),
+  }))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia

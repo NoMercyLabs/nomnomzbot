@@ -89,7 +89,8 @@ afterEach(() => {
 })
 
 function rows(count: number): Row[] {
-  return Array.from({ length: count }, (_: unknown, id: number) => ({ id }))
+  return Array.from({ length: count }, (_: unknown, id: number) =>
+    ({ id }))
 }
 
 function list(items: Row[], extra: Record<string, unknown> = {}): VueWrapper {

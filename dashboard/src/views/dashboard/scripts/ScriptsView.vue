@@ -79,7 +79,8 @@ const visible: ComputedRef<CodeScriptSummary[] | undefined> = computed(() => {
     )
 })
 
-const listState = usePanelState(scripts, () => false)
+const listState = usePanelState(scripts, () =>
+  false)
 const panelState = computed(() => {
   if (listState.value !== 'ready')
     return listState.value

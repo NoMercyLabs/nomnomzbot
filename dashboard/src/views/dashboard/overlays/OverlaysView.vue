@@ -68,7 +68,8 @@ const visible = computed(() => {
     .filter((widget: Widget) => typed === '' || widget.name.toLowerCase().includes(typed))
 })
 
-const listState = usePanelState(widgets, () => false)
+const listState = usePanelState(widgets, () =>
+  false)
 const panelState = computed(() => {
   if (listState.value !== 'ready')
     return listState.value

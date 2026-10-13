@@ -39,7 +39,8 @@ const http = vi.hoisted(() => ({
   use: (): undefined => undefined,
 }))
 
-vi.mock('../client', () => ({ client: http }))
+vi.mock('../client', () =>
+  ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))

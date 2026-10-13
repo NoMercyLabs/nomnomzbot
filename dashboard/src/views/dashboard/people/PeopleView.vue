@@ -65,7 +65,8 @@ const search = ref('')
 const pausedSearch = refDebounced(search, SEARCH_PAUSE_MS)
 const typed = computed<string>(() => search.value.trim())
 const searching = computed<boolean>(() => typed.value !== '')
-const found = useViewerSearch(channelId, () => pausedSearch.value.trim())
+const found = useViewerSearch(channelId, () =>
+  pausedSearch.value.trim())
 const lookup = useTwitchLookup(channelId)
 const seed: Ref<Seed | null> = ref(null)
 const lookupMissing = ref('')
@@ -190,7 +191,8 @@ const seedInView: ComputedRef<Seed | null> = computed(() =>
     ? seed.value
     : null,
 )
-const member = useCommunityMember(channelId, () => seedInView.value?.id ?? null)
+const member = useCommunityMember(channelId, () =>
+  seedInView.value?.id ?? null)
 
 function lightRow(from: Seed): CommunityRow {
   return {

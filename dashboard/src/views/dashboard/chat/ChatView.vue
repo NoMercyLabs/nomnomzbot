@@ -46,7 +46,8 @@ const visible = computed(() =>
     : lines.value,
 )
 
-const panelState = usePanelState(history, () => visible.value.length === 0)
+const panelState = usePanelState(history, () =>
+  visible.value.length === 0)
 const emptyText: ComputedRef<string> = computed(() =>
   lines.value.length > 0
     ? t('dashboard.chat.feed.emptyCommands')

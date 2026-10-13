@@ -37,7 +37,8 @@ const sortOptions: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() => 
   { value: 'name', label: t('dashboard.commands.list.sortName') },
 ])
 
-const panel = usePanelState(commands, (data: CommandListItem[]): boolean => data.length === 0)
+const panel = usePanelState(commands, (data: CommandListItem[]): boolean =>
+  data.length === 0)
 // The empty state holds a button, so the panel shows it as ready content.
 const state = computed<PanelState>(() =>
   panel.value === 'empty'
