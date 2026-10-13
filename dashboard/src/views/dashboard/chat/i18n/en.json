@@ -91,6 +91,16 @@
         "emptyCommands": "Only commands so far. Switch on Commands in Display to see them.",
         "error": "The chat could not load."
       },
+      "search": {
+        "placeholder": "Search chat",
+        "title": "Search results",
+        "label": "Matching chat messages",
+        "count": "{count} messages match \"{query}\"",
+        "empty": "No message matches \"{query}\". Searched back to the first message.",
+        "error": "The search did not work.",
+        "more": "Search further back",
+        "end": "Searched back to the first message."
+      },
       "line": {
         "actions": "Actions for {name}",
         "removed": "Removed message",
