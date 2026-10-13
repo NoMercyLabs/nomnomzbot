@@ -28,8 +28,11 @@ import { Button } from '@/components/ui/button'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { usePanelState } from '@/composables/usePanelState'
 
-const props = defineProps<{ person: CommunityRow }>()
-defineEmits<{ back: [] }>()
+// detailState: a person opened from a search hit arrives as name and avatar; the rest loads in parts.
+const props = withDefaults(defineProps<{ person: CommunityRow; detailState?: PanelState }>(), {
+  detailState: 'ready',
+})
+defineEmits<{ back: []; retry: [] }>()
 
 const { t, n, locale } = useI18n()
 const { channelId } = useCurrentChannel()
@@ -41,6 +44,7 @@ const hasProfile: ComputedRef<boolean> = computed<boolean>(
 const profileState = usePanelState(profile, (data: PersonProfile | null) => data === null)
 
 const moderationState: ComputedRef<PanelState> = computed<PanelState>(() => {
+  if (props.detailState !== 'ready') return props.detailState
   if (!hasProfile.value) return 'empty'
   if (profileState.value === 'ready' && profile.data.value?.moderationHistory == null)
     return 'empty'
@@ -184,7 +188,7 @@ const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(
       </div>
     </template>
 
-    <StatStrip>
+    <StatStrip v-if="detailState === 'ready'">
       <StatTile
         :label="$t('dashboard.people.detail.stats.messages')"
         :value="Number(person.messageCount)"
@@ -204,7 +208,14 @@ const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(
       />
     </StatStrip>
 
-    <PanelCard tier="lead" pad :title="$t('dashboard.people.detail.overview.title')">
+    <PanelCard
+      tier="lead"
+      pad
+      :title="$t('dashboard.people.detail.overview.title')"
+      :state="detailState"
+      :error-text="$t('dashboard.people.detail.profileError')"
+      @retry="$emit('retry')"
+    >
       <KeyValueList :items="overview" />
     </PanelCard>
     <PanelCard
@@ -213,7 +224,7 @@ const streak: ComputedRef<PersonProfile['streak'] | undefined> = computed(
       :state="moderationState"
       :empty-text="moderationEmpty"
       :error-text="$t('dashboard.people.detail.profileError')"
-      @retry="profile.refetch()"
+      @retry="detailState === 'error' ? $emit('retry') : profile.refetch()"
     >
       <KeyValueList :items="moderation" />
     </PanelCard>

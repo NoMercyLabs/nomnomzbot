@@ -4,7 +4,7 @@
       "title": "Mensen",
       "crumb": "Community",
       "search": "Mensen zoeken",
-      "count": "{count} mensen",
+      "count": "{count} persoon | {count} mensen",
       "noMatch": "Niemand past bij \"{query}\".",
       "back": "Terug naar de lijst",
       "tabs": {
@@ -23,6 +23,11 @@
         "regular": "Mensen die stream na stream terugkomen.",
         "new": "Mensen die in de laatste 90 dagen voor het eerst zijn gezien, uit de pagina's die al geladen zijn."
       },
+      "lookup": {
+        "button": "Opzoeken op Twitch",
+        "notFound": "Twitch heeft geen account met de naam \"{login}\".",
+        "error": "Twitch kon niet worden gevraagd. Probeer het opnieuw."
+      },
       "list": {
         "label": "Mensen",
         "title": "Mensen",
@@ -30,6 +35,7 @@
         "error": "De lijst met mensen kon niet laden.",
         "more": "Meer mensen laden",
         "lastSeen": "Laatst gezien {ago}",
+        "notInChannel": "Niet in dit kanaal",
         "banned": "Verbannen",
         "roles": {
           "moderator": "Moderator",

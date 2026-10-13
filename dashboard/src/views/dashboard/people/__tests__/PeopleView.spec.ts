@@ -20,12 +20,18 @@ import { i18n } from '@/i18n'
 import PeopleView from '../PeopleView.vue'
 import en from '../i18n/en.json'
 
-type Options = { params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }; body?: unknown }
+type Options = {
+  params?: { path?: Record<string, unknown>; query?: Record<string, unknown> }
+  body?: unknown
+}
 type Call = { method: string; path: string; query: Record<string, unknown> }
 type Answer = { data?: unknown; error?: unknown; response: { status: number; ok: boolean } }
 
 const calls: Call[] = []
 let listAnswer: (role: string | undefined) => Answer = () => page([])
+let searchAnswer: (q: string) => Answer = () => ok([])
+let lookupAnswer: (login: string) => Answer = () => ok(null)
+let memberGate: Promise<void> = Promise.resolve()
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } })
 const refused = (): Answer => ({ error: { status: 'error' }, response: { status: 403, ok: false } })
@@ -72,7 +78,14 @@ const summary = {
     memberSinceUtc: null,
     firstSeenUtc: '2026-01-02T10:00:00Z',
   },
-  moderationHistory: { timeoutCount: 3, banCount: 0, warningCount: 2, messagesDeletedCount: 9, lastActionAt: null, lastActionType: null },
+  moderationHistory: {
+    timeoutCount: 3,
+    banCount: 0,
+    warningCount: 2,
+    messagesDeletedCount: 9,
+    lastActionAt: null,
+    lastActionType: null,
+  },
   trust: { trustScore: 777, heatScore: 888 },
   activity: null,
   streak: { currentStreak: 5, maxStreak: 11, lastSeenDate: '2026-10-12' },
@@ -83,7 +96,16 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({ method: 'GET', path, query: options?.params?.query ?? {} })
-      if (path.endsWith('/community')) return listAnswer(options?.params?.query?.role as string | undefined)
+      if (path.endsWith('/community/search'))
+        return searchAnswer(String(options?.params?.query?.q ?? ''))
+      if (path.endsWith('/community/lookup'))
+        return lookupAnswer(String(options?.params?.query?.login ?? ''))
+      if (path.endsWith('/community'))
+        return listAnswer(options?.params?.query?.role as string | undefined)
+      if (path.endsWith('/community/{userId}')) {
+        await memberGate
+        return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
+      }
       if (path.endsWith('/profile')) return ok(summary)
       return ok(null)
     },
@@ -108,6 +130,9 @@ beforeEach(() => {
     if (role === 'vip') return page([everyone[2]!], 1)
     return page(everyone)
   }
+  searchAnswer = () => ok([])
+  lookupAnswer = () => ok(null)
+  memberGate = Promise.resolve()
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
@@ -120,16 +145,32 @@ beforeEach(() => {
       disconnect(): void {}
     },
   )
-  const sizeOf = (element: Element): number => (element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT)
-  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  const sizeOf = (element: Element): number =>
+    element.hasAttribute('data-virtual-scroll') ? VIEWPORT_HEIGHT : ROW_HEIGHT
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     return sizeOf(this)
   })
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    return { width: 300, height: sizeOf(this), top: 0, left: 0, right: 300, bottom: sizeOf(this), x: 0, y: 0 } as DOMRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return {
+      width: 300,
+      height: sizeOf(this),
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: sizeOf(this),
+      x: 0,
+      y: 0,
+    } as DOMRect
   })
 })
 
@@ -149,28 +190,70 @@ const settle = async (): Promise<void> => {
 
 async function open(url: string = '/app/people'): Promise<void> {
   const blank = { template: '<div />' }
-  router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/app/people', name: 'dashboard-people', component: blank }] })
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/app/people', name: 'dashboard-people', component: blank }],
+  })
   await router.push(url)
   mounted = mount(PeopleView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        i18n,
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await settle()
 }
 
 const text = (): string => document.body.textContent ?? ''
-const rows = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('[data-person-row]')]
+const rows = (): HTMLElement[] => [
+  ...document.body.querySelectorAll<HTMLElement>('[data-person-row]'),
+]
 const tab = (label: string): HTMLElement =>
-  [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) => t.textContent?.trim().startsWith(label)) as HTMLElement
+  [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) =>
+    t.textContent?.trim().startsWith(label),
+  ) as HTMLElement
 const profileCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/profile'))
+const DEBOUNCE_WAIT = 400
 const typeSearch = async (value: string): Promise<void> => {
-  const input: HTMLInputElement = document.body.querySelector('input[type="search"]') as HTMLInputElement
+  const input: HTMLInputElement = document.body.querySelector(
+    'input[type="search"]',
+  ) as HTMLInputElement
   input.value = value
   input.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((done) => setTimeout(done, DEBOUNCE_WAIT))
   await settle()
 }
+const memberCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/community/{userId}'))
+const enter = (): void => {
+  const input: HTMLInputElement = document.body.querySelector(
+    'input[type="search"]',
+  ) as HTMLInputElement
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+}
+const searchCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/community/search'))
+const lookupCalls = (): Call[] => calls.filter((call) => call.path.endsWith('/community/lookup'))
+const results = (): HTMLElement[] => [
+  ...document.body.querySelectorAll<HTMLElement>('[data-search-result]'),
+]
+const lookupButton = (): HTMLButtonElement | undefined =>
+  [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+    b.textContent?.includes('Look up on Twitch'),
+  )
+const option = (id: string, label: string, inChannel: boolean): Record<string, unknown> => ({
+  id,
+  label,
+  subLabel: `@${label.toLowerCase()}`,
+  imageUrl: null,
+  inChannel,
+})
 
 describe('PeopleView', () => {
   it('lists the people from the bot with the last seen time and a role icon', async () => {
@@ -189,7 +272,12 @@ describe('PeopleView', () => {
   })
 
   it('puts the total of each list on its tab', async () => {
-    listAnswer = (role) => (role === 'moderator' ? page([everyone[1]!], 4) : role === 'vip' ? page([everyone[2]!], 2) : page(everyone, 120))
+    listAnswer = (role) =>
+      role === 'moderator'
+        ? page([everyone[1]!], 4)
+        : role === 'vip'
+          ? page([everyone[2]!], 2)
+          : page(everyone, 120)
     await open()
 
     expect(tab('All').textContent).toContain('120')
@@ -200,7 +288,9 @@ describe('PeopleView', () => {
   it('asks the bot for the moderators when that tab opens, and lists only them', async () => {
     await open('/app/people?view=moderator')
 
-    expect(calls.some((call) => call.path.endsWith('/community') && call.query.role === 'moderator')).toBe(true)
+    expect(
+      calls.some((call) => call.path.endsWith('/community') && call.query.role === 'moderator'),
+    ).toBe(true)
     expect(rows().map((row) => row.textContent)).toEqual([expect.stringContaining('BOB')])
     expect(text()).toContain('People who moderate your channel.')
   })
@@ -226,7 +316,9 @@ describe('PeopleView', () => {
   it('titles the empty detail pane as a profile, not a second People list', async () => {
     await open()
 
-    const headings: string[] = Array.from(document.body.querySelectorAll('h2')).map((h) => h.textContent?.trim() ?? '')
+    const headings: string[] = Array.from(document.body.querySelectorAll('h2')).map(
+      (h) => h.textContent?.trim() ?? '',
+    )
     expect(headings.filter((heading) => heading === 'People')).toHaveLength(1)
     expect(headings).toContain('Profile')
   })
@@ -263,20 +355,143 @@ describe('PeopleView', () => {
     expect(text()).toContain('not stored per person yet')
   })
 
-  it('says nobody matches a search that finds no one', async () => {
+  it('says nobody matches a search that finds no one and offers the Twitch lookup', async () => {
     await open()
     await typeSearch('zzz')
 
-    expect(rows()).toHaveLength(0)
+    expect(results()).toHaveLength(0)
     expect(text()).toContain('Nobody matches "zzz".')
+    expect(lookupButton()).toBeDefined()
+    expect(lookupButton()!.getAttribute('data-variant')).toBe('outline')
   })
 
-  it('filters the list by the typed name', async () => {
+  it('searches every known user on the bot, not only the loaded rows, after a pause in typing', async () => {
+    searchAnswer = () => ok([option('t-dave', 'DAVE', false), option('t-alice', 'ALICE', true)])
     await open()
-    await typeSearch('bo')
+    await typeSearch('dav')
 
-    expect(rows().map((row) => row.textContent)).toEqual([expect.stringContaining('BOB')])
-    expect(text()).toContain('1 people')
+    expect(searchCalls()).toHaveLength(1)
+    expect(searchCalls()[0]!.query).toMatchObject({ q: 'dav', scope: 'all' })
+    expect(results().map((row) => row.textContent)).toEqual([
+      expect.stringContaining('DAVE'),
+      expect.stringContaining('ALICE'),
+    ])
+    expect(rows()).toHaveLength(0)
+  })
+
+  it('marks a result that is not in this channel in plain text, and only that one', async () => {
+    searchAnswer = () => ok([option('t-dave', 'DAVE', false), option('t-alice', 'ALICE', true)])
+    await open()
+    await typeSearch('a')
+
+    expect(results()[0]!.textContent).toContain('Not in this channel')
+    expect(results()[1]!.textContent).not.toContain('Not in this channel')
+  })
+
+  it('counts one hit as one person, not one people', async () => {
+    searchAnswer = () => ok([option('t-dave', 'DAVE', true)])
+    await open()
+    await typeSearch('dav')
+
+    expect(document.body.textContent).toContain('1 person')
+    expect(document.body.textContent).not.toContain('1 people')
+  })
+
+  it('makes no request for the full person while the name is only being typed', async () => {
+    searchAnswer = () => ok([option('t-dave', 'DAVE', false)])
+    await open()
+    await typeSearch('dav')
+
+    expect(memberCalls()).toHaveLength(0)
+    expect(profileCalls()).toHaveLength(0)
+    expect(results()[0]!.textContent).toContain('DAVE')
+    expect(results()[0]!.textContent).not.toContain('Last seen')
+    expect(document.body.querySelector('[data-person-detail]')).toBeNull()
+  })
+
+  it('on Enter shows the seeded name at once and fills in the rest as each part arrives', async () => {
+    let release: () => void = () => undefined
+    memberGate = new Promise<void>((done) => {
+      release = done
+    })
+    searchAnswer = () => ok([option('t-dave', 'DAVE', false)])
+    await open()
+    await typeSearch('dav')
+    enter()
+    await settle()
+
+    expect(router.currentRoute.value.query.u).toBe('dave')
+    expect(memberCalls()).toHaveLength(1)
+    const detail: HTMLElement = document.body.querySelector('[data-person-detail]') as HTMLElement
+    expect(detail.textContent).toContain('DAVE')
+    expect(detail.textContent).toContain('@dave')
+    expect(detail.textContent).not.toContain('321')
+    expect(detail.querySelector('[data-slot="panel-loading"]')).not.toBeNull()
+    expect(profileCalls()).toHaveLength(0)
+
+    release()
+    await settle()
+
+    expect(detail.textContent).toContain('321')
+    expect(detail.querySelector('[data-slot="panel-loading"]')).toBeNull()
+    expect(profileCalls()).toHaveLength(1)
+  })
+
+  it('opens the same detail when a result is picked with the mouse', async () => {
+    searchAnswer = () => ok([option('t-dave', 'DAVE', false)])
+    await open()
+    await typeSearch('dav')
+    results()[0]!.querySelector<HTMLButtonElement>('button')!.click()
+    await settle()
+
+    expect(router.currentRoute.value.query.u).toBe('dave')
+    expect(memberCalls()).toHaveLength(1)
+  })
+
+  it('looks the typed name up on Twitch only when the button is pressed, then shows that person', async () => {
+    memberGate = new Promise<void>(() => undefined)
+    lookupAnswer = () =>
+      ok({
+        id: 't-newbie',
+        login: 'newbie',
+        displayName: 'Newbie',
+        profileImageUrl: null,
+        createdAt: '2026-10-01T00:00:00Z',
+      })
+    await open()
+    await typeSearch('newbie')
+    expect(lookupCalls()).toHaveLength(0)
+
+    lookupButton()!.click()
+    await settle()
+
+    expect(lookupCalls()).toHaveLength(1)
+    expect(lookupCalls()[0]!.query).toMatchObject({ login: 'newbie' })
+    expect(router.currentRoute.value.query.u).toBe('newbie')
+    expect(document.body.querySelector('[data-person-detail]')!.textContent).toContain('Newbie')
+  })
+
+  it('says so when Twitch has no such account and shows no person', async () => {
+    lookupAnswer = () => ({
+      error: { code: 'TWITCH_USER_NOT_FOUND' },
+      response: { status: 404, ok: false },
+    })
+    await open()
+    await typeSearch('ghost')
+    lookupButton()!.click()
+    await settle()
+
+    expect(text()).toContain('Twitch has no account named "ghost".')
+    expect(router.currentRoute.value.query.u).toBeUndefined()
+  })
+
+  it('shows the tab list again when the search is cleared', async () => {
+    await open()
+    await typeSearch('zzz')
+    await typeSearch('')
+
+    expect(rows()).toHaveLength(3)
+    expect(lookupButton()).toBeUndefined()
   })
 
   it('shows an error with a retry when the bot refuses the list, not an empty list', async () => {
@@ -284,14 +499,18 @@ describe('PeopleView', () => {
     await open()
 
     expect(rows()).toHaveLength(0)
-    expect(document.body.querySelector('[data-slot="panel-error"]')?.textContent).toContain('The people list could not load.')
+    expect(document.body.querySelector('[data-slot="panel-error"]')?.textContent).toContain(
+      'The people list could not load.',
+    )
   })
 
   it('says the list is empty when the bot has seen nobody', async () => {
     listAnswer = () => page([], 0)
     await open()
 
-    expect(document.body.querySelector('[data-slot="panel-empty"]')?.textContent).toContain('has not seen anyone')
+    expect(document.body.querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
+      'has not seen anyone',
+    )
   })
 
   it('gives the Subscribers and Regulars tabs an honest reason instead of a list', async () => {

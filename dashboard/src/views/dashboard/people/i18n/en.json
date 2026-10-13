@@ -4,7 +4,7 @@
       "title": "People",
       "crumb": "Community",
       "search": "Search people",
-      "count": "{count} people",
+      "count": "{count} person | {count} people",
       "noMatch": "Nobody matches \"{query}\".",
       "back": "Back to the list",
       "tabs": {
@@ -23,6 +23,11 @@
         "regular": "People who come back stream after stream.",
         "new": "People first seen in the last 90 days, from the pages loaded so far."
       },
+      "lookup": {
+        "button": "Look up on Twitch",
+        "notFound": "Twitch has no account named \"{login}\".",
+        "error": "Twitch could not be asked. Try again."
+      },
       "list": {
         "label": "People",
         "title": "People",
@@ -30,6 +35,7 @@
         "error": "The people list could not load.",
         "more": "Load more people",
         "lastSeen": "Last seen {ago}",
+        "notInChannel": "Not in this channel",
         "banned": "Banned",
         "roles": {
           "moderator": "Moderator",
