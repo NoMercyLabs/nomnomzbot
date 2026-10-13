@@ -122,7 +122,19 @@
   width: 14px;
   height: 14px;
 }
+/* On is full-tone foreground, not the accent: a list of switches would spend the one accent on every row. */
+[data-slot='switch'][data-state='checked'] {
+  background: var(--foreground);
+}
+[data-slot='switch'][data-state='unchecked'] {
+  background: var(--muted);
+  border-color: var(--input);
+}
+[data-slot='switch-thumb'][data-state='unchecked'] {
+  background: var(--muted-foreground);
+}
 [data-slot='switch-thumb'][data-state='checked'] {
+  background: var(--background);
   translate: 16px 0;
 }
 
