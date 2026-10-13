@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Net;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -56,15 +57,35 @@ public sealed class EdgeTtsProvider : ITtsProvider
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<EdgeTtsProvider> _logger;
 
+    /// <summary>Handshake tries per synthesis; Microsoft refuses roughly a third of them at random.</summary>
+    private const int MaxConnectAttempts = 3;
+
+    private readonly Func<ClientWebSocket, Uri, CancellationToken, Task> _connect;
+
     public EdgeTtsProvider(
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
         ILogger<EdgeTtsProvider> logger
     )
+        : this(
+            timeProvider,
+            httpClientFactory,
+            logger,
+            static (ws, url, ct) => ws.ConnectAsync(url, ct)
+        ) { }
+
+    /// <summary>Test seam: lets a test drive the handshake result without the network.</summary>
+    internal EdgeTtsProvider(
+        TimeProvider timeProvider,
+        IHttpClientFactory httpClientFactory,
+        ILogger<EdgeTtsProvider> logger,
+        Func<ClientWebSocket, Uri, CancellationToken, Task> connect
+    )
     {
         _timeProvider = timeProvider;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _connect = connect;
     }
 
     public Task<TtsSynthesisResult> SynthesizeAsync(
@@ -99,44 +120,12 @@ public sealed class EdgeTtsProvider : ITtsProvider
         CancellationToken cancellationToken
     )
     {
-        string connectionId = Guid.NewGuid().ToString("N");
-
-        // Microsoft now rejects the handshake without a Sec-MS-GEC token proving the caller holds the
-        // trusted client token as of a recent 5-minute window (see rany2/edge-tts#290) — without it every
-        // connection 403s, the provider swallows that as an empty result, and TTS silently stops working.
-        string url =
-            $"wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1"
-            + $"?TrustedClientToken={TrustedToken}"
-            + $"&Sec-MS-GEC={GenerateSecMsGecToken()}"
-            + $"&Sec-MS-GEC-Version={SecMsGecVersion}"
-            + $"&ConnectionId={connectionId}";
-
-        using ClientWebSocket ws = new();
-        // Full browser-fingerprint header set — Microsoft's edge WAF 403s the handshake if any of these
-        // are missing or if User-Agent's Chrome/Edg version doesn't match Sec-MS-GEC-Version above.
-        ws.Options.SetRequestHeader("Pragma", "no-cache");
-        ws.Options.SetRequestHeader("Cache-Control", "no-cache");
-        ws.Options.SetRequestHeader(
-            "Origin",
-            "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
-        );
-        ws.Options.SetRequestHeader("Accept-Encoding", "gzip, deflate, br, zstd");
-        ws.Options.SetRequestHeader("Accept-Language", "en-US,en;q=0.9");
-        ws.Options.SetRequestHeader("User-Agent", UserAgent);
-        ws.Options.SetRequestHeader(
-            "Cookie",
-            $"muid={Convert.ToHexString(RandomNumberGenerator.GetBytes(16))};"
-        );
-
-        try
-        {
-            await ws.ConnectAsync(new(url), cancellationToken);
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogError(ex, "Edge TTS: Failed to connect");
+        EdgeConnection? connection = await ConnectWithRetryAsync(cancellationToken);
+        if (connection is null)
             return EmptyResult(voiceId);
-        }
+
+        using ClientWebSocket ws = connection.Socket;
+        string connectionId = connection.ConnectionId;
 
         // Send configuration
         string configMsg = BuildConfigMessage(connectionId);
@@ -231,6 +220,110 @@ public sealed class EdgeTtsProvider : ITtsProvider
             ContentHash = hash,
         };
     }
+
+    /// <summary>
+    /// Opens the read-aloud WebSocket. Microsoft refuses the handshake with 403 at random, even inside one
+    /// Sec-MS-GEC window, so a refused try is repeated on a brand-new socket (new ConnectionId, GEC token and
+    /// muid cookie), as upstream edge-tts does. Any other failure ends at once. Returns null when it gave up.
+    /// </summary>
+    internal async Task<EdgeConnection?> ConnectWithRetryAsync(CancellationToken cancellationToken)
+    {
+        for (int attempt = 1; attempt <= MaxConnectAttempts; attempt++)
+        {
+            string connectionId = Guid.NewGuid().ToString("N");
+
+            // Microsoft rejects the handshake without a Sec-MS-GEC token proving the caller holds the
+            // trusted client token as of a recent 5-minute window (see rany2/edge-tts#290).
+            Uri url = new(
+                $"wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1"
+                    + $"?TrustedClientToken={TrustedToken}"
+                    + $"&Sec-MS-GEC={GenerateSecMsGecToken()}"
+                    + $"&Sec-MS-GEC-Version={SecMsGecVersion}"
+                    + $"&ConnectionId={connectionId}"
+            );
+
+            ClientWebSocket ws = CreateSocket();
+            try
+            {
+                await _connect(ws, url, cancellationToken);
+                return new(ws, connectionId);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                bool refused = IsHandshakeRefused(ws, ex);
+                ws.Dispose();
+
+                if (!refused)
+                {
+                    _logger.LogError(ex, "Edge TTS: Failed to connect");
+                    return null;
+                }
+
+                if (attempt == MaxConnectAttempts)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Edge TTS: Failed to connect, Microsoft refused all {Attempts} handshakes",
+                        MaxConnectAttempts
+                    );
+                    return null;
+                }
+
+                _logger.LogWarning(
+                    "Edge TTS: handshake refused with 403 (try {Attempt} of {Max}); retrying",
+                    attempt,
+                    MaxConnectAttempts
+                );
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(250 * attempt),
+                    _timeProvider,
+                    cancellationToken
+                );
+            }
+            catch
+            {
+                ws.Dispose();
+                throw;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsHandshakeRefused(ClientWebSocket ws, Exception ex) =>
+        ws.HttpStatusCode == HttpStatusCode.Forbidden
+        || (
+            ex is WebSocketException
+            && (
+                ex.Message.Contains("'403'", StringComparison.Ordinal)
+                || ex.InnerException?.Message.Contains("403", StringComparison.Ordinal) == true
+            )
+        );
+
+    private static ClientWebSocket CreateSocket()
+    {
+        ClientWebSocket ws = new();
+        ws.Options.CollectHttpResponseDetails = true;
+        // Full browser-fingerprint header set — Microsoft's edge WAF 403s the handshake if any of these
+        // are missing or if User-Agent's Chrome/Edg version doesn't match Sec-MS-GEC-Version.
+        ws.Options.SetRequestHeader("Pragma", "no-cache");
+        ws.Options.SetRequestHeader("Cache-Control", "no-cache");
+        ws.Options.SetRequestHeader(
+            "Origin",
+            "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
+        );
+        ws.Options.SetRequestHeader("Accept-Encoding", "gzip, deflate, br, zstd");
+        ws.Options.SetRequestHeader("Accept-Language", "en-US,en;q=0.9");
+        ws.Options.SetRequestHeader("User-Agent", UserAgent);
+        ws.Options.SetRequestHeader(
+            "Cookie",
+            $"muid={Convert.ToHexString(RandomNumberGenerator.GetBytes(16))};"
+        );
+        return ws;
+    }
+
+    /// <summary>An open read-aloud socket and the ConnectionId its handshake carried.</summary>
+    internal sealed record EdgeConnection(ClientWebSocket Socket, string ConnectionId);
 
     /// <summary>
     /// The full live Edge read-aloud voice list (300+ voices — full external-API coverage). Any fetch or
