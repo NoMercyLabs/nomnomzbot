@@ -58,7 +58,7 @@ withDefaults(
     <div
       v-if="$slots.trailing"
       data-slot="summary-row-trailing"
-      class="flex shrink-0 items-center pr-3 [&_[data-variant=ghost]]:-mr-2.5 [&_[data-variant=ghost][data-size^=icon]]:-mr-2"
+      class="flex shrink-0 items-center gap-2 pr-3 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
     >
       <slot name="trailing" />
     </div>

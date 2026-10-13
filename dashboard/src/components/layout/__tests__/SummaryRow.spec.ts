@@ -68,7 +68,19 @@ describe('summary row visual balance', () => {
     const trailing = wrapper.find('[data-slot="summary-row-trailing"]');
 
     expect(trailing.classes()).toContain('pr-3');
-    expect(trailing.classes()).toContain('[&_[data-variant=ghost]]:-mr-2.5');
-    expect(trailing.classes()).toContain('[&_[data-variant=ghost][data-size^=icon]]:-mr-2');
+    expect(trailing.classes()).toContain(endGhost);
+    expect(trailing.classes()).toContain('[&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2');
+  });
+
+  it('spaces two trailing buttons apart and pulls in only the last ghost one', () => {
+    const wrapper = mountRow({
+      trailing: '<button data-variant="ghost">Poll</button><button data-variant="ghost">Prediction</button>',
+    });
+    const classes = wrapper.find('[data-slot="summary-row-trailing"]').classes();
+
+    expect(classes).toContain('gap-2');
+
+    expect(classes.filter((name) => name.includes('-mr-'))
+      .every((name) => name.includes(':last-child]'))).toBe(true);
   });
 });
