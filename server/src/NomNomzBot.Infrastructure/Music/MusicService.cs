@@ -60,6 +60,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IUserIdentityService _identities;
     private readonly IForeignLinkTitleLookup _linkTitles;
+    private readonly RefusedSongRequestStore _refused;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -75,9 +76,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         INowPlayingCache nowPlayingCache,
         IOutboundSanctionAccessor sanctions,
         IUserIdentityService identities,
-        IForeignLinkTitleLookup linkTitles
+        IForeignLinkTitleLookup linkTitles,
+        RefusedSongRequestStore? refused = null
     )
     {
+        _refused = refused ?? new();
         _linkTitles = linkTitles;
         _providers = providers;
         _db = db;
@@ -657,24 +660,94 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             requesterRoleLevel
         );
         if (enqueued.IsFailure)
+        {
+            RememberIfHeldByALimit(
+                broadcasterId,
+                trackInfo,
+                requestedBy,
+                requesterUserId,
+                enqueued
+            );
             return Result.Failure<MusicTrack>(
                 enqueued.ErrorMessage!,
                 enqueued.ErrorCode,
                 enqueued.ErrorDetail,
                 enqueued.ErrorData
             );
+        }
 
-        return Result.Success(
-            new MusicTrack(
-                trackInfo.TrackUri,
-                trackInfo.TrackName,
-                trackInfo.Artist,
-                trackInfo.Album,
-                trackInfo.AlbumArtUrl,
-                trackInfo.DurationMs,
-                trackInfo.Provider
-            )
+        return Result.Success(ToMusicTrack(trackInfo));
+    }
+
+    public async Task<Result<MusicTrack>> AdmitPermittedRequestAsync(
+        string broadcasterId,
+        string requestedBy,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId<MusicTrack>();
+
+        RefusedSongRequest? held = _refused.Take(broadcasterId, requestedBy);
+        if (held is null)
+            return Result.Failure<MusicTrack>(
+                "No song request is waiting for permission.",
+                "NO_PENDING_REQUEST"
+            );
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider<MusicTrack>();
+
+        // Only the limit that held the request is skipped; the blocklist and the duplicate gate still apply.
+        Result enqueued = await EnqueueResolvedAsync(
+            tenantId,
+            broadcasterId,
+            provider,
+            held.Track,
+            held.RequestedBy,
+            cancellationToken,
+            held.RequesterUserId,
+            admittedByPermission: true
         );
+        return enqueued.IsFailure
+            ? Result.Failure<MusicTrack>(
+                enqueued.ErrorMessage!,
+                enqueued.ErrorCode,
+                enqueued.ErrorDetail,
+                enqueued.ErrorData
+            )
+            : Result.Success(ToMusicTrack(held.Track));
+    }
+
+    private static MusicTrack ToMusicTrack(TrackInfo trackInfo) =>
+        new(
+            trackInfo.TrackUri,
+            trackInfo.TrackName,
+            trackInfo.Artist,
+            trackInfo.Album,
+            trackInfo.AlbumArtUrl,
+            trackInfo.DurationMs,
+            trackInfo.Provider
+        );
+
+    /// <summary>Keeps a request a limit refused, so a moderator's <c>!permit</c> can admit it without a new search.</summary>
+    private void RememberIfHeldByALimit(
+        string broadcasterId,
+        TrackInfo trackInfo,
+        string? requestedBy,
+        string? requesterUserId,
+        Result refusal
+    )
+    {
+        if (
+            requestedBy is not null
+            && refusal.ErrorCode is "TRACK_TOO_LONG" or "QUEUE_FULL" or "PER_USER_LIMIT"
+        )
+            _refused.Remember(
+                broadcasterId,
+                new(requestedBy, requesterUserId, trackInfo, refusal.ErrorCode!)
+            );
     }
 
     /// <summary>
@@ -806,7 +879,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string? requestedBy,
         CancellationToken cancellationToken,
         string? requesterUserId = null,
-        int? requesterRoleLevel = null
+        int? requesterRoleLevel = null,
+        bool admittedByPermission = false
     )
     {
         string trackUri = trackInfo.TrackUri;
@@ -821,7 +895,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         // Broadcaster and moderators are trusted operators: like a command cooldown, the length, queue and
         // per-user limits exist to stop viewer abuse and never hold them (same ladder rung as the cooldown).
-        bool isOperator = IsOperator(requesterRoleLevel);
+        // A moderator's !permit admits a held request the same way: it skips only the limits (never the blocklist).
+        bool isOperator = admittedByPermission || IsOperator(requesterRoleLevel);
 
         // Length cap (legacy parity): a track over ten minutes never reaches the fair queue.
         if (!isOperator && trackInfo.DurationMs > MaxTrackDurationMs)
@@ -854,7 +929,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             );
             int perUserCap = EffectivePerUserCap(config, requesterRoleLevel);
             // An operator is held only by a cap the channel set for a role rung on purpose.
-            bool capApplies = !isOperator || config.MaxRequestsPerRole is { Count: > 0 };
+            bool capApplies =
+                !admittedByPermission
+                && (!isOperator || config.MaxRequestsPerRole is { Count: > 0 });
             if (capApplies && ownedCount >= perUserCap)
                 return Result.Failure(
                     $"You already have {perUserCap} request(s) queued — wait for one to play before adding more.",

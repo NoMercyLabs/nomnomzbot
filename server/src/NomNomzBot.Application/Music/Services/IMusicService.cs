@@ -106,6 +106,18 @@ public interface IMusicService
         string? requesterUserId = null
     );
 
+    /// <summary>
+    /// Admits the request a limit (track length, queue size, per-viewer cap) refused for
+    /// <paramref name="requestedBy"/> within the last 15 minutes, skipping only that limit. The blocklist and
+    /// the duplicate gate still apply. Fails <c>NO_PENDING_REQUEST</c> when none is held or it expired. The
+    /// caller (a moderator's or the broadcaster's <c>!permit</c>) has already been authorized.
+    /// </summary>
+    Task<Result<MusicTrack>> AdmitPermittedRequestAsync(
+        string broadcasterId,
+        string requestedBy,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Set the playback volume (0-100). Gated on <c>Volume</c>; fails <c>VALIDATION_FAILED</c> out of range,
     /// <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> per music-sr.md §3.1.</summary>
     Task<Result> SetVolumeAsync(

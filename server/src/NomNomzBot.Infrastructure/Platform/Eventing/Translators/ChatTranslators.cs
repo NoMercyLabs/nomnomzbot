@@ -256,6 +256,7 @@ public sealed class ChannelChatMessageTranslator(
             ReplyParentMessageBody = reply?.GetString("parent_message_body"),
             ReplyParentUserName = reply?.GetString("parent_user_name"),
             ReplyParentUserLogin = reply?.GetString("parent_user_login"),
+            ReplyThreadUserName = reply?.GetString("thread_user_name"),
         };
 
         await PublishAsync(received, ct);
