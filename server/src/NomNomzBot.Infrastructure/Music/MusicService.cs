@@ -819,8 +819,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
             );
 
+        // Broadcaster and moderators are trusted operators: like a command cooldown, the length, queue and
+        // per-user limits exist to stop viewer abuse and never hold them (same ladder rung as the cooldown).
+        bool isOperator = IsOperator(requesterRoleLevel);
+
         // Length cap (legacy parity): a track over ten minutes never reaches the fair queue.
-        if (trackInfo.DurationMs > MaxTrackDurationMs)
+        if (!isOperator && trackInfo.DurationMs > MaxTrackDurationMs)
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" exceeds the maximum allowed duration of 10 minutes.",
                 "TRACK_TOO_LONG",
@@ -837,7 +841,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
                 queue.GetSnapshot();
-            if (snapshot.Count >= config.MaxQueueSize)
+            if (!isOperator && snapshot.Count >= config.MaxQueueSize)
                 return Result.Failure(
                     $"The queue is full ({config.MaxQueueSize} max) — try again once it's shorter.",
                     "QUEUE_FULL",
@@ -849,7 +853,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 string.Equals(e.OwnerKey, ownerKey, StringComparison.OrdinalIgnoreCase)
             );
             int perUserCap = EffectivePerUserCap(config, requesterRoleLevel);
-            if (ownedCount >= perUserCap)
+            // An operator is held only by a cap the channel set for a role rung on purpose.
+            bool capApplies = !isOperator || config.MaxRequestsPerRole is { Count: > 0 };
+            if (capApplies && ownedCount >= perUserCap)
                 return Result.Failure(
                     $"You already have {perUserCap} request(s) queued — wait for one to play before adding more.",
                     "PER_USER_LIMIT",
@@ -1335,6 +1341,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             ["moderator"] = PermissionLevel.Moderator,
             ["broadcaster"] = PermissionLevel.Broadcaster,
         };
+
+    /// <summary>True for the moderator rung and everything above it, broadcaster included. A caller with
+    /// no level (the dashboard, the public page) is not an operator here.</summary>
+    private static bool IsOperator(int? requesterRoleLevel) =>
+        requesterRoleLevel is { } level && level >= PermissionLevel.Moderator.ToLevelValue();
 
     /// <summary>
     /// The most requests one person may have queued: the highest cap among the role rungs their level
