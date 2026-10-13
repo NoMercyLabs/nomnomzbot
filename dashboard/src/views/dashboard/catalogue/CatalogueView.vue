@@ -16,6 +16,7 @@ import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import FilterBar,{ type FilterOption } from '@/components/layout/FilterBar.vue'
+import FormDialog from '@/components/layout/FormDialog.vue'
 import InlineFlow from '@/components/layout/InlineFlow.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import ListDetail from '@/components/layout/ListDetail.vue'
@@ -30,6 +31,8 @@ import StatTile from '@/components/layout/StatTile.vue'
 import StatusBadge from '@/components/layout/StatusBadge.vue'
 import SummaryRow from '@/components/layout/SummaryRow.vue'
 import { Button } from '@/components/ui/button'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { usePageView } from '@/composables/usePageView'
 
 const { t } = useI18n()
@@ -68,6 +71,30 @@ const confirmed: Ref<number> = ref(0)
 const consequences: string[] = ['chat', 'pipeline', 'history'].map((key: string) =>
   t(`dashboard.catalogue.confirm.${key}`),
 )
+
+const formOpen: Ref<boolean> = ref(false)
+const formPending: Ref<boolean> = ref(false)
+const formName: Ref<string> = ref('')
+const formNameError: Ref<string | undefined> = ref(undefined)
+const formServerError: Ref<string | undefined> = ref(undefined)
+const formCreated: Ref<string[]> = ref([])
+
+function submitForm(): void {
+  formServerError.value = undefined
+  formNameError.value = formName.value.trim() === '' ? t('dashboard.catalogue.form.nameMissing') : undefined
+  if (formNameError.value) return
+  formPending.value = true
+  setTimeout(() => {
+    formPending.value = false
+    if (formName.value.trim() === 'so') {
+      formServerError.value = t('dashboard.catalogue.form.nameTaken')
+      return
+    }
+    formCreated.value.push(formName.value.trim())
+    formName.value = ''
+    formOpen.value = false
+  }, 800)
+}
 
 function pause(): Promise<void> {
   return new Promise((resolve: () => void) => setTimeout(resolve, 900))
@@ -152,6 +179,33 @@ function confirmDelete(): void {
             :pending="confirmPending"
             @confirm="confirmDelete"
           />
+
+          <div class="flex items-center gap-4">
+            <Button variant="outline" @click="formOpen = true">{{ t('dashboard.catalogue.form.open') }}</Button>
+            <span class="text-sm text-muted-foreground">
+              {{ t('dashboard.catalogue.form.count', { count: formCreated.length }) }}
+            </span>
+          </div>
+          <FormDialog
+            v-model:open="formOpen"
+            :title="t('dashboard.catalogue.form.title')"
+            :description="t('dashboard.catalogue.form.description')"
+            :action="t('dashboard.catalogue.form.action')"
+            :pending="formPending"
+            :error="formServerError"
+            @submit="submitForm"
+          >
+            <Field :data-invalid="formNameError ? true : undefined">
+              <FieldLabel for="catalogue-command-name">{{ t('dashboard.catalogue.form.name') }}</FieldLabel>
+              <Input
+                id="catalogue-command-name"
+                v-model="formName"
+                :aria-invalid="formNameError ? true : undefined"
+                :placeholder="t('dashboard.catalogue.form.namePlaceholder')"
+              />
+              <FieldError v-if="formNameError">{{ formNameError }}</FieldError>
+            </Field>
+          </FormDialog>
 
           <PanelCard :title="t('dashboard.catalogue.flow.title')" pad>
             <div class="flex flex-col items-start gap-3">

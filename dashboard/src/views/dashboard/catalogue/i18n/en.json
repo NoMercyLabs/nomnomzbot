@@ -60,6 +60,17 @@
         "pipeline": "Its pipeline stays in Pipelines and keeps working elsewhere.",
         "history": "Past uses stay in the history."
       },
+      "form": {
+        "open": "New command",
+        "count": "Created {count} commands",
+        "title": "New command",
+        "description": "Give the command a name. You add its answer on the next screen.",
+        "action": "Create command",
+        "name": "Command name",
+        "namePlaceholder": "For example so",
+        "nameMissing": "Give the command a name.",
+        "nameTaken": "A command named so already exists."
+      },
       "flow": {
         "title": "Inline flow",
         "confirm": {
