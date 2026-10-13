@@ -1,0 +1,24 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+const UNITS = [
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+  ['second', 1],
+] as const satisfies readonly (readonly [Intl.NumberFormatOptions['unit'], number])[]
+
+// A length in its largest whole unit, in the reader's language: "45 sec", "10 min", "14 days".
+export function formatLength(seconds: number, locale: string): string {
+  const [unit, size] = UNITS.find(([, unitSeconds]) => seconds >= unitSeconds) ?? UNITS[3]
+  const format = new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short' })
+
+  return format.format(Math.round(seconds / size))
+}

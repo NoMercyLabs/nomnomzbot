@@ -54,6 +54,7 @@ describe('the list and detail layout', () => {
     const wrapper: VueWrapper = mount(ListDetail, { props: { showDetail: true }, slots })
 
     expect(wrapper.find('[data-slot="list-detail-list"]').classes()).toContain('max-md:hidden')
+
     expect(wrapper.find('[data-slot="list-detail-detail"]').classes()).not.toContain(
       'max-md:hidden',
     )
@@ -63,6 +64,7 @@ describe('the list and detail layout', () => {
     expect(mount(ListDetail, { slots }).find('[data-slot="list-detail-aside"]').exists()).toBe(
       false,
     )
+
     const withAside: VueWrapper = mount(ListDetail, { slots: { ...slots, aside: '<p>aside</p>' } })
 
     expect(withAside.find('[data-slot="list-detail-aside"]').text()).toBe('aside')
@@ -86,7 +88,9 @@ describe('the page header', () => {
     expect(plain.find('[data-slot="page-crumb"]').exists()).toBe(false)
     expect(plain.find('u').exists()).toBe(false)
     expect(full.find('[data-slot="page-crumb"]').text()).toBe('Channel')
+
     expect(full.text()).toContain('Updated now')
+
     ;['i', 'b', 'u'].forEach((tag: string) => expect(full.find(tag).exists()).toBe(true))
   })
 

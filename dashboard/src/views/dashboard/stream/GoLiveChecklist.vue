@@ -62,6 +62,7 @@ const checks: ComputedRef<Check[]> = computed(() => {
           : 'dashboard.stream.checklist.titleMissing',
       ),
     })
+
     const tagCount = info.tags?.length ?? 0
 
     list.push({

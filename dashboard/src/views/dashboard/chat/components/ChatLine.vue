@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatLength } from '@/lib/time'
 import { useProfileDialogStore } from '@/stores/profileDialog'
 
 const LENGTHS: readonly number[] = [60, 600, 3600, 86400]
@@ -41,7 +42,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ ban: [line: ChatLine] }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const timeouts = useTimeoutUser(() => props.channelId)
 const deletes = useDeleteChatMessage(() => props.channelId)
 const profile = useProfileDialogStore()
@@ -49,6 +50,21 @@ const profile = useProfileDialogStore()
 const time: ComputedRef<string> = computed(() =>
   new Date(props.line.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
 )
+
+// A timeout or ban says what happened, with the timeout's length; other removals only strike the line.
+const removal: ComputedRef<string | null> = computed(() => {
+  const { removed, timeoutSeconds } = props.line
+
+  if (removed === 'banned') {
+    return t('dashboard.chat.line.banned')
+  }
+
+  if (removed === 'timeout' && timeoutSeconds !== undefined) {
+    return t('dashboard.chat.line.timedOut', { length: formatLength(timeoutSeconds, locale.value) })
+  }
+
+  return null
+})
 
 async function timeout(seconds: number): Promise<void> {
   try {
@@ -110,6 +126,7 @@ function emoteUrl(urls: Record<string, string>): string | undefined {
         <template v-else>{{ ' ' + fragment.text }}</template>
       </template>
     </p>
+    <span v-if="removal" data-removal class="flex-none text-muted-foreground">{{ removal }}</span>
     <div
       v-if="!line.removed"
       class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center rounded-[12px] border p-0.5 opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 has-data-[state=open]:opacity-100"

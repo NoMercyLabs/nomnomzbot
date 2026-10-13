@@ -168,6 +168,7 @@ const formCreated: Ref<string[]> = ref([])
 
 function submitForm(): void {
   formServerError.value = undefined
+
   formNameError.value =
     formName.value.trim() === ''
       ? t('dashboard.catalog.form.nameMissing')
@@ -176,6 +177,7 @@ function submitForm(): void {
   if (formNameError.value) return
 
   formPending.value = true
+
   setTimeout(() => {
     formPending.value = false
 
@@ -207,15 +209,14 @@ interface DemoRow {
   text: string
 }
 const demoRows: Ref<DemoRow[]> = ref(
-  Array.from({ length: 5000 }, (_: unknown, id: number) =>
-    ({
-      id,
-      text:
+  Array.from({ length: 5000 }, (_: unknown, id: number) => ({
+    id,
+    text:
       t('dashboard.catalog.virtual.row', { number: id + 1 }) +
       (id % 7 === 0
         ? ' ' + t('dashboard.catalog.virtual.long')
         : ''),
-    })),
+  })),
 )
 
 function addDemoRow(): void {
@@ -233,6 +234,7 @@ function pause(): Promise<void> {
 
 function confirmDelete(): void {
   confirmPending.value = true
+
   setTimeout(() => {
     confirmPending.value = false
     confirmOpen.value = false

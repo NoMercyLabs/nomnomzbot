@@ -41,8 +41,7 @@ const http = vi.hoisted(() => ({
   use: (): undefined => undefined,
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
@@ -124,6 +123,7 @@ describe('useCommands', () => {
         ? { data: { data: [row('!a')], hasMore: true, nextPage: 2 }, response: ok }
         : { data: { data: [row('!b')], hasMore: false, nextPage: null }, response: ok }
     })
+
     const { queries } = mount(() => useCommands(channel))
 
     await settle()
@@ -147,10 +147,12 @@ describe('useCommands', () => {
 describe('useUpdateCommand', () => {
   it('sends only the changed fields to the command named in the path, then holds what the bot returns', async () => {
     http.PUT.mockResolvedValue({ data: { data: {} }, response: ok })
+
     http.GET.mockResolvedValue({
       data: { data: [row('!hello', { cooldownSeconds: 30 })], hasMore: false },
       response: ok,
     })
+
     const { queries, hook } = mount(() => useUpdateCommand(channel))
 
     queries.setQueryData(commandsKey(channel), [row('!hello'), row('!other')])
@@ -165,6 +167,7 @@ describe('useUpdateCommand', () => {
     expect(path).toBe('/api/v{version}/channels/{channelId}/commands/{commandName}')
     expect(init.params.path).toEqual({ version: '1', channelId: channel, commandName: '!hello' })
     expect(init.body).toEqual({ cooldownSeconds: 30 })
+
     expect(
       queries.getQueryData<CommandListItem[]>(commandsKey(channel))?.[0]?.cooldownSeconds,
     ).toBe(30)
@@ -175,6 +178,7 @@ describe('useUpdateCommand', () => {
       error: { message: 'Unknown helper {nope}' },
       response: { ok: false, status: 400 },
     })
+
     const { queries, hook, inbox } = mount(() => useUpdateCommand(channel))
 
     queries.setQueryData(commandsKey(channel), [row('!hello', { templateResponse: 'hi' })])
@@ -187,9 +191,11 @@ describe('useUpdateCommand', () => {
     const error = (await pending) as Error
 
     expect(error.message).toBe('Unknown helper {nope}')
+
     expect(
       queries.getQueryData<CommandListItem[]>(commandsKey(channel))?.[0]?.templateResponse,
     ).toBe('hi')
+
     expect(inbox.items).toHaveLength(1)
   })
 
@@ -219,6 +225,7 @@ describe('useToggleCommand', () => {
     expect((http.PUT.mock.calls[0]?.[1] as { body: unknown } | undefined)?.body).toEqual({
       isEnabled: false,
     })
+
     expect(queries.getQueryData<CommandListItem[]>(commandsKey(channel))?.[0]?.isEnabled).toBe(true)
     expect(inbox.items).toHaveLength(1)
   })
@@ -264,6 +271,7 @@ describe('useCreateCommand', () => {
       data: { data: { name: '!new' } },
       response: { ok: true, status: 201 },
     })
+
     const { queries, hook } = mount(() => useCreateCommand(channel))
 
     queries.setQueryData(commandsKey(channel), [row('!a')])
@@ -275,6 +283,7 @@ describe('useCreateCommand', () => {
       tier: 'template',
       templateResponse: 'yo',
     })
+
     expect(queries.getQueryState(commandsKey(channel))?.isInvalidated).toBe(true)
   })
 
@@ -283,6 +292,7 @@ describe('useCreateCommand', () => {
       error: { message: 'A command named !new already exists' },
       response: { ok: false, status: 409 },
     })
+
     const { queries, hook } = mount(() => useCreateCommand(channel))
 
     queries.setQueryData(commandsKey(channel), [row('!new')])
@@ -290,6 +300,7 @@ describe('useCreateCommand', () => {
     await expect(
       hook.mutateAsync({ name: '!new', tier: 'template', templateResponse: 'yo' }),
     ).rejects.toThrow('A command named !new already exists')
+
     expect(queries.getQueryState(commandsKey(channel))?.isInvalidated).toBe(false)
   })
 })
@@ -324,6 +335,7 @@ describe('built-in commands', () => {
       error: { message: 'locked' },
       response: { ok: false, status: 400 },
     })
+
     const { queries, hook, inbox } = mount(() => useToggleBuiltin(channel))
 
     queries.setQueryData(builtinsKey(channel), [builtin])
@@ -350,6 +362,7 @@ describe('usePipelines', () => {
       data: { data: [{ id: 'p1', name: 'Shout' }], hasMore: false },
       response: ok,
     })
+
     const { queries } = mount(() => usePipelines(channel))
 
     await settle()
@@ -357,6 +370,7 @@ describe('usePipelines', () => {
     expect(queries.getQueryData<{ id: string }[]>(pipelinesKey(channel))?.map((p) => p.id)).toEqual(
       ['p1'],
     )
+
     expect(http.GET.mock.calls[0]?.[0]).toBe('/api/v{version}/channels/{channelId}/pipelines')
   })
 })

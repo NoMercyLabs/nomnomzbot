@@ -339,6 +339,18 @@
    "covers": []
   },
   {
+   "id": "dashboard-merge-not-spread",
+   "paths": [
+    "**/dashboard/src/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "Join lists with `merge(a, b, c)` from `@/lib/array`, never `[...a, ...b]`. It returns a new read-only list and keeps tuple positions typed for `as const` input. ESLint `no-restricted-syntax` flags an array that starts with two spreads.",
+   "source": "Stoney 2026-10-13: \"turn [...channelHandlers, ...communityHandlers, ...chatHandlers] into merge(channelHandlers, communityHandlers, chatHandlers) and return as const if possible\"",
+   "covers": []
+  },
+  {
    "id": "license-header-required",
    "paths": [
     "**/server/**/*.cs",

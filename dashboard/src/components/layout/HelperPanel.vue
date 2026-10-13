@@ -35,7 +35,7 @@ const helpers = useTemplateHelpers(
   () => props.eventType,
 )
 const query = ref('')
-const shown = computed<TemplateHelper[]>(() =>
+const shown = computed<readonly TemplateHelper[]>(() =>
   filterHelpers(helpers.data.value ?? [], query.value.trim()),
 )
 const groups = computed(() => groupHelpers(shown.value))

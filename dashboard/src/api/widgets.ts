@@ -72,6 +72,7 @@ async function readWidgets(channelId: string): Promise<Widget[]> {
       throw failed('widgets', response.status)
 
     widgets.push(...(data?.data ?? []))
+
     page = data?.hasMore
       ? (numberOrNull(data.nextPage) ?? current + 1)
       : null

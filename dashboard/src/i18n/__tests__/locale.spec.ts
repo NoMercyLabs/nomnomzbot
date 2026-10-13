@@ -39,6 +39,7 @@ describe('switching the language', () => {
       async () => page,
       async (locale: string) => ({ default: pageWords[locale]! }),
     )
+
     expect(i18n.global.t(titleKey)).toBe('Welcome')
 
     await setLocale('nl')
@@ -71,6 +72,7 @@ describe('switching the language', () => {
       async () => page,
       async (locale: string) => ({ default: pageWords[locale]! }),
     )
+
     await starting
 
     expect(i18n.global.t(titleKey)).toBe('Welkom')
@@ -80,6 +82,7 @@ describe('switching the language', () => {
     const { i18n, loadPage, setLocale } = await freshI18n()
 
     await setLocale('nl')
+
     await loadPage(
       async () => page,
       async (locale: string) => {

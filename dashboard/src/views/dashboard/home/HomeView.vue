@@ -12,8 +12,8 @@ import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { useCurrentUser } from '@/api/auth'
 import { useHomeStats, type HomeStats } from '@/api/home'
+import { useStreamHistory } from '@/api/stream'
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import { formatCountdown } from '@/components/layout/formatCountdown'
@@ -22,6 +22,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue'
 import { Button } from '@/components/ui/button'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { useProviderName } from '@/composables/useProviderName'
+import { formatDuration } from '@/views/dashboard/stream/formatDuration'
 
 import ConnectionsPanel from './components/ConnectionsPanel.vue'
 import HappeningPanel from './components/HappeningPanel.vue'
@@ -29,22 +30,16 @@ import NeedsAttentionPanel from './components/NeedsAttentionPanel.vue'
 import QuickActionsPanel from './components/QuickActionsPanel.vue'
 import ReviewQueuePanel from './components/ReviewQueuePanel.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const { channelId } = useCurrentChannel()
-const { data: user } = useCurrentUser()
 const platformName = useProviderName()
 
 const statsQuery = useHomeStats(channelId)
+const historyQuery = useStreamHistory(channelId)
 
 const stats: ComputedRef<HomeStats | null> = computed(() => statsQuery.data.value ?? null)
 const live = computed(() => stats.value?.isLive === true)
-
-const title: ComputedRef<string> = computed(() =>
-  user.value
-    ? t('dashboard.home.greeting', { name: user.value.displayName })
-    : t('dashboard.home.title'),
-)
 
 const statusLabel: ComputedRef<string> = computed(() =>
   live.value
@@ -54,24 +49,41 @@ const statusLabel: ComputedRef<string> = computed(() =>
     : t('dashboard.home.offline'),
 )
 
-const statsLine: ComputedRef<string> = computed(() => {
-  const current = stats.value
+const category = computed(() => stats.value?.gameName ?? '')
+const liveLineKey: ComputedRef<string> = computed(() =>
+  category.value
+    ? 'dashboard.home.liveLineCategory'
+    : 'dashboard.home.liveLine',
+)
+const uptime = computed(() =>
+  formatCountdown(Number(stats.value?.uptime ?? 0)),
+)
 
-  if (current === null)
+// A stream the bot never closed has no end or length, so offline shows nothing rather than a guess.
+const lastStream = computed(() =>
+  historyQuery.data.value?.find((past) => past.endedAt && past.durationSeconds != null),
+)
+
+const lastStreamLine: ComputedRef<string> = computed(() => {
+  const past = lastStream.value
+
+  if (!past?.endedAt)
     return ''
 
-  if (current.isLive)
-    return t('dashboard.home.liveLine', {
-      uptime: formatCountdown(Number(current.uptime ?? 0)),
-      viewers: current.viewerCount,
-      followers: current.followerCount,
-    })
+  const ended = new Date(past.endedAt)
 
-  return t('dashboard.home.offlineLine', {
-    followers: current.followerCount,
-    subscribers: current.subscriberCount,
+  return t('dashboard.home.lastStream', {
+    date: new Intl.DateTimeFormat(locale.value, {
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(ended),
+    length: formatDuration(Number(past.durationSeconds)),
   })
 })
+
+const hasStreamLine = computed(() => live.value || lastStreamLine.value !== '')
 
 // The one primary action follows the stream: chat while live, the stream setup while offline.
 const primaryRoute: ComputedRef<{ name: string; label: string } | null> = computed(() => {
@@ -86,11 +98,28 @@ const primaryRoute: ComputedRef<{ name: string; label: string } | null> = comput
 </script>
 
 <template>
-  <PageHeader :title="title">
+  <PageHeader :title="t('dashboard.home.title')">
     <template #status>
       <StatusBadge :tone="live ? 'ok' : 'off'" :label="statusLabel" />
     </template>
-    <template v-if="statsLine" #meta>{{ statsLine }}</template>
+    <!-- The header's second row holds the stream line, as the mockup's head-bar does. -->
+    <template v-if="hasStreamLine" #tabs>
+      <span data-slot="stream-line" class="text-muted-foreground">
+        <i18n-t v-if="live" :keypath="liveLineKey" scope="global" tag="span">
+          <template #uptime>
+            <b class="font-semibold text-foreground">{{ uptime }}</b>
+          </template>
+          <template #viewers>
+            <b class="font-semibold text-foreground">{{ stats?.viewerCount }}</b>
+          </template>
+          <template #followers>
+            <b class="font-semibold text-foreground">{{ stats?.followerCount }}</b>
+          </template>
+          <template #category>{{ category }}</template>
+        </i18n-t>
+        <template v-else>{{ lastStreamLine }}</template>
+      </span>
+    </template>
     <template v-if="primaryRoute" #actions>
       <Button as-child>
         <RouterLink :to="{ name: primaryRoute.name }">{{ primaryRoute.label }}</RouterLink>

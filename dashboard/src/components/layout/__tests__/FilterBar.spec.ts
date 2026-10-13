@@ -14,11 +14,10 @@ import { describe, expect, it } from 'vitest'
 import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
 
 function options(count: number): FilterOption[] {
-  return Array.from({ length: count }, (_: unknown, index: number) =>
-    ({
-      value: `v${index}`,
-      label: `Option ${index}`,
-    }))
+  return Array.from({ length: count }, (_: unknown, index: number) => ({
+    value: `v${index}`,
+    label: `Option ${index}`,
+  }))
 }
 
 function bar(count: number, modelValue: string = 'v0'): VueWrapper {
@@ -27,7 +26,9 @@ function bar(count: number, modelValue: string = 'v0'): VueWrapper {
 
 describe('the filter bar', () => {
   it('shows 2 to 4 options as a segmented control', () => {
-    ;[2, 3, 4].forEach((count: number) => {
+    ;
+
+    [2, 3, 4].forEach((count: number) => {
       const wrapper = bar(count)
 
       expect(wrapper.find('[data-slot="toggle-group"]').exists()).toBe(true)

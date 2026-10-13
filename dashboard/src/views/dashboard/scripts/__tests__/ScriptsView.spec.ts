@@ -95,95 +95,93 @@ const fixtures = (): Record<string, unknown>[] => [
   script('s4', 'Clip Poster', { isEnabled: false, description: 'Posts new clips' }),
 ]
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, options?: Options): Promise<Answer> => {
-        const id = String(options?.params?.path?.id ?? '')
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, options?: Options): Promise<Answer> => {
+      const id = String(options?.params?.path?.id ?? '')
 
-        calls.push({ method: 'GET', path, body: undefined, id })
+      calls.push({ method: 'GET', path, body: undefined, id })
 
-        if (refused)
-          return {
-            error: { message: REFUSAL },
-            response: { status: 403, ok: false },
-          }
-
-        if (path.endsWith('/test-triggers'))
-          return {
-            data: {
-              data: [
-                {
-                  id: 'tr1',
-                  responseKey: 'channel.follow',
-                  userDisplayName: 'sample_viewer',
-                  variables: { user: 'sample_viewer' },
-                },
-              ],
-            },
-            response: { status: 200, ok: true },
-          }
-
-        if (path.endsWith('/blast-radius'))
-          return { data: { data: blast }, response: { status: 200, ok: true } }
-
-        if (path.endsWith('/code-scripts/{id}')) {
-          const row = scripts.find((one) => one.id === id)
-
-          return { data: { data: { ...row, ...detailExtra } }, response: { status: 200, ok: true } }
+      if (refused)
+        return {
+          error: { message: REFUSAL },
+          response: { status: 403, ok: false },
         }
 
-        return { data: { data: scripts }, response: { status: 200, ok: true } }
-      },
-      POST: async (path: string, options?: Options): Promise<Answer> => {
-        const id = String(options?.params?.path?.id ?? '')
-
-        calls.push({ method: 'POST', path, body: options?.body, id })
-
-        if (path.endsWith('/test-run')) {
-          if (testLimited)
-            return {
-              error: { message: 'Too many tests' },
-              response: { status: 429, ok: false, headers: new Headers({ 'Retry-After': '30' }) },
-            }
-
-          return {
-            data: { data: testResult },
-            response: { status: 200, ok: true, headers: new Headers() },
-          }
+      if (path.endsWith('/test-triggers'))
+        return {
+          data: {
+            data: [
+              {
+                id: 'tr1',
+                responseKey: 'channel.follow',
+                userDisplayName: 'sample_viewer',
+                variables: { user: 'sample_viewer' },
+              },
+            ],
+          },
+          response: { status: 200, ok: true },
         }
 
-        return { data: { data: { id: 'new1' } }, response: { status: 200, ok: true } }
-      },
-      DELETE: async (path: string, options?: Options): Promise<Answer> => {
-        const id = String(options?.params?.path?.id)
+      if (path.endsWith('/blast-radius'))
+        return { data: { data: blast }, response: { status: 200, ok: true } }
 
-        calls.push({ method: 'DELETE', path, body: undefined, id })
-        scripts = scripts.filter((row) => row.id !== id)
+      if (path.endsWith('/code-scripts/{id}')) {
+        const row = scripts.find((one) => one.id === id)
 
-        return { data: { data: null }, response: { status: 200, ok: true } }
-      },
-      PATCH: async (path: string, options?: Options): Promise<Answer> => {
-        const id = String(options?.params?.path?.id)
+        return { data: { data: { ...row, ...detailExtra } }, response: { status: 200, ok: true } }
+      }
 
-        calls.push({ method: 'PATCH', path, body: options?.body, id })
-        const body = options?.body as Record<string, unknown>
-
-        scripts = scripts.map((row) =>
-          row.id === id
-            ? { ...row, ...body }
-            : row)
-
-        return { data: { data: null }, response: { status: 200, ok: true } }
-      },
+      return { data: { data: scripts }, response: { status: 200, ok: true } }
     },
-  }))
+    POST: async (path: string, options?: Options): Promise<Answer> => {
+      const id = String(options?.params?.path?.id ?? '')
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+      calls.push({ method: 'POST', path, body: options?.body, id })
+
+      if (path.endsWith('/test-run')) {
+        if (testLimited)
+          return {
+            error: { message: 'Too many tests' },
+            response: { status: 429, ok: false, headers: new Headers({ 'Retry-After': '30' }) },
+          }
+
+        return {
+          data: { data: testResult },
+          response: { status: 200, ok: true, headers: new Headers() },
+        }
+      }
+
+      return { data: { data: { id: 'new1' } }, response: { status: 200, ok: true } }
+    },
+    DELETE: async (path: string, options?: Options): Promise<Answer> => {
+      const id = String(options?.params?.path?.id)
+
+      calls.push({ method: 'DELETE', path, body: undefined, id })
+      scripts = scripts.filter((row) => row.id !== id)
+
+      return { data: { data: null }, response: { status: 200, ok: true } }
+    },
+    PATCH: async (path: string, options?: Options): Promise<Answer> => {
+      const id = String(options?.params?.path?.id)
+
+      calls.push({ method: 'PATCH', path, body: options?.body, id })
+      const body = options?.body as Record<string, unknown>
+
+      scripts = scripts.map((row) =>
+        row.id === id
+          ? { ...row, ...body }
+          : row)
+
+      return { data: { data: null }, response: { status: 200, ok: true } }
+    },
+  },
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -195,6 +193,7 @@ beforeEach(() => {
   refused = false
   testResult = WORKED
   testLimited = false
+
   blast = {
     categories: [
       { categoryKey: 'dashboard.scripts.blast.pipelines', count: 2, sample: ['Raid flow', 'Hype'] },
@@ -203,6 +202,7 @@ beforeEach(() => {
     isMinimum: false,
     totalReferences: 3,
   }
+
   detailExtra = {
     language: 'typescript',
     currentVersionId: 'v1',
@@ -211,6 +211,7 @@ beforeEach(() => {
       declaredCapabilities: ['chat.send', 'variables.write'],
     },
   }
+
   scripts = fixtures()
   pinia = createPinia()
   setActivePinia(pinia)
@@ -237,7 +238,9 @@ async function open(url: string = '/app/scripts'): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/scripts', name: 'dashboard-scripts', component: blank }],
   })
+
   await router.push(url)
+
   mounted = mount(ScriptsView, {
     attachTo: document.body,
     global: {
@@ -252,6 +255,7 @@ async function open(url: string = '/app/scripts'): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -364,6 +368,7 @@ describe('ScriptsView', () => {
 
     expect(dialog).toContain('2 pipelines')
     expect(dialog).toContain('1 timers')
+
     expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0)
 
     ;(document.body.querySelector('[data-confirm-action]') as HTMLElement).click()
@@ -454,6 +459,7 @@ describe('ScriptsView', () => {
     const posts = calls.filter((call) => call.method === 'POST')
 
     expect(posts).toHaveLength(1)
+
     expect(posts[0]!.body).toEqual({
       variables: { user: 'sample_viewer' },
       args: [],
@@ -486,7 +492,9 @@ describe('ScriptsView', () => {
     await router.push('/app/scripts?script=s2')
     await settle()
     byText('button', 'Run test')!.click()
+
     await settle()
+
     ;(document.body.querySelector('[data-close]') as HTMLElement).click()
     await settle()
 

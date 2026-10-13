@@ -15,11 +15,10 @@ import { streamHistoryKey, streamInfoKey, type StreamInfo } from '@/api/stream'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () =>
-  ({
-    HubConnectionBuilder: FakeHubConnectionBuilder,
-    HubConnection: FakeHubConnection,
-  }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
   const hub = await import('../dashboardHub')
@@ -68,6 +67,7 @@ describe('stream live sync', () => {
       startedAt: '2026-10-13T10:00:00Z',
       tags: ['a'],
     })
+
     expect(queries.getQueryState(streamHistoryKey('c1'))?.isInvalidated).toBe(true)
   })
 

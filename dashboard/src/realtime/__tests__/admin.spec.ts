@@ -31,6 +31,7 @@ function push(queries: QueryClient, payload: AdminChannelRegistryPayload): void 
   const handler = adminHandlers.find((h) => h.event === 'ReceiveChannelRegistryUpdate')
 
   expect(handler).toBeDefined()
+
   ;(handler as { handle: (c: unknown, p: AdminChannelRegistryPayload) => void }).handle(
     { queries, channelId: null },
     payload,
@@ -44,6 +45,7 @@ function seed(): QueryClient {
     data: [row('a', 'active', false), row('b', 'active', false)],
     total: 3,
   })
+
   queries.setQueryData<Page>(adminTenantsKey(second), {
     data: [row('c', 'active', false)],
     total: 3,
@@ -63,6 +65,7 @@ describe('ReceiveChannelRegistryUpdate', () => {
       streamTitle: 't',
       gameName: 'g',
     })
+
     const page2 = queries.getQueryData<Page>(adminTenantsKey(second))!
 
     expect(page2.data[0]).toMatchObject({ id: 'c', isLive: true, status: 'active' })
@@ -78,6 +81,7 @@ describe('ReceiveChannelRegistryUpdate', () => {
 
     push(queries, { broadcasterId: 'a', channelName: 'a', isLive: true })
     push(queries, { broadcasterId: 'a', channelName: 'a', isLive: false })
+
     expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[0]).toMatchObject({
       id: 'a',
       isLive: false,
@@ -89,15 +93,18 @@ describe('ReceiveChannelRegistryUpdate', () => {
 
     queries.setQueryData(adminTenantKey('a'), { id: 'a', status: 'active', suspendedReason: null })
     push(queries, { broadcasterId: 'a', status: 'Suspended' })
+
     expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[0]).toMatchObject({
       id: 'a',
       status: 'Suspended',
       isLive: false,
     })
+
     expect(queries.getQueryData(adminTenantKey('a'))).toMatchObject({
       id: 'a',
       status: 'Suspended',
     })
+
     expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[1]).toMatchObject({
       id: 'b',
       status: 'active',
@@ -110,8 +117,10 @@ describe('ReceiveChannelRegistryUpdate', () => {
     expect(() =>
       push(queries, { broadcasterId: 'zzz', channelName: 'z', isLive: true }),
     ).not.toThrow()
+
     expect(queries.getQueryState(adminTenantsKey(first))?.isInvalidated).toBe(true)
     expect(queries.getQueryState(adminTenantsKey(second))?.isInvalidated).toBe(true)
+
     expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data.map((r) => r.isLive)).toEqual([
       false,
       false,

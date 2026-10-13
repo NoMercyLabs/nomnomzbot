@@ -161,6 +161,7 @@ describe('folder layout', () => {
     expect(frame).toMatch(
       /\[data-tray\]\s+\.group\\\/button\[data-size\^='icon'\]\s*\{[^}]*border-color:\s*transparent/,
     )
+
     expect(chatLine).toMatch(/<div\b[^>]*\bdata-tray\b/)
   })
 
@@ -171,6 +172,7 @@ describe('folder layout', () => {
     const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8')
 
     expect(frame).toMatch(/\[data-tray\]\s*\{[^}]*border-color:\s*var\(--input\)[^}]*box-shadow:/)
+
     expect(frame).toMatch(
       /\[data-tray\]\s+\.group\\\/button\[data-size\^='icon'\]:hover\s*\{[^}]*background:[^}]*box-shadow:/,
     )
@@ -199,6 +201,7 @@ describe('folder layout', () => {
     expect(frame).toMatch(
       /\[data-sidebar='menu-button'\]\s*>\s*svg\s*\{[^}]*width:\s*20px;[^}]*height:\s*20px/,
     )
+
     expect(frame).toMatch(
       /\[data-slot='sidebar-group-label'\]\s*>\s*svg\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px/,
     )

@@ -53,10 +53,12 @@ const built: string[] = [
 // The open state is shared by every sidebar; a storage event makes it read the cleared storage again.
 beforeEach(() => {
   localStorage.clear()
+
   window.dispatchEvent(
     new StorageEvent('storage', { key: 'nnz.nav.folds', storageArea: localStorage }),
   )
 })
+
 afterEach(() => localStorage.clear())
 
 describe('the dashboard navigation', () => {
@@ -97,6 +99,7 @@ describe('the dashboard navigation', () => {
     const third = await open(router, '/dashboard-chat')
 
     expect(third.groups.value.find((group) => group.key === 'build')?.open).toBe(false)
+
     expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({
       build: false,
     })

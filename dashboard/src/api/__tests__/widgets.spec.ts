@@ -34,8 +34,7 @@ const http = vi.hoisted(() => ({
   PUT: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
@@ -114,6 +113,7 @@ describe('useWidgets', () => {
           : { data: { data: [widget('c')], hasMore: false, nextPage: null }, response: ok },
       )
     })
+
     const { hook } = mount(() => useWidgets(channel))
 
     await until(() => hook.data.value !== undefined)
@@ -163,10 +163,12 @@ describe('useSetWidgetEnabled', () => {
     let finish: (answer: Answer) => void = () => {}
 
     http.PUT.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
+
     http.GET.mockResolvedValue({
       data: { data: [widget('a', { isEnabled: false }), widget('b')], hasMore: false },
       response: ok,
     })
+
     const { queries, hook } = mount(() => useSetWidgetEnabled(channel))
 
     queries.setQueryData(widgetsKey(channel), [widget('a'), widget('b')])
@@ -181,9 +183,11 @@ describe('useSetWidgetEnabled', () => {
       ['a', false],
       ['b', true],
     ])
+
     const [path, init] = http.PUT.mock.calls[0] as [string, unknown]
 
     expect(path).toBe('/api/v{version}/channels/{channelId}/widgets/{widgetId}')
+
     expect(init).toEqual({
       params: { path: { version: '1', channelId: channel, widgetId: 'a' } },
       body: { isEnabled: false },
@@ -198,6 +202,7 @@ describe('useSetWidgetEnabled', () => {
       error: { status: 'error', message: 'no' },
       response: { ok: false, status: 403 },
     })
+
     const before: Widget[] = [widget('a'), widget('b')]
     const { queries, hook, inbox } = mount(() => useSetWidgetEnabled(channel))
 
@@ -232,6 +237,7 @@ describe('useSaveWidgetSettings', () => {
       size: 2,
       color: '#fff',
     })
+
     const [, init] = http.PUT.mock.calls[0] as [string, unknown]
 
     expect(init).toEqual({
@@ -278,6 +284,7 @@ describe('useTestWidgetEvent', () => {
       error: { status: 'error', message: 'eventType is required' },
       response: { ok: false, status: 400 },
     })
+
     const { hook } = mount(() => useTestWidgetEvent(channel))
 
     await expect(hook.mutateAsync({ eventType: '' })).rejects.toThrow('eventType is required')

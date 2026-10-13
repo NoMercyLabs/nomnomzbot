@@ -27,9 +27,11 @@ export function buildHub(path: string, status: Ref<HubStatus>): HubConnection {
   connection.onreconnecting(() => {
     status.value = 'reconnecting'
   })
+
   connection.onreconnected(() => {
     status.value = 'connected'
   })
+
   connection.onclose(() => {
     status.value = 'offline'
   })
@@ -39,7 +41,7 @@ export function buildHub(path: string, status: Ref<HubStatus>): HubConnection {
 
 export function attachHandlers(
   connection: HubConnection,
-  handlers: HubEventHandler<never>[],
+  handlers: readonly HubEventHandler<never>[],
   context: () => HubEventContext,
 ): void {
   for (const { event, handle } of handlers) {

@@ -135,40 +135,40 @@ function answer(method: string, path: string, options: Options | undefined): Ans
     : ok(null)
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, options?: Options) => answer('GET', path, options),
-      POST: async (path: string, options?: Options) => {
-        calls.push({ method: 'POST', path, body: options?.body })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, options?: Options) => answer('GET', path, options),
+    POST: async (path: string, options?: Options) => {
+      calls.push({ method: 'POST', path, body: options?.body })
 
-        if (resolveFails)
-          return refused()
+      if (resolveFails)
+        return refused()
 
-        const itemId: unknown = options?.params?.path?.queueItemId
+      const itemId: unknown = options?.params?.path?.queueItemId
 
-        queue = queue.filter((item) => item.id !== itemId)
+      queue = queue.filter((item) => item.id !== itemId)
 
-        return { response: { status: 200, ok: true } }
-      },
+      return { response: { status: 200, ok: true } }
     },
-  }))
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
 
 beforeEach(() => {
   calls.length = 0
+
   queue = [
     heldMessage('q1', 'sample_viewer', 'what the heck'),
     heldMessage('q2', 'DukaSoft', 'buy followers here'),
   ]
+
   answers = freshAnswers()
   resolveFails = false
   pinia = createPinia()
@@ -200,6 +200,7 @@ async function open(): Promise<void> {
   const router = makeRouter()
 
   await router.push('/app')
+
   mounted = mount(HomeView, {
     attachTo: document.body,
     global: {
@@ -214,6 +215,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -254,6 +256,68 @@ describe('HomeView', () => {
     expect(document.body.querySelector('a[href="/app/chat"]')?.textContent).toContain('Open chat')
   })
 
+  it('titles the page Home and puts the live stream line on its own row under the title', async () => {
+    await open()
+
+    const title = document.body.querySelector('h1')
+    const line = document.body.querySelector('[data-slot="stream-line"]')
+    const bold = [...(line?.querySelectorAll('b') ?? [])].map((item) => item.textContent)
+
+    expect(title?.textContent).toBe('Home')
+    expect(text()).not.toContain('Hi,')
+
+    expect(line?.textContent).toBe(
+      'Live for 1:02:05 · 20 viewers · 346 followers · Software and Game Development',
+    )
+
+    expect(bold).toEqual(['1:02:05', '20', '346'])
+
+    expect(document.body.querySelector('header h1')?.parentElement?.contains(line ?? null)).toBe(
+      false,
+    )
+  })
+
+  it('leaves the category out of the live line when the bot returns none', async () => {
+    answers['/stats'] = () => ok({ ...liveStats, gameName: null })
+    await open()
+
+    const line = document.body.querySelector('[data-slot="stream-line"]')
+
+    expect(line?.textContent).toBe('Live for 1:02:05 · 20 viewers · 346 followers')
+  })
+
+  it('shows when the last stream ended and how long it ran while offline', async () => {
+    answers['/stats'] = () => ok({ ...liveStats, isLive: false, uptime: null, platformsLive: [] })
+
+    answers['/analytics/streams'] = () =>
+      ok([
+        {
+          streamId: 's1',
+          title: 'Building the bot',
+          gameName: 'Software and Game Development',
+          startedAt: '2026-10-10T17:28:00Z',
+          endedAt: '2026-10-10T21:40:00Z',
+          durationSeconds: 15120,
+          peakViewers: 20,
+        },
+      ])
+
+    await open()
+
+    const line = document.body.querySelector('[data-slot="stream-line"]')
+
+    expect(line?.textContent).toMatch(/^Last stream ended .+ · 4h 12m$/)
+    expect(line?.textContent).not.toContain('viewers')
+  })
+
+  it('shows no stream line while offline when the bot has no finished stream to report', async () => {
+    answers['/stats'] = () => ok({ ...liveStats, isLive: false, uptime: null, platformsLive: [] })
+    answers['/analytics/streams'] = () => ok([])
+    await open()
+
+    expect(document.body.querySelector('[data-slot="stream-line"]')).toBeNull()
+  })
+
   it('shows each happening row with its icon, readable detail and weekday plus 24h time', async () => {
     const at = (type: string, username: string | null, data: unknown): Record<string, unknown> => ({
       id: `${type}-${username}`,
@@ -272,6 +336,7 @@ describe('HomeView', () => {
         at('channel.subscription.gift', 'Gifter', { giftCount: 5, tier: '1000' }),
         at('channel.something.new', 'Odd', null),
       ])
+
     await open()
 
     const rows: HTMLElement[] = [
@@ -304,9 +369,11 @@ describe('HomeView', () => {
 
     expect(text()).toContain('Offline')
     expect(text()).not.toContain('Live on')
+
     expect(panel('Review queue').textContent).toContain(
       'Held messages and spam checks show up here during a stream.',
     )
+
     expect(panel('Last stream').textContent).toContain('StanLeFresh')
   })
 

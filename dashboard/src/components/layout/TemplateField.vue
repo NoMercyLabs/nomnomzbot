@@ -68,7 +68,7 @@ const caret: Ref<{ start: number; end: number }> = ref({
 const open: Ref<OpenPlaceholder | null> = ref(null)
 const active = ref(0)
 
-const matches = computed<TemplateHelper[]>(() =>
+const matches = computed<readonly TemplateHelper[]>(() =>
   open.value
     ? filterHelpers(known.value, open.value.query)
     : [],
@@ -101,10 +101,12 @@ function suggest(): void {
   if (!el) return
 
   remember()
+
   open.value =
     el.selectionStart === el.selectionEnd
       ? openPlaceholder(el.value, el.selectionStart)
       : null
+
   active.value = 0
 }
 

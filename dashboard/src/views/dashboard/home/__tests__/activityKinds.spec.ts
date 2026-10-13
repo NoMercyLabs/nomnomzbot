@@ -63,6 +63,7 @@ describe('describeActivity', () => {
       key: 'dashboard.home.activity.detail.giftSubEnded',
       params: { tier: '1' },
     })
+
     const plain = describeActivity(
       event('channel.subscription.end', { userDisplayName: 'night', tier: '2000' }),
     )
@@ -77,6 +78,7 @@ describe('describeActivity', () => {
       key: 'dashboard.home.activity.detail.raidedTarget',
       params: { name: 'JeroenLabs' },
     })
+
     expect(detailOf(row)).toEqual({
       key: 'dashboard.home.activity.detail.wentAlong',
       params: { count: 16 },

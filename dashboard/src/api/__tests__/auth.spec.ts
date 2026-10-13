@@ -79,11 +79,13 @@ describe('expired access token', () => {
     const result = await queryClient.fetchQuery(auth.currentUserQuery)
 
     expect(result).toEqual(user)
+
     expect(seen).toEqual([
       '/api/v1/auth/me Bearer expired',
       '/api/v1/auth/refresh none',
       '/api/v1/auth/me Bearer fresh',
     ])
+
     expect(auth.isSignedIn()).toBe(true)
   })
 
@@ -107,12 +109,14 @@ describe('rate limited by the server', () => {
     const result = await queryClient.fetchQuery(auth.currentUserQuery)
 
     expect(result).toEqual(user)
+
     expect(seen).toEqual([
       '/api/v1/auth/me Bearer expired',
       '/api/v1/auth/refresh none',
       '/api/v1/auth/refresh none',
       '/api/v1/auth/me Bearer fresh',
     ])
+
     expect(auth.isSignedIn()).toBe(true)
   })
 

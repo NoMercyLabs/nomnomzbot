@@ -95,6 +95,7 @@ describe('useOptimisticSave', () => {
 
     expect(cached(queries)).toStrictEqual({ greeting: 'before' })
     expect(inbox.items).toHaveLength(1)
+
     expect(inbox.items[0]).toMatchObject({
       titleKey: 'frame.inbox.saveFailedTitle',
       messageKey: 'frame.inbox.saveFailedMessage',

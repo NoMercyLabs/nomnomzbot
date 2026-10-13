@@ -79,6 +79,7 @@ export function useOptimisticSave<TData, TVariables>(
 
       entry.inFlight += 1
       entry.newest += 1
+
       queries.setQueryData<TData>(queryKey, (current) =>
         options.apply(current, variables))
 

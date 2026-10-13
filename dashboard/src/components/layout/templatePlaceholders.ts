@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { TemplateHelper } from '@/api/templates'
+import { merge } from '@/lib/array'
 
 export function braced(key: string): string {
   return `{${key}}`
@@ -31,7 +32,10 @@ export function openPlaceholder(text: string, caret: number): OpenPlaceholder | 
 }
 
 // Helpers that start with the query come first, then those that only contain it.
-export function filterHelpers(helpers: TemplateHelper[], query: string): TemplateHelper[] {
+export function filterHelpers(
+  helpers: readonly TemplateHelper[],
+  query: string,
+): readonly TemplateHelper[] {
   const needle = query.toLowerCase()
   const starts = helpers.filter((helper: TemplateHelper) =>
     helper.key.toLowerCase().startsWith(needle),
@@ -41,7 +45,7 @@ export function filterHelpers(helpers: TemplateHelper[], query: string): Templat
       !helper.key.toLowerCase().startsWith(needle) && helper.key.toLowerCase().includes(needle),
   )
 
-  return [...starts, ...contains]
+  return merge(starts, contains)
 }
 
 // A key such as "args.<n>" stands for a family: every name that starts with "args." and goes on.
@@ -80,7 +84,7 @@ export function helperGroup(key: string): string {
 }
 
 export function groupHelpers(
-  helpers: TemplateHelper[],
+  helpers: readonly TemplateHelper[],
 ): Array<{ group: string; helpers: TemplateHelper[] }> {
   const groups = new Map()
 

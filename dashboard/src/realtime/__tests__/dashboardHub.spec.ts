@@ -18,11 +18,10 @@ import { shieldKey } from '@/api/shield'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () =>
-  ({
-    HubConnectionBuilder: FakeHubConnectionBuilder,
-    HubConnection: FakeHubConnection,
-  }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 type Hub = typeof import('../dashboardHub')
 type Status = (typeof import('../hubStatus'))['dashboardHubStatus']
@@ -93,7 +92,9 @@ describe('dashboard hub events', () => {
       data: {},
       timestamp: '',
     })
+
     expect(queries.getQueryData(shieldKey('c1'))).toBe(true)
+
     connection.receive('ChannelEvent', {
       type: 'shield_mode_end',
       broadcasterId: 'x',
@@ -102,6 +103,7 @@ describe('dashboard hub events', () => {
       data: {},
       timestamp: '',
     })
+
     expect(queries.getQueryData(shieldKey('c1'))).toBe(false)
   })
 
@@ -155,6 +157,7 @@ describe('dashboard hub channel groups', () => {
       { id: 'c1', classes: ['chat', 'moderation'] },
       { id: 'c2', classes: ['chat'] },
     ])
+
     connection.invocations.length = 0
     connection.lifecycle.reconnected()
 
@@ -171,6 +174,7 @@ describe('dashboard hub channel groups', () => {
       { id: 'c1', classes: ['chat'] },
       { id: 'c2', classes: ['chat'] },
     ])
+
     connection.invocations.length = 0
     await hub.watchChannels([{ id: 'c2', classes: ['chat'] }])
 
@@ -201,6 +205,7 @@ describe('dashboard hub channel groups', () => {
       { id: 'c1', classes: ['chat'] },
       { id: 'c2', classes: ['chat'] },
     ])
+
     expect(dashboardJoinErrors.value).toEqual([{ channelId: 'c2', message: 'Access denied' }])
 
     await hub.watchChannels([{ id: 'c1', classes: ['chat'] }])

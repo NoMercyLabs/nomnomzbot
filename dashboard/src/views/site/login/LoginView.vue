@@ -69,6 +69,7 @@ function useCode(): void {
   deviceProvider.value = codeProviders.value.length === 1
     ? codeProviders.value[0]!
     : null
+
   mode.value = 'device'
 }
 

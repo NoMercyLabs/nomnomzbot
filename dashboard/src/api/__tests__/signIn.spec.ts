@@ -41,6 +41,7 @@ function stubPolls(statuses: string[]): Seen[] {
         query: url.search,
         body: await request.text(),
       })
+
       const status = statuses.shift() ?? 'pending'
       const auth =
         status === 'authorized'
@@ -110,11 +111,13 @@ describe('device code sign-in', () => {
     await vi.advanceTimersByTimeAsync(60_000)
 
     expect(seen.map((poll) => poll.at)).toEqual([5000, 10000, 20000])
+
     expect(seen[0]).toMatchObject({
       path: '/api/v1/auth/twitch/device/poll',
       query: '?client=web',
       body: '{"deviceCode":"dev-1"}',
     })
+
     expect(approval.status()).toBe('authorized')
     expect(auth.isSignedIn()).toBe(true)
   })

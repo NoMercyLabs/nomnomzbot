@@ -16,11 +16,10 @@ import { ttsConfigKey } from '@/api/tts'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () =>
-  ({
-    HubConnectionBuilder: FakeHubConnectionBuilder,
-    HubConnection: FakeHubConnection,
-  }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 async function started(): Promise<[QueryClient, FakeHubConnection]> {
   const hub = await import('../dashboardHub')

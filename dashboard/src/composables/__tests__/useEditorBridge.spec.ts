@@ -83,6 +83,7 @@ describe('createEditorBridge', () => {
     await bridge.handle(fromPage({ type: 'nnz:editor:ready' }))
     expect(posted).toHaveLength(1)
     expect(posted[0]?.origin).toBe(ORIGIN)
+
     expect(posted[0]?.message).toEqual({
       type: 'nnz:editor:open',
       payload: {
@@ -106,6 +107,7 @@ describe('createEditorBridge', () => {
     await bridge.handle(fromPage({ type: 'nnz:editor:save', files: { 'src/main.ts': 'x' } }))
     expect(onSave).toHaveBeenCalledExactlyOnceWith({ 'src/main.ts': 'x' })
     expect(posted).toHaveLength(1)
+
     expect(posted[0]?.message).toEqual({
       type: 'nnz:editor:compiled',
       ok: false,
@@ -122,6 +124,7 @@ describe('createEditorBridge', () => {
     })
 
     await bridge.handle(fromPage({ type: 'nnz:editor:save', files: {} }))
+
     expect(posted[0]?.message).toMatchObject({
       type: 'nnz:editor:compiled',
       ok: false,
@@ -176,6 +179,7 @@ describe('createEditorBridge', () => {
     await bridge.handle(fromPage({ type: 'nnz:editor:historyLoadMore' }))
     await bridge.handle(fromPage({ type: 'nnz:editor:historyRollback', versionId: 'v1' }))
     await bridge.handle(fromPage({ type: 'nnz:editor:historyDelete', versionId: 'v1' }))
+
     expect(posted.map((entry) => entry.message.type)).toEqual([
       'nnz:editor:historyError',
       'nnz:editor:historyError',
@@ -206,6 +210,7 @@ describe('createEditorBridge', () => {
     await bridge.handle(
       fromPage({ type: 'nnz:editor:testRun', files: {}, variables: {}, args: [] }),
     )
+
     await bridge.handle(
       fromPage({
         type: 'nnz:editor:previewAction',
@@ -215,7 +220,9 @@ describe('createEditorBridge', () => {
         variables: {},
       }),
     )
+
     expect(posted[0]?.message).toMatchObject({ type: 'nnz:editor:testRunResult', ok: false })
+
     expect(posted[1]?.message).toMatchObject({
       type: 'nnz:editor:previewActionResult',
       requestId: 'r1',

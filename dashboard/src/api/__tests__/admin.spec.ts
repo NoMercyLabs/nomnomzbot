@@ -39,8 +39,7 @@ const http = vi.hoisted(() => ({
   use: (): undefined => undefined,
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
@@ -86,6 +85,7 @@ describe('useAdminTenants', () => {
       data: { data: [tenant('a', 'active')], hasMore: false, total: 1 },
       response: ok,
     })
+
     const params: AdminTenantsParams = {
       search: 'ste',
       status: 'active',
@@ -99,6 +99,7 @@ describe('useAdminTenants', () => {
     const call = http.GET.mock.calls[0] as Call
 
     expect(call[0]).toBe('/api/v{version}/admin/tenants')
+
     expect(call[1].params?.query).toEqual({
       search: 'ste',
       status: 'active',
@@ -106,6 +107,7 @@ describe('useAdminTenants', () => {
       Page: 2,
       Take: 50,
     })
+
     expect(hook.data.value?.data?.map((t) => t.id)).toEqual(['a'])
     expect(queries.getQueryData(adminTenantsKey(params))).toEqual(hook.data.value)
   })
@@ -191,6 +193,7 @@ describe('useAdminSuspend', () => {
       error: { status: 'error' },
       response: { ok: false, status: 409 },
     })
+
     const queries = new QueryClient()
     const page: AdminTenantsParams = { page: 1, take: 25 }
 
@@ -201,6 +204,7 @@ describe('useAdminSuspend', () => {
     await expect(
       hook.mutateAsync({ broadcasterId: 'a', newStatus: 'Suspended', reason: 'abuse' }),
     ).rejects.toThrow('suspend failed')
+
     expect(queries.getQueryState(adminTenantKey('a'))?.isInvalidated).toBe(false)
     expect(queries.getQueryState(adminTenantsKey(page))?.isInvalidated).toBe(false)
   })
@@ -230,6 +234,7 @@ describe('useAdminReinstate', () => {
       error: { status: 'error' },
       response: { ok: false, status: 500 },
     })
+
     const queries = new QueryClient()
 
     queries.setQueryData(adminTenantKey('a'), { id: 'a' })
@@ -238,6 +243,7 @@ describe('useAdminReinstate', () => {
     await expect(hook.mutateAsync({ broadcasterId: 'a', justification: 'x' })).rejects.toThrow(
       'reinstate failed',
     )
+
     expect(queries.getQueryState(adminTenantKey('a'))?.isInvalidated).toBe(false)
   })
 })
@@ -248,6 +254,7 @@ describe('useAdminBeginAccess', () => {
       data: { data: { id: 'g1', targetBroadcasterId: 'a' } },
       response: ok,
     })
+
     const { hook } = mount(() => useAdminBeginAccess())
     const grant = await hook.mutateAsync({
       broadcasterId: 'a',
@@ -269,6 +276,7 @@ describe('useAdminImpersonate', () => {
       data: { data: { accessToken: 'tok', sessionId: 's1' } },
       response: ok,
     })
+
     const { hook } = mount(() => useAdminImpersonate())
     const token = await hook.mutateAsync({
       userId: 'u1',
@@ -288,6 +296,7 @@ describe('useAdminImpersonate', () => {
       error: { status: 'error' },
       response: { ok: false, status: 403 },
     })
+
     const { hook } = mount(() => useAdminImpersonate())
 
     await expect(

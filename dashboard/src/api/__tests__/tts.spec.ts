@@ -28,8 +28,7 @@ const http = vi.hoisted(() => ({
   GET: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const config: TtsConfig = {
   isEnabled: true,
@@ -85,6 +84,7 @@ describe('useTtsConfig', () => {
     expect(http.GET).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/config', {
       params: { path: { version: '1', channelId: 'c1' } },
     })
+
     expect(hook.data.value).toEqual(config)
     expect(queries.getQueryData(ttsConfigKey('c1'))).toEqual(config)
   })
@@ -126,6 +126,7 @@ describe('useTtsOverlay', () => {
     expect(http.GET).toHaveBeenCalledWith('/api/v{version}/channels/{channelId}/tts/overlay', {
       params: { path: { version: '1', channelId: 'c1' } },
     })
+
     expect(hook.data.value).toEqual(overlay)
     expect(queries.getQueryData(ttsOverlayKey('c1'))).toEqual(overlay)
   })

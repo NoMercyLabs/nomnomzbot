@@ -91,40 +91,38 @@ const summary = {
   streak: { currentStreak: 5, maxStreak: 11, lastSeenDate: '2026-10-12' },
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ method: 'GET', path, query: options?.params?.query ?? {} })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'GET', path, query: options?.params?.query ?? {} })
 
-        if (path.endsWith('/community/search'))
-          return searchAnswer(String(options?.params?.query?.q ?? ''))
+      if (path.endsWith('/community/search'))
+        return searchAnswer(String(options?.params?.query?.q ?? ''))
 
-        if (path.endsWith('/community/lookup'))
-          return lookupAnswer(String(options?.params?.query?.login ?? ''))
+      if (path.endsWith('/community/lookup'))
+        return lookupAnswer(String(options?.params?.query?.login ?? ''))
 
-        if (path.endsWith('/community'))
-          return listAnswer(options?.params?.query?.role as string | undefined)
+      if (path.endsWith('/community'))
+        return listAnswer(options?.params?.query?.role as string | undefined)
 
-        if (path.endsWith('/community/{userId}')) {
-          await memberGate
+      if (path.endsWith('/community/{userId}')) {
+        await memberGate
 
-          return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
-        }
+        return ok(person('dave', { id: 't-dave', messageCount: 321, internalUserId: 'u-dave' }))
+      }
 
-        if (path.endsWith('/profile'))
-          return ok(summary)
+      if (path.endsWith('/profile'))
+        return ok(summary)
 
-        return ok(null)
-      },
+      return ok(null)
     },
-  }))
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 const ROW_HEIGHT = 56
 const VIEWPORT_HEIGHT = 600
@@ -152,6 +150,7 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
+
   // jsdom has no layout: the virtual list gets a viewport and a row height, as in VirtualList.spec.ts.
   vi.stubGlobal(
     'ResizeObserver',
@@ -161,6 +160,7 @@ beforeEach(() => {
       disconnect(): void {}
     },
   )
+
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
       ? VIEWPORT_HEIGHT
@@ -171,12 +171,15 @@ beforeEach(() => {
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
+
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -214,7 +217,9 @@ async function open(url: string = '/app/people'): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/people', name: 'dashboard-people', component: blank }],
   })
+
   await router.push(url)
+
   mounted = mount(PeopleView, {
     attachTo: document.body,
     global: {
@@ -229,6 +234,7 @@ async function open(url: string = '/app/people'): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -286,6 +292,7 @@ describe('PeopleView', () => {
       expect.stringContaining('BOB'),
       expect.stringContaining('CARA'),
     ])
+
     expect(rows()[0]!.textContent).toContain('Last seen')
     expect(rows()[1]!.querySelector('[aria-label="Moderator"]')).not.toBeNull()
     expect(rows()[2]!.querySelector('[aria-label="VIP"]')).not.toBeNull()
@@ -300,6 +307,7 @@ describe('PeopleView', () => {
         : role === 'vip'
           ? page([everyone[2]!], 2)
           : page(everyone, 120)
+
     await open()
 
     expect(tab('All').textContent).toContain('120')
@@ -313,6 +321,7 @@ describe('PeopleView', () => {
     expect(
       calls.some((call) => call.path.endsWith('/community') && call.query.role === 'moderator'),
     ).toBe(true)
+
     expect(rows().map((row) => row.textContent)).toEqual([expect.stringContaining('BOB')])
     expect(text()).toContain('People who moderate your channel.')
   })
@@ -395,10 +404,12 @@ describe('PeopleView', () => {
 
     expect(searchCalls()).toHaveLength(1)
     expect(searchCalls()[0]!.query).toMatchObject({ q: 'dav', scope: 'all' })
+
     expect(results().map((row) => row.textContent)).toEqual([
       expect.stringContaining('DAVE'),
       expect.stringContaining('ALICE'),
     ])
+
     expect(rows()).toHaveLength(0)
   })
 
@@ -438,6 +449,7 @@ describe('PeopleView', () => {
     memberGate = new Promise<void>((done) => {
       release = done
     })
+
     searchAnswer = () => ok([option('t-dave', 'DAVE', false)])
     await open()
     await typeSearch('dav')
@@ -475,6 +487,7 @@ describe('PeopleView', () => {
 
   it('looks the typed name up on Twitch only when the button is pressed, then shows that person', async () => {
     memberGate = new Promise<void>(() => undefined)
+
     lookupAnswer = () =>
       ok({
         id: 't-newbie',
@@ -483,6 +496,7 @@ describe('PeopleView', () => {
         profileImageUrl: null,
         createdAt: '2026-10-01T00:00:00Z',
       })
+
     await open()
     await typeSearch('newbie')
     expect(lookupCalls()).toHaveLength(0)
@@ -501,6 +515,7 @@ describe('PeopleView', () => {
       error: { code: 'TWITCH_USER_NOT_FOUND' },
       response: { status: 404, ok: false },
     })
+
     await open()
     await typeSearch('ghost')
     lookupButton()!.click()
@@ -524,6 +539,7 @@ describe('PeopleView', () => {
     await open()
 
     expect(rows()).toHaveLength(0)
+
     expect(document.body.querySelector('[data-slot="panel-error"]')?.textContent).toContain(
       'The people list could not load.',
     )

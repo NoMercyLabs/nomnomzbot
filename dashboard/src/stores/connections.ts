@@ -12,6 +12,7 @@ import { useLocalStorage, type RemovableRef } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, type ComputedRef } from 'vue'
 
+import { merge } from '@/lib/array'
 import { officialOrigin, servedOrigin } from '@/lib/botAddress'
 
 const alwaysListed: readonly string[] = [servedOrigin, officialOrigin]
@@ -35,7 +36,7 @@ export const useConnectionsStore = defineStore('connections', () => {
   })
 
   const bots: ComputedRef<string[]> = computed(() => [
-    ...new Set([...alwaysListed, ...saved.value]),
+    ...new Set(merge(alwaysListed, saved.value)),
   ])
 
   function isAlwaysListed(origin: string): boolean {

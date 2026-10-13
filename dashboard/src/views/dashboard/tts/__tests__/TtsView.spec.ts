@@ -47,35 +47,35 @@ const config = {
   followsPlatformDefaultVoice: false,
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string) => {
-        calls.push(path)
-        const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) => {
+      calls.push(path)
+      const match = Object.keys(answers).find((suffix) => path.endsWith(suffix))
 
-        return match
-          ? answers[match]!()
-          : ok(null)
-      },
+      return match
+        ? answers[match]!()
+        : ok(null)
     },
-  }))
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
 
 beforeEach(() => {
   calls.length = 0
+
   answers = {
     '/tts/config': () => ok(config),
     '/tts/overlay': () => ok({ overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: null }),
   }
+
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
@@ -95,6 +95,7 @@ async function open(query: string = ''): Promise<void> {
   })
 
   await router.push(`/app/tts${query}`)
+
   mounted = mount(TtsView, {
     attachTo: document.body,
     global: {
@@ -109,6 +110,7 @@ async function open(query: string = ''): Promise<void> {
       ],
     },
   })
+
   await flushPromises()
   await new Promise((done) => setTimeout(done, 0))
   await flushPromises()
@@ -165,6 +167,7 @@ describe('TtsView overview', () => {
   it('says the channel follows the platform voice when no voice is picked', async () => {
     answers['/tts/config'] = () =>
       ok({ ...config, defaultVoiceId: null, followsPlatformDefaultVoice: true })
+
     await open()
 
     expect(rowOf('Voice').textContent).toContain('Follows the platform voice')
@@ -176,8 +179,10 @@ describe('TtsView overview', () => {
 
     mounted?.unmount()
     document.body.innerHTML = ''
+
     answers['/tts/overlay'] = () =>
       ok({ overlayUrl: 'https://bot.test/overlay/tts/abc', lastRanAt: '2026-10-13T09:00:00Z' })
+
     await open()
     expect(rowOf('Speaker overlay').textContent).toContain('Last used')
     expect(rowOf('Speaker overlay').textContent).not.toContain('Never used')
@@ -187,6 +192,7 @@ describe('TtsView overview', () => {
     await open()
 
     expect(panel('Spoken history').getAttribute('data-state')).toBe('empty')
+
     expect(panel('Spoken history').textContent).toContain(
       'The bot does not keep a readable record of spoken messages yet.',
     )

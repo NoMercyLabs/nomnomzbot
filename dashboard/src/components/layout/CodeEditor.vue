@@ -100,8 +100,10 @@ onMounted(() => {
   opener.value = document.activeElement instanceof HTMLElement
     ? document.activeElement
     : null
+
   frame.value?.focus()
 })
+
 onBeforeUnmount(() => opener.value?.focus())
 </script>
 

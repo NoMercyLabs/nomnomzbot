@@ -64,6 +64,7 @@ describe('probeBot', () => {
       state: 'ready',
       onboardingComplete: true,
     })
+
     expect(seen).toEqual([
       { url: `${bot}/api/v1/system/status`, mode: 'cors', authorization: null },
     ])

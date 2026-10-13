@@ -163,6 +163,9 @@ export default defineConfigWithVueTs(
         { blankLine: 'any', prev: ['const', 'let'], next: ['const', 'let'] },
         { blankLine: 'always', prev: 'multiline-block-like', next: '*' },
         { blankLine: 'always', prev: '*', next: 'multiline-block-like' },
+        // A call that spans lines stands apart too (owner 2026-10-13: "terrible for reading").
+        { blankLine: 'always', prev: 'multiline-expression', next: '*' },
+        { blankLine: 'always', prev: '*', next: 'multiline-expression' },
         { blankLine: 'always', prev: 'import', next: '*' },
         { blankLine: 'any', prev: 'import', next: 'import' },
         { blankLine: 'always', prev: '*', next: ['function', 'class', 'export'] },
@@ -196,6 +199,24 @@ export default defineConfigWithVueTs(
       'app/body-shape': 'error',
       'app/trailing-arrow-argument': 'error',
       'app/max-call-nesting': 'error',
+    },
+  },
+
+  {
+    // Owner 2026-10-13: "turn [...channelHandlers, ...communityHandlers, ...chatHandlers] into
+    // merge(channelHandlers, communityHandlers, chatHandlers)".
+    name: 'app/merge-lists',
+    files: ['src/**/*.{vue,ts}'],
+    ignores: ['src/components/ui/**', 'src/api/schema.d.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ArrayExpression[elements.0.type='SpreadElement'][elements.1.type='SpreadElement']",
+          message: 'Join lists with merge(a, b) from @/lib/array.',
+        },
+      ],
     },
   },
 )

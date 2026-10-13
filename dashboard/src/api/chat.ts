@@ -17,6 +17,7 @@ import {
 } from '@tanstack/vue-query'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
+import { merge } from '@/lib/array'
 import type { ChatMessagePayload } from '@/realtime/payloads'
 
 import { client } from './client'
@@ -58,7 +59,7 @@ function mergeHistory(history: ChatLine[], live: ChatLine[] | undefined): ChatLi
   const known: Set<string> = new Set(history.map((line) => line.id))
   const fresh: ChatLine[] = (live ?? []).filter((line) => !known.has(line.id))
 
-  return [...history, ...fresh].slice(-chatLineLimit)
+  return merge(history, fresh).slice(-chatLineLimit)
 }
 
 export function useChatHistory(

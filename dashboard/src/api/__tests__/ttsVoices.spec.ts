@@ -34,8 +34,7 @@ const http = vi.hoisted(() => ({
   POST: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const config: TtsConfig = {
   isEnabled: true,
@@ -124,9 +123,11 @@ describe('useTtsVoices', () => {
         query: { q: 'colette', page: 1, pageSize: 200 },
       },
     })
+
     expect(
       hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id)),
     ).toEqual(['nl-NL-ColetteNeural'])
+
     expect(hook.hasNextPage.value).toBe(false)
     expect(queries.getQueryData(ttsVoicesKey('c1', { q: 'colette' }))).toEqual(hook.data.value)
   })
@@ -136,6 +137,7 @@ describe('useTtsVoices', () => {
       data: { data: [voice('en-US-AriaNeural', 'en-US')], hasMore: true, nextPage: 2 },
       response: { ok: true, status: 200 },
     })
+
     http.GET.mockResolvedValueOnce({
       data: { data: [voice('en-GB-SoniaNeural', 'en-GB')], hasMore: false, nextPage: null },
       response: { ok: true, status: 200 },
@@ -152,9 +154,11 @@ describe('useTtsVoices', () => {
     expect(http.GET).toHaveBeenLastCalledWith('/api/v{version}/channels/{channelId}/tts/voices', {
       params: { path: { version: '1', channelId: 'c1' }, query: { page: 2, pageSize: 200 } },
     })
+
     expect(
       hook.data.value?.pages.flatMap((page) => page.voices.map((row: TtsVoice) => row.id)),
     ).toEqual(['en-US-AriaNeural', 'en-GB-SoniaNeural'])
+
     expect(hook.hasNextPage.value).toBe(false)
   })
 
@@ -194,6 +198,7 @@ describe('useSetTtsVoice', () => {
         followPlatformDefaultVoice: false,
       },
     })
+
     expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))?.defaultVoiceId).toBe(
       'nl-NL-ColetteNeural',
     )
@@ -202,7 +207,9 @@ describe('useSetTtsVoice', () => {
       data: { data: { ...config, defaultVoiceId: 'nl-NL-ColetteNeural' } },
       response: { ok: true, status: 200 },
     })
+
     await flushPromises()
+
     expect(queries.getQueryData<TtsConfig>(ttsConfigKey('c1'))?.defaultVoiceId).toBe(
       'nl-NL-ColetteNeural',
     )
@@ -210,6 +217,7 @@ describe('useSetTtsVoice', () => {
 
   it('rolls the pick back to the old voice when the bot refuses the save', async () => {
     http.GET.mockResolvedValue({ data: { data: config }, response: { ok: true, status: 200 } })
+
     http.PUT.mockResolvedValue({
       error: { message: 'No such voice' },
       response: { ok: false, status: 400 },
@@ -251,6 +259,7 @@ describe('useTtsSample', () => {
       params: { path: { version: '1', channelId: 'c1' } },
       body: { text: 'Hello chat', voiceId: 'nl-NL-ColetteNeural' },
     })
+
     expect(result.audioBase64).toBe('QUJD')
   })
 

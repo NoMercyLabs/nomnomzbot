@@ -33,6 +33,10 @@ tester.run('trailing-arrow-argument', trailingArrowArgument, {
     'watch(settings, (next) => apply(next), { deep: true })',
     // A block body stays.
     'set(key, (current) => {\n  apply(current)\n})',
+    // An object or array body opens on the `=>` line, like a block body.
+    "vi.mock('../client', () => ({ client: http }))",
+    'attach(hub, handlers, () => ({\n  queries,\n  channelId: joined,\n}))',
+    'set(key, (feed) => [\n  ...feed,\n  line,\n])',
   ],
   invalid: [
     {
@@ -41,10 +45,15 @@ tester.run('trailing-arrow-argument', trailingArrowArgument, {
       errors: [{ messageId: 'bodyNextLine' }],
     },
     {
-      // The brackets around an object body stay.
-      code: "vi.mock('../client', () => ({ client: http }))",
-      output: "vi.mock('../client', () =>\n  ({ client: http }))",
-      errors: [{ messageId: 'bodyNextLine' }],
+      // Owner 2026-10-13, on `() =>` with `({` on the next line: "this is terrible for reading".
+      code: 'attach(hub, handlers, () =>\n  ({\n    queries,\n  }))',
+      output: 'attach(hub, handlers, () => ({\n    queries,\n  }))',
+      errors: [{ messageId: 'literalOnArrowLine' }],
+    },
+    {
+      code: 'set(key, (feed) =>\n  [...feed, line])',
+      output: 'set(key, (feed) => [...feed, line])',
+      errors: [{ messageId: 'literalOnArrowLine' }],
     },
   ],
 })

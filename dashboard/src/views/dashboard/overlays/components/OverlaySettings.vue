@@ -63,6 +63,7 @@ function takeSaved(): void {
 }
 
 watch([() => props.widget.id, fields], takeSaved, { immediate: true })
+
 watch(
   () => props.widget.id,
   () => {

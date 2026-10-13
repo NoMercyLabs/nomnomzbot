@@ -48,6 +48,7 @@ function applyRegistryUpdate(
     if (!page?.data?.some((row: AdminTenant) => row.id === update.broadcasterId)) continue
 
     found = true
+
     queries.setQueryData<AdminTenantsPage>(key, {
       ...page,
       data: page.data.map((row: AdminTenant) =>

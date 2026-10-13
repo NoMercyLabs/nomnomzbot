@@ -1,14 +1,14 @@
 {
   "dashboard": {
     "home": {
-      "greeting": "Hi, {name}",
       "title": "Home",
       "live": "Live on {platforms}",
       "offline": "Offline",
       "openChat": "Open chat",
       "editStream": "Edit stream info",
       "liveLine": "Live for {uptime} · {viewers} viewers · {followers} followers",
-      "offlineLine": "{followers} followers · {subscribers} subscribers",
+      "liveLineCategory": "Live for {uptime} · {viewers} viewers · {followers} followers · {category}",
+      "lastStream": "Last stream ended {date} · {length}",
       "queue": {
         "title": "Review queue",
         "waiting": "{count} waiting",
@@ -64,7 +64,12 @@
         "reauth": "Sign in again",
         "bot": "Bot account",
         "botOffline": "Not in chat",
-        "error": "Connections could not load."
+        "error": "Connections could not load.",
+        "platformLive": "{account} · Live",
+        "platformOffline": "{account} · Offline",
+        "connect": "Connect",
+        "connectLabel": "Connect {platform}",
+        "connectAsk": "Connect {platform} to this channel?"
       },
       "activity": {
         "live": "Happening now",

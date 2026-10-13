@@ -107,30 +107,30 @@ function write(method: string, path: string, options?: Options): Answer {
   return { response: { status: 200, ok: true } }
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string) => read(path),
-      POST: async (path: string, options?: Options) => write('POST', path, options),
-      DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
-    },
-  }))
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) => read(path),
+    POST: async (path: string, options?: Options) => write('POST', path, options),
+    DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
 
 beforeEach(() => {
   calls.length = 0
+
   queue = [
     track(1, 'Strobe', 'deadmau5', 'sample_viewer'),
     track(2, 'Opus', 'Eric Prydz', 'DukaSoft'),
   ]
+
   nowPlaying = playing()
   answers = freshAnswers()
   pinia = createPinia()
@@ -155,6 +155,7 @@ async function open(): Promise<void> {
   })
 
   await router.push('/app/music')
+
   mounted = mount(MusicView, {
     attachTo: document.body,
     global: {
@@ -169,6 +170,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -294,9 +296,11 @@ describe('MusicView', () => {
     expect(panel('History').querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
       'Not recorded yet',
     )
+
     expect(
       panel('Thanks for the music').querySelector('[data-slot="panel-empty"]')?.textContent,
     ).toContain('Not recorded yet')
+
     expect(
       panel('Request rules').querySelector('[data-slot="panel-empty"]')?.textContent,
     ).toContain('Not available yet')

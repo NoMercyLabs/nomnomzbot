@@ -25,6 +25,8 @@
       "line": {
         "actions": "Actions for {name}",
         "removed": "Removed message",
+        "timedOut": "Timed out · {length}",
+        "banned": "Banned",
         "profile": "Open profile of {name}",
         "profileTip": "Open profile"
       },

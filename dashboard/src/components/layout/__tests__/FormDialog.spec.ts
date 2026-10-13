@@ -35,6 +35,7 @@ async function dialog(extra: Record<string, unknown> = {}): Promise<VueWrapper> 
     attachTo: document.body,
     global: { plugins: [i18n] },
   })
+
   await flushPromises()
 
   return mounted
@@ -120,6 +121,7 @@ describe('the form dialog', () => {
 
     press(document.body.querySelector('[role="dialog"]') as Element, 'Escape')
     await flushPromises()
+
     expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false])
 
     ;(document.body.querySelector('[data-form-cancel]') as HTMLButtonElement).click()

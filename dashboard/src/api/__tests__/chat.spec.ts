@@ -32,8 +32,7 @@ const http = vi.hoisted(() => ({
   DELETE: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
@@ -84,6 +83,7 @@ describe('useChatHistory', () => {
 
     expect(path).toBe('/api/v{version}/channels/{channelId}/chat/messages')
     expect(init.params.path).toEqual({ version: '1', channelId: channel })
+
     expect(queries.getQueryData<ChatLine[]>(chatKey(channel))?.map((entry) => entry.id)).toEqual([
       'a',
       'b',
@@ -153,6 +153,7 @@ describe('moderation hooks', () => {
 
     expect(path).toBe('/api/v{version}/channels/{channelId}/moderation/actions')
     expect(init.params.path).toEqual({ version: '1', channelId: channel })
+
     expect(init.body).toEqual({
       action: 'timeout',
       targetUserId: 'u7',

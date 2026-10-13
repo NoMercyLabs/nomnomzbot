@@ -120,60 +120,58 @@ const widget = (
   ...over,
 })
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ method: 'GET', path, body: undefined })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'GET', path, body: undefined })
 
-        if (path.endsWith('/settings-schema')) {
-          const id = String(options?.params?.path?.widgetId)
-
-          return {
-            data: {
-              data: { widgetKey: id, name: id, fields: schemas[id] ?? [], eventSubscriptions: [] },
-            },
-            response: { status: 200, ok: true },
-          }
-        }
+      if (path.endsWith('/settings-schema')) {
+        const id = String(options?.params?.path?.widgetId)
 
         return {
-          data: { data: widgets, hasMore: false, nextPage: null },
+          data: {
+            data: { widgetKey: id, name: id, fields: schemas[id] ?? [], eventSubscriptions: [] },
+          },
           response: { status: 200, ok: true },
         }
-      },
-      PUT: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ method: 'PUT', path, body: options?.body })
+      }
 
-        if (putRefusal !== null)
-          return { error: { message: putRefusal }, response: { status: 400, ok: false } }
-
-        const id = String(options?.params?.path?.widgetId)
-        const body = options?.body as Record<string, unknown>
-
-        widgets = widgets.map((row) =>
-          row.id === id
-            ? { ...row, ...body }
-            : row)
-
-        return { data: { data: null }, response: { status: 200, ok: true } }
-      },
-      POST: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ method: 'POST', path, body: options?.body })
-
-        if (testRefusal !== null)
-          return { error: { message: testRefusal }, response: { status: 400, ok: false } }
-
-        return { data: { data: 'Sent to 1 browser source.' }, response: { status: 200, ok: true } }
-      },
+      return {
+        data: { data: widgets, hasMore: false, nextPage: null },
+        response: { status: 200, ok: true },
+      }
     },
-  }))
+    PUT: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'PUT', path, body: options?.body })
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+      if (putRefusal !== null)
+        return { error: { message: putRefusal }, response: { status: 400, ok: false } }
+
+      const id = String(options?.params?.path?.widgetId)
+      const body = options?.body as Record<string, unknown>
+
+      widgets = widgets.map((row) =>
+        row.id === id
+          ? { ...row, ...body }
+          : row)
+
+      return { data: { data: null }, response: { status: 200, ok: true } }
+    },
+    POST: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'POST', path, body: options?.body })
+
+      if (testRefusal !== null)
+        return { error: { message: testRefusal }, response: { status: 400, ok: false } }
+
+      return { data: { data: 'Sent to 1 browser source.' }, response: { status: 200, ok: true } }
+    },
+  },
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -183,6 +181,7 @@ beforeEach(() => {
   calls.length = 0
   putRefusal = null
   testRefusal = null
+
   widgets = [
     widget('w1', 'Now Playing', {
       settings: { size: 30, extra: 'kept' },
@@ -192,6 +191,7 @@ beforeEach(() => {
     widget('w3', 'Bare', { settings: {} }),
     widget('w4', 'Sized', { settings: { width: 1920, height: 1080 } }),
   ]
+
   schemas = { w1: fields() }
   pinia = createPinia()
   setActivePinia(pinia)
@@ -217,7 +217,9 @@ async function open(url: string = '/app/overlays?id=w1'): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/overlays', name: 'dashboard-overlays', component: blank }],
   })
+
   await router.push(url)
+
   mounted = mount(OverlaysView, {
     attachTo: document.body,
     global: {
@@ -232,6 +234,7 @@ async function open(url: string = '/app/overlays?id=w1'): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -277,6 +280,7 @@ describe('the overlay settings form', () => {
       ['Song title', 'on'],
       ['Artist', 'off'],
     ])
+
     const json = row('colors').querySelector('textarea') as HTMLTextAreaElement
 
     expect(json.readOnly).toBe(true)
@@ -299,6 +303,7 @@ describe('the overlay settings form', () => {
     await open()
 
     expect(changed('size')).toBe(true)
+
     expect(saveButton().disabled).toBe(true)
 
     ;(row('size').querySelector('[data-reset]') as HTMLButtonElement).click()
@@ -322,6 +327,7 @@ describe('the overlay settings form', () => {
     expect(puts().map((call) => call.body)).toEqual([
       { settings: { size: 30, extra: 'kept', title: 'Hello' } },
     ])
+
     expect(input('title').value).toBe('Hello')
     expect(saveButton().disabled).toBe(true)
     expect(settings().textContent).toContain(en.dashboard.overlays.detail.settings.saved)
@@ -374,6 +380,7 @@ describe('the Test button on a trigger row', () => {
         body: { eventType: 'follow' },
       },
     ])
+
     expect(eventRow('follow').textContent).toContain('Sent to 1 browser source.')
   })
 

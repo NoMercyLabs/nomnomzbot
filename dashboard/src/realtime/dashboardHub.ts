@@ -11,6 +11,8 @@
 import type { HubConnection } from '@microsoft/signalr'
 import type { QueryClient } from '@tanstack/vue-query'
 
+import { merge } from '@/lib/array'
+
 import { channelHandlers } from './channels'
 import { chatHandlers } from './chat'
 import { communityHandlers } from './community'
@@ -65,11 +67,11 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
 
   const hub = buildHub(hubPath, dashboardHubStatus)
 
-  attachHandlers(hub, [...channelHandlers, ...communityHandlers, ...chatHandlers], () =>
-    ({
-      queries,
-      channelId: joinedChannel,
-    }))
+  attachHandlers(hub, merge(channelHandlers, communityHandlers, chatHandlers), () => ({
+    queries,
+    channelId: joinedChannel,
+  }))
+
   hub.onreconnected(() => {
     if (joinedChannel) {
       void join(joinedChannel)
@@ -77,6 +79,7 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
 
     void joinWatched()
   })
+
   connection = hub
   await hub.start()
   dashboardHubStatus.value = 'connected'

@@ -51,23 +51,22 @@ const tenant = (
   ...over,
 })
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ path, query: { ...options?.params?.query } })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ path, query: { ...options?.params?.query } })
 
-        if (refused)
-          return { error: { message: 'no' }, response: { status: 403, ok: false } }
+      if (refused)
+        return { error: { message: 'no' }, response: { status: 403, ok: false } }
 
-        return {
-          data: { data: rowsOnPage, total, hasMore: total > 25, nextPage: 2 },
-          response: { status: 200, ok: true },
-        }
-      },
+      return {
+        data: { data: rowsOnPage, total, hasMore: total > 25, nextPage: 2 },
+        response: { status: 200, ok: true },
+      }
     },
-  }))
+  },
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -78,10 +77,12 @@ beforeEach(() => {
   calls.length = 0
   refused = false
   total = 2
+
   rowsOnPage = [
     tenant('t1', 'stoney_eagle', { isLive: true }),
     tenant('t2', 'quiet_one', { status: 'suspended', createdAt: '2026-05-01T10:00:00Z' }),
   ]
+
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
@@ -108,7 +109,9 @@ async function open(): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/admin/channels', name: 'dashboard-admin-channels', component: blank }],
   })
+
   await router.push('/app/admin/channels')
+
   mounted = mount(AdminChannelsView, {
     attachTo: document.body,
     global: {
@@ -123,6 +126,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 

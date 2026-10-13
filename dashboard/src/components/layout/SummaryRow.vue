@@ -12,6 +12,7 @@
 // pick: the whole row is the control (a button; pass role="radio" for a single choice).
 // Rows that carry their own button stay plain and do not hover.
 defineOptions({ inheritAttrs: false })
+
 withDefaults(
   defineProps<{ title: string; detail?: string; pick?: boolean; selected?: boolean }>(),
   {

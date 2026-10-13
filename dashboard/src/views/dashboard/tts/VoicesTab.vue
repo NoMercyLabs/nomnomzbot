@@ -50,8 +50,7 @@ const config = useTtsConfig(channelId)
 const search = ref('')
 const family: RemovableRef<string> = useLocalStorage('nnz.tts.voiceFamily', ALL)
 const asked = refDebounced(search, SEARCH_DELAY)
-const catalog = useTtsVoices(channelId, () =>
-  ({ q: asked.value }))
+const catalog = useTtsVoices(channelId, () => ({ q: asked.value }))
 const pick = useSetTtsVoice(channelId)
 
 const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
@@ -92,6 +91,7 @@ watch(
   },
   { immediate: true },
 )
+
 const panelState = computed<PanelState>(() =>
   catalog.isError.value
     ? 'error'

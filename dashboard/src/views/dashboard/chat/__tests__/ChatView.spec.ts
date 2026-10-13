@@ -66,40 +66,38 @@ const line = (
     ...over,
   }) as unknown as ChatLine
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string): Promise<Answer> => {
-        calls.push({ method: 'GET', path, body: undefined, messageId: '' })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string): Promise<Answer> => {
+      calls.push({ method: 'GET', path, body: undefined, messageId: '' })
 
-        return { data: { data: history }, response: { status: 200, ok: true } }
-      },
-      POST: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ method: 'POST', path, body: options?.body, messageId: '' })
-        const ok = !path.endsWith('/chat/messages') || sendOk
-
-        return { data: { data: null }, response: { status: ok
-          ? 200
-          : 500, ok } }
-      },
-      DELETE: async (path: string, options?: Options): Promise<Answer> => {
-        const messageId = String(options?.params?.path?.messageId)
-
-        calls.push({ method: 'DELETE', path, body: undefined, messageId })
-
-        return { data: { data: null }, response: { status: 200, ok: true } }
-      },
+      return { data: { data: history }, response: { status: 200, ok: true } }
     },
-  }))
+    POST: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'POST', path, body: options?.body, messageId: '' })
+      const ok = !path.endsWith('/chat/messages') || sendOk
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({
-      channelId: ref('c1'),
-      current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: true }),
-    }),
-  }))
+      return { data: { data: null }, response: { status: ok
+        ? 200
+        : 500, ok } }
+    },
+    DELETE: async (path: string, options?: Options): Promise<Answer> => {
+      const messageId = String(options?.params?.path?.messageId)
+
+      calls.push({ method: 'DELETE', path, body: undefined, messageId })
+
+      return { data: { data: null }, response: { status: 200, ok: true } }
+    },
+  },
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({
+    channelId: ref('c1'),
+    current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: true }),
+  }),
+}))
 
 const ROW_HEIGHT: number = 40
 const VIEWPORT_HEIGHT: number = 4000
@@ -114,6 +112,7 @@ function stubLayout(): void {
       disconnect(): void {}
     },
   )
+
   vi.stubGlobal(
     'IntersectionObserver',
     class {
@@ -122,6 +121,7 @@ function stubLayout(): void {
       disconnect(): void {}
     },
   )
+
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
       ? VIEWPORT_HEIGHT
@@ -132,12 +132,15 @@ function stubLayout(): void {
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(600)
+
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -152,6 +155,7 @@ function stubLayout(): void {
       y: 0,
     } as DOMRect
   })
+
   HTMLElement.prototype.scrollTo = function (
     this: HTMLElement,
   ): void {} as typeof HTMLElement.prototype.scrollTo
@@ -166,11 +170,13 @@ beforeEach(() => {
   calls.length = 0
   localStorage.clear()
   sendOk = true
+
   history = [
     line('m1', 'u1', 'Alice', 'first words'),
     line('m2', 'u2', 'Bob', 'second words'),
     line('m3', 'u1', 'Alice', '!sr some song', { isCommand: true }),
   ]
+
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
@@ -196,16 +202,17 @@ async function open(): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/chat', name: 'dashboard-chat', component: { template: '<div />' } }],
   })
+
   await router.push('/app/chat')
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   // The page runs inside the frame's tooltip provider and toast host, so the test gives it the same.
-  const framed = defineComponent(() => () => h(TooltipProvider, () =>
-    [h(ChatView), h(Toaster)]))
+  const framed = defineComponent(() => () => h(TooltipProvider, () => [h(ChatView), h(Toaster)]))
 
   mounted = mount(framed, {
     attachTo: document.body,
     global: { plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: queries }]] },
   })
+
   await settle()
 }
 
@@ -235,6 +242,7 @@ async function send(): Promise<void> {
   document.body
     .querySelector('form')!
     .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+
   await settle()
 }
 
@@ -248,24 +256,47 @@ describe('ChatView', () => {
 
   it('shows a line that is pushed into the feed', async () => {
     await open()
-    queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) =>
-      [
-        ...(feed ?? []),
-        line('m4', 'u3', 'Cara', 'just arrived'),
-      ])
+
+    queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) => [
+      ...(feed ?? []),
+      line('m4', 'u3', 'Cara', 'just arrived'),
+    ])
+
     await settle()
     expect(rowIds()).toEqual(['m1', 'm2', 'm3', 'm4'])
     expect(rowOf('m4').textContent).toContain('just arrived')
   })
 
+  it.each([
+    [{ removed: 'timeout', timeoutSeconds: 600 }, 'Timed out · 10 min'],
+    [{ removed: 'timeout', timeoutSeconds: 45 }, 'Timed out · 45 sec'],
+    [{ removed: 'timeout', timeoutSeconds: 1_209_600 }, 'Timed out · 14 days'],
+    [{ removed: 'banned' }, 'Banned'],
+  ] as const)('a removed line says what happened: %o', async (mark, said) => {
+    await open()
+
+    queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) =>
+      feed?.map((one) =>
+        one.id === 'm1'
+          ? { ...one, ...mark }
+          : one),
+    )
+
+    await settle()
+    expect(rowOf('m1').querySelector('[data-removal]')?.textContent?.trim()).toBe(said)
+    expect(rowOf('m2').querySelector('[data-removal]')).toBeNull()
+  })
+
   it('strikes a deleted line, and Delete calls DELETE with that line id', async () => {
     await open()
+
     queries.setQueryData<ChatLine[]>(chatKey('c1'), (feed) =>
       feed?.map((one) =>
         one.id === 'm1'
           ? { ...one, removed: 'deleted' }
           : one),
     )
+
     await settle()
     expect(rowOf('m1').dataset.removed).toBe('deleted')
     expect(rowOf('m2').dataset.removed).toBeUndefined()
@@ -325,6 +356,7 @@ describe('ChatView', () => {
     await settle()
     expect(writes()).toHaveLength(1)
     expect(writes()[0]!.path).toBe('/api/v{version}/channels/{channelId}/moderation/actions')
+
     expect(writes()[0]!.body).toEqual({
       action: 'timeout',
       targetUserId: 'u2',
@@ -343,6 +375,7 @@ describe('ChatView', () => {
     await type('x'.repeat(400))
     expect(document.body.querySelector('[data-composer-count]')).toBeNull()
     await type('x'.repeat(401))
+
     expect(document.body.querySelector('[data-composer-count]')?.textContent?.trim()).toBe(
       '401/500',
     )
@@ -359,6 +392,7 @@ describe('ChatView', () => {
     await settle()
     expect(writes()).toHaveLength(1)
     expect(writes()[0]!.path).toBe('/api/v{version}/channels/{channelId}/moderation/actions/ban')
+
     expect(writes()[0]!.body).toEqual({
       targetTwitchUserId: 'u2',
       scope: 'this_channel',
@@ -372,11 +406,13 @@ describe('ChatView', () => {
     await send()
     expect(writes()).toHaveLength(1)
     expect(writes()[0]!.path).toBe('/api/v{version}/channels/{channelId}/chat/messages')
+
     expect(writes()[0]!.body).toEqual({
       message: 'hello chat',
       senderIdentity: 'you',
       replyToMessageId: null,
     })
+
     expect(input().value).toBe('')
   })
 
@@ -385,9 +421,11 @@ describe('ChatView', () => {
     await type('x'.repeat(501))
     await send()
     expect(writes()).toEqual([])
+
     expect(document.body.textContent).toContain(
       en.dashboard.chat.composer.tooLong.replace('{max}', '500'),
     )
+
     expect(document.body.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(
       true,
     )
@@ -418,9 +456,11 @@ describe('ChatView', () => {
     await type('will not go')
     await send()
     expect(writes()).toHaveLength(1)
+
     expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
       en.dashboard.chat.composer.failed,
     )
+
     expect(input().value).toBe('will not go')
   })
 

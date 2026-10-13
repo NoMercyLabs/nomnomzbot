@@ -16,11 +16,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import words from '../i18n/en.json'
 
-vi.mock('vue-router', () =>
-  ({
-    useRoute: () => ({ query: {} }),
-    useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
-  }))
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
+}))
 
 const official: string = 'https://nomnomz.bot'
 const twitch = {
@@ -99,6 +98,7 @@ describe('signing in to a bot this page does not belong to', () => {
       .findAll('button')
       .find((b) => b.text() === 'Continue with Twitch')!
       .trigger('click')
+
     await flushPromises()
 
     expect(calls).toContain(`POST ${official}/api/v1/auth/twitch/device`)
@@ -121,11 +121,13 @@ describe('signing in from a plain http address on the network', () => {
       .findAll('button')
       .find((b) => b.text() === 'Continue with Twitch')!
       .trigger('click')
+
     await flushPromises()
 
     expect(
       calls.some((call) => call.startsWith('POST ') && call.endsWith('/api/v1/auth/twitch/device')),
     ).toBe(true)
+
     expect(wrapper.text()).toContain('ABCD-EFGH')
   })
 })
@@ -143,6 +145,7 @@ describe('the sign-in options', () => {
 
     expect(button.find('svg path').attributes('d')).toBe(siTwitch.path)
     expect(button.find('svg').attributes('aria-hidden')).toBe('true')
+
     expect(wrapper.text()).toContain(
       'By continuing, you agree to the terms of service and the privacy policy.',
     )

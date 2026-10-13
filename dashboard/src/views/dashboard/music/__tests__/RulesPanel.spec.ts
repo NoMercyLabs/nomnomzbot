@@ -77,24 +77,22 @@ function write(method: string, path: string, options?: Options): Answer {
     : { response: { status: 200, ok: true } }
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string) =>
-        path.endsWith('/music/config')
-          ? ok(config)
-          : ok(blocked.map((row) => ({ ...row }))),
-      PUT: async (path: string, options?: Options) => write('PUT', path, options),
-      POST: async (path: string, options?: Options) => write('POST', path, options),
-      DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
-    },
-  }))
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) =>
+      path.endsWith('/music/config')
+        ? ok(config)
+        : ok(blocked.map((row) => ({ ...row }))),
+    PUT: async (path: string, options?: Options) => write('PUT', path, options),
+    POST: async (path: string, options?: Options) => write('POST', path, options),
+    DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -134,6 +132,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -227,6 +226,7 @@ describe('RulesPanel', () => {
     expect(calls[0]!.path.endsWith('/music/blocked-tracks/{blockedTrackId}')).toBe(true)
     expect(calls[0]!.blockedTrackId).toBe('b2')
     expect(document.body.querySelectorAll('[data-blocked-item]')).toHaveLength(1)
+
     expect(document.body.querySelector('[data-blocked-item]')?.textContent).toContain(
       'Never Gonna Give You Up',
     )
@@ -236,11 +236,13 @@ describe('RulesPanel', () => {
 
     expect(calls[1]!.method).toBe('POST')
     expect(calls[1]!.path.endsWith('/music/blocked-tracks')).toBe(true)
+
     expect(calls[1]!.body).toEqual({
       provider: 'spotify',
       trackUri: 'spotify:track:b2',
       title: 'Baby Shark',
     })
+
     expect(document.body.querySelectorAll('[data-blocked-item]')).toHaveLength(2)
   })
 

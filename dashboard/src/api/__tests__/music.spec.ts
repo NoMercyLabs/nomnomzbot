@@ -35,8 +35,7 @@ const http = vi.hoisted(() => ({
   DELETE: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
@@ -124,12 +123,14 @@ describe('useRemoveQueueItem', () => {
     let finish: (answer: Answer) => void = () => {}
 
     http.DELETE.mockReturnValue(new Promise<Answer>((done) => (finish = done)))
+
     http.GET.mockResolvedValue({
       data: {
         data: { nowPlaying: null, queue: [queue.queue[0], { ...queue.queue[2], position: 2 }] },
       },
       response: ok,
     })
+
     const { queries, hook } = mount(() => useRemoveQueueItem(channel))
 
     queries.setQueryData(musicQueueKey(channel), queue)
@@ -144,6 +145,7 @@ describe('useRemoveQueueItem', () => {
       [1, 'One'],
       [2, 'Three'],
     ])
+
     const [path, init] = http.DELETE.mock.calls[0] as [
       string,
       { params: { path: Record<string, unknown> } },
@@ -161,6 +163,7 @@ describe('useRemoveQueueItem', () => {
       error: { status: 'error', message: 'no' },
       response: { ok: false, status: 403 },
     })
+
     const { queries, hook, inbox } = mount(() => useRemoveQueueItem(channel))
 
     queries.setQueryData(musicQueueKey(channel), queue)
@@ -188,10 +191,12 @@ describe('useSaveMusicConfig', () => {
     const [path, init] = http.PUT.mock.calls[0] as [string, unknown]
 
     expect(path).toBe('/api/v{version}/channels/{channelId}/music/config')
+
     expect(init).toEqual({
       params: { path: { version: '1', channelId: channel } },
       body: { maxRequestsPerUser: 1 },
     })
+
     expect(queries.getQueryData<MusicConfig>(musicConfigKey(channel))).toEqual(saved)
   })
 

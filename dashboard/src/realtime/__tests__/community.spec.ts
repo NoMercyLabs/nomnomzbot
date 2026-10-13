@@ -15,11 +15,10 @@ import { communityListKey, viewerProfileKey } from '@/api/people'
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () =>
-  ({
-    HubConnectionBuilder: FakeHubConnectionBuilder,
-    HubConnection: FakeHubConnection,
-  }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 beforeEach(() => {
   vi.resetModules()

@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { chatKey, chatLineLimit, type ChatLine, type ChatLineRemoval } from '@/api/chat'
+import { chatKey, chatLineLimit, type ChatLine, type ChatLineMark } from '@/api/chat'
 
 import type { HubEventContext, HubEventHandler } from './hubEvent'
 import type {
@@ -23,15 +23,28 @@ import type {
 function markLines(
   queries: HubEventContext['queries'],
   channelId: string,
-  removal: ChatLineRemoval,
+  mark: ChatLineMark,
   applies: (line: ChatLine) => boolean,
 ): void {
   queries.setQueryData<ChatLine[]>(chatKey(channelId), (feed) =>
     feed?.map((line) =>
       applies(line)
-        ? { ...line, removed: removal }
+        ? { ...line, ...mark }
         : line),
   )
+}
+
+// A timeout and a ban say what happened; Twitch also sends a purge for them, which must not wipe that.
+function modActionMark(action: ModActionPayload): ChatLineMark | null {
+  if (action.action === 'timeout') {
+    return { removed: 'timeout', timeoutSeconds: action.durationSeconds ?? undefined }
+  }
+
+  if (action.action === 'ban') {
+    return { removed: 'banned' }
+  }
+
+  return null
 }
 
 // One connection watches many channels, so every handler files by the channel the payload names, not the joined one.
@@ -57,34 +70,33 @@ export const chatHandlers: [
       if (event.type === 'message_deleted') {
         const { messageId } = event.data as MessageDeletedPayload
 
-        markLines(queries, event.broadcasterId, 'deleted', (line) =>
+        markLines(queries, event.broadcasterId, { removed: 'deleted' }, (line) =>
           line.id === messageId)
       }
 
       if (event.type === 'chat_cleared') {
-        markLines(queries, event.broadcasterId, 'cleared', () =>
+        markLines(queries, event.broadcasterId, { removed: 'cleared' }, () =>
           true)
       }
 
       if (event.type === 'user_messages_cleared') {
         const { targetUserId } = event.data as UserMessagesClearedPayload
+        const isUnmarkedLineOf = (line: ChatLine): boolean =>
+          line.userId === targetUserId && line.removed === undefined
 
-        markLines(queries, event.broadcasterId, 'purged', (line) =>
-          line.userId === targetUserId)
+        markLines(queries, event.broadcasterId, { removed: 'purged' }, isUnmarkedLineOf)
       }
     },
   },
   {
     event: 'ModAction',
     handle: ({ queries }, action) => {
-      if (action.action === 'timeout' || action.action === 'ban') {
-        markLines(
-          queries,
-          action.broadcasterId,
-          'purged',
-          (line) => line.userId === action.targetUserId,
-        )
-      }
+      const mark = modActionMark(action)
+
+      if (!mark) return
+
+      markLines(queries, action.broadcasterId, mark, (line) =>
+        line.userId === action.targetUserId)
     },
   },
 ]

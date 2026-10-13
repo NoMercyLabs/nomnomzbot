@@ -98,30 +98,28 @@ function answer(method: string, path: string): Answer {
     : ok(null)
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string) => answer('GET', path),
-      POST: async (path: string) => {
-        calls.push({ method: 'POST', path })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) => answer('GET', path),
+    POST: async (path: string) => {
+      calls.push({ method: 'POST', path })
 
-        if (snoozeFails)
-          return refused()
+      if (snoozeFails)
+        return refused()
 
-        if (path.endsWith('/ads/snooze')) {
-          snoozeCount -= 1
-        }
+      if (path.endsWith('/ads/snooze')) {
+        snoozeCount -= 1
+      }
 
-        return { data: { data: null }, response: { status: 200, ok: true } }
-      },
+      return { data: { data: null }, response: { status: 200, ok: true } }
     },
-  }))
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -154,7 +152,9 @@ async function open(): Promise<void> {
       { path: '/app/stream', name: 'dashboard-stream', component: blank },
     ],
   })
+
   await router.push('/app')
+
   mounted = mount(QuickActionsPanel, {
     attachTo: document.body,
     global: {
@@ -169,6 +169,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -191,9 +192,11 @@ describe('QuickActionsPanel', () => {
     await open()
 
     expect(document.body.textContent).toContain('Quick actions')
+
     expect(row('ad').querySelector('[data-slot="countdown-time"]')?.textContent).toMatch(
       /^12:\d\d$/,
     )
+
     expect(row('ad').textContent).toContain('3 min')
     expect(row('ad').textContent).toContain('2 snoozes left')
     expect(row('music').textContent).toContain('3 waiting')
@@ -222,6 +225,7 @@ describe('QuickActionsPanel', () => {
     expect(posts()).toEqual([
       { method: 'POST', path: expect.stringContaining('/live-ops/ads/snooze') },
     ])
+
     expect(row('ad').textContent).toContain('1 snooze left')
   })
 
@@ -273,13 +277,16 @@ describe('QuickActionsPanel', () => {
           choices: [],
         },
       ])
+
     await open()
 
     expect(row('poll').textContent).toContain('Which game next?')
     expect(row('poll').textContent).not.toContain('Old poll')
+
     expect(row('poll').querySelector('[data-slot="countdown-time"]')?.textContent).toMatch(
       /^[45]:\d\d$/,
     )
+
     expect(row('poll').textContent).not.toContain('No poll or prediction running')
   })
 
@@ -297,6 +304,7 @@ describe('QuickActionsPanel', () => {
           outcomes: [],
         },
       ])
+
     await open()
 
     expect(row('poll').textContent).toContain('Will it build?')

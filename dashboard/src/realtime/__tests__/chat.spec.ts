@@ -16,11 +16,10 @@ import { chatKey, chatLineLimit, type ChatLine } from '@/api/chat'
 import type { ChatMessagePayload } from '../payloads'
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () =>
-  ({
-    HubConnectionBuilder: FakeHubConnectionBuilder,
-    HubConnection: FakeHubConnection,
-  }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 type Hub = typeof import('../dashboardHub')
 
@@ -131,6 +130,7 @@ describe('chat moderation events', () => {
       line('m2', 'A'),
       line('m3', 'A'),
     ])
+
     queries.setQueryData<ChatLine[]>(chatKey('B'), [line('m2', 'B')])
 
     connection.receive(
@@ -148,6 +148,7 @@ describe('chat moderation events', () => {
       ['m2', 'deleted'],
       ['m3', undefined],
     ])
+
     expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined()
   })
 
@@ -185,12 +186,17 @@ describe('chat moderation events', () => {
       ['u1', 'purged'],
       ['u2', undefined],
     ])
+
     expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined()
   })
 
-  it.each([['timeout'], ['ban']])(
-    'a %s mod action marks that person lines in that channel only',
-    async (action: string) => {
+  it.each([
+    ['timeout', 600, 'timeout', 600],
+    ['timeout', 1_209_600, 'timeout', 1_209_600],
+    ['ban', null, 'banned', undefined],
+  ])(
+    'a %s mod action of %s seconds marks that person lines in that channel only, with its length',
+    async (action: string, durationSeconds: number | null, removed: string, length: number | undefined) => {
       const [, queries, connection] = await started()
 
       queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1'), line('m2', 'A', 'u2')])
@@ -201,17 +207,44 @@ describe('chat moderation events', () => {
         moderatorId: 'mod',
         targetUserId: 'u1',
         reason: null,
-        durationSeconds: 60,
+        durationSeconds,
         broadcasterId: 'A',
       })
 
-      expect(lines(queries, 'A')?.map((l) => [l.userId, l.removed])).toEqual([
-        ['u1', 'purged'],
-        ['u2', undefined],
+      expect(lines(queries, 'A')?.map((l) => [l.userId, l.removed, l.timeoutSeconds])).toEqual([
+        ['u1', removed, length],
+        ['u2', undefined, undefined],
       ])
+
       expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined()
     },
   )
+
+  it('the purge Twitch sends with a timeout keeps the timeout and its length', async () => {
+    const [, queries, connection] = await started()
+
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [line('m1', 'A', 'u1')])
+
+    connection.receive('ModAction', {
+      action: 'timeout',
+      moderatorId: 'mod',
+      targetUserId: 'u1',
+      reason: null,
+      durationSeconds: 300,
+      broadcasterId: 'A',
+    })
+
+    connection.receive(
+      'ChannelEvent',
+      channelEvent('user_messages_cleared', 'A', {
+        targetUserId: 'u1',
+        targetUserDisplayName: 'U1',
+        targetUserLogin: 'u1',
+      }),
+    )
+
+    expect(lines(queries, 'A')?.map((l) => [l.removed, l.timeoutSeconds])).toEqual([['timeout', 300]])
+  })
 
   it('an unban mod action leaves the feed alone', async () => {
     const [, queries, connection] = await started()

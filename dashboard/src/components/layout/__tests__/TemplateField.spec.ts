@@ -85,6 +85,7 @@ async function host(
       ],
     },
   })
+
   await flushPromises()
 
   return document.body.querySelector('textarea') as HTMLTextAreaElement
@@ -221,6 +222,7 @@ describe('the helper panel', () => {
     const area: HTMLTextAreaElement = await host('ab cd', true)
 
     await type(area, 'ab cd', 2)
+
     area.blur()
 
     ;(document.body.querySelector('[data-helper-row="user"]') as HTMLElement).click()
@@ -236,6 +238,7 @@ describe('the helper panel', () => {
 
     await type(area, 'ab cd', 0)
     area.setSelectionRange(0, 2)
+
     area.dispatchEvent(new Event('select', { bubbles: true }))
 
     ;(document.body.querySelector('[data-helper-row="channel"]') as HTMLElement).click()

@@ -12,6 +12,7 @@ import { useLocalStorage, type RemovableRef } from '@vueuse/core'
 import { computed, type ComputedRef } from 'vue'
 
 import { useEnterModeratedChannel, useModeratedChannels, useMyChannels } from '@/api/channels'
+import { merge } from '@/lib/array'
 
 export type ChannelChoice = {
   login: string
@@ -26,7 +27,7 @@ export type ChannelChoice = {
 }
 
 export type CurrentChannel = {
-  channels: ComputedRef<ChannelChoice[]>
+  channels: ComputedRef<readonly ChannelChoice[]>
   current: ComputedRef<ChannelChoice | null>
   channelId: ComputedRef<string | null>
   isPending: ComputedRef<boolean>
@@ -41,7 +42,7 @@ export function useCurrentChannel(): CurrentChannel {
   const moderated = useModeratedChannels()
   const enter = useEnterModeratedChannel()
 
-  const channels = computed<ChannelChoice[]>(() => {
+  const channels = computed<readonly ChannelChoice[]>(() => {
     const own: ChannelChoice[] = (mine.data.value ?? []).map((row) => ({
       login: row.login,
       displayName: row.displayName,
@@ -66,7 +67,7 @@ export function useCurrentChannel(): CurrentChannel {
         twitchId: row.id,
       }))
 
-    return [...own, ...notSetUp]
+    return merge(own, notSetUp)
   })
 
   const current = computed<ChannelChoice | null>(

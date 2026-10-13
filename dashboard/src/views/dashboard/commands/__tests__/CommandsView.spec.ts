@@ -129,22 +129,20 @@ function write(method: string, path: string, options?: Options): Answer {
   return { response: { status: 200, ok: true } }
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string) => read(path),
-      POST: async (path: string, options?: Options) => write('POST', path, options),
-      PUT: async (path: string, options?: Options) => write('PUT', path, options),
-      PATCH: async (path: string, options?: Options) => write('PATCH', path, options),
-      DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
-    },
-  }))
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) => read(path),
+    POST: async (path: string, options?: Options) => write('POST', path, options),
+    PUT: async (path: string, options?: Options) => write('PUT', path, options),
+    PATCH: async (path: string, options?: Options) => write('PATCH', path, options),
+    DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let router: Router
@@ -153,11 +151,13 @@ let pinia: Pinia
 beforeEach(() => {
   localStorage.clear()
   calls.length = 0
+
   rows = [
     command('hello', { useCount: 12, aliases: ['hi'], templateResponse: 'Hello there' }),
     command('socials', { useCount: 40, templateResponse: 'Find me on the web', isEnabled: false }),
     command('pipe', { tier: 'pipeline', pipelineId: null, templateResponse: null, useCount: 3 }),
   ]
+
   refusePut = null
   refusePost = null
   answers = freshAnswers()
@@ -185,7 +185,9 @@ async function open(url: string = '/app/commands'): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/commands', name: 'dashboard-commands', component: blank }],
   })
+
   await router.push(url)
+
   mounted = mount(CommandsView, {
     attachTo: document.body,
     global: {
@@ -200,6 +202,7 @@ async function open(url: string = '/app/commands'): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -233,6 +236,7 @@ async function pick(name: string): Promise<void> {
   rowEls()
     .find((row) => row.dataset.commandName === name)!
     .click()
+
   await settle()
 }
 
@@ -243,6 +247,7 @@ describe('CommandsView list', () => {
       templateResponses: ['One', 'Two'],
       useCount: 3,
     })
+
     await open()
 
     expect(rowNames().sort()).toEqual(['dice', 'hello', 'socials'])
@@ -328,6 +333,7 @@ describe('CommandsView editor', () => {
       userCooldownSeconds: 30,
       speakWithTts: true,
     })
+
     await open('/app/commands?command=hello')
 
     expect(editor()!.textContent).toContain('!hello')
@@ -360,10 +366,12 @@ describe('CommandsView editor', () => {
 
     expect(writes('PUT')).toHaveLength(1)
     expect(writes('PUT')[0]!.name).toBe('hello')
+
     expect(writes('PUT')[0]!.body).toEqual({
       templateResponse: 'Hello everyone',
       cooldownSeconds: 20,
     })
+
     expect(unsaved()).toBe('')
     expect(buttonByText('Save changes').disabled).toBe(true)
   })
@@ -400,6 +408,7 @@ describe('CommandsView editor', () => {
     switchOf('Enabled').click()
     await settle()
     expect(writes('PUT')[0]!.body).toEqual({ isEnabled: false })
+
     expect(rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent).toContain(
       'Off',
     )
@@ -407,6 +416,7 @@ describe('CommandsView editor', () => {
     refusePut = 'No right'
     switchOf('Enabled').click()
     await settle()
+
     expect(rowEls().find((row) => row.dataset.commandName === 'hello')!.textContent).toContain(
       'Off',
     )
@@ -494,19 +504,23 @@ describe('CommandsView new command', () => {
     await openDialog()
 
     await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, '  !Welcome ')
+
     await type(
       document.body.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!,
       'Welcome in',
     )
+
     document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click()
     await settle()
 
     expect(writes('POST')).toHaveLength(1)
+
     expect(writes('POST')[0]!.body).toMatchObject({
       name: 'welcome',
       tier: 'template',
       templateResponse: 'Welcome in',
     })
+
     expect(rowNames()).toContain('welcome')
     expect(router.currentRoute.value.query.command).toBe('welcome')
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
@@ -525,6 +539,7 @@ describe('CommandsView new command', () => {
     expect(document.body.querySelector('[data-form-error]')?.textContent).toContain(
       'already exists',
     )
+
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
   })
 

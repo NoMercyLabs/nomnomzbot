@@ -39,6 +39,7 @@ beforeEach(() => {
   }
 
   i18n.global.mergeLocaleMessage('en', en)
+
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -62,6 +63,7 @@ async function open(query: string = ''): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/settings', name: 'dashboard-settings', component: blank }],
   })
+
   await router.push(`/app/settings${query}`)
   mounted = mount(SettingsView, { attachTo: document.body, global: { plugins: [i18n, router] } })
   await flushPromises()
@@ -93,9 +95,11 @@ describe('Readability presets', () => {
     await flushPromises()
 
     expect(stored()).toEqual(readabilityPresets.dyslexia)
+
     expect(Object.keys(readabilityPresets.dyslexia).sort()).toEqual(
       Object.keys(readabilityDefaults).sort(),
     )
+
     expect(html().dataset.rdFont).toBe('lexend')
     expect(html().dataset.rdLh).toBe('wide')
     expect(html().dataset.rdSpacing).toBe('wide')
@@ -173,6 +177,7 @@ describe('Readability options', () => {
       readabilityStorageKey,
       JSON.stringify({ ...readabilityDefaults, font: 'lexend', size: 17, contrast: true }),
     )
+
     const scope = effectScope()
     const reading = scope.run(() => useReadability())!
 

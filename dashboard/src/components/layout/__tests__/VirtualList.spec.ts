@@ -33,6 +33,7 @@ beforeEach(() => {
       disconnect(): void {}
     },
   )
+
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
       ? VIEWPORT_HEIGHT
@@ -43,11 +44,13 @@ beforeEach(() => {
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
     return sizeOf(this)
   })
+
   // The scrollable height is the height the list sets on its inner column.
   vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (
     this: HTMLElement,
@@ -57,7 +60,9 @@ beforeEach(() => {
       10,
     )
   })
+
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
+
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -72,6 +77,7 @@ beforeEach(() => {
       y: 0,
     } as DOMRect
   })
+
   HTMLElement.prototype.scrollTo = function (
     this: HTMLElement,
     options?: ScrollToOptions | number,
@@ -79,6 +85,7 @@ beforeEach(() => {
     this.scrollTop = typeof options === 'object'
       ? (options.top ?? 0)
       : 0
+
     this.dispatchEvent(new Event('scroll'))
   } as typeof HTMLElement.prototype.scrollTo
 })
@@ -89,8 +96,7 @@ afterEach(() => {
 })
 
 function rows(count: number): Row[] {
-  return Array.from({ length: count }, (_: unknown, id: number) =>
-    ({ id }))
+  return Array.from({ length: count }, (_: unknown, id: number) => ({ id }))
 }
 
 function list(items: Row[], extra: Record<string, unknown> = {}): VueWrapper {

@@ -87,20 +87,18 @@ function record(method: string, path: string, init: Call['init']): Answer | unde
     : undefined
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, init: Call['init']) => record('GET', path, init) ?? ok(null),
-      PUT: async (path: string, init: Call['init']) => record('PUT', path, init) ?? ok(null),
-      POST: async (path: string, init: Call['init']) => record('POST', path, init) ?? ok(null),
-    },
-  }))
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, init: Call['init']) => record('GET', path, init) ?? ok(null),
+    PUT: async (path: string, init: Call['init']) => record('PUT', path, init) ?? ok(null),
+    POST: async (path: string, init: Call['init']) => record('POST', path, init) ?? ok(null),
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 const ROW_HEIGHT = 56
 const VIEWPORT_HEIGHT = 560
@@ -113,13 +111,16 @@ beforeEach(() => {
   localStorage.clear()
   calls.length = 0
   played.length = 0
+
   answers = {
     'GET /tts/config': () => ok(config),
     'GET /tts/voices': () => ok(catalog, { hasMore: false, nextPage: null }),
   }
+
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
+
   // jsdom has no layout: the virtual list gets a viewport and a row height, as in PeopleView.spec.ts.
   vi.stubGlobal(
     'ResizeObserver',
@@ -129,6 +130,7 @@ beforeEach(() => {
       disconnect(): void {}
     },
   )
+
   vi.stubGlobal(
     'Audio',
     class {
@@ -140,6 +142,7 @@ beforeEach(() => {
       }
     },
   )
+
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
       ? VIEWPORT_HEIGHT
@@ -150,12 +153,15 @@ beforeEach(() => {
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
+
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -200,6 +206,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -231,6 +238,7 @@ describe('VoicesTab', () => {
       'nl-NL-ColetteNeural',
       'ja-JP-NanamiNeural',
     ])
+
     expect(rowOf('en-US-AriaNeural').getAttribute('aria-checked')).toBe('true')
     expect(rowOf('nl-NL-ColetteNeural').getAttribute('aria-checked')).toBe('false')
     expect(count()).toBe('4 of 4 voices')
@@ -275,8 +283,10 @@ describe('VoicesTab', () => {
     await open()
 
     expect(count()).toBe('4 of the first 4 voices')
+
     answers['GET /tts/voices'] = () =>
       ok([voice('de-DE-KatjaNeural', 'de-DE')], { hasMore: false, nextPage: null })
+
     document.body.querySelector<HTMLElement>('[data-voice-more]')!.click()
     await settle()
 
@@ -308,11 +318,13 @@ describe('VoicesTab', () => {
     await settle()
 
     expect(writes('PUT')).toHaveLength(1)
+
     expect(writes('PUT')[0]!.init.body).toEqual({
       defaultVoiceId: 'nl-NL-ColetteNeural',
       defaultProvider: 'edge',
       followPlatformDefaultVoice: false,
     })
+
     expect(rowOf('nl-NL-ColetteNeural').getAttribute('aria-checked')).toBe('true')
     expect(rowOf('en-US-AriaNeural').getAttribute('aria-checked')).toBe('false')
   })
@@ -322,6 +334,7 @@ describe('VoicesTab', () => {
       error: { message: 'No such voice' },
       response: { status: 400, ok: false },
     })
+
     await open()
 
     rowOf('nl-NL-ColetteNeural').click()
@@ -344,18 +357,22 @@ describe('VoicesTab', () => {
   it('asks the bot for a sample in that voice and plays the audio it returns', async () => {
     answers['POST /tts/test'] = () =>
       ok({ voiceId: 'nl-NL-ColetteNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
+
     await open()
 
     rowOf('nl-NL-ColetteNeural')
       .parentElement!.querySelector<HTMLElement>('[data-voice-play]')!
       .click()
+
     await settle()
 
     expect(writes('POST')).toHaveLength(1)
+
     expect(writes('POST')[0]!.init.body).toEqual({
       text: 'Hello chat, this is how I sound.',
       voiceId: 'nl-NL-ColetteNeural',
     })
+
     expect(played).toEqual(['data:audio/mpeg;base64,QUJD'])
     expect(writes('PUT')).toHaveLength(0)
   })
@@ -372,6 +389,7 @@ describe('VoicesTab', () => {
         ],
         { hasMore: false, nextPage: null },
       )
+
     await open()
 
     expect(headings()).toEqual([
@@ -381,6 +399,7 @@ describe('VoicesTab', () => {
       'German (Germany)',
       'Japanese (Japan)',
     ])
+
     expect(ids()).toEqual([
       'en-US-AriaNeural',
       'en-GB-SoniaNeural',
@@ -427,6 +446,7 @@ describe('VoicesTab', () => {
   it('puts a labeled play button on the channel voice card that samples the channel voice', async () => {
     answers['POST /tts/test'] = () =>
       ok({ voiceId: 'en-US-AriaNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
+
     await open()
 
     const card = document.body.querySelector('[data-current-voice]') as HTMLElement
@@ -443,6 +463,7 @@ describe('VoicesTab', () => {
       text: 'Hello chat, this is how I sound.',
       voiceId: 'en-US-AriaNeural',
     })
+
     expect(played).toEqual(['data:audio/mpeg;base64,QUJD'])
   })
 
@@ -451,6 +472,7 @@ describe('VoicesTab', () => {
       error: { status: 'error' },
       response: { status: 500, ok: false },
     })
+
     await open()
 
     const card: HTMLElement | undefined = [

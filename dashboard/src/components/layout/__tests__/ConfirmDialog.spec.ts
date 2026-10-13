@@ -35,6 +35,7 @@ async function dialog(extra: Record<string, unknown> = {}): Promise<VueWrapper> 
     attachTo: document.body,
     global: { plugins: [i18n] },
   })
+
   await flushPromises()
 
   return mounted
@@ -51,12 +52,14 @@ describe('the confirm dialog', () => {
     expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain(
       'Delete !so?',
     )
+
     expect(document.body.textContent).toContain('This command ran 333 times.')
     const items: string[] = Array.from(
       document.body.querySelectorAll('[data-slot="blast-list"] li'),
     ).map((li: Element) => li.textContent ?? '')
 
     expect(items).toEqual(['Chat stops answering !so.', 'The history stays.'])
+
     expect(document.body.querySelector('[data-slot="blast-list"]')?.textContent).toContain(
       'What happens',
     )
@@ -112,6 +115,7 @@ describe('the confirm dialog', () => {
     document.body
       .querySelector('[role="alertdialog"]')
       ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+
     await flushPromises()
 
     expect(wrapper.emitted('confirm')).toBeUndefined()

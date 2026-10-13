@@ -46,8 +46,7 @@ const http = vi.hoisted(() => ({
   DELETE: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200, headers: new Headers() } as const satisfies Answer['response']
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
@@ -143,6 +142,7 @@ describe('useSetScriptEnabled', () => {
       ['a', false],
       ['b', true],
     ])
+
     const [path, init] = http.PATCH.mock.calls[0] as [
       string,
       { params: { path: Record<string, unknown> }; body: unknown },
@@ -161,6 +161,7 @@ describe('useSetScriptEnabled', () => {
       error: { message: 'no' },
       response: { ok: false, status: 403, headers: new Headers() },
     })
+
     const { queries, hook, inbox } = mount(() => useSetScriptEnabled())
 
     queries.setQueryData(codeScriptsKey, [row('a', false)])
@@ -205,11 +206,13 @@ describe('useCreateCodeScript', () => {
     ]
 
     expect(path).toBe('/api/v{version}/code-scripts')
+
     expect(init.body).toEqual({
       name: 'Greeter',
       description: null,
       sourceCode: 'export default {}',
     })
+
     expect(queries.getQueryState(codeScriptsKey)?.isInvalidated).toBe(true)
   })
 
@@ -218,6 +221,7 @@ describe('useCreateCodeScript', () => {
       error: { message: 'Name is taken' },
       response: { ok: false, status: 400, headers: new Headers() },
     })
+
     const { queries, hook } = mount(() => useCreateCodeScript())
 
     queries.setQueryData(codeScriptsKey, [row('a', true)])
@@ -258,11 +262,13 @@ describe('blast radius and delete', () => {
 
       return { data: { data: radius }, response: ok }
     })
+
     http.DELETE.mockImplementation(async () => {
       order.push('delete')
 
       return { response: ok }
     })
+
     const { queries, hook } = mount(() => useDeleteCodeScript())
 
     queries.setQueryData(codeScriptsKey, [row('a', true)])
@@ -285,6 +291,7 @@ describe('blast radius and delete', () => {
       error: { message: 'Not found' },
       response: { ok: false, status: 404, headers: new Headers() },
     })
+
     const { queries, hook } = mount(() => useDeleteCodeScript())
 
     queries.setQueryData(codeScriptsKey, [row('a', true)])
@@ -406,6 +413,7 @@ describe('test triggers', () => {
       { id: 'follow', label: 'event.follow (Ann)', variables: { user: 'ann' } },
       { id: 'cheer', label: 'event.cheer', variables: {} },
     ])
+
     expect(http.GET.mock.calls[0]?.[0]).toBe('/api/v{version}/code-scripts/test-triggers')
   })
 })
@@ -433,6 +441,7 @@ describe('versions', () => {
       ],
       hasMore: true,
     })
+
     const [, init] = http.GET.mock.calls[0] as [
       string,
       { params: { path: Record<string, unknown>; query: Record<string, unknown> } },
@@ -471,6 +480,7 @@ describe('versions', () => {
       error: { message: 'Publish another version first' },
       response: { ok: false, status: 400, headers: new Headers() },
     })
+
     await expect(deleteScriptVersion('a', 'v2')).rejects.toThrow('Publish another version first')
   })
 })

@@ -60,6 +60,7 @@ export const channelHandlers: [
             ? { ...row, isLive: status.isLive }
             : row),
       )
+
       // Going offline carries no title or category, so the page keeps the ones it shows.
       queries.setQueryData<StreamInfo>(streamInfoKey(channelId), (info) =>
         info
@@ -72,6 +73,7 @@ export const channelHandlers: [
             }
           : info,
       )
+
       void queries.invalidateQueries({ queryKey: streamHistoryKey(channelId) })
     },
   },

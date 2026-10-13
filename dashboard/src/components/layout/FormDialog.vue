@@ -71,6 +71,7 @@ function keepOpenWhilePending(event: Event): void {
 
 function focusFirstField(event: Event): void {
   event.preventDefault()
+
   void nextTick(() => {
     body.value
       ?.querySelector<HTMLElement>('input, select, textarea, [tabindex]:not([tabindex="-1"])')

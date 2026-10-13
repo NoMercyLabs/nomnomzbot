@@ -73,40 +73,38 @@ const fixtures = (): Record<string, unknown>[] => [
   widget('w4', 'Chat Box', { isEnabled: false, overlayUrl: null, isCustomized: true }),
 ]
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string): Promise<Answer> => {
-        calls.push({ method: 'GET', path, body: undefined })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string): Promise<Answer> => {
+      calls.push({ method: 'GET', path, body: undefined })
 
-        if (listFails)
-          return { error: { status: 'error' }, response: { status: 500, ok: false } }
+      if (listFails)
+        return { error: { status: 'error' }, response: { status: 500, ok: false } }
 
-        return {
-          data: { data: widgets, hasMore: false, nextPage: null },
-          response: { status: 200, ok: true },
-        }
-      },
-      PUT: async (path: string, options?: Options): Promise<Answer> => {
-        calls.push({ method: 'PUT', path, body: options?.body })
-        const id = String(options?.params?.path?.widgetId)
-        const body = options?.body as Record<string, unknown>
-
-        widgets = widgets.map((row) =>
-          row.id === id
-            ? { ...row, ...body }
-            : row)
-
-        return { data: { data: null }, response: { status: 200, ok: true } }
-      },
+      return {
+        data: { data: widgets, hasMore: false, nextPage: null },
+        response: { status: 200, ok: true },
+      }
     },
-  }))
+    PUT: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({ method: 'PUT', path, body: options?.body })
+      const id = String(options?.params?.path?.widgetId)
+      const body = options?.body as Record<string, unknown>
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+      widgets = widgets.map((row) =>
+        row.id === id
+          ? { ...row, ...body }
+          : row)
+
+      return { data: { data: null }, response: { status: 200, ok: true } }
+    },
+  },
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -121,6 +119,7 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   i18n.global.mergeLocaleMessage('en', en)
+
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
     value: {
@@ -151,7 +150,9 @@ async function open(url: string = '/app/overlays'): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/overlays', name: 'dashboard-overlays', component: blank }],
   })
+
   await router.push(url)
+
   mounted = mount(OverlaysView, {
     attachTo: document.body,
     global: {
@@ -166,6 +167,7 @@ async function open(url: string = '/app/overlays'): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -272,9 +274,11 @@ describe('OverlaysView', () => {
 
   it('opens the overlay of a row when it is picked', async () => {
     await open()
+
     ;(
       document.body.querySelectorAll<HTMLElement>('[data-overlay-row] button')[2] as HTMLElement
     ).click()
+
     await settle()
 
     expect(router.currentRoute.value.query.id).toBe('w3')
@@ -336,12 +340,14 @@ describe('OverlaysView', () => {
   it('says a working overlay works, and a switched-off one is switched off', async () => {
     await open('/app/overlays?id=w1')
     expect(detail().querySelector('[data-slot="overlay-health"]')!.textContent).toContain('Works')
+
     expect(detail().querySelector('[data-slot="overlay-health"]')!.textContent).toContain(
       'A browser source is open',
     )
 
     await router.push('/app/overlays?id=w3')
     await settle()
+
     expect(detail().querySelector('[data-slot="overlay-health"]')!.textContent).toContain(
       'Switched off',
     )

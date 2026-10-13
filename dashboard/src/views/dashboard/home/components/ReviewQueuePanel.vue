@@ -66,7 +66,9 @@ function cancelDeny(queueItemId: string): void {
 
 // Leaving the page does not take back a deny the person already made.
 onBeforeUnmount(() => {
-  ;[...pendingDenies.keys()].forEach((queueItemId: string) => {
+  ;
+
+  [...pendingDenies.keys()].forEach((queueItemId: string) => {
     clearTimeout(pendingDenies.get(queueItemId))
     sendDeny(queueItemId)
   })

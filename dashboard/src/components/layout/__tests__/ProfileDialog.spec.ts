@@ -89,43 +89,41 @@ function userIdOf(options: Options | undefined): string {
   return String((options?.params?.path as Record<string, unknown> | undefined)?.userId)
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
-        record(path, options)
+vi.mock('@/api/client', () => ({
+  client: {
+    GET: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+      record(path, options)
 
-        return { data: { data: { ...people[userIdOf(options)] } } }
-      }),
-      POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
-        record(path, options)
+      return { data: { data: { ...people[userIdOf(options)] } } }
+    }),
+    POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+      record(path, options)
 
-        if (path.endsWith('/vip')) {
-          if (vipWrite) {
-            await vipWrite
-          }
-
-          if (vipWriteFails)
-            return { error: { status: 'error' }, response: { ok: false } }
-
-          people[userIdOf(options)]!.isVip = true
+      if (path.endsWith('/vip')) {
+        if (vipWrite) {
+          await vipWrite
         }
 
-        return { response: { ok: true } }
-      }),
-      DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
-        record(path, options)
-        people[userIdOf(options)]!.isVip = false
+        if (vipWriteFails)
+          return { error: { status: 'error' }, response: { ok: false } }
 
-        return { response: { ok: true } }
-      }),
-    },
-  }))
+        people[userIdOf(options)]!.isVip = true
+      }
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+      return { response: { ok: true } }
+    }),
+    DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
+      record(path, options)
+      people[userIdOf(options)]!.isVip = false
+
+      return { response: { ok: true } }
+    }),
+  },
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -136,6 +134,7 @@ beforeEach(() => {
   people = freshPeople()
   vipWrite = null
   vipWriteFails = false
+
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -144,6 +143,7 @@ beforeEach(() => {
       disconnect(): void {}
     },
   )
+
   const sizeOf = (element: Element): number =>
     element.hasAttribute('data-virtual-scroll')
       ? 300
@@ -154,12 +154,15 @@ beforeEach(() => {
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
     return sizeOf(this)
   })
+
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(300)
+
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -174,6 +177,7 @@ beforeEach(() => {
       y: 0,
     } as DOMRect
   })
+
   pinia = createPinia()
   setActivePinia(pinia)
 })
@@ -205,6 +209,7 @@ async function openPage(): Promise<void> {
       ],
     },
   })
+
   await flushPromises()
 }
 
@@ -343,6 +348,7 @@ describe('the profile dialog', () => {
     vipWrite = new Promise<void>((done) => {
       release = done
     })
+
     button('[data-profile-vip]').click()
     await flushPromises()
     expect(button('[data-profile-vip]').textContent).toContain('Remove VIP')

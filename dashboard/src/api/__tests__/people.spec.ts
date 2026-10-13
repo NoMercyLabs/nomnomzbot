@@ -47,8 +47,7 @@ const http = vi.hoisted(() => ({
   use: (): undefined => undefined,
 }))
 
-vi.mock('../client', () =>
-  ({ client: http }))
+vi.mock('../client', () => ({ client: http }))
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response']
 const channel = 'c1'
@@ -107,6 +106,7 @@ describe('useCommunityList', () => {
       data: { data: [person('a')], hasMore: false, total: 1 },
       response: ok,
     })
+
     const role = ref('moderator')
     const { hook } = mount(() => useCommunityList(channel, role, ref('')))
 
@@ -126,10 +126,12 @@ describe('useCommunityList', () => {
       data: { data: [person('a')], hasMore: true, nextPage: 2, total: 2 },
       response: ok,
     })
+
     http.GET.mockResolvedValueOnce({
       data: { data: [person('b')], hasMore: false, nextPage: null, total: 2 },
       response: ok,
     })
+
     const { hook } = mount(() => useCommunityList(channel, ref('all'), ref('')))
 
     await settle()
@@ -244,6 +246,7 @@ describe('notes', () => {
         release = (): void => done({ data: { data: saved }, response: ok })
       }),
     )
+
     const { queries, hook } = mount(() => ({
       list: useUserNotes(channel, 't1'),
       add: useAddNote(channel),
@@ -262,6 +265,7 @@ describe('notes', () => {
         'new note',
       ),
     )
+
     expect((queries.getQueryData(userNotesKey(channel, 't1')) as UserNote[])[0]?.id).toBeLessThan(0)
     release()
     await done
@@ -271,6 +275,7 @@ describe('notes', () => {
 
     expect(call[0]).toContain('/moderation/users/{userId}/notes')
     expect(call[1].body).toEqual({ content: 'new note', pinned: true })
+
     expect(
       (queries.getQueryData(userNotesKey(channel, 't1')) as UserNote[]).map((n) => n.id),
     ).toEqual([2, 1])
@@ -289,6 +294,7 @@ describe('notes', () => {
     await expect(
       hook.add.mutateAsync({ userId: 't1', content: 'x', pinned: false }),
     ).rejects.toThrow('add note 403')
+
     expect(queries.getQueryData(userNotesKey(channel, 't1'))).toEqual([note])
     expect(inbox.items).toHaveLength(1)
   })
@@ -300,6 +306,7 @@ describe('actions', () => {
       data: { data: { path: 'helix' } },
       response: { ok: true, status: 202 },
     })
+
     const { hook } = mount(() => useShoutout(channel))
     const path: string = await hook.mutateAsync({ targetTwitchUserId: 't1' })
 
@@ -314,6 +321,7 @@ describe('actions', () => {
 
     await hook.mutateAsync({ userId: 't1', durationSeconds: 600 })
     expect((http.POST.mock.calls[0] as Call)[0]).toContain('/moderation/actions')
+
     expect((http.POST.mock.calls[0] as Call)[1].body).toEqual({
       action: 'timeout',
       targetUserId: 't1',
@@ -326,6 +334,7 @@ describe('actions', () => {
       data: { data: { success: false, message: 'not a moderator' } },
       response: ok,
     })
+
     const { hook } = mount(() => useTimeout(channel))
 
     await expect(hook.mutateAsync({ userId: 't1', durationSeconds: 60 })).rejects.toThrow(
@@ -339,6 +348,7 @@ describe('actions', () => {
 
     await hook.mutateAsync({ userId: 't1' })
     expect((http.POST.mock.calls[0] as Call)[0]).toContain('/moderation/actions/unban')
+
     expect((http.POST.mock.calls[0] as Call)[1].body).toEqual({
       targetTwitchUserId: 't1',
       scope: 'this_channel',

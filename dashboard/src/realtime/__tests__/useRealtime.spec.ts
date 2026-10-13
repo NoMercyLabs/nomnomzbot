@@ -14,26 +14,24 @@ import { computed, effectScope, nextTick, ref, type EffectScope, type Ref } from
 
 import { FakeHubConnection, FakeHubConnectionBuilder } from './fakeSignalR'
 
-vi.mock('@microsoft/signalr', () =>
-  ({
-    HubConnectionBuilder: FakeHubConnectionBuilder,
-    HubConnection: FakeHubConnection,
-  }))
+vi.mock('@microsoft/signalr', () => ({
+  HubConnectionBuilder: FakeHubConnectionBuilder,
+  HubConnection: FakeHubConnection,
+}))
 
 const signedIn = ref(false)
 const channel: Ref<string | null> = ref('c1')
 const admin = ref(false)
 
-vi.mock('@/api/auth', () =>
-  ({
-    useSignedIn: () => signedIn,
-    getAccessToken: () => 'token',
-    useCurrentUser: () => ({ data: computed(() => ({ isAdmin: admin.value })) }),
-  }))
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: computed(() => channel.value) }),
-  }))
+vi.mock('@/api/auth', () => ({
+  useSignedIn: () => signedIn,
+  getAccessToken: () => 'token',
+  useCurrentUser: () => ({ data: computed(() => ({ isAdmin: admin.value })) }),
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: computed(() => channel.value) }),
+}))
 
 type Status = (typeof import('../hubStatus'))['dashboardHubStatus']
 
@@ -76,6 +74,7 @@ describe('useRealtime', () => {
     expect(FakeHubConnection.instances.map((c) => new URL(c.url).pathname)).toEqual([
       '/hubs/dashboard',
     ])
+
     expect(FakeHubConnection.at(0).invocations).toEqual([['JoinChannel', 'c1']])
     expect(dashboardHubStatus.value).toBe('connected')
   })

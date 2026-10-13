@@ -1,14 +1,14 @@
 {
   "dashboard": {
     "home": {
-      "greeting": "Hoi, {name}",
       "title": "Start",
       "live": "Live op {platforms}",
       "offline": "Offline",
       "openChat": "Chat openen",
       "editStream": "Streaminfo bewerken",
       "liveLine": "Live sinds {uptime} · {viewers} kijkers · {followers} volgers",
-      "offlineLine": "{followers} volgers · {subscribers} abonnees",
+      "liveLineCategory": "Live sinds {uptime} · {viewers} kijkers · {followers} volgers · {category}",
+      "lastStream": "Laatste stream eindigde {date} · {length}",
       "queue": {
         "title": "Te beoordelen",
         "waiting": "{count} wachtend",

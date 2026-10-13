@@ -21,26 +21,25 @@ import FilterBar from '@/components/layout/FilterBar.vue'
 import CatalogView from '../CatalogView.vue'
 import en from '../i18n/en.json'
 
-vi.mock('@/api/community', () =>
-  ({
-    useCommunityFirstPage: () => ({
-      data: ref([]),
-      isError: ref(false),
-      isPending: ref(false),
-      refetch: async (): Promise<void> => undefined,
-    }),
-  }))
-vi.mock('@/api/codeScripts', () =>
-  ({
-    useCodeScripts: () => ({ data: ref([]), error: ref(null) }),
-    fetchScriptProject: async () => null,
-    fetchScriptSdkTypes: async () => null,
-    saveScriptProject: async () => ({ ok: true }),
-  }))
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({ channelId: ref('c1') }),
-  }))
+vi.mock('@/api/community', () => ({
+  useCommunityFirstPage: () => ({
+    data: ref([]),
+    isError: ref(false),
+    isPending: ref(false),
+    refetch: async (): Promise<void> => undefined,
+  }),
+}))
+
+vi.mock('@/api/codeScripts', () => ({
+  useCodeScripts: () => ({ data: ref([]), error: ref(null) }),
+  fetchScriptProject: async () => null,
+  fetchScriptSdkTypes: async () => null,
+  saveScriptProject: async () => ({ ok: true }),
+}))
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}))
 
 let mounted: VueWrapper | null = null
 let pinia: Pinia
@@ -66,7 +65,9 @@ async function open(): Promise<void> {
     history: createMemoryHistory(),
     routes: [{ path: '/app/catalog', name: 'dashboard-catalog', component: blank }],
   })
+
   await router.push('/app/catalog?view=blocks')
+
   mounted = mount(CatalogView, {
     attachTo: document.body,
     global: {
@@ -81,6 +82,7 @@ async function open(): Promise<void> {
       },
     },
   })
+
   await flushPromises()
 }
 

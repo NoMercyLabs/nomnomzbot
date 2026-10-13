@@ -117,6 +117,7 @@ function answer(method: string, path: string, options: Options | undefined): Ans
     query: options?.params?.query,
     pathParams: options?.params?.path,
   })
+
   const match = Object.keys(answers)
     .sort((a, b) => b.length - a.length)
     .find((suffix) => path.endsWith(suffix))
@@ -126,38 +127,36 @@ function answer(method: string, path: string, options: Options | undefined): Ans
     : ok(null)
 }
 
-vi.mock('@/api/client', () =>
-  ({
-    client: {
-      use: () => undefined,
-      GET: async (path: string, options?: Options) => answer('GET', path, options),
-      POST: async (path: string, options?: Options) => answer('POST', path, options),
-      PUT: async (path: string, options?: Options) => {
-        calls.push({
-          method: 'PUT',
-          path,
-          body: options?.body,
-          query: undefined,
-          pathParams: options?.params?.path,
-        })
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string, options?: Options) => answer('GET', path, options),
+    POST: async (path: string, options?: Options) => answer('POST', path, options),
+    PUT: async (path: string, options?: Options) => {
+      calls.push({
+        method: 'PUT',
+        path,
+        body: options?.body,
+        query: undefined,
+        pathParams: options?.params?.path,
+      })
 
-        return saveRefused
-          ? refused()
-          : {
-              data: { data: { ...streamInfo, ...(options?.body as object) } },
-              response: { status: 200, ok: true },
-            }
-      },
+      return saveRefused
+        ? refused()
+        : {
+            data: { data: { ...streamInfo, ...(options?.body as object) } },
+            response: { status: 200, ok: true },
+          }
     },
-  }))
+  },
+}))
 
-vi.mock('@/composables/useCurrentChannel', () =>
-  ({
-    useCurrentChannel: () => ({
-      channelId: ref('c1'),
-      current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: false }),
-    }),
-  }))
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({
+    channelId: ref('c1'),
+    current: ref({ login: 'stoney_eagle', displayName: 'Stoney_Eagle', isLive: false }),
+  }),
+}))
 
 const assign = vi.fn<(url: string) => void>()
 
@@ -190,6 +189,7 @@ async function open(): Promise<void> {
   })
 
   await router.push('/app/stream')
+
   mounted = mount(StreamView, {
     attachTo: document.body,
     global: {
@@ -204,6 +204,7 @@ async function open(): Promise<void> {
       ],
     },
   })
+
   await settle()
 }
 
@@ -262,11 +263,13 @@ describe('the stream info form', () => {
     expect(puts()).toHaveLength(1)
     expect(puts()[0]!.path.endsWith('/channels/{channelId}/stream')).toBe(true)
     expect(puts()[0]!.pathParams).toMatchObject({ channelId: 'c1' })
+
     expect(puts()[0]!.body).toEqual({
       title: 'Fixing the stream page',
       gameName: 'Software and Game Development',
       tags: ['coding', 'English'],
     })
+
     expect(titleBox().value).toBe('Fixing the stream page')
     expect(button('Save changes')?.disabled).toBe(true)
   })
@@ -367,6 +370,7 @@ describe('the stream info form', () => {
   it('stops at 10 tags', async () => {
     answers['/stream'] = () =>
       ok({ ...streamInfo, tags: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'] })
+
     await open()
 
     await type(tagBox(), 'extra')
@@ -384,6 +388,7 @@ describe('the stream info form', () => {
     ]
 
     expect(labels).toHaveLength(7)
+
     expect(
       labels.every(
         (row) =>
@@ -406,6 +411,7 @@ describe('the page header', () => {
   it('gives only the date when the last stream has no end or length', async () => {
     answers['/analytics/streams'] = () =>
       ok([{ streamId: 's1', title: '', gameName: '', startedAt: '2026-08-30T11:11:07+00:00' }])
+
     await open()
 
     expect(text()).not.toContain('NaN')
@@ -463,12 +469,14 @@ describe('before you go live', () => {
       'Song request is off. 1 of 3 rewards are on.',
       'Pick a game is off. 1 of 3 rewards are on.',
     ])
+
     expect(offRows.every((row) => row.querySelector('[data-tone="off"]') !== null)).toBe(true)
   })
 
   it('says all rewards are on when none is off', async () => {
     answers['/rewards'] = () =>
       ok([{ id: 'r1', title: 'Hydrate', isEnabled: true, isPaused: false }])
+
     await open()
 
     expect(text()).toContain('All 1 rewards are on')

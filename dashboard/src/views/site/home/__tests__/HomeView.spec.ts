@@ -80,6 +80,7 @@ describe('the site root', () => {
       'GitHub',
       'Connect your channel',
     ])
+
     expect(panel!.querySelector('[data-slot="select-trigger"]')).not.toBeNull()
   })
 
@@ -89,6 +90,7 @@ describe('the site root', () => {
     expect(wrapper.text()).toContain(
       'Only NoMercy Labs may operate NomNomzBot as a paid service for other streamers',
     )
+
     expect(wrapper.text()).toContain('Running your own bot stays free and unrestricted, forever')
   })
 

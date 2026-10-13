@@ -48,6 +48,7 @@ describe('the language picker', () => {
     const options: NodeListOf<Element> = document.querySelectorAll('[data-slot="select-item"]')
 
     expect(options.length).toBeGreaterThan(0)
+
     options.forEach((option: Element) =>
       expect(option.closest('[data-slot="select-group"]')).not.toBeNull(),
     )

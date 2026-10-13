@@ -25,6 +25,8 @@
       "line": {
         "actions": "Acties voor {name}",
         "removed": "Verwijderd bericht",
+        "timedOut": "Time-out · {length}",
+        "banned": "Verbannen",
         "profile": "Open profiel van {name}",
         "profileTip": "Open profiel"
       },

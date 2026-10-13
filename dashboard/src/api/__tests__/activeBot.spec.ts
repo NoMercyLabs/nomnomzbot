@@ -59,6 +59,7 @@ describe('the chosen bot', () => {
 
     switchBot(saas)
     await startDeviceSignIn('twitch')
+
     await client.POST('/api/v{version}/auth/{provider}/device/poll', {
       params: { path: { version: '1', provider: 'twitch' }, query: { client: 'web' } },
       body: { deviceCode: 'abc' },
