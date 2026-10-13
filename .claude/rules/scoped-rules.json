@@ -302,6 +302,18 @@
    "covers": []
   },
   {
+   "id": "dashboard-utils-grouped-by-kind",
+   "paths": [
+    "**/dashboard/src/lib/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "Dashboard helpers live in one file per KIND (`src/lib/array.ts` for array and key helpers, and so on), never one function per file. A new helper joins the file for its kind; make a new kind file only when no kind fits. `src/lib/utils.ts` is shadcn's `cn` file: leave it alone.",
+   "source": "Stoney 2026-10-13: \"you now placed it in its own file while it is an array type of utility, you can make multiple util files but not one function per file, that is overcorrecting my words\"; memory feedback-utils-grouped-by-kind.md",
+   "covers": []
+  },
+  {
    "id": "license-header-required",
    "paths": [
     "**/server/**/*.cs",

@@ -10,7 +10,7 @@
 
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
-import { keysOf } from '../keysOf'
+import { keysOf } from '../array'
 
 describe('keysOf', () => {
   it('returns the own keys in insertion order, typed as the object keys', () => {

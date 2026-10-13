@@ -11,7 +11,7 @@
 import { useStorage } from '@vueuse/core'
 import { computed, watch, type ComputedRef, type Ref } from 'vue'
 
-import { keysOf } from '@/lib/keysOf'
+import { keysOf } from '@/lib/array'
 
 // How text looks for one person on one device. No server endpoint exists for it, so the options live in
 // this browser (localStorage) and reach the page as attributes and custom properties on <html>.
