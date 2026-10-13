@@ -85,6 +85,54 @@ public sealed class UserServiceGetOrCreateTests
     }
 
     [Fact]
+    public async Task UpsertTwitchProfileAsync_creates_one_user_with_the_image_then_refreshes_it_on_a_second_call()
+    {
+        (IUserService svc, AuthDbContext db) = Build();
+
+        Result<UserDto> first = await svc.UpsertTwitchProfileAsync(
+            "9001",
+            "twrtlebeach",
+            "TwrtleBeach",
+            "https://img.example/one.png"
+        );
+
+        first.IsSuccess.Should().BeTrue();
+        User created = await db.Users.SingleAsync(u => u.TwitchUserId == "9001");
+        created.Username.Should().Be("twrtlebeach");
+        created.DisplayName.Should().Be("TwrtleBeach");
+        created.ProfileImageUrl.Should().Be("https://img.example/one.png");
+        (await db.UserIdentities.SingleAsync(i => i.ProviderUserId == "9001"))
+            .ProviderAvatarUrl.Should()
+            .Be("https://img.example/one.png");
+
+        Result<UserDto> second = await svc.UpsertTwitchProfileAsync(
+            "9001",
+            "twrtlebeach",
+            "TwrtleBeach2",
+            "https://img.example/two.png"
+        );
+
+        second.Value.Id.Should().Be(first.Value.Id);
+        (await db.Users.CountAsync(u => u.TwitchUserId == "9001")).Should().Be(1);
+        User refreshed = await db.Users.SingleAsync(u => u.TwitchUserId == "9001");
+        refreshed.DisplayName.Should().Be("TwrtleBeach2");
+        refreshed.ProfileImageUrl.Should().Be("https://img.example/two.png");
+    }
+
+    [Fact]
+    public async Task UpsertTwitchProfileAsync_keeps_the_stored_image_when_twitch_sends_none()
+    {
+        (IUserService svc, AuthDbContext db) = Build();
+        await svc.UpsertTwitchProfileAsync("9001", "a", "A", "https://img.example/one.png");
+
+        await svc.UpsertTwitchProfileAsync("9001", "a", "A", null);
+
+        (await db.Users.SingleAsync(u => u.TwitchUserId == "9001"))
+            .ProfileImageUrl.Should()
+            .Be("https://img.example/one.png");
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_with_a_youtube_provider_mints_a_youtube_identity_not_a_twitch_one()
     {
         (IUserService svc, AuthDbContext db) = Build();

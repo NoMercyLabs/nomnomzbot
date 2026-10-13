@@ -94,12 +94,45 @@ public class UserService : IUserService
         return Result.Success(user);
     }
 
-    public async Task<Result<UserDto>> GetOrCreateAsync(
+    public Task<Result<UserDto>> GetOrCreateAsync(
         string platformUserId,
         string username,
         string displayName,
         string provider = AuthEnums.Platform.Twitch,
         CancellationToken cancellationToken = default
+    ) =>
+        UpsertAsync(
+            platformUserId,
+            username,
+            displayName,
+            provider,
+            profileImageUrl: null,
+            cancellationToken
+        );
+
+    public Task<Result<UserDto>> UpsertTwitchProfileAsync(
+        string twitchUserId,
+        string login,
+        string displayName,
+        string? profileImageUrl,
+        CancellationToken cancellationToken = default
+    ) =>
+        UpsertAsync(
+            twitchUserId,
+            login,
+            displayName,
+            AuthEnums.Platform.Twitch,
+            profileImageUrl,
+            cancellationToken
+        );
+
+    private async Task<Result<UserDto>> UpsertAsync(
+        string platformUserId,
+        string username,
+        string displayName,
+        string provider,
+        string? profileImageUrl,
+        CancellationToken cancellationToken
     )
     {
         // Resolve through the platform-agnostic identity table (get-or-create by provider + external id), not a
@@ -135,6 +168,11 @@ public class UserService : IUserService
         if (user.DisplayName != displayName)
             user.DisplayName = displayName;
 
+        // Only a non-empty image overwrites: a re-see without one keeps the stored picture.
+        string? image = string.IsNullOrWhiteSpace(profileImageUrl) ? null : profileImageUrl;
+        if (image is not null && user.ProfileImageUrl != image)
+            user.ProfileImageUrl = image;
+
         // Replace the resolver's placeholder profile (username = the external id) with the real chat identity.
         await PrimaryIdentityWriter.EnsureAsync(
             db,
@@ -144,7 +182,7 @@ public class UserService : IUserService
             platformUserId,
             username,
             displayName,
-            avatarUrl: null,
+            avatarUrl: image,
             cancellationToken: cancellationToken
         );
         await db.SaveChangesAsync(cancellationToken);

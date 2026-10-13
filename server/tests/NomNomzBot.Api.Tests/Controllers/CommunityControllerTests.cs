@@ -19,6 +19,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NSubstitute;
 
@@ -40,7 +42,8 @@ public sealed class CommunityControllerTests
         ITwitchModerationApi? moderation = null,
         ITwitchUsersApi? users = null,
         ITwitchModeratorsApi? moderators = null,
-        ITwitchSubscriptionsApi? subscriptions = null
+        ITwitchSubscriptionsApi? subscriptions = null,
+        IUserService? userService = null
     )
     {
         CommunityController controller = new(
@@ -53,7 +56,8 @@ public sealed class CommunityControllerTests
             Substitute.For<ICommunityStandingService>(),
             Substitute.For<ICurrentUserService>(),
             Substitute.For<IViewerProfileService>(),
-            users ?? Substitute.For<ITwitchUsersApi>()
+            users ?? Substitute.For<ITwitchUsersApi>(),
+            userService ?? Substitute.For<IUserService>()
         )
         {
             ControllerContext = new()
@@ -401,6 +405,7 @@ public sealed class CommunityControllerTests
             Broadcaster.ToString(),
             q: "ali",
             limit: 20,
+            scope: null,
             CancellationToken.None
         );
 
@@ -436,11 +441,238 @@ public sealed class CommunityControllerTests
             Broadcaster.ToString(),
             q: "streamfan",
             limit: 2,
+            scope: null,
             CancellationToken.None
         );
 
         // Five viewers match the query; the limit caps the result at two.
         SearchData(result).Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task SearchViewers_scope_all_returns_a_user_who_never_chatted_here_with_in_channel_false()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        AddUser(db, "twitch-1", "alice", "Alice");
+        AddChat(db, "twitch-1");
+        // Known to the bot from another channel only: no chat and no profile in THIS channel.
+        AddUser(db, "twitch-2", "alien", "Alien");
+        db.Users.Local.Single(u => u.TwitchUserId == "twitch-2").ProfileImageUrl =
+            "https://img.example/alien.png";
+        // A row without a Twitch id is not a Twitch person and must never be offered.
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                TwitchUserId = null,
+                Username = "kickonly",
+                UsernameNormalized = "kickonly",
+                DisplayName = "KickOnly",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        List<CommunityController.ViewerOptionDto> options = SearchData(
+            await controller.SearchViewers(
+                Broadcaster.ToString(),
+                q: null,
+                limit: 20,
+                scope: "all",
+                CancellationToken.None
+            )
+        );
+
+        options.Select(o => o.Id).Should().BeEquivalentTo(["twitch-1", "twitch-2"]);
+        options.Single(o => o.Id == "twitch-1").InChannel.Should().BeTrue();
+        CommunityController.ViewerOptionDto alien = options.Single(o => o.Id == "twitch-2");
+        alien.InChannel.Should().BeFalse();
+        alien.ImageUrl.Should().Be("https://img.example/alien.png");
+        alien.Label.Should().Be("Alien");
+        alien.SubLabel.Should().Be("alien");
+    }
+
+    [Fact]
+    public async Task SearchViewers_scope_channel_still_excludes_a_user_who_never_chatted_here()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        AddUser(db, "twitch-1", "alice", "Alice");
+        AddChat(db, "twitch-1");
+        AddUser(db, "twitch-2", "alien", "Alien");
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        foreach (string? scope in new string?[] { null, "channel" })
+        {
+            List<CommunityController.ViewerOptionDto> options = SearchData(
+                await controller.SearchViewers(
+                    Broadcaster.ToString(),
+                    q: null,
+                    limit: 20,
+                    scope: scope,
+                    CancellationToken.None
+                )
+            );
+            options.Select(o => o.Id).Should().Equal("twitch-1");
+            options.Single().InChannel.Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public async Task SearchViewers_scope_all_marks_a_viewer_profile_holder_as_in_channel_and_leaks_no_other_data()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        AddUser(db, "twitch-2", "alicia", "Alicia");
+        db.ViewerProfiles.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                ViewerUserId = Guid.CreateVersion7(),
+                ViewerTwitchUserId = "twitch-2",
+                TotalMessages = 3,
+            }
+        );
+        // Chatted only in ANOTHER channel.
+        AddUser(db, "twitch-3", "bob", "Bob");
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                BroadcasterId = Guid.CreateVersion7(),
+                UserId = "twitch-3",
+                Username = "bob",
+                DisplayName = "Bob",
+                UserType = "viewer",
+                Message = "secret elsewhere",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        List<CommunityController.ViewerOptionDto> options = SearchData(
+            await controller.SearchViewers(
+                Broadcaster.ToString(),
+                q: null,
+                limit: 20,
+                scope: "all",
+                CancellationToken.None
+            )
+        );
+
+        options.Single(o => o.Id == "twitch-2").InChannel.Should().BeTrue();
+        options.Single(o => o.Id == "twitch-3").InChannel.Should().BeFalse();
+
+        // Public Twitch identity only: the option type carries nothing but these five members.
+        typeof(CommunityController.ViewerOptionDto)
+            .GetProperties()
+            .Select(p => p.Name)
+            .Should()
+            .BeEquivalentTo(["Id", "Label", "SubLabel", "ImageUrl", "InChannel"]);
+    }
+
+    [Fact]
+    public async Task SearchViewers_rejects_an_unknown_scope()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.SearchViewers(
+            Broadcaster.ToString(),
+            q: null,
+            limit: 20,
+            scope: "everything",
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task LookupPlatformViewer_saves_the_found_account_through_the_user_upsert_path()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    new TwitchUser(
+                        "9001",
+                        "twrtlebeach",
+                        "TwrtleBeach",
+                        "",
+                        "",
+                        "",
+                        "https://img.example/twrtle.png",
+                        "",
+                        0,
+                        DateTimeOffset.UnixEpoch
+                    ),
+                ])
+            );
+        IUserService userService = SavingUserService();
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            users: users,
+            userService: userService
+        );
+
+        IActionResult result = await controller.LookupPlatformViewer(
+            Broadcaster.ToString(),
+            login: "twrtlebeach",
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        await userService
+            .Received(1)
+            .UpsertTwitchProfileAsync(
+                "9001",
+                "twrtlebeach",
+                "TwrtleBeach",
+                "https://img.example/twrtle.png",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task LookupPlatformViewer_saves_nothing_when_twitch_fails()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<TwitchUser>>(
+                    "Twitch is down",
+                    TwitchErrorCodes.TwitchError
+                )
+            );
+        IUserService userService = Substitute.For<IUserService>();
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            users: users,
+            userService: userService
+        );
+
+        await controller.LookupPlatformViewer(
+            Broadcaster.ToString(),
+            login: "twrtlebeach",
+            CancellationToken.None
+        );
+
+        await userService
+            .DidNotReceiveWithAnyArgs()
+            .UpsertTwitchProfileAsync(default!, default!, default!, default, default);
+        (await db.Users.CountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -473,7 +705,8 @@ public sealed class CommunityControllerTests
         CommunityController controller = Build(
             db,
             Substitute.For<ITwitchChannelsApi>(),
-            users: users
+            users: users,
+            userService: SavingUserService()
         );
 
         // Mixed case and a leading @ are normalised before Helix is asked.
@@ -580,6 +813,33 @@ public sealed class CommunityControllerTests
         );
 
         result.Should().NotBeOfType<OkObjectResult>().And.NotBeOfType<NotFoundObjectResult>();
+    }
+
+    private static IUserService SavingUserService()
+    {
+        IUserService userService = Substitute.For<IUserService>();
+        userService
+            .UpsertTwitchProfileAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Result.Success(
+                    new UserDto(
+                        Guid.CreateVersion7().ToString(),
+                        call.ArgAt<string>(1),
+                        call.ArgAt<string>(2),
+                        call.ArgAt<string?>(3),
+                        null,
+                        DateTime.UtcNow,
+                        DateTime.UtcNow
+                    )
+                )
+            );
+        return userService;
     }
 
     private static void AddUser(

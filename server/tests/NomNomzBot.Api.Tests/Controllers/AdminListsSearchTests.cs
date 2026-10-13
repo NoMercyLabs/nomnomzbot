@@ -168,6 +168,32 @@ public sealed class AdminListsSearchTests
     }
 
     [Fact]
+    public async Task ListChannels_page_carries_the_total_across_all_pages()
+    {
+        (AdminController controller, AdminListsSearchTestDbContext db) = Build();
+        SeedChannel(db, login: "pixelqueen", ownerDisplayName: "PixelQueen");
+        SeedChannel(db, login: "rockhound", ownerDisplayName: "RockHound");
+        SeedChannel(db, login: "alpha", ownerDisplayName: "Alpha");
+        await db.SaveChangesAsync();
+
+        IActionResult result = await controller.ListChannels(
+            search: null,
+            request: new PageRequestDto { Page = 1, Take = 2 },
+            ct: CancellationToken.None
+        );
+
+        PaginatedResponse<AdminChannelDto> body = ((OkObjectResult)result)
+            .Value.Should()
+            .BeOfType<PaginatedResponse<AdminChannelDto>>()
+            .Subject;
+        // The pager shows "N channels" and "page 1 of 2" from the total, not from the rows on this page.
+        body.Data.Should().HaveCount(2);
+        body.Total.Should().Be(3);
+        body.HasMore.Should().BeTrue();
+        body.NextPage.Should().Be(2);
+    }
+
+    [Fact]
     public async Task ListUsers_search_matches_login_or_display_name_case_insensitively()
     {
         (AdminController controller, AdminListsSearchTestDbContext db) = Build();

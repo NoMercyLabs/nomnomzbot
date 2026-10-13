@@ -25,13 +25,15 @@
 #   5. A StartupSecretGuard rejects the bundled dev key unless ASPNETCORE_ENVIRONMENT=Development,
 #      and `--no-launch-profile` drops that environment.
 #   6. The API needs ~3 MINUTES to reach health 200. Anything shorter reads as a failed start.
+#   7. An API that holds real tokens joins the owner's channel and answers chat a second time
+#      (2026-10-13, a hug reply came twice). The run gets an EMPTY data dir, so it has no tokens and
+#      joins nothing, and it is always stopped with its whole process tree: `dotnet run` is only the
+#      parent, and stopping just that left the API child running.
 #
 # Usage:
-#   scripts/refresh-openapi.ps1              # refresh the snapshot, leave the API stopped
-#   scripts/refresh-openapi.ps1 -KeepRunning # leave it up (for a browser verification run)
+#   scripts/refresh-openapi.ps1              # refresh the snapshot, then stop the API
 
 param(
-    [switch]$KeepRunning,
     [int]$TimeoutSeconds = 600,
     [string]$Container = 'nomnomzbot-devbox'
 )
@@ -85,18 +87,12 @@ if (-not $inContainer) {
 }
 
 if ($inContainer) {
-Write-Host '== preparing the container database =='
-docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; true' | Out-Null
-[string]$winDb = Join-Path $env:LOCALAPPDATA 'NomNomzBot/nomnomz.db'
-if (Test-Path $winDb) {
-    # The container's own store starts empty, which leaves Channels/Users at zero rows and makes
-    # any authenticated check impossible. Copy the real dev database in, then fix ownership -
-    # docker cp writes it as root and SQLite cannot migrate a read-only file.
-    docker exec $Container sh -lc 'mkdir -p /home/dev/.local/share/NomNomzBot' | Out-Null
-    docker cp $winDb "${Container}:/home/dev/.local/share/NomNomzBot/nomnomz.db"
-    docker exec -u root $Container sh -lc 'chown -R dev:dev /home/dev/.local/share/NomNomzBot && chmod 664 /home/dev/.local/share/NomNomzBot/nomnomz.db'
+    docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; true' | Out-Null
 }
-}
+
+# Step 7: a fresh, empty data dir per run. The document only needs the routes, never the owner's tokens.
+[string]$emptyDataDir = Join-Path ([System.IO.Path]::GetTempPath()) "nnz-openapi-data-$PID"
+[string]$containerDataDir = "/tmp/nnz-openapi-data-$PID"
 
 # The dev key normally lives in appsettings.Development.json, which carries // comments that JSON.parse
 # rejects. That file is gitignored, so a fresh clone or worktree does not have it: fall back to the
@@ -124,14 +120,16 @@ try {
         # DOTNET_GCHeapHardLimit: devbox/docker-compose.yml caps every .NET process at 3 GB (0xC0000000), and
         # compiling Infrastructure needs more - Roslyn died with OutOfMemoryException on 2026-09-30 even with
         # analyzers off. This one run gets 12 GB; the container itself has ~27 GB free.
-        docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e DOTNET_GCHeapHardLimit=0x300000000 -e "Encryption__Key=$key" -d $Container `
+        docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e DOTNET_GCHeapHardLimit=0x300000000 -e "Encryption__Key=$key" -e "NOMNOMZ_DATA_DIR=$containerDataDir" -d $Container `
             sh -lc 'cd /workspace/server/src/NomNomzBot.Api && dotnet run --no-launch-profile --urls http://0.0.0.0:5080 > /tmp/openapi-run.log 2>&1'
     }
     else {
         # No --urls on the host run: the API binds the port recorded in its data dir on first boot and
-        # ignores the switch, so this reuses the machine's own already-locked 5080 rather than inventing one.
+        # ignores the switch; an empty data dir boots on the default 5080.
+        New-Item -ItemType Directory -Force -Path $emptyDataDir | Out-Null
         $env:ASPNETCORE_ENVIRONMENT = 'Development'
         $env:Encryption__Key = $key
+        $env:NOMNOMZ_DATA_DIR = $emptyDataDir
         $hostApi = Start-Process -PassThru -WindowStyle Hidden -FilePath 'dotnet' `
             -ArgumentList 'run', '--no-launch-profile' `
             -WorkingDirectory (Join-Path $repo 'server/src/NomNomzBot.Api') `
@@ -185,18 +183,15 @@ try {
     Write-Host "   snapshot now carries $paths paths"
 }
 finally {
-    if (-not $KeepRunning) {
-        if ($inContainer) {
-            docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; true' | Out-Null
-        }
-        elseif ($hostApi -and -not $hostApi.HasExited) {
-            Stop-Process -Id $hostApi.Id -Force
-        }
-        Write-Host '== API stopped =='
+    # The whole tree, never only the `dotnet run` parent (step 7).
+    if ($inContainer) {
+        docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; pkill -f NomNomzBot.Api 2>/dev/null; true' | Out-Null
     }
-    else {
-        Write-Host '== API left running on http://localhost:5080 =='
+    elseif ($hostApi -and -not $hostApi.HasExited) {
+        & taskkill.exe /PID $hostApi.Id /T /F | Out-Null
     }
+    Remove-Item -LiteralPath $emptyDataDir -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host '== API stopped =='
 }
 
 Write-Host ''

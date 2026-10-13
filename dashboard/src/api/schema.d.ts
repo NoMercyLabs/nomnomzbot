@@ -22831,12 +22831,15 @@ export interface paths {
          *     carry a tracked ViewerProfile — by username or display name. Powers the "pick a viewer"
          *     inputs that feed moderation, trust, VIP, and TTS-voice assignment; each option's id is the Twitch user
          *     id those flows consume. An empty query returns the first page of viewers ordered by display name.
+         *     `scope=all` searches every user the bot knows, in any channel; each option says whether the
+         *     person is known in this channel.
          */
         get: {
             parameters: {
                 query?: {
                     q?: string;
                     limit?: number | string;
+                    scope?: string;
                 };
                 header?: never;
                 path: {
@@ -97460,6 +97463,8 @@ export interface components {
             id: string;
             label: string;
             subLabel: string;
+            imageUrl: null | string;
+            inChannel: boolean;
         };
         /**
          * @description Custom bot behavior overrides — the person's one shoutout line (also used when raiding them) and TTS
