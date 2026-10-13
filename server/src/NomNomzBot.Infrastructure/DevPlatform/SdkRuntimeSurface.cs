@@ -713,6 +713,10 @@ internal static class SdkRuntimeSurface
             "  /** Requests a song by title, artist or link. Returns true when it was queued and false when it was refused. */"
         );
         sb.AppendLine("  queue(uri: string): boolean;");
+        sb.AppendLine(
+            "  /** Plays a track now and skips the song-request queue. Returns true when it plays and false when it was refused. */"
+        );
+        sb.AppendLine("  playNow(uri: string): boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiHttpNamespace {");
