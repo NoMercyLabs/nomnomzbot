@@ -97291,6 +97291,8 @@ export interface components {
             lastSeen: string;
             recentActivity: components["schemas"]["ActivityDto"][];
             banHistory: components["schemas"]["BanRecordDto"][];
+            isVip: null | boolean;
+            isModerator: null | boolean;
         };
         /** @description Full user information. */
         UserDto: {

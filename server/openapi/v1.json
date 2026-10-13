@@ -142102,7 +142102,9 @@
           "firstSeen",
           "lastSeen",
           "recentActivity",
-          "banHistory"
+          "banHistory",
+          "isVip",
+          "isModerator"
         ],
         "type": "object",
         "properties": {
@@ -142178,6 +142180,18 @@
             "items": {
               "$ref": "#/components/schemas/BanRecordDto"
             }
+          },
+          "isVip": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isModerator": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
