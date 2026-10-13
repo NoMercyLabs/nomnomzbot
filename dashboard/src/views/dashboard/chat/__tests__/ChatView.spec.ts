@@ -12,10 +12,12 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { chatKey, type ChatLine } from '@/api/chat'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { i18n } from '@/i18n'
 import { useProfileDialogStore } from '@/stores/profileDialog'
 
@@ -185,7 +187,9 @@ async function open(): Promise<void> {
   })
   await router.push('/app/chat')
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  mounted = mount(ChatView, {
+  // The page runs inside the frame's tooltip provider and toast host, so the test gives it the same.
+  const framed = defineComponent(() => () => h(TooltipProvider, () => [h(ChatView), h(Toaster)]))
+  mounted = mount(framed, {
     attachTo: document.body,
     global: { plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient: queries }]] },
   })

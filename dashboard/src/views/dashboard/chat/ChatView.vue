@@ -22,9 +22,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue'
 import VirtualList from '@/components/layout/VirtualList.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import { Label } from '@/components/ui/label'
-import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { usePanelState } from '@/composables/usePanelState'
 
@@ -107,21 +105,19 @@ async function confirmBan(): Promise<void> {
           </Label>
         </div>
       </template>
-      <TooltipProvider :delay-duration="300">
-        <div class="flex h-full min-h-80 flex-col">
-          <VirtualList
-            stick
-            :items="visible"
-            :item-key="(line: ChatLineData) => line.id"
-            :estimate-size="40"
-            :label="$t('dashboard.chat.feed.label')"
-          >
-            <template #default="{ item }">
-              <ChatLine :line="item" :channel-id="channelId" @ban="askBan" />
-            </template>
-          </VirtualList>
-        </div>
-      </TooltipProvider>
+      <div class="flex h-full min-h-80 flex-col">
+        <VirtualList
+          stick
+          :items="visible"
+          :item-key="(line: ChatLineData) => line.id"
+          :estimate-size="40"
+          :label="$t('dashboard.chat.feed.label')"
+        >
+          <template #default="{ item }">
+            <ChatLine :line="item" :channel-id="channelId" @ban="askBan" />
+          </template>
+        </VirtualList>
+      </div>
       <template #footer>
         <ChatComposer :channel-id="channelId" />
       </template>
@@ -137,5 +133,4 @@ async function confirmBan(): Promise<void> {
     @update:open="closeBan"
     @confirm="confirmBan"
   />
-  <Toaster />
 </template>

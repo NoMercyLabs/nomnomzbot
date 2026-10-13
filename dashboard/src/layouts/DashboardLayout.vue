@@ -13,6 +13,8 @@ import { provide } from 'vue'
 
 import { frameActionsKey } from '@/components/layout/frameActions'
 import ProfileDialog from '@/components/layout/ProfileDialog.vue'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useCurrentChannel } from '@/composables/useCurrentChannel'
 import { useRealtime } from '@/realtime/useRealtime'
 
@@ -34,30 +36,34 @@ useRealtime()
 </script>
 
 <template>
-  <!-- C1: the window never scrolls. Only a panel body scrolls, so every box here clips. -->
-  <div class="flex h-svh overflow-hidden bg-background text-foreground">
-    <DashboardSidebar v-if="wide" />
-    <NavRail v-else-if="medium" />
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-      <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
-      <header
-        v-if="!wide"
-        data-slot="frame-header"
-        class="flex h-12 flex-none items-center gap-2 border-b border-border px-3"
-      >
-        <div class="w-48 min-w-0">
-          <ChannelSwitch compact />
-        </div>
-        <div class="ml-auto">
-          <ProfileMenu icon />
-        </div>
-      </header>
-      <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <RouterView />
-      </main>
-      <BottomBar v-if="!medium" />
+  <!-- The one tooltip provider and toast host of the frame; pages never mount their own. -->
+  <TooltipProvider :delay-duration="300">
+    <!-- C1: the window never scrolls. Only a panel body scrolls, so every box here clips. -->
+    <div class="flex h-svh overflow-hidden bg-background text-foreground">
+      <DashboardSidebar v-if="wide" />
+      <NavRail v-else-if="medium" />
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
+        <header
+          v-if="!wide"
+          data-slot="frame-header"
+          class="flex h-12 flex-none items-center gap-2 border-b border-border px-3"
+        >
+          <div class="w-48 min-w-0">
+            <ChannelSwitch compact />
+          </div>
+          <div class="ml-auto">
+            <ProfileMenu icon />
+          </div>
+        </header>
+        <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <RouterView />
+        </main>
+        <BottomBar v-if="!medium" />
+      </div>
+      <!-- The one profile dialog of the frame; every UserName opens it. -->
+      <ProfileDialog v-if="channelId" :key="channelId" />
     </div>
-    <!-- The one profile dialog of the frame; every UserName opens it. -->
-    <ProfileDialog v-if="channelId" :key="channelId" />
-  </div>
+    <Toaster />
+  </TooltipProvider>
 </template>

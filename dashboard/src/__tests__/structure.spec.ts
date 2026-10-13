@@ -174,6 +174,19 @@ describe('folder layout', () => {
     )
   })
 
+  // A toast or tooltip works on every page only when the frame mounts its host once; a page that mounts its
+  // own stacks a second host, and a page without one shows nothing.
+  it('mounts the toast host and the tooltip provider once, in the dashboard frame', () => {
+    const own: string[] = allPaths(src)
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+      .filter((path) => path.endsWith('.vue') && !path.startsWith('components/ui/'))
+    const hosts: string[] = own.filter((path) =>
+      /<(Toaster|TooltipProvider)\b/.test(readFileSync(join(src, path), 'utf8')),
+    )
+
+    expect(hosts).toEqual(['layouts/DashboardLayout.vue'])
+  })
+
   // Stoney 2026-10-13: "the icon size in the navbar is too small, it should match the font better and follow
   // the correct visual hirarchy". A nav icon fills the text line (20px); a group chevron stays below it (14px).
   it('sizes a nav icon to its text line and keeps the group chevron smaller', () => {
