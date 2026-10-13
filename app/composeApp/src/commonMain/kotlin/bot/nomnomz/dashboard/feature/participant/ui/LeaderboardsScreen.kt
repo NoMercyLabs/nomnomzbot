@@ -176,14 +176,14 @@ private fun RankRow(entry: LeaderboardEntry) {
         resolveRowLabel(
             primary = entry.displayName,
             typeLabel = stringResource(Res.string.economy_participant_row_type),
-            discriminatorSource = entry.userId,
+            discriminatorSource = entry.subjectUserId ?: entry.subjectAccountId ?: "",
         )
     val description: String =
         stringResource(
             Res.string.participant_lb_row_description,
             entry.rank,
             displayName,
-            entry.points,
+            entry.value,
         )
 
     Row(
@@ -203,6 +203,6 @@ private fun RankRow(entry: LeaderboardEntry) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text(text = entry.points.toString(), style = typography.sm, color = tokens.cardForeground)
+        Text(text = entry.value.toString(), style = typography.sm, color = tokens.cardForeground)
     }
 }

@@ -78,8 +78,8 @@ class EconomyControllerTest {
 
     private val leaderboard =
         listOf(
-            LeaderboardEntry(rank = 1, userId = "u1", displayName = "Stoney_Eagle", points = 4200),
-            LeaderboardEntry(rank = 2, userId = "u2", displayName = "Nibbles", points = 1300),
+            LeaderboardEntry(rank = 1, subjectUserId = "u1", displayName = "Stoney_Eagle", value = 4200),
+            LeaderboardEntry(rank = 2, subjectUserId = "u2", displayName = "Nibbles", value = 1300),
         )
 
     @Test

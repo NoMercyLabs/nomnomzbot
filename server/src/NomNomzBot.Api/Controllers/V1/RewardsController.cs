@@ -49,7 +49,7 @@ public class RewardsController : BaseController
     // UserId is the Twitch user id; InternalUserId is the User.Id (Guid), or null when no local User row exists —
     // the id the analytics viewer endpoint (.../analytics/viewers/{viewerUserId:guid}) is keyed on, so the
     // community detail panel opened from a leaderboard row can fetch that viewer's engagement stats.
-    public record LeaderboardEntryDto(
+    public record RewardsLeaderboardEntryDto(
         int Rank,
         string UserId,
         Guid? InternalUserId,
@@ -379,7 +379,9 @@ public class RewardsController : BaseController
     /// <summary>Top-50 chatter leaderboard ranked by message count, with resolved display names.</summary>
     [RequireAction("reward:read")]
     [HttpGet("leaderboard")]
-    [ProducesResponseType<StatusResponseDto<List<LeaderboardEntryDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<List<RewardsLeaderboardEntryDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetLeaderboard(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -413,13 +415,13 @@ public class RewardsController : BaseController
             })
             .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
-        List<LeaderboardEntryDto> entries =
+        List<RewardsLeaderboardEntryDto> entries =
         [
             .. topChatters.Select(
                 (tally, index) =>
                 {
                     users.TryGetValue(tally.UserId, out var user);
-                    return new LeaderboardEntryDto(
+                    return new RewardsLeaderboardEntryDto(
                         index + 1,
                         tally.UserId,
                         user?.Id,
@@ -430,6 +432,6 @@ public class RewardsController : BaseController
             ),
         ];
 
-        return Ok(new StatusResponseDto<List<LeaderboardEntryDto>> { Data = entries });
+        return Ok(new StatusResponseDto<List<RewardsLeaderboardEntryDto>> { Data = entries });
     }
 }

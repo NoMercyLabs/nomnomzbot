@@ -597,15 +597,18 @@ data class UpsertCurrencyConfig(
     val decimalPlaces: Int,
 )
 
-/** One ranked holder in the points leaderboard (backend `LeaderboardEntryDto`). camelCase mirror of the DTO. */
+/**
+ * One ranked row of a configured economy leaderboard (backend `LeaderboardEntryDto`, served by
+ * `GET .../economy/leaderboards/{configId}`). camelCase mirror of the DTO. [subjectUserId] is the viewer's
+ * internal user ULID; [subjectAccountId] is set for a jar/account subject. [value] is the ranked metric.
+ */
 @Serializable
 data class LeaderboardEntry(
     val rank: Int = 0,
-    val userId: String = "",
-    // The viewer's internal platform-identity ULID (backend internalUserId) — addresses the analytics profile.
-    val internalUserId: String? = null,
+    val subjectUserId: String? = null,
+    val subjectAccountId: String? = null,
     val displayName: String = "",
-    val points: Long = 0,
+    val value: Long = 0,
 )
 
 /**

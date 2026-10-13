@@ -21,7 +21,7 @@ import kotlinx.serialization.Serializable
 // Backend routes (CommunityController / RewardsController):
 //   GET    /api/v1/channels/{channelId}/community                    →  PaginatedResponse<CommunityUserDto>
 //   GET    /api/v1/channels/{channelId}/community/{userId}/profile    →  StatusResponseDto<ViewerProfileSummaryDto>
-//   GET    /api/v1/channels/{channelId}/rewards/leaderboard          →  StatusResponseDto<List<LeaderboardEntryDto>>
+//   GET    /api/v1/channels/{channelId}/rewards/leaderboard          →  StatusResponseDto<List<RewardsLeaderboardEntryDto>>
 //   PUT    /api/v1/channels/{channelId}/community/{userId}/trust      →  StatusResponseDto<UserDetailDto>
 //   POST   /api/v1/channels/{channelId}/community/{userId}/ban        →  204 No Content
 //   DELETE /api/v1/channels/{channelId}/community/{userId}/ban        →  204 No Content
@@ -296,7 +296,7 @@ data class PlatformViewer(
 )
 
 /**
- * A chat-activity leaderboard row (backend `LeaderboardEntryDto` from `RewardsController.GetLeaderboard`):
+ * A chat-activity leaderboard row (backend `RewardsLeaderboardEntryDto` from `RewardsController.GetLeaderboard`):
  * [rank] (1-based), [userId] (Twitch user id), [displayName], and [points] which is the viewer's all-time
  * message count (the field is named "points" on the wire for historical reasons).
  */

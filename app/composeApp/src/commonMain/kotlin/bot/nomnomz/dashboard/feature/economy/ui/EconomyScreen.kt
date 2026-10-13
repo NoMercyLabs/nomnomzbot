@@ -1034,12 +1034,12 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val valueText: String = entry.points.toString()
+    val valueText: String = entry.value.toString()
     val displayName: String =
         resolveRowLabel(
             primary = entry.displayName,
             typeLabel = stringResource(Res.string.economy_participant_row_type),
-            discriminatorSource = entry.userId,
+            discriminatorSource = entry.subjectUserId ?: entry.subjectAccountId ?: "",
         )
     // One node for screen readers describing the row: "#1, Stoney_Eagle, 1200".
     val rowDescription: String =

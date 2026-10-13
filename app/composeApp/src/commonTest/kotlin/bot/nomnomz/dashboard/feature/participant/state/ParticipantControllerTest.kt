@@ -202,7 +202,7 @@ class ParticipantControllerTest {
             FakeEconomyApi(
                 leaderboard =
                     listOf(
-                        LeaderboardEntry(rank = 1, userId = "u1", displayName = "Stoney_Eagle", points = 9000),
+                        LeaderboardEntry(rank = 1, subjectUserId = "u1", displayName = "Stoney_Eagle", value = 9000),
                     )
             )
         val controller = controller(economy = economy)
