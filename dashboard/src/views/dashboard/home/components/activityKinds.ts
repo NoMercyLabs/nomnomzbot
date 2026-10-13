@@ -33,12 +33,21 @@ import UserAdd from '~icons/nnz/user-add'
 import UserRemove from '~icons/nnz/user-remove'
 import Wave from '~icons/nnz/wave'
 
-import { parseActivityData, pickCount, pickText, tierOf, type ActivityData } from './activityData'
+import {
+  parseActivityData,
+  pickCount,
+  pickNestedText,
+  pickText,
+  tierOf,
+  type ActivityData,
+} from './activityData'
 
 // Text for the panel to translate: an i18n key with optional params.
 export type ActivityRowText = { key: string; params?: Record<string, string | number> }
 export type ActivityRowView = {
   icon: Component
+  // The person named in the data, for when the server sent no username.
+  actor: string | null
   title: ActivityRowText | null
   detail: ActivityRowText
 }
@@ -57,6 +66,27 @@ const detail = (name: string, params?: Record<string, string | number>): Activit
   params,
 })
 
+// The server writes the person's name under a different key per event; first one that holds a name wins.
+const ACTOR_KEYS = [
+  'userDisplayName',
+  'targetDisplayName',
+  'gifterDisplayName',
+  'fromDisplayName',
+  'actorDisplay',
+  'user',
+] as const
+
+// A shoutout row leads with who was shouted out; the action stays the small line.
+const shoutout =
+  (label: string, read: (data: ActivityData) => string | null): Describe =>
+    (data: ActivityData) => {
+      const name = read(data)
+
+      return name === null
+        ? null
+        : { title: detail('person', { name }), detail: { key: TYPE + label } }
+    }
+
 function subscribed(data: ActivityData): ReturnType<Describe> {
   const tier = tierOf(data.tier)
 
@@ -73,7 +103,11 @@ function subscribed(data: ActivityData): ReturnType<Describe> {
 
 const KINDS: Record<string, ActivityKind> = {
   'channel.follow': { icon: UserAdd, label: 'channel_follow' },
-  'channel.subscribe': { icon: Star, label: 'channel_subscribe', describe: subscribed },
+  'channel.subscribe': {
+    icon: Star,
+    label: 'channel_subscribe',
+    describe: subscribed,
+  },
   'channel.subscription.message': {
     icon: Star,
     label: 'channel_subscription_message',
@@ -184,8 +218,30 @@ const KINDS: Record<string, ActivityKind> = {
   'engagement.returning_chatter': { icon: Wave, label: 'engagement_returning_chatter' },
   'engagement.watch_streak': { icon: Fire, label: 'engagement_watch_streak' },
   'engagement.modiversary': { icon: BirthdayCake, label: 'engagement_modiversary' },
-  'bot.shoutout.pending': { icon: Megaphone, label: 'bot_shoutout_pending' },
-  'bot.shoutout.auto-pending': { icon: Megaphone, label: 'bot_shoutout_auto_pending' },
+  'bot.shoutout.pending': {
+    icon: Megaphone,
+    label: 'bot_shoutout_pending',
+    describe: shoutout('bot_shoutout_pending', (data: ActivityData) =>
+      pickNestedText(data, 'Target', 'DisplayName')),
+  },
+  'bot.shoutout.auto-pending': {
+    icon: Megaphone,
+    label: 'bot_shoutout_auto_pending',
+    describe: shoutout('bot_shoutout_auto_pending', (data: ActivityData) =>
+      pickText(data, 'DisplayName')),
+  },
+  'channel.shoutout.create': {
+    icon: Megaphone,
+    label: 'channel_shoutout_create',
+    describe: shoutout('channel_shoutout_create', (data: ActivityData) =>
+      pickText(data, 'toDisplayName')),
+  },
+  'channel.shoutout.receive': {
+    icon: Megaphone,
+    label: 'channel_shoutout_receive',
+    describe: shoutout('channel_shoutout_receive', (data: ActivityData) =>
+      pickText(data, 'fromBroadcasterDisplayName')),
+  },
   'bot.shoutout.native-attempt': { icon: Megaphone, label: 'bot_shoutout_native_attempt' },
   'bot.shoutout.sent': { icon: Megaphone, label: 'bot_shoutout_sent' },
 }
@@ -194,10 +250,12 @@ const OTHER: ActivityKind = { icon: Megaphone, label: 'other' }
 
 export function describeActivity(event: ActivityEvent): ActivityRowView {
   const kind = KINDS[event.type] ?? OTHER
-  const described: ReturnType<Describe> = kind.describe?.(parseActivityData(event.data)) ?? null
+  const data = parseActivityData(event.data)
+  const described: ReturnType<Describe> = kind.describe?.(data) ?? null
 
   return {
     icon: kind.icon,
+    actor: pickText(data, ...ACTOR_KEYS),
     title: described?.title ?? null,
     detail: described?.detail ?? { key: TYPE + kind.label },
   }

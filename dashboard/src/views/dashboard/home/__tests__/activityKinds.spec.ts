@@ -149,12 +149,18 @@ describe('describeActivity', () => {
       'bot.shoutout.auto-pending',
       'bot.shoutout.native-attempt',
       'bot.shoutout.sent',
+      'channel.shoutout.create',
+      'channel.shoutout.receive',
     ]
 
     for (const type of known) {
       const row: ActivityRowView = describeActivity(event(type, null))
 
-      expect({ type, hasIcon: Boolean(row.icon), key: row.detail.key }).toEqual({
+      expect({
+        type,
+        hasIcon: Boolean(row.icon),
+        key: row.detail.key,
+      }).toEqual({
         type,
         hasIcon: true,
         key: `dashboard.home.activity.type.${type.replace(/[.-]/g, '_').replace('channel_channel_points_custom_reward_redemption_add', 'channel_redemption')}`,

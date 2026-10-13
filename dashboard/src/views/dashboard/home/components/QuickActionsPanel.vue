@@ -12,7 +12,7 @@
 // the timers and a running poll or prediction. Each row reads its own source, so one failing
 // source shows its own line and the others still render. Nothing here is invented: a source
 // with no data says so.
-import { computed, type ComputedRef } from 'vue'
+import { computed, ref, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -38,6 +38,8 @@ import Megaphone from '~icons/nnz/megaphone'
 import NoteDouble from '~icons/nnz/note-double'
 import Timer24 from '~icons/nnz/timer'
 
+import TimersDialog from './TimersDialog.vue'
+
 type Running = {
   title: string
   kind: 'poll' | 'prediction'
@@ -56,6 +58,9 @@ const pollsQuery = usePolls(channelId)
 const predictionsQuery = usePredictions(channelId)
 
 const MS: number = 1000
+
+const timersOpen = ref(false)
+const allTimers: ComputedRef<Timer[]> = computed(() => timersQuery.data.value ?? [])
 
 // An ad break the server did not schedule has no time; zero means none.
 const ad: ComputedRef<AdSchedule | null> = computed(() => {
@@ -226,6 +231,11 @@ const musicLinked: ComputedRef<boolean> = computed(() => router.hasRoute('dashbo
           :detail="t('dashboard.home.quick.timersNone')"
         >
           <template #leading><Timer24 class="size-5 text-muted-foreground" /></template>
+          <template v-if="allTimers.length > 0" #trailing>
+            <Button variant="ghost" size="sm" @click="timersOpen = true">
+              {{ t('dashboard.home.quick.openTimers') }}
+            </Button>
+          </template>
         </SummaryRow>
         <SummaryRow
           v-else
@@ -233,6 +243,11 @@ const musicLinked: ComputedRef<boolean> = computed(() => router.hasRoute('dashbo
           :detail="t('dashboard.home.quick.nextTimer', { name: nextTimer.name })"
         >
           <template #leading><Timer24 class="size-5 text-muted-foreground" /></template>
+          <template #trailing>
+            <Button variant="ghost" size="sm" @click="timersOpen = true">
+              {{ t('dashboard.home.quick.openTimers') }}
+            </Button>
+          </template>
         </SummaryRow>
       </div>
 
@@ -272,5 +287,6 @@ const musicLinked: ComputedRef<boolean> = computed(() => router.hasRoute('dashbo
         </SummaryRow>
       </div>
     </RowGroup>
+    <TimersDialog v-model:open="timersOpen" :timers="allTimers" />
   </PanelCard>
 </template>

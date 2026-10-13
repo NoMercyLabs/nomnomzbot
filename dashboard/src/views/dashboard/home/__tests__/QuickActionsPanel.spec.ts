@@ -37,6 +37,8 @@ const nowSeconds = (): number => Math.floor(Date.now() / 1000)
 
 let snoozeCount = 2
 let snoozeFails = false
+let toggleFails = false
+let timers: Record<string, unknown>[] = []
 
 const schedule = (): Record<string, number> => ({
   snoozeCount,
@@ -81,13 +83,7 @@ function freshAnswers(): Record<string, () => Answer> {
         nowPlaying: null,
         queue: [queueItem(1, 'DukaSoft'), queueItem(2, 'DukaSoft'), queueItem(3, 'DukaSoft')],
       }),
-    '/timers': () =>
-      ok([
-        timer('discord', 10, true, 6),
-        timer('socials', 30, true, 5),
-        timer('lurk', 20, true, 2),
-        timer('old', 5, false, 1),
-      ]),
+    '/timers': () => ok(timers),
     '/live-ops/polls': () => ok([]),
     '/live-ops/predictions': () => ok([]),
   }
@@ -106,8 +102,25 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string) => answer('GET', path),
-    POST: async (path: string) => {
-      calls.push({ method: 'POST', path })
+    POST: async (path: string, options?: { params?: { path?: { id?: string } } }) => {
+      const id = options?.params?.path?.id
+
+      calls.push({ method: 'POST', path: id
+        ? path.replace('{id}', id)
+        : path })
+
+      if (path.endsWith('/toggle')) {
+        if (toggleFails)
+          return refused()
+
+        const target = timers.find((entry) => entry.id === id)
+
+        if (target) {
+          target.isEnabled = !target.isEnabled
+        }
+
+        return { data: { data: target }, response: { status: 200, ok: true } }
+      }
 
       if (snoozeFails)
         return refused()
@@ -133,6 +146,15 @@ beforeEach(() => {
   calls.length = 0
   snoozeCount = 2
   snoozeFails = false
+  toggleFails = false
+
+  timers = [
+    timer('discord', 10, true, 6),
+    timer('socials', 30, true, 5),
+    timer('lurk', 20, true, 2),
+    timer('old', 5, false, 1),
+  ]
+
   answers = freshAnswers()
   pinia = createPinia()
   setActivePinia(pinia)
@@ -151,9 +173,21 @@ async function open(): Promise<void> {
   router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/app', name: 'dashboard-home', component: blank },
-      { path: '/app/music', name: 'dashboard-music', component: blank },
-      { path: '/app/stream', name: 'dashboard-stream', component: blank },
+      {
+        path: '/app',
+        name: 'dashboard-home',
+        component: blank,
+      },
+      {
+        path: '/app/music',
+        name: 'dashboard-music',
+        component: blank,
+      },
+      {
+        path: '/app/stream',
+        name: 'dashboard-stream',
+        component: blank,
+      },
     ],
   })
 
@@ -337,5 +371,58 @@ describe('QuickActionsPanel', () => {
     expect(row('music').textContent).toContain('The queue is empty.')
     expect(row('music').textContent).not.toContain('waiting')
     expect(row('timers').textContent).toContain('No timers are on.')
+  })
+
+  describe('timers dialog', () => {
+    const dialog = (): HTMLElement =>
+      document.body.querySelector<HTMLElement>('[role="dialog"]') as HTMLElement
+    const timerRow = (name: string): HTMLElement =>
+      document.body.querySelector<HTMLElement>(`[data-timer-row="${name}"]`) as HTMLElement
+
+    async function openDialog(): Promise<void> {
+      await open()
+      buttonIn(row('timers'), 'Open timers').click()
+      await settle()
+    }
+
+    it('lists every timer with its state', async () => {
+      await openDialog()
+
+      expect(dialog().textContent).toContain('A paused timer stays saved. It does not fire.')
+      expect(timerRow('discord').textContent).toContain('On, every 10 min')
+      expect(timerRow('socials').textContent).toContain('On, every 30 min')
+      expect(timerRow('old').textContent).toContain('Paused')
+      expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined()
+      expect(buttonIn(timerRow('old'), 'Resume')).toBeDefined()
+      expect(buttonIn(dialog(), 'Done')).toBeDefined()
+    })
+
+    it('pauses an enabled timer: one toggle call for its id, and the row reads Paused', async () => {
+      await openDialog()
+
+      buttonIn(timerRow('discord'), 'Pause').click()
+      await settle()
+
+      expect(posts()).toEqual([
+        { method: 'POST', path: expect.stringContaining('/timers/discord/toggle') },
+      ])
+
+      expect(timerRow('discord').textContent).toContain('Paused')
+      expect(timerRow('discord').textContent).not.toContain('On, every')
+      expect(buttonIn(timerRow('discord'), 'Resume')).toBeDefined()
+      expect(timerRow('socials').textContent).toContain('On, every 30 min')
+    })
+
+    it('reports a failed toggle and keeps the old state', async () => {
+      toggleFails = true
+      await openDialog()
+
+      buttonIn(timerRow('discord'), 'Pause').click()
+      await settle()
+
+      expect(useSaveErrorsStore().items).toHaveLength(1)
+      expect(timerRow('discord').textContent).toContain('On, every 10 min')
+      expect(buttonIn(timerRow('discord'), 'Pause')).toBeDefined()
+    })
   })
 })

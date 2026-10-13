@@ -8,8 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { type UseQueryReturnType } from '@tanstack/vue-query'
-import { type MaybeRefOrGetter } from 'vue'
+import { type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query'
+import { toValue, type MaybeRefOrGetter } from 'vue'
+
+import { useOptimisticSave } from '@/composables/useOptimisticSave'
 
 import { channelQuery, failed } from './channelQuery'
 import { client } from './client'
@@ -73,21 +75,56 @@ export function usePredictions(
   })
 }
 
+async function readTimers(channelId: string): Promise<Timer[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/timers',
+    {
+      params: { path: { version, channelId }, query: { PageSize: timerPageSize } },
+    },
+  )
+
+  if (error !== undefined)
+    throw failed('timers', response.status)
+
+  return [...(data?.data ?? [])]
+}
+
 // The channel's timers. Use isEnabled to pick the ones that fire.
 export function useTimers(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<Timer[], Error> {
-  return channelQuery(channelId, timersKey, async (id: string): Promise<Timer[]> => {
-    const { data, error, response } = await client.GET(
-      '/api/v{version}/channels/{channelId}/timers',
-      {
-        params: { path: { version, channelId: id }, query: { PageSize: timerPageSize } },
-      },
-    )
+  return channelQuery(channelId, timersKey, readTimers)
+}
 
-    if (error !== undefined)
-      throw failed('timers', response.status)
+// Pauses an enabled timer or resumes a paused one. A paused timer stays saved and does not fire.
+// The variable is the timer id; the list shows the new state at once and takes the server's list after.
+export function useToggleTimer(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<Timer[], Error, string, number> {
+  return useOptimisticSave<Timer[], string>({
+    queryKey: () => timersKey(toValue(channelId)),
+    mutationFn: async (timerId: string): Promise<Timer[]> => {
+      const id = toValue(channelId) as string
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/timers/{id}/toggle',
+        {
+          params: { path: {
+            version,
+            channelId: id,
+            id: timerId,
+          } },
+        },
+      )
 
-    return [...(data?.data ?? [])]
+      if (error !== undefined)
+        throw failed('timer-toggle', response.status)
+
+      return readTimers(id)
+    },
+    apply: (current: Timer[] | undefined, timerId: string): Timer[] =>
+      (current ?? []).map((timer: Timer) =>
+        timer.id === timerId
+          ? { ...timer, isEnabled: !timer.isEnabled }
+          : timer),
   })
 }

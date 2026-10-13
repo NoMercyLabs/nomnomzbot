@@ -72,7 +72,7 @@ const rows: ComputedRef<Row[]> = computed(() =>
     const detail = say(view.detail)
     const title = view.title
       ? say(view.title)
-      : (event.username ?? undefined)
+      : (event.username ?? view.actor ?? undefined)
 
     return {
       id: event.id,

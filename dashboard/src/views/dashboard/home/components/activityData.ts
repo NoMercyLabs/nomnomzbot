@@ -40,6 +40,15 @@ export function pickText(data: ActivityData, ...keys: string[]): string | null {
   return null
 }
 
+// A name inside a nested object, such as the queued shoutout's Target.DisplayName.
+export function pickNestedText(data: ActivityData, objectKey: string, ...keys: string[]): string | null {
+  const inner: unknown = data[objectKey]
+
+  return typeof inner === 'object' && inner !== null && !Array.isArray(inner)
+    ? pickText(inner as ActivityData, ...keys)
+    : null
+}
+
 export function pickCount(data: ActivityData, ...keys: string[]): number | null {
   for (const key of keys) {
     const value: unknown = data[key]
