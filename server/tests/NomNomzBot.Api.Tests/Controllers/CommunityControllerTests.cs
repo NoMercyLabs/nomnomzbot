@@ -768,8 +768,9 @@ public sealed class CommunityControllerTests
         );
 
         result.Should().BeOfType<OkObjectResult>();
-        PaginatedResponse<CommunityController.BannedUserDto> body =
-            (PaginatedResponse<CommunityController.BannedUserDto>)((OkObjectResult)result).Value!;
+        PaginatedResponse<CommunityController.CommunityBannedUserDto> body =
+            (PaginatedResponse<CommunityController.CommunityBannedUserDto>)
+                ((OkObjectResult)result).Value!;
 
         // The consequence of correct tenant scoping: channel A's ban shows, channel B's never does — a
         // reversed BroadcasterId or a missing filter would leak B's row into A's list (or vice versa).

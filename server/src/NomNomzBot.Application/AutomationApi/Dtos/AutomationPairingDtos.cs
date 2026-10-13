@@ -96,7 +96,7 @@ public sealed record ApproveDeviceRequest
 }
 
 /// <summary>Body of the anonymous device-poll action.</summary>
-public sealed record DevicePollRequest
+public sealed record AutomationDevicePollRequest
 {
     [Required]
     public string DeviceCode { get; init; } = null!;

@@ -13,8 +13,8 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs;
 using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Application.Notifications.Services;
 

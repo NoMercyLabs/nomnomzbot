@@ -205,7 +205,7 @@ public partial class CommunityController : BaseController
         DateTimeOffset CreatedAt
     );
 
-    public record BannedUserDto(
+    public record CommunityBannedUserDto(
         string Id,
         string Username,
         string DisplayName,
@@ -716,7 +716,7 @@ public partial class CommunityController : BaseController
     /// <summary>List banned users for a channel, paginated, with ban reason and moderator identity.</summary>
     [RequireAction("community:read")]
     [HttpGet("bans")]
-    [ProducesResponseType<PaginatedResponse<BannedUserDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<PaginatedResponse<CommunityBannedUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBans(
         string channelId,
         [FromQuery] PageRequestDto request,
@@ -764,7 +764,7 @@ public partial class CommunityController : BaseController
                     )
                 : [];
 
-        List<BannedUserDto> items =
+        List<CommunityBannedUserDto> items =
         [
             .. entries.Select(
                 (entry, idx) =>
@@ -777,7 +777,7 @@ public partial class CommunityController : BaseController
                         bannedBy = name;
 
                     ConfigEntity cfg = banConfigs[idx];
-                    return new BannedUserDto(
+                    return new CommunityBannedUserDto(
                         entry?.UserId ?? cfg.Key.Substring(4),
                         entry?.Username ?? "",
                         entry?.DisplayName ?? "",
@@ -793,7 +793,7 @@ public partial class CommunityController : BaseController
         bool hasMore = banConfigs.Count > request.Take;
 
         return Ok(
-            new PaginatedResponse<BannedUserDto>
+            new PaginatedResponse<CommunityBannedUserDto>
             {
                 Data = items,
                 NextPage = hasMore ? request.Page + 1 : null,

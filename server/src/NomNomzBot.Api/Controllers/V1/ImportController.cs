@@ -13,9 +13,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs;
 using NomNomzBot.Application.Import.Dtos;
 using NomNomzBot.Application.Import.Services;
 

@@ -13,11 +13,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.PlatformContent;
-using NomNomzBot.Application.DTOs;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -87,7 +87,7 @@ public class PlatformTemplatesController(
     public async Task<IActionResult> List(
         string channelId,
         [FromQuery] string kind,
-        [FromQuery] Models.PageRequestDto page,
+        [FromQuery] PageRequestDto page,
         CancellationToken ct
     )
     {

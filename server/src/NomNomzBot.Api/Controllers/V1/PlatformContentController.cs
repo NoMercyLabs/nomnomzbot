@@ -14,13 +14,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
-using NomNomzBot.Application.DTOs;
 using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -51,7 +51,7 @@ public class PlatformContentController(
     )]
     public async Task<IActionResult> ListDefinitions(
         [FromQuery] string? kind,
-        [FromQuery] Models.PageRequestDto page,
+        [FromQuery] PageRequestDto page,
         CancellationToken ct
     )
     {

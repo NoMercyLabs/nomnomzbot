@@ -94,7 +94,7 @@ public class AutomationDataController(
     [AllowAnonymous]
     [ProducesResponseType<StatusResponseDto<DevicePollDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PollDevicePairing(
-        [FromBody] DevicePollRequest request,
+        [FromBody] AutomationDevicePollRequest request,
         CancellationToken ct
     ) => ResultResponse(await pairing.PollDeviceAsync(request.DeviceCode, ct));
 

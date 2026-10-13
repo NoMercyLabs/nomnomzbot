@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
 // tests without HTTP.
 //
 // Backend routes (CommunityController):
-//   GET    /api/v1/channels/{channelId}/community/bans            →  PaginatedResponse<BannedUserDto>
+//   GET    /api/v1/channels/{channelId}/community/bans            →  PaginatedResponse<CommunityBannedUserDto>
 //   DELETE /api/v1/channels/{channelId}/community/{userId}/ban    →  204 No Content
 // A PaginatedResponse is a flat `{ data: [...] }` object (not the single-value StatusResponseDto envelope),
 // so the list is read with getDirect + PaginatedEnvelope rather than getEnvelope. The unban is a bodyless
@@ -869,7 +869,7 @@ data class UpsertShoutoutOverrideBody(
 )
 
 /**
- * One banned viewer (backend `BannedUserDto`). Fields mirror the backend record's camelCase JSON exactly
+ * One banned viewer (backend `CommunityBannedUserDto`). Fields mirror the backend record's camelCase JSON exactly
  * (the contract test guards this): the Twitch id, login/display name, an optional avatar, the ban reason,
  * who issued it, and when.
  */

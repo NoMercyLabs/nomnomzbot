@@ -14,11 +14,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
-using NomNomzBot.Application.DTOs;
 using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;

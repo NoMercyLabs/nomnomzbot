@@ -216,9 +216,7 @@ public sealed class SpamDefenseLockdownControllerTests
             .Should()
             .BeOfType<OkObjectResult>()
             .Which.Value.Should()
-            .BeOfType<NomNomzBot.Application.DTOs.StatusResponseDto<
-                IReadOnlyList<LockdownWindowStatus>
-            >>()
+            .BeOfType<StatusResponseDto<IReadOnlyList<LockdownWindowStatus>>>()
             .Which.Data.Should()
             .Equal(windows);
     }

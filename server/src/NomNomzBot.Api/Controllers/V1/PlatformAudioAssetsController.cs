@@ -14,12 +14,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
-using NomNomzBot.Application.DTOs;
 using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -47,10 +47,7 @@ public class PlatformAudioAssetsController(
     [ProducesResponseType<StatusResponseDto<PaginatedResponse<PlatformAudioAssetDto>>>(
         StatusCodes.Status200OK
     )]
-    public async Task<IActionResult> List(
-        [FromQuery] Models.PageRequestDto page,
-        CancellationToken ct
-    )
+    public async Task<IActionResult> List([FromQuery] PageRequestDto page, CancellationToken ct)
     {
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
