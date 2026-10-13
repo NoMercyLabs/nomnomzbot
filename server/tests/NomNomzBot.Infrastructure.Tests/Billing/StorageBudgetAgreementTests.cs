@@ -54,7 +54,8 @@ public sealed class StorageBudgetAgreementTests
             db,
             tiers,
             new RecordingEventBus(),
-            new FakeTimeProvider()
+            new FakeTimeProvider(),
+            TestConfiguration.Empty()
         );
         ResourceQuotaService quota = new(tiers, metering, db, new FakeTimeProvider());
         SoundClipService soundClips = new(
