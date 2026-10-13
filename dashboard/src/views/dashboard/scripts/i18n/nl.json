@@ -1,0 +1,40 @@
+{
+  "dashboard": {
+    "scripts": {
+      "title": "Scripts",
+      "crumb": "Bouwen",
+      "search": "Zoek scripts",
+      "count": "{count} scripts",
+      "noMatch": "Geen script past bij \"{query}\".",
+      "tabs": {
+        "all": "Alles",
+        "on": "Aan",
+        "off": "Uit",
+        "failed": "Mislukt"
+      },
+      "hints": {
+        "all": "Alle scripts van je kanaal.",
+        "on": "Scripts die aan staan.",
+        "off": "Scripts die uit staan.",
+        "failed": "Scripts waarvan de laatste run mislukte."
+      },
+      "list": {
+        "title": "Scripts",
+        "empty": "Dit kanaal heeft nog geen scripts.",
+        "emptyTab": "Geen script in deze lijst.",
+        "error": "De scripts konden niet laden.",
+        "lastRun": "Laatst gedraaid {when}",
+        "neverRun": "Nog nooit gedraaid",
+        "worked": "Werkte",
+        "failed": "Mislukt",
+        "switchLabel": "Zet {name} aan of uit"
+      },
+      "detail": {
+        "title": "Script",
+        "pick": "Kies een script om het hier te zien.",
+        "notFound": "Geen script heeft de id \"{id}\".",
+        "soon": "De details van een script verschijnen hier binnenkort."
+      }
+    }
+  }
+}

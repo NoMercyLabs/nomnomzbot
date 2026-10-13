@@ -16,6 +16,7 @@ import { dashboardHomeRoute } from '@/views/dashboard/home/route'
 import { dashboardMusicRoute } from '@/views/dashboard/music/route'
 import { dashboardOverlaysRoute } from '@/views/dashboard/overlays/route'
 import { dashboardPeopleRoute } from '@/views/dashboard/people/route'
+import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route'
 import { dashboardSettingsRoute } from '@/views/dashboard/settings/route'
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route'
 import { dashboardTtsRoute } from '@/views/dashboard/tts/route'
@@ -25,6 +26,27 @@ export const dashboardRoutes: RouteRecordRaw = {
   component: () => import('@/layouts/DashboardLayout.vue'),
   meta: { requiresAuth: true },
   children: import.meta.env.DEV
-    ? [dashboardHomeRoute, dashboardCommandsRoute, dashboardMusicRoute, dashboardTtsRoute, dashboardPeopleRoute, dashboardOverlaysRoute, dashboardStreamRoute, dashboardSettingsRoute, dashboardCatalogueRoute]
-    : [dashboardHomeRoute, dashboardCommandsRoute, dashboardMusicRoute, dashboardTtsRoute, dashboardPeopleRoute, dashboardOverlaysRoute, dashboardStreamRoute, dashboardSettingsRoute],
+    ? [
+        dashboardHomeRoute,
+        dashboardCommandsRoute,
+        dashboardMusicRoute,
+        dashboardTtsRoute,
+        dashboardPeopleRoute,
+        dashboardOverlaysRoute,
+        dashboardScriptsRoute,
+        dashboardStreamRoute,
+        dashboardSettingsRoute,
+        dashboardCatalogueRoute,
+      ]
+    : [
+        dashboardHomeRoute,
+        dashboardCommandsRoute,
+        dashboardMusicRoute,
+        dashboardTtsRoute,
+        dashboardPeopleRoute,
+        dashboardOverlaysRoute,
+        dashboardScriptsRoute,
+        dashboardStreamRoute,
+        dashboardSettingsRoute,
+      ],
 }

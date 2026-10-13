@@ -1,0 +1,40 @@
+{
+  "dashboard": {
+    "scripts": {
+      "title": "Scripts",
+      "crumb": "Build",
+      "search": "Search scripts",
+      "count": "{count} scripts",
+      "noMatch": "No script matches \"{query}\".",
+      "tabs": {
+        "all": "All",
+        "on": "On",
+        "off": "Off",
+        "failed": "Failed"
+      },
+      "hints": {
+        "all": "Every script of your channel.",
+        "on": "Scripts that are switched on.",
+        "off": "Scripts that are switched off.",
+        "failed": "Scripts whose last run failed."
+      },
+      "list": {
+        "title": "Scripts",
+        "empty": "This channel has no scripts yet.",
+        "emptyTab": "No script in this list.",
+        "error": "The scripts could not load.",
+        "lastRun": "Last run {when}",
+        "neverRun": "Never run",
+        "worked": "Worked",
+        "failed": "Failed",
+        "switchLabel": "Switch {name} on or off"
+      },
+      "detail": {
+        "title": "Script",
+        "pick": "Pick a script to see it here.",
+        "notFound": "No script has the id \"{id}\".",
+        "soon": "The details of a script show here soon."
+      }
+    }
+  }
+}
