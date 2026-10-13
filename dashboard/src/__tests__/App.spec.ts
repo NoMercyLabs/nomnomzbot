@@ -71,7 +71,8 @@ describe('sign-in guard', () => {
     history.replaceState(null, '', '/app#access_token=from-fragment&expires_in=3600')
     const router: Router = await freshRouter()
 
-    await router.push('/app')
+    // The first navigation carries the whole address the browser opened, fragment included.
+    await router.push(window.location.pathname + window.location.hash)
 
     const auth: typeof import('../api/auth') = await import('../api/auth')
     expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name)

@@ -21,6 +21,13 @@ declare module 'vue-router' {
 
 export async function signInGuard(to: RouteLocationNormalized): Promise<true | RouteLocationRaw> {
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
-  if (await restoreSession()) return true
+  if (await restoreSession()) return withoutToken(to)
   return { name: loginRoute.name, query: { return_to: to.fullPath } }
+}
+
+// The router writes the address it navigates to, so an OAuth fragment that is kept here would
+// put the access token back in the address bar after restoreSession stripped it.
+function withoutToken(to: RouteLocationNormalized): true | RouteLocationRaw {
+  if (!to.hash.includes('access_token=')) return true
+  return { path: to.path, query: to.query, hash: '', replace: true }
 }
