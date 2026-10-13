@@ -228,6 +228,24 @@ public class MusicController : BaseController
     }
 
     /// <summary>
+    /// Drop a queued song at a chosen position — the drag-and-drop reorder. The item lands exactly
+    /// where it was dropped; fair-queue rules for later requests are unchanged.
+    /// </summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpPost("queue/{position:int}/move")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> MoveInQueue(
+        string channelId,
+        int position,
+        [FromBody] MoveQueueItemDto request,
+        CancellationToken ct
+    )
+    {
+        Result result = await _musicService.MoveAsync(channelId, position, request.ToPosition, ct);
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
+    }
+
+    /// <summary>
     /// Ban the queued song at the given position from future song requests — the dashboard
     /// counterpart to <c>!bansong</c> (which only bans whatever is currently playing). Removes it
     /// from the live queue too.

@@ -1730,6 +1730,36 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return moved;
     }
 
+    public async Task<Result> MoveAsync(
+        string broadcasterId,
+        int fromPosition,
+        int toPosition,
+        CancellationToken cancellationToken = default
+    )
+    {
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        int count = queue?.Count ?? 0;
+        if (fromPosition < 0 || fromPosition >= count)
+            return Result.Failure($"No queue item at position {fromPosition}.", "NOT_FOUND");
+        if (toPosition < 0 || toPosition >= count)
+            return Result.Failure(
+                $"Position {toPosition} is outside the queue.",
+                "VALIDATION_FAILED"
+            );
+
+        if (!queue!.MoveTo(fromPosition, toPosition))
+            return Result.Failure("The queue changed while moving; try again.", "NOT_FOUND");
+
+        if (fromPosition != toPosition)
+        {
+            await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
+            if (Guid.TryParse(broadcasterId, out Guid tenantId))
+                await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+        }
+
+        return Result.Success();
+    }
+
     public async Task<Result<BlockedTrackDto>> BanQueuedTrackAsync(
         string broadcasterId,
         int position,
