@@ -755,4 +755,125 @@ describe('ChatView display drawer', () => {
 
     expect(link?.getAttribute('href')).toBe('/app/settings');
   });
+
+  describe('viewer focus', () => {
+    beforeEach(() => {
+      history = [
+        line('m1', 'u1', 'Alice', 'first words'),
+        line('m2', 'u2', 'Bob', 'second words'),
+        line('m3', 'u1', 'Alice', 'third words'),
+      ];
+    });
+
+    const viewer = (): HTMLElement | null =>
+      document.body.querySelector<HTMLElement>('[data-viewer-panel]');
+
+    it('opens the Viewer on the clicked chatter, lights their lines and dims the rest', async () => {
+      await open();
+      expect(viewer()).toBeNull();
+
+      rowOf('m1').click();
+      await settle();
+
+      expect(viewer()?.textContent).toContain('Alice');
+      expect(rowOf('m1').dataset.focus).toBe('on');
+      expect(rowOf('m3').dataset.focus).toBe('on');
+      expect(rowOf('m2').dataset.focus).toBe('dim');
+    });
+
+    it('tints the focused lines at 8% primary, never the full accent, and steps the rest back to 70%', async () => {
+      await open();
+      rowOf('m1').click();
+      await settle();
+
+      expect(rowOf('m1').className).toContain('bg-primary/8');
+      expect(rowOf('m1').className).not.toContain('bg-accent');
+      expect(rowOf('m2').className).toContain('opacity-70');
+    });
+
+    it('offers Clear focus on the chatter in the header, and it ends the focus', async () => {
+      await open();
+
+      const clear = (): HTMLElement | null =>
+        document.body.querySelector<HTMLElement>('[data-focus-clear]');
+
+      expect(clear()).toBeNull();
+
+      rowOf('m1').click();
+      await settle();
+
+      expect(clear()?.textContent).toContain('Alice');
+
+      clear()?.click();
+      await settle();
+
+      expect(rowOf('m2').dataset.focus).toBeUndefined();
+      expect(clear()).toBeNull();
+    });
+
+    it('lists in the Viewer only the lines the feed shows, so a hidden command stays out', async () => {
+      localStorage.setItem('nnz.chat.hideCommands', 'true');
+
+      history = [
+        line('m1', 'u1', 'Alice', 'first words'),
+        line('m4', 'u1', 'Alice', '!sr some song', { isCommand: true }),
+      ];
+
+      await open();
+      rowOf('m1').click();
+      await settle();
+
+      const listed = [...viewer()!.querySelectorAll('[data-viewer-message]')].map((item) =>
+        item.textContent);
+
+      expect(listed).toHaveLength(1);
+      expect(listed[0]).toContain('first words');
+    });
+
+    it('ends the focus when the same chatter is picked again, and keeps the panel open', async () => {
+      await open();
+      rowOf('m1').click();
+      await settle();
+      rowOf('m3').click();
+      await settle();
+
+      expect(rowOf('m2').dataset.focus).toBeUndefined();
+      expect(viewer()).not.toBeNull();
+    });
+
+    it('ends the focus on Escape and closes everything with the close button', async () => {
+      await open();
+      rowOf('m2').click();
+      await settle();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await settle();
+
+      expect(rowOf('m1').dataset.focus).toBeUndefined();
+
+      rowOf('m2').click();
+      await settle();
+      viewer()?.querySelector<HTMLElement>('[data-viewer-close]')?.click();
+      await settle();
+
+      expect(viewer()).toBeNull();
+      expect(rowOf('m2').dataset.focus).toBeUndefined();
+    });
+
+    it('a click on a line action does not pick the chatter', async () => {
+      await open();
+      action('m1', 'profile').click();
+      await settle();
+
+      expect(viewer()).toBeNull();
+      expect(useProfileDialogStore().userId).toBe('u1');
+    });
+
+    it('the header Viewer button opens an empty panel that says what to do', async () => {
+      await open();
+      document.body.querySelector<HTMLElement>('[data-viewer-toggle]')?.click();
+      await settle();
+
+      expect(viewer()?.textContent).toContain(en.dashboard.chat.viewer.empty);
+    });
+  });
 });

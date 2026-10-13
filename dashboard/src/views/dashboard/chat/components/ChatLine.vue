@@ -45,9 +45,13 @@ const props = defineProps<{
   display: ChatDisplay;
   index: number;
   me: string | null;
+  focus?: 'on' | 'dim';
 }>();
 
-const emit = defineEmits<{ ban: [line: ChatLine] }>();
+const emit = defineEmits<{
+  ban: [line: ChatLine];
+  focus: [line: ChatLine];
+}>();
 
 const { t, locale } = useI18n();
 const timeouts = useTimeoutUser(() => props.channelId);
@@ -101,7 +105,14 @@ const rowClass = computed<string[]>(() => {
     classes.push('max-w-[65ch]');
   }
 
-  if (mentionsMe.value) {
+  // A focus lights many lines at once, so it takes an 8% tint and keeps the full accent scarce.
+  if (props.focus === 'dim') {
+    classes.push('opacity-70');
+  }
+
+  if (props.focus === 'on') {
+    classes.push('bg-primary/8');
+  } else if (mentionsMe.value) {
     classes.push('bg-primary/10');
   } else if (props.display.alternating && props.index % 2 === 1) {
     classes.push('bg-muted/40');
@@ -167,6 +178,15 @@ function openProfile(event: MouseEvent): void {
 function emoteUrl(urls: Record<string, string>): string | undefined {
   return urls['1'] ?? Object.values(urls)[0];
 }
+
+// A click on the line itself picks its chatter; a click on a name or an action does its own job.
+function pick(event: MouseEvent): void {
+  const target = event.target;
+
+  if (target instanceof Element && target.closest('button, a')) return;
+
+  emit('focus', props.line);
+}
 </script>
 
 <template>
@@ -175,8 +195,10 @@ function emoteUrl(urls: Record<string, string>): string | undefined {
     :data-removed="line.removed"
     :data-alt="display.alternating && index % 2 === 1 ? 'on' : 'off'"
     :data-mention="mentionsMe ? 'true' : undefined"
-    class="group/line relative flex gap-2 rounded-lg px-3 text-sm hover:bg-muted focus-within:bg-muted"
+    :data-focus="focus"
+    class="group/line relative flex cursor-pointer gap-2 rounded-lg px-3 text-sm hover:bg-muted focus-within:bg-muted"
     :class="rowClass"
+    @click="pick"
   >
     <time
       v-if="display.timestamps !== 'off'"
