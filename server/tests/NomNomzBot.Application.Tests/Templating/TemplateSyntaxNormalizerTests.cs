@@ -49,6 +49,24 @@ public class TemplateSyntaxNormalizerTests
     }
 
     [Fact]
+    public void A_double_brace_placeholder_for_known_variables_becomes_a_single_brace_one()
+    {
+        // The old preset pack stored "{{user.name}} gives {{args.1}} ..."; the single-brace resolver
+        // turned that into "{stoney_eagle} gives {@r1l37} ..." in live chat.
+        TemplateSyntaxNormalizer
+            .Normalize("{{user.name}} gives {{args.1}} a big warm hug! 🤗")
+            .Should()
+            .Be("{user.name} gives {args.1} a big warm hug! 🤗");
+    }
+
+    [Fact]
+    public void A_double_brace_around_an_UNKNOWN_name_is_left_alone()
+    {
+        const string Unknown = "keep {{totallyNotAVariable}} as typed";
+        TemplateSyntaxNormalizer.Normalize(Unknown).Should().Be(Unknown);
+    }
+
+    [Fact]
     public void A_plain_placeholder_is_left_exactly_as_it_is()
     {
         const string Already = "{user} is now lurking";

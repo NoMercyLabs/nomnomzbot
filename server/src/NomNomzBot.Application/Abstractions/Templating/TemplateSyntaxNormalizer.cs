@@ -44,6 +44,13 @@ public static class TemplateSyntaxNormalizer
         RegexOptions.Compiled | RegexOptions.CultureInvariant
     );
 
+    // The double-brace form the first preset pack stored ("{{user.name}}"); the single-brace resolver
+    // rendered it as "{stoney_eagle}", braces kept.
+    private static readonly Regex DoubleBracePlaceholder = new(
+        @"\{\{([^{}]+)\}\}",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant
+    );
+
     /// <summary>
     /// Returns <paramref name="template"/> with every <c>${known.variable}</c> rewritten to
     /// <c>{known.variable}</c>. Null, empty, and templates with no <c>${</c> at all are returned
@@ -51,13 +58,27 @@ public static class TemplateSyntaxNormalizer
     /// </summary>
     public static string? Normalize(string? template)
     {
-        if (string.IsNullOrEmpty(template) || !template.Contains("${", StringComparison.Ordinal))
+        if (
+            string.IsNullOrEmpty(template)
+            || (
+                !template.Contains("${", StringComparison.Ordinal)
+                && !template.Contains("{{", StringComparison.Ordinal)
+            )
+        )
             return template;
 
-        return DollarPlaceholder.Replace(
+        string dollarFixed = DollarPlaceholder.Replace(
             template,
             static match =>
                 IsKnownPlaceholder(match.Groups[1].Value) ? match.Value[1..] : match.Value
+        );
+
+        return DoubleBracePlaceholder.Replace(
+            dollarFixed,
+            static match =>
+                IsKnownPlaceholder(match.Groups[1].Value)
+                    ? "{" + match.Groups[1].Value + "}"
+                    : match.Value
         );
     }
 

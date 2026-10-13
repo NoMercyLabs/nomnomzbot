@@ -43,6 +43,22 @@ public class TemplateSyntaxBackfillSeederTests
     }
 
     [Fact]
+    public async Task A_stored_double_brace_preset_row_is_rewritten_to_single_braces()
+    {
+        // The live rows seeded on 2026-09-01 read "{{user.name}} gives {{args.1}} ..." and showed
+        // "{stoney_eagle} gives {@r1l37} ..." in chat.
+        await using SeedTestDbContext db = NewDatabaseWithChannel();
+        db.Commands.Add(NewCommand("hug", "{{user.name}} gives {{args.1}} a big warm hug! 🤗"));
+        await db.SaveChangesAsync();
+
+        await NewSeeder(db).SeedAsync();
+
+        db.Commands.Single()
+            .TemplateResponse.Should()
+            .Be("{user.name} gives {args.1} a big warm hug! 🤗");
+    }
+
+    [Fact]
     public async Task A_stored_literal_dollar_before_a_non_variable_is_left_alone()
     {
         // The guard: a backfill that "fixes" this would silently delete a currency symbol from every
