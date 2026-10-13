@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 // Development only: every shared building block in each of its states (spec section 5, step 2).
+import { useLocalStorage, type RemovableRef } from '@vueuse/core'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -20,7 +21,7 @@ import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import ChartPanel, { type ChartRow, type ChartSeries } from '@/components/layout/ChartPanel.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
-import FilterBar,{ type FilterOption } from '@/components/layout/FilterBar.vue'
+import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
 import FormDialog from '@/components/layout/FormDialog.vue'
 import InlineFlow from '@/components/layout/InlineFlow.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
@@ -64,23 +65,31 @@ const view = usePageView(tabs.map((tab: PageTab) => tab.value))
 
 const kvItems: KeyValueItem[] = [
   { label: t('dashboard.catalogue.kv.region'), value: t('dashboard.catalogue.kv.regionValue') },
-  { label: t('dashboard.catalogue.kv.uptime'), value: null, reason: t('dashboard.catalogue.kv.uptimeReason') },
+  {
+    label: t('dashboard.catalogue.kv.uptime'),
+    value: null,
+    reason: t('dashboard.catalogue.kv.uptimeReason'),
+  },
 ]
 
 const stateOptions: FilterOption[] = ['all', 'on', 'off'].map((key: string) => ({
   value: key,
   label: t(`dashboard.catalogue.filter.${key}`),
 }))
-const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year'].map((key: string) => ({
-  value: key,
-  label: t(`dashboard.catalogue.filter.${key}`),
-}))
+const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year'].map(
+  (key: string) => ({
+    value: key,
+    label: t(`dashboard.catalogue.filter.${key}`),
+  }),
+)
 
 // Demo data only: these numbers are invented for the catalogue and never shown anywhere else.
-const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].map((lines: number, day: number) => ({
-  day: new Date(2026, 0, day + 1),
-  lines,
-}))
+const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].map(
+  (lines: number, day: number) => ({
+    day: new Date(2026, 0, day + 1),
+    lines,
+  }),
+)
 const monthDemo: ChartRow[] = [
   { month: 'Sep', returning: 36, fresh: 50 },
   { month: 'Oct', returning: 43, fresh: 27 },
@@ -88,7 +97,9 @@ const monthDemo: ChartRow[] = [
   { month: 'Dec', returning: 49, fresh: 45 },
   { month: 'Jan', returning: 35, fresh: 12 },
 ]
-const lineSeries: ChartSeries[] = [{ key: 'lines', labelKey: 'dashboard.catalogue.chart.line.title', color: 'chart-1' }]
+const lineSeries: ChartSeries[] = [
+  { key: 'lines', labelKey: 'dashboard.catalogue.chart.line.title', color: 'chart-1' },
+]
 const monthSeries: ChartSeries[] = [
   { key: 'returning', labelKey: 'dashboard.catalogue.chart.series.returning', color: 'chart-1' },
   { key: 'fresh', labelKey: 'dashboard.catalogue.chart.series.fresh', color: 'chart-3' },
@@ -96,8 +107,8 @@ const monthSeries: ChartSeries[] = [
 
 const ttsOn: Ref<boolean> = ref(true)
 const modsOn: Ref<boolean> = ref(false)
-const stateFilter: Ref<string> = ref('all')
-const sinceFilter: Ref<string> = ref('week')
+const stateFilter: RemovableRef<string> = useLocalStorage('nnz.catalogue.state', 'all')
+const sinceFilter: RemovableRef<string> = useLocalStorage('nnz.catalogue.since', 'week')
 const query: Ref<string> = ref('')
 const retries: Ref<number> = ref(0)
 const detailOpen: Ref<boolean> = ref(false)
@@ -127,7 +138,12 @@ async function openEditor(): Promise<void> {
   if (!first) return
   const project: ScriptProject | null = await fetchScriptProject(first.id)
   if (!project) return
-  editorSession.value = { id: first.id, name: first.name, project, sdkTypes: await fetchScriptSdkTypes(first.id) }
+  editorSession.value = {
+    id: first.id,
+    name: first.name,
+    project,
+    sdkTypes: await fetchScriptSdkTypes(first.id),
+  }
 }
 
 async function saveEditor(files: EditorFiles): Promise<CompileFeedback> {
@@ -143,7 +159,8 @@ const formCreated: Ref<string[]> = ref([])
 
 function submitForm(): void {
   formServerError.value = undefined
-  formNameError.value = formName.value.trim() === '' ? t('dashboard.catalogue.form.nameMissing') : undefined
+  formNameError.value =
+    formName.value.trim() === '' ? t('dashboard.catalogue.form.nameMissing') : undefined
   if (formNameError.value) return
   formPending.value = true
   setTimeout(() => {
@@ -176,13 +193,18 @@ interface DemoRow {
 const demoRows: Ref<DemoRow[]> = ref(
   Array.from({ length: 5000 }, (_: unknown, id: number) => ({
     id,
-    text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) + (id % 7 === 0 ? ' ' + t('dashboard.catalogue.virtual.long') : ''),
+    text:
+      t('dashboard.catalogue.virtual.row', { number: id + 1 }) +
+      (id % 7 === 0 ? ' ' + t('dashboard.catalogue.virtual.long') : ''),
   })),
 )
 
 function addDemoRow(): void {
   const id: number = demoRows.value.length
-  demoRows.value = [...demoRows.value, { id, text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) }]
+  demoRows.value = [
+    ...demoRows.value,
+    { id, text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) },
+  ]
 }
 
 function pause(): Promise<void> {
@@ -244,17 +266,27 @@ function confirmDelete(): void {
             <StatusBadge tone="off" :label="t('dashboard.catalogue.status.off')" />
           </div>
 
-          <FilterBar v-model="stateFilter" :label="t('dashboard.catalogue.filter.state')" :options="stateOptions">
+          <FilterBar
+            v-model="stateFilter"
+            :label="t('dashboard.catalogue.filter.state')"
+            :options="stateOptions"
+          >
             <SearchField v-model="query" :placeholder="t('dashboard.catalogue.search')" />
           </FilterBar>
-          <FilterBar v-model="sinceFilter" :label="t('dashboard.catalogue.filter.since')" :options="sinceOptions" />
+          <FilterBar
+            v-model="sinceFilter"
+            :label="t('dashboard.catalogue.filter.since')"
+            :options="sinceOptions"
+          />
 
           <PanelCard :title="t('dashboard.catalogue.panel.ready')" pad>
             <KeyValueList :items="kvItems" />
           </PanelCard>
 
           <div class="flex items-center gap-4">
-            <Button variant="outline" @click="confirmOpen = true">{{ t('dashboard.catalogue.confirm.open') }}</Button>
+            <Button variant="outline" @click="confirmOpen = true">{{
+              t('dashboard.catalogue.confirm.open')
+            }}</Button>
             <span class="text-sm text-muted-foreground">
               {{ t('dashboard.catalogue.confirm.count', { count: confirmed }) }}
             </span>
@@ -270,7 +302,9 @@ function confirmDelete(): void {
           />
 
           <div class="flex items-center gap-4">
-            <Button variant="outline" @click="formOpen = true">{{ t('dashboard.catalogue.form.open') }}</Button>
+            <Button variant="outline" @click="formOpen = true">{{
+              t('dashboard.catalogue.form.open')
+            }}</Button>
             <span class="text-sm text-muted-foreground">
               {{ t('dashboard.catalogue.form.count', { count: formCreated.length }) }}
             </span>
@@ -285,7 +319,9 @@ function confirmDelete(): void {
             @submit="submitForm"
           >
             <Field :data-invalid="formNameError ? true : undefined">
-              <FieldLabel for="catalogue-command-name">{{ t('dashboard.catalogue.form.name') }}</FieldLabel>
+              <FieldLabel for="catalogue-command-name">{{
+                t('dashboard.catalogue.form.name')
+              }}</FieldLabel>
               <Input
                 id="catalogue-command-name"
                 v-model="formName"
@@ -297,7 +333,9 @@ function confirmDelete(): void {
           </FormDialog>
 
           <div class="flex items-center gap-4">
-            <Button variant="outline" @click="openEditor">{{ t('dashboard.catalogue.codeEditor.open') }}</Button>
+            <Button variant="outline" @click="openEditor">{{
+              t('dashboard.catalogue.codeEditor.open')
+            }}</Button>
             <span v-if="scripts.error.value" role="alert" class="text-sm text-destructive">
               {{ scripts.error.value.message }}
             </span>
@@ -426,12 +464,22 @@ function confirmDelete(): void {
 
           <PanelCard
             :title="t('dashboard.catalogue.profile.title')"
-            :state="community.isError.value ? 'error' : community.isPending.value ? 'loading' : people.length > 0 ? 'ready' : 'empty'"
+            :state="
+              community.isError.value
+                ? 'error'
+                : community.isPending.value
+                  ? 'loading'
+                  : people.length > 0
+                    ? 'ready'
+                    : 'empty'
+            "
             :empty-text="t('dashboard.catalogue.profile.empty')"
             pad
             @retry="community.refetch()"
           >
-            <p class="mb-3 text-sm text-muted-foreground">{{ t('dashboard.catalogue.profile.hint') }}</p>
+            <p class="mb-3 text-sm text-muted-foreground">
+              {{ t('dashboard.catalogue.profile.hint') }}
+            </p>
             <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
               <li v-for="person in people" :key="person.id">
                 <UserName :user-id="person.id" :name="person.displayName" />
@@ -442,7 +490,9 @@ function confirmDelete(): void {
           <PanelCard :title="t('dashboard.catalogue.virtual.title')" pad>
             <div class="flex flex-col gap-3">
               <div class="flex items-center gap-4">
-                <Button variant="outline" @click="addDemoRow">{{ t('dashboard.catalogue.virtual.add') }}</Button>
+                <Button variant="outline" @click="addDemoRow">{{
+                  t('dashboard.catalogue.virtual.add')
+                }}</Button>
                 <span class="text-sm text-muted-foreground">
                   {{ t('dashboard.catalogue.virtual.count', { count: demoRows.length }) }}
                 </span>

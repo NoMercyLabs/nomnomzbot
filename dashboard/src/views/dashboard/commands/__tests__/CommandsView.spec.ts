@@ -132,6 +132,7 @@ let router: Router
 let pinia: Pinia
 
 beforeEach(() => {
+  localStorage.clear()
   calls.length = 0
   rows = [
     command('hello', { useCount: 12, aliases: ['hi'], templateResponse: 'Hello there' }),
@@ -261,6 +262,19 @@ describe('CommandsView list', () => {
 
     buttonByText('A to Z').click()
     await settle()
+
+    expect(rowNames()).toEqual(['hello', 'pipe', 'socials'])
+  })
+
+  it('keeps the A to Z order after the page is opened again', async () => {
+    await open()
+    buttonByText('A to Z').click()
+    await settle()
+    mounted!.unmount()
+    mounted = null
+    document.body.innerHTML = ''
+
+    await open()
 
     expect(rowNames()).toEqual(['hello', 'pipe', 'socials'])
   })

@@ -70,6 +70,7 @@ let pinia: Pinia
 let router: Router
 
 beforeEach(() => {
+  localStorage.clear()
   calls.length = 0
   refused = false
   total = 2
@@ -176,6 +177,24 @@ describe('AdminChannelsView', () => {
 
     expect(lastQuery().status).toBe('suspended')
     expect(lastQuery().Page).toBe(1)
+  })
+
+  it('keeps the status and live choices after the page is opened again', async () => {
+    await open()
+    byText('[role="radio"], button', 'Suspended')!.click()
+    await settle()
+    byText('[role="radio"], button', 'Live')!.click()
+    await settle()
+    mounted!.unmount()
+    mounted = null
+    document.body.innerHTML = ''
+    calls.length = 0
+
+    await open()
+
+    expect(calls[0]!.query.status).toBe('suspended')
+    expect(calls[0]!.query.isLive).toBe(true)
+    expect(calls[0]!.query.Page).toBe(1)
   })
 
   it('asks for page 2 when Next is pressed and shows the page count', async () => {

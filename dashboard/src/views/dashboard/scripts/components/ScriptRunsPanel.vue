@@ -10,7 +10,8 @@
 <script setup lang="ts">
 // The test runs made on this page since it opened, newest first. The bot keeps no run table, so a reload clears them.
 // A failed run opens its dialog; a run that worked is only listed.
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { useLocalStorage, type RemovableRef } from '@vueuse/core'
+import { computed, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
@@ -23,7 +24,7 @@ const props = defineProps<{ runs: SessionRun[] }>()
 defineEmits<{ open: [run: SessionRun] }>()
 
 const { t } = useI18n()
-const filter: Ref<RunFilter> = ref<RunFilter>('all')
+const filter: RemovableRef<RunFilter> = useLocalStorage<RunFilter>('nnz.scripts.runFilter', 'all')
 
 const options: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() =>
   (['all', 'failed', 'tests'] as const).map((value: RunFilter): FilterOption => ({

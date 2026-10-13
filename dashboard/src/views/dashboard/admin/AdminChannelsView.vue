@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The platform admin's channel registry: a searchable, filterable, paged table. The bot pages and sorts
 // (newest first); a filter or a search always goes back to page 1. The channel in view is ?channel=.
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, useLocalStorage, type RemovableRef } from '@vueuse/core'
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
@@ -36,8 +36,8 @@ const router: Router = useRouter()
 
 const search: Ref<string> = ref('')
 const typed: Ref<string> = refDebounced(search, SEARCH_PAUSE_MS)
-const status: Ref<string> = ref('all')
-const live: Ref<string> = ref('all')
+const status: RemovableRef<string> = useLocalStorage('nnz.admin.status', 'all')
+const live: RemovableRef<string> = useLocalStorage('nnz.admin.live', 'all')
 const page: Ref<number> = ref(1)
 
 watch([typed, status, live], () => {

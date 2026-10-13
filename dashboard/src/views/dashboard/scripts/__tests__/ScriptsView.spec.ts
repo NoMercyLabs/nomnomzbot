@@ -17,6 +17,8 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { i18n } from '@/i18n'
 
+import ScriptRunsPanel from '../components/ScriptRunsPanel.vue'
+import type { SessionRun } from '../components/sessionRun'
 import ScriptsView from '../ScriptsView.vue'
 import en from '../i18n/en.json'
 
@@ -167,6 +169,7 @@ let pinia: Pinia
 let router: Router
 
 beforeEach(() => {
+  localStorage.clear()
   calls.length = 0
   refused = false
   testResult = WORKED
@@ -467,6 +470,40 @@ describe('ScriptsView', () => {
     byText('[data-slot="toggle-group-item"]', 'Failed')!.click()
     await settle()
     expect(runNames()).toEqual(['Raid Welcome'])
+  })
+
+  it('keeps the run filter after the runs panel is opened again', async () => {
+    const run = (id: number, name: string, success: boolean): SessionRun => ({
+      id,
+      scriptId: `s${id}`,
+      scriptName: name,
+      at: new Date(2026, 9, 13, 12, id),
+      trigger: null,
+      result: { ...(WORKED as object), success } as SessionRun['result'],
+    })
+    const runs: SessionRun[] = [run(1, 'Raid Welcome', true), run(2, 'Hype Train Banner', false)]
+    const names = (): string[] =>
+      [...document.body.querySelectorAll<HTMLElement>('[data-run-row] [data-run-name]')].map(
+        (node) => node.textContent?.trim() ?? '',
+      )
+    const panel = (): VueWrapper =>
+      mount(ScriptRunsPanel, {
+        attachTo: document.body,
+        props: { runs },
+        global: { plugins: [i18n] },
+      })
+
+    const first: VueWrapper = panel()
+    byText('[data-slot="toggle-group-item"]', 'Failed')!.click()
+    await settle()
+    expect(names()).toEqual(['Hype Train Banner'])
+    first.unmount()
+    document.body.innerHTML = ''
+
+    const second: VueWrapper = panel()
+    await settle()
+    expect(names()).toEqual(['Hype Train Banner'])
+    second.unmount()
   })
 
   it('a 429 disables Run test and says to wait', async () => {

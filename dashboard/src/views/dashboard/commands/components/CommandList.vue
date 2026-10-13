@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 // The custom commands: a search box, a sort choice and one row per command. The open command is the `selected` name.
+import { useLocalStorage, type RemovableRef } from '@vueuse/core'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -30,7 +31,7 @@ const { channelId } = useCurrentChannel()
 const commands = useCommands(channelId)
 
 const search: Ref<string> = ref('')
-const sort: Ref<string> = ref('uses')
+const sort: RemovableRef<string> = useLocalStorage('nnz.commands.sort', 'uses')
 const sortOptions: ComputedRef<FilterOption[]> = computed<FilterOption[]>(() => [
   { value: 'uses', label: t('dashboard.commands.list.sortUses') },
   { value: 'name', label: t('dashboard.commands.list.sortName') },
