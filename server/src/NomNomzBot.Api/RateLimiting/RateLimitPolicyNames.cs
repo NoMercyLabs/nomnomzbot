@@ -31,6 +31,10 @@ public static class RateLimitPolicyNames
     /// <summary>Login / credential-exchange endpoints — strict, partitioned per IP (brute-force protection).</summary>
     public const string Auth = "auth";
 
+    /// <summary>Session renewal (<c>POST auth/refresh</c>) — generous, partitioned per IP. The refresh token is a
+    /// random httpOnly cookie, so the strict <see cref="Auth"/> brute-force budget protects nothing there.</summary>
+    public const string Session = "session";
+
     /// <summary>Device Code Flow polling — generous, partitioned per IP (legitimate ~5s poll cadence).</summary>
     public const string DevicePoll = "device-poll";
 

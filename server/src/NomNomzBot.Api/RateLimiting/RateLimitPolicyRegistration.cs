@@ -35,6 +35,7 @@ public static class RateLimitPolicyRegistration
             WriteExpensiveRateLimitPolicy.Partition
         );
         options.AddPolicy(AuthRateLimitPolicy.PolicyName, AuthRateLimitPolicy.Partition);
+        options.AddPolicy(SessionRateLimitPolicy.PolicyName, SessionRateLimitPolicy.Partition);
         options.AddPolicy(
             DevicePollRateLimitPolicy.PolicyName,
             DevicePollRateLimitPolicy.Partition
