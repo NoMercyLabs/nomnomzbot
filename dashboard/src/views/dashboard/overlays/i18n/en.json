@@ -1,0 +1,90 @@
+{
+  "dashboard": {
+    "overlays": {
+      "title": "Overlays",
+      "crumb": "Build",
+      "search": "Search overlays",
+      "count": "{count} overlays",
+      "noMatch": "No overlay matches \"{query}\".",
+      "back": "Back to the list",
+      "tabs": {
+        "all": "All",
+        "on": "On",
+        "off": "Off",
+        "problem": "Has a problem"
+      },
+      "hints": {
+        "all": "Every overlay of your channel.",
+        "on": "Overlays that are switched on.",
+        "off": "Overlays that are switched off.",
+        "problem": "Overlays whose last run failed."
+      },
+      "list": {
+        "title": "Overlays",
+        "label": "Overlays",
+        "empty": "This channel has no overlays yet.",
+        "emptyTab": "No overlay in this list.",
+        "error": "The overlays could not load.",
+        "fails": "Fails",
+        "attached": "A browser source is open",
+        "notAttached": "Nothing attached",
+        "off": "Off"
+      },
+      "kinds": {
+        "chat": "Chat box",
+        "nowPlaying": "Now playing",
+        "badge": "Alert badge",
+        "tts": "TTS speaker",
+        "fullScreen": "Full-screen effect",
+        "leaderboard": "Leaderboard",
+        "alert": "Alert",
+        "caption": "TTS caption",
+        "alerts": "Alerts",
+        "audio": "Audio player",
+        "overlay": "Overlay"
+      },
+      "detail": {
+        "title": "Overlay",
+        "pick": "Pick an overlay to see it.",
+        "notFound": "No overlay has the id \"{id}\".",
+        "builtIn": "Built in",
+        "edited": "Edited",
+        "switchLabel": "Overlay on",
+        "on": "On",
+        "off": "Off",
+        "copy": "Copy browser source address",
+        "copied": "Address copied",
+        "noAddress": "This overlay has no address yet.",
+        "health": {
+          "title": "Health",
+          "works": "Works",
+          "worksNote": "No fault on its last run.",
+          "worksRan": "No fault. Last ran {ago}.",
+          "failed": "Failed",
+          "neverRan": "No run on record.",
+          "switchedOff": "Switched off",
+          "switchedOffNote": "It does not run until you switch it on.",
+          "attached": "A browser source is open",
+          "attachedNote": "Events reach your stream.",
+          "detached": "Nothing attached",
+          "detachedNote": "No browser source has it open. Its output is lost until you add the address in OBS."
+        },
+        "events": {
+          "title": "Reacts to {count} events",
+          "titleOne": "Reacts to 1 event",
+          "none": "This overlay does not react to any event."
+        },
+        "module": {
+          "title": "Module",
+          "what": "What it is",
+          "noDescription": "No description.",
+          "framework": "Framework",
+          "triggers": "Triggers",
+          "address": "Address",
+          "addressNote": "{path} (the token is hidden; Copy gives you the full address)",
+          "noAddress": "None yet"
+        }
+      }
+    }
+  }
+}

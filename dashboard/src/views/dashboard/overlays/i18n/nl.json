@@ -1,0 +1,90 @@
+{
+  "dashboard": {
+    "overlays": {
+      "title": "Overlays",
+      "crumb": "Bouwen",
+      "search": "Zoek overlays",
+      "count": "{count} overlays",
+      "noMatch": "Geen overlay past bij \"{query}\".",
+      "back": "Terug naar de lijst",
+      "tabs": {
+        "all": "Alles",
+        "on": "Aan",
+        "off": "Uit",
+        "problem": "Heeft een probleem"
+      },
+      "hints": {
+        "all": "Alle overlays van je kanaal.",
+        "on": "Overlays die aan staan.",
+        "off": "Overlays die uit staan.",
+        "problem": "Overlays waarvan de laatste run mislukte."
+      },
+      "list": {
+        "title": "Overlays",
+        "label": "Overlays",
+        "empty": "Dit kanaal heeft nog geen overlays.",
+        "emptyTab": "Geen overlay in deze lijst.",
+        "error": "De overlays konden niet laden.",
+        "fails": "Mislukt",
+        "attached": "Een browserbron is open",
+        "notAttached": "Niets gekoppeld",
+        "off": "Uit"
+      },
+      "kinds": {
+        "chat": "Chatvenster",
+        "nowPlaying": "Speelt nu",
+        "badge": "Meldingsbadge",
+        "tts": "TTS-speaker",
+        "fullScreen": "Schermvullend effect",
+        "leaderboard": "Ranglijst",
+        "alert": "Melding",
+        "caption": "TTS-ondertitel",
+        "alerts": "Meldingen",
+        "audio": "Audiospeler",
+        "overlay": "Overlay"
+      },
+      "detail": {
+        "title": "Overlay",
+        "pick": "Kies een overlay om hem te zien.",
+        "notFound": "Geen overlay heeft het id \"{id}\".",
+        "builtIn": "Ingebouwd",
+        "edited": "Aangepast",
+        "switchLabel": "Overlay aan",
+        "on": "Aan",
+        "off": "Uit",
+        "copy": "Kopieer browserbron-adres",
+        "copied": "Adres gekopieerd",
+        "noAddress": "Deze overlay heeft nog geen adres.",
+        "health": {
+          "title": "Gezondheid",
+          "works": "Werkt",
+          "worksNote": "Geen fout bij de laatste run.",
+          "worksRan": "Geen fout. Laatst gedraaid {ago}.",
+          "failed": "Mislukt",
+          "neverRan": "Geen run bekend.",
+          "switchedOff": "Uitgeschakeld",
+          "switchedOffNote": "Hij draait pas als je hem aanzet.",
+          "attached": "Een browserbron is open",
+          "attachedNote": "Gebeurtenissen bereiken je stream.",
+          "detached": "Niets gekoppeld",
+          "detachedNote": "Geen browserbron heeft hem open. De uitvoer gaat verloren tot je het adres in OBS zet."
+        },
+        "events": {
+          "title": "Reageert op {count} gebeurtenissen",
+          "titleOne": "Reageert op 1 gebeurtenis",
+          "none": "Deze overlay reageert op geen enkele gebeurtenis."
+        },
+        "module": {
+          "title": "Module",
+          "what": "Wat het is",
+          "noDescription": "Geen beschrijving.",
+          "framework": "Framework",
+          "triggers": "Triggers",
+          "address": "Adres",
+          "addressNote": "{path} (het token is verborgen; Kopieer geeft je het volledige adres)",
+          "noAddress": "Nog geen"
+        }
+      }
+    }
+  }
+}
