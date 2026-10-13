@@ -28,4 +28,10 @@ fi
 if git diff --cached --name-only --diff-filter=ACMRD -- 'server/src/*.cs' 'scripts/check-history-tables.py' | grep -q .; then
   python "$(dirname "$0")/../scripts/check-history-tables.py" || exit 1
 fi
+# Docs and comments are English; owner quotes are marked English translations (owner 2026-10-13).
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- 'CLAUDE.md' '.claude/docs/*' '.claude/skills/*' 'dashboard/src/*' 'scripts/*')
+if [ -n "$staged" ]; then
+  root=$(git rev-parse --show-toplevel)
+  (cd "$root" && echo "$staged" | tr '\n' '\0' | xargs -0 python "$(dirname "$0")/../scripts/check-english-docs.py") || exit 1
+fi
 exit 0

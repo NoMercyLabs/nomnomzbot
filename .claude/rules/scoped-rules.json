@@ -513,7 +513,7 @@
     "[Mm]assban",
     "[Ss]ettled"
    ],
-   "text": "A plan or research line that derives a rule from an owner quote is never settled text. Write the owner's words verbatim; label every derivation 'Arc's reading:' (not settled, the owner must confirm) or 'Proposal, not settled:'. Never write 'So:' after a quote, and never let a reading narrow what the owner asked for (the 10-05 hold-everything and the 10-10 restrict-first drift both came from an unlabelled reading). Gate: python scripts/check-owner-words.py.",
+   "text": "A plan or research line that derives a rule from an owner quote is never settled text. Write the owner's words as a faithful English quote (rule docs-english-only); label every derivation 'Arc's reading:' (not settled, the owner must confirm) or 'Proposal, not settled:'. Never write 'So:' after a quote, and never let a reading narrow what the owner asked for (the 10-05 hold-everything and the 10-10 restrict-first drift both came from an unlabelled reading). Gate: python scripts/check-owner-words.py.",
    "source": "Stoney 2026-10-10, on the shared-doc line \"We will not turn on a cross-channel feature for you\": \"this means that i do not get the one click ban from all channels i mod for option that i desire as a mod of 32 channels. can we at least allow this feature with channel toggles for what channels get this? or at minimum mark them. i feel that the don't ban legit users rule prevents the power we sometimes need.\"",
    "check": {
     "match": [
@@ -1204,6 +1204,54 @@
    "source": "memory amend-sweeps-the-index.md",
    "covers": [
     "amend-sweeps-the-index.md"
+   ]
+  },
+  {
+   "id": "docs-english-only",
+   "paths": [
+    "**/CLAUDE.md",
+    "**/.claude/docs/**",
+    "**/.claude/skills/**",
+    "**/.scratch/layout-mockups/inventory/**",
+    "**/dashboard/src/**",
+    "**/scripts/**"
+   ],
+   "brief": [
+    "[Oo]wner words",
+    "[Vv]erbatim",
+    "[Qq]uote",
+    "[Tt]ranslat"
+   ],
+   "text": "Every doc, comment and owner-words ledger is English, including local-only files. Quote Stoney's Dutch words as a faithful English translation, marked: Stoney, <date> (translated from Dutch): \"...\". Fix spelling and clear voice mishearings, drop filler words, keep the meaning; write ... where a word is unclear instead of guessing. No Dutch copy stays on disk; the chat transcript is the raw record. Only the Dutch translation files (nl.json, values-nl) hold Dutch. Gate: python scripts/check-english-docs.py.",
+   "source": "Stoney 2026-10-13 (translated from Dutch): \"And I want you to translate all my words into English. I want no Dutch words of mine anywhere in documentation. This must be understandable for everyone, and not everyone speaks Dutch. Even though it is local only, it must all be in English.\"",
+   "check": {
+    "match": [
+     "**/CLAUDE.md",
+     "**/.claude/docs/**",
+     "**/.scratch/layout-mockups/inventory/**",
+     "**/dashboard/src/**"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-english-docs.py"
+   },
+   "covers": [
+    "feedback-docs-english-only.md"
+   ]
+  },
+  {
+   "id": "no-license-header-on-throwaway-files",
+   "paths": [
+    "**/AppData/Local/Temp/claude/**",
+    "**/.scratch/**"
+   ],
+   "brief": [
+    "[Ss]cratch",
+    "[Tt]hrowaway"
+   ],
+   "text": "A throwaway file (a scratchpad script, a one-off commit or probe script, a report dump) gets no license header. The AGPL header is for committed source only (CLAUDE.md Code Quality Bar).",
+   "source": "Stoney 2026-10-13 (translated from Dutch): \"And by the way, for all those silly loose scripts, stop adding all that license information. That is completely useless. You are not going to waste tokens on a license header in throwaway files, come on.\"",
+   "covers": [
+    "feedback-no-license-header-on-throwaway-files.md"
    ]
   }
  ]
