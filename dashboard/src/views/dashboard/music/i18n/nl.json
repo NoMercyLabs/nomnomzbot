@@ -26,6 +26,7 @@
         "by": "{artist} · aangevraagd door {name}",
         "unknownRequester": "{artist}",
         "next": "Als volgende",
+        "drag": "Sleep om dit nummer te verplaatsen",
         "nextRow": "{title} als volgende spelen",
         "remove": "{title} verwijderen",
         "confirmTitle": "Dit nummer verwijderen?",

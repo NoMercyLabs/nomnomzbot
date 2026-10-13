@@ -26,6 +26,7 @@ type Call = {
   method: string;
   path: string;
   position: unknown;
+  body: unknown;
 };
 type Answer = {
   data?: unknown;
@@ -108,15 +109,41 @@ function read(path: string): Answer {
     : ok(null);
 }
 
+// The bot's move: the song at `position` lands at `toPosition`, and the positions stay in queue order.
+function moved(rows: Record<string, unknown>[], options?: Options): Record<string, unknown>[] {
+  const from = rows.findIndex((item) => item.position === options?.params?.path?.position);
+  const target = (options?.body as { toPosition?: number } | undefined)?.toPosition;
+  const to = rows.findIndex((item) => item.position === target);
+  const rest = rows.filter((_, index) => index !== from);
+
+  rest.splice(to, 0, rows[from]!);
+
+  return rest.map((item, index) => ({ ...item, position: index + 1 }));
+}
+
+// The page hands its drop handler to Sortable; the test drops a row by calling it.
+let sortable: { onUpdate?: (event: { oldIndex?: number; newIndex?: number }) => void } = {};
+
+vi.mock('@vueuse/integrations/useSortable', () => ({
+  useSortable: (_target: unknown, _list: unknown, options: typeof sortable) => {
+    sortable = options;
+  },
+}));
+
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({
     method,
     path,
     position: options?.params?.path?.position,
+    body: options?.body,
   });
 
   if (method === 'DELETE') {
     queue = queue.filter((item) => item.position !== options?.params?.path?.position);
+  }
+
+  if (path.endsWith('/move')) {
+    queue = moved(queue, options);
   }
 
   return { response: { status: 200, ok: true } };
@@ -293,6 +320,38 @@ describe('MusicView', () => {
 
     expect(writes()[0]!.path.endsWith('/music/queue/{position}/promote')).toBe(true);
     expect(writes()[0]!.position).toBe(2);
+  });
+
+  // Stoney 2026-10-13: "i need to be able to drag mine to the end haha".
+  it('drags a song by its handle to the end: a POST to move with the drop position, and the rows follow', async () => {
+    queue.push(track(3, 'Lose Yourself', 'Eminem', 'Stoney_Eagle'));
+    answers = freshAnswers();
+    await open();
+
+    expect(panel('Request queue').querySelectorAll('[data-queue-item] [data-drag-handle]')).toHaveLength(3);
+
+    sortable.onUpdate?.({ oldIndex: 0, newIndex: 2 });
+    await settle();
+
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0]!.path.endsWith('/music/queue/{position}/move')).toBe(true);
+    expect(writes()[0]!.position).toBe(1);
+    expect(writes()[0]!.body).toEqual({ toPosition: 3 });
+
+    const titles: string[] = [...panel('Request queue').querySelectorAll('[data-queue-item]')].map(
+      (row) => row.querySelector('.font-medium')?.textContent ?? '',
+    );
+
+    expect(titles).toEqual(['Opus', 'Lose Yourself', 'Strobe']);
+  });
+
+  it('sends nothing when a song is dropped where it started', async () => {
+    await open();
+
+    sortable.onUpdate?.({ oldIndex: 1, newIndex: 1 });
+    await settle();
+
+    expect(writes()).toHaveLength(0);
   });
 
   it('says nothing is playing when the server leaves the track out', async () => {
