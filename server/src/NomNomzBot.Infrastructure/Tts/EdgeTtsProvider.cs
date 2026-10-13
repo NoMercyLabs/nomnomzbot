@@ -38,14 +38,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// two disagree, so this constant is the single source for both.</summary>
     private const string ChromiumFullVersion = "143.0.3650.75";
     private const string ChromiumMajorVersion = "143";
-    private const string SecMsGecVersion = $"1-{ChromiumFullVersion}";
+    internal const string SecMsGecVersion = $"2-{ChromiumFullVersion}";
 
     private const string UserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
         + $"Chrome/{ChromiumMajorVersion}.0.0.0 Safari/537.36 Edg/{ChromiumMajorVersion}.0.0.0";
-
-    /// <summary>Seconds between the Windows FILETIME epoch (1601-01-01) and the Unix epoch (1970-01-01).</summary>
-    private const long WindowsEpochOffsetSeconds = 11_644_473_600L;
 
     /// <summary>Same read-aloud surface the synthesis WebSocket uses, so the token stays a single constant.</summary>
     private const string VoiceListUrl =
@@ -409,21 +406,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
     }
 
     /// <summary>
-    /// Sec-MS-GEC = SHA256(&lt;100ns Windows-epoch ticks, floored to a 5-minute boundary&gt; + TrustedToken),
-    /// uppercase hex. Mirrors rany2/edge-tts's DRM.generate_sec_ms_gec — Microsoft's WebSocket handshake
-    /// 403s without a token proving the caller derived it within the current 5-minute window.
+    /// The v2 Sec-MS-GEC token for the current 5-minute window (<see cref="EdgeSecMsGecToken"/>); Microsoft's
+    /// WebSocket handshake 403s without it.
     /// </summary>
-    internal string GenerateSecMsGecToken()
-    {
-        long unixSeconds = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
-        long windowsEpochSeconds = unixSeconds + WindowsEpochOffsetSeconds;
-        long flooredToFiveMinutes = windowsEpochSeconds - (windowsEpochSeconds % 300);
-        long hundredNanosecondTicks = flooredToFiveMinutes * 10_000_000L;
-
-        string stringToHash = $"{hundredNanosecondTicks}{TrustedToken}";
-        byte[] hash = SHA256.HashData(Encoding.ASCII.GetBytes(stringToHash));
-        return Convert.ToHexString(hash);
-    }
+    internal string GenerateSecMsGecToken() =>
+        EdgeSecMsGecToken.Generate(_timeProvider.GetUtcNow(), TrustedToken);
 
     private static string? GetString(JsonElement element, string property) =>
         element.TryGetProperty(property, out JsonElement value)

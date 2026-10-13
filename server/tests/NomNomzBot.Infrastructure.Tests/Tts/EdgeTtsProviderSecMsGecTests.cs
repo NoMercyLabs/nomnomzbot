@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Security.Cryptography;
-using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -19,16 +17,13 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
 /// <summary>
-/// Proves the Edge TTS handshake token (Sec-MS-GEC) matches Microsoft's actual validation algorithm
-/// (SHA256 of a 5-minute-floored Windows-epoch tick count concatenated with the trusted client token,
-/// uppercase hex) — without this exact derivation the WebSocket handshake 403s, the provider swallows
-/// that as an empty result, and every self-host channel silently loses TTS (the reported bug).
+/// Proves the Edge TTS handshake token (Sec-MS-GEC) matches Microsoft's validation. Microsoft moved to
+/// the v2 token on 2026-10-13 (a CS64 checksum and a seeded SHA-256, "&lt;16 hex&gt;-&lt;64 hex&gt;"); the
+/// old plain SHA-256 token was refused more and more and live TTS failed. The expected values come from
+/// rany2/edge-tts 7.3.1 drm.generate_sec_ms_gec_v2 (commit ba61d944).
 /// </summary>
 public sealed class EdgeTtsProviderSecMsGecTests
 {
-    private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-    private const long WindowsEpochOffsetSeconds = 11_644_473_600L;
-
     private static EdgeTtsProvider CreateProvider(TimeProvider timeProvider) =>
         new(
             timeProvider,
@@ -36,16 +31,37 @@ public sealed class EdgeTtsProviderSecMsGecTests
             NullLogger<EdgeTtsProvider>.Instance
         );
 
-    [Fact]
-    public void GenerateSecMsGecToken_MatchesReferenceAlgorithm()
+    [Theory]
+    [InlineData(
+        0L,
+        "52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6"
+    )]
+    [InlineData(
+        1_791_912_000L,
+        "67F2FB7D7823B7BB-C877334B170BC85E95D6F18C3035773A6409C77C29EDAC229D6B7C5F5D4D62E7"
+    )]
+    [InlineData(
+        1_791_912_299L,
+        "67F2FB7D7823B7BB-C877334B170BC85E95D6F18C3035773A6409C77C29EDAC229D6B7C5F5D4D62E7"
+    )]
+    [InlineData(
+        1_700_000_000L,
+        "2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2"
+    )]
+    public void GenerateSecMsGecToken_MatchesTheReferenceV2Token(long unixSeconds, string expected)
     {
-        FakeTimeProvider time = new(DateTimeOffset.Parse("2026-08-21T13:53:37Z"));
+        FakeTimeProvider time = new(DateTimeOffset.FromUnixTimeSeconds(unixSeconds));
         EdgeTtsProvider provider = CreateProvider(time);
 
         string actual = provider.GenerateSecMsGecToken();
 
-        string expected = ComputeExpectedToken(time.GetUtcNow());
         actual.Should().Be(expected);
+    }
+
+    [Fact]
+    public void SecMsGecVersion_NamesTheV2Token()
+    {
+        EdgeTtsProvider.SecMsGecVersion.Should().StartWith("2-");
     }
 
     [Fact]
@@ -72,16 +88,5 @@ public sealed class EdgeTtsProviderSecMsGecTests
         string afterBoundary = provider.GenerateSecMsGecToken();
 
         afterBoundary.Should().NotBe(beforeBoundary);
-    }
-
-    private static string ComputeExpectedToken(DateTimeOffset now)
-    {
-        long windowsEpochSeconds = now.ToUnixTimeSeconds() + WindowsEpochOffsetSeconds;
-        long flooredToFiveMinutes = windowsEpochSeconds - (windowsEpochSeconds % 300);
-        long hundredNanosecondTicks = flooredToFiveMinutes * 10_000_000L;
-
-        string stringToHash = $"{hundredNanosecondTicks}{TrustedToken}";
-        byte[] hash = SHA256.HashData(Encoding.ASCII.GetBytes(stringToHash));
-        return Convert.ToHexString(hash);
     }
 }
