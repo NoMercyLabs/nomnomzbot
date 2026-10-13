@@ -131,6 +131,34 @@ public sealed class RateLimitTierTests
     }
 
     [Fact]
+    public async Task Session_AllowsAFullMinuteOfPageLoadRefreshesFromOneIp_AndDoesNotSpendTheLoginBudget()
+    {
+        using PartitionedRateLimiter<HttpContext> sessionLimiter = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(SessionRateLimitPolicy.Partition);
+        using PartitionedRateLimiter<HttpContext> authLimiter = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(AuthRateLimitPolicy.Partition);
+
+        HttpContext Context() => ContextForIp("203.0.113.9");
+
+        for (int i = 0; i < SessionRateLimitPolicy.PermitLimit; i++)
+        {
+            using RateLimitLease lease = await sessionLimiter.AcquireAsync(Context());
+            lease.IsAcquired.Should().BeTrue();
+        }
+
+        using RateLimitLease overBudget = await sessionLimiter.AcquireAsync(Context());
+        overBudget.IsAcquired.Should().BeFalse("the session tier is generous, not unlimited");
+
+        // A page-load storm on the same IP leaves the login brute-force bucket untouched.
+        using RateLimitLease login = await authLimiter.AcquireAsync(Context());
+        login.IsAcquired.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SecuritySensitive_RejectsDestructiveAdminActionWellBefore50Calls()
     {
         using PartitionedRateLimiter<HttpContext> limiter = PartitionedRateLimiter.Create<
@@ -198,7 +226,7 @@ public sealed class RateLimitTierTests
     [Fact]
     public async Task OnRejected_StampsRetryAfterHeader()
     {
-        Microsoft.AspNetCore.RateLimiting.RateLimiterOptions options = new();
+        RateLimiterOptions options = new();
         options.AddNomNomzRateLimitPolicies();
 
         DefaultHttpContext httpContext = new();

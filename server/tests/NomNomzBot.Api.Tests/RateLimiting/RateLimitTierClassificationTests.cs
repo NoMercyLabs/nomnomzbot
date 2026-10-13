@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Controllers;
+using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.RateLimiting;
 
 namespace NomNomzBot.Api.Tests.RateLimiting;
@@ -46,6 +47,7 @@ public sealed class RateLimitTierClassificationTests
         [RateLimitPolicyNames.Admin] = AdminRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Auth] = AuthRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.WriteCheap] = WriteCheapRateLimitPolicy.PermitLimit,
+        [RateLimitPolicyNames.Session] = SessionRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.DevicePoll] = DevicePollRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Anonymous] = AnonymousRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Read] = ReadRateLimitPolicy.PermitLimit,
@@ -198,6 +200,38 @@ public sealed class RateLimitTierClassificationTests
             violations.Count == 0,
             "GET/HEAD actions on the wrong tier:\n" + string.Join('\n', violations)
         );
+    }
+
+    [Theory]
+    [InlineData(nameof(AuthController.GetCurrentUser), "read")]
+    [InlineData(nameof(AuthController.GetMyIdentities), "read")]
+    [InlineData(nameof(AuthController.RefreshToken), "session")]
+    public void Signed_in_session_calls_are_off_the_login_brute_force_tier(
+        string actionName,
+        string expectedTier
+    )
+    {
+        ActionRecord action = AllActions()
+            .Single(record =>
+                record.Controller == typeof(AuthController) && record.Method.Name == actionName
+            );
+
+        Assert.NotEqual(RateLimitPolicyNames.Auth, action.EffectiveTier);
+        Assert.Equal(expectedTier, action.EffectiveTier);
+    }
+
+    [Theory]
+    [InlineData(nameof(AuthController.StartTwitchOAuth))]
+    [InlineData(nameof(AuthController.ExchangeCode))]
+    [InlineData(nameof(AuthController.StartBotOAuth))]
+    public void Credential_exchange_endpoints_stay_on_the_login_brute_force_tier(string actionName)
+    {
+        ActionRecord action = AllActions()
+            .Single(record =>
+                record.Controller == typeof(AuthController) && record.Method.Name == actionName
+            );
+
+        Assert.Equal(RateLimitPolicyNames.Auth, action.EffectiveTier);
     }
 
     private static bool IsGetOrHead(MethodInfo method) =>

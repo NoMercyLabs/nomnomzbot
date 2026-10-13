@@ -18,6 +18,7 @@ using NomNomzBot.Api.Authentication;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -112,7 +113,7 @@ public class AuthController : BaseController
     /// <summary>Get the currently authenticated user.</summary>
     [HttpGet("me")]
     [Authorize]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [ProducesResponseType<StatusResponseDto<CurrentUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCurrentUser(CancellationToken ct)
     {
@@ -126,7 +127,7 @@ public class AuthController : BaseController
     /// </summary>
     [HttpGet("identities")]
     [Authorize]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<UserIdentityDto>>>(
         StatusCodes.Status200OK
     )]
@@ -1119,7 +1120,7 @@ public class AuthController : BaseController
     /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(RateLimitPolicyNames.Session)]
     public async Task<IActionResult> RefreshToken(
         [FromBody] RefreshTokenRequest? request,
         [FromQuery] string? client,
