@@ -39,6 +39,13 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = (Join-Path $PSScriptRoot '..' | Resolve-Path).Path
 
+# The script pushes ITS OWN tree's HEAD. Called by path from another worktree, it once pushed the main
+# tree's whole master instead of the one fix that worktree held. Run the copy inside the tree you mean.
+[string]$callerTop = (git rev-parse --show-toplevel 2>$null)
+if ($callerTop -and ((Resolve-Path $callerTop).Path -ne $repo)) {
+    throw "push-and-watch: called from $callerTop but this script pushes $repo. Run $callerTop/scripts/push-and-watch.ps1 instead."
+}
+
 function Invoke-Native {
     param([Parameter(Mandatory = $true)][string]$FailureMessage, [Parameter(Mandatory = $true)][scriptblock]$Command)
     # Judge native commands by $LASTEXITCODE. Never merge stderr with 2>&1 under ErrorActionPreference
