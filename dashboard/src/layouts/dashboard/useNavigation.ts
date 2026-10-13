@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { useStorage, type RemovableRef } from '@vueuse/core'
-import { computed, type ComputedRef } from 'vue'
+import { computed, watch, type ComputedRef } from 'vue'
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded, type Router } from 'vue-router'
 
 import { dashboardNav, type NavEntry, type NavGroup } from './navigation'
@@ -30,8 +30,11 @@ export type Navigation = {
   toggle: (group: VisibleGroup) => void
 }
 
-// Which groups the person opened: group key to true (open) or false (folded). It outlives a reload.
-const folds: RemovableRef<Record<string, boolean>> = useStorage<Record<string, boolean>>('nnz.nav.folds', {})
+// Which groups are open: group key to true (open) or false (folded). It outlives a reload. Only the person folds a group.
+const folds: RemovableRef<Record<string, boolean>> = useStorage<Record<string, boolean>>(
+  'nnz.nav.folds',
+  {},
+)
 
 export function useNavigation(): Navigation {
   const router: Router = useRouter()
@@ -39,7 +42,10 @@ export function useNavigation(): Navigation {
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).
   function isCurrent(entry: NavEntry): boolean {
-    return typeof route.name === 'string' && (route.name === entry.route || route.name.startsWith(`${entry.route}-`))
+    return (
+      typeof route.name === 'string' &&
+      (route.name === entry.route || route.name.startsWith(`${entry.route}-`))
+    )
   }
 
   const groups = computed<VisibleGroup[]>(() =>
@@ -58,10 +64,25 @@ export function useNavigation(): Navigation {
       .filter((group) => group.entries.length > 0),
   )
 
+  // Opening a page opens its group and remembers that, so moving on to another group never folds it.
+  watch(
+    () => groups.value.find((group) => group.foldable && group.holdsOpenPage)?.key,
+    (key: string | undefined) => {
+      if (key !== undefined && folds.value[key] !== true)
+        folds.value = { ...folds.value, [key]: true }
+    },
+    { immediate: true },
+  )
+
   function toggle(group: VisibleGroup): void {
     if (!group.foldable || group.holdsOpenPage) return
     folds.value = { ...folds.value, [group.key]: !group.open }
   }
 
-  return { groups, entries: computed(() => groups.value.flatMap((group) => group.entries)), isCurrent, toggle }
+  return {
+    groups,
+    entries: computed(() => groups.value.flatMap((group) => group.entries)),
+    isCurrent,
+    toggle,
+  }
 }

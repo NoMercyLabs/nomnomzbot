@@ -39,9 +39,21 @@ async function open(router: Router, path: string): Promise<Navigation> {
   return navigation as Navigation
 }
 
-const built: string[] = ['dashboard-home', 'dashboard-chat', 'dashboard-stream', 'dashboard-commands', 'dashboard-triggers-timers']
+const built: string[] = [
+  'dashboard-home',
+  'dashboard-chat',
+  'dashboard-stream',
+  'dashboard-commands',
+  'dashboard-triggers-timers',
+]
 
-beforeEach(() => localStorage.clear())
+// The open state is shared by every sidebar; a storage event makes it read the cleared storage again.
+beforeEach(() => {
+  localStorage.clear()
+  window.dispatchEvent(
+    new StorageEvent('storage', { key: 'nnz.nav.folds', storageArea: localStorage }),
+  )
+})
 afterEach(() => localStorage.clear())
 
 describe('the dashboard navigation', () => {
@@ -68,7 +80,7 @@ describe('the dashboard navigation', () => {
     const build = first.groups.value.find((group) => group.key === 'build')!
     first.toggle(build)
     await flushPromises()
-    expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toEqual({ build: true })
+    expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({ build: true })
 
     const second: Navigation = await open(router, '/dashboard-chat')
     expect(second.groups.value.find((group) => group.key === 'build')?.open).toBe(true)
@@ -77,7 +89,24 @@ describe('the dashboard navigation', () => {
     await flushPromises()
     const third: Navigation = await open(router, '/dashboard-chat')
     expect(third.groups.value.find((group) => group.key === 'build')?.open).toBe(false)
-    expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toEqual({ build: false })
+    expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({
+      build: false,
+    })
+  })
+
+  it('keeps a group open after moving to a page in another group, also after a reload', async () => {
+    const router: Router = makeRouter(built)
+    const navigation: Navigation = await open(router, '/dashboard-chat')
+
+    await router.push('/dashboard-commands')
+    await flushPromises()
+
+    expect(navigation.groups.value.find((group) => group.key === 'live')?.open).toBe(true)
+    expect(navigation.groups.value.find((group) => group.key === 'build')?.open).toBe(true)
+    const reloaded: Navigation = await open(router, '/dashboard-home')
+    expect(
+      reloaded.groups.value.filter((group) => group.foldable).map((group) => group.open),
+    ).toEqual([true, true])
   })
 
   it('never folds the group that holds the open page', async () => {
@@ -87,6 +116,5 @@ describe('the dashboard navigation', () => {
     await flushPromises()
 
     expect(navigation.groups.value.find((group) => group.key === 'live')?.open).toBe(true)
-    expect(localStorage.getItem('nnz.nav.folds')).toBeNull()
   })
 })
