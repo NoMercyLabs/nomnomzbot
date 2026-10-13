@@ -41,6 +41,7 @@ namespace NomNomzBot.Infrastructure.Content.Platform;
 public sealed class TemplateSyntaxBackfillSeeder : ISeeder
 {
     private const string DollarMarker = "${";
+    private const string DoubleBraceMarker = "{{";
 
     private readonly IApplicationDbContext _db;
     private readonly ITemplateHelperValidator _validator;
@@ -84,8 +85,16 @@ public sealed class TemplateSyntaxBackfillSeeder : ISeeder
     {
         List<Domain.Commands.Entities.Command> rows = await _db
             .Commands.Where(c =>
-                (c.TemplateResponse != null && c.TemplateResponse.Contains(DollarMarker))
-                || c.TemplateResponses!.Any(t => t.Contains(DollarMarker))
+                (
+                    c.TemplateResponse != null
+                    && (
+                        c.TemplateResponse.Contains(DollarMarker)
+                        || c.TemplateResponse.Contains(DoubleBraceMarker)
+                    )
+                )
+                || c.TemplateResponses!.Any(t =>
+                    t.Contains(DollarMarker) || t.Contains(DoubleBraceMarker)
+                )
             )
             .ToListAsync(ct);
 
