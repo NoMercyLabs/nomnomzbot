@@ -1,16 +1,15 @@
 # Vue dashboard: the foundation plan
 
-Owner words, 2026-10-13 (verbatim in `.scratch/layout-mockups/inventory/owner-words.md`):
-"ervoor zorgen dat we dus echt alles goed vooruit plannen, zodat we dus niet weer eens 100 API calls
-moeten gaan herschrijven" and "Het moet wel performant zijn, het moet snappy zijn. Dingen moeten meteen
-reageren". Next message: "Vue".
+Owner words, 2026-10-13 (translated from Dutch; in `.scratch/layout-mockups/inventory/owner-words.md`):
+"make sure we really plan everything well ahead, so that we do not have to rewrite 100 API calls
+again" and "It has to be performant, it has to be snappy. Things have to react immediately".
+Next message: "Vue".
 
-The go, same day: "Kunnen we niet beter nu meteen naar view gaan en alles wat we nu hebben bepaald
-overnemen en de goede basis leggen vanaf het begin?" and "Dus we gaan pagina voor pagina gaan we langs
-en dan gaan we gewoon kijken of wat, wat fijn werkt en wat niet fijn werkt. En totdat we elke pagina en
-elke feature hebben uitgewerkt. Terwijl jij dus van tevoren weet waar alles terecht komt." And why:
-"Twee van mijn grootste ergernissen met Kotlin is de lange beeldtijden. En dat er gewoon geen hot
-reload is, zodat we gewoon snel kunnen doorsparren".
+The go, same day: "Can we not better go to Vue right now, take over everything we have decided so far,
+and lay the good base from the start?" and "So we go through it page by page, and we just look at what
+works well and what does not work well. Until we have worked out every page and every feature. While you
+know up front where everything ends up." And why: "Two of my biggest annoyances with Kotlin are the
+long build times. And that there is simply no hot reload, so that we can spar quickly".
 
 This plan replaces the KMP verdict in `ui-restructure-research-2026-10-11.md` §9 (keep Kotlin). The
 HTML mockups stop here: what they decided moves into the components (V13, V21, V22), and the rest is
@@ -53,17 +52,18 @@ Each row is one decision. My recommendation is in the row. Stoney signs the whol
 | V11 | Long lists | Virtual lists (TanStack Virtual) for chat, people, history and logs. | 10,000 rows scroll as fast as 10. |
 | V12 | Components | shadcn-vue (Reka UI primitives) + Tailwind 4. The tokens come from one CSS file, ported from the mockup `tokens.css`. | Same design source as before (shadcn new-york). Accessible primitives for free. |
 | V13 | Our own components | Built once from the mockup patterns: page shell, board grid, panel, summary row, detail header with back, inline flow, profile dialog. | One change to a component changes every page. That ends the many-file edits. |
-| V14 | Page layout rule | Overview with summary rows; a click opens the detail; advanced goes deeper. One view = one screen. The page never scrolls. | Stoney 2026-10-13: "Te veel op één pagina". |
+| V14 | Page layout rule | Overview with summary rows; a click opens the detail; advanced goes deeper. One view = one screen. The page never scrolls. | Stoney 2026-10-13 (translated from Dutch): "Too much on one page". |
 | V15 | Routing | Vue Router, history mode, the same 33 page slugs and 56 routes. The server sends `index.html` for unknown dashboard paths. | Same links as today. The OAuth `#access_token` fragment no longer fights a hash router. |
 | V16 | Auth | Same backend as today: access token in memory only; refresh token in the httpOnly cookie; `client=web`; OAuth returns in the fragment. | No backend change. No token in localStorage. |
 | V17 | Translations | vue-i18n. A script converts the 6911 keys per language from the Compose XML to JSON, once, and counts them in and out. One language file loads at a time. | No text in code. Nothing lost in the move. |
 | V18 | State outside server data | Pinia, only for UI state (open panels, chosen channel, readability). | Server data has one home (V6). |
 | V19 | Desktop | A native webview window around the same web app (no CEF). The choice of shell (Tauri or Photino.NET) is made when the web app is complete. | The app does not depend on the shell. |
-| V20 | Three areas, one app | One Vue app, three areas, each with its own layout and its own code chunks. **Site** (`/`): the public website, signed out, prerendered to plain HTML at build time so it loads at once and search engines read it; it replaces `server/.../Assets/landing`. **Viewer** (`/me/...`): the viewer's own view (D4), phone first: balance, TTS voice, pronouns, linked platforms, and per channel now playing, leaderboards, store, games. **Dashboard** (`/app/...`): streamers and moderators, desktop first, dense. Sign-in is shared; after it a streamer or moderator lands in `/app`, a viewer in `/me`. Areas share the API layer, auth, `components/ui`, tokens and translations, never each other's views. The server-HTML pages (voice listener, overlays, widgets) stay server pages. | Stoney 2026-10-13: "we een main website moeten hebben en een user optimized view". A visitor never downloads dashboard code. |
-| V21 | Type roles | The shadcn new-york-v4 source sets every size. Card title 16 semibold. Section label, form label and item title 14 medium. Description 14 normal, muted. Page title 20. 12 only for badges, counts, captions and table headers. A title and its description differ by weight and colour, not by size. | Stoney 2026-10-13: "UI-regels ... die standaard zijn voor het hele internet". Sources: `card.tsx`, `item.tsx`, `field.tsx`. |
-| V22 | Grouped lists | Items in one group sit on the muted surface, with a 1 px divider (foreground at 10 %) between them. The group is part of its card, never a floating block. Two inputs that set one thing (for example Limits) are one field with one label. | Stoney 2026-10-13: "overal netjes een divider en de hiërarchie". One component (V13) carries it. |
-| V23 | Page map first | Before any page is built, a script-built map puts every feature of `FEATURES-BY-SIDEBAR.md` on one page, one view and one level (overview, detail, advanced). The map is the checklist for the page slices. | "Terwijl jij dus van tevoren weet waar alles terecht komt." |
-| V24 | Folder layout | Fixed before the first file, in section 2a. The generators set the base (create-vue, shadcn-vue `components.json`); we add only what they lack. | Stoney 2026-10-13: "goed nadenkt over de folderstructuur ... zodat we dus niet constant gaan lopen wisselen en switchen en renamen en verplaatsen". |
+| V20 | Three areas, one app | One Vue app, three areas, each with its own layout and its own code chunks. **Site** (`/`): the public website, signed out, prerendered to plain HTML at build time so it loads at once and search engines read it; it replaces `server/.../Assets/landing`. **Viewer** (`/me/...`): the viewer's own view (D4), phone first: balance, TTS voice, pronouns, linked platforms, and per channel now playing, leaderboards, store, games. **Dashboard** (`/app/...`): streamers and moderators, desktop first, dense. Sign-in is shared; after it a streamer or moderator lands in `/app`, a viewer in `/me`. Areas share the API layer, auth, `components/ui`, tokens and translations, never each other's views. The server-HTML pages (voice listener, overlays, widgets) stay server pages. | Stoney 2026-10-13 (translated from Dutch): "we have to have a main website and a user optimized view". A visitor never downloads dashboard code. |
+| V21 | Type roles | The shadcn new-york-v4 source sets every size. Card title 16 semibold. Section label, form label and item title 14 medium. Description 14 normal, muted. Page title 20. 12 only for badges, counts, captions and table headers. A title and its description differ by weight and colour, not by size. | Stoney 2026-10-13 (translated from Dutch): "UI rules ... that are standard across the whole internet". Sources: `card.tsx`, `item.tsx`, `field.tsx`. |
+| V22 | Grouped lists | Items in one group sit on the muted surface, with a 1 px divider (foreground at 10 %) between them. The group is part of its card, never a floating block. Two inputs that set one thing (for example Limits) are one field with one label. | Stoney 2026-10-13 (translated from Dutch): "a neat divider everywhere and the hierarchy". One component (V13) carries it. |
+| V23 | Page map first | Before any page is built, a script-built map puts every feature of `FEATURES-BY-SIDEBAR.md` on one page, one view and one level (overview, detail, advanced). The map is the checklist for the page slices. | Stoney 2026-10-13 (translated from Dutch): "While you know up front where everything ends up." |
+| V25 | Connect to any bot | Every client connects to every bot it can reach: a local self-contained bot, a bot on the home network, or the SaaS. The client keeps a list of saved bots and one active bot; the API client takes its base address from the active bot. The bot that serves the page is the first entry. A typed address is cleaned up (trim, no trailing `/`, `http://` when no scheme) and checked with `GET /api/v1/system/status` before it is saved. Sign-in options come from `GET /api/v1/auth/providers`: the OAuth redirect, or a device code that works on any client. How the session is kept sits behind one seam in `api/session/`: the HttpOnly refresh cookie on the web, the OS keychain in the native shell (the server already returns both tokens as JSON to native clients). Finding bots on the home network (`_nomnomz._tcp` mDNS) is native only; a browser cannot do it. An https page cannot reach an http bot (mixed content); the client says so in plain words and offers the bot's own address or the native app. | Stoney 2026-10-13 (translated from Dutch): "I want every client to be able to connect to every server that it can reach. So the native app must be able to connect to a local self-contained bot, a local network, or the SaaS." |
+| V24 | Folder layout | Fixed before the first file, in section 2a. The generators set the base (create-vue, shadcn-vue `components.json`); we add only what they lack. | Stoney 2026-10-13 (translated from Dutch): "think carefully about the folder structure ... so that we do not constantly start swapping and switching and renaming and moving". |
 
 ## 2a. Folder layout (V24)
 
@@ -103,10 +103,12 @@ dashboard/
       client.ts            the one openapi-fetch client
       queryClient.ts       the one TanStack QueryClient and its cache defaults (V6)
       auth.ts              sign-in, refresh, sign-out; the access token lives here, in memory only
+      session/             how the refresh token is kept: cookie (web), keychain (native shell) (V25)
       schema.d.ts          generated from server/openapi/v1.json, never edited
       <slug>.ts            the queries and mutations of one area (V4, V6, V7)
     realtime/    dashboardHub.ts, adminHub.ts: hub events write into the query cache (V8)
-    stores/      Pinia, UI state only (V18)                    (create-vue)
+    stores/      Pinia, UI state only (V18): connections.ts (saved bots, the active bot, V25),
+                 channel.ts, panels.ts                         (create-vue)
     composables/ shared use* functions (current channel, optimistic save)
     i18n/        index.ts (loadPage); locales/en.json, nl.json hold only the shared words (`common.*`) (V17)
     styles/      tokens.css (from the mockup tokens), main.css
@@ -162,11 +164,16 @@ Each step is one validated slice.
 2. `dashboard/` scaffold: Vite, TypeScript, lint rules, tokens, the generated client, the gates and the speed test. No pages yet.
 3. Shell. Every building block a page needs exists before the first page, so no page invents its own:
    - sign-in, the refresh cookie, and a client middleware that refreshes once on a 401 and retries (V16);
+   - the connect page (V25): saved bots (the serving bot and the official bot `https://api.nomnomz.bot`
+     are always listed and cannot be forgotten), a typed address with its status check, the sign-in options of the
+     chosen bot, the device code, and the "cannot reach" states;
+   - server, for a dashboard on another origin than its bot (V25): OAuth may return to an allow-listed client
+     origin (`Cors:Origins`), and the refresh cookie is `SameSite=None; Secure` only for such an origin;
    - TanStack Query wired in `main.ts`; sign-out clears the cache (V6);
    - `composables/useOptimisticSave`: change the cache at once, roll back and report on an error (V7);
    - `realtime/`: both hubs connected after sign-in, events written into the query cache (V8);
    - prefetch on hover: the route chunk and the page's first query (V9);
-   - typed translation keys: a key missing from `en.json` fails the type check (V17);
+   - translation keys checked: ESLint fails on a key missing from the locale files (V17);
    - Pinia stores for the chosen channel and the open panels (V18);
    - the role landing: a streamer or moderator lands in `/app`, a viewer in `/me` (V20);
    - `DashboardLayout` with the sidebar from the page list and the channel switch; `ViewerLayout`; the site home;

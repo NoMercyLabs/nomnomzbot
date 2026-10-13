@@ -11,7 +11,8 @@
 # Gate for rule docs-english-only (Stoney 2026-10-13, translated from Dutch: "I want you to translate all my
 # words into English. I want no Dutch words of mine anywhere in documentation. Everyone must be able to
 # understand this, and not everyone speaks Dutch."). Owner quotes are kept as faithful English translations.
-# Fails on a line that holds three Dutch function words in a row. The Dutch translation files are skipped.
+# Fails on a line that holds three different Dutch-only words (none of them also an English word). The Dutch
+# translation files are skipped.
 #
 # Usage: python scripts/check-english-docs.py [path ...]
 
@@ -29,11 +30,14 @@ DEFAULT_PATHS = [
     ROOT / 'scripts',
 ]
 SUFFIXES = {'.md', '.ts', '.vue', '.css', '.py', '.ps1', '.sh', '.cs', '.kt'}
-WORD = (r'(?:niet|gewoon|moet|moeten|zodat|wordt|ervoor|eigenlijk|alsjeblieft|waarom|helemaal|natuurlijk|omdat'
-        r'|hebben|kunnen|zou|doen|alles|ook|maar|nou|dus|graag|wil|mijn|zijn|heb|dit|deze|daar|nog|wel|even'
-        r'|toch|bent|je|jij|wij|we|het|een|van|met|voor|naar|ik|als|dat|die|wat|er|op|te|en|bij|uit|ze|hij'
-        r'|kan|geen|komt|gaan|gaat|staat|lekker|zie)')
-DUTCH_RUN = re.compile(rf'\b{WORD}[^\w]+{WORD}[^\w]+{WORD}\b', re.IGNORECASE)
+DUTCH_ONLY = frozenset(
+    'niet gewoon moet moeten zodat wordt worden ervoor eigenlijk alsjeblieft waarom helemaal natuurlijk omdat '
+    'hebben kunnen zou doen alles ook maar nou dus graag wil mijn zijn heb dit deze daar nog wel toch bent je '
+    'jij wij het een voor naar ik als dat wat er op te bij uit ze hij kan geen komt gaan gaat staat lekker zie '
+    'de om heen hè echt gebruik taal knoppen mobiel iets hier waar welke wordt zelf'.split()
+)
+WORD = re.compile(r'[a-zà-ÿ]+', re.IGNORECASE)
+LIMIT = 3
 MESSAGE = 'Dutch text in a doc: write the owner quote as a faithful English translation'
 
 
@@ -52,7 +56,7 @@ def check_file(path):
     problems = []
     text = path.read_bytes().decode('utf-8', errors='replace')
     for number, line in enumerate(text.splitlines(), start=1):
-        if DUTCH_RUN.search(line):
+        if len({word.lower() for word in WORD.findall(line)} & DUTCH_ONLY) >= LIMIT:
             problems.append(f'{path.relative_to(ROOT) if path.is_relative_to(ROOT) else path}:{number}: {MESSAGE}')
     return problems
 

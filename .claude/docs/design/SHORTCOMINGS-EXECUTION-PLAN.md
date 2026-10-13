@@ -943,16 +943,16 @@ Slices from the closing reads of the paper (its section 15.1).
   verified chat) and the linked Discord (join-age gate, filters). Done-when: turning it on sets both sides and
   the protection page shows both. Paper: `moderation-safety-research-2026-10-10.md`.
 - **S-RAID-DEFENCE-SPEC** Spec first, no code until it is settled. Hard goal: never punish the wrong person.
-  Owner, 2026-10-11 12:53, verbatim (chat with streamer geennoob): "sectie 1 is het belangrijkst Never punush
-  the wrong person" / "een grote raid moet idd ook geen false trigger zijn" / "wat de bot doet is kijken naar
-  iedereen die mee komt en wat ze zeggen en cross-referencen met hun account age en gebaseerd daarop worden er
-  strikter of lossere regels gezet voor elk persoon. als de raid een influx aan messages krijgt die dus geflagged
-  worden dan gaat er bij de threshold de actie in werking" / "als de hele raid in eens begint met fuck you... wil
-  jij dan whack-a-mole spelen of zou je het fijn vinden als de bot na 10 berichten zoals dat in kicked en je
-  kanaal automatisch op shield mode zet en de raiders restrict in wat ze kunnen doen? overlays reageren niet
-  meer, rewards doen niks meer. alles gaat op slot voor ze terwijl je vrienden gewoon door kunnen met alle
-  entertainment". geennoob, verbatim: "Je wilt niet een normale first time viewer/raider geflagged word voor een
-  hate raid." Arc's reading: per-raider rules scale with account age and behaviour (the raider assessment
+  Owner, 2026-10-11 12:53 (translated from Dutch; chat with streamer geennoob): "Section 1 is the most important.
+  Never punish the wrong person." / "A big raid should indeed not be a false trigger either." / "What the bot does
+  is look at everyone who comes along and what they say, and cross-reference that with their account age, and
+  based on that stricter or looser rules are set for each person. If the raid gets an influx of messages that
+  are flagged, then the action kicks in at the threshold." / "If the whole raid suddenly starts with fuck you...
+  do you want to play whack-a-mole, or would you like it if the bot, after 10 messages like that, kicks in and
+  automatically puts your channel in shield mode and restricts the raiders in what they can do? Overlays no
+  longer react, rewards do nothing anymore. Everything is locked for them while your friends can simply carry
+  on with all the entertainment." geennoob (translated from Dutch): "You do not want a normal first-time
+  viewer/raider to be flagged for a hate raid." Arc's reading: per-raider rules scale with account age and behaviour (the raider assessment
   of a906a6e12 is the input); a big friendly raid never trips it; past a flagged-message threshold the bot turns
   on Shield mode and restricts only the raiders (no overlays, no rewards for them), while regulars keep
   everything. Done-when: the spec names the threshold, the per-raider rules and the undo, and Stoney settles it.
