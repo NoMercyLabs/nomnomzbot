@@ -10,7 +10,9 @@
 
 import type { RouteRecordRaw } from 'vue-router'
 
+import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route'
 import { dashboardCatalogueRoute } from '@/views/dashboard/catalogue/route'
+import { dashboardChatRoute } from '@/views/dashboard/chat/route'
 import { dashboardCommandsRoute } from '@/views/dashboard/commands/route'
 import { dashboardHomeRoute } from '@/views/dashboard/home/route'
 import { dashboardMusicRoute } from '@/views/dashboard/music/route'
@@ -28,6 +30,7 @@ export const dashboardRoutes: RouteRecordRaw = {
   children: import.meta.env.DEV
     ? [
         dashboardHomeRoute,
+        dashboardChatRoute,
         dashboardCommandsRoute,
         dashboardMusicRoute,
         dashboardTtsRoute,
@@ -36,10 +39,12 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardScriptsRoute,
         dashboardStreamRoute,
         dashboardSettingsRoute,
+        dashboardAdminChannelsRoute,
         dashboardCatalogueRoute,
       ]
     : [
         dashboardHomeRoute,
+        dashboardChatRoute,
         dashboardCommandsRoute,
         dashboardMusicRoute,
         dashboardTtsRoute,
@@ -48,5 +53,6 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardScriptsRoute,
         dashboardStreamRoute,
         dashboardSettingsRoute,
+        dashboardAdminChannelsRoute,
       ],
 }

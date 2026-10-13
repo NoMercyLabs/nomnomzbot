@@ -1,0 +1,70 @@
+{
+  "dashboard": {
+    "chat": {
+      "title": "Chat",
+      "crumb": "Live",
+      "status": {
+        "live": "Live",
+        "offline": "Offline"
+      },
+      "hideCommands": "Hide commands",
+      "timeoutLength": "Timeout length",
+      "lengths": {
+        "60": "1 min",
+        "600": "10 min",
+        "3600": "1 hour",
+        "86400": "1 day"
+      },
+      "lengthNames": {
+        "60": "1 minute",
+        "600": "10 minutes",
+        "3600": "1 hour",
+        "86400": "1 day"
+      },
+      "feed": {
+        "title": "Chat feed",
+        "label": "Chat messages",
+        "count": "{count} messages",
+        "empty": "No messages yet.",
+        "emptyCommands": "Only commands so far. Switch off Hide commands to see them.",
+        "error": "The chat could not load."
+      },
+      "line": {
+        "actions": "Actions for {name}",
+        "removed": "Removed message"
+      },
+      "timeout": {
+        "label": "Timeout {name}",
+        "flow": "Timeout confirmation",
+        "ask": "Time out {name} for {length}?",
+        "yes": "Time out",
+        "result": "{name} is timed out",
+        "failure": "The timeout did not work."
+      },
+      "delete": {
+        "label": "Delete message",
+        "flow": "Delete confirmation",
+        "ask": "Delete this message?",
+        "yes": "Delete",
+        "result": "Message deleted",
+        "failure": "The message was not deleted."
+      },
+      "ban": {
+        "label": "Ban {name}",
+        "title": "Ban {name}?",
+        "description": "{name} cannot chat or come back until you unban them.",
+        "consequences": "The ban applies to this channel only.",
+        "action": "Ban",
+        "failed": "The ban did not work."
+      },
+      "composer": {
+        "label": "Message",
+        "placeholder": "Send a message as you",
+        "send": "Send",
+        "count": "{count}/{max}",
+        "tooLong": "A message is at most {max} characters.",
+        "failed": "The message was not sent."
+      }
+    }
+  }
+}
