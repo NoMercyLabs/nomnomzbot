@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -69,8 +70,9 @@ public sealed class UsageMeteringServiceTests : IDisposable
     private static UsageMeteringService NewService(
         EventStoreTestDbContext db,
         IBillingTierService tiers,
-        RecordingEventBus bus
-    ) => new(db, tiers, bus, new FakeTimeProvider(Now));
+        RecordingEventBus bus,
+        IConfiguration? configuration = null
+    ) => new(db, tiers, bus, new FakeTimeProvider(Now), configuration ?? TestConfiguration.Empty());
 
     [Fact]
     public async Task Record_accumulates_and_fires_the_quota_event_once_on_crossing()
@@ -132,21 +134,26 @@ public sealed class UsageMeteringServiceTests : IDisposable
 
     private static async Task<Guid> SeedChannelAsync(
         EventStoreTestDbContext db,
-        bool ownerIsPlatform
+        bool ownerIsPlatform,
+        int createdDay = 1,
+        string? twitchUserId = null
     )
     {
+        string name = $"user{createdDay}{twitchUserId}";
         NomNomzBot.Domain.Identity.Entities.User owner = new()
         {
-            Username = "owner",
-            UsernameNormalized = "owner",
-            DisplayName = "Owner",
+            Username = name,
+            UsernameNormalized = name,
+            DisplayName = name,
+            TwitchUserId = twitchUserId,
             IsPlatformPrincipal = ownerIsPlatform,
+            CreatedAt = new DateTime(2026, 1, createdDay, 0, 0, 0, DateTimeKind.Utc),
         };
         NomNomzBot.Domain.Identity.Entities.Channel channel = new()
         {
             OwnerUserId = owner.Id,
-            Name = "chan",
-            NameNormalized = "chan",
+            Name = name,
+            NameNormalized = name,
         };
         db.Users.Add(owner);
         db.Channels.Add(channel);
@@ -155,19 +162,64 @@ public sealed class UsageMeteringServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Check_never_caps_a_channel_owned_by_a_platform_principal()
+    public async Task Check_never_caps_the_earliest_platform_principals_channel()
     {
         EventStoreTestDbContext db = await NewContextAsync();
-        Guid channelId = await SeedChannelAsync(db, ownerIsPlatform: true);
+        Guid ownerChannel = await SeedChannelAsync(db, ownerIsPlatform: true, createdDay: 1);
         UsageMeteringService sut = NewService(db, TestTiers.WithLimit(Metric, 100), new());
-        await sut.RecordAsync(channelId, Metric, 5_000); // far over the free limit
+        await sut.RecordAsync(ownerChannel, Metric, 5_000); // far over the free limit
 
-        QuotaCheckDto check = (await sut.CheckAsync(channelId, Metric, 10)).Value;
+        QuotaCheckDto check = (await sut.CheckAsync(ownerChannel, Metric, 10)).Value;
 
         check.Allowed.Should().BeTrue();
         check.Limit.Should().Be(-1);
         check.Remaining.Should().Be(long.MaxValue);
         check.Used.Should().Be(5_000);
+    }
+
+    [Fact]
+    public async Task Check_still_caps_a_later_platform_principals_channel()
+    {
+        EventStoreTestDbContext db = await NewContextAsync();
+        await SeedChannelAsync(db, ownerIsPlatform: true, createdDay: 1);
+        Guid laterChannel = await SeedChannelAsync(db, ownerIsPlatform: true, createdDay: 2);
+        UsageMeteringService sut = NewService(db, TestTiers.WithLimit(Metric, 100), new());
+        await sut.RecordAsync(laterChannel, Metric, 5_000);
+
+        QuotaCheckDto check = (await sut.CheckAsync(laterChannel, Metric, 10)).Value;
+
+        check.Allowed.Should().BeFalse();
+        check.Limit.Should().Be(100);
+        check.Remaining.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Check_prefers_the_configured_initial_admin_over_the_earliest_principal()
+    {
+        EventStoreTestDbContext db = await NewContextAsync();
+        Guid earliestChannel = await SeedChannelAsync(db, ownerIsPlatform: true, createdDay: 1);
+        Guid configuredChannel = await SeedChannelAsync(
+            db,
+            ownerIsPlatform: true,
+            createdDay: 2,
+            twitchUserId: "777"
+        );
+        UsageMeteringService sut = NewService(
+            db,
+            TestTiers.WithLimit(Metric, 100),
+            new(),
+            TestConfiguration.With("App:InitialAdminTwitchId", "777")
+        );
+        await sut.RecordAsync(configuredChannel, Metric, 5_000);
+        await sut.RecordAsync(earliestChannel, Metric, 5_000);
+
+        QuotaCheckDto configured = (await sut.CheckAsync(configuredChannel, Metric, 10)).Value;
+        QuotaCheckDto earliest = (await sut.CheckAsync(earliestChannel, Metric, 10)).Value;
+
+        configured.Allowed.Should().BeTrue();
+        configured.Limit.Should().Be(-1);
+        earliest.Allowed.Should().BeFalse();
+        earliest.Limit.Should().Be(100);
     }
 
     [Fact]
