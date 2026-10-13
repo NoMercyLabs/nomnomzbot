@@ -386,6 +386,8 @@ public static class DependencyInjection
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
         services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
+        // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
+        services.AddSingleton<RefusedSongRequestStore>();
 
         // Same reasoning as the queue store above: must outlive the scoped MusicService that reads/writes
         // it. Kept warm by every real GetNowPlayingAsync read (poller-cadence for an actively streaming

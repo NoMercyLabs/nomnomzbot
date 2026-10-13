@@ -89,6 +89,18 @@ public sealed class BuiltinCommandContext
     /// </summary>
     public string? ReplyParentUserName { get; init; }
 
+    /// <summary>When the triggering message is a reply, the id of the message being replied to. Null for a non-reply message.</summary>
+    public string? ReplyParentMessageId { get; init; }
+
+    /// <summary>When the triggering message is a reply, the login of the user being replied to. Null for a non-reply message.</summary>
+    public string? ReplyParentUserLogin { get; init; }
+
+    /// <summary>
+    /// When the triggering message is a reply, the display name of the user who started the thread. A reply to
+    /// the bot's answer has the bot as its parent and the viewer the bot answered as its thread starter.
+    /// </summary>
+    public string? ReplyThreadUserName { get; init; }
+
     /// <summary>
     /// The channel's personality tone (<see cref="PersonalityTone"/>) — the voice the built-in phrases its
     /// response in. Defaults to <see cref="PersonalityTone.Informative"/>; set by the handler from the

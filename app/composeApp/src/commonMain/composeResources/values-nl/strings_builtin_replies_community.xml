@@ -164,6 +164,10 @@
     <string name="builtin_reply_permit_capabilitydenied_description">Het recht bestaat niet, kan niet worden gedeeld, of de persoon heeft het niet.</string>
     <string name="builtin_reply_permit_grantfailed_label">Geven mislukt</string>
     <string name="builtin_reply_permit_grantfailed_description">De permit kon niet worden gegeven.</string>
+    <string name="builtin_reply_permit_grantedsongrequest_label">Verzoeknummer in de wachtrij</string>
+    <string name="builtin_reply_permit_grantedsongrequest_description">Een moderator antwoordde met !permit en het vastgehouden verzoeknummer is in de wachtrij gezet.</string>
+    <string name="builtin_reply_permit_nopendingrequest_label">Geen verzoek wachtend</string>
+    <string name="builtin_reply_permit_nopendingrequest_description">De kijker waarop is geantwoord heeft geen verzoeknummer dat op toestemming wacht.</string>
     <string name="builtin_reply_unpermit_revokedall_label">Alles ingetrokken</string>
     <string name="builtin_reply_unpermit_revokedall_description">Alle permits van een gebruiker zijn verwijderd.</string>
     <string name="builtin_reply_unpermit_revoked_label">Permit ingetrokken</string>
