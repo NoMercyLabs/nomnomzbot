@@ -34,10 +34,21 @@ foreach ($path in $Paths) {
 }
 $repo = (git rev-parse --show-toplevel).Trim()
 $wt = "$repo/.claude/worktrees/dashboard-gate"
-$head = (git -C $repo rev-parse HEAD).Trim()
 $id = @('-c', 'user.name=Stoney_Eagle', '-c', 'user.email=45034970+StoneyEagle@users.noreply.github.com')
 
 if (-not $DryRun -and -not $MessageFile) { throw 'MessageFile is required unless -DryRun.' }
+
+# One gate at a time: a second run force-checks-out and cleans the shared worktree under the first
+# (2026-10-13: a parallel run deleted a builder's new file mid-lint). Held through the commit so HEAD
+# cannot move between the gate and the commit. Released when this process exits, even on a crash.
+$gateLock = [System.Threading.Mutex]::new($false, 'Global\nnz-dashboard-gate')
+try { $held = $gateLock.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $held = $true }
+if (-not $held) {
+    'Another dashboard gate is running; waiting for it (at most 30 minutes).'
+    try { $held = $gateLock.WaitOne([TimeSpan]::FromMinutes(30)) } catch [System.Threading.AbandonedMutexException] { $held = $true }
+    if (-not $held) { 'GATE LOCK TIMEOUT'; exit 1 }
+}
+$head = (git -C $repo rev-parse HEAD).Trim()
 
 if (-not (Test-Path $wt)) {
     git -C $repo worktree add --detach $wt $head | Out-Null
@@ -86,13 +97,30 @@ try {
     }
     if (-not $failed) {
         '== tests =='
-        npx vitest run --testTimeout 30000 2>&1 | Select-Object -Last 12
+        $tests = npx vitest run --testTimeout 30000 2>&1
         if ($LASTEXITCODE -ne 0) { $failed = 'TESTS' }
+        # The tail alone cuts off which tests failed; their FAIL lines are printed first.
+        $tests | Select-String -Pattern '^\s*FAIL\s' | Sort-Object -Unique
+        $tests | Select-Object -Last 12
     }
 } finally {
     Pop-Location
 }
 if ($failed) { "$failed FAILED"; exit 1 }
+
+# The commit takes the main-tree files, so they must still be the ones gated: an edit made while the gate
+# ran would land unproven (2026-10-13: b049ce26e took a half-done edit that did not type-check).
+$changed = foreach ($path in $Paths) {
+    $files = if (Test-Path "$repo/$path" -PathType Container) {
+        Get-ChildItem -Recurse -File "$repo/$path" | ForEach-Object { $_.FullName.Substring($repo.Length + 1) }
+    } else { @($path) }
+    foreach ($file in $files) {
+        $now = if (Test-Path "$repo/$file") { (Get-FileHash "$repo/$file").Hash } else { '' }
+        $gated = if (Test-Path "$wt/$file") { (Get-FileHash "$wt/$file").Hash } else { '' }
+        if ($now -ne $gated) { $file }
+    }
+}
+if ($changed) { 'CHANGED DURING GATE (run it again):'; $changed; exit 1 }
 if ($DryRun) { 'GATE OK (dry run, nothing committed)'; exit 0 }
 
 '== commit =='
