@@ -11,6 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Consequences;
@@ -564,8 +566,16 @@ public class RewardService : IRewardService
             cancellationToken
         );
         // A pipeline run triggered by the redemption can beat the projection: the caller's reward id then
-        // addresses Helix directly.
+        // addresses Helix directly. A caller that only has the redemption id falls back to the journal, which
+        // holds the RewardRedeemedEvent the moment it is published (the projection lags it).
         string? helixRewardId = row?.RewardId ?? rewardId;
+        if (string.IsNullOrEmpty(helixRewardId))
+            helixRewardId = await FindJournaledRewardIdAsync(
+                broadcaster,
+                redemptionId,
+                cancellationToken
+            );
+
         if (string.IsNullOrEmpty(helixRewardId))
             return Result.Failure($"Redemption '{redemptionId}' was not found.", "NOT_FOUND");
 
@@ -595,6 +605,43 @@ public class RewardService : IRewardService
         row.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
+    }
+
+    // The reward id of a redemption, read from the channel's journaled RewardRedeemedEvent. EventSub rows are
+    // journaled without a subject, so the payload is plaintext; a row that is encrypted or unreadable is skipped.
+    private async Task<string?> FindJournaledRewardIdAsync(
+        Guid broadcaster,
+        string redemptionId,
+        CancellationToken cancellationToken
+    )
+    {
+        List<string> payloads = await _db
+            .EventJournals.AsNoTracking()
+            .Where(e =>
+                e.BroadcasterId == broadcaster
+                && e.EventType == "RewardRedeemedEvent"
+                && !e.PayloadIsEncrypted
+                && e.Payload.Contains(redemptionId)
+            )
+            .OrderByDescending(e => e.Id)
+            .Select(e => e.Payload)
+            .ToListAsync(cancellationToken);
+
+        foreach (string payload in payloads)
+        {
+            try
+            {
+                JObject json = JObject.Parse(payload);
+                if (json["RedemptionId"]?.Value<string>() == redemptionId)
+                    return json["RewardId"]?.Value<string>();
+            }
+            catch (JsonException)
+            {
+                // An unreadable payload is skipped; the next one may still name the reward.
+            }
+        }
+
+        return null;
     }
 
     public async Task<Result<RewardDetail>> GetAsync(
