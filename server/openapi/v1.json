@@ -12039,17 +12039,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DevicePollRequest"
+                "$ref": "#/components/schemas/AutomationDevicePollRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/DevicePollRequest"
+                "$ref": "#/components/schemas/AutomationDevicePollRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/DevicePollRequest"
+                "$ref": "#/components/schemas/AutomationDevicePollRequest"
               }
             }
           },
@@ -27137,7 +27137,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponseOfBannedUserDto"
+                  "$ref": "#/components/schemas/PaginatedResponseOfCommunityBannedUserDto"
                 }
               }
             }
@@ -99235,6 +99235,18 @@
         },
         "description": "One of the broadcaster's playback devices on the active music provider."
       },
+      "AutomationDevicePollRequest": {
+        "required": [
+          "deviceCode"
+        ],
+        "type": "object",
+        "properties": {
+          "deviceCode": {
+            "type": "string"
+          }
+        },
+        "description": "Body of the anonymous device-poll action."
+      },
       "AutomationEventCatalogItem": {
         "required": [
           "publicName",
@@ -99842,33 +99854,25 @@
       },
       "BannedUserDto": {
         "required": [
-          "id",
+          "userId",
           "username",
-          "displayName",
-          "profileImageUrl",
           "reason",
           "bannedBy",
           "bannedAt"
         ],
         "type": "object",
         "properties": {
-          "id": {
+          "userId": {
             "type": "string"
           },
           "username": {
             "type": "string"
           },
-          "displayName": {
-            "type": "string"
-          },
-          "profileImageUrl": {
+          "reason": {
             "type": [
               "null",
               "string"
             ]
-          },
-          "reason": {
-            "type": "string"
           },
           "bannedBy": {
             "type": "string"
@@ -103065,6 +103069,45 @@
           }
         },
         "description": "One fun-command preset exactly as a reset writes it back — every field a reset restores, so the dashboard\r\ncan show the streamer what changes before they confirm. The command's own name and its on/off state are\r\nnever part of a reset (the streamer may have renamed or switched it off on purpose)."
+      },
+      "CommunityBannedUserDto": {
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "profileImageUrl",
+          "reason",
+          "bannedBy",
+          "bannedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "bannedBy": {
+            "type": "string"
+          },
+          "bannedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "CommunityStatsDto": {
         "required": [
@@ -113916,44 +113959,6 @@
           }
         }
       },
-      "PaginatedResponseOfBannedUserDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BannedUserDto"
-            }
-          },
-          "nextPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "hasMore": {
-            "type": "boolean"
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "total": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
       "PaginatedResponseOfBlockedTrackDto": {
         "type": "object",
         "properties": {
@@ -114341,6 +114346,44 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CommandListItem"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginatedResponseOfCommunityBannedUserDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityBannedUserDto"
             }
           },
           "nextPage": {
@@ -115646,9 +115689,23 @@
           },
           "hasMore": {
             "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
-        },
-        "description": "Standard response envelope for paginated list responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "PaginatedResponseOfPlatformContentDefinitionDto": {
         "type": "object",
@@ -115670,9 +115727,23 @@
           },
           "hasMore": {
             "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
-        },
-        "description": "Standard response envelope for paginated list responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "PaginatedResponseOfPlatformTemplateDto": {
         "type": "object",
@@ -115694,9 +115765,23 @@
           },
           "hasMore": {
             "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
-        },
-        "description": "Standard response envelope for paginated list responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "PaginatedResponseOfQuoteDto": {
         "type": "object",
@@ -125490,8 +125575,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIamRoleAssignmentDto": {
         "type": "object",
@@ -125528,8 +125612,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIEnumerableOfPronounCatalogDto": {
         "type": "object",
@@ -125639,8 +125722,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfInboundWebhookEndpointDto": {
         "type": "object",
@@ -125714,8 +125796,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfint": {
         "type": "object",
@@ -125750,8 +125831,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIntegrationsResponse": {
         "type": "object",
@@ -127410,8 +127490,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfGameConfigDto": {
         "type": "object",
@@ -127519,8 +127598,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfIamRoleDto": {
         "type": "object",
@@ -127556,8 +127634,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfInstalledBundleDto": {
         "type": "object",
@@ -127809,8 +127886,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfLoginProviderDto": {
         "type": "object",
@@ -128314,8 +128390,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfPricedUnitDto": {
         "type": "object",
@@ -128567,8 +128642,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfSpamDetectionDto": {
         "type": "object",
@@ -128604,8 +128678,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfIReadOnlyListOfstring": {
         "type": "object",
@@ -129328,8 +129401,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfListOfActivityEventDto": {
         "type": "object",
@@ -130266,8 +130338,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOflong": {
         "type": "object",
@@ -131625,8 +131696,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPaginatedResponseOfPlatformContentDefinitionDto": {
         "type": "object",
@@ -131663,8 +131733,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPaginatedResponseOfPlatformTemplateDto": {
         "type": "object",
@@ -131701,8 +131770,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPairingCodeDto": {
         "type": "object",
@@ -132146,8 +132214,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPlatformBotAdminStatusDto": {
         "type": "object",
@@ -132258,8 +132325,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPlatformContentDefinitionDto": {
         "type": "object",
@@ -132296,8 +132362,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPlatformContentPublishJobDto": {
         "type": "object",
@@ -132334,8 +132399,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPlatformContentVersionDto": {
         "type": "object",
@@ -132372,8 +132436,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPlatformDefaultBlastRadiusDto": {
         "type": "object",
@@ -132484,8 +132547,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPlatformViewerDto": {
         "type": "object",
@@ -132670,8 +132732,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfPublishSubmissionDto": {
         "type": "object",
@@ -133448,8 +133509,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfSpamDefenseSettings": {
         "type": "object",
@@ -133486,8 +133546,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfStreamAnalyticsDto": {
         "type": "object",
@@ -134075,8 +134134,7 @@
               "array"
             ]
           }
-        },
-        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+        }
       },
       "StatusResponseDtoOfTtsConfigDto": {
         "type": "object",

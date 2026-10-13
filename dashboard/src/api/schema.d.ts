@@ -10434,9 +10434,9 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["DevicePollRequest"];
-                    "text/json": components["schemas"]["DevicePollRequest"];
-                    "application/*+json": components["schemas"]["DevicePollRequest"];
+                    "application/json": components["schemas"]["AutomationDevicePollRequest"];
+                    "text/json": components["schemas"]["AutomationDevicePollRequest"];
+                    "application/*+json": components["schemas"]["AutomationDevicePollRequest"];
                 };
             };
             responses: {
@@ -23260,7 +23260,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PaginatedResponseOfBannedUserDto"];
+                        "application/json": components["schemas"]["PaginatedResponseOfCommunityBannedUserDto"];
                     };
                 };
                 /** @description Bad Request */
@@ -82903,6 +82903,10 @@ export interface components {
             /** Format: int32 */
             volumePercent: null | number | string;
         };
+        /** @description Body of the anonymous device-poll action. */
+        AutomationDevicePollRequest: {
+            deviceCode: string;
+        };
         /** @description One subscribable public event type (automation-api.md §3, for the events catalog). */
         AutomationEventCatalogItem: {
             publicName: string;
@@ -83128,11 +83132,9 @@ export interface components {
             enabled: boolean;
         };
         BannedUserDto: {
-            id: string;
+            userId: string;
             username: string;
-            displayName: string;
-            profileImageUrl: null | string;
-            reason: string;
+            reason: null | string;
             bannedBy: string;
             /** Format: date-time */
             bannedAt: string;
@@ -84180,6 +84182,16 @@ export interface components {
             aliases: string[];
             prefixMode: string;
             matchMode: string;
+        };
+        CommunityBannedUserDto: {
+            id: string;
+            username: string;
+            displayName: string;
+            profileImageUrl: null | string;
+            reason: string;
+            bannedBy: string;
+            /** Format: date-time */
+            bannedAt: string;
         };
         CommunityStatsDto: {
             /** Format: int32 */
@@ -87871,15 +87883,6 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
-        PaginatedResponseOfBannedUserDto: {
-            data?: components["schemas"]["BannedUserDto"][];
-            /** Format: int32 */
-            nextPage?: null | number | string;
-            hasMore?: boolean;
-            nextCursor?: null | string;
-            /** Format: int32 */
-            total?: null | number | string;
-        };
         PaginatedResponseOfBlockedTrackDto: {
             data?: components["schemas"]["BlockedTrackDto"][];
             /** Format: int32 */
@@ -87972,6 +87975,15 @@ export interface components {
         };
         PaginatedResponseOfCommandListItem: {
             data?: components["schemas"]["CommandListItem"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
+        PaginatedResponseOfCommunityBannedUserDto: {
+            data?: components["schemas"]["CommunityBannedUserDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
@@ -88276,35 +88288,32 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
-        /**
-         * @description Standard response envelope for paginated list responses.
-         *     Matches the NoMercy media server pattern.
-         */
         PaginatedResponseOfPlatformAudioAssetDto: {
             data?: components["schemas"]["PlatformAudioAssetDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
         };
-        /**
-         * @description Standard response envelope for paginated list responses.
-         *     Matches the NoMercy media server pattern.
-         */
         PaginatedResponseOfPlatformContentDefinitionDto: {
             data?: components["schemas"]["PlatformContentDefinitionDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
         };
-        /**
-         * @description Standard response envelope for paginated list responses.
-         *     Matches the NoMercy media server pattern.
-         */
         PaginatedResponseOfPlatformTemplateDto: {
             data?: components["schemas"]["PlatformTemplateDto"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
         };
         PaginatedResponseOfQuoteDto: {
             data?: components["schemas"]["QuoteDto"][];
@@ -91621,10 +91630,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIamPrincipalDto: {
             status?: string;
             data?: null | components["schemas"]["IamPrincipalDto"];
@@ -91638,10 +91643,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIamRoleAssignmentDto: {
             status?: string;
             data?: null | components["schemas"]["IamRoleAssignmentDto"];
@@ -91681,10 +91682,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfImportSummary: {
             status?: string;
             data?: null | components["schemas"]["ImportSummary"];
@@ -91711,10 +91708,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfInstalledPlatformTemplateDto: {
             status?: string;
             data?: null | components["schemas"]["InstalledPlatformTemplateDto"];
@@ -91728,10 +91721,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfint: {
             status?: string;
             /** Format: int32 */
@@ -92333,10 +92322,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfFollowBotBlockDto: {
             status?: string;
             data?: null | components["schemas"]["FollowBotBlockDto"][];
@@ -92376,10 +92361,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfIamPrincipalSummaryDto: {
             status?: string;
             data?: null | components["schemas"]["IamPrincipalSummaryDto"][];
@@ -92393,10 +92374,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfIamRoleDto: {
             status?: string;
             data?: null | components["schemas"]["IamRoleDto"][];
@@ -92488,10 +92465,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfLockdownWindowStatus: {
             status?: string;
             data?: null | components["schemas"]["LockdownWindowStatus"][];
@@ -92674,10 +92647,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfPlatformTemplateUpdateDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformTemplateUpdateDto"][];
@@ -92769,10 +92738,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfSpamCampaignDto: {
             status?: string;
             data?: null | components["schemas"]["SpamCampaignDto"][];
@@ -92786,10 +92751,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfIReadOnlyListOfSpamDetectionDto: {
             status?: string;
             data?: null | components["schemas"]["SpamDetectionDto"][];
@@ -93050,10 +93011,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfListOfActionRequiredItemDto: {
             status?: string;
             data?: null | components["schemas"]["ActionRequiredItemDto"][];
@@ -93392,10 +93349,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfLockdownWindowStatus: {
             status?: string;
             data?: null | components["schemas"]["LockdownWindowStatus"];
@@ -93878,10 +93831,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPaginatedResponseOfPlatformAudioAssetDto: {
             status?: string;
             data?: null | components["schemas"]["PaginatedResponseOfPlatformAudioAssetDto"];
@@ -93895,10 +93844,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPaginatedResponseOfPlatformContentDefinitionDto: {
             status?: string;
             data?: null | components["schemas"]["PaginatedResponseOfPlatformContentDefinitionDto"];
@@ -93912,10 +93857,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPaginatedResponseOfPlatformTemplateDto: {
             status?: string;
             data?: null | components["schemas"]["PaginatedResponseOfPlatformTemplateDto"];
@@ -94072,10 +94013,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPlatformAudioAssetDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformAudioAssetDto"];
@@ -94115,10 +94052,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPlatformContentDefinitionDetailDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformContentDefinitionDetailDto"];
@@ -94132,10 +94065,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPlatformContentDefinitionDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformContentDefinitionDto"];
@@ -94149,10 +94078,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPlatformContentPublishJobDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformContentPublishJobDto"];
@@ -94166,10 +94091,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPlatformContentVersionDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformContentVersionDto"];
@@ -94209,10 +94130,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPlatformTemplateUpdateDto: {
             status?: string;
             data?: null | components["schemas"]["PlatformTemplateUpdateDto"];
@@ -94278,10 +94195,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfPublishPreviewDto: {
             status?: string;
             data?: null | components["schemas"]["PublishPreviewDto"];
@@ -94555,10 +94468,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfSpamDefensePolicyDto: {
             status?: string;
             data?: null | components["schemas"]["SpamDefensePolicyDto"];
@@ -94572,10 +94481,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfSpamDefenseSettings: {
             status?: string;
             data?: null | components["schemas"]["SpamDefenseSettings"];
@@ -94784,10 +94689,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /**
-         * @description Standard response envelope for mutations and single-item responses.
-         *     Matches the NoMercy media server pattern.
-         */
         StatusResponseDtoOfTrustPolicyDto: {
             status?: string;
             data?: null | components["schemas"]["TrustPolicyDto"];
