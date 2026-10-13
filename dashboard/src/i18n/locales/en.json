@@ -3,6 +3,10 @@
     "signOut": "Sign out",
     "language": "Language",
     "close": "Close",
+    "cancel": "Cancel",
+    "confirm": {
+      "whatHappens": "What happens"
+    },
     "panel": {
       "empty": "Nothing here yet.",
       "error": "This panel could not load.",

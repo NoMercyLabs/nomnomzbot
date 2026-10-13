@@ -14,7 +14,8 @@ import { useI18n } from 'vue-i18n'
 
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
-import FilterBar, { type FilterOption } from '@/components/layout/FilterBar.vue'
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
+import FilterBar,{ type FilterOption } from '@/components/layout/FilterBar.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import ListDetail from '@/components/layout/ListDetail.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
@@ -60,6 +61,21 @@ const sinceFilter: Ref<string> = ref('week')
 const query: Ref<string> = ref('')
 const retries: Ref<number> = ref(0)
 const detailOpen: Ref<boolean> = ref(false)
+const confirmOpen: Ref<boolean> = ref(false)
+const confirmPending: Ref<boolean> = ref(false)
+const confirmed: Ref<number> = ref(0)
+const consequences: string[] = ['chat', 'pipeline', 'history'].map((key: string) =>
+  t(`dashboard.catalogue.confirm.${key}`),
+)
+
+function confirmDelete(): void {
+  confirmPending.value = true
+  setTimeout(() => {
+    confirmPending.value = false
+    confirmOpen.value = false
+    confirmed.value += 1
+  }, 800)
+}
 </script>
 
 <template>
@@ -115,6 +131,22 @@ const detailOpen: Ref<boolean> = ref(false)
           <PanelCard :title="t('dashboard.catalogue.panel.ready')" pad>
             <KeyValueList :items="kvItems" />
           </PanelCard>
+
+          <div class="flex items-center gap-4">
+            <Button variant="outline" @click="confirmOpen = true">{{ t('dashboard.catalogue.confirm.open') }}</Button>
+            <span class="text-sm text-muted-foreground">
+              {{ t('dashboard.catalogue.confirm.count', { count: confirmed }) }}
+            </span>
+          </div>
+          <ConfirmDialog
+            v-model:open="confirmOpen"
+            :title="t('dashboard.catalogue.confirm.title')"
+            :description="t('dashboard.catalogue.confirm.description')"
+            :consequences="consequences"
+            :action="t('dashboard.catalogue.confirm.action')"
+            :pending="confirmPending"
+            @confirm="confirmDelete"
+          />
 
           <PanelCard :title="t('dashboard.catalogue.panel.ready')">
             <RowGroup>

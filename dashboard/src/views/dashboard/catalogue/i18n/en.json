@@ -50,6 +50,16 @@
         "year": "One year"
       },
       "search": "Search commands",
+      "confirm": {
+        "open": "Delete !so",
+        "count": "Confirmed {count} times",
+        "title": "Delete !so?",
+        "description": "This command ran 333 times. Deleting it cannot be undone.",
+        "action": "Delete command",
+        "chat": "Chat stops answering !so right away.",
+        "pipeline": "Its pipeline stays in Pipelines and keeps working elsewhere.",
+        "history": "Past uses stay in the history."
+      },
       "panel": {
         "ready": "Ready",
         "readyRow": "A row of content",

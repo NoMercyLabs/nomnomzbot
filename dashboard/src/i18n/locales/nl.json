@@ -3,6 +3,10 @@
     "signOut": "Afmelden",
     "language": "Taal",
     "close": "Sluiten",
+    "cancel": "Annuleren",
+    "confirm": {
+      "whatHappens": "Wat er gebeurt"
+    },
     "panel": {
       "empty": "Hier is nog niets.",
       "error": "Dit paneel kon niet laden.",
