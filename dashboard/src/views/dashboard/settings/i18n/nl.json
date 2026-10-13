@@ -1,0 +1,88 @@
+{
+  "dashboard": {
+    "settings": {
+      "title": "Instellingen",
+      "crumb": "Inrichting",
+      "tabs": {
+        "channel": "Kanaal",
+        "device": "Dit apparaat"
+      },
+      "nav": {
+        "you": "Jij",
+        "readability": "Leesbaarheid"
+      },
+      "device": {
+        "title": "Dit apparaat",
+        "description": "Deze instellingen blijven in deze browser. Ze veranderen je kanaal niet.",
+        "openReadability": "Leesbaarheid openen"
+      },
+      "readability": {
+        "title": "Leesbaarheid",
+        "description": "Hoe tekst eruitziet voor jou op elke pagina. De chat heeft eigen opmaakopties in het paneel Weergave.",
+        "footer": "Wijzigingen werken direct en worden op dit apparaat bewaard.",
+        "presets": {
+          "title": "Begin met een voorinstelling",
+          "description": "Een voorinstelling zet alle opties hieronder. Pas daarna elke optie aan. Dyslexievriendelijk gebruikt Lexend op 16 px met meer ruimte en zonder beweging.",
+          "default": "Standaard",
+          "dyslexia": "Dyslexievriendelijk",
+          "contrast": "Hoog contrast"
+        },
+        "text": {
+          "title": "Tekst",
+          "description": "Het voorbeeld hieronder toont elke wijziging direct."
+        },
+        "sample": {
+          "name": "Een kijker",
+          "time": "18:26",
+          "line": "{name} {time} Zo leest de chat met deze opties.",
+          "pangram": "Pa's wijze lynx bezag vroom het fikse aquaduct. 0123456789"
+        },
+        "font": {
+          "title": "Lettertype",
+          "description": "Leesbaar is Atkinson Hyperlegible. Lexend is gemaakt voor leesgemak.",
+          "system": "Inter",
+          "hyperlegible": "Leesbaar",
+          "lexend": "Lexend"
+        },
+        "size": {
+          "title": "Tekstgrootte",
+          "value": "{size} px",
+          "description": "Schaalt alle tekst op elke pagina."
+        },
+        "lineSpacing": {
+          "title": "Regelafstand",
+          "normal": "Normaal",
+          "wide": "Ruim",
+          "wider": "Ruimer"
+        },
+        "spacing": {
+          "title": "Letter- en woordafstand",
+          "description": "Ruim volgt WCAG 1.4.12 tekstafstand.",
+          "normal": "Normaal",
+          "wide": "Ruim"
+        },
+        "contrastMotion": {
+          "title": "Contrast en beweging"
+        },
+        "contrast": {
+          "title": "Hoog contrast",
+          "description": "Rustige tekst wordt vol sterk en randen worden duidelijker."
+        },
+        "motion": {
+          "title": "Minder beweging",
+          "description": "Systeem volgen gebruikt de instelling van je computer of telefoon.",
+          "system": "Systeem volgen",
+          "reduce": "Altijd"
+        },
+        "density": {
+          "title": "Dichtheid",
+          "control": "Grootte van knoppen",
+          "description": "Compact past het meeste op een computer. Aanraken maakt elke knop, tab en rij minstens 44 px hoog.",
+          "compact": "Compact",
+          "comfortable": "Ruim",
+          "touch": "Aanraken"
+        }
+      }
+    }
+  }
+}

@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { createApp } from 'vue'
+import { createApp, effectScope } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 
@@ -16,11 +16,14 @@ import App from './App.vue'
 import './styles/main.css'
 import { queryClient } from './api/queryClient'
 import { i18n, startLocale } from './i18n'
+import { useReadability } from './composables/useReadability'
 import { applyAccent, defaultAccent } from './lib/accent'
 import router from './router'
 
 // The approved pink stands in until the channel colour is known.
 applyAccent(defaultAccent)
+// The reading options of this device apply on every page, before the first one shows.
+effectScope(true).run(useReadability)
 
 const app = createApp(App)
 

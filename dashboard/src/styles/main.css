@@ -13,6 +13,7 @@
 @import "tw-animate-css";
 @import "shadcn-vue/tailwind.css";
 @import './frame.css';
+@import './readability.css';
 
 /* Dark is the default theme; tokens.css switches to light with the .light class. */
 @custom-variant dark (&:not(.light, .light *));

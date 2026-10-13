@@ -12,8 +12,14 @@
 // a longer one is a select with its label inside. The default slot holds a SearchField beside it.
 import { computed, type ComputedRef } from 'vue'
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import SegmentedControl from '@/components/layout/SegmentedControl.vue'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export interface FilterOption {
   value: string
@@ -26,7 +32,7 @@ const selected = defineModel<string>({ required: true })
 
 const segmented: ComputedRef<boolean> = computed<boolean>(() => props.options.length <= 4)
 
-// A segmented control lets a person press the open segment again to clear it; a filter always keeps one.
+// The select can send an empty value; a filter always keeps one.
 function choose(value: unknown): void {
   if (typeof value === 'string' && value !== '') selected.value = value
 }
@@ -35,26 +41,7 @@ function choose(value: unknown): void {
 <template>
   <div data-slot="filter-bar" class="flex flex-wrap items-center gap-2">
     <slot />
-    <!-- The mockup segment (frame.css:158-160): a muted track of radius 8 with 2 px padding,
-         so each item is 8 - 2 = 6; the open item is raised on the background. -->
-    <ToggleGroup
-      v-if="segmented"
-      type="single"
-      :spacing="1"
-      class="gap-0.5 rounded-[8px] bg-muted p-0.5"
-      :aria-label="label"
-      :model-value="selected"
-      @update:model-value="choose"
-    >
-      <ToggleGroupItem
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-        class="h-(--seg-h) min-w-0 rounded-[6px] px-2 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
-      >
-        {{ option.label }}
-      </ToggleGroupItem>
-    </ToggleGroup>
+    <SegmentedControl v-if="segmented" v-model="selected" :label="label" :options="options" />
     <Select v-else :model-value="selected" @update:model-value="choose">
       <SelectTrigger :aria-label="label">
         <span class="text-muted-foreground">{{ label }}</span>

@@ -1,0 +1,43 @@
+/* -----------------------------------------------------------------------------
+   Copyright (c) NoMercy Labs.
+
+   This file is part of NomNomzBot, free software licensed under the GNU Affero
+   General Public License v3.0 or later. You may redistribute and/or modify it
+   under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+   ----------------------------------------------------------------------------- */
+
+/* Readability options (useReadability.ts sets the html attributes and the --text-* / --lh-* tokens).
+   Both fonts are bundled from npm: no request leaves our own origin. */
+@import '@fontsource-variable/lexend';
+@import '@fontsource-variable/atkinson-hyperlegible-next';
+
+html[data-rd-font='hyperlegible'] {
+  --font: 'Atkinson Hyperlegible Next Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+html[data-rd-font='lexend'] {
+  --font: 'Lexend Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* WCAG 1.4.12 text spacing: letters 0.12em, words 0.16em. */
+html[data-rd-spacing='wide'] body {
+  letter-spacing: 0.12em;
+  word-spacing: 0.16em;
+}
+
+/* Quiet text becomes full strength and edges get stronger. The extra :root keeps this above :root.light. */
+html:root[data-rd-contrast='on'] {
+  --muted-foreground: var(--foreground);
+  --border: var(--input);
+  --sidebar-border: var(--input);
+}
+
+html[data-rd-motion='reduce'] *,
+html[data-rd-motion='reduce'] *::before,
+html[data-rd-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

@@ -1,0 +1,88 @@
+{
+  "dashboard": {
+    "settings": {
+      "title": "Settings",
+      "crumb": "Setup",
+      "tabs": {
+        "channel": "Channel",
+        "device": "This device"
+      },
+      "nav": {
+        "you": "You",
+        "readability": "Readability"
+      },
+      "device": {
+        "title": "This device",
+        "description": "These settings stay in this browser. They do not change your channel.",
+        "openReadability": "Open readability"
+      },
+      "readability": {
+        "title": "Readability",
+        "description": "How text looks for you on every page. Chat has its own layout options in its Display panel.",
+        "footer": "Changes apply at once and are saved on this device.",
+        "presets": {
+          "title": "Start from a preset",
+          "description": "A preset sets all the options below. Change any of them after. Dyslexia-friendly uses Lexend at 16 px with wider spacing and no motion.",
+          "default": "Default",
+          "dyslexia": "Dyslexia-friendly",
+          "contrast": "High contrast"
+        },
+        "text": {
+          "title": "Text",
+          "description": "The sample below shows each change at once."
+        },
+        "sample": {
+          "name": "A viewer",
+          "time": "18:26",
+          "line": "{name} {time} This is how chat reads with these options.",
+          "pangram": "The quick brown fox jumps over the lazy dog. 0123456789"
+        },
+        "font": {
+          "title": "Font",
+          "description": "Legible is Atkinson Hyperlegible. Lexend was made for reading ease.",
+          "system": "Inter",
+          "hyperlegible": "Legible",
+          "lexend": "Lexend"
+        },
+        "size": {
+          "title": "Text size",
+          "value": "{size} px",
+          "description": "Scales all text on every page."
+        },
+        "lineSpacing": {
+          "title": "Line spacing",
+          "normal": "Normal",
+          "wide": "Wide",
+          "wider": "Wider"
+        },
+        "spacing": {
+          "title": "Letter and word spacing",
+          "description": "Wide follows WCAG 1.4.12 text spacing.",
+          "normal": "Normal",
+          "wide": "Wide"
+        },
+        "contrastMotion": {
+          "title": "Contrast and motion"
+        },
+        "contrast": {
+          "title": "High contrast",
+          "description": "Quiet text becomes full strength and edges get stronger."
+        },
+        "motion": {
+          "title": "Reduce motion",
+          "description": "Follow system uses the setting of your computer or phone.",
+          "system": "Follow system",
+          "reduce": "Always"
+        },
+        "density": {
+          "title": "Density",
+          "control": "Size of controls",
+          "description": "Compact fits the most on a desktop. Touch makes every button, tab and row at least 44 px tall.",
+          "compact": "Compact",
+          "comfortable": "Comfortable",
+          "touch": "Touch"
+        }
+      }
+    }
+  }
+}

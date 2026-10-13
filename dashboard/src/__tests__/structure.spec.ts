@@ -53,7 +53,9 @@ describe('folder layout', () => {
   it('keeps API data out of the Pinia stores', () => {
     const fetching: string[] = allPaths(join(src, 'stores'))
       .filter((path) => path.endsWith('.ts') && !path.includes('__tests__'))
-      .filter((path) => /from ['"](@\/api\/|\.\.\/api\/|@tanstack\/)/.test(readFileSync(path, 'utf8')))
+      .filter((path) =>
+        /from ['"](@\/api\/|\.\.\/api\/|@tanstack\/)/.test(readFileSync(path, 'utf8')),
+      )
       .map((path) => relative(src, path).replace(/\\/g, '/'))
 
     expect(fetching).toEqual([])
@@ -61,7 +63,8 @@ describe('folder layout', () => {
 
   // Stoney 2026-10-13 (translated from Dutch): "the point is that we do not use Google with the privacy-invading junk".
   it('calls no Google font or tracking host from any source file or the page shell', () => {
-    const google: RegExp = /googleapis\.com|gstatic\.com|google-analytics\.com|googletagmanager\.com/
+    const google: RegExp =
+      /googleapis\.com|gstatic\.com|google-analytics\.com|googletagmanager\.com/
     const offenders: string[] = [...allPaths(src), join(src, '..', 'index.html')]
       .filter((path) => /\.(vue|ts|css|html|json)$/.test(path) && !path.endsWith('schema.d.ts'))
       .filter((path) => google.test(readFileSync(path, 'utf8')))
@@ -76,7 +79,9 @@ describe('folder layout', () => {
   // hide its close label, so it is not used.
   it('shows no untranslated shadcn label on any page', () => {
     const ownFiles: string[] = allPaths(src).filter(
-      (path) => path.endsWith('.vue') && !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
+      (path) =>
+        path.endsWith('.vue') &&
+        !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
     )
     const untranslated: string[] = ownFiles
       .filter((path) => {
@@ -97,11 +102,35 @@ describe('folder layout', () => {
   // makes a second harm style (a red underlined link) that the frame rules never approved.
   it('marks a harmful button only with the destructive variant, never a red class', () => {
     const tinted: string[] = allPaths(src)
-      .filter((path) => path.endsWith('.vue') && !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'))
-      .filter((path) => /<Button\b[^>]*\bclass="[^"]*\btext-destructive\b/.test(readFileSync(path, 'utf8')))
+      .filter(
+        (path) =>
+          path.endsWith('.vue') &&
+          !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
+      )
+      .filter((path) =>
+        /<Button\b[^>]*\bclass="[^"]*\btext-destructive\b/.test(readFileSync(path, 'utf8')),
+      )
       .map((path) => relative(src, path).replace(/\\/g, '/'))
 
     expect(tinted).toEqual([])
+  })
+
+  // A page that builds its own segmented control loses the shared look (a settings copy showed no chosen
+  // option at all). Pages use SegmentedControl or FilterBar from components/layout.
+  it('builds a segmented control only inside the shared layout blocks', () => {
+    const own: string[] = allPaths(src)
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+      .filter(
+        (path) =>
+          path.endsWith('.vue') &&
+          !path.startsWith('components/ui/') &&
+          !path.startsWith('components/layout/'),
+      )
+      .filter((path) =>
+        readFileSync(join(src, path), 'utf8').includes('@/components/ui/toggle-group'),
+      )
+
+    expect(own).toEqual([])
   })
 
   // Stoney 2026-10-13 (translated from Dutch): "you are really going to town with all those em dashes". Copy uses plain sentences.
@@ -120,7 +149,9 @@ describe('folder layout', () => {
       .filter((path) => /^views\/[^/]+\/[^/]+\/i18n\/[^/]+\.json$/.test(path))
       .flatMap((path) => {
         const [, area, slug] = path.split('/')
-        const words: Record<string, Record<string, unknown>> = JSON.parse(readFileSync(join(src, path), 'utf8'))
+        const words: Record<string, Record<string, unknown>> = JSON.parse(
+          readFileSync(join(src, path), 'utf8'),
+        )
         const keys: string[] = Object.entries(words).flatMap(([top, pages]) =>
           Object.keys(pages).map((page) => `${top}.${page}`),
         )
