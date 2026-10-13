@@ -59,6 +59,10 @@ public sealed class SpokenNameFormatterTests
     [InlineData("Team_99", "Team 99")]
     [InlineData("G4mer_11", "Gamer 11")]
     [InlineData("Pr0_G4m3r_11", "Pro Gamer 11")]
+    [InlineData("r1l37", "rilet")]
+    [InlineData("@r1l37", "rilet")]
+    [InlineData("n1ght5", "nights")]
+    [InlineData("Gamer2024", "Gamer 2024")]
     public void Format_GivesTheSpokenForm(string name, string expected) =>
         _sut.Format(name).Should().Be(expected);
 
