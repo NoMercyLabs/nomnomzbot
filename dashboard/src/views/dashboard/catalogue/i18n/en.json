@@ -60,6 +60,10 @@
         "pipeline": "Its pipeline stays in Pipelines and keeps working elsewhere.",
         "history": "Past uses stay in the history."
       },
+      "codeEditor": {
+        "open": "Open the code editor",
+        "none": "This channel has no script to open yet."
+      },
       "form": {
         "open": "New command",
         "count": "Created {count} commands",
@@ -119,6 +123,11 @@
         "title": "Template field and helper panel (command)",
         "label": "Reply",
         "placeholder": "Type an opening brace to pick a helper, or press one in the list"
+      },
+      "profile": {
+        "title": "Profile dialog (real members)",
+        "hint": "Each name is a UserName. Click one to open the one profile dialog of the frame.",
+        "empty": "No community members stored for this channel yet."
       },
       "virtual": {
         "title": "Virtual list (demo data)",

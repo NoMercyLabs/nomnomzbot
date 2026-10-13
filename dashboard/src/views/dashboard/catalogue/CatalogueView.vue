@@ -9,8 +9,12 @@
 -->
 <script setup lang="ts">
 // Development only: every shared building block in each of its states (spec section 5, step 2).
-import { ref, type Ref } from 'vue'
+import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { useCommunityFirstPage, type CommunityRow } from '@/api/community'
+import UserName from '@/components/layout/UserName.vue'
+import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
 import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
@@ -39,6 +43,15 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { usePageView } from '@/composables/usePageView'
+import CodeEditor from '@/components/layout/CodeEditor.vue'
+import {
+  fetchScriptProject,
+  fetchScriptSdkTypes,
+  saveScriptProject,
+  useCodeScripts,
+  type ScriptProject,
+} from '@/api/codeScripts'
+import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge'
 
 const { t } = useI18n()
 
@@ -95,7 +108,33 @@ const consequences: string[] = ['chat', 'pipeline', 'history'].map((key: string)
   t(`dashboard.catalogue.confirm.${key}`),
 )
 
+// Real members of the open channel (first page of the community list), so the profile dialog opens on real data.
+const { channelId } = useCurrentChannel()
+const community = useCommunityFirstPage(channelId)
+const people: ComputedRef<CommunityRow[]> = computed(() => community.data.value ?? [])
+
 const formOpen: Ref<boolean> = ref(false)
+
+// The code editor opens on the channel's first real script. Reading only: nothing saves until someone presses Save in it.
+type EditorSession = { id: string; name: string; project: ScriptProject; sdkTypes: string | null }
+const scripts = useCodeScripts()
+const editorSession: Ref<EditorSession | null> = ref(null)
+const editorMissing: Ref<boolean> = ref(false)
+
+async function openEditor(): Promise<void> {
+  const first = scripts.data.value?.[0]
+  editorMissing.value = first === undefined
+  if (!first) return
+  const project: ScriptProject | null = await fetchScriptProject(first.id)
+  if (!project) return
+  editorSession.value = { id: first.id, name: first.name, project, sdkTypes: await fetchScriptSdkTypes(first.id) }
+}
+
+async function saveEditor(files: EditorFiles): Promise<CompileFeedback> {
+  const session: EditorSession | null = editorSession.value
+  if (!session) return { ok: false, message: '' }
+  return saveScriptProject(session.id, { ...session.project, files })
+}
 const formPending: Ref<boolean> = ref(false)
 const formName: Ref<string> = ref('')
 const formNameError: Ref<string | undefined> = ref(undefined)
@@ -257,6 +296,23 @@ function confirmDelete(): void {
             </Field>
           </FormDialog>
 
+          <div class="flex items-center gap-4">
+            <Button variant="outline" @click="openEditor">{{ t('dashboard.catalogue.codeEditor.open') }}</Button>
+            <span v-if="editorMissing" class="text-sm text-muted-foreground">
+              {{ t('dashboard.catalogue.codeEditor.none') }}
+            </span>
+          </div>
+          <CodeEditor
+            v-if="editorSession"
+            :title="editorSession.name"
+            :files="editorSession.project.files"
+            :entry="editorSession.project.manifest.entry"
+            :sdk-types="editorSession.sdkTypes ?? ''"
+            :sdk-types-unavailable="editorSession.sdkTypes === null"
+            :save="saveEditor"
+            @close="editorSession = null"
+          />
+
           <PanelCard :title="t('dashboard.catalogue.flow.title')" pad>
             <div class="flex flex-col items-start gap-3">
               <InlineFlow
@@ -363,6 +419,20 @@ function confirmDelete(): void {
                 <HelperPanel :target="templateField" context="command" />
               </div>
             </div>
+          </PanelCard>
+
+          <PanelCard
+            :title="t('dashboard.catalogue.profile.title')"
+            :state="people.length > 0 ? 'ready' : 'empty'"
+            :empty-text="t('dashboard.catalogue.profile.empty')"
+            pad
+          >
+            <p class="mb-3 text-sm text-muted-foreground">{{ t('dashboard.catalogue.profile.hint') }}</p>
+            <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              <li v-for="person in people" :key="person.id">
+                <UserName :user-id="person.id" :name="person.displayName" />
+              </li>
+            </ul>
           </PanelCard>
 
           <PanelCard :title="t('dashboard.catalogue.virtual.title')" pad>

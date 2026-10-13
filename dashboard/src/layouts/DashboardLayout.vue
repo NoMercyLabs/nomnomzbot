@@ -12,6 +12,8 @@ import { useMediaQuery } from '@vueuse/core'
 import { provide } from 'vue'
 
 import { frameActionsKey } from '@/components/layout/frameActions'
+import ProfileDialog from '@/components/layout/ProfileDialog.vue'
+import { useCurrentChannel } from '@/composables/useCurrentChannel'
 
 import BottomBar from './dashboard/BottomBar.vue'
 import ChannelSwitch from './dashboard/ChannelSwitch.vue'
@@ -23,6 +25,8 @@ import ProfileMenu from './dashboard/ProfileMenu.vue'
 // Three frames (spec frontend-vue-components.md section 2): sidebar from 840 px, icon rail from 600 px, bottom bar below.
 const wide = useMediaQuery('(min-width: 840px)')
 const medium = useMediaQuery('(min-width: 600px)')
+
+const { channelId } = useCurrentChannel()
 
 provide(frameActionsKey, FrameActions)
 </script>
@@ -51,5 +55,7 @@ provide(frameActionsKey, FrameActions)
       </main>
       <BottomBar v-if="!medium" />
     </div>
+    <!-- The one profile dialog of the frame; every UserName opens it. -->
+    <ProfileDialog v-if="channelId" :key="channelId" />
   </div>
 </template>

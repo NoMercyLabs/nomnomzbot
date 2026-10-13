@@ -33,6 +33,9 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://localhost:5080', xfwd: true },
       '/hubs': { target: 'http://localhost:5080', ws: true, xfwd: true },
+      // The code editor page is an iframe that must share the dashboard's origin (both sides check it).
+      '/editor': { target: 'http://localhost:5080', xfwd: true },
+      '/health': { target: 'http://localhost:5080', xfwd: true },
     },
   },
   resolve: {
