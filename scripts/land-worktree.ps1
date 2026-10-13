@@ -17,8 +17,9 @@
 # server/openapi/v1.json and strings.xml both fail SILENTLY (valid-looking diff, broken file)
 # when two agents patch them independently and a merge produces technically-valid-JSON garbage.
 #
-# Does NOT delete the worktree or its branch - this project's rule is "never sweep a worktree
-# while related work might still be reviewed"; clean those up separately once you're done.
+# After a clean merge it removes the branch's worktree (through remove-worktree.ps1, which unlinks
+# junctions first) and deletes the branch: landed work lives on master. A worktree with uncommitted
+# files is kept and named. 2026-10-13: 41 landed worktrees had piled up because this step was missing.
 #
 #   scripts/land-worktree.ps1 -Branch worktree-agent-abc123
 #   scripts/land-worktree.ps1 -Branch worktree-agent-abc123 -NoPush   # merge + sanity-check only
@@ -30,7 +31,28 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = (Join-Path $PSScriptRoot '..' | Resolve-Path).Path
+
+function Remove-LandedWorktree([string] $Branch) {
+    $worktree = $null
+    $path = $null
+    foreach ($line in (git worktree list --porcelain)) {
+        if ($line -like 'worktree *') { $path = $line.Substring(9) }
+        elseif ($line -eq "branch refs/heads/$Branch") { $worktree = $path }
+    }
+    if ($worktree) {
+        if (git -C $worktree status --porcelain) {
+            Write-Host "kept worktree $worktree - it has uncommitted files" -ForegroundColor Yellow
+            return
+        }
+        & (Join-Path $PSScriptRoot 'remove-worktree.ps1') $worktree | Out-Null
+        Write-Host "removed worktree $worktree" -ForegroundColor DarkGray
+    }
+    git branch -d $Branch | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "branch $Branch is not fully merged - not deleted" }
+    Write-Host "deleted branch $Branch" -ForegroundColor DarkGray
+}
+
+$repo =(Join-Path $PSScriptRoot '..' | Resolve-Path).Path
 Push-Location $repo
 try {
     git fetch origin --quiet
@@ -85,6 +107,8 @@ try {
         throw 'post-merge sanity check failed'
     }
     Write-Host "sanity check OK ($($changed.Count) files changed)" -ForegroundColor Green
+
+    Remove-LandedWorktree -Branch $Branch
 
     if ($NoPush) {
         Write-Host 'merged, -NoPush set - stopping before push.' -ForegroundColor Yellow
