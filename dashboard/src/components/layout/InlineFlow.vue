@@ -15,7 +15,8 @@
 // failure: the reason to show when the action rejects; without it a plain "did not work" line shows.
 // harm: the confirm button is red only when the action destroys something.
 // The step is wider than one button, so wrap every control it replaces in the slot; right anchors
-// it to the right edge for a group at the end of a row.
+// it to the right edge for a group at the end of a row. A long result or failure is cut to one
+// short line (full text on hover and for screen readers), so the step never covers the row title.
 import { onKeyStroke } from '@vueuse/core';
 import { nextTick, ref, watch } from 'vue';
 import Check from '~icons/nnz/check';
@@ -137,15 +138,23 @@ watch(step, async (now: InlineFlowStep, before: InlineFlowStep) => {
         <span>{{ text ?? $t('common.flow.working') }}</span>
       </template>
       <template v-else-if="step === 'failed'">
-        <span class="text-destructive">{{ failure ?? $t('common.flow.failed') }}</span>
+        <span
+          data-flow-message
+          :title="failure ?? $t('common.flow.failed')"
+          class="max-w-56 truncate text-destructive"
+        >{{ failure ?? $t('common.flow.failed') }}</span>
         <Button data-flow-act="back" size="sm" variant="ghost" @click="back">{{
           $t('common.flow.done')
         }}</Button>
       </template>
       <template v-else>
-        <span class="inline-flex items-center gap-2">
+        <span class="inline-flex min-w-0 items-center gap-2">
           <Check v-if="kind !== 'note'" class="size-4 flex-none" aria-hidden="true" />
-          {{ kind === 'note' ? text : (result ?? $t('common.flow.done')) }}
+          <span
+            data-flow-message
+            :title="kind === 'note' ? text : (result ?? $t('common.flow.done'))"
+            class="max-w-56 truncate"
+          >{{ kind === 'note' ? text : (result ?? $t('common.flow.done')) }}</span>
         </span>
         <Button v-if="canUndo"
                 data-flow-act="undo"

@@ -274,6 +274,34 @@ describe('the inline flow', () => {
     expect(box()?.textContent).not.toContain('That did not work.');
   });
 
+  // A long answer from the bot ran left over the row title (Overlays, Stoney 2026-10-14: "sigh...").
+  it('cuts a long result or failure to one short line and keeps the full text on hover', async () => {
+    const long = 'fired hype_train_begin to 1 widget(s), 1 with a browser source open';
+
+    for (const outcome of ['result', 'failure'] as const) {
+      flow({
+        kind: 'run',
+        right: true,
+        result: long,
+        failure: long,
+        action: outcome === 'result'
+          ? vi.fn<() => Promise<void>>().mockResolvedValue()
+          : vi.fn<() => Promise<void>>().mockRejectedValue(new Error(long)),
+      });
+
+      opener().click();
+      await flushPromises();
+
+      const message: HTMLElement | null | undefined = box()?.querySelector('[data-flow-message]');
+
+      expect(message?.textContent?.trim()).toBe(long);
+      expect(message?.title).toBe(long);
+      expect(message?.classList.contains('truncate')).toBe(true);
+      expect(message?.classList.contains('max-w-56')).toBe(true);
+      mounted?.unmount();
+    }
+  });
+
   it('note shows its line and Done, and has no action to run', async () => {
     flow({ kind: 'note', text: 'This page comes later.' });
 
