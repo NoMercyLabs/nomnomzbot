@@ -18,7 +18,7 @@ afterEach(() => {
 })
 
 // The expected values are what the approved mockups paint (base/accent.js with #FF014F, read from the page).
-describe('accent from a channel colour', () => {
+describe('accent from a channel color', () => {
   it('gives the dark theme the same accent family as the mockups', () => {
     expect(accentTokens('#FF014F', 'dark')).toMatchObject({
       primary: 'rgb(255 1 79)',
@@ -31,7 +31,7 @@ describe('accent from a channel colour', () => {
     })
   })
 
-  it('darkens a light colour until text on the light theme reads at 4.5:1', () => {
+  it('darkens a light color until text on the light theme reads at 4.5:1', () => {
     const tokens: Record<string, string> = accentTokens('#FFFF00', 'light')
 
     expect(tokens.primary).not.toBe('rgb(255 255 0)')
@@ -43,7 +43,7 @@ describe('accent from a channel colour', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('rgb(255 1 79)')
   })
 
-  it('leaves the page alone for a value that is not a colour', () => {
+  it('leaves the page alone for a value that is not a color', () => {
     applyAccent('pink')
 
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('')

@@ -62,7 +62,7 @@ export function useCommunityMember(
   })
 }
 
-// The first page of the channel's community, as the catalogue and any picker need it.
+// The first page of the channel's community, as the catalog and any picker need it.
 export function useCommunityFirstPage(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<CommunityRow[], Error> {

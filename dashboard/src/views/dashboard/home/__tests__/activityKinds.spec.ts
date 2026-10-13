@@ -94,23 +94,17 @@ describe('describeActivity', () => {
   })
 
   it('reads bits, gift counts and months from the data', () => {
-    expect(detailOf(describeActivity(event('channel.cheer', { bits: 250 }))).params).toEqual({
-      count: 250,
-    })
-    expect(
-      detailOf(describeActivity(event('channel.subscription.gift', { giftCount: 5, tier: '1000' })))
-        .params,
-    ).toEqual({
-      count: 5,
-      tier: '1',
-    })
-    expect(
-      detailOf(
-        describeActivity(
-          event('channel.subscription.message', { tier: '1000', cumulativeMonths: 7 }),
-        ),
-      ).params,
-    ).toEqual({ tier: '1', months: 7 })
+    const cheer = describeActivity(event('channel.cheer', { bits: 250 }))
+    const gift = describeActivity(
+      event('channel.subscription.gift', { giftCount: 5, tier: '1000' }),
+    )
+    const resub = describeActivity(
+      event('channel.subscription.message', { tier: '1000', cumulativeMonths: 7 }),
+    )
+
+    expect(detailOf(cheer).params).toEqual({ count: 250 })
+    expect(detailOf(gift).params).toEqual({ count: 5, tier: '1' })
+    expect(detailOf(resub).params).toEqual({ tier: '1', months: 7 })
   })
 
   it('falls back to the plain label when the data lacks the detail', () => {

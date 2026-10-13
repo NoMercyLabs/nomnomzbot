@@ -39,9 +39,9 @@ describe('a setting row', () => {
 
   it('names the switch by the title, so a reader announces what it sets', () => {
     const wrapper = row(false)
-    const labelledBy: string = wrapper.find('[role="switch"]').attributes('aria-labelledby')!
+    const labeledBy: string = wrapper.find('[role="switch"]').attributes('aria-labelledby')!
 
-    expect(document.getElementById(labelledBy)?.textContent).toBe('Speak with TTS')
+    expect(document.getElementById(labeledBy)?.textContent).toBe('Speak with TTS')
   })
 
   it('changes nothing while disabled', async () => {

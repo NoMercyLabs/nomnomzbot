@@ -92,7 +92,8 @@ const groups: ComputedRef<Group[]> = computed<Group[]>(() => {
   const byName = new Map()
 
   for (const field of fields.value) {
-    const name: string = text(field.group, humanize(field.group.key.split('.').pop() ?? ''))
+    const lastKeyPart = field.group.key.split('.').pop() ?? ''
+    const name = text(field.group, humanize(lastKeyPart))
 
     byName.set(name, [...(byName.get(name) ?? []), field])
   }

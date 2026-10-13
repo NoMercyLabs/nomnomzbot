@@ -94,9 +94,10 @@ function scrollBy(delta: number): void {
 
   if (!element) return
 
-  virtualizer.value.scrollToOffset(
-    Math.min(maxOffset(element), Math.max(0, element.scrollTop + delta)),
-  )
+  const wanted = Math.max(0, element.scrollTop + delta)
+  const offset = Math.min(maxOffset(element), wanted)
+
+  virtualizer.value.scrollToOffset(offset)
 }
 
 function onKey(event: KeyboardEvent): void {

@@ -26,10 +26,14 @@ export const chatKey = (channelId: string | null): unknown[] => ['channels', cha
 
 export const chatLineLimit = 500
 
-// Why a line is no longer shown as normal: one message deleted, a person's lines purged, or the whole chat cleared.
-export type ChatLineRemoval = 'deleted' | 'purged' | 'cleared'
+// Why a line is no longer shown as normal: one message deleted, a person's lines purged, timed out or
+// banned, or the whole chat cleared.
+export type ChatLineRemoval = 'deleted' | 'purged' | 'timeout' | 'banned' | 'cleared'
 
-export type ChatLine = ChatMessagePayload & { removed?: ChatLineRemoval }
+// A timeout can last from 1 second to 14 days, so a timed-out line keeps its length.
+export type ChatLineMark = { removed: ChatLineRemoval; timeoutSeconds?: number }
+
+export type ChatLine = ChatMessagePayload & Partial<ChatLineMark>
 
 export const chatMessageMaxLength = 500
 
@@ -70,7 +74,9 @@ export function useChatHistory(
         params: { path: { version: '1', channelId: id }, query: { limit: chatLineLimit } },
       })
 
-      return mergeHistory(data?.data ?? [], queries.getQueryData<ChatLine[]>(chatKey(id)))
+      const live = queries.getQueryData<ChatLine[]>(chatKey(id))
+
+      return mergeHistory(data?.data ?? [], live)
     },
     enabled: computed(() => toValue(channelId) !== null),
     staleTime: Infinity,

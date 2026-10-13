@@ -21,6 +21,16 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-13 — the broadcaster and mods are never blocked; `!permit` queues a held song request
+
+Owner, verbatim: "another case for permission settings, i need to be able to reply a sr command that is held for lenght and be able to use !permit so it is queued with my permission, and mods should never be blocked using any commands just like they don't have cooldowns they should also be able to use any command that follows their permission role"
+
+Seen live 2026-10-13 18:43: Stoney_Eagle (the broadcaster) sent `!sr arkona - na moey zemle` and the bot refused it: "Na Moey Zemle" is over 10 minutes. The length limit stopped the broadcaster.
+
+### S-SR-PERMIT — mods and up skip command limits; a reply `!permit` queues a held request
+- **Input:** the song-request builtin and its length/limit checks, the cooldown bypass for mods, the reply-parent handling (`QuoteBuiltin.AddFromBareReplyOrReadAsync` pattern), the permission ladder.
+- **Done-when:** a test proves the broadcaster and a mod pass every song-request limit (length and the others) while a viewer is still refused; a reply `!permit` from a mod or the broadcaster to a refused `!sr` queues that song for its original requester; live, the broadcaster's own over-length `!sr` is queued.
+
 ## OWNER REQUEST 2026-10-12 — suggest a shoutout for a chatter who streams seriously
 
 Owner, verbatim: "i like the idea of having every user who chats be looked up to see if they are a streamer who takes it seriously and streams at least once a week for the last month, the more the higher the priority, what do you think, can we add a prompt somwhere about "hey, maybe you should give this person a shoutout, they streamed x in the last month doing x y and z"?"

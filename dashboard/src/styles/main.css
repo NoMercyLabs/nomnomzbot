@@ -18,7 +18,7 @@
 /* Dark is the default theme; tokens.css switches to light with the .light class. */
 @custom-variant dark (&:not(.light, .light *));
 
-/* Colours and fonts map to the tokens. Radii and text sizes share Tailwind's variable
+/* Colors and fonts map to the tokens. Radii and text sizes share Tailwind's variable
    names (--radius-sm, --text-sm), so the :root values in tokens.css override them directly. */
 @theme inline {
   --color-background: var(--background);

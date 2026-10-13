@@ -43,7 +43,7 @@ export function humanize(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
-// Settings values are plain JSON, so two values are the same when they serialise the same.
+// Settings values are plain JSON, so two values are the same when they serialize the same.
 export function sameValue(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }

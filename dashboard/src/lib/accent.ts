@@ -8,14 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-// The accent family comes from one channel colour, as in the approved mockups (base/accent.js,
+// The accent family comes from one channel color, as in the approved mockups (base/accent.js,
 // itself a port of Tokens.withAccent()). Blends happen in gamma sRGB, as Compose Color does.
 
 type Rgb = [number, number, number]
 
 export type Theme = 'dark' | 'light'
 
-// The colour the mockups were approved with; it stands in until a channel is chosen.
+// The color the mockups were approved with; it stands in until a channel is chosen.
 export const defaultAccent: string = '#FF014F'
 
 const schemes = {
@@ -55,17 +55,26 @@ function rgb(hex: string): Rgb {
   return parse(hex)!
 }
 
-function css(colour: Rgb): string {
-  return `rgb(${colour.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255)).join(' ')})`
+// A channel from 0..1 to a whole number 0..255, clamped so a blend that overshoots stays in range.
+function toByte(channel: number): number {
+  const clamped = Math.min(1, Math.max(0, channel))
+
+  return Math.round(clamped * 255)
 }
 
-function luminance(colour: Rgb): number {
+function css(color: Rgb): string {
+  const bytes = color.map(toByte)
+
+  return `rgb(${bytes.join(' ')})`
+}
+
+function luminance(color: Rgb): number {
   const linear = (v: number): number =>
     v <= 0.04045
       ? v / 12.92
       : Math.pow((v + 0.055) / 1.055, 2.4)
 
-  return 0.2126 * linear(colour[0]) + 0.7152 * linear(colour[1]) + 0.0722 * linear(colour[2])
+  return 0.2126 * linear(color[0]) + 0.7152 * linear(color[1]) + 0.0722 * linear(color[2])
 }
 
 function contrast(a: Rgb, b: Rgb): number {
@@ -79,16 +88,16 @@ function blend(a: Rgb, b: Rgb, f: number): Rgb {
   return a.map((v, i) => v + (b[i]! - v) * f) as Rgb
 }
 
-// Text on the colour: whichever of near white and near black reads better.
-function ink(colour: Rgb): Rgb {
-  return contrast(colour, nearWhite) >= contrast(colour, nearBlack)
+// Text on the color: whichever of near white and near black reads better.
+function ink(color: Rgb): Rgb {
+  return contrast(color, nearWhite) >= contrast(color, nearBlack)
     ? nearWhite
     : nearBlack
 }
 
-// Moves the colour toward `toward` until it reads at `min` on the background and with its own ink.
-function readableOn(colour: Rgb, background: Rgb, toward: Rgb, min: number): Rgb {
-  let c: Rgb = colour
+// Moves the color toward `toward` until it reads at `min` on the background and with its own ink.
+function readableOn(color: Rgb, background: Rgb, toward: Rgb, min: number): Rgb {
+  let c: Rgb = color
 
   for (let i = 0; i < 20; i++) {
     if (contrast(c, background) >= min && contrast(c, ink(c)) >= min)
@@ -100,8 +109,8 @@ function readableOn(colour: Rgb, background: Rgb, toward: Rgb, min: number): Rgb
   return c
 }
 
-function readableWith(colour: Rgb, other: Rgb, toward: Rgb, min: number): Rgb {
-  let c: Rgb = colour
+function readableWith(color: Rgb, other: Rgb, toward: Rgb, min: number): Rgb {
+  let c: Rgb = color
 
   for (let i = 0; i < 30; i++) {
     if (contrast(c, other) >= min)
@@ -139,18 +148,20 @@ export function accentTokens(hex: string, theme: Theme): Record<string, string> 
   const background = rgb(scheme.background)
   const foreground = rgb(scheme.foreground)
   const accent = readableOn(raw, background, foreground, 4.5)
+  const mutedTint = tint(rgb(scheme.muted), accent, 0.2, theme)
+  const sidebarTint = tint(rgb(scheme.sidebar), accent, 0.18, theme)
 
   return {
     primary: css(accent),
     'primary-foreground': css(ink(accent)),
     secondary: css(blend(background, accent, 0.32)),
     'secondary-foreground': css(foreground),
-    accent: css(tint(rgb(scheme.muted), accent, 0.2, theme)),
+    accent: css(mutedTint),
     'accent-foreground': css(foreground),
     ring: css(accent),
     'sidebar-primary': css(readableWith(raw, nearWhite, nearBlack, 4.5)),
     'sidebar-primary-foreground': css(nearWhite),
-    'sidebar-accent': css(tint(rgb(scheme.sidebar), accent, 0.18, theme)),
+    'sidebar-accent': css(sidebarTint),
     'sidebar-accent-foreground': css(foreground),
     'sidebar-ring': css(accent),
   }

@@ -11,7 +11,7 @@
 import { siKick, siTwitch, siX, siYoutube, type SimpleIcon } from 'simple-icons'
 import { computed } from 'vue'
 
-// mono: on a filled button the brand colour fights the button colour, so the logo takes the text colour.
+// mono: on a filled button the brand color fights the button color, so the logo takes the text color.
 const props = defineProps<{ platform: string; mono?: boolean }>()
 
 // 'twitter' is the key the bot sends in /auth/providers; 'x' is the name the pages use.
@@ -24,7 +24,7 @@ const logos: Readonly<Record<string, SimpleIcon>> = {
 }
 const logo = computed(() => logos[props.platform])
 
-// A black or white brand would vanish on one of the themes, so it takes the text colour.
+// A black or white brand would vanish on one of the themes, so it takes the text color.
 const fill = computed(() => {
   const hex = logo.value?.hex ?? '000000'
 

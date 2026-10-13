@@ -57,33 +57,33 @@ import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge
 const { t } = useI18n()
 
 const tabs: PageTab[] = [
-  { value: 'blocks', label: t('dashboard.catalogue.tabs.blocks') },
-  { value: 'states', label: t('dashboard.catalogue.tabs.states') },
-  { value: 'layouts', label: t('dashboard.catalogue.tabs.layouts') },
+  { value: 'blocks', label: t('dashboard.catalog.tabs.blocks') },
+  { value: 'states', label: t('dashboard.catalog.tabs.states') },
+  { value: 'layouts', label: t('dashboard.catalog.tabs.layouts') },
 ]
 const view = usePageView(tabs.map((tab: PageTab) => tab.value))
 
 const kvItems: KeyValueItem[] = [
-  { label: t('dashboard.catalogue.kv.region'), value: t('dashboard.catalogue.kv.regionValue') },
+  { label: t('dashboard.catalog.kv.region'), value: t('dashboard.catalog.kv.regionValue') },
   {
-    label: t('dashboard.catalogue.kv.uptime'),
+    label: t('dashboard.catalog.kv.uptime'),
     value: null,
-    reason: t('dashboard.catalogue.kv.uptimeReason'),
+    reason: t('dashboard.catalog.kv.uptimeReason'),
   },
 ]
 
 const stateOptions: FilterOption[] = ['all', 'on', 'off'].map((key: string) => ({
   value: key,
-  label: t(`dashboard.catalogue.filter.${key}`),
+  label: t(`dashboard.catalog.filter.${key}`),
 }))
 const sinceOptions: FilterOption[] = ['day', 'week', 'month', 'quarter', 'year'].map(
   (key: string) => ({
     value: key,
-    label: t(`dashboard.catalogue.filter.${key}`),
+    label: t(`dashboard.catalog.filter.${key}`),
   }),
 )
 
-// Demo data only: these numbers are invented for the catalogue and never shown anywhere else.
+// Demo data only: these numbers are invented for the catalog and never shown anywhere else.
 const lineDemo: ChartRow[] = [1200, 1500, 1450, 2100, 2600, 2500, 3100, 3400].map(
   (lines: number, day: number) => ({
     day: new Date(2026, 0, day + 1),
@@ -98,17 +98,17 @@ const monthDemo: ChartRow[] = [
   { month: 'Jan', returning: 35, fresh: 12 },
 ]
 const lineSeries: ChartSeries[] = [
-  { key: 'lines', labelKey: 'dashboard.catalogue.chart.line.title', color: 'chart-1' },
+  { key: 'lines', labelKey: 'dashboard.catalog.chart.line.title', color: 'chart-1' },
 ]
 const monthSeries: ChartSeries[] = [
-  { key: 'returning', labelKey: 'dashboard.catalogue.chart.series.returning', color: 'chart-1' },
-  { key: 'fresh', labelKey: 'dashboard.catalogue.chart.series.fresh', color: 'chart-3' },
+  { key: 'returning', labelKey: 'dashboard.catalog.chart.series.returning', color: 'chart-1' },
+  { key: 'fresh', labelKey: 'dashboard.catalog.chart.series.fresh', color: 'chart-3' },
 ]
 
 const ttsOn = ref(true)
 const modsOn = ref(false)
-const stateFilter: RemovableRef<string> = useLocalStorage('nnz.catalogue.state', 'all')
-const sinceFilter: RemovableRef<string> = useLocalStorage('nnz.catalogue.since', 'week')
+const stateFilter: RemovableRef<string> = useLocalStorage('nnz.catalog.state', 'all')
+const sinceFilter: RemovableRef<string> = useLocalStorage('nnz.catalog.since', 'week')
 const query = ref('')
 const retries = ref(0)
 const detailOpen = ref(false)
@@ -116,7 +116,7 @@ const confirmOpen = ref(false)
 const confirmPending = ref(false)
 const confirmed = ref(0)
 const consequences = ['chat', 'pipeline', 'history'].map((key: string) =>
-  t(`dashboard.catalogue.confirm.${key}`),
+  t(`dashboard.catalog.confirm.${key}`),
 )
 
 // Real members of the open channel (first page of the community list), so the profile dialog opens on real data.
@@ -170,7 +170,7 @@ function submitForm(): void {
   formServerError.value = undefined
   formNameError.value =
     formName.value.trim() === ''
-      ? t('dashboard.catalogue.form.nameMissing')
+      ? t('dashboard.catalog.form.nameMissing')
       : undefined
 
   if (formNameError.value) return
@@ -180,7 +180,7 @@ function submitForm(): void {
     formPending.value = false
 
     if (formName.value.trim() === 'so') {
-      formServerError.value = t('dashboard.catalogue.form.nameTaken')
+      formServerError.value = t('dashboard.catalog.form.nameTaken')
 
       return
     }
@@ -211,9 +211,9 @@ const demoRows: Ref<DemoRow[]> = ref(
     ({
       id,
       text:
-      t('dashboard.catalogue.virtual.row', { number: id + 1 }) +
+      t('dashboard.catalog.virtual.row', { number: id + 1 }) +
       (id % 7 === 0
-        ? ' ' + t('dashboard.catalogue.virtual.long')
+        ? ' ' + t('dashboard.catalog.virtual.long')
         : ''),
     })),
 )
@@ -223,7 +223,7 @@ function addDemoRow(): void {
 
   demoRows.value = [
     ...demoRows.value,
-    { id, text: t('dashboard.catalogue.virtual.row', { number: id + 1 }) },
+    { id, text: t('dashboard.catalog.virtual.row', { number: id + 1 }) },
   ]
 }
 
@@ -243,110 +243,110 @@ function confirmDelete(): void {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <PageHeader :title="t('dashboard.catalogue.title')" :crumb="t('dashboard.catalogue.crumb')">
+    <PageHeader :title="t('dashboard.catalog.title')" :crumb="t('dashboard.catalog.crumb')">
       <template #status>
-        <StatusBadge tone="live" :label="t('dashboard.catalogue.status.live')" />
+        <StatusBadge tone="live" :label="t('dashboard.catalog.status.live')" />
       </template>
-      <template #meta>{{ t('dashboard.catalogue.meta') }}</template>
+      <template #meta>{{ t('dashboard.catalog.meta') }}</template>
       <template #actions>
-        <Button variant="outline">{{ t('dashboard.catalogue.outline') }}</Button>
-        <Button>{{ t('dashboard.catalogue.primary') }}</Button>
+        <Button variant="outline">{{ t('dashboard.catalog.outline') }}</Button>
+        <Button>{{ t('dashboard.catalog.primary') }}</Button>
       </template>
       <template #tabs><PageTabs :tabs="tabs" /></template>
     </PageHeader>
 
     <div class="min-h-0 flex-1 overflow-y-auto">
       <div class="grid gap-4 px-6 pt-4 pb-6">
-        <p class="text-sm text-muted-foreground">{{ t('dashboard.catalogue.view', { view }) }}</p>
+        <p class="text-sm text-muted-foreground">{{ t('dashboard.catalog.view', { view }) }}</p>
 
         <template v-if="view === 'blocks'">
           <StatStrip>
             <StatTile
-              :label="t('dashboard.catalogue.stats.messages')"
+              :label="t('dashboard.catalog.stats.messages')"
               :value="54431"
-              :context="t('dashboard.catalogue.stats.messagesContext')"
+              :context="t('dashboard.catalog.stats.messagesContext')"
             />
             <StatTile
-              :label="t('dashboard.catalogue.stats.channels')"
+              :label="t('dashboard.catalog.stats.channels')"
               :value="26"
-              :context="t('dashboard.catalogue.stats.channelsContext')"
+              :context="t('dashboard.catalog.stats.channelsContext')"
             />
             <StatTile
-              :label="t('dashboard.catalogue.stats.hidden')"
+              :label="t('dashboard.catalog.stats.hidden')"
               :value="8019"
-              :context="t('dashboard.catalogue.stats.hiddenContext')"
+              :context="t('dashboard.catalog.stats.hiddenContext')"
               warn
             />
           </StatStrip>
 
           <div class="flex flex-wrap gap-4">
-            <StatusBadge tone="ok" :label="t('dashboard.catalogue.status.ok')" />
-            <StatusBadge tone="bad" :label="t('dashboard.catalogue.status.bad')" />
-            <StatusBadge tone="live" :label="t('dashboard.catalogue.status.live')" />
-            <StatusBadge tone="off" :label="t('dashboard.catalogue.status.off')" />
+            <StatusBadge tone="ok" :label="t('dashboard.catalog.status.ok')" />
+            <StatusBadge tone="bad" :label="t('dashboard.catalog.status.bad')" />
+            <StatusBadge tone="live" :label="t('dashboard.catalog.status.live')" />
+            <StatusBadge tone="off" :label="t('dashboard.catalog.status.off')" />
           </div>
 
           <FilterBar
             v-model="stateFilter"
-            :label="t('dashboard.catalogue.filter.state')"
+            :label="t('dashboard.catalog.filter.state')"
             :options="stateOptions"
           >
-            <SearchField v-model="query" :placeholder="t('dashboard.catalogue.search')" />
+            <SearchField v-model="query" :placeholder="t('dashboard.catalog.search')" />
           </FilterBar>
           <FilterBar
             v-model="sinceFilter"
-            :label="t('dashboard.catalogue.filter.since')"
+            :label="t('dashboard.catalog.filter.since')"
             :options="sinceOptions"
           />
 
-          <PanelCard :title="t('dashboard.catalogue.panel.ready')" pad>
+          <PanelCard :title="t('dashboard.catalog.panel.ready')" pad>
             <KeyValueList :items="kvItems" />
           </PanelCard>
 
           <div class="flex items-center gap-4">
             <Button variant="outline" @click="confirmOpen = true">{{
-              t('dashboard.catalogue.confirm.open')
+              t('dashboard.catalog.confirm.open')
             }}</Button>
             <span class="text-sm text-muted-foreground">
-              {{ t('dashboard.catalogue.confirm.count', { count: confirmed }) }}
+              {{ t('dashboard.catalog.confirm.count', { count: confirmed }) }}
             </span>
           </div>
           <ConfirmDialog
             v-model:open="confirmOpen"
-            :title="t('dashboard.catalogue.confirm.title')"
-            :description="t('dashboard.catalogue.confirm.description')"
+            :title="t('dashboard.catalog.confirm.title')"
+            :description="t('dashboard.catalog.confirm.description')"
             :consequences="consequences"
-            :action="t('dashboard.catalogue.confirm.action')"
+            :action="t('dashboard.catalog.confirm.action')"
             :pending="confirmPending"
             @confirm="confirmDelete"
           />
 
           <div class="flex items-center gap-4">
             <Button variant="outline" @click="formOpen = true">{{
-              t('dashboard.catalogue.form.open')
+              t('dashboard.catalog.form.open')
             }}</Button>
             <span class="text-sm text-muted-foreground">
-              {{ t('dashboard.catalogue.form.count', { count: formCreated.length }) }}
+              {{ t('dashboard.catalog.form.count', { count: formCreated.length }) }}
             </span>
           </div>
           <FormDialog
             v-model:open="formOpen"
-            :title="t('dashboard.catalogue.form.title')"
-            :description="t('dashboard.catalogue.form.description')"
-            :action="t('dashboard.catalogue.form.action')"
+            :title="t('dashboard.catalog.form.title')"
+            :description="t('dashboard.catalog.form.description')"
+            :action="t('dashboard.catalog.form.action')"
             :pending="formPending"
             :error="formServerError"
             @submit="submitForm"
           >
             <Field :data-invalid="formNameError ? true : undefined">
-              <FieldLabel for="catalogue-command-name">{{
-                t('dashboard.catalogue.form.name')
+              <FieldLabel for="catalog-command-name">{{
+                t('dashboard.catalog.form.name')
               }}</FieldLabel>
               <Input
-                id="catalogue-command-name"
+                id="catalog-command-name"
                 v-model="formName"
                 :aria-invalid="formNameError ? true : undefined"
-                :placeholder="t('dashboard.catalogue.form.namePlaceholder')"
+                :placeholder="t('dashboard.catalog.form.namePlaceholder')"
               />
               <FieldError v-if="formNameError">{{ formNameError }}</FieldError>
             </Field>
@@ -354,13 +354,13 @@ function confirmDelete(): void {
 
           <div class="flex items-center gap-4">
             <Button variant="outline" @click="openEditor">{{
-              t('dashboard.catalogue.codeEditor.open')
+              t('dashboard.catalog.codeEditor.open')
             }}</Button>
             <span v-if="scripts.error.value" role="alert" class="text-sm text-destructive">
               {{ scripts.error.value.message }}
             </span>
             <span v-else-if="editorMissing" class="text-sm text-muted-foreground">
-              {{ t('dashboard.catalogue.codeEditor.none') }}
+              {{ t('dashboard.catalog.codeEditor.none') }}
             </span>
           </div>
           <CodeEditor
@@ -374,107 +374,107 @@ function confirmDelete(): void {
             @close="editorSession = null"
           />
 
-          <PanelCard :title="t('dashboard.catalogue.flow.title')" pad>
+          <PanelCard :title="t('dashboard.catalog.flow.title')" pad>
             <div class="flex flex-col items-start gap-3">
               <InlineFlow
                 kind="confirm"
                 harm
-                :label="t('dashboard.catalogue.flow.confirm.label')"
-                :ask="t('dashboard.catalogue.flow.confirm.ask')"
-                :yes="t('dashboard.catalogue.flow.confirm.yes')"
-                :result="t('dashboard.catalogue.flow.confirm.result')"
+                :label="t('dashboard.catalog.flow.confirm.label')"
+                :ask="t('dashboard.catalog.flow.confirm.ask')"
+                :yes="t('dashboard.catalog.flow.confirm.yes')"
+                :result="t('dashboard.catalog.flow.confirm.result')"
                 :action="pause"
                 :revert="pause"
               >
-                <Button variant="outline">{{ t('dashboard.catalogue.flow.confirm.open') }}</Button>
+                <Button variant="outline">{{ t('dashboard.catalog.flow.confirm.open') }}</Button>
               </InlineFlow>
               <InlineFlow
                 kind="apply"
-                :label="t('dashboard.catalogue.flow.apply.label')"
-                :result="t('dashboard.catalogue.flow.apply.result')"
+                :label="t('dashboard.catalog.flow.apply.label')"
+                :result="t('dashboard.catalog.flow.apply.result')"
                 :action="pause"
                 :revert="pause"
               >
-                <Button variant="outline">{{ t('dashboard.catalogue.flow.apply.open') }}</Button>
+                <Button variant="outline">{{ t('dashboard.catalog.flow.apply.open') }}</Button>
               </InlineFlow>
               <InlineFlow
                 kind="run"
-                :label="t('dashboard.catalogue.flow.run.label')"
-                :text="t('dashboard.catalogue.flow.run.text')"
-                :result="t('dashboard.catalogue.flow.run.result')"
+                :label="t('dashboard.catalog.flow.run.label')"
+                :text="t('dashboard.catalog.flow.run.text')"
+                :result="t('dashboard.catalog.flow.run.result')"
                 :action="pause"
               >
-                <Button variant="outline">{{ t('dashboard.catalogue.flow.run.open') }}</Button>
+                <Button variant="outline">{{ t('dashboard.catalog.flow.run.open') }}</Button>
               </InlineFlow>
               <InlineFlow
                 kind="note"
-                :label="t('dashboard.catalogue.flow.note.label')"
-                :text="t('dashboard.catalogue.flow.note.text')"
+                :label="t('dashboard.catalog.flow.note.label')"
+                :text="t('dashboard.catalog.flow.note.text')"
               >
-                <Button variant="outline">{{ t('dashboard.catalogue.flow.note.open') }}</Button>
+                <Button variant="outline">{{ t('dashboard.catalog.flow.note.open') }}</Button>
               </InlineFlow>
             </div>
           </PanelCard>
 
-          <PanelCard :title="t('dashboard.catalogue.countdown.title')" pad>
+          <PanelCard :title="t('dashboard.catalog.countdown.title')" pad>
             <div class="flex items-center gap-4">
               <b class="text-2xl font-semibold">
                 <Countdown
                   :target="countdownTarget"
-                  :label="t('dashboard.catalogue.countdown.label')"
+                  :label="t('dashboard.catalog.countdown.label')"
                   @zero="countdownZeros += 1"
                 />
               </b>
               <Button variant="outline" @click="restartCountdown">
-                {{ t('dashboard.catalogue.countdown.restart') }}
+                {{ t('dashboard.catalog.countdown.restart') }}
               </Button>
               <span class="text-sm text-muted-foreground">
-                {{ t('dashboard.catalogue.countdown.count', { count: countdownZeros }) }}
+                {{ t('dashboard.catalog.countdown.count', { count: countdownZeros }) }}
               </span>
             </div>
           </PanelCard>
 
           <ChartPanel
             kind="line"
-            :title="t('dashboard.catalogue.chart.line.title')"
-            :takeaway="t('dashboard.catalogue.chart.line.takeaway')"
+            :title="t('dashboard.catalog.chart.line.title')"
+            :takeaway="t('dashboard.catalog.chart.line.takeaway')"
             :data="lineDemo"
             x="day"
             :series="lineSeries"
           />
           <ChartPanel
             kind="area"
-            :title="t('dashboard.catalogue.chart.area.title')"
-            :takeaway="t('dashboard.catalogue.chart.area.takeaway')"
+            :title="t('dashboard.catalog.chart.area.title')"
+            :takeaway="t('dashboard.catalog.chart.area.takeaway')"
             :data="lineDemo"
             x="day"
             :series="lineSeries"
           />
           <ChartPanel
             kind="bar"
-            :title="t('dashboard.catalogue.chart.bar.title')"
-            :takeaway="t('dashboard.catalogue.chart.bar.takeaway')"
+            :title="t('dashboard.catalog.chart.bar.title')"
+            :takeaway="t('dashboard.catalog.chart.bar.takeaway')"
             :data="monthDemo"
             x="month"
             :series="monthSeries"
           />
           <ChartPanel
             kind="groupedBar"
-            :title="t('dashboard.catalogue.chart.groupedBar.title')"
-            :takeaway="t('dashboard.catalogue.chart.groupedBar.takeaway')"
+            :title="t('dashboard.catalog.chart.groupedBar.title')"
+            :takeaway="t('dashboard.catalog.chart.groupedBar.takeaway')"
             :data="monthDemo"
             x="month"
             :series="monthSeries"
           />
 
-          <PanelCard :title="t('dashboard.catalogue.template.title')" pad>
+          <PanelCard :title="t('dashboard.catalog.template.title')" pad>
             <div class="grid gap-4 md:grid-cols-[1fr_20rem]">
               <TemplateField
                 ref="templateField"
                 v-model="templateText"
                 context="command"
-                :label="t('dashboard.catalogue.template.label')"
-                :placeholder="t('dashboard.catalogue.template.placeholder')"
+                :label="t('dashboard.catalog.template.label')"
+                :placeholder="t('dashboard.catalog.template.placeholder')"
               />
               <div class="flex h-72 flex-col">
                 <HelperPanel :target="templateField" context="command" />
@@ -483,7 +483,7 @@ function confirmDelete(): void {
           </PanelCard>
 
           <PanelCard
-            :title="t('dashboard.catalogue.profile.title')"
+            :title="t('dashboard.catalog.profile.title')"
             :state="
               community.isError.value
                 ? 'error'
@@ -493,12 +493,12 @@ function confirmDelete(): void {
                     ? 'ready'
                     : 'empty'
             "
-            :empty-text="t('dashboard.catalogue.profile.empty')"
+            :empty-text="t('dashboard.catalog.profile.empty')"
             pad
             @retry="community.refetch()"
           >
             <p class="mb-3 text-sm text-muted-foreground">
-              {{ t('dashboard.catalogue.profile.hint') }}
+              {{ t('dashboard.catalog.profile.hint') }}
             </p>
             <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
               <li v-for="person in people" :key="person.id">
@@ -507,14 +507,14 @@ function confirmDelete(): void {
             </ul>
           </PanelCard>
 
-          <PanelCard :title="t('dashboard.catalogue.virtual.title')" pad>
+          <PanelCard :title="t('dashboard.catalog.virtual.title')" pad>
             <div class="flex flex-col gap-3">
               <div class="flex items-center gap-4">
                 <Button variant="outline" @click="addDemoRow">{{
-                  t('dashboard.catalogue.virtual.add')
+                  t('dashboard.catalog.virtual.add')
                 }}</Button>
                 <span class="text-sm text-muted-foreground">
-                  {{ t('dashboard.catalogue.virtual.count', { count: demoRows.length }) }}
+                  {{ t('dashboard.catalog.virtual.count', { count: demoRows.length }) }}
                 </span>
               </div>
               <div class="flex h-72 flex-col">
@@ -523,7 +523,7 @@ function confirmDelete(): void {
                   :items="demoRows"
                   :item-key="(row: DemoRow) => row.id"
                   :estimate-size="36"
-                  :label="t('dashboard.catalogue.virtual.title')"
+                  :label="t('dashboard.catalog.virtual.title')"
                 >
                   <template #default="{ item }">
                     <p class="px-3 py-2 text-sm">{{ item.text }}</p>
@@ -533,78 +533,78 @@ function confirmDelete(): void {
             </div>
           </PanelCard>
 
-          <PanelCard :title="t('dashboard.catalogue.panel.ready')">
+          <PanelCard :title="t('dashboard.catalog.panel.ready')">
             <RowGroup>
               <SettingRow
                 v-model="ttsOn"
-                :title="t('dashboard.catalogue.settings.tts')"
-                :description="t('dashboard.catalogue.settings.ttsHelp')"
+                :title="t('dashboard.catalog.settings.tts')"
+                :description="t('dashboard.catalog.settings.ttsHelp')"
               />
               <SettingRow
                 v-model="modsOn"
-                :title="t('dashboard.catalogue.settings.mods')"
-                :description="t('dashboard.catalogue.settings.modsHelp')"
+                :title="t('dashboard.catalog.settings.mods')"
+                :description="t('dashboard.catalog.settings.modsHelp')"
               />
             </RowGroup>
           </PanelCard>
         </template>
 
         <div v-else-if="view === 'states'" class="grid h-72 grid-cols-2 gap-4 xl:grid-cols-3">
-          <PanelCard :title="t('dashboard.catalogue.panel.ready')" tier="lead">
+          <PanelCard :title="t('dashboard.catalog.panel.ready')" tier="lead">
             <RowGroup>
               <SummaryRow
-                :title="t('dashboard.catalogue.panel.readyRow')"
-                :detail="t('dashboard.catalogue.panel.readyDetail')"
+                :title="t('dashboard.catalog.panel.readyRow')"
+                :detail="t('dashboard.catalog.panel.readyDetail')"
               />
             </RowGroup>
           </PanelCard>
-          <PanelCard :title="t('dashboard.catalogue.panel.loading')" state="loading" />
+          <PanelCard :title="t('dashboard.catalog.panel.loading')" state="loading" />
           <PanelCard
-            :title="t('dashboard.catalogue.panel.empty')"
+            :title="t('dashboard.catalog.panel.empty')"
             state="empty"
-            :empty-text="t('dashboard.catalogue.panel.emptyText')"
+            :empty-text="t('dashboard.catalog.panel.emptyText')"
           />
           <PanelCard
-            :title="t('dashboard.catalogue.panel.error')"
+            :title="t('dashboard.catalog.panel.error')"
             state="error"
-            :description="t('dashboard.catalogue.panel.retried', { count: retries })"
+            :description="t('dashboard.catalog.panel.retried', { count: retries })"
             @retry="retries += 1"
           />
-          <PanelCard :title="t('dashboard.catalogue.panel.quiet')" tier="quiet" />
+          <PanelCard :title="t('dashboard.catalog.panel.quiet')" tier="quiet" />
         </div>
 
         <template v-else>
           <div class="flex h-80 flex-col">
             <BoardGrid>
               <BoardCell :span="7" :rows="2">
-                <PanelCard :title="t('dashboard.catalogue.layout.board')" tier="lead" />
+                <PanelCard :title="t('dashboard.catalog.layout.board')" tier="lead" />
               </BoardCell>
               <BoardCell :span="5">
-                <PanelCard :title="t('dashboard.catalogue.layout.cell')" />
+                <PanelCard :title="t('dashboard.catalog.layout.cell')" />
               </BoardCell>
               <BoardCell :span="5">
-                <PanelCard :title="t('dashboard.catalogue.layout.cell')" tier="quiet" />
+                <PanelCard :title="t('dashboard.catalog.layout.cell')" tier="quiet" />
               </BoardCell>
             </BoardGrid>
           </div>
           <div class="flex h-80 flex-col">
             <ListDetail :show-detail="detailOpen">
               <template #list>
-                <PanelCard :title="t('dashboard.catalogue.layout.list')">
+                <PanelCard :title="t('dashboard.catalog.layout.list')">
                   <RowGroup>
                     <SummaryRow
                       pick
-                      :title="t('dashboard.catalogue.panel.readyRow')"
+                      :title="t('dashboard.catalog.panel.readyRow')"
                       @click="detailOpen = !detailOpen"
                     />
                   </RowGroup>
                 </PanelCard>
               </template>
               <template #detail>
-                <PanelCard :title="t('dashboard.catalogue.layout.detail')" tier="lead" />
+                <PanelCard :title="t('dashboard.catalog.layout.detail')" tier="lead" />
               </template>
               <template #aside>
-                <PanelCard :title="t('dashboard.catalogue.layout.aside')" tier="quiet" />
+                <PanelCard :title="t('dashboard.catalog.layout.aside')" tier="quiet" />
               </template>
             </ListDetail>
           </div>

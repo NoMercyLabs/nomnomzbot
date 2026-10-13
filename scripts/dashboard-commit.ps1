@@ -29,7 +29,8 @@ $ErrorActionPreference = 'Continue'
 # 'powershell -File' from bash passes the list as one comma-joined string.
 $Paths = @($Paths | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 foreach ($path in $Paths) {
-    if (-not (Test-Path "$(git rev-parse --show-toplevel)/$path") -and -not (git ls-files -- $path)) { throw "Unknown path: $path" }
+    # A staged rename drops the old path from the index; HEAD still tracks it, so it is a deletion to commit.
+    if (-not (Test-Path "$(git rev-parse --show-toplevel)/$path") -and -not (git ls-files -- $path) -and -not (git ls-tree --name-only HEAD -- $path)) { throw "Unknown path: $path" }
 }
 $repo = (git rev-parse --show-toplevel).Trim()
 $wt = "$repo/.claude/worktrees/dashboard-gate"
@@ -79,6 +80,11 @@ try {
         if ($LASTEXITCODE -ne 0) { $failed = 'ESLINT' }
     }
     if (-not $failed) {
+        # American English only (Stoney 2026-10-13); cspell.config.yaml lists the British words.
+        npx cspell lint --no-progress --report flagged
+        if ($LASTEXITCODE -ne 0) { $failed = 'SPELLING' }
+    }
+    if (-not $failed) {
         '== tests =='
         npx vitest run --testTimeout 30000 2>&1 | Select-Object -Last 12
         if ($LASTEXITCODE -ne 0) { $failed = 'TESTS' }
@@ -90,7 +96,11 @@ if ($failed) { "$failed FAILED"; exit 1 }
 if ($DryRun) { 'GATE OK (dry run, nothing committed)'; exit 0 }
 
 '== commit =='
-git -C $repo add -- $Paths
+# One unknown pathspec makes `git add` add nothing; a deleted path is staged through `git rm --cached` instead.
+$present = @($Paths | Where-Object { Test-Path "$repo/$_" })
+$gone = @($Paths | Where-Object { -not (Test-Path "$repo/$_") -and (git -C $repo ls-files -- $_) })
+if ($present) { git -C $repo add -- $present }
+if ($gone) { git -C $repo rm --cached --quiet -- $gone }
 git -C $repo @id commit --only -F $MessageFile -- $Paths
 if ($LASTEXITCODE -ne 0) { 'COMMIT FAILED'; exit 1 }
 git -C $repo log -1 --format='%h %s'

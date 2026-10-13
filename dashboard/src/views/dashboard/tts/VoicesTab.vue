@@ -50,12 +50,12 @@ const config = useTtsConfig(channelId)
 const search = ref('')
 const family: RemovableRef<string> = useLocalStorage('nnz.tts.voiceFamily', ALL)
 const asked = refDebounced(search, SEARCH_DELAY)
-const catalogue = useTtsVoices(channelId, () =>
+const catalog = useTtsVoices(channelId, () =>
   ({ q: asked.value }))
 const pick = useSetTtsVoice(channelId)
 
 const loaded: ComputedRef<TtsVoice[]> = computed<TtsVoice[]>(() =>
-  (catalogue.data.value?.pages ?? []).flatMap((page: TtsVoicePage) => page.voices),
+  (catalog.data.value?.pages ?? []).flatMap((page: TtsVoicePage) => page.voices),
 )
 
 // The language chips filter the loaded pages; the server has no language-family filter.
@@ -84,7 +84,7 @@ const chips = computed<Chip[]>(() =>
 const settled = ref(false)
 
 watch(
-  () => catalogue.data.value,
+  () => catalog.data.value,
   (data: unknown) => {
     if (data !== undefined) {
       settled.value = true
@@ -93,7 +93,7 @@ watch(
   { immediate: true },
 )
 const panelState = computed<PanelState>(() =>
-  catalogue.isError.value
+  catalog.isError.value
     ? 'error'
     : settled.value
       ? 'ready'
@@ -109,24 +109,21 @@ const current = computed<TtsVoice | undefined>(() =>
 
 // Only a total the bot returned is shown; the loaded pages never stand in for it.
 const subtitle: ComputedRef<string | undefined> = computed<string | undefined>(() => {
-  const total = catalogue.data.value?.pages[0]?.total
+  const total = catalog.data.value?.pages[0]?.total
 
   return total === null || total === undefined
     ? undefined
     : t('dashboard.tts.voices.subtitle', { total })
 })
 
-// While the server has more pages, the loaded voices are not the whole catalogue, so the count says "the first".
+// While the server has more pages, the loaded voices are not the whole catalog, so the count says "the first".
 const count: ComputedRef<string> = computed<string>(() =>
-  t(
-    catalogue.hasNextPage.value
-      ? 'dashboard.tts.voices.countFirst'
-      : 'dashboard.tts.voices.count',
-    {
-      shown: visible.value.length,
-      loaded: loaded.value.length,
-    },
-  ),
+  t(catalog.hasNextPage.value
+    ? 'dashboard.tts.voices.countFirst'
+    : 'dashboard.tts.voices.count', {
+    shown: visible.value.length,
+    loaded: loaded.value.length,
+  }),
 )
 
 function genderLabel(gender: string): string {
@@ -179,7 +176,7 @@ function choose(voice: TtsVoice): void {
         pad
         :state="panelState"
         :error-text="$t('dashboard.tts.voices.error')"
-        @retry="catalogue.refetch()"
+        @retry="catalog.refetch()"
       >
         <div class="flex h-full min-h-0 flex-col gap-3">
           <div
@@ -241,7 +238,7 @@ function choose(voice: TtsVoice): void {
           </div>
 
           <div
-            v-if="catalogue.isPending.value"
+            v-if="catalog.isPending.value"
             class="grid flex-none gap-2"
             :aria-label="$t('dashboard.tts.voices.loading')"
             aria-busy="true"
@@ -297,12 +294,12 @@ function choose(voice: TtsVoice): void {
         <template #footer>
           <span data-voice-count class="text-sm text-muted-foreground">{{ count }}</span>
           <Button
-            v-if="catalogue.hasNextPage.value"
+            v-if="catalog.hasNextPage.value"
             data-voice-more
             variant="outline"
             size="sm"
-            :disabled="catalogue.isFetchingNextPage.value"
-            @click="catalogue.fetchNextPage()"
+            :disabled="catalog.isFetchingNextPage.value"
+            @click="catalog.fetchNextPage()"
           >
             {{ $t('dashboard.tts.voices.more') }}
           </Button>

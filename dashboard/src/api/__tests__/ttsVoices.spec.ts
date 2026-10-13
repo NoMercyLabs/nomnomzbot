@@ -108,7 +108,7 @@ describe('voiceFamily', () => {
 
 describe('useTtsVoices', () => {
   // The server caps a page at 200 and sends no total, only whether more pages exist.
-  it('searches the catalogue with the typed words and reads the first page of 200', async () => {
+  it('searches the catalog with the typed words and reads the first page of 200', async () => {
     http.GET.mockResolvedValue({
       data: { data: [voice('nl-NL-ColetteNeural', 'nl-NL')], hasMore: false, nextPage: null },
       response: { ok: true, status: 200 },

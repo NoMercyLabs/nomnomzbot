@@ -116,7 +116,7 @@ describe('the status badge', () => {
     expect(wrapper.classes().some((name: string) => name.startsWith('bg-'))).toBe(false)
   })
 
-  it('paints harm red and a quiet state grey', () => {
+  it('paints harm red and a quiet state gray', () => {
     const bad: VueWrapper = mount(StatusBadge, { props: { tone: 'bad', label: 'Failed' } })
     const off: VueWrapper = mount(StatusBadge, { props: { tone: 'off', label: 'Off' } })
 
@@ -141,7 +141,7 @@ describe('the stat tile', () => {
     expect(mountTile({ label: 'Uptime', value: '2:14:09' }).find('b').text()).toBe('2:14:09')
   })
 
-  it('colours the value only when it is a warning', () => {
+  it('colors the value only when it is a warning', () => {
     const calm: VueWrapper = mountTile({ label: 'A', value: 1 })
     const warn: VueWrapper = mountTile({ label: 'A', value: 1, warn: true })
 

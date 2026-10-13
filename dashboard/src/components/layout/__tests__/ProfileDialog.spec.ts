@@ -317,7 +317,7 @@ describe('the profile dialog', () => {
     expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
   })
 
-  it('does not ban when the confirm is cancelled', async () => {
+  it('does not ban when the confirm is canceled', async () => {
     await openPage()
     await openUser('u1')
 

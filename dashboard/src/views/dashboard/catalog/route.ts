@@ -13,12 +13,12 @@ import type { RouteRecordRaw } from 'vue-router'
 import { loadPage } from '@/i18n'
 
 // Development builds only (the router adds it behind import.meta.env.DEV).
-export const dashboardCatalogueRoute = {
-  path: 'catalogue',
-  name: 'dashboard-catalogue',
+export const dashboardCatalogRoute = {
+  path: 'catalog',
+  name: 'dashboard-catalog',
   component: () =>
     loadPage(
-      () => import('./CatalogueView.vue'),
+      () => import('./CatalogView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw

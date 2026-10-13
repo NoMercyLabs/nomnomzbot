@@ -1,7 +1,7 @@
 {
   "dashboard": {
-    "catalogue": {
-      "title": "Catalogue",
+    "catalog": {
+      "title": "Catalog",
       "crumb": "Development",
       "meta": "Every building block in its states",
       "tabs": {

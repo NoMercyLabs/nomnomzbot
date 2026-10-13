@@ -30,9 +30,11 @@ const { now, resume } = useNow({
 })
 
 const targetMs = computed<number>(() => new Date(props.target).getTime())
-const remaining = computed<number>(() =>
-  Math.max(0, Math.ceil((targetMs.value - now.value.getTime()) / 1000)),
-)
+const remaining = computed<number>(() => {
+  const msLeft = targetMs.value - now.value.getTime()
+
+  return Math.max(0, Math.ceil(msLeft / 1000))
+})
 const minutesLeft = computed<number>(() => Math.ceil(remaining.value / 60))
 const spoken: ComputedRef<string> = computed<string>(() =>
   remaining.value === 0

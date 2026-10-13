@@ -20,20 +20,20 @@ function fillOf(platform: string): string | undefined {
   return wrapper.find('svg').attributes('fill')
 }
 
-// Stoney 2026-10-13 (translated from Dutch): "please use the platform colours".
+// Stoney 2026-10-13 (translated from Dutch): "please use the platform colors".
 describe('the platform logo', () => {
-  it('paints each platform in its own brand colour', () => {
+  it('paints each platform in its own brand color', () => {
     expect(fillOf('twitch')).toBe(`#${siTwitch.hex}`)
     expect(fillOf('kick')).toBe(`#${siKick.hex}`)
     expect(fillOf('youtube')).toBe(`#${siYoutube.hex}`)
   })
 
-  it('draws a black-and-white brand in the text colour, so it shows on dark and light', () => {
+  it('draws a black-and-white brand in the text color, so it shows on dark and light', () => {
     expect(fillOf('x')).toBe('currentColor')
     expect(fillOf('twitter')).toBe('currentColor')
   })
 
-  it('takes the text colour on a filled button', () => {
+  it('takes the text color on a filled button', () => {
     const wrapper: VueWrapper = mount(PlatformLogo, { props: { platform: 'twitch', mono: true } })
 
     expect(wrapper.find('svg').attributes('fill')).toBe('currentColor')

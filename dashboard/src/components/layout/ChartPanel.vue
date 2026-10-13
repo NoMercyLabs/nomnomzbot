@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // A chart inside a PanelCard (spec: Chart, Unovis). One plain-text takeaway sits above every chart.
 // kind: line and area use time on the x axis when the x values are dates; bar stacks its series, groupedBar puts them side by side.
-// Series use the chart tokens (--chart-1 to --chart-5), never a colour of their own.
+// Series use the chart tokens (--chart-1 to --chart-5), never a color of their own.
 // The drawing is aria-hidden. A visually hidden table carries the same numbers for screen readers.
 import { GroupedBar, StackedBar } from '@unovis/ts'
 import {

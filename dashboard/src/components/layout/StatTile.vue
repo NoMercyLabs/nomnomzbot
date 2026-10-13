@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // One stat: label on top, the value, then one line of context. No icons.
-// The value takes colour only when it is a warning (warn). A number is grouped in the reader's language.
+// The value takes color only when it is a warning (warn). A number is grouped in the reader's language.
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 

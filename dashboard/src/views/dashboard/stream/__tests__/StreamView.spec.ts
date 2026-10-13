@@ -451,7 +451,7 @@ describe('before you go live', () => {
     expect(text()).toContain('Chat is open to everyone')
   })
 
-  // A reward the streamer switched off is a choice, not a fault: it is named with a grey dot, never red (mockup 10-stream.html:157-158).
+  // A reward the streamer switched off is a choice, not a fault: it is named with a gray dot, never red (mockup 10-stream.html:157-158).
   it('names each reward that is off, with the on count, and never marks it as an error', async () => {
     await open()
 

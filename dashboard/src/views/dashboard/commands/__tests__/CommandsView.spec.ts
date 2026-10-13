@@ -121,7 +121,9 @@ function write(method: string, path: string, options?: Options): Answer {
   }
 
   if (method === 'POST') {
-    rows.push(command(String(options?.body?.name), options?.body))
+    const name = String(options?.body?.name)
+
+    rows.push(command(name, options?.body))
   }
 
   return { response: { status: 200, ok: true } }

@@ -20,7 +20,7 @@ import { useReadability } from './composables/useReadability'
 import { applyAccent, defaultAccent } from './lib/accent'
 import router from './router'
 
-// The approved pink stands in until the channel colour is known.
+// The approved pink stands in until the channel color is known.
 applyAccent(defaultAccent)
 // The reading options of this device apply on every page, before the first one shows.
 effectScope(true).run(useReadability)

@@ -314,6 +314,31 @@
    "covers": []
   },
   {
+   "id": "dashboard-american-english",
+   "paths": [
+    "**/dashboard/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "American English in every dashboard name, comment, test title and string: color, gray, canceled, labeled, catalog, serialize, behavior. `cspell.config.yaml` lists the British words as flagWords; `npm run lint:spelling` and the commit gate fail on one. A new British word that slips through goes into flagWords.",
+   "source": "Stoney 2026-10-13: \"why are we STILL speaking brittish english?\"; memory feedback-american-english.md",
+   "covers": []
+  },
+  {
+   "id": "dashboard-max-call-nesting",
+   "paths": [
+    "**/dashboard/src/**",
+    "**/dashboard/eslint-rules/**"
+   ],
+   "brief": [
+    "dashboard"
+   ],
+   "text": "Calls nest at most 2 deep in one expression (`app/max-call-nesting`). Give each inner step a named const or a small named function instead, so a line reads as one step. `expect(...)` does not count, and a callback or object property starts the count over.",
+   "source": "Stoney 2026-10-13: \"lets also reduce the complexity for things like this, its a challenge to parse what this does\"; memory feedback-max-call-nesting.md",
+   "covers": []
+  },
+  {
    "id": "license-header-required",
    "paths": [
     "**/server/**/*.cs",

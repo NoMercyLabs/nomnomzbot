@@ -21,6 +21,7 @@ import pluginStylistic from '@stylistic/eslint-plugin'
 
 import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body'
 import { bodyShape } from './eslint-rules/body-shape'
+import { maxCallNesting } from './eslint-rules/max-call-nesting'
 import { noRedundantTypeAnnotation } from './eslint-rules/no-redundant-type-annotation'
 import { trailingArrowArgument } from './eslint-rules/trailing-arrow-argument'
 
@@ -28,6 +29,7 @@ const pluginApp = {
   rules: {
     'arrow-ternary-body': arrowTernaryBody,
     'body-shape': bodyShape,
+    'max-call-nesting': maxCallNesting,
     'no-redundant-type-annotation': noRedundantTypeAnnotation,
     'trailing-arrow-argument': trailingArrowArgument,
   },
@@ -193,6 +195,7 @@ export default defineConfigWithVueTs(
       'app/arrow-ternary-body': 'error',
       'app/body-shape': 'error',
       'app/trailing-arrow-argument': 'error',
+      'app/max-call-nesting': 'error',
     },
   },
 )

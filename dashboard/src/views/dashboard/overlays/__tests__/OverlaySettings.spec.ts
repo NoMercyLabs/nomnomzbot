@@ -56,7 +56,7 @@ const fields = (): Field[] => [
   },
   {
     key: 'accent',
-    label: text('Accent colour'),
+    label: text('Accent color'),
     type: 'color',
     group: text('Appearance'),
     default: '#ff0000',
@@ -91,7 +91,7 @@ const fields = (): Field[] => [
       { value: 'artist', label: text('Artist') },
     ],
   },
-  { key: 'colors', label: text('Colours'), type: 'json', group: text('Data'), default: {} },
+  { key: 'colors', label: text('Colors'), type: 'json', group: text('Data'), default: {} },
 ]
 
 const widget = (

@@ -18,7 +18,7 @@ import { i18n } from '@/i18n'
 
 import FilterBar from '@/components/layout/FilterBar.vue'
 
-import CatalogueView from '../CatalogueView.vue'
+import CatalogView from '../CatalogView.vue'
 import en from '../i18n/en.json'
 
 vi.mock('@/api/community', () =>
@@ -64,10 +64,10 @@ async function open(): Promise<void> {
 
   router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/app/catalogue', name: 'dashboard-catalogue', component: blank }],
+    routes: [{ path: '/app/catalog', name: 'dashboard-catalog', component: blank }],
   })
-  await router.push('/app/catalogue?view=blocks')
-  mounted = mount(CatalogueView, {
+  await router.push('/app/catalog?view=blocks')
+  mounted = mount(CatalogView, {
     attachTo: document.body,
     global: {
       plugins: [i18n, pinia, router],
@@ -90,11 +90,11 @@ const bar = (label: string): VueWrapper =>
     .findAllComponents(FilterBar)
     .find((found) => found.props('label') === label) as VueWrapper
 
-describe('CatalogueView', () => {
+describe('CatalogView', () => {
   it('keeps the state and since choices after the page is opened again', async () => {
     await open()
-    bar(en.dashboard.catalogue.filter.state).vm.$emit('update:modelValue', 'on')
-    bar(en.dashboard.catalogue.filter.since).vm.$emit('update:modelValue', 'month')
+    bar(en.dashboard.catalog.filter.state).vm.$emit('update:modelValue', 'on')
+    bar(en.dashboard.catalog.filter.since).vm.$emit('update:modelValue', 'month')
     await flushPromises()
     mounted!.unmount()
     mounted = null
@@ -105,7 +105,7 @@ describe('CatalogueView', () => {
     const chosen = (label: string): unknown =>
       (bar(label).props() as { modelValue: unknown }).modelValue
 
-    expect(chosen(en.dashboard.catalogue.filter.state)).toBe('on')
-    expect(chosen(en.dashboard.catalogue.filter.since)).toBe('month')
+    expect(chosen(en.dashboard.catalog.filter.state)).toBe('on')
+    expect(chosen(en.dashboard.catalog.filter.since)).toBe('month')
   })
 })

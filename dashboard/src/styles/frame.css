@@ -196,7 +196,7 @@ a:not([data-slot]):hover {
   text-decoration-color: var(--foreground);
 }
 
-/* Status is a dot beside plain text, never a tinted pill (owner 2026-10-13: too many colours). */
+/* Status is a dot beside plain text, never a tinted pill (owner 2026-10-13: too many colors). */
 .dot {
   display: inline-block;
   width: 8px;

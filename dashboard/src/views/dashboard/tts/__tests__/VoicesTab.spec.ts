@@ -69,7 +69,7 @@ const config = {
   followsPlatformDefaultVoice: false,
 }
 
-const catalogue: Record<string, unknown>[] = [
+const catalog: Record<string, unknown>[] = [
   voice('en-US-AriaNeural', 'en-US'),
   voice('nl-NL-ColetteNeural', 'nl-NL'),
   voice('nl-BE-ArnaudNeural', 'nl-BE', 'male'),
@@ -115,7 +115,7 @@ beforeEach(() => {
   played.length = 0
   answers = {
     'GET /tts/config': () => ok(config),
-    'GET /tts/voices': () => ok(catalogue, { hasMore: false, nextPage: null }),
+    'GET /tts/voices': () => ok(catalog, { hasMore: false, nextPage: null }),
   }
   pinia = createPinia()
   setActivePinia(pinia)
@@ -222,7 +222,7 @@ const headings = (): string[] =>
 const writes = (method: string): Call[] => calls.filter((call) => call.method === method)
 
 describe('VoicesTab', () => {
-  it('lists the catalogue, marks the channel voice and counts the voices', async () => {
+  it('lists the catalog, marks the channel voice and counts the voices', async () => {
     await open()
 
     expect(ids()).toEqual([
@@ -236,7 +236,7 @@ describe('VoicesTab', () => {
     expect(count()).toBe('4 of 4 voices')
   })
 
-  it('keeps only the voices of the chosen language and counts them against the whole catalogue', async () => {
+  it('keeps only the voices of the chosen language and counts them against the whole catalog', async () => {
     await open()
 
     chip('nl').click()
@@ -249,9 +249,9 @@ describe('VoicesTab', () => {
     expect(ids()).toEqual(['ja-JP-NanamiNeural'])
   })
 
-  it('sends the typed words to the catalogue and shows what comes back', async () => {
+  it('sends the typed words to the catalog and shows what comes back', async () => {
     await open()
-    answers['GET /tts/voices'] = () => ok([catalogue[1]], { hasMore: false, nextPage: null })
+    answers['GET /tts/voices'] = () => ok([catalog[1]], { hasMore: false, nextPage: null })
 
     const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
 
@@ -269,9 +269,9 @@ describe('VoicesTab', () => {
     expect(count()).toBe('1 of 1 voices')
   })
 
-  // The live catalogue holds thousands of voices; the count never claims the loaded pages are all of them.
+  // The live catalog holds thousands of voices; the count never claims the loaded pages are all of them.
   it('says more voices exist while the server has more pages, and loads the next page on request', async () => {
-    answers['GET /tts/voices'] = () => ok(catalogue, { hasMore: true, nextPage: 2 })
+    answers['GET /tts/voices'] = () => ok(catalog, { hasMore: true, nextPage: 2 })
     await open()
 
     expect(count()).toBe('4 of the first 4 voices')
@@ -414,17 +414,17 @@ describe('VoicesTab', () => {
     expect(chip('nl').getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('shows the catalogue total only when the bot returns it', async () => {
+  it('shows the catalog total only when the bot returns it', async () => {
     await open()
     expect(document.body.textContent).not.toContain('322')
     mounted!.unmount()
 
-    answers['GET /tts/voices'] = () => ok(catalogue, { hasMore: true, nextPage: 2, total: 322 })
+    answers['GET /tts/voices'] = () => ok(catalog, { hasMore: true, nextPage: 2, total: 322 })
     await open()
     expect(document.body.textContent).toContain('322 voices')
   })
 
-  it('puts a labelled play button on the channel voice card that samples the channel voice', async () => {
+  it('puts a labeled play button on the channel voice card that samples the channel voice', async () => {
     answers['POST /tts/test'] = () =>
       ok({ voiceId: 'en-US-AriaNeural', provider: 'edge', durationMs: 900, audioBase64: 'QUJD' })
     await open()
@@ -446,7 +446,7 @@ describe('VoicesTab', () => {
     expect(played).toEqual(['data:audio/mpeg;base64,QUJD'])
   })
 
-  it('shows the error state with a retry when the catalogue cannot be read', async () => {
+  it('shows the error state with a retry when the catalog cannot be read', async () => {
     answers['GET /tts/voices'] = () => ({
       error: { status: 'error' },
       response: { status: 500, ok: false },

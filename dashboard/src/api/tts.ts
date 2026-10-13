@@ -141,7 +141,7 @@ async function readVoicePage(channelId: string, q: string, page: number): Promis
   }
 }
 
-// The catalogue can hold thousands of voices; pages are appended while the bot says there are more.
+// The catalog can hold thousands of voices; pages are appended while the bot says there are more.
 export function useTtsVoices(
   channelId: MaybeRefOrGetter<string | null>,
   filters: MaybeRefOrGetter<TtsVoiceFilters>,

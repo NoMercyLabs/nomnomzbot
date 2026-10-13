@@ -143,11 +143,10 @@ describe('folder layout', () => {
     const tokens: string = readFileSync(join(src, 'styles', 'tokens.css'), 'utf8')
     const dark = /:root\s*\{[^}]*--background:\s*([^;]+);/.exec(tokens)?.[1] ?? 'missing'
     const head: string = shell.slice(0, shell.indexOf('</head>'))
+    const darkPattern = dark.replace(/[()]/g, '\\$&')
 
     expect(head).toMatch(/<meta name="color-scheme" content="dark"\s*\/?>/)
-    expect(head).toMatch(
-      new RegExp(`<style>[^<]*html\\s*\\{[^}]*background:\\s*${dark.replace(/[()]/g, '\\$&')}`),
-    )
+    expect(head).toMatch(new RegExp(`<style>[^<]*html\\s*\\{[^}]*background:\\s*${darkPattern}`))
   })
 
   // Stoney 2026-10-13: "don't border an already bordered icon within a button". A tray of icon buttons is
@@ -183,9 +182,11 @@ describe('folder layout', () => {
     const own = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
       .filter((path) => path.endsWith('.vue') && !path.startsWith('components/ui/'))
-    const hosts: string[] = own.filter((path) =>
-      /<(Toaster|TooltipProvider)\b/.test(readFileSync(join(src, path), 'utf8')),
-    )
+    const hosts: string[] = own.filter((path) => {
+      const text: string = readFileSync(join(src, path), 'utf8')
+
+      return /<(Toaster|TooltipProvider)\b/.test(text)
+    })
 
     expect(hosts).toEqual(['layouts/DashboardLayout.vue'])
   })
@@ -240,9 +241,8 @@ describe('folder layout', () => {
       .filter((path) => /^views\/[^/]+\/[^/]+\/i18n\/[^/]+\.json$/.test(path))
       .flatMap((path) => {
         const [, area, slug] = path.split('/')
-        const words: Record<string, Record<string, unknown>> = JSON.parse(
-          readFileSync(join(src, path), 'utf8'),
-        )
+        const text: string = readFileSync(join(src, path), 'utf8')
+        const words: Record<string, Record<string, unknown>> = JSON.parse(text)
         const keys = Object.entries(words).flatMap(([top, pages]) =>
           Object.keys(pages).map((page) => `${top}.${page}`),
         )

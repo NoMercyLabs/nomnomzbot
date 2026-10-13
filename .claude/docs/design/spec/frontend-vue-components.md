@@ -96,7 +96,7 @@ state used by `PageTabs`), `useUndo`.
 | `/app/admin/channels` | `dashboard/admin` | table | `6-table.html` | none |
 | `/setup` | `site/setup` | focus | `7-focus.html` | none; steps |
 | `/me` | `viewer/home` | board | `8-viewer.html` | none |
-| `/app/catalogue` | `dashboard/catalogue` | none | `9-components.html` | development builds only |
+| `/app/catalog` | `dashboard/catalog` | none | `9-components.html` | development builds only |
 
 Route names are `dashboard-<slug>` from the view folder (`dashboard-home`, `dashboard-chat`,
 `dashboard-admin-channels`); the sidebar shows an entry only when its route name exists. Each page is one slice: its view, its `api/<slug>.ts` queries and mutations from the generated client, its
@@ -106,6 +106,6 @@ is not built as a fake: it shows the designed empty or "not recorded" state with
 ## 5. Order
 
 1. Primitives through the CLI, then remove the Google Fonts import the CLI adds (guard: `structure.spec.ts`).
-2. The building blocks of section 3, each with a behaviour test, shown together on `/app/catalogue`.
+2. The building blocks of section 3, each with a behavior test, shown together on `/app/catalog`.
 3. `DashboardLayout` with the sidebar from the page list, the channel switch, sign-in guard and the role landing.
 4. The pages, stream-facing first: home, chat, stream, tts, music, people, commands, then the rest.

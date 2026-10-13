@@ -1,0 +1,108 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# Owner 2026-10-13: "why are we STILL speaking brittish english?" The dashboard is American English
+# in code, comments and copy. `npm run lint:spelling` runs `--report flagged`: only the words below
+# fail, each with its American spelling, so jargon and names never trip it.
+version: '0.2'
+language: en-US
+files:
+  - 'src/**/*.{ts,vue,json,css}'
+  - 'e2e/**/*.ts'
+  - 'eslint-rules/**/*.ts'
+  - '*.{ts,html}'
+ignorePaths:
+  - 'src/components/ui/**'
+  # Generated from the server's OpenAPI document; its words come from the server.
+  - 'src/api/schema.d.ts'
+flagWords:
+  - analyse->analyze
+  - analysed->analyzed
+  - analyses->analyzes
+  - analysing->analyzing
+  - apologise->apologize
+  - artefact->artifact
+  - artefacts->artifacts
+  - authorise->authorize
+  - authorised->authorized
+  - authorises->authorizes
+  - authorising->authorizing
+  - authorisation->authorization
+  - behaviour->behavior
+  - behaviours->behaviors
+  - cancelled->canceled
+  - cancelling->canceling
+  - catalogue->catalog
+  - catalogues->catalogs
+  - categorise->categorize
+  - categorised->categorized
+  - centre->center
+  - centred->centered
+  - centres->centers
+  - cheque->check
+  - colour->color
+  - coloured->colored
+  - colourful->colorful
+  - colouring->coloring
+  - colours->colors
+  - customise->customize
+  - customised->customized
+  - customising->customizing
+  - defence->defense
+  - dialogue->dialog
+  - emphasise->emphasize
+  - favour->favor
+  - favourite->favorite
+  - favourites->favorites
+  - finalise->finalize
+  - finalised->finalized
+  - grey->gray
+  - greyed->grayed
+  - honour->honor
+  - honours->honors
+  - initialise->initialize
+  - initialised->initialized
+  - initialising->initializing
+  - initialisation->initialization
+  - labelled->labeled
+  - labelling->labeling
+  - licence->license
+  - maximise->maximize
+  - minimise->minimize
+  - modelled->modeled
+  - modelling->modeling
+  - neighbour->neighbor
+  - normalise->normalize
+  - normalised->normalized
+  - normalising->normalizing
+  - offence->offense
+  - optimise->optimize
+  - optimised->optimized
+  - organise->organize
+  - organised->organized
+  - organisation->organization
+  - prioritise->prioritize
+  - prioritised->prioritized
+  - recognise->recognize
+  - recognised->recognized
+  - recognises->recognizes
+  - serialise->serialize
+  - serialised->serialized
+  - signalled->signaled
+  - summarise->summarize
+  - synchronise->synchronize
+  - travelled->traveled
+  - unrecognised->unrecognized
+  - visualise->visualize
+  - whilst->while
+# `aria-labelledby` is the HTML attribute's own name.
+ignoreRegExpList:
+  - 'aria-labelledby'
+  - 'ariaLabelledby'

@@ -11,7 +11,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 import { dashboardAdminChannelsRoute } from '@/views/dashboard/admin/route'
-import { dashboardCatalogueRoute } from '@/views/dashboard/catalogue/route'
+import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route'
 import { dashboardChatRoute } from '@/views/dashboard/chat/route'
 import { dashboardCommandsRoute } from '@/views/dashboard/commands/route'
 import { dashboardHomeRoute } from '@/views/dashboard/home/route'
@@ -40,7 +40,7 @@ export const dashboardRoutes: RouteRecordRaw = {
         dashboardStreamRoute,
         dashboardSettingsRoute,
         dashboardAdminChannelsRoute,
-        dashboardCatalogueRoute,
+        dashboardCatalogRoute,
       ]
     : [
         dashboardHomeRoute,
