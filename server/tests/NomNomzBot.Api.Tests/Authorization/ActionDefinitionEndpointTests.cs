@@ -60,6 +60,7 @@ public sealed class ActionDefinitionEndpointTests : IAsyncLifetime
                 services.AddSingleton(Substitute.For<IShoutoutQueue>());
                 services.AddSingleton(Substitute.For<ITwitchModerationApi>());
                 services.AddSingleton(Substitute.For<ITemplateHelperValidator>());
+                services.AddSingleton(Substitute.For<IShoutoutSuggestionService>());
             }
         );
         await _host.SeedAsync(async db =>
