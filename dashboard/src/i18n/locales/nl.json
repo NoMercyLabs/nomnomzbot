@@ -7,6 +7,13 @@
     "confirm": {
       "whatHappens": "Wat er gebeurt"
     },
+    "flow": {
+      "yes": "Ja",
+      "done": "Klaar",
+      "undo": "Ongedaan maken",
+      "working": "Bezig",
+      "failed": "Dat is niet gelukt."
+    },
     "panel": {
       "empty": "Hier is nog niets.",
       "error": "Dit paneel kon niet laden.",

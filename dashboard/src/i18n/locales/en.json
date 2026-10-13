@@ -7,6 +7,13 @@
     "confirm": {
       "whatHappens": "What happens"
     },
+    "flow": {
+      "yes": "Yes",
+      "done": "Done",
+      "undo": "Undo",
+      "working": "Working",
+      "failed": "That did not work."
+    },
     "panel": {
       "empty": "Nothing here yet.",
       "error": "This panel could not load.",

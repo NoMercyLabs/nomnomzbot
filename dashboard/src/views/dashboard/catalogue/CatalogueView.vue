@@ -16,6 +16,7 @@ import BoardCell from '@/components/layout/BoardCell.vue'
 import BoardGrid from '@/components/layout/BoardGrid.vue'
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue'
 import FilterBar,{ type FilterOption } from '@/components/layout/FilterBar.vue'
+import InlineFlow from '@/components/layout/InlineFlow.vue'
 import KeyValueList, { type KeyValueItem } from '@/components/layout/KeyValueList.vue'
 import ListDetail from '@/components/layout/ListDetail.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
@@ -67,6 +68,10 @@ const confirmed: Ref<number> = ref(0)
 const consequences: string[] = ['chat', 'pipeline', 'history'].map((key: string) =>
   t(`dashboard.catalogue.confirm.${key}`),
 )
+
+function pause(): Promise<void> {
+  return new Promise((resolve: () => void) => setTimeout(resolve, 900))
+}
 
 function confirmDelete(): void {
   confirmPending.value = true
@@ -147,6 +152,48 @@ function confirmDelete(): void {
             :pending="confirmPending"
             @confirm="confirmDelete"
           />
+
+          <PanelCard :title="t('dashboard.catalogue.flow.title')" pad>
+            <div class="flex flex-col items-start gap-3">
+              <InlineFlow
+                kind="confirm"
+                harm
+                :label="t('dashboard.catalogue.flow.confirm.label')"
+                :ask="t('dashboard.catalogue.flow.confirm.ask')"
+                :yes="t('dashboard.catalogue.flow.confirm.yes')"
+                :result="t('dashboard.catalogue.flow.confirm.result')"
+                :action="pause"
+                :revert="pause"
+              >
+                <Button variant="outline">{{ t('dashboard.catalogue.flow.confirm.open') }}</Button>
+              </InlineFlow>
+              <InlineFlow
+                kind="apply"
+                :label="t('dashboard.catalogue.flow.apply.label')"
+                :result="t('dashboard.catalogue.flow.apply.result')"
+                :action="pause"
+                :revert="pause"
+              >
+                <Button variant="outline">{{ t('dashboard.catalogue.flow.apply.open') }}</Button>
+              </InlineFlow>
+              <InlineFlow
+                kind="run"
+                :label="t('dashboard.catalogue.flow.run.label')"
+                :text="t('dashboard.catalogue.flow.run.text')"
+                :result="t('dashboard.catalogue.flow.run.result')"
+                :action="pause"
+              >
+                <Button variant="outline">{{ t('dashboard.catalogue.flow.run.open') }}</Button>
+              </InlineFlow>
+              <InlineFlow
+                kind="note"
+                :label="t('dashboard.catalogue.flow.note.label')"
+                :text="t('dashboard.catalogue.flow.note.text')"
+              >
+                <Button variant="outline">{{ t('dashboard.catalogue.flow.note.open') }}</Button>
+              </InlineFlow>
+            </div>
+          </PanelCard>
 
           <PanelCard :title="t('dashboard.catalogue.panel.ready')">
             <RowGroup>

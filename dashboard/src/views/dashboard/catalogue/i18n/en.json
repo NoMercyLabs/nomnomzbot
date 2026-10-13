@@ -60,6 +60,32 @@
         "pipeline": "Its pipeline stays in Pipelines and keeps working elsewhere.",
         "history": "Past uses stay in the history."
       },
+      "flow": {
+        "title": "Inline flow",
+        "confirm": {
+          "open": "Clear queue",
+          "label": "Clear the song queue",
+          "ask": "Clear 12 songs?",
+          "yes": "Clear",
+          "result": "Queue cleared."
+        },
+        "apply": {
+          "open": "Skip song",
+          "label": "Skip the current song",
+          "result": "Song skipped."
+        },
+        "run": {
+          "open": "Test sound",
+          "label": "Play the test sound",
+          "text": "Playing the sound",
+          "result": "Sound played."
+        },
+        "note": {
+          "open": "Open Spotify",
+          "label": "Spotify page",
+          "text": "The Spotify page comes later."
+        }
+      },
       "panel": {
         "ready": "Ready",
         "readyRow": "A row of content",
